@@ -145,7 +145,7 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           gh release create "$GITHUB_REF_NAME" ./*.tar.gz checksums.txt manifest-*.json \
             --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease --title "mike $version" \
-            --notes "mike $version, an alpha. Install: \`brew tap temet-ai/mike && brew install mike mike-mcp\`, or mise with \`github:temet-ai/mike\`. Linux x86_64 archives need glibc 2.35 or newer; macOS archives are Apple Silicon and unsigned."
+            --notes "mike $version, an alpha. Install: \`brew install temet-ai/mike/mike temet-ai/mike/mike-mcp\`, or see the install guide (docs/user-guide/install.md) for mise and archives. Linux x86_64 archives need glibc 2.35 or newer; macOS archives are Apple Silicon and unsigned."
       # The tap's formulas, rendered from this release's checksums. Needs
       # HOMEBREW_TAP_TOKEN, a token that can write to temet-ai/homebrew-mike;
       # without it the step warns and the manual step in docs/RELEASING.md applies.
