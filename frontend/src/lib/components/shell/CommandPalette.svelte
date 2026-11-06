@@ -727,7 +727,7 @@
 									class="cmdk-row"
 									class:cmdk-row--selected={isSelected}
 									class:cmdk-row--disabled={entry.disabled}
-									onmouseenter={() => {
+									onmousemove={() => {
 										selectedIndex = flatIdx;
 									}}
 									onclick={() => {
