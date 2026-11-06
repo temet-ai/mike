@@ -44,7 +44,7 @@ fn build_file_writer(
     crate::config::write::ensure_private_directory(dir)?;
     let appender = tracing_appender::rolling::Builder::new()
         .rotation(tracing_appender::rolling::Rotation::DAILY)
-        .filename_prefix("claude-proxy")
+        .filename_prefix("mike")
         .filename_suffix("log")
         .max_log_files(config.log_max_files)
         .build(dir)
@@ -148,12 +148,12 @@ fn init_otel_layer(
         .with_batch_exporter(exporter)
         .with_resource(
             opentelemetry_sdk::Resource::builder()
-                .with_service_name("claude-proxy")
+                .with_service_name("mike")
                 .build(),
         )
         .build();
 
-    let tracer = provider.tracer("claude-proxy");
+    let tracer = provider.tracer("mike");
     let layer = tracing_opentelemetry::layer().with_tracer(tracer);
 
     Ok((layer, provider))

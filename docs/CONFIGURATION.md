@@ -458,7 +458,7 @@ underscore: `MIKE_LAUNCH_BACKEND`, not `MIKE_LAUNCH__BACKEND`. Each has a matchi
 |---|---|---|---|
 | `launch_backend` | `MIKE_LAUNCH_BACKEND` | `none` | The terminal backend `mike spawn` opens surfaces in. Accepted values: `herdr`, `herdr-core`, `tmux`, `terminal` (Hyprland only), `ghostty` and `none`; check `mike spawn doctor` for which ones work on this machine. `none` means "not chosen yet" and every launch verb refuses until you pick one. |
 | `launch_backend_follow_caller` | `MIKE_LAUNCH_BACKEND_FOLLOW_CALLER` | `true` | Open a launch in the terminal the caller runs in (herdr, tmux) before falling back to `launch_backend`. `false` always uses `launch_backend`. |
-| `launch_use_sidecar` | `MIKE_LAUNCH_USE_SIDECAR` | `false` | When on, `mike claude` routes the session through the sidecar as `HTTPS_PROXY`; off, it points the session straight at this proxy. |
+| `launch_use_sidecar` | `MIKE_LAUNCH_USE_SIDECAR` | `false` | When on, `mike claude` routes the session through the sidecar as `HTTPS_PROXY`; off, it points the session straight at this proxy. A route chosen with `mike claude-code route` wins over this setting. |
 | `launch_proxy_forward_url` | `MIKE_LAUNCH_PROXY_FORWARD_URL` | `http://127.0.0.1:9987` | The sidecar a launched session gets as `HTTPS_PROXY`. |
 | `launch_no_proxy` | `MIKE_LAUNCH_NO_PROXY` | `localhost,127.0.0.1` | `NO_PROXY` for a launched session. |
 | `launch_ca_cert` | `MIKE_LAUNCH_CA_CERT` | unset | The sidecar CA for `NODE_EXTRA_CA_CERTS`. Unset resolves at use to the first existing of `~/.local/share/proxy-forward/ca-cert.pem` and `<cwd>/.deploy/proxy-forward-ca.pem`. |

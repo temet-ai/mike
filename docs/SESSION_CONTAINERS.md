@@ -64,7 +64,7 @@ API rather than a full mirror. Absence of an edge is not a gap.
 ```bash
 scripts/session-up.sh profiles                 # list profiles + their edges
 scripts/session-up.sh reconcile                # re-stamp iface baselines after an
-                                               # intentional regenerate; commit .edge/*.hash
+                                               # intentional regenerate
 scripts/session-up.sh backend                  # boot a profile (fail-closed preflight)
 scripts/session-up.sh frontend --max-data-age 6
 scripts/session-up.sh db --no-clone            # skip the data clone (iface-only check)
@@ -83,8 +83,8 @@ fail-closed at every step, mirroring the `start-proxy.sh` DB probe and the
 
 A producer change **without** a matching `reconcile` is exactly the drift this
 catches — boot fails until you regenerate the artifact (`scripts/sqlx-prepare`, the
-TS type generator) and re-stamp with `scripts/session-up.sh reconcile`. Commit
-`scripts/.edge/*.hash` so every session shares one baseline.
+TS type generator) and re-stamp with `scripts/session-up.sh reconcile`. Baselines
+are per checkout: the first boot in a checkout stamps them.
 
 ## Relationship to the existing stack
 

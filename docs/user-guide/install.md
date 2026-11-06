@@ -4,7 +4,7 @@ mike comes as two programs that you install together from the same release: `mik
 
 ## Before you install
 
-- **No release is published yet.** The Homebrew tap, the mise release and the download archives below are the route the first alpha will use. Until it appears on the [releases page](https://github.com/temet-ai/mike/releases), they cannot be installed.
+- **Current release.** `0.1.0-alpha.3` is a pre-release, on the [releases page](https://github.com/temet-ai/mike/releases). Homebrew formulas are not in the tap yet, so use mise or an archive for now.
 - **Platforms.** Linux on x86_64 with glibc 2.35 (Ubuntu 22.04) or newer, and Apple Silicon Macs. There is no Linux ARM, Intel Mac or Windows build. macOS archives are not signed, which is why Homebrew and mise are the supported routes there.
 - **Claude Code** must be installed and signed in before you capture anything. `claude --version` shows whether it is installed.
 - **A database** is chosen later, in [setup](setup.md). Docker is needed only if you want mike to run a PostgreSQL for you.
@@ -21,10 +21,18 @@ Homebrew installs both programs on your path and puts the Claude Code mods mike 
 ## Install with mise
 
 ```sh
-mise use -g github:temet-ai/mike@<version>
+mise use -g github:temet-ai/mike@0.1.0-alpha.3
 ```
 
-Replace `<version>` with one from the [releases page](https://github.com/temet-ai/mike/releases). Upgrade with `mise upgrade github:temet-ai/mike`.
+This installs `mike` only. Get `mike-mcp` from its own archive on the same release, into a folder on your `PATH`. Use `aarch64-apple-darwin` as the target on a Mac:
+
+```sh
+target=x86_64-unknown-linux-gnu
+curl -fsSL "https://github.com/temet-ai/mike/releases/download/v0.1.0-alpha.3/mike-mcp-v0.1.0-alpha.3-$target.tar.gz" \
+  | tar -xz -C ~/.local/bin mike-mcp
+```
+
+Other versions are on the [releases page](https://github.com/temet-ai/mike/releases). Upgrade with `mise upgrade github:temet-ai/mike`.
 
 ## Install from an archive
 
@@ -59,7 +67,7 @@ Installing puts the two programs, and the mods, on your machine. It does not sta
 
 | What you see | What to do |
 |---|---|
-| `brew tap temet-ai/mike` cannot find the tap | The tap appears with the first release. Check the [releases page](https://github.com/temet-ai/mike/releases). |
+| `brew tap temet-ai/mike` cannot find the tap | The formulas are not published yet. Use mise or an archive. |
 | `mike: command not found` after installing | Add the install folder (`~/.local/bin` for an archive install) to `PATH`, and open a new terminal. |
 | The installer says it needs Python | Install Python 3.11 or newer. mike itself needs no Python. |
 | The installer refuses a downgrade or a changed same-version release | Keep your backup and see [Backup and recovery](backup-and-recovery.md). |

@@ -19,8 +19,7 @@ point is `python3 scripts/release/publication.py` for archives and
 `.github/workflows/release-alpha.yml`, which builds on the public repository's runners,
 creates the pre-release and updates the tap by itself
 ([`RELEASING.md`](RELEASING.md#the-tag-triggered-alpha-workflow)). As of 2026-11-06 it
-has published nothing: tags `v0.1.0-alpha.1` and `v0.1.0-alpha.2` exist and there is no
-GitHub Release. The tooling below is the stricter route for a qualified release, and
+has published `0.1.0-alpha.3`. The tooling below is the stricter route for a qualified release, and
 the two do not share state. Because the public repository was created from a collapsed
 export, its commits are not the development repository's SHAs: a destination's
 `tag_commit` must be the public commit that built the candidate.

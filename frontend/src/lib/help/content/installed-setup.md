@@ -21,7 +21,7 @@ With mise:
 mise use -g github:temet-ai/mike@<version>
 ```
 
-Use the version number of the release you want, for example `0.1.0-alpha.1`. Both routes put `mike` and `mike-mcp` on your PATH. Check the install with `mike --version` and `mike-mcp --version`.
+Use the version number of the release you want, for example `0.1.0-alpha.3`. Homebrew puts `mike` and `mike-mcp` on your PATH. mise installs `mike` only, so take `mike-mcp` from its own archive on the same release and put it on your PATH. Check the install with `mike --version` and `mike-mcp --version`.
 
 Without a package manager, keep the matching archive pair from one release candidate together on your executable PATH. Retain the candidate manifest and both archive/checksum pairs. Check the supplied checksums before using explicitly trusted files; checksums establish integrity, not authenticity. The optional [maintenance kit](/help/docs/recovery-and-maintenance) can install the pair without a source checkout.
 

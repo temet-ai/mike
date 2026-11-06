@@ -56,6 +56,21 @@ fn mike_proposes_for_an_unowned_change_only_once_it_has_been_quiet_ten_minutes_a
     );
 }
 
+#[test]
+fn an_atomic_write_temp_file_is_never_an_unowned_change() {
+    let now = Utc::now();
+    let def = parsed(&complete());
+    let rows = vec![
+        changed_at("docs/guide/fleets.md.tmp.558398.d14dc3a3b2be", 30, now),
+        changed_at("scripts/seed.mjs.tmp.591962.43a3d804e391", 30, now),
+        changed_at("scripts/notes.tmp.draft", 30, now),
+    ];
+    assert_eq!(
+        quiet_unowned_changes(&def, &rows, now),
+        vec!["scripts/notes.tmp.draft"]
+    );
+}
+
 fn failed_check(output: &str) -> TreeCheckRow {
     TreeCheckRow {
         id: 4,

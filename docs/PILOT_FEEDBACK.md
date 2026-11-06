@@ -14,8 +14,7 @@ because the issue forms link to it. There is no pilot and no invited cohort: any
 who installs an alpha may report. The kit does not certify an archive, install channel,
 outside-user journey, or corrective release; [release readiness](RELEASE_READINESS.md)
 records the September audit and [`RELEASING.md`](RELEASING.md#where-things-stand-2026-11-06)
-where the release stands (tags exist, no GitHub Release yet, so there is nothing to
-install). Required **NOT RUN is not a pass**. Local checks remain useful when hosted CI
+where the release stands. Required **NOT RUN is not a pass**. Local checks remain useful when hosted CI
 is unavailable.
 
 ## Before pointing users at an alpha

@@ -107,11 +107,8 @@ edge_check_interface() {
   fi
 
   if [[ ! -f "${stored}" ]]; then
-    cat >&2 <<EOF
-  ✗ edge[iface:${name}]: no reconciled baseline (${stored#"${EDGE_REPO_ROOT}/"} missing).
-    First run: regenerate the artifact, then \`scripts/session-up.sh reconcile\`.
-EOF
-    return 1
+    edge_reconcile_interface "${name}"
+    return $?
   fi
 
   if [[ "$(cat "${stored}")" != "${current}" ]]; then

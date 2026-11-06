@@ -3,7 +3,7 @@ title: Preparing mike + mike-mcp release candidates
 status: active
 created: 2026-07-23
 updated: 2026-11-06
-summary: Where the 0.1.0-alpha.N release stands (tags exist, no GitHub Release yet), the release route (tag-triggered public repo workflow, Homebrew tap and mise, glibc 2.35 floor), archive preparation and verification; qualification and same-byte publication remain separate gates.
+summary: Where the 0.1.0-alpha.N release stands (0.1.0-alpha.3 is published), the release route (tag-triggered public repo workflow, Homebrew tap and mise, glibc 2.35 floor), archive preparation and verification; qualification and same-byte publication remain separate gates.
 ---
 
 # Preparing mike + mike-mcp release candidates
@@ -19,20 +19,19 @@ the cases a candidate is judged on.
   collapsed export of the private development repository (`scripts/export-public`),
   so it carries none of the development history. The tap `temet-ai/homebrew-mike`
   is public and holds `Formula/` and a README.
-- **Tags.** `v0.1.0-alpha.1` and `v0.1.0-alpha.2` exist on the public repository.
-  **No GitHub Release has been published**, so there is nothing to install from
-  the tap or from mise yet.
+- **Current release.** `0.1.0-alpha.3` is published as a pre-release, with archives for
+  Linux x86_64 and Apple Silicon. The `Release alpha` run on its tag passed `validate`,
+  both builds and `publish`.
+- **The tap.** `HOMEBREW_TAP_TOKEN` is not set, so the workflow's tap step warned and
+  skipped. Formulas are written by hand with `scripts/release/homebrew_alpha.py`.
+- **mise installs `mike` only.** The `github:` backend takes one archive per tool, so
+  `mike-mcp` comes from its own archive on the same release.
 - **alpha.1 did not build.** The export dropped files the `mike` crate embeds, so the
   public tree did not compile. The `Release alpha` run passed `validate`, failed the
   Linux build, had its macOS build cancelled and skipped `publish`.
 - **alpha.2 has no Apple Silicon archive.** Its macOS job (`macos-14`) did not run:
-  GitHub retired that image on 2 November, and the job shows as cancelled. Its Linux
-  build was still running when this was written. `publish` needs the archives of both
-  targets, so the `Release alpha` run on this tag cannot publish.
-- **What is fixed but not yet public.** The workflow in the development repository builds
-  Apple Silicon on `macos-15`; the public repository's copy still names `macos-14`.
-  The export fix that keeps the files the crate embeds is on a development branch that
-  has not landed on the development repository's main branch.
+  GitHub retired that image on 2 November, and the job shows as cancelled. `publish`
+  needs the archives of both targets, so it was skipped. alpha.3 builds on `macos-15`.
 - **Scope of the alpha.** The bar is install and run, plus every case that can lose
   data (AC01, AC02, AC03, AC07, AC08, AC22; see
   [`RELEASE_ACCEPTANCE.md`](RELEASE_ACCEPTANCE.md)). There is no pilot. AC23 and AC24
@@ -126,8 +125,8 @@ then have to be written by hand as described above.
 Linux ARM or Intel macOS archive until the script supports them. The workflow
 does not run the acceptance matrix: a published archive is an alpha, not a
 qualified release, and the tap formulas are not the qualified `homebrew.py`
-route below. The two real tag runs so far (alpha.1, alpha.2) are described under
-[Where things stand](#where-things-stand-2026-11-06); neither reached `publish`.
+route below. The three real tag runs so far are described under
+[Where things stand](#where-things-stand-2026-11-06); alpha.3 is the first to reach `publish`.
 
 Preparation uses one Cargo build job and disables incremental compilation to
 keep native local verification resource-bounded. Ambient Cargo resource overrides
@@ -380,7 +379,7 @@ recorded verdict.
 ## Where the matrix rows run
 
 The Linux mise journey installs the release archive into a fresh HOME through
-mise (served from a local file registry, since no release is published), then runs
+mise (served from a local file registry, so it needs no published release), then runs
 setup, trial capture, restart, a second mise version of the same bytes, and uninstall:
 
 ```bash

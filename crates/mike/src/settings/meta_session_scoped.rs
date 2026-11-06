@@ -258,7 +258,7 @@ fn read_dedup_entries() -> Vec<SettingMeta> {
         kind: SettingKind::Bool,
         scope: SettingScope::Session,
         applies: SettingApplies::NewSessions,
-        default: serde_json::Value::Bool(true),
+        default: serde_json::Value::Bool(false),
         label: "Rewrite duplicate reads",
         description: "Whether a duplicate-content Read/cat tool_result is replaced with the G1 stub before forwarding. When off, duplicates are still measured (shadow stats unaffected) but forwarded byte-identical.",
         min_i64: None,

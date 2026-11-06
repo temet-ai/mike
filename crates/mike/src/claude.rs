@@ -4,6 +4,7 @@ use std::path::Path;
 use anyhow::Context;
 use uuid::Uuid;
 
+use crate::claude_code::{Route, stored_route};
 use crate::config::{CliOverrides, ProxyConfig};
 use crate::launch::{ProxyEnv, TrustGate, TrustOutcome};
 
@@ -46,8 +47,17 @@ pub async fn run(args: Vec<String>, overrides: CliOverrides) -> anyhow::Result<(
     exec_claude(&invocation)
 }
 
+fn wants_sidecar(route: Option<Route>, use_sidecar: bool) -> bool {
+    match route {
+        Some(Route::Sidecar) => true,
+        Some(Route::Plain) => false,
+        None => use_sidecar,
+    }
+}
+
 async fn sidecar_env(config: &ProxyConfig, cwd: &Path) -> Option<ProxyEnv> {
-    if !config.launch.use_sidecar {
+    let route = stored_route(&config.config_path).ok().flatten();
+    if !wants_sidecar(route, config.launch.use_sidecar) {
         return None;
     }
     let url = &config.launch.proxy_forward_url;
@@ -310,6 +320,14 @@ mod tests {
             opted_out.args
         );
         assert!(opted_out.args.contains(&"hi".to_string()));
+    }
+
+    #[test]
+    fn wants_sidecar_chosen_route_wins_over_the_launch_setting() {
+        assert!(wants_sidecar(Some(Route::Sidecar), false));
+        assert!(!wants_sidecar(Some(Route::Plain), true));
+        assert!(wants_sidecar(None, true));
+        assert!(!wants_sidecar(None, false));
     }
 
     #[tokio::test]

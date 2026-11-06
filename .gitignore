@@ -1,3 +1,6 @@
+# Per-checkout interface baselines
+/scripts/.edge/
+
 # Rust build artifacts
 /target/
 /.target-private/

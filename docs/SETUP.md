@@ -72,8 +72,8 @@ capture cluster used `scripts/capture-db/upgrade-to-19.sh`).
 
 ## Launching a captured session: `mike claude` and the shell function
 
-`mike claude` starts Claude Code through mike. When `launch_use_sidecar` is on (the default is off;
-the stored `claude_route` choice does not turn it on), the forwarding sidecar answers on `:9987` and
+`mike claude` starts Claude Code through mike. When the stored `claude_route` is `sidecar` (or, with
+no route chosen, `launch_use_sidecar` is on), the forwarding sidecar answers on `:9987` and
 its certificate authority file exists, it sets `HTTPS_PROXY`, `NO_PROXY` and `NODE_EXTRA_CA_CERTS`
 so that mike captures every request and the Remote Control channel, and it adds `--remote-control`
 so that mike can restart the session later by pushing into that channel. Otherwise it sets

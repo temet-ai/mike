@@ -770,8 +770,8 @@ observation. Replaces the old `firing_rule_ids uuid[]` array column.
 
 ### `requests.request_bodies_v`
 
-Added in migration `20260610000004_capture_inspection_views.sql`, one of four capture-inspection views for
-the `proxy-q` CLI (the sibling `requests.requests_v` is not documented here — it carries no columns beyond
+Added in migration `20260610000004_capture_inspection_views.sql`, one of four capture-inspection views
+(the sibling `requests.requests_v` is not documented here — it carries no columns beyond
 `requests.requests` with its lookup FKs resolved to codes). Decodes the captured wire body to `jsonb` and
 materializes the full system-prompt text per row. Only rows with a non-NULL `request_body` appear (nothing
 to decode otherwise). Every value is full-content, never sliced, per
@@ -1105,6 +1105,10 @@ arrives. `first_request_id` is a real FK ON DELETE SET NULL (not a soft referenc
 
 ## Domain: `overrides`
 
+`system_prompt_id` is the join to captured requests, and it holds the lowest registry id for a
+prompt's sha. Migration `20261103140000_overrides_point_at_canonical_system_prompt.sql` repaired
+older rows that pointed at a later duplicate.
+
 ### `overrides.modes` (vocab)
 
 Seeded: `observe` (1), `template` (2), `replace` (3).
@@ -1284,6 +1288,12 @@ Columns added by the judgement-context migrations (definition as migrated):
 | `evidence_quality` | text NULL |
 | `judge_failure_reason` | text NULL |
 | `snapshot_at` | timestamptz NOT NULL DEFAULT now() |
+
+### `eval.holdout_split(turn_id bigint, holdout_percent bigint)`
+
+Added in migration `20261103100000_eval_holdout_split_fn.sql`. An immutable SQL function that
+answers `holdout` or `dev` for a turn from a stable hash of its id, so a turn stays on one side of
+a split between runs.
 
 ### `eval.rejudge_runs`
 
@@ -1531,8 +1541,8 @@ reaches `server_version`.
 
 ### `memory.operator_turns_v`
 
-Added in migration `20260610000004_capture_inspection_views.sql`, one of four capture-inspection views for
-the `proxy-q` CLI. `memory.operator_turns` with its outcome code resolved, session/project identity joined
+Added in migration `20260610000004_capture_inspection_views.sql`, one of four capture-inspection views.
+`memory.operator_turns` with its outcome code resolved, session/project identity joined
 in, and the start request's `human_prompt` + `turn_origin` for orientation.
 
 Columns: `id`, `session_id`, `session_uuid`, `project_id`, `project_path`, `start_request_id`,
@@ -2404,7 +2414,7 @@ allows.
 - `idx_llm_calls_created_at`: `created_at` (BRIN) — append-only time series
 - `idx_llm_calls_role_created_at`: `(role, created_at)` (BTree) — backs the per-role spend rollup behind `GET /api/llm/spend`
 
-**Read path:** `GET /api/llm/spend` (`crates/mike/src/api/handlers.rs::get_llm_spend`) serves the three aggregate rollups (`llm_spend_by_day` / `_by_model` / `_by_role`) — cost, call count, and token totals grouped by day/model/role, never per-row bodies. There is no per-call listing route; reading one call's `request_body` (or any other single-row field) is a direct SQL read against `llm.calls`, e.g. via `scripts/proxy-q sql`.
+**Read path:** `GET /api/llm/spend` (`crates/mike/src/api/handlers.rs::get_llm_spend`) serves the three aggregate rollups (`llm_spend_by_day` / `_by_model` / `_by_role`) — cost, call count, and token totals grouped by day/model/role, never per-row bodies. There is no per-call listing route; reading one call's `request_body` (or any other single-row field) is a direct SQL read against `llm.calls`, e.g. with `psql`.
 
 ### `llm.daily_spend`
 
@@ -2854,7 +2864,7 @@ Columns: `row_kind`, `intervention_id`, `session_id`, `trigger_request_id`, `eve
 fire ordinal; positive means the fire preceded the correction) and `fire_preceded`/`no_fire_preceded` for
 `correction` rows. `session_length_segment` splits `short` (<8 operator turns) vs `long` (>=8) sessions.
 
-Query via `scripts/proxy-q sql "select * from steering.eir_timing_v where row_kind = 'fire'"`.
+Query with `select * from steering.eir_timing_v where row_kind = 'fire'`.
 
 ---
 

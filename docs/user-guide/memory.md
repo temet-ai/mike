@@ -14,7 +14,7 @@ part sends to Anthropic or off your machine; [Privacy](privacy.md) has the full 
 Open <http://localhost:9990/memory> for the **Memory** page. **Skills** and **Proposals**
 sit beside it in the menu, as the pages for lessons that become files in a project.
 
-![The Memory page with the decisions list](images/memory.png)
+![The top of the Memory page, with its run status](images/memory.png)
 
 This is a fictional example: a project `~/projects/site`, a session named `docs`
 and one correction. Nothing on the picture is a real prompt.

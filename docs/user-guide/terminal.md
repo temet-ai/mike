@@ -29,7 +29,7 @@ one step. See [Setup](setup.md).
 The left menu lists four screens: **Services**, **Config**, **Setup** and **Sessions**.
 The bar at the top says whether mike is `online` or `stopped`.
 
-![The terminal app on Services](images/terminal.png)
+![The terminal app on its Sessions screen](images/terminal.png)
 
 ### Services
 

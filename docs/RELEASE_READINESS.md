@@ -10,8 +10,7 @@ summary: The September 2026 release stocktake kept as history - verified blocker
 
 > **This is the 2026-09-17 assessment, kept as the record of why the work started.**
 > Where things stand now is in [`RELEASING.md`](RELEASING.md#where-things-stand-2026-11-06):
-> the public repository exists, tags `v0.1.0-alpha.1` and `v0.1.0-alpha.2` are pushed,
-> and no GitHub Release is published. The alpha bar is the six cases in
+> the public repository exists and `0.1.0-alpha.3` is published as a pre-release. The alpha bar is the six cases in
 > [`RELEASE_ACCEPTANCE.md`](RELEASE_ACCEPTANCE.md); there is no pilot. The blocker
 > table below is a September snapshot, not a current defect list.
 
@@ -41,9 +40,8 @@ GitHub queries on 2026-09-17 found a private repository with no tags, no GitHub
 Releases, no release workflow and an unavailable tap, a release target that built
 Apple Silicon only, and four failing Rust quality runs (the latest at
 `cargo fmt --check`). That has changed: the repository, the tap, a tag-triggered
-`release-alpha.yml` and two alpha tags now exist (see
-[RELEASING.md](RELEASING.md#where-things-stand-2026-11-06)), though no release is
-published.
+`release-alpha.yml` and a published alpha now exist (see
+[RELEASING.md](RELEASING.md#where-things-stand-2026-11-06)).
 
 ## What is already usable
 

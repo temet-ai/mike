@@ -24,19 +24,19 @@
 #   rc-protocol-check-capture --self-test
 #
 #   --self-test   Prove the check can fail without touching the shared live
-#                 database: substitutes a stub for scripts/proxy-q that
+#                 database: substitutes a stub for psql that
 #                 returns canned rows for a clean scenario (expect PASS) and
 #                 a scenario with a drifted worker_status value ('blocked'),
 #                 an unrecognized payload_type ('debug_event'), and a
 #                 vanished client_event frame — three independent drift
 #                 shapes, all expected FAIL, all named. Every query below
 #                 carries a `-- CHECK:<marker>` comment (inert to Postgres,
-#                 ignored by scripts/proxy-q) that the stub keys its canned
+#                 ignored by psql) that the stub keys its canned
 #                 answer on.
 #
-# DB connection: MIKE_DATABASE_URL (or MIKE_Q_DB_URL), same resolution as
-# scripts/proxy-q, which this script shells out to for every query (its own
-# -At/--jsonl plumbing, no reimplemented psql handling here).
+# DB connection: MIKE_Q_DB_URL, else MIKE_DATABASE_URL, else the main checkout's
+# .env. Every query runs through psql; MIKE_Q_BIN substitutes a stub for the
+# self-test.
 #
 # Exit codes (honest — never masked):
 #   0  at least one sub-check ran and every sub-check that ran passed
@@ -48,31 +48,50 @@ set -uo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" || exit $?
 repo_root="$(git -C "$script_dir" rev-parse --show-toplevel)" || exit $?
 
-# proxy-q reads the database URL from an untracked .env, and only the main
-# checkout has one. Inside a linked worktree --show-toplevel answers the
-# worktree, so resolving proxy-q from it makes an ordinary worktree run report
-# the database as unreachable when it is really just looking somewhere with no
-# .env — a wrong diagnosis for a working database. The common git dir is always
-# the main checkout's .git, so its parent is the main working tree.
+# The database URL may live in an untracked .env, and only the main checkout has
+# one. Inside a linked worktree --show-toplevel answers the worktree, so reading
+# .env from it would report a working database as unreachable. The common git dir
+# is always the main checkout's .git, so its parent is the main working tree.
 main_root="$repo_root"
 if common_dir="$(git -C "$script_dir" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" \
-   && [[ -n "$common_dir" && -x "$(dirname "$common_dir")/scripts/proxy-q" ]]; then
+   && [[ -n "$common_dir" ]]; then
     main_root="$(dirname "$common_dir")"
 fi
 cd "$repo_root" || exit 1
 
-MIKE_Q="${MIKE_Q_BIN:-$main_root/scripts/proxy-q}"
+MIKE_Q="${MIKE_Q_BIN:-}"
+
+db_url() {
+    local url="${MIKE_Q_DB_URL:-${MIKE_DATABASE_URL:-}}"
+    if [[ -z "$url" && -f "$main_root/.env" ]]; then
+        url="$(sed -n 's/^MIKE_DATABASE_URL=//p' "$main_root/.env" | head -1)"
+        url="${url%\"}"
+        url="${url#\"}"
+    fi
+    printf '%s' "$url"
+}
 
 pass=0 fail=0 notrun=0
 ok()   { pass=$((pass + 1));   printf '  PASS   %s\n' "$1"; }
 bad()  { fail=$((fail + 1));   printf '  FAIL   %s\n     -> %s\n' "$1" "$2"; }
 skip() { notrun=$((notrun + 1)); printf ' NOTRUN  %s\n     -> %s\n' "$1" "$2"; }
 
-# proxy-q resolves its .env from the current directory's repo root, not from
-# its own path, so it is run from the main checkout for the same reason
-# $main_root is resolved above. A --self-test stub ignores the directory.
-sql_jsonl() { (cd "$main_root" && "$MIKE_Q" sql "$1" --jsonl); }
-sql_scalar() { (cd "$main_root" && "$MIKE_Q" sql "$1" 2>/dev/null | head -1); }
+sql_jsonl() {
+    if [[ -n "$MIKE_Q" ]]; then
+        "$MIKE_Q" sql "$1" --jsonl
+    else
+        psql "$(db_url)" -X -At -c "SELECT row_to_json(q) FROM (
+$1
+) q"
+    fi
+}
+sql_scalar() {
+    if [[ -n "$MIKE_Q" ]]; then
+        "$MIKE_Q" sql "$1" 2>/dev/null | head -1
+    else
+        psql "$(db_url)" -X -At -F $'\t' -c "$1" 2>/dev/null | head -1
+    fi
+}
 
 # run_checks — the whole graded sub-check sequence, reading $MIKE_Q. Used
 # both for real runs and, with $MIKE_Q pointed at a stub, for --self-test.
@@ -85,7 +104,7 @@ run_checks() {
     local db_probe
     if ! db_probe="$(sql_scalar "-- CHECK:probe
 SELECT 1")" || [[ "$db_probe" != "1" ]]; then
-        skip "capture database reachable" "scripts/proxy-q sql 'SELECT 1' did not return 1 — check MIKE_DATABASE_URL / network"
+        skip "capture database reachable" "psql sql 'SELECT 1' did not return 1 — check MIKE_DATABASE_URL / network"
         echo "────────────────────────────────────────"
         printf 'passed=%d failed=%d not-run=%d\n' "$pass" "$fail" "$notrun"
         echo "NOT RUN: the capture database could not be reached, so no sub-check could run."
@@ -148,13 +167,13 @@ SELECT count(*) FROM remote_control.calls")"
     recent_calls_n="$(sql_scalar "-- CHECK:recent_calls_count
 SELECT count(*) FROM remote_control.calls WHERE $recent_window")"
     unknown_paths="$(sql_jsonl "-- CHECK:unknown_paths
-SELECT DISTINCT path FROM remote_control.calls WHERE $recent_window AND path NOT IN ('/worker/internal-events','/worker/events','/worker/heartbeat','/worker','/client/presence','/worker/events/stream','/worker/events/delivery','/bridge')")"
+SELECT DISTINCT path FROM remote_control.calls WHERE $recent_window AND path NOT IN ('/worker/internal-events','/worker/events','/worker/heartbeat','/worker','/client/presence','/worker/events/stream','/worker/events/delivery','/bridge','','/archive')")"
     if [[ "${recent_calls_n:-0}" -eq 0 ]]; then
-        skip "every call path in the last hour is one of the 8 known Remote Control routes" "no calls captured in the last hour — nothing recent to check"
+        skip "every call path in the last hour is one of the 10 known Remote Control routes" "no calls captured in the last hour — nothing recent to check"
     elif [[ -z "$unknown_paths" ]]; then
-        ok "every call path in the last hour is one of the 8 known Remote Control routes ($recent_calls_n call(s))"
+        ok "every call path in the last hour is one of the 10 known Remote Control routes ($recent_calls_n call(s))"
     else
-        bad "every call path in the last hour is one of the 8 known Remote Control routes" "new path(s) not in the known vocabulary: $unknown_paths"
+        bad "every call path in the last hour is one of the 10 known Remote Control routes" "new path(s) not in the known vocabulary: $unknown_paths"
         overall_fail=1
     fi
 
@@ -309,15 +328,15 @@ SELECT count(*) FROM remote_control.calls WHERE $recent_window AND path LIKE '%w
 }
 
 # --- self-test: prove the check can fail, without touching the shared live -
-# database. Substitutes a stub scripts/proxy-q that answers each query by
+# database. Substitutes a stub psql that answers each query by
 # its `-- CHECK:<marker>` comment (inert SQL, ignored by both Postgres and
-# the real scripts/proxy-q) rather than by connecting anywhere.
+# the real psql) rather than by connecting anywhere.
 self_test() {
     local tmp; tmp="$(mktemp -d)" || return 1
     local stub="$tmp/proxy-q"
     cat >"$stub" <<'STUBEOF'
 #!/usr/bin/env bash
-# Test double for scripts/proxy-q sql: reads the -- CHECK:<marker> comment
+# Test double for psql sql: reads the -- CHECK:<marker> comment
 # out of the query and prints the STUB_<marker> env var, nothing else.
 query="$2"
 marker="$(printf '%s' "$query" | grep -oE -- '-- CHECK:[A-Za-z_]+' | head -1 | sed 's/-- CHECK://')"

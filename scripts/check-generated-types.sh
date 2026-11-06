@@ -26,7 +26,7 @@ if ! git diff --quiet -- "${GEN_DIR}"; then
   echo "  A DTO changed without regenerating. Run:" >&2
   echo "    cargo test -p mike --features ts-export export_bindings" >&2
   echo "    scripts/session-up.sh reconcile   # re-stamp the boot hash-pin" >&2
-  echo "  then commit ${GEN_DIR} (+ scripts/.edge/api-types.hash)." >&2
+  echo "  then commit ${GEN_DIR}." >&2
   git --no-pager diff --stat -- "${GEN_DIR}" >&2
   exit 1
 fi

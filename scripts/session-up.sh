@@ -73,7 +73,7 @@ reconcile_all() {
       edge_reconcile_interface "${name}"
     done
   done
-  echo "Done. Commit scripts/.edge/*.hash so every session shares the baseline."
+  echo "Done. Baselines are per checkout, in scripts/.edge/."
 }
 
 # ── Argument parsing ─────────────────────────────────────────────────────────

@@ -35,6 +35,7 @@ pub enum SpawnCommand {
                   defaults to --seat. A value passed explicitly at registration still wins over \
                   this seed. With --json exactly one JSON object is printed on stdout. \
                   Exit codes: 0 ok, 1 refused or failed (including a channel-check timeout), \
+                  2 the backend cannot do that or the result could not be confirmed, \
                   69 no backend chosen, 127 a required executable is missing."
 )]
 pub struct OpenArgs {

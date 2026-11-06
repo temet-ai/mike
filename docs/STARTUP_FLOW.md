@@ -78,7 +78,7 @@ flowchart TD
 1. **`config::load(overrides)`** — first line of `serve::run` (`serve/mod.rs`). Figment chain: defaults < the installation's `config.toml` < `MIKE_*` env < CLI flags. The runtime source of truth for toggles and settings is `/settings`. `listener_policy::validate` then refuses non-loopback binds unless `unsupported_allow_remote_listeners` is set.
 2. **Installation ownership** — `stack::DaemonOwner::acquire_unless_smoke_run`. A `smoke_run` process only observes; any other process takes ownership of the installation and gets an `instance_id` and `boot_generation`, which are written into the config.
 3. **`tracing_init::init_tracing_and_log_startup(&config)`** — `serve/tracing_init.rs`. Builds three optional pieces and installs one subscriber:
-   - **File layer** — only when `config.log_dir` is set. A daily-rotated `tracing_appender::rolling::Builder` with `filename_prefix("claude-proxy")` and `filename_suffix("log")`, so the files are `<log_dir>/claude-proxy.YYYY-MM-DD.log` — *not* `mike.<date>.log`. Retains `config.log_max_files`.
+   - **File layer** — only when `config.log_dir` is set. A daily-rotated `tracing_appender::rolling::Builder` with `filename_prefix("mike")` and `filename_suffix("log")`, so the files are `<log_dir>/mike.YYYY-MM-DD.log`. Retains `config.log_max_files`.
    - **OTel layer** — only when `config.otel_endpoint` is set.
    - **Format** — two branches by `config.log_format` (`"json"` vs pretty). The registry-level `EnvFilter` uses `RUST_LOG` when set, else `config.log_level`.
 

@@ -180,6 +180,19 @@ pub fn cause(kind: &str, path: &str) -> String {
     format!("{kind}:{path}")
 }
 
+fn atomic_write_temp(path: &str) -> bool {
+    let name = path.rsplit('/').next().unwrap_or(path);
+    let mut parts = name.rsplit('.');
+    let (Some(hash), Some(pid), Some(tmp)) = (parts.next(), parts.next(), parts.next()) else {
+        return false;
+    };
+    tmp == "tmp"
+        && !pid.is_empty()
+        && pid.bytes().all(|b| b.is_ascii_digit())
+        && !hash.is_empty()
+        && hash.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
 pub fn quiet_unowned_changes(
     def: &FleetDefinition,
     rows: &[ChangedPathRow],
@@ -195,6 +208,7 @@ pub fn quiet_unowned_changes(
     latest
         .into_iter()
         .filter(|(path, seen)| *seen <= quiet_since && unowned(def, path))
+        .filter(|(path, _)| !atomic_write_temp(path))
         .filter(|(path, _)| !known.contains(&cause(CHANGED, path)))
         .map(|(path, _)| path.to_string())
         .collect()

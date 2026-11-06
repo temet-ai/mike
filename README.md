@@ -4,7 +4,7 @@
 
 mike shows you what Claude Code actually sent and what came back. It records every request and answer of your sessions on your own machine, so you can open any turn in a browser, search your history, and turn a correction into something the next session starts with. It is for people who use Claude Code every day and want to see inside it.
 
-**Status:** alpha, for Linux x86_64 and Apple Silicon macOS. The source is here, but no release is published yet; the first one will appear on the [releases page](https://github.com/temet-ai/mike/releases).
+**Status:** alpha, for Linux x86_64 and Apple Silicon macOS. The current release is [0.1.0-alpha.3](https://github.com/temet-ai/mike/releases). Expect rough edges and changes between alphas.
 
 ![A captured session in mike: the system prompt, the prompt you typed, and each tool call with its result](docs/user-guide/images/session-timeline.png)
 
@@ -21,12 +21,10 @@ A fresh install only captures: it forwards your requests unchanged and sends not
 
 ## Try it
 
-These commands work once the first release is out; the version for the mise line will be on the releases page. To try mike before that, [build it from a checkout](docs/DEVELOPMENT.md). Linux needs glibc 2.35 or newer.
+Install with [mise](https://mise.jdx.dev). Linux needs glibc 2.35 or newer. Homebrew formulas are on their way, and [Install mike](docs/user-guide/install.md) covers archives and the `mike-mcp` companion, which mise does not install.
 
 ```bash
-brew tap temet-ai/mike && brew install mike mike-mcp
-# or
-mise use -g github:temet-ai/mike@<version>
+mise use -g github:temet-ai/mike@0.1.0-alpha.3
 
 mike setup    # where to keep history, and which features to turn on
 mike claude   # starts mike if needed, then Claude Code routed through it
