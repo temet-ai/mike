@@ -24,9 +24,7 @@
 	args={{ data: documentData() }}
 	play={async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await expect(
-			canvas.getByRole('heading', { name: 'Use the installed application' })
-		).toBeVisible();
+		await expect(canvas.getByRole('heading', { name: 'Installed setup' })).toBeVisible();
 		await expect(canvas.getByRole('navigation', { name: 'Installed documentation' })).toBeVisible();
 		await expect(canvas.getByRole('link', { name: 'Configuration and import' })).toHaveAttribute(
 			'href',
