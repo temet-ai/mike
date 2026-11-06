@@ -1,10 +1,11 @@
 # Install mike
 
-mike comes as two programs that you install together from the same release: `mike`, which captures and shows your sessions, and `mike-mcp`, which lets Claude Code query them. This page covers the three ways to get them, what each leaves on your machine and what is not published yet.
+mike comes as two programs that you install together from the same release: `mike`, which captures and shows your sessions, and `mike-mcp`, which lets Claude Code query them. This page covers the three ways to get them and what each leaves on your machine.
 
 ## Before you install
 
-- **Current release.** `0.1.0-alpha.3` is a pre-release, on the [releases page](https://github.com/temet-ai/mike/releases).- **Platforms.** Linux on x86_64 with glibc 2.35 (Ubuntu 22.04) or newer, and Apple Silicon Macs. There is no Linux ARM, Intel Mac or Windows build. macOS archives are not signed, which is why Homebrew and mise are the supported routes there.
+- **Current release.** `0.1.0-alpha.3` is a pre-release, on the [releases page](https://github.com/temet-ai/mike/releases).
+- **Platforms.** Linux on x86_64 with glibc 2.35 (Ubuntu 22.04) or newer, and Apple Silicon Macs. There is no Linux ARM, Intel Mac or Windows build. macOS archives are not signed, which is why Homebrew and mise are the supported routes there.
 - **Claude Code** must be installed and signed in before you capture anything. `claude --version` shows whether it is installed.
 - **A database** is chosen later, in [setup](setup.md). Docker is needed only if you want mike to run a PostgreSQL for you.
 
@@ -23,7 +24,7 @@ mise use -g github:temet-ai/mike@0.1.0-alpha.3 \
   'ubi:temet-ai/mike[matching=mike-mcp,exe=mike-mcp]@0.1.0-alpha.3'
 ```
 
-The two programs are separate downloads from one release, so the line names both. Keep the quotes around the second one. Other versions are on the [releases page](https://github.com/temet-ai/mike/releases). Upgrade with `mise upgrade github:temet-ai/mike`.
+The two programs are separate downloads from one release, so the line names both. Keep the quotes around the second one. Other versions are on the [releases page](https://github.com/temet-ai/mike/releases). Upgrade with `mise upgrade github:temet-ai/mike ubi:temet-ai/mike`.
 
 ## Install from an archive
 
