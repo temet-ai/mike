@@ -21,10 +21,10 @@ A fresh install only captures: it forwards your requests unchanged and sends not
 
 ## Try it
 
-Install with [mise](https://mise.jdx.dev). Linux needs glibc 2.35 or newer. Homebrew formulas are on their way, and [Install mike](docs/user-guide/install.md) covers archives and the `mike-mcp` companion, which mise does not install.
+Linux needs glibc 2.35 or newer. [Install mike](docs/user-guide/install.md) also covers mise, which installs `mike` but not the `mike-mcp` companion, and archives.
 
 ```bash
-mise use -g github:temet-ai/mike@0.1.0-alpha.3
+brew install temet-ai/mike/mike temet-ai/mike/mike-mcp
 
 mike setup    # where to keep history, and which features to turn on
 mike claude   # starts mike if needed, then Claude Code routed through it

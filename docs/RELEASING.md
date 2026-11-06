@@ -23,7 +23,8 @@ the cases a candidate is judged on.
   Linux x86_64 and Apple Silicon. The `Release alpha` run on its tag passed `validate`,
   both builds and `publish`.
 - **The tap.** `HOMEBREW_TAP_TOKEN` is not set, so the workflow's tap step warned and
-  skipped. Formulas are written by hand with `scripts/release/homebrew_alpha.py`.
+  skipped, so alpha.3's formulas were written by hand with
+  `scripts/release/homebrew_alpha.py`. A real install of both formulas passes on Linux.
 - **mise installs `mike` only.** The `github:` backend takes one archive per tool, so
   `mike-mcp` comes from its own archive on the same release.
 - **alpha.1 did not build.** The export dropped files the `mike` crate embeds, so the
@@ -58,7 +59,8 @@ mike ships by the route radar (gg) ships by:
   2 November). The private development repository runs no release workflow: its
   Actions are disabled.
 - **Channels.** Homebrew through the tap `temet-ai/homebrew-mike`
-  (`brew tap temet-ai/mike`, then `brew install mike mike-mcp`) and mise
+  (`brew install temet-ai/mike/mike temet-ai/mike/mike-mcp`; the full names matter,
+  because current Homebrew refuses a short name from an untrusted tap) and mise
   (`github:temet-ai/mike`). There is no curl installer.
 - **Linux floor.** Linux archives run on glibc 2.35 (Ubuntu 22.04) and newer.
   A binary built on this development host needs glibc 2.39 and is never a

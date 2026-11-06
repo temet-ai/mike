@@ -55,7 +55,7 @@ def tap_contract(value):
     return value
 
 
-DESCRIPTIONS = {"mike": "Local Claude API reverse proxy and capture browser",
+DESCRIPTIONS = {"mike": "See what Claude Code sent and what came back, on your own machine",
                 "mike-mcp": "MCP stdio bridge for Mike capture inspection"}
 
 

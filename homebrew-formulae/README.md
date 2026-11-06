@@ -10,6 +10,5 @@ carries these two files, updated by `scripts/release/homebrew.py` after the arch
 of a `v0.1.0-alpha.N` release are published. Users install with:
 
 ```sh
-brew tap temet-ai/mike
-brew install mike mike-mcp
+brew install temet-ai/mike/mike temet-ai/mike/mike-mcp
 ```

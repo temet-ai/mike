@@ -4,16 +4,14 @@ mike comes as two programs that you install together from the same release: `mik
 
 ## Before you install
 
-- **Current release.** `0.1.0-alpha.3` is a pre-release, on the [releases page](https://github.com/temet-ai/mike/releases). Homebrew formulas are not in the tap yet, so use mise or an archive for now.
-- **Platforms.** Linux on x86_64 with glibc 2.35 (Ubuntu 22.04) or newer, and Apple Silicon Macs. There is no Linux ARM, Intel Mac or Windows build. macOS archives are not signed, which is why Homebrew and mise are the supported routes there.
+- **Current release.** `0.1.0-alpha.3` is a pre-release, on the [releases page](https://github.com/temet-ai/mike/releases).- **Platforms.** Linux on x86_64 with glibc 2.35 (Ubuntu 22.04) or newer, and Apple Silicon Macs. There is no Linux ARM, Intel Mac or Windows build. macOS archives are not signed, which is why Homebrew and mise are the supported routes there.
 - **Claude Code** must be installed and signed in before you capture anything. `claude --version` shows whether it is installed.
 - **A database** is chosen later, in [setup](setup.md). Docker is needed only if you want mike to run a PostgreSQL for you.
 
 ## Install with Homebrew
 
 ```sh
-brew tap temet-ai/mike
-brew install mike mike-mcp
+brew install temet-ai/mike/mike temet-ai/mike/mike-mcp
 ```
 
 Homebrew installs both programs on your path and puts the Claude Code mods mike ships under the formula's share folder, where [`mike claude-code mods`](mods.md) finds them. Upgrade with `brew upgrade mike mike-mcp`, remove with `brew uninstall mike mike-mcp`.
@@ -67,7 +65,7 @@ Installing puts the two programs, and the mods, on your machine. It does not sta
 
 | What you see | What to do |
 |---|---|
-| `brew tap temet-ai/mike` cannot find the tap | The formulas are not published yet. Use mise or an archive. |
+| Homebrew refuses a formula from an "untrusted tap" | You used the short name. Install with the full names above, `temet-ai/mike/mike` and `temet-ai/mike/mike-mcp`. |
 | `mike: command not found` after installing | Add the install folder (`~/.local/bin` for an archive install) to `PATH`, and open a new terminal. |
 | The installer says it needs Python | Install Python 3.11 or newer. mike itself needs no Python. |
 | The installer refuses a downgrade or a changed same-version release | Keep your backup and see [Backup and recovery](backup-and-recovery.md). |

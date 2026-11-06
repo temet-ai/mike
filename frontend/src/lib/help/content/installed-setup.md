@@ -11,8 +11,7 @@ Install `mike` and `mike-mcp` together from the same release. Both are needed: `
 With Homebrew (Linux and Apple Silicon macOS):
 
 ```sh
-brew tap temet-ai/mike
-brew install mike mike-mcp
+brew install temet-ai/mike/mike temet-ai/mike/mike-mcp
 ```
 
 With mise:
