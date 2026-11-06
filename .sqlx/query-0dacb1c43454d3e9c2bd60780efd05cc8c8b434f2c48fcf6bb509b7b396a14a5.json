@@ -1,0 +1,69 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT backend_type AS \"backend_type!\", object AS \"object!\",\n                          context AS \"context!\", read_bytes::bigint, stats_reset\n                     FROM pg_stat_io ORDER BY backend_type, object, context",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "backend_type!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "pg_stat_io",
+            "name": "backend_type"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "object!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "pg_stat_io",
+            "name": "object"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "context!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "pg_stat_io",
+            "name": "context"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "read_bytes",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "stats_reset",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "pg_stat_io",
+            "name": "stats_reset"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      null,
+      true
+    ]
+  },
+  "hash": "0dacb1c43454d3e9c2bd60780efd05cc8c8b434f2c48fcf6bb509b7b396a14a5"
+}

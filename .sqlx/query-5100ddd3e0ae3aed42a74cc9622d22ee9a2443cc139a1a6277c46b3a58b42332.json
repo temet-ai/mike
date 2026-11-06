@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, imported_at FROM eval.import_batches WHERE source_key = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.import_batches",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "imported_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.import_batches",
+            "name": "imported_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "5100ddd3e0ae3aed42a74cc9622d22ee9a2443cc139a1a6277c46b3a58b42332"
+}

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lesson_relations(from_lesson_id, to_lesson_id, kind_id, method_id,\n    status_id, evidence_json, proposer_model, proposer_rationale, adjudicator_model,\n    adjudicator_agrees, adjudicator_rationale, detector_version, decided_by)\nSELECT $1, target.id, k.id, m.id, st.id, COALESCE(x.evidence, '{}'),\n    x.proposer_model, x.proposer_rationale, x.adjudicator_model, x.adjudicator_agrees,\n    x.adjudicator_rationale, x.detector_version, x.decided_by\nFROM jsonb_to_recordset($2) AS x(target_uuid uuid, kind text, method text, status text,\n    evidence jsonb, proposer_model text, proposer_rationale text, adjudicator_model text,\n    adjudicator_agrees boolean, adjudicator_rationale text, detector_version text, decided_by text)\nJOIN memory.lessons target ON target.uuid = x.target_uuid AND target.project_id = $3\nJOIN memory.lesson_relation_kinds k ON k.code = x.kind\nJOIN memory.lesson_relation_methods m ON m.code = x.method\nJOIN memory.lesson_relation_statuses st ON st.code = x.status\nON CONFLICT(from_lesson_id, to_lesson_id, kind_id) DO UPDATE\n    SET status_id = EXCLUDED.status_id, evidence_json = EXCLUDED.evidence_json,\n        method_id = EXCLUDED.method_id, decided_by = EXCLUDED.decided_by,\n        proposer_model = EXCLUDED.proposer_model, proposer_rationale = EXCLUDED.proposer_rationale,\n        adjudicator_model = EXCLUDED.adjudicator_model, adjudicator_agrees = EXCLUDED.adjudicator_agrees,\n        adjudicator_rationale = EXCLUDED.adjudicator_rationale, detector_version = EXCLUDED.detector_version\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Jsonb",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "05eb9f4f2e77c5f152e22c907205e8d15c5a1031c5f8867d2f602a1169996468"
+}

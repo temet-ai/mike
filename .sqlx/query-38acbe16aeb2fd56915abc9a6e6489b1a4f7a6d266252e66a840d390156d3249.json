@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*) AS \"count!\"\n             FROM remote_control.worker_status_transitions t\n             JOIN remote_control.channels c ON c.id = t.channel_id\n            WHERE c.cse_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "38acbe16aeb2fd56915abc9a6e6489b1a4f7a6d266252e66a840d390156d3249"
+}

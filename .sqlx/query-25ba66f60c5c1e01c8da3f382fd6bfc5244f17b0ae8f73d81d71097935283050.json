@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT b.content,\n                bt.code AS \"block_type!\",\n                b.signature,\n                b.wire_tool_use_id\n         FROM responses.stream_blocks b\n         JOIN responses.stream_block_types bt ON bt.id = b.block_type_id\n         WHERE b.request_id = $1\n         ORDER BY b.seq_ord ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "content",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "responses.stream_blocks",
+            "name": "content"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "block_type!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "responses.stream_block_types",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "signature",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "responses.stream_blocks",
+            "name": "signature"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "wire_tool_use_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "responses.stream_blocks",
+            "name": "wire_tool_use_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "25ba66f60c5c1e01c8da3f382fd6bfc5244f17b0ae8f73d81d71097935283050"
+}

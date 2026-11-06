@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH seats AS (\n    SELECT DISTINCT ON (s.id) l.seat, s.id AS sid, l.created_at AS launched_at,\n           CASE WHEN l.seat LIKE 'coordinator%' THEN 'coordinator'\n                WHEN l.seat LIKE 'observer%' THEN 'observer'\n                WHEN l.seat LIKE 'acceptance%' THEN 'acceptance'\n                WHEN l.seat LIKE 'template-%' THEN 'template'\n                WHEN l.seat = 'reference' THEN 'reference'\n                ELSE 'worker' END AS kind\n      FROM launch.launches l\n      JOIN sessions.sessions s ON s.session_uuid = l.session_uuid\n     WHERE l.run_id = $1 AND l.seat IS NOT NULL AND l.seat <> 'status'\n     ORDER BY s.id, l.created_at, l.id\n)\nSELECT count(*) FILTER (WHERE t.kind = 'reference') AS \"asked!\",\n       count(*) FILTER (WHERE f.kind = 'reference') AS \"answered!\"\n  FROM (SELECT min(launched_at) AS at FROM seats) since\n  JOIN mailbox.messages m ON m.queued_at >= since.at\n  JOIN seats f ON f.sid = m.from_session_id\n  JOIN seats t ON t.sid = m.to_session_id\n WHERE t.kind = 'reference' OR f.kind = 'reference'\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "asked!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "answered!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "a0b144de1ae1898f16adc1734071cb47cb2b06db61b1931b371006f72626cb48"
+}

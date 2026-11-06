@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT (reverted_at IS NOT NULL) AS \"reverted!\", revert_reason\n             FROM steering.interventions WHERE uuid = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "reverted!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "revert_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "revert_reason"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      true
+    ]
+  },
+  "hash": "e8ef564beb708b00157afb16f70c8bb46acc13c3ed39edc638102ead7fc1b9b3"
+}

@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT m.message_uuid, m.body, m.queued_at\n                     FROM mailbox.messages m\n                     JOIN launch.launches l ON l.brief_note_uuid = m.message_uuid\n                    WHERE l.session_uuid = $1\n                      AND l.brief_mode = 'note'\n                      AND m.claimed_at IS NULL\n                      AND m.sent_at IS NULL\n                      AND m.channel_delivered_at IS NULL\n                      AND m.consumed_at IS NULL\n                      AND m.dead_lettered_at IS NULL\n                    ORDER BY m.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "message_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "message_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "body",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "body"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "queued_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "queued_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "1439899c2a8518974962a78872f3f2296cb078c0f7098f2a2a2376f63453b06c"
+}

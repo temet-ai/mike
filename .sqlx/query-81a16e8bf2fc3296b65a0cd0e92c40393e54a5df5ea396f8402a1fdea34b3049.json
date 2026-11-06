@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT identity AS \"identity!\"\n             FROM launch.launches\n            WHERE session_uuid = $1\n              AND identity IS NOT NULL\n            ORDER BY created_at DESC\n            LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "identity!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "identity"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "81a16e8bf2fc3296b65a0cd0e92c40393e54a5df5ea396f8402a1fdea34b3049"
+}

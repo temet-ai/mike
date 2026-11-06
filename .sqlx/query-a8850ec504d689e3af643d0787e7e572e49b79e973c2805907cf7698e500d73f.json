@@ -1,0 +1,196 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT f.id, f.fleet_uuid, f.slug, f.project_path, f.state, f.definition,\n       f.missing, f.run_id, f.start_report, f.created_by, f.created_at,\n       f.updated_at, f.ready_at, f.started_at, f.finished_at\n  FROM launch.launches l\n  JOIN launch.fleets f ON f.run_id = l.run_id\n WHERE l.session_uuid = $1\n ORDER BY l.created_at DESC, l.id DESC, f.id DESC\n LIMIT 1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "fleet_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "fleet_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "slug",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "slug"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "project_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "state",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "state"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "definition",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "definition"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "missing",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "missing"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "run_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "run_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "start_report",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "start_report"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "created_by",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "created_by"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "ready_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "ready_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "started_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "started_at"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "finished_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "finished_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "a8850ec504d689e3af643d0787e7e572e49b79e973c2805907cf7698e500d73f"
+}

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lessons\n                    SET consolidation_count = consolidation_count + 1,\n                        last_consolidated_at = NOW()\n                  WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "abd6a5e82d02a96cc144ecd95cc6ee22a04999ab39b0cad61f8bf55ebcf53731"
+}

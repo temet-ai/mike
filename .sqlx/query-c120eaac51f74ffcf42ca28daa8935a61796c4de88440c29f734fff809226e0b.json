@@ -1,0 +1,134 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.skill_drafts d\n                      SET status = 'evaluating'\n                    WHERE d.id = (\n                          SELECT c.id\n                            FROM memory.skill_drafts c\n                            LEFT JOIN memory.skill_draft_eval_failures f ON f.draft_id = c.id\n                           WHERE c.status IN ('draft', 'evaluating')\n                             AND (f.draft_id IS NULL\n                                  OR f.last_failed_at <= now() - interval '1 hour' * (2 ^ f.attempts))\n                           ORDER BY (c.status = 'evaluating') DESC, c.created_at, c.id\n                           LIMIT 1\n                             FOR UPDATE OF c SKIP LOCKED)\n                RETURNING d.id, d.project_id, d.folder, d.description, d.skill_md,\n                          d.reference_files, d.trigger_queries,\n                          d.lesson_ids, d.agent_id, d.eval_progress",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "folder",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "folder"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "skill_md",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "skill_md"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "reference_files",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "reference_files"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "trigger_queries",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "trigger_queries"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "lesson_ids",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "lesson_ids"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "agent_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "agent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "eval_progress",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "eval_progress"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "c120eaac51f74ffcf42ca28daa8935a61796c4de88440c29f734fff809226e0b"
+}

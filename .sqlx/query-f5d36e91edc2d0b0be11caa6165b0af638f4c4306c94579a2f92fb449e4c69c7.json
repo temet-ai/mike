@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT location_uuid, root_path FROM projects.locations\n              WHERE machine_uuid = $1 ORDER BY root_path",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "location_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "location_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "root_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "root_path"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "f5d36e91edc2d0b0be11caa6165b0af638f4c4306c94579a2f92fb449e4c69c7"
+}

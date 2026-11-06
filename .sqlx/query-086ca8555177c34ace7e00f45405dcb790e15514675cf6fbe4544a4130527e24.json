@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.operator_turns SET project_id = $2\n          WHERE session_id = $1 AND project_id IS DISTINCT FROM $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "086ca8555177c34ace7e00f45405dcb790e15514675cf6fbe4544a4130527e24"
+}

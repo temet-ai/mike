@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO sessions.sessions\n            (session_uuid, project_id, first_seen, last_seen)\n         VALUES ($1::text::uuid, $3, NOW(), NOW()), ($2::text::uuid, $3, NOW(), NOW())",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "23d5abe5daa808d990148bb38240cf99c0a0c18e1b159df74c5e20f38f6ebe1a"
+}

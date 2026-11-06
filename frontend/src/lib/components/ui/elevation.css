@@ -1,0 +1,44 @@
+[data-elevation='flat'] {
+	box-shadow: none;
+}
+
+[data-elevation='card'] {
+	box-shadow: var(--shadow-sm);
+}
+
+[data-elevation='raised'] {
+	--surface-card: var(--surface-2);
+	--card: var(--surface-2);
+	box-shadow: var(--shadow-md);
+}
+
+[data-elevation='overlay'] {
+	--surface-card: var(--surface-3);
+	--card: var(--surface-3);
+	box-shadow: var(--shadow-lg);
+}
+
+[data-elevation='card'][data-elevation-raise]:has([data-elevation-trigger]:hover),
+[data-elevation='card'][data-elevation-raise]:has([data-elevation-trigger]:focus-visible) {
+	--surface-card: var(--surface-2);
+	--card: var(--surface-2);
+	box-shadow: var(--shadow-md);
+}
+
+[data-elevation-raise] > [data-augmented-ui] {
+	transition-property: background-color;
+	transition-duration: var(--dur-1);
+	transition-timing-function: var(--ease-snap);
+}
+
+[data-bits-floating-content-wrapper]:has(> [data-slot='popover-content']),
+[data-bits-floating-content-wrapper]:has(> [data-slot='tooltip-content']) {
+	--surface-card: var(--surface-2);
+	box-shadow: var(--shadow-md);
+}
+
+[data-slot='dialog-content'],
+[data-slot='sheet-content'] {
+	--surface-card: var(--surface-3);
+	--card: var(--surface-3);
+}

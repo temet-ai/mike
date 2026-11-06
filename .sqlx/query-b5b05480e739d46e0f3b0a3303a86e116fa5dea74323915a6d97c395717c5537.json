@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.semantic_items\n                     (kind, session_id, operator_turn_id, project_id, request_id,\n                      origin_session_uuid, origin_turn_id, source_ref, pattern, text, text_chars,\n                      embedding, embedder_key, vector_source, builder_version, effective_at, data)\n                 SELECT u.kind, u.session_id, u.turn_id, u.project_id, u.request_id,\n                        u.origin_session::uuid, u.origin_turn, u.source_ref, u.pattern, u.text,\n                        char_length(u.text), u.vec::vector, u.embedder_key, u.vector_source,\n                        u.builder_version, u.effective_at, u.data\n                   FROM unnest($1::text[], $2::bigint[], $3::bigint[], $4::bigint[], $5::bigint[],\n                               $6::text[], $7::bigint[], $8::text[], $9::text[], $10::text[],\n                               $11::text[], $12::text[], $13::text[], $14::text[],\n                               $15::timestamptz[], $16::jsonb[])\n                        AS u(kind, session_id, turn_id, project_id, request_id, origin_session,\n                             origin_turn, source_ref, pattern, text, vec, embedder_key,\n                             vector_source, builder_version, effective_at, data)\n                 ON CONFLICT (kind, source_ref, embedder_key, builder_version) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Int8Array",
+        "Int8Array",
+        "Int8Array",
+        "Int8Array",
+        "TextArray",
+        "Int8Array",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TimestamptzArray",
+        "JsonbArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b5b05480e739d46e0f3b0a3303a86e116fa5dea74323915a6d97c395717c5537"
+}

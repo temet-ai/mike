@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+# expensive-cmd-cache — run an expensive command exactly once, persist its
+# stdout/stderr/exit code, and let repeat calls within a TTL read the cached
+# artifact instead of re-executing.
+#
+# Kills the poll/refinement re-run pattern (tool-call-efficiency report §4,
+# proposal G4): cargo-deny run ~10x with different greps, rules-budget.sh run
+# 22 identical times, sb-test run 20x + a 5-call chain to learn one exit code,
+# one log re-parsed 14x across 4 files. Run once, filter the persisted artifact.
+#
+# Usage:
+#   expensive-cmd-cache run "<command>" [--ttl SECONDS] [--key NAME]
+#   expensive-cmd-cache show  [<key>|last] [--stderr] [--max-bytes N]
+#   expensive-cmd-cache grep  [<key>|last] <PATTERN> [--context N] [--stderr]
+#   expensive-cmd-cache clear [<key>|last|all]
+#
+# Examples:
+#   expensive-cmd-cache run "cargo --version"
+#   expensive-cmd-cache run "cargo deny check" --ttl 600 --key deny
+#   expensive-cmd-cache show deny
+#   expensive-cmd-cache grep deny 'advisory'
+#   expensive-cmd-cache clear deny
+#
+# Cache location: $TMPDIR/expensive-cmd-cache (falls back to
+# ~/.cache/expensive-cmd-cache if TMPDIR is unset). Keyed by --key, or by a
+# sha256 of the command string when --key is omitted.
+#
+# Exit codes:
+#   run:   the exit code of the command (cached or freshly executed)
+#   show:  0 found, 1 no such cache entry
+#   grep:  0 match, 1 no match, 2 no such cache entry
+#   clear: 0 always (0 entries cleared is not an error)
+#   *:     2 usage error
+set -uo pipefail
+
+usage() {
+  sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//' >&2
+  exit "${1:-2}"
+}
+
+err() { printf 'expensive-cmd-cache: %s\n' "$1" >&2; }
+
+cache_root() {
+  if [[ -n "${TMPDIR:-}" ]]; then
+    printf '%s/expensive-cmd-cache\n' "${TMPDIR%/}"
+  else
+    printf '%s/.cache/expensive-cmd-cache\n' "$HOME"
+  fi
+}
+
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/sha256.sh"
+
+hash_key() {
+  printf '%s' "$1" | sha256
+}
+
+resolve_key() {
+  local root="$1" k="$2"
+  if [[ "$k" == "last" || -z "$k" ]]; then
+    [[ -f "$root/LAST" ]] || return 1
+    cat "$root/LAST"
+  else
+    printf '%s\n' "$k"
+  fi
+}
+
+cmd_run() {
+  local root command="" ttl=3600 key=""
+  root=$(cache_root)
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --ttl) [[ $# -ge 2 ]] || { err "--ttl needs a value"; exit 2; }; ttl="$2"; shift 2 ;;
+      --key) [[ $# -ge 2 ]] || { err "--key needs a value"; exit 2; }; key="$2"; shift 2 ;;
+      -*)    err "unknown option for run: $1"; exit 2 ;;
+      *)
+        if [[ -z "$command" ]]; then command="$1"
+        else err "unexpected extra argument: $1 (quote the command as one string)"; exit 2; fi
+        shift ;;
+    esac
+  done
+  [[ -n "$command" ]] || { err "run needs a command string"; exit 2; }
+  [[ "$ttl" =~ ^[0-9]+$ ]] || { err "--ttl must be a non-negative integer"; exit 2; }
+  [[ -n "$key" ]] || key=$(hash_key "$command")
+
+  local dir="$root/$key"
+  mkdir -p "$dir"
+
+  if [[ -f "$dir/exit_code" ]]; then
+    local mtime now age
+    mtime=$(stat -f '%m' "$dir/exit_code" 2>/dev/null || stat -c '%Y' "$dir/exit_code" 2>/dev/null)
+    now=$(date +%s)
+    age=$(( now - mtime ))
+    if (( age <= ttl )); then
+      local code
+      code=$(cat "$dir/exit_code")
+      printf 'expensive-cmd-cache: cache hit (key=%s, age=%ds, ttl=%ds) — artifact at %s\n' \
+        "$key" "$age" "$ttl" "$dir" >&2
+      printf 'exit_code=%s\n' "$code" >&2
+      exit "$code"
+    fi
+  fi
+
+  printf '%s\n' "$command" > "$dir/command"
+  date +%s > "$dir/ran_at"
+  set +e
+  bash -c "$command" > "$dir/stdout" 2> "$dir/stderr"
+  local code=$?
+  set -e
+  printf '%s\n' "$code" > "$dir/exit_code"
+  printf '%s\n' "$key" > "$root/LAST"
+  printf 'expensive-cmd-cache: ran and cached (key=%s) — artifact at %s (exit %s)\n' "$key" "$dir" "$code" >&2
+  exit "$code"
+}
+
+cmd_show() {
+  local root key="" show_stderr=0 max_bytes=8192
+  root=$(cache_root)
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --stderr)    show_stderr=1; shift ;;
+      --max-bytes) [[ $# -ge 2 ]] || { err "--max-bytes needs a value"; exit 2; }; max_bytes="$2"; shift 2 ;;
+      -*)          err "unknown option for show: $1"; exit 2 ;;
+      *)
+        if [[ -z "$key" ]]; then key="$1"
+        else err "unexpected extra argument: $1"; exit 2; fi
+        shift ;;
+    esac
+  done
+  key=$(resolve_key "$root" "$key") || { err "no cache entries yet"; exit 1; }
+  local dir="$root/$key"
+  [[ -d "$dir" ]] || { err "no cache entry for key: $key"; exit 1; }
+  local target="$dir/stdout"
+  [[ $show_stderr -eq 1 ]] && target="$dir/stderr"
+  local total
+  total=$(wc -c < "$target" 2>/dev/null | tr -d ' ')
+  total=${total:-0}
+  if (( total > max_bytes )); then
+    head -c "$max_bytes" "$target"
+    printf '\n[expensive-cmd-cache] artifact is %d bytes, showing %d (use --max-bytes to raise the cap; full file: %s)\n' \
+      "$total" "$max_bytes" "$target" >&2
+  else
+    cat "$target"
+  fi
+  exit 0
+}
+
+cmd_grep() {
+  local root key="" pattern="" context=0 show_stderr=0
+  root=$(cache_root)
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --context) [[ $# -ge 2 ]] || { err "--context needs a value"; exit 2; }; context="$2"; shift 2 ;;
+      --stderr)  show_stderr=1; shift ;;
+      -*)        err "unknown option for grep: $1"; exit 2 ;;
+      *)
+        if [[ -z "$key" ]]; then key="$1"
+        elif [[ -z "$pattern" ]]; then pattern="$1"
+        else err "unexpected extra argument: $1"; exit 2; fi
+        shift ;;
+    esac
+  done
+  # If only one positional arg was given, treat it as the pattern against "last".
+  if [[ -n "$key" && -z "$pattern" ]]; then
+    pattern="$key"
+    key=""
+  fi
+  [[ -n "$pattern" ]] || { err "grep needs a PATTERN"; exit 2; }
+  key=$(resolve_key "$root" "$key") || { err "no cache entries yet"; exit 2; }
+  local dir="$root/$key"
+  [[ -d "$dir" ]] || { err "no cache entry for key: $key"; exit 2; }
+  local target="$dir/stdout"
+  [[ $show_stderr -eq 1 ]] && target="$dir/stderr"
+  grep -nE -C "$context" -- "$pattern" "$target"
+  local rc=$?
+  [[ $rc -eq 0 ]] || { err "no match for pattern: $pattern (in $target)"; exit 1; }
+  exit 0
+}
+
+cmd_clear() {
+  local root key=""
+  root=$(cache_root)
+  [[ $# -le 1 ]] || { err "clear takes at most one argument"; exit 2; }
+  key="${1:-}"
+  if [[ -z "$key" || "$key" == "all" ]]; then
+    rm -rf "$root"
+    printf 'expensive-cmd-cache: cleared all entries under %s\n' "$root" >&2
+    exit 0
+  fi
+  local resolved
+  resolved=$(resolve_key "$root" "$key") || resolved="$key"
+  rm -rf "${root:?}/${resolved:?}"
+  printf 'expensive-cmd-cache: cleared key %s\n' "$resolved" >&2
+  exit 0
+}
+
+[[ $# -ge 1 ]] || usage
+case "$1" in
+  -h|--help) usage 0 ;;
+  run)       shift; cmd_run "$@" ;;
+  show)      shift; cmd_show "$@" ;;
+  grep)      shift; cmd_grep "$@" ;;
+  clear)     shift; cmd_clear "$@" ;;
+  *)         err "unknown subcommand: $1"; usage ;;
+esac

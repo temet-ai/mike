@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO steering.evaluations\n                           (steerer_id, session_id, operator_turn_id, status, mode, bundle_id,\n                            question, trigger_point, trigger_request_id)\n                       SELECT $1, $2, $3, 'dispatched', $4, $5, q.question, $6, $7\n                         FROM unnest($8::text[]) AS q(question)\n                       RETURNING uuid AS \"uuid!\", question AS \"question?\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "question?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "question"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Text",
+        "Int8",
+        "Text",
+        "Int8",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "003e40591225ec7442f11e1f1e4287b8bd583f4d1197bbe5012887a70165e66b"
+}

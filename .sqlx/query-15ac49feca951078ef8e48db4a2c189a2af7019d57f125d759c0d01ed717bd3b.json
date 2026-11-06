@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT payload_text, created_at, delivered_request_id, pushed_at\n                   FROM steering.interventions\n                  WHERE session_id = $1 AND steerer_id = $2\n                  ORDER BY created_at DESC\n                  LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "payload_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "payload_text"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "delivered_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "delivered_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "pushed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "pushed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "15ac49feca951078ef8e48db4a2c189a2af7019d57f125d759c0d01ed717bd3b"
+}

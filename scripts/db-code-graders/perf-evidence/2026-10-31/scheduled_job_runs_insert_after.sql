@@ -1,0 +1,1 @@
+INSERT INTO jobs.runs (job_name, machine_uuid, trigger, started_at, finished_at, duration_ms, result_kind, exit_code, result_detail, output_tail, consecutive_failures, retry_after) VALUES ('cargo_sweep','11111111-1111-1111-1111-111111111111','schedule', now(), now(), 60000, 'succeeded', 0, null, array['a','b'], 0, null)

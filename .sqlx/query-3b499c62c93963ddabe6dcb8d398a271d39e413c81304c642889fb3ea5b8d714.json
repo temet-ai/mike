@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT r.session_id AS \"session_id!\"\n                     FROM requests.requests r\n                     JOIN requests.turn_types tt ON tt.id = r.turn_type_id AND tt.code = 'user_prompt'\n                     JOIN requests.turn_origins o ON o.id = r.turn_origin_id\n                                                 AND o.code IN ('primary', 'primary_first')\n                    WHERE r.created_at >= $1\n                      AND r.created_at < $2\n                    ORDER BY r.session_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "session_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "3b499c62c93963ddabe6dcb8d398a271d39e413c81304c642889fb3ea5b8d714"
+}

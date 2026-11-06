@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions.sessions\n                 SET pinned = FALSE, pin_created_at = NULL\n                 WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a83f5815ab318fdf62865735518fa7597bc397b661ad79cc1df633601fd92702"
+}

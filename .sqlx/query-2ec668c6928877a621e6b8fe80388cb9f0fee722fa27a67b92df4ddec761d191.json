@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT tu.wire_tool_use_id AS tool_id, tu.tool_name, tu.input\n           FROM tools.uses tu\n          WHERE tu.request_id = $1\n          ORDER BY tu.ord",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tool_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "wire_tool_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "tool_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "tool_name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "input",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "input"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "2ec668c6928877a621e6b8fe80388cb9f0fee722fa27a67b92df4ddec761d191"
+}

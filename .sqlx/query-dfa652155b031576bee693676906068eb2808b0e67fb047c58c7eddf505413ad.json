@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT o.id AS \"composition_id!\", COUNT(*) AS \"applied!\"\n                     FROM overrides.overrides o\n                     JOIN requests.system_prompts rsp ON rsp.system_prompt_id = o.system_prompt_id\n                     JOIN requests.requests r ON r.id = rsp.request_id\n                    WHERE rsp.override_applied\n                      AND r.created_at > NOW() - INTERVAL '24 hours'\n                    GROUP BY o.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "composition_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "applied!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "dfa652155b031576bee693676906068eb2808b0e67fb047c58c7eddf505413ad"
+}

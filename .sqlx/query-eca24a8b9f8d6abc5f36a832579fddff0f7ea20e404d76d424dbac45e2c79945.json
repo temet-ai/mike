@@ -1,0 +1,143 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH scope AS (\n    SELECT t.id AS turn_id, t.session_id, t.start_request_id,\n           lead(t.start_request_id) OVER (\n               PARTITION BY t.session_id ORDER BY t.start_request_id\n           ) AS next_start\n      FROM memory.operator_turns t\n     WHERE t.session_id IN (SELECT s.session_id FROM memory.operator_turns s WHERE s.id = ANY($1))\n), wanted AS (\n    SELECT turn_id, session_id, start_request_id, next_start FROM scope WHERE turn_id = ANY($1)\n)\nSELECT w.turn_id AS \"turn_id!\",\n       u.wire_tool_use_id AS tool_use_id,\n       u.request_id,\n       r.created_at AS at,\n       (u.input ->> 'command') AS \"command!\",\n       res.content AS \"result_content?\",\n       res.is_error AS \"result_is_error?\",\n       wi.id AS \"work_item_id?\",\n       wi.state AS \"work_item_state?\",\n       wi.exit_code AS \"work_item_exit_code?\",\n       wi.finished_at AS \"work_item_finished_at?\"\n  FROM wanted w\n  JOIN requests.requests r\n    ON r.session_id = w.session_id\n   AND r.id >= w.start_request_id\n   AND (w.next_start IS NULL OR r.id < w.next_start)\n  JOIN tools.uses u ON u.request_id = r.id AND u.tool_name = 'Bash'\n  LEFT JOIN tools.results res ON res.tool_use_id = u.id\n  LEFT JOIN agents.work_items wi ON wi.wire_tool_use_id = u.wire_tool_use_id\n WHERE u.input ->> 'command' IS NOT NULL\n ORDER BY w.turn_id, u.request_id, u.ord\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "tool_use_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "wire_tool_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "command!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "result_content?",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "result_is_error?",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "is_error"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "work_item_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "work_item_state?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "state"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "work_item_exit_code?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "exit_code"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "work_item_finished_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "finished_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      null,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "eca24a8b9f8d6abc5f36a832579fddff0f7ea20e404d76d424dbac45e2c79945"
+}

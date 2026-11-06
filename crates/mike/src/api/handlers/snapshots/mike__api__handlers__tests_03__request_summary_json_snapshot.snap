@@ -1,0 +1,26 @@
+---
+source: crates/mike/src/api/handlers/tests_03.rs
+assertion_line: 201
+expression: summary
+---
+{
+  "id": 42,
+  "session_id": "sess-abc",
+  "method": "POST",
+  "path": "/v1/messages",
+  "model": "claude-sonnet-4-20250514",
+  "status": "Complete",
+  "is_streaming": true,
+  "message_count": 3,
+  "max_tokens": 1024,
+  "created_at": "2026-04-11T12:00:00+00:00",
+  "completed_at": null,
+  "project": null,
+  "git_repo": null,
+  "human_prompt": "Do the thing",
+  "turn_type": "user_prompt",
+  "turn_origin": "primary",
+  "tool_names": [],
+  "response_tool_count": 0,
+  "response_tools_used": []
+}

@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT tu.request_id, tu.tool_name\n           FROM tools.uses tu\n          WHERE tu.request_id = ANY($1)\n          ORDER BY tu.request_id, tu.ord",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "tool_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "tool_name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "bd0b64b27f235c2d7293677f818794747e7a1bdb0ad72759d0298b14ed0b9c03"
+}

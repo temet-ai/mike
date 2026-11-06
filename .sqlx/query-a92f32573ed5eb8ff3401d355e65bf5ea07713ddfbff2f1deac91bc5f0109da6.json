@@ -1,0 +1,203 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n                   m.message_uuid,\n                   recip.session_uuid  AS to_session_uuid,\n                   sender.session_uuid AS from_session_uuid,\n                   m.body,\n                   m.queued_at,\n                   m.claimed_at,\n                   m.sent_request_id,\n                   m.sent_at,\n                   m.consumed_at,\n                   m.dead_lettered_at,\n                   m.channel_delivered_at,\n                   m.delivery_attempts,\n                   m.to_session_id AS \"to_session_id!\",\n                   COALESCE(ca.items, '[]'::jsonb)\n                       AS \"context_items!: sqlx::types::Json<Vec<ContextItem>>\",\n                   th.thread_uuid,\n                   parent.message_uuid AS in_reply_to_uuid\n               FROM mailbox.messages m\n               JOIN sessions.sessions recip ON recip.id = m.to_session_id\n               LEFT JOIN sessions.sessions sender ON sender.id = m.from_session_id\n               LEFT JOIN LATERAL (\n                   SELECT jsonb_agg(\n                              jsonb_build_object('kind', ci.kind, 'value', ci.value, 'label', ci.label)\n                              ORDER BY ci.id\n                          ) AS items\n                     FROM mailbox.message_context_items ci\n                    WHERE ci.message_id = m.id\n               ) ca ON true\n               LEFT JOIN mailbox.threads th ON th.id = m.thread_id\n               LEFT JOIN mailbox.messages parent ON parent.id = m.in_reply_to_id\n              WHERE m.to_session_id = $1\n              ORDER BY m.id ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "message_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "message_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "to_session_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "from_session_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "body",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "body"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "queued_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "queued_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "claimed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "claimed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "sent_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "sent_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "sent_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "sent_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "consumed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "consumed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "dead_lettered_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "dead_lettered_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "channel_delivered_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "channel_delivered_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "delivery_attempts",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "delivery_attempts"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "to_session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "to_session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "context_items!: sqlx::types::Json<Vec<ContextItem>>",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 14,
+        "name": "thread_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "mailbox.threads",
+            "name": "thread_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "in_reply_to_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "message_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      null,
+      false,
+      false
+    ]
+  },
+  "hash": "a92f32573ed5eb8ff3401d355e65bf5ea07713ddfbff2f1deac91bc5f0109da6"
+}

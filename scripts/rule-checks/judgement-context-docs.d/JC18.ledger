@@ -1,0 +1,25 @@
+# JC18 ledger. The landed sha is the JC18 commit on feat/judgement-context.
+landed   JC18 2026-09-25 b6420911
+table    steering.guard_thresholds
+table    memory.directive_proposals
+table    memory.directive_proposal_evidence
+toggle   directive_proposer
+setting  guard.calibration.input_mode
+setting  guard.calibration.min_labelled
+setting  guard.calibration.window_days
+setting  guard.threshold.mode
+setting  guard.threshold.min_labelled
+setting  guard.threshold.hysteresis
+setting  guard.threshold.cooldown_days
+setting  guard.threshold.ceiling
+setting  guard.threshold.allow_lowering_for_wake
+setting  directives.proposer.sources
+setting  directives.proposer.window_days
+setting  directives.proposer.min_sessions
+setting  directives.proposer.min_confirmed
+tool     get_cross_session_calibration full
+tool     list_directive_proposals full
+cli      mike guard calibration
+cli      mike directives backtest
+cli      mike directives propose
+require  docs/ARCHITECTURE.md  ### Cross-session calibration and directive proposals

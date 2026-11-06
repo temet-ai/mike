@@ -1,0 +1,136 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT pcr.id, pcr.uuid, pc.id AS \"composition_id!\",\n                        pc.uuid AS \"composition_uuid!\", pcr.version, pcr.label,\n                        pcr.blocks, m.code AS \"mode!\", pcr.notes, pcr.created_at\n                 FROM overrides.revisions pcr\n                 JOIN overrides.overrides pc ON pc.id = pcr.override_id\n                 JOIN overrides.modes m ON m.id = pcr.mode_id\n                 WHERE pc.id = $1\n                 ORDER BY pcr.version DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "overrides.revisions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "overrides.revisions",
+            "name": "uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "composition_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "composition_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "version",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "overrides.revisions",
+            "name": "version"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.revisions",
+            "name": "label"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "blocks",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "overrides.revisions",
+            "name": "blocks"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "mode!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.modes",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "notes",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.revisions",
+            "name": "notes"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "overrides.revisions",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "db3106b3b09a73a6caaab2e103efda7d0c06cae4d4b1254e1709ac65b9031c39"
+}

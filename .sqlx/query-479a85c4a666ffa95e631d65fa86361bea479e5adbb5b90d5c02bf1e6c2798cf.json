@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions.sessions\n                 SET pinned = TRUE,\n                     pin_created_at = COALESCE(pin_created_at, NOW())\n                 WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "479a85c4a666ffa95e631d65fa86361bea479e5adbb5b90d5c02bf1e6c2798cf"
+}

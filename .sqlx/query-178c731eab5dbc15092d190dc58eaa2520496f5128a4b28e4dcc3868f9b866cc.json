@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"count!\" FROM llm.calls\n                    WHERE role = $2 AND steerer_id = $1 AND created_at >= date_trunc('day', now())",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "178c731eab5dbc15092d190dc58eaa2520496f5128a4b28e4dcc3868f9b866cc"
+}

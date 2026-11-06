@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO launch.runs AS r (run_id, project_path, backend, workspace_ref, tab_ref)\nVALUES ($1, $2, $3, $4, $5)\nON CONFLICT (run_id) DO UPDATE\n   SET project_path  = COALESCE(EXCLUDED.project_path, r.project_path),\n       backend       = EXCLUDED.backend,\n       workspace_ref = COALESCE(EXCLUDED.workspace_ref, r.workspace_ref),\n       tab_ref       = COALESCE(EXCLUDED.tab_ref, r.tab_ref),\n       closed_at     = NULL\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "05bdd8cbce60de8b0066c63a7e5a639593696100f37e7def6e7dd0d1ca667758"
+}

@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT NOT EXISTS (\n                       SELECT 1\n                         FROM mailbox.messages m\n                         JOIN mailbox.messages p\n                           ON p.to_session_id = m.to_session_id AND p.id < m.id\n                        WHERE m.message_uuid = $1\n                   ) AS \"first_for_recipient!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "first_for_recipient!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "4e713813833bdf5abdce1e365658a68f59f0980fa80b9d8ab4d8fc9e19d45664"
+}

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" href="%sveltekit.assets%/favicon.svg" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>mike</title>
+		<!--
+			No-flash theme init. Runs synchronously in <head> BEFORE first paint,
+			so the persisted theme's role tokens are in effect on the very first
+			frame — no forge→chosen-theme flash on load.
+
+			The valid-id list is duplicated here (and only here) from
+			src/lib/themes.ts on purpose: this script must run before any module
+			loads, so it cannot import THEMES. The store reads back the attribute
+			this sets, so themes.ts stays the runtime source of truth; this list is
+			just the pre-paint guard. Keep the two in sync when adding a theme.
+		-->
+		<script>
+			(function () {
+				var VALID = ['forge', 'glacier', 'void', 'phosphor', 'crimson'];
+				var theme = 'forge';
+				try {
+					var stored = localStorage.getItem('temet-theme');
+					if (stored && VALID.indexOf(stored) !== -1) theme = stored;
+				} catch (e) {
+					/* localStorage blocked — fall back to default */
+				}
+				document.documentElement.dataset.theme = theme;
+			})();
+		</script>
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT 1 AS \"probe!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "probe!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "2533d6ea4a9fe1a5b160145118699c391bb312e9c4c7d7d442f8d763289aee3a"
+}

@@ -1,0 +1,38 @@
+services:
+  database:
+    image: ${MIKE_DATABASE_IMAGE:?a PostgreSQL 19 database image is required}
+    build:
+      context: .
+      dockerfile: Dockerfile.pg19
+    pull_policy: never
+    container_name: ${MIKE_DATABASE_NAME:?installation database name is required}
+    labels:
+      io.temet.mike.installation: ${MIKE_INSTALLATION_ID:?installation identity is required}
+      io.temet.mike.managed-database: "1"
+    environment:
+      PGDATA: /var/lib/postgresql/data
+      POSTGRES_USER: mike
+      POSTGRES_DB: mike
+      POSTGRES_PASSWORD_FILE: /run/secrets/database_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    secrets:
+      - database_password
+    ports:
+      - "127.0.0.1:${MIKE_DATABASE_PORT:?database port is required}:5432"
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "mike", "-d", "mike"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+    stop_grace_period: 30s
+secrets:
+  database_password:
+    file: ${MIKE_DATABASE_PASSWORD_FILE:?private credential file is required}
+volumes:
+  database:
+    name: ${MIKE_DATABASE_VOLUME:?installation volume name is required}
+    labels:
+      io.temet.mike.installation: ${MIKE_INSTALLATION_ID:?installation identity is required}
+      io.temet.mike.managed-database: "1"

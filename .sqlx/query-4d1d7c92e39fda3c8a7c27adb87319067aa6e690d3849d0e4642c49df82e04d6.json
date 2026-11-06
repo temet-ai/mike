@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.acceptance_criteria_maps\n                   (session_id, version, ask_entry_count, last_ask_entry_id, model, output_tokens)\n               VALUES ($1, $2, $3, $4, $5, $6)\n               RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.acceptance_criteria_maps",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int4",
+        "Int4",
+        "Int8",
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4d1d7c92e39fda3c8a7c27adb87319067aa6e690d3849d0e4642c49df82e04d6"
+}

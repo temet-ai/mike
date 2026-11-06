@@ -1,0 +1,802 @@
+[
+  {
+    "state": "934d212aed809659be1f93c1e4b373dab65e88dfd41742d5e2ef30ec8d8a964b",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": 0,
+    "started_at": "2026-10-20T16:29:07.873254+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T16:31:37.158674+00:00",
+    "state_after": "934d212aed809659be1f93c1e4b373dab65e88dfd41742d5e2ef30ec8d8a964b",
+    "askers_count": 1
+  },
+  {
+    "state": "ae34ffc8c1ce0bd6903437215fb1f3017b79374845789ff2fb80e343dda4e463",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": 0,
+    "started_at": "2026-10-20T16:32:27.899667+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:02:30.791742+00:00",
+    "state_after": "ae34ffc8c1ce0bd6903437215fb1f3017b79374845789ff2fb80e343dda4e463",
+    "askers_count": 1
+  },
+  {
+    "state": "37de216f2757c08b7021d5a5ee5c815cd74e10f589676be42eb2007c774dfb46",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:02:48.31519+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:10:42.57724+00:00",
+    "state_after": "cancelled:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "2390ff4ad2d0e450728fc63bc5b90c462b5d40f129bea4f1b4f7695ad5930779",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:10:48.073025+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:13:14.143366+00:00",
+    "state_after": "cancelled:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "c01e2db52abdfa90fec16cc4050edffb3a2672444005a33bc93539f30d1ea728",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:13:17.242809+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:13:49.0011+00:00",
+    "state_after": "c01e2db52abdfa90fec16cc4050edffb3a2672444005a33bc93539f30d1ea728:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "c01e2db52abdfa90fec16cc4050edffb3a2672444005a33bc93539f30d1ea728",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:14:07.886712+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:18:42.628746+00:00",
+    "state_after": "c01e2db52abdfa90fec16cc4050edffb3a2672444005a33bc93539f30d1ea728:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:18:47.893855+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:18:51.777169+00:00",
+    "state_after": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:19:08.294745+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:19:11.021981+00:00",
+    "state_after": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:19:30.711161+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:19:31.852859+00:00",
+    "state_after": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:19:47.898563+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:19:48.003345+00:00",
+    "state_after": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:20:07.900214+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:20:08.168114+00:00",
+    "state_after": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:20:28.00691+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:20:29.084562+00:00",
+    "state_after": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:20:47.879345+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:20:48.012007+00:00",
+    "state_after": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:21:38.232234+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:21:39.655006+00:00",
+    "state_after": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:21:47.892004+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:21:49.027222+00:00",
+    "state_after": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:22:07.947808+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:22:08.161857+00:00",
+    "state_after": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:22:27.897073+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:22:29.858644+00:00",
+    "state_after": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:22:47.877894+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:22:47.970969+00:00",
+    "state_after": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:23:07.87789+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:23:09.479443+00:00",
+    "state_after": "b1bc71610e95ad3e9a62462481b9024a20d3629d7c7808e5bc70bb5d72aac30f:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "815713a347a766aff97da06a254471c73a3e8b673dc50c1e71d1de9fd9183bd0",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:23:27.886504+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:23:28.010298+00:00",
+    "state_after": "815713a347a766aff97da06a254471c73a3e8b673dc50c1e71d1de9fd9183bd0:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:23:47.885865+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:23:49.305595+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:24:07.918671+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:24:08.036437+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:24:27.885462+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:24:29.386368+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:24:47.873479+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:24:48.358065+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:25:07.874405+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:25:09.178605+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:25:27.881611+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:25:28.856043+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:25:47.873371+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:25:47.965154+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:26:07.889597+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:26:08.34733+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:26:28.005749+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:26:28.473997+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:26:47.875137+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:26:48.103465+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:27:07.874955+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:27:07.969157+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:27:27.960132+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:27:28.335289+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:27:47.946658+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:27:48.328628+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:28:08.036128+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:28:08.652551+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:28:28.040482+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:28:28.858387+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:28:47.980812+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:28:48.503421+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:29:07.96991+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:29:08.476868+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:29:28.013412+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:29:28.525427+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:29:47.876773+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:29:48.067791+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:30:08.03106+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:30:08.292331+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:30:28.114412+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:30:28.533366+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:30:47.893614+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:30:47.99389+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:31:07.87597+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:31:08.170582+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:31:27.882644+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:31:28.351098+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:31:47.878612+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:31:48.02815+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:32:07.892831+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:32:08.452879+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:32:27.909624+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:32:28.149355+00:00",
+    "state_after": "7e650d70bee989bc753f9c46daf12848293461b1aabf545947788214dce23923:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:32:47.874669+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:32:49.133429+00:00",
+    "state_after": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:33:07.896894+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:33:08.451192+00:00",
+    "state_after": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:33:28.110022+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:33:29.230654+00:00",
+    "state_after": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:33:47.879411+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:33:48.628088+00:00",
+    "state_after": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:34:08.018139+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:34:11.236368+00:00",
+    "state_after": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:34:27.888455+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:36:19.074393+00:00",
+    "state_after": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:36:28.129162+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:36:29.096027+00:00",
+    "state_after": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:36:48.230913+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:36:49.193325+00:00",
+    "state_after": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:37:07.986669+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:37:08.62013+00:00",
+    "state_after": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:37:27.883899+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:37:28.236433+00:00",
+    "state_after": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:37:47.894405+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:37:48.282696+00:00",
+    "state_after": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:38:08.14345+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:38:08.92129+00:00",
+    "state_after": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:38:27.881866+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:38:28.079409+00:00",
+    "state_after": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:38:47.874692+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:38:47.966361+00:00",
+    "state_after": "130eb9974adecd2b28275ee8e254090e9f95d86d8760485c3c92a08baae582b3:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7dcb828edd52b5e19642b8681c17c9e8bfc45a22de19bcf6ecf0fd4094f6fe1a",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:39:07.899094+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:39:08.326754+00:00",
+    "state_after": "7dcb828edd52b5e19642b8681c17c9e8bfc45a22de19bcf6ecf0fd4094f6fe1a:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7dcb828edd52b5e19642b8681c17c9e8bfc45a22de19bcf6ecf0fd4094f6fe1a",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T17:39:27.876776+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T17:39:28.285973+00:00",
+    "state_after": "7dcb828edd52b5e19642b8681c17c9e8bfc45a22de19bcf6ecf0fd4094f6fe1a:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "7dcb828edd52b5e19642b8681c17c9e8bfc45a22de19bcf6ecf0fd4094f6fe1a",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": 101,
+    "started_at": "2026-10-20T17:39:47.983559+00:00",
+    "told_count": 5,
+    "finished_at": "2026-10-20T17:40:26.292418+00:00",
+    "state_after": "7dcb828edd52b5e19642b8681c17c9e8bfc45a22de19bcf6ecf0fd4094f6fe1a",
+    "askers_count": 1
+  },
+  {
+    "state": "907079d92cd07dbb937959e79e2eff47bbeaff6596d189470128e1c8998e6f1a",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": 101,
+    "started_at": "2026-10-20T17:41:07.882398+00:00",
+    "told_count": 5,
+    "finished_at": "2026-10-20T17:59:38.066331+00:00",
+    "state_after": "907079d92cd07dbb937959e79e2eff47bbeaff6596d189470128e1c8998e6f1a",
+    "askers_count": 1
+  },
+  {
+    "state": "a01c54da36c685c4376063c5ec9d1faca570cc53df76e854ad4913c474687839",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": 0,
+    "started_at": "2026-10-20T17:59:47.902807+00:00",
+    "told_count": 4,
+    "finished_at": "2026-10-20T18:23:28.862012+00:00",
+    "state_after": "a01c54da36c685c4376063c5ec9d1faca570cc53df76e854ad4913c474687839",
+    "askers_count": 1
+  },
+  {
+    "state": "59e77071e1a6033b97ccaf21d9619a7c7746a8007b20ee78e0ef4deb9f7418b9",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T18:23:47.872846+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T18:53:48.295033+00:00",
+    "state_after": "59e77071e1a6033b97ccaf21d9619a7c7746a8007b20ee78e0ef4deb9f7418b9:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "5ba936b86f76cf34ed514e40af0bd645b12ec5d93304b53d937e11c4a38f2c9e",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T18:54:19.253528+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-21T07:29:36.603917+00:00",
+    "state_after": "abandoned:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "1672e475f58886ed1d291ee4bf9ecea315d374abd4b45c76959277d4023a4296",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": 101,
+    "started_at": "2026-10-20T18:59:50.676785+00:00",
+    "told_count": 3,
+    "finished_at": "2026-10-20T19:00:32.847196+00:00",
+    "state_after": "1672e475f58886ed1d291ee4bf9ecea315d374abd4b45c76959277d4023a4296",
+    "askers_count": 1
+  },
+  {
+    "state": "dd313d9b90b1b884c946da4ab1552be5e7072b001c5535d9c341cc238a7857f6",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": 101,
+    "started_at": "2026-10-20T19:01:48.647388+00:00",
+    "told_count": 4,
+    "finished_at": "2026-10-20T19:27:09.983385+00:00",
+    "state_after": "dd313d9b90b1b884c946da4ab1552be5e7072b001c5535d9c341cc238a7857f6",
+    "askers_count": 1
+  },
+  {
+    "state": "a4d83ccec698a54ea3ce815140f532d44e6c0a9e0d0b36c9bc414a66d160761d",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T19:27:28.612966+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T19:29:12.956826+00:00",
+    "state_after": "a4d83ccec698a54ea3ce815140f532d44e6c0a9e0d0b36c9bc414a66d160761d:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "cdd2c015296e8bf40e83604500123e82f9867b76989c915db5f6e0950110603d",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": 101,
+    "started_at": "2026-10-20T19:29:28.617239+00:00",
+    "told_count": 5,
+    "finished_at": "2026-10-20T19:39:11.81912+00:00",
+    "state_after": "cdd2c015296e8bf40e83604500123e82f9867b76989c915db5f6e0950110603d",
+    "askers_count": 1
+  },
+  {
+    "state": "13572c72cc69299d70c934e1a98fc181c6c8e63beae67a64099d7a40e1e9611d",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": 101,
+    "started_at": "2026-10-20T19:39:28.746072+00:00",
+    "told_count": 4,
+    "finished_at": "2026-10-20T20:08:09.552773+00:00",
+    "state_after": "13572c72cc69299d70c934e1a98fc181c6c8e63beae67a64099d7a40e1e9611d",
+    "askers_count": 1
+  },
+  {
+    "state": "3cdb1a2e9e395f1ec272d8d68c0ae0319f4a9c160bda1ee1ae10cecf5b7335c3",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": null,
+    "started_at": "2026-10-20T20:08:28.735044+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T20:38:28.762529+00:00",
+    "state_after": "3cdb1a2e9e395f1ec272d8d68c0ae0319f4a9c160bda1ee1ae10cecf5b7335c3:unverified",
+    "askers_count": 1
+  },
+  {
+    "state": "ab763c754639fa1880e3833a9fbcdba8d5dccfc81a0196eec84862b1bc855e43",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": 101,
+    "started_at": "2026-10-20T20:38:48.737233+00:00",
+    "told_count": 4,
+    "finished_at": "2026-10-20T20:51:25.187206+00:00",
+    "state_after": "ab763c754639fa1880e3833a9fbcdba8d5dccfc81a0196eec84862b1bc855e43",
+    "askers_count": 1
+  },
+  {
+    "state": "55ca6826ea5ae80cd85ee94e5e581d38646c331319876b3e9aa7c8a414e24d7c",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": 101,
+    "started_at": "2026-10-20T20:51:28.618415+00:00",
+    "told_count": 4,
+    "finished_at": "2026-10-20T20:58:54.435456+00:00",
+    "state_after": "55ca6826ea5ae80cd85ee94e5e581d38646c331319876b3e9aa7c8a414e24d7c",
+    "askers_count": 1
+  },
+  {
+    "state": "13ace429b3e0365a97f966aa25417e05248fc8b07afb46daba10c65a957c8338",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": 0,
+    "started_at": "2026-10-20T20:59:08.68099+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T21:02:10.132575+00:00",
+    "state_after": "13ace429b3e0365a97f966aa25417e05248fc8b07afb46daba10c65a957c8338",
+    "askers_count": 1
+  },
+  {
+    "state": "5daafec5c74ba57a4b6fccca6282569fc2ad5288f9d0a35e685b79d9418c3be4",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": 0,
+    "started_at": "2026-10-20T21:17:28.607446+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T21:27:44.974734+00:00",
+    "state_after": "5daafec5c74ba57a4b6fccca6282569fc2ad5288f9d0a35e685b79d9418c3be4",
+    "askers_count": 1
+  },
+  {
+    "state": "19364a972a147972136ea75f747b1a06f7ee3e5d6a5eb548945f0ab58038a462",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": 0,
+    "started_at": "2026-10-20T21:27:48.61953+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T21:50:00.973502+00:00",
+    "state_after": "19364a972a147972136ea75f747b1a06f7ee3e5d6a5eb548945f0ab58038a462",
+    "askers_count": 1
+  },
+  {
+    "state": "fc117462d28355300f680f633bd8c8ee03b3a11209239153715d3f6c4737f329",
+    "command": "CARGO_TARGET_DIR=target/fleet-check cargo check",
+    "exit_code": 0,
+    "started_at": "2026-10-20T21:50:08.610407+00:00",
+    "told_count": 0,
+    "finished_at": "2026-10-20T21:56:22.088325+00:00",
+    "state_after": "fc117462d28355300f680f633bd8c8ee03b3a11209239153715d3f6c4737f329",
+    "askers_count": 1
+  }
+]

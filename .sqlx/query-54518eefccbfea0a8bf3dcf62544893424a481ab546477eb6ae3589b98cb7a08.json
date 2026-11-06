@@ -1,0 +1,54 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT d.folder, d.description, d.skill_md\n                     FROM memory.skill_drafts d\n                    WHERE d.project_id = $1\n                      AND d.folder = ANY($2)\n                      AND d.id < $3\n                      AND ((d.status = 'accepted' AND d.review IS NULL) OR d.review = 'approved')\n                    ORDER BY d.lesson_watermark DESC, d.revision DESC\n                    LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "folder",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "folder"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "skill_md",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "skill_md"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "TextArray",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "54518eefccbfea0a8bf3dcf62544893424a481ab546477eb6ae3589b98cb7a08"
+}

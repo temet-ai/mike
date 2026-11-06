@@ -1,0 +1,154 @@
+#!/usr/bin/env node
+// style-guide-render — turn docs/frontend/STYLE_GUIDE.html into files an agent can read.
+//
+// The design export is a bundled file: one two-megabyte line of script, no headings or
+// component names in its source, so grep finds nothing in it and a session without a
+// browser cannot read it at all. This renders it once and writes, next to it:
+//
+//   docs/frontend/style-guide/guide.txt        every word on the page, in reading order
+//   docs/frontend/style-guide/<section>.png    one picture per section
+//   docs/frontend/style-guide/SOURCE.sha256    hash of the export these were made from
+//
+// Usage: scripts/style-guide-render            render and write
+//        scripts/style-guide-render --check    exit 1 when the files are older than the export
+
+import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
+import { createServer } from 'node:http';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const source = path.join(repoRoot, 'docs/frontend/STYLE_GUIDE.html');
+const outDir = path.join(repoRoot, 'docs/frontend/style-guide');
+const stampFile = path.join(outDir, 'SOURCE.sha256');
+
+if (!existsSync(source)) {
+	console.error(`MISSING: ${path.relative(repoRoot, source)}`);
+	process.exit(2);
+}
+const html = readFileSync(source);
+const hash = createHash('sha256').update(html).digest('hex');
+
+if (process.argv.includes('--check')) {
+	const stamp = existsSync(stampFile) ? readFileSync(stampFile, 'utf8').trim() : '';
+	if (stamp === hash) {
+		console.log('CLEAN: the rendered style guide matches the export.');
+		process.exit(0);
+	}
+	console.error('STALE: docs/frontend/style-guide/ was rendered from a different export.');
+	console.error('Run scripts/style-guide-render and commit the result.');
+	process.exit(1);
+}
+
+const require = createRequire(path.join(repoRoot, 'frontend', 'package.json'));
+let chromium;
+try {
+	({ chromium } = require('playwright'));
+} catch {
+	console.error('SKIP: playwright not resolvable from frontend/ — run pnpm install there first.');
+	process.exit(2);
+}
+
+const server = createServer((_request, response) => {
+	response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+	response.end(html);
+});
+await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+const { port } = server.address();
+
+const slug = (text) =>
+	text
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-|-$/g, '');
+
+const browser = await chromium.launch();
+try {
+	const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'networkidle', timeout: 60000 });
+	await page.waitForTimeout(2500);
+
+	const navigation = await page.evaluate(() => {
+		const aside = document.querySelector('aside, nav');
+		if (!aside) return [];
+		return [...aside.querySelectorAll('a, button')]
+			.map((entry) => entry.textContent.trim())
+			.filter(Boolean);
+	});
+
+	const fullHeight = await page.evaluate(() => {
+		const scroller = [...document.querySelectorAll('*')].reduce(
+			(tallest, element) => (element.scrollHeight > tallest.scrollHeight ? element : tallest),
+			document.documentElement
+		);
+		return scroller.scrollHeight;
+	});
+	await page.setViewportSize({ width: 1280, height: Math.min(fullHeight + 200, 12000) });
+	await page.waitForTimeout(1500);
+
+	const sections = await page.evaluate((labels) => {
+		const candidates = [...document.querySelectorAll('section, article, div')].filter(
+			(element) => element.getBoundingClientRect().width > 400
+		);
+		const found = [];
+		for (const label of labels) {
+			const wanted = label.toUpperCase();
+			const others = labels.filter((other) => other !== label).map((other) => other.toUpperCase());
+			const matches = candidates.filter((element) => {
+				const text = element.innerText.trim().toUpperCase();
+				if (!text.startsWith(wanted) || text.length <= wanted.length) return false;
+				const lines = text.split('\n').map((line) => line.trim());
+				return !others.some((other) => lines.includes(other));
+			});
+			const smallest = matches.sort(
+				(left, right) => right.innerText.length - left.innerText.length
+			)[0];
+			if (!smallest || found.some((entry) => entry.element === smallest)) continue;
+			found.push({ element: smallest, label });
+		}
+		return found.map((entry, index) => {
+			entry.element.setAttribute('data-render-index', String(index));
+			return { index, firstLine: entry.label, text: entry.element.innerText.trim() };
+		});
+	}, navigation);
+
+	if (existsSync(outDir)) {
+		for (const entry of readdirSync(outDir)) rmSync(path.join(outDir, entry), { recursive: true });
+	}
+	mkdirSync(outDir, { recursive: true });
+
+	const lines = [
+		'FUNK style guide, rendered as text',
+		'',
+		'Made by scripts/style-guide-render from docs/frontend/STYLE_GUIDE.html.',
+		'Do not edit by hand. Each section below has a picture of the same name in this folder.',
+		''
+	];
+	if (navigation.length > 0) lines.push('Sections in the guide: ' + navigation.join(' · '), '');
+
+	const used = new Set();
+	for (const section of sections) {
+		let name = slug(section.firstLine).slice(0, 48) || `section-${section.index}`;
+		while (used.has(name)) name = `${name}-${section.index}`;
+		used.add(name);
+		const file = `${String(section.index + 1).padStart(2, '0')}-${name}.png`;
+		await page.locator(`[data-render-index="${section.index}"]`).screenshot({
+			path: path.join(outDir, file)
+		});
+		lines.push('='.repeat(72), `${section.firstLine}    [picture: ${file}]`, '='.repeat(72));
+		lines.push(section.text, '');
+	}
+	if (sections.length === 0) {
+		lines.push(await page.evaluate(() => document.body.innerText));
+		await page.screenshot({ path: path.join(outDir, '01-whole-guide.png'), fullPage: true });
+	}
+	writeFileSync(path.join(outDir, 'guide.txt'), lines.join('\n') + '\n');
+	writeFileSync(stampFile, hash + '\n');
+	console.log(`Wrote ${sections.length || 1} section(s) to ${path.relative(repoRoot, outDir)}/`);
+} finally {
+	await browser.close();
+	server.close();
+}

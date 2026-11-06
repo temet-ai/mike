@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH sub AS (\n    SELECT rr.id, rr.created_at, rr.subagent_persona,\n           ROW_NUMBER() OVER (ORDER BY rr.id ASC) - 1 AS pos\n      FROM requests.requests rr\n      JOIN requests.turn_origins tor_sa\n        ON tor_sa.id = rr.turn_origin_id\n       AND tor_sa.code = 'subagent'\n     WHERE rr.session_id = $1\n       AND rr.agent_instance_id IS NULL\n),\ndisp AS (\n    SELECT ad.id AS dispatch_id, ad.agent_id, tu.tool_name,\n           ROW_NUMBER() OVER (ORDER BY ad.id ASC) - 1 AS pos\n      FROM agents.dispatches ad\n      JOIN tools.uses tu ON tu.id = ad.tool_use_id\n      JOIN requests.requests r2 ON r2.id = tu.request_id\n     WHERE r2.session_id = $1\n),\ntodo AS (\n    SELECT d.dispatch_id, d.agent_id,\n           CASE WHEN sub.subagent_persona ~ '\\S' THEN sub.subagent_persona END AS persona\n      FROM disp d\n      LEFT JOIN sub ON sub.pos = d.pos\n      LEFT JOIN agents.instances ai_existing\n        ON ai_existing.dispatch_id = d.dispatch_id\n     WHERE d.tool_name = 'Agent'\n       AND ai_existing.id IS NULL\n),\nranked_todo AS (\n    SELECT t.dispatch_id, t.agent_id, t.persona,\n           ROW_NUMBER() OVER (PARTITION BY t.persona ORDER BY t.dispatch_id ASC) AS rn\n      FROM todo t\n),\nopen_requests AS (\n    SELECT s.id, s.created_at, s.subagent_persona,\n           ROW_NUMBER() OVER (PARTITION BY s.subagent_persona ORDER BY s.id ASC) AS rn\n      FROM sub s\n     WHERE s.subagent_persona IN (SELECT persona FROM todo WHERE persona IS NOT NULL)\n),\nins AS (\n    INSERT INTO agents.instances\n        (session_id, dispatch_id, agent_id, subagent_persona, first_request_id, started_at)\n    SELECT $1, rt.dispatch_id, rt.agent_id, rt.persona, orq.id, orq.created_at\n      FROM ranked_todo rt\n      LEFT JOIN open_requests orq\n        ON orq.subagent_persona = rt.persona\n       AND orq.rn = rt.rn\n     WHERE NOT EXISTS (\n         SELECT 1 FROM agents.instances WHERE dispatch_id = rt.dispatch_id\n     )\n    RETURNING id, agent_id, first_request_id\n),\nclaimed AS (\n    UPDATE requests.requests r\n       SET agent_instance_id = ins.id\n      FROM ins\n     WHERE r.id = ins.first_request_id\n    RETURNING r.id\n),\nstamped AS (\n    UPDATE system_prompts.session_prompts sp\n       SET instance_id = ins.id,\n           agent_id    = ins.agent_id\n      FROM ins\n     WHERE sp.request_id = ins.first_request_id\n       AND sp.instance_id IS NULL\n    RETURNING sp.id\n)\nSELECT count(*) AS \"created!\" FROM ins\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "created!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "1cf71cbd1b44b15f5631219fc5c1ea4a0ad7c7ff072e7bb1b7eb95531b29f87b"
+}

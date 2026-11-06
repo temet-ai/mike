@@ -1,0 +1,158 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT tu.id AS \"tu_id!\",\n       tu.request_id AS \"request_id!\",\n       s.session_uuid::text AS \"session_id!\",\n       tu.created_at AS \"created_at!\",\n       tu.wire_tool_use_id AS \"tool_id!\",\n       tu.tool_name AS \"tool_name!\",\n       tu.input,\n       tu.file_path,\n       tu.ord AS \"ord!\",\n       r.agent_instance_id,\n       a.name AS agent_name,\n       r.subagent_persona\n  FROM tools.uses tu\n  JOIN sessions.sessions s ON s.id = tu.session_id\n  LEFT JOIN requests.requests r ON r.id = tu.request_id\n  LEFT JOIN agents.instances ai ON ai.id = r.agent_instance_id\n  LEFT JOIN agents.agents a ON a.id = ai.agent_id\n WHERE tu.session_id = $1\n   AND (a.name = $4 OR r.subagent_persona = $4)\n ORDER BY tu.created_at DESC, tu.ord DESC\nOFFSET $2 LIMIT $3\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tu_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "session_id!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "tool_id!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "wire_tool_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "tool_name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "tool_name"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "input",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "input"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "file_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "file_path"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "ord!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "ord"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "agent_instance_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "agent_instance_id"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "agent_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "subagent_persona",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "subagent_persona"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "f0a6595bbdfe7476cf785e9ddcb3f4fe9cae085b63ff913308103ac0c307a469"
+}

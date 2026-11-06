@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.requests\n            SET predecessor_request_id = $2,\n                request_number = (\n                    SELECT COUNT(*)\n                      FROM requests.requests r2\n                     WHERE r2.session_id = $3\n                       AND (r2.created_at, r2.id) <= ($4::timestamptz, $1::bigint)\n                )\n          WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f8b8096cb247aff24cf82eefde7356e56d15225b9ec6c191bff369e4947d22ee"
+}

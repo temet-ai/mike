@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE mailbox.messages m\n                      SET dead_lettered_at = NULL,\n                          claimed_at = NULL,\n                          queued_at = now()\n                     FROM sessions.sessions recip\n                    WHERE recip.id = m.to_session_id\n                      AND recip.session_uuid = $1\n                      AND m.dead_lettered_at IS NOT NULL\n                      AND m.consumed_at IS NULL\n                      AND m.sent_at IS NULL\n                      AND m.sent_request_id IS NULL\n                      AND m.channel_delivered_at IS NULL\n                RETURNING m.message_uuid AS \"message_uuid!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "message_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "message_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5602f06b56620ac6bb89c8b6d58f2c06413bd49c6509045daaa84656b76df1b0"
+}

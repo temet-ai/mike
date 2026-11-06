@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.knowledge_embedding_state AS e\n                 (source_kind, source_id, source_updated_at, source_seq, source_hash, model_key,\n                  attempts, next_attempt_at, last_error)\n             VALUES ($1, $2, $3, $4, $5, $6, 1, now() + interval '30 seconds', $7)\n             ON CONFLICT (source_kind, source_id) DO UPDATE SET\n                 source_updated_at = EXCLUDED.source_updated_at, source_seq = EXCLUDED.source_seq,\n                 source_hash = EXCLUDED.source_hash, model_key = EXCLUDED.model_key,\n                 completed_at = NULL, last_error = EXCLUDED.last_error,\n                 attempts = CASE\n                     WHEN e.model_key = EXCLUDED.model_key\n                      AND e.source_updated_at IS NOT DISTINCT FROM EXCLUDED.source_updated_at\n                      AND e.source_seq IS NOT DISTINCT FROM EXCLUDED.source_seq\n                      AND e.source_hash IS NOT DISTINCT FROM EXCLUDED.source_hash\n                     THEN e.attempts + 1 ELSE 1 END,\n                 next_attempt_at = now() + LEAST(3600, 30 * power(2, LEAST(e.attempts, 7))) * interval '1 second'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Timestamptz",
+        "Int8",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "eca2a3c5c0637c47237b542bef83a40005bd904025b8b626abd74f07772c9b60"
+}

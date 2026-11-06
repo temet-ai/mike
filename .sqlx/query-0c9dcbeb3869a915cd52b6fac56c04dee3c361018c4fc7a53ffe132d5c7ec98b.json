@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.semantic_embedders\n                    SET last_checked_at = now(),\n                        urls_seen = CASE WHEN $2 = ANY(urls_seen) THEN urls_seen\n                                         ELSE array_append(urls_seen, $2) END\n                  WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0c9dcbeb3869a915cd52b6fac56c04dee3c361018c4fc7a53ffe132d5c7ec98b"
+}

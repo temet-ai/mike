@@ -1,0 +1,59 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH chunk_agg AS (\n                       SELECT ot.session_id AS session_db_id,\n                              MAX(otc.embedded_at) AS max_chunk_embedded_at\n                         FROM memory.operator_turn_chunks otc\n                         JOIN memory.operator_turns ot ON ot.id = otc.turn_id\n                        GROUP BY ot.session_id\n                   )\n                   SELECT s.session_uuid          AS \"session_id!\",\n                          s.overview               AS \"overview?\",\n                          s.overview_generated_at   AS \"overview_generated_at?\",\n                          ca.max_chunk_embedded_at  AS \"max_chunk_embedded_at?\"\n                     FROM sessions.sessions s\n                     JOIN chunk_agg ca ON ca.session_db_id = s.id\n                     LEFT JOIN memory.session_embeddings se ON se.session_id = s.session_uuid\n                    WHERE se.session_id IS NULL\n                       OR se.source_updated_at < GREATEST(\n                            COALESCE(ca.max_chunk_embedded_at, '-infinity'::timestamptz),\n                            COALESCE(s.overview_generated_at, '-infinity'::timestamptz)\n                          )\n                    ORDER BY GREATEST(\n                            COALESCE(ca.max_chunk_embedded_at, '-infinity'::timestamptz),\n                            COALESCE(s.overview_generated_at, '-infinity'::timestamptz)\n                          ) ASC\n                    LIMIT $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "overview?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "overview"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "overview_generated_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "overview_generated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "max_chunk_embedded_at?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "ce3a39db8ca66d96de4d2162e6c37fb7398063ec7f448e32da42667d5a36244d"
+}

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.operator_turns t\n                     SET final_assistant_text = s.text\n                    FROM (\n                        SELECT r.operator_turn_id AS turn_id,\n                               string_agg(b.content, '' ORDER BY b.request_id, b.seq_ord) AS text\n                          FROM requests.requests r\n                          JOIN responses.stream_blocks b ON b.request_id = r.id\n                          JOIN requests.turn_origins o ON o.id = r.turn_origin_id\n                          JOIN responses.stream_block_types bt ON bt.id = b.block_type_id\n                         WHERE r.operator_turn_id = ANY($1)\n                           AND bt.code = 'text'\n                           AND o.code NOT LIKE '%sidecar'\n                         GROUP BY r.operator_turn_id\n                    ) s\n                   WHERE t.id = s.turn_id\n                     AND t.final_assistant_text IS DISTINCT FROM s.text",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a82d49a4ad399e21630ebf33b0fe945b3621385d841328f352a4df25b6e1a4b2"
+}

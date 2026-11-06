@@ -1,0 +1,272 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.session_uuid::text      AS \"session_id!\",\n       r.id,\n       m.code                    AS method,\n       r.path,\n       r.model,\n       r.is_streaming,\n       r.message_count,\n       st.code                   AS status,\n       r.params,\n       r.human_prompt,\n       tt.code                   AS turn_type,\n       torg.code                 AS turn_origin,\n       r.subagent_persona,\n       r.created_at,\n       r.completed_at,\n       rsp.prompt_sha256         AS \"prompt_sha256?\",\n       pc.id                     AS \"composition_id?\",\n       r.predecessor_request_id,\n       r.request_number,\n       r.agent_instance_id,\n       tu_dispatch.request_id    AS \"dispatch_request_id?\",\n       COALESCE(p.project_path, '(no project)') AS \"project_path!\"\n  FROM requests.requests r\n  JOIN requests.methods m ON m.id = r.method_id\n  JOIN requests.statuses st ON st.id = r.status_id\n  JOIN requests.turn_types tt ON tt.id = r.turn_type_id\n  JOIN requests.turn_origins torg ON torg.id = r.turn_origin_id\n  JOIN sessions.sessions s ON s.id = r.session_id\n  LEFT JOIN requests.system_prompts rsp ON rsp.request_id = r.id\n  LEFT JOIN overrides.overrides pc ON pc.id = rsp.override_id\n  LEFT JOIN projects.projects p ON p.id = s.project_id\n  LEFT JOIN agents.instances ai ON ai.id = r.agent_instance_id\n  LEFT JOIN agents.dispatches ad ON ad.id = ai.dispatch_id\n  LEFT JOIN tools.uses tu_dispatch ON tu_dispatch.id = ad.tool_use_id\n WHERE r.session_id = $1\n ORDER BY r.created_at DESC, r.id DESC\n LIMIT $2 OFFSET $3\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "method",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.methods",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "path"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "model",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "is_streaming",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "is_streaming"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "message_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "message_count"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.statuses",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "params",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "params"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "human_prompt",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "human_prompt"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "turn_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.turn_types",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "turn_origin",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.turn_origins",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "subagent_persona",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "subagent_persona"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "completed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "completed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "prompt_sha256?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.system_prompts",
+            "name": "prompt_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "composition_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "predecessor_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "predecessor_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "request_number",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "request_number"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "agent_instance_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "agent_instance_id"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "dispatch_request_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "project_path!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      null
+    ]
+  },
+  "hash": "fa50d14f3471e1deb320db856c05f422527570905a6b3d0774bb791f1ed5afb0"
+}

@@ -1,0 +1,114 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.id AS turn_id, t.session_id, t.project_id AS \"project_id?\",\n                          t.start_request_id AS request_id,\n                          COALESCE(t.user_prompt, '') AS \"user_prompt!\",\n                          COALESCE(t.final_assistant_text, '') AS \"final_text!\",\n                          f.text_spans, t.created_at, t.closed_at\n                     FROM memory.operator_turns t\n                     JOIN memory.turn_facts f ON f.operator_turn_id = t.id\n                    WHERE t.id = $1 AND t.closed_at IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "project_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "start_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "user_prompt!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "final_text!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "text_spans",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "text_spans"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "closed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "closed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      null,
+      null,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "4bbd10635f223af976ef42f78fdd4b09494a8112d5e87978cf5ce73368eda1ea"
+}

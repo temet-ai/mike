@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO config.settings (key, value) VALUES ($1, '0'::jsonb)\n                 ON CONFLICT (key) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2bd31b26ee3989f71f30015d26ea0d99d70967beb702317b1560396972f1b810"
+}

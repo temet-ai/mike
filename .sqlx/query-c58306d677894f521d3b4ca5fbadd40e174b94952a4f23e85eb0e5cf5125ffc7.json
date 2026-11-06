@@ -1,0 +1,93 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT c.id,\n       c.path,\n       c.change,\n       c.content_sha,\n       c.seen_at,\n       w.seats AS \"seats: Vec<String>\",\n       w.named AS \"named: Vec<String>\"\n  FROM launch.tree_changes c\n  LEFT JOIN LATERAL (\n        SELECT array_agg(DISTINCT l.seat) AS seats,\n               array_agg(DISTINCT l.seat) FILTER (WHERE strpos(u.input::text, c.path) > 0) AS named\n          FROM launch.launches l\n          JOIN sessions.sessions s   ON s.session_uuid = l.session_uuid\n          JOIN tools.uses u          ON u.session_id = s.id\n          JOIN responses.responses rs ON rs.request_id = u.request_id\n          LEFT JOIN tools.results r  ON r.tool_use_id = u.id\n         WHERE l.run_id = c.run_id\n           AND l.seat IS NOT NULL\n           AND u.tool_name IN ('Bash', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit')\n           AND u.created_at BETWEEN c.seen_at - interval '30 minutes' AND c.seen_at + interval '1 second'\n           AND rs.completed_at <= c.seen_at + interval '1 second'\n           AND (r.created_at IS NULL OR r.created_at >= c.seen_at - interval '1 second')\n       ) w ON true\n WHERE c.run_id = $1\n   AND c.seen_at >= $2\n   AND c.path LIKE $3::text || '%'\n ORDER BY c.id DESC\n LIMIT $4\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.tree_changes",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.tree_changes",
+            "name": "path"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "change",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.tree_changes",
+            "name": "change"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "content_sha",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.tree_changes",
+            "name": "content_sha"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "seen_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.tree_changes",
+            "name": "seen_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "seats: Vec<String>",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "named: Vec<String>",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "c58306d677894f521d3b4ca5fbadd40e174b94952a4f23e85eb0e5cf5125ffc7"
+}

@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.released_at IS NOT NULL AS \"released!\"\n             FROM workspace.session_registrations r\n             JOIN sessions.sessions s ON s.id = r.session_id\n            WHERE s.session_uuid = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "released!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "39945040a4b33278ecd0b6690a64708d9a778a71179d9a379deccf97208994f6"
+}

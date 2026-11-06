@@ -1,0 +1,67 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n             agg.prompt_sha256 AS \"prompt_sha256!\",\n             pc.id AS \"composition_id?\",\n             agg.first_request_id AS \"first_request_id!\",\n             agg.occurrence_count AS \"occurrence_count!\",\n             pc.label AS \"label?\"\n         FROM (\n             SELECT\n                 rsp.prompt_sha256,\n                 rsp.override_id,\n                 MIN(rsp.request_id)::bigint AS first_request_id,\n                 COUNT(*)::bigint              AS occurrence_count\n             FROM requests.system_prompts rsp\n             JOIN requests.requests r ON r.id = rsp.request_id\n             WHERE r.session_id = $1\n               AND rsp.prompt_sha256 IS NOT NULL\n             GROUP BY rsp.prompt_sha256, rsp.override_id\n         ) agg\n         LEFT JOIN overrides.overrides pc\n             ON pc.id = agg.override_id\n         ORDER BY agg.first_request_id ASC\n         LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "prompt_sha256!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.system_prompts",
+            "name": "prompt_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "composition_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "first_request_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "occurrence_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "label?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "label"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      false,
+      null,
+      null,
+      false
+    ]
+  },
+  "hash": "3753252d39f862d400079ccaceb44a9a9f656661764f91edbcde2bdf86e3a5b4"
+}

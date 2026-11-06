@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM work.thread_dependencies d\n          WHERE d.thread_id = $1\n            AND NOT EXISTS (\n                SELECT 1 FROM work.threads t\n                 WHERE t.id = d.depends_on_thread_id AND t.slug = ANY($2))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "79bdfc5b18f1366286c888b2bab6fb663509c381b4c6bc55f65a7fb3e4e42403"
+}

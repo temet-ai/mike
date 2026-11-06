@@ -1,0 +1,73 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH due AS (\n    SELECT e.id, e.session_id, e.operator_turn_id, e.trigger_request_id, e.question\n      FROM steering.evaluations e\n     WHERE e.due_at IS NOT NULL AND e.reach_at_due IS NULL AND e.due_at <= now()\n       AND e.arm = 'holdback'\n     ORDER BY e.due_at\n     LIMIT $1\n),\ndue_sessions AS (\n    SELECT DISTINCT session_id FROM due\n),\nstreams AS (\n    SELECT ch.session_id,\n           bool_or(ch.stream_opened_at <= now()\n                   AND (ch.stream_closed_at IS NULL OR ch.stream_closed_at > now())\n                   AND ch.last_seen_at >= now() - make_interval(secs => 2 * COALESCE(ch.last_heartbeat_interval_seconds, 60)))\n               AS open\n      FROM remote_control.channels ch\n      JOIN due_sessions ds ON ds.session_id = ch.session_id\n     GROUP BY ch.session_id\n)\nSELECT d.id AS \"id!\", d.session_id AS \"session_id!\", d.question AS \"question?\",\n       (t.closed_at IS NOT NULL) AS \"turn_closed!\",\n       EXISTS (\n           SELECT 1\n             FROM requests.requests r\n             JOIN requests.turn_origins o ON o.id = r.turn_origin_id\n            WHERE r.session_id = d.session_id\n              AND r.created_at > tr.created_at\n              AND o.code IN ('primary', 'primary_first')\n       ) AS \"moved_on!\",\n       COALESCE(st.open, false) AS \"stream_open!\"\n  FROM due d\n  LEFT JOIN memory.operator_turns t ON t.id = d.operator_turn_id\n  LEFT JOIN requests.requests tr ON tr.id = d.trigger_request_id\n  LEFT JOIN streams st ON st.session_id = d.session_id\n ORDER BY d.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "question?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "question"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "turn_closed!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "moved_on!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "stream_open!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "3c01b70c149444f8d2620752728a0c249ff54637a7dbdd8bedb818b77d27678c"
+}

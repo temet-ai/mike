@@ -1,0 +1,7 @@
+{
+  "name": "mike-mail",
+  "version": "0.1.0",
+  "author": { "name": "Dawid du Toit" },
+  "description": "A SendMessage reply to a session that wrote through mike goes back through mike's mailbox, so threads, receipts and /comms keep it",
+  "types": "./types/index.d.ts"
+}

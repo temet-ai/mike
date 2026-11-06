@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT to_regclass('requests.envelopes') IS NOT NULL AS \"table_exists!\",\n                EXISTS (\n                    SELECT 1 FROM information_schema.columns\n                     WHERE table_schema = 'requests'\n                       AND table_name   = 'requests'\n                       AND column_name  = 'envelope_id'\n                ) AS \"column_exists!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "table_exists!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "column_exists!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "624e7a030eef3ec79dfa320fe6f20b9cef6073c73565fd861dbc8414545dfb4f"
+}

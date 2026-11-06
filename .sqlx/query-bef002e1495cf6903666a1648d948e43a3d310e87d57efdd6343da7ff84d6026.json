@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT rd.category AS \"category!\", COUNT(*)::bigint AS \"total!\"\n           FROM requests.diagnostics rd\n           JOIN requests.requests r ON r.id = rd.request_id\n           JOIN sessions.sessions s ON s.id = r.session_id\n           JOIN projects.projects p ON p.id = s.project_id\n           WHERE rd.created_at > NOW() - INTERVAL '24 hours'\n             AND p.project_path ILIKE '%' || $1 || '%'\n           GROUP BY rd.category",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "category!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.diagnostics",
+            "name": "category"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "total!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "bef002e1495cf6903666a1648d948e43a3d310e87d57efdd6343da7ff84d6026"
+}

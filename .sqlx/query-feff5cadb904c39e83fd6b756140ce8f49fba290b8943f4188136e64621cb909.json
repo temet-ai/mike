@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.operator_turns t\n                    SET opened_by = x.opened_by\n                   FROM jsonb_to_recordset($1::jsonb) AS x(turn_id bigint, opened_by text)\n                  WHERE t.id = x.turn_id\n                    AND t.opened_by IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "feff5cadb904c39e83fd6b756140ce8f49fba290b8943f4188136e64621cb909"
+}

@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.pattern_assignments\n                     (corrected_turn_id, correction_item_id, qualification, qualification_ref,\n                      pattern, score, similarity, anchor_item_id, runner_up_pattern, margin,\n                      top_anchors, floor_id, tagger_version, embedder_key)\n                 SELECT u.corrected_turn_id, u.correction_item_id, u.qualification,\n                        u.qualification_ref, u.pattern, u.score, u.similarity, u.anchor_item_id,\n                        u.runner_up_pattern, u.margin, u.top_anchors, u.floor_id,\n                        u.tagger_version, u.embedder_key\n                   FROM unnest($1::bigint[], $2::bigint[], $3::text[], $4::text[], $5::text[],\n                               $6::float8[], $7::float8[], $8::bigint[], $9::text[],\n                               $10::float8[], $11::jsonb[], $12::bigint[], $13::text[],\n                               $14::text[])\n                        AS u(corrected_turn_id, correction_item_id, qualification,\n                             qualification_ref, pattern, score, similarity, anchor_item_id,\n                             runner_up_pattern, margin, top_anchors, floor_id, tagger_version,\n                             embedder_key)\n                 ON CONFLICT (correction_item_id, tagger_version, embedder_key) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8Array",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "Float8Array",
+        "Float8Array",
+        "Int8Array",
+        "TextArray",
+        "Float8Array",
+        "JsonbArray",
+        "Int8Array",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a6dc77362151ff56e64064ea7d2dad4e227cb3a26aebf9295333f8db78978c0e"
+}

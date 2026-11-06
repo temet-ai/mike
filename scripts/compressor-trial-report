@@ -1,0 +1,151 @@
+#!/usr/bin/env python3
+"""Paired-trial report for the file-read compressor.
+
+Input: a JSON file listing paired runs of the same task, one session with the compressor
+forwarding (enrolled) and one without (control):
+
+  [{"task": "fix-flaky-test", "rep": 1,
+    "control": {"session": "<uuid>", "success": true},
+    "enrolled": {"session": "<uuid>", "success": true}}]
+
+For each session it reads every captured response (subagents included) and reports billed
+token buckets weighted to input-equivalent units (fresh 1, cache write 1.25, cache read 0.1,
+output 5), turns, and whether the compressor actually forwarded a shortened request in the
+enrolled arm. Decision metric: cost per successful task, paired by task. Read-only.
+
+Usage: scripts/compressor-trial-report trials.json [--json out.json]
+"""
+import json
+import os
+import pathlib
+import shutil
+import statistics
+import subprocess
+import sys
+from math import comb
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+WEIGHTS = {"fresh": 1.0, "cache_write": 1.25, "cache_read": 0.1, "output": 5.0}
+
+SQL = """
+SELECT row_to_json(a) FROM (
+  SELECT s.session_uuid::text AS session,
+         count(r.id) AS responses,
+         coalesce(sum(r.input_tokens), 0) AS fresh,
+         coalesce(sum(r.cache_creation_input_tokens), 0) AS cache_write,
+         coalesce(sum(r.cache_read_input_tokens), 0) AS cache_read,
+         coalesce(sum(r.output_tokens), 0) AS output,
+         count(*) FILTER (WHERE EXISTS (
+           SELECT 1 FROM jsonb_array_elements(q.transformation_manifest->'stages') st
+           WHERE st->>'stage' = 'file_read_compression' AND st->>'outcome' = 'applied'
+         )) AS forwarded_requests
+  FROM sessions.sessions s
+  JOIN requests.requests q ON q.session_id = s.id
+  LEFT JOIN responses.responses r ON r.request_id = q.id
+  WHERE s.session_uuid::text = ANY(string_to_array('{ids}', ','))
+  GROUP BY s.session_uuid
+) a;
+"""
+
+
+def run_sql(sql):
+    env_url = os.environ.get("MIKE_DATABASE_URL")
+    if not env_url and (ROOT / ".env").exists():
+        for line in (ROOT / ".env").read_text().splitlines():
+            if line.startswith("MIKE_DATABASE_URL="):
+                env_url = line.split("=", 1)[1].strip().strip('"')
+    options = "-c default_transaction_read_only=on -c statement_timeout=120000"
+    if shutil.which("psql") and env_url:
+        cmd = ["psql", env_url, "-X", "-qAt", "-v", "ON_ERROR_STOP=1"]
+        env = dict(os.environ, PGOPTIONS=options)
+    else:
+        cmd = ["docker", "exec", "-i", "-e", f"PGOPTIONS={options}", "armitage-pg",
+               "psql", "-U", "devuser", "-d", "claude_proxy", "-X", "-qAt", "-v", "ON_ERROR_STOP=1"]
+        env = None
+    out = subprocess.run(cmd, input=sql, text=True, capture_output=True, env=env)
+    if out.returncode:
+        sys.exit(f"query failed: {out.stderr.strip()}")
+    return [json.loads(line) for line in out.stdout.splitlines() if line]
+
+
+def weighted(row):
+    return sum(row[k] * w for k, w in WEIGHTS.items())
+
+
+def sign_test(wins, losses):
+    n = wins + losses
+    if n == 0:
+        return 1.0
+    k = min(wins, losses)
+    tail = sum(comb(n, i) for i in range(k + 1)) / 2 ** n
+    return min(1.0, 2 * tail)
+
+
+def arm(pair, side, usage):
+    run = pair[side]
+    row = usage.get(run["session"])
+    if row is None:
+        return None
+    return dict(row, cost=weighted(row), success=bool(run["success"]))
+
+
+def summarise(pairs, usage):
+    rows, missing = [], []
+    for p in pairs:
+        c, e = arm(p, "control", usage), arm(p, "enrolled", usage)
+        if c is None or e is None:
+            missing.append(p)
+            continue
+        rows.append(dict(task=p["task"], rep=p.get("rep", 1), control=c, enrolled=e,
+                         change=(e["cost"] - c["cost"]) / c["cost"] if c["cost"] else None))
+    def cps(side):
+        wins = sum(r[side]["success"] for r in rows)
+        return sum(r[side]["cost"] for r in rows) / wins if wins else None
+    changes = [r["change"] for r in rows if r["change"] is not None]
+    cheaper = sum(1 for x in changes if x < 0)
+    dearer = sum(1 for x in changes if x > 0)
+    q_better = sum(1 for r in rows if r["enrolled"]["success"] and not r["control"]["success"])
+    q_worse = sum(1 for r in rows if r["control"]["success"] and not r["enrolled"]["success"])
+    inactive = [r for r in rows if r["enrolled"]["forwarded_requests"] == 0]
+    return dict(
+        pairs=len(rows), missing_sessions=missing,
+        enrolled_arms_that_never_forwarded=len(inactive),
+        cost_per_success_control=cps("control"), cost_per_success_enrolled=cps("enrolled"),
+        median_paired_cost_change=statistics.median(changes) if changes else None,
+        cheaper=cheaper, dearer=dearer, cost_sign_test_p=sign_test(cheaper, dearer),
+        quality_better=q_better, quality_worse=q_worse,
+        quality_sign_test_p=sign_test(q_better, q_worse),
+        median_turns_control=statistics.median(r["control"]["responses"] for r in rows) if rows else None,
+        median_turns_enrolled=statistics.median(r["enrolled"]["responses"] for r in rows) if rows else None,
+        rows=rows)
+
+
+def pct(x):
+    return "n/a" if x is None else f"{100 * x:+.1f}%"
+
+
+def main():
+    if len(sys.argv) < 2:
+        sys.exit(__doc__)
+    pairs = json.loads(pathlib.Path(sys.argv[1]).read_text())
+    ids = sorted({p[s]["session"] for p in pairs for s in ("control", "enrolled")})
+    if any("," in i or "'" in i for i in ids):
+        sys.exit("session ids must be plain uuids")
+    usage = {r["session"]: r for r in run_sql(SQL.replace("{ids}", ",".join(ids)))}
+    s = summarise(pairs, usage)
+    if "--json" in sys.argv:
+        pathlib.Path(sys.argv[sys.argv.index("--json") + 1]).write_text(json.dumps(s, indent=1))
+    cpsc, cpse = s["cost_per_success_control"], s["cost_per_success_enrolled"]
+    print(f"Pairs measured: {s['pairs']}  (missing sessions: {len(s['missing_sessions'])})")
+    print(f"Enrolled arms where the compressor never forwarded: {s['enrolled_arms_that_never_forwarded']}")
+    print(f"Cost per successful task, input-equivalent tokens: control {cpsc and round(cpsc)}, enrolled {cpse and round(cpse)}")
+    if cpsc and cpse:
+        print(f"Change in cost per successful task: {pct(cpse / cpsc - 1)}")
+    print(f"Median paired cost change: {pct(s['median_paired_cost_change'])}")
+    print(f"Enrolled cheaper in {s['cheaper']}, dearer in {s['dearer']}  (sign test p={s['cost_sign_test_p']:.3f})")
+    print(f"Quality: enrolled better {s['quality_better']}, worse {s['quality_worse']}  (sign test p={s['quality_sign_test_p']:.3f})")
+    print(f"Median turns: control {s['median_turns_control']}, enrolled {s['median_turns_enrolled']}")
+
+
+if __name__ == "__main__":
+    main()

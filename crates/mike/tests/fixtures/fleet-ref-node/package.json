@@ -1,0 +1,14 @@
+{
+  "name": "fleet-ref-node",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "typecheck": "node_modules/.bin/tsc --noEmit -p ."
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "typescript": "5.9.3"
+  }
+}

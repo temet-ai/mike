@@ -1,0 +1,20 @@
+[Unit]
+Description=mike Storybook (components and the style guide, :6006)
+Documentation=file://@PROJECT_ROOT@/docs/DEVELOPMENT.md
+StartLimitIntervalSec=600
+StartLimitBurst=10
+
+[Service]
+Type=simple
+WorkingDirectory=@PROJECT_ROOT@/frontend
+Environment=PATH=@PATH@
+Environment=CI=true
+ExecStart=@PROJECT_ROOT@/frontend/node_modules/.bin/storybook dev -p 6006 --exact-port --ci --no-open
+UnsetEnvironment=CLAUDE_CODE_SESSION_ID
+Restart=always
+RestartSec=3
+StandardOutput=append:@PROJECT_ROOT@/.deploy/storybook.log
+StandardError=append:@PROJECT_ROOT@/.deploy/storybook.log
+
+[Install]
+WantedBy=default.target

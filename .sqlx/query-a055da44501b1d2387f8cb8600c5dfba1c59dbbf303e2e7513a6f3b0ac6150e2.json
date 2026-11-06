@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lessons SET project_id = $2\n          WHERE session_id = $1 AND project_id IS DISTINCT FROM $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a055da44501b1d2387f8cb8600c5dfba1c59dbbf303e2e7513a6f3b0ac6150e2"
+}

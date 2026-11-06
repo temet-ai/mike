@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE projects.locations SET last_seen = now()\n            FROM memory.knowledge_sources s WHERE s.source_uuid = $1\n              AND projects.locations.location_uuid = s.location_uuid",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "470e22aa8b00421969a486bb347e81bf852a3339a9e9f55bd371cc6faf1cd507"
+}

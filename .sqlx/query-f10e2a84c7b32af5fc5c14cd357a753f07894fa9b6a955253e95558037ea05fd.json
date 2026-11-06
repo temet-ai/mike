@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT jsonb_build_object('outcome', o.code, 'judge_model', v.judge_model,\n                              'rubric_version', v.rubric_version, 'bundle_id', v.bundle_id,\n                              'judged_at', v.judged_at, 'ending_turn_id', t.id) AS \"verdict!\"\n                         FROM memory.operator_turns t\n                         JOIN session_judges.verdicts v ON v.session_id = t.session_id\n                         JOIN session_judges.outcomes o ON o.id = v.outcome_id\n                        WHERE t.id = $1\n                          AND v.mode = 'live'\n                        ORDER BY v.judged_at DESC, v.id DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "verdict!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "f10e2a84c7b32af5fc5c14cd357a753f07894fa9b6a955253e95558037ea05fd"
+}

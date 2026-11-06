@@ -1,0 +1,95 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.id AS turn_id, t.session_id AS session_db_id,\n                          s.session_uuid::text AS \"session_uuid!\", t.start_request_id,\n                          t.opened_by, t.created_at, t.closed_at\n                     FROM memory.operator_turns t\n                     JOIN sessions.sessions s ON s.id = t.session_id\n                    WHERE t.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_db_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "session_uuid!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "start_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "start_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "opened_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "opened_by"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "closed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "closed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "5d2a13b3a56f1912cfcc6866109a4e95d02bfb3190c4a9b9f8862220b9b9f8a1"
+}

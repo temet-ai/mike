@@ -1,0 +1,66 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT schemaname::text AS \"schema!\", relname::text AS \"table!\",\n                          indexrelname::text AS \"index!\",\n                          pg_relation_size(indexrelid) AS \"bytes!\",\n                          idx_scan AS \"scans!\", stats_reset\n                     FROM pg_stat_user_indexes\n                    ORDER BY pg_relation_size(indexrelid) DESC, indexrelid\n                    LIMIT 30",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "schema!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "table!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "index!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "bytes!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "scans!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "pg_stat_user_indexes",
+            "name": "idx_scan"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "stats_reset",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "pg_stat_user_indexes",
+            "name": "stats_reset"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      true,
+      true
+    ]
+  },
+  "hash": "ed24ce0a579125a881c8ad02f8794a7799c27ea09451e37315530b39b2bc6edc"
+}

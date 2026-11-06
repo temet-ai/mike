@@ -1,0 +1,1 @@
+SELECT tu.tool_name, tu.file_path, CASE WHEN tu.tool_name = 'Bash' THEN tu.input ->> 'command' END AS command, (tr.tool_use_id IS NOT NULL) AS has_result, tr.is_error AS result_is_error FROM tools.uses tu LEFT JOIN tools.results tr ON tr.tool_use_id = tu.id WHERE tu.session_id = 1173418 ORDER BY tu.created_at ASC, tu.ord ASC

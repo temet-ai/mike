@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE tools.results SET is_error = true WHERE tool_use_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fe59c9d98fad81a8e144a0251b8657f796c88dba867dcd9ce175776601139511"
+}

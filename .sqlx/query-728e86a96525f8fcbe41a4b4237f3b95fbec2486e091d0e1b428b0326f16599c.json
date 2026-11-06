@@ -1,0 +1,75 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.id AS \"id!\", r.created_at AS \"created_at!\", s.ordinal AS \"ordinal?\",\n       CASE WHEN octet_length(s.entry->>'stage') <= 128 THEN s.entry->>'stage' END AS \"stage?\",\n       CASE WHEN s.entry->>'outcome' IN ('applied','unchanged','skipped','failed_closed') THEN s.entry->>'outcome' END AS \"outcome?\",\n       COALESCE(r.transformation_manifest->'schema_version' = '1'::jsonb\n         AND CASE WHEN jsonb_typeof(r.transformation_manifest->'stages') = 'array'\n                  THEN jsonb_array_length(r.transformation_manifest->'stages') <= 64 ELSE false END\n         AND (s.ordinal IS NULL OR s.entry->'ordinal' = to_jsonb(s.ordinal)), false) AS \"valid!\",\n       CASE WHEN s.entry->>'stage' = 'filter'\n             AND jsonb_typeof(s.entry->'resolved_parameters'->'firing_rule_ids') = 'array'\n            THEN jsonb_array_length(s.entry->'resolved_parameters'->'firing_rule_ids')\n       END AS \"firing_rule_count?\"\n  FROM requests.requests r\n  LEFT JOIN LATERAL jsonb_array_elements(CASE\n      WHEN r.transformation_manifest->'schema_version' = '1'::jsonb\n       AND CASE WHEN jsonb_typeof(r.transformation_manifest->'stages') = 'array'\n                    THEN jsonb_array_length(r.transformation_manifest->'stages') <= 64 ELSE false END\n      THEN r.transformation_manifest->'stages' ELSE '[]'::jsonb END)\n      WITH ORDINALITY AS s(entry, ordinal) ON true\n WHERE r.id = ANY($1) ORDER BY r.id, s.ordinal\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "ordinal?",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "stage?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "outcome?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "valid!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "firing_rule_count?",
+        "type_info": "Int4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "728e86a96525f8fcbe41a4b4237f3b95fbec2486e091d0e1b428b0326f16599c"
+}

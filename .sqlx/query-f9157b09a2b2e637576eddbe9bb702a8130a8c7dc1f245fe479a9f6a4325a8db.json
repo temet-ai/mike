@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                    SELECT count(*) AS \"count!\"\n                      FROM (\n                        SELECT row_number() OVER (\n                                 PARTITION BY r.session_id ORDER BY r.id\n                               ) AS rn\n                          FROM requests.requests r\n                          JOIN requests.turn_origins o ON o.id = r.turn_origin_id\n                         WHERE o.code = 'primary_first'\n                      ) ranked\n                     WHERE ranked.rn > 1\n                    ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "f9157b09a2b2e637576eddbe9bb702a8130a8c7dc1f245fe479a9f6a4325a8db"
+}

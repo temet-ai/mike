@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT v.end_turn_id AS \"end_turn_id!\"\n                     FROM session_judges.verdicts v\n                    WHERE v.session_id = $1 AND v.mode = 'live' AND v.end_turn_id IS NOT NULL\n                    ORDER BY v.judged_at DESC, v.id DESC\n                    LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "end_turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "end_turn_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "80c249d6873dc3df4c174aeb020476a7bb51d19172c926507dbd821f2e11b07a"
+}

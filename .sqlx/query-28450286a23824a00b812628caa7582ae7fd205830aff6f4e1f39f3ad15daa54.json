@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH incoming AS (\n    SELECT d.document_uuid, x.* FROM jsonb_to_recordset($2) AS x(\n        relative_path text, title text, body text, content_hash text,\n        kind text, status text, metadata jsonb)\n    JOIN memory.knowledge_documents d ON d.source_uuid = $1 AND d.relative_path = x.relative_path\n    LEFT JOIN memory.knowledge_revisions r ON r.id = d.current_revision\n    WHERE r.id IS NULL OR r.content_hash <> x.content_hash OR (r.metadata - 'source_git_commit' - 'source_worktree_dirty')\n           <> (x.metadata - 'source_git_commit' - 'source_worktree_dirty')\n       OR r.title <> x.title OR r.kind <> x.kind OR r.status <> x.status\n), inserted AS (\n    INSERT INTO memory.knowledge_revisions(document_uuid, title, body, content_hash, kind, status, metadata)\n    SELECT document_uuid, title, body, content_hash, kind, status, metadata FROM incoming\n    RETURNING document_uuid, id\n)\nUPDATE memory.knowledge_documents d SET current_revision = i.id\nFROM inserted i WHERE d.document_uuid = i.document_uuid\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "28450286a23824a00b812628caa7582ae7fd205830aff6f4e1f39f3ad15daa54"
+}

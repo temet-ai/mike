@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE steering.evaluations\n                    SET status = $1,\n                        intervention_uuid = $2,\n                        resolved_at = NOW(),\n                        verdict_json = $4,\n                        confidence = $5,\n                        reason = $6\n                  WHERE uuid = $3\n                    AND status = 'dispatched'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Jsonb",
+        "Float8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a6a8b1b417e3877243717ef9baff5c76ce244e9495a2647b5d25292d2efaab30"
+}

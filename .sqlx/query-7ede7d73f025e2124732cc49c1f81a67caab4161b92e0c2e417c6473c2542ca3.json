@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.requests r\n                SET request_number = n.rn\n               FROM (\n                        SELECT id, ROW_NUMBER() OVER (\n                                   PARTITION BY session_id ORDER BY created_at ASC, id ASC\n                               ) AS rn\n                          FROM requests.requests\n                    ) n\n              WHERE n.id = r.id\n                AND r.request_number IS DISTINCT FROM n.rn",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "7ede7d73f025e2124732cc49c1f81a67caab4161b92e0c2e417c6473c2542ca3"
+}

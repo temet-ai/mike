@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE eval.rejudge_runs\n    SET status = $2, finished_at = now()\n  WHERE id = $1 AND status IN ('queued', 'running')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "48dba0cf665c71b142e42d30c5c0f3065ce61a1bd9adc42469996987381ec15b"
+}

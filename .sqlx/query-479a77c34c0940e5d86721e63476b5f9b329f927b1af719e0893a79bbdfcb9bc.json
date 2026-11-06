@@ -1,0 +1,73 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ad.tool_use_id AS \"tool_use_id!\",\n                          tu.created_at AS \"dispatched_at!\",\n                          COALESCE(tu.input->>'prompt', '') AS \"prompt!\",\n                          s.session_uuid AS \"session_uuid!\",\n                          r.id AS \"request_id!\"\n                     FROM agents.dispatches ad\n                     JOIN tools.uses tu ON tu.id = ad.tool_use_id\n                     JOIN requests.requests r ON r.id = tu.request_id\n                     JOIN sessions.sessions s ON s.id = r.session_id\n                    WHERE ad.agent_id = $1\n                    ORDER BY tu.created_at DESC, ad.id DESC\n                    LIMIT $2 OFFSET $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tool_use_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.dispatches",
+            "name": "tool_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "dispatched_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "prompt!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      false,
+      false
+    ]
+  },
+  "hash": "479a77c34c0940e5d86721e63476b5f9b329f927b1af719e0893a79bbdfcb9bc"
+}

@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE steering.steerers s\n                    SET display_name    = $2,\n                        description     = $3,\n                        enabled         = $4,\n                        authority_id    = a.id,\n                        default_mode_id = m.id,\n                        model           = $7,\n                        priority        = $8,\n                        config          = s.config || $9::jsonb,\n                        prompt          = $10,\n                        trigger_point   = $11,\n                        invocation      = $12,\n                        pattern         = $13,\n                        project_id      = $14,\n                        updated_at      = NOW()\n                   FROM steering.authorities a,\n                        steering.modes       m\n                  WHERE a.code = $5\n                    AND m.code = $6\n                    AND s.id   = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Bool",
+        "Text",
+        "Text",
+        "Text",
+        "Int4",
+        "Jsonb",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1a1dd988f05d78ebbe61bfb716756a103d294f92fd58c78b3da6cc8590f48398"
+}

@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT fleet_uuid, state, run_id AS \"run_id!\"\n  FROM launch.fleets\n WHERE run_id = $1\n ORDER BY created_at, id\n FOR KEY SHARE\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "fleet_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "fleet_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "state",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "state"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "run_id!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "run_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "dc00f25e32592497c41fbb56e67e37e305cd9978ddb042fc64531c21c9ddd048"
+}

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE steering.evaluations e\n                    SET outcome_label = x.label,\n                        label_source = x.source,\n                        labelled_at = NOW(),\n                        label_evidence = x.evidence\n                   FROM jsonb_to_recordset($1::jsonb) AS x(uuid uuid, label text, source text,\n                                                           evidence jsonb)\n                  WHERE e.uuid = x.uuid\n                    AND e.status <> 'dispatched'\n                    AND (e.outcome_label IS NULL\n                         OR (x.source = 'operator' AND e.label_source IS DISTINCT FROM 'operator')\n                         OR (x.source = 'session_reply' AND e.label_source = 'session_reply'\n                             AND e.label_evidence->>'labeller_version'\n                                 IS DISTINCT FROM x.evidence->>'labeller_version'))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4ca07b6b953df8a4d8764e9e02465fff99eb051f72a7b2b2fa0703065b928955"
+}

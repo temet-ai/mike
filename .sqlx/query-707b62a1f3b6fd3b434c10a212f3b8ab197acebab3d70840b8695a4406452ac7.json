@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(sa.project_id, ra.project_id) AS \"project_id!\",\n                COALESCE(sa.session_count, 0) AS \"session_count!\",\n                COALESCE(ra.request_count, 0) AS \"request_count!\"\n         FROM (\n             SELECT project_id, COUNT(*) AS session_count\n             FROM sessions.sessions\n             GROUP BY project_id\n         ) sa\n         FULL JOIN (\n             SELECT s.project_id, COUNT(r.id) AS request_count\n             FROM sessions.sessions s\n             JOIN requests.requests r ON r.session_id = s.id\n             GROUP BY s.project_id\n         ) ra ON ra.project_id = sa.project_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "session_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "request_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "707b62a1f3b6fd3b434c10a212f3b8ab197acebab3d70840b8695a4406452ac7"
+}

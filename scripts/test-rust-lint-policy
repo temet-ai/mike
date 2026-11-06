@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# Regression tests for the repository's non-bypassable Rust structure policy.
+set -uo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(dirname "$SCRIPT_DIR")"
+TMP_REPO="$(mktemp -d "${TMPDIR:-/tmp}/rust-lint-policy.XXXXXX")"
+trap 'rm -rf "$TMP_REPO"' EXIT
+
+pass=0
+fail=0
+ok() { pass=$((pass + 1)); printf '  PASS  %s\n' "$1"; }
+bad() { fail=$((fail + 1)); printf '  FAIL  %s\n' "$1" >&2; }
+
+mkdir -p "$TMP_REPO/scripts" "$TMP_REPO/crates/demo/src"
+cp \
+  "$SCRIPT_DIR/lint-rust-architecture" \
+  "$SCRIPT_DIR/lint-rust-size" \
+  "$SCRIPT_DIR/lint-rust-suppressions" \
+  "$TMP_REPO/scripts/"
+
+for ((line = 1; line <= 500; line++)); do
+  printf '// line %d\n' "$line"
+done >"$TMP_REPO/crates/demo/src/lib.rs"
+
+if "$TMP_REPO/scripts/lint-rust-size" >/dev/null 2>&1; then
+  ok "500-line Rust file passes"
+else
+  bad "500-line Rust file passes"
+fi
+
+printf '// line 501\n' >>"$TMP_REPO/crates/demo/src/lib.rs"
+if "$TMP_REPO/scripts/lint-rust-size" >/dev/null 2>&1; then
+  bad "501-line Rust file fails"
+else
+  ok "501-line Rust file fails"
+fi
+
+printf 'pub fn clean() {}\n' >"$TMP_REPO/crates/demo/src/lib.rs"
+if "$TMP_REPO/scripts/lint-rust-suppressions" >/dev/null 2>&1; then
+  ok "source without structural suppressions passes"
+else
+  bad "source without structural suppressions passes"
+fi
+
+printf '#[allow(clippy::too_many_lines)]\npub fn hidden() {}\n' >"$TMP_REPO/crates/demo/src/lib.rs"
+if "$TMP_REPO/scripts/lint-rust-suppressions" >/dev/null 2>&1; then
+  bad "direct structural suppression fails"
+else
+  ok "direct structural suppression fails"
+fi
+
+printf '#[cfg_attr(test, expect(clippy::cognitive_complexity))]\npub fn hidden() {}\n' \
+  >"$TMP_REPO/crates/demo/src/lib.rs"
+if "$TMP_REPO/scripts/lint-rust-suppressions" >/dev/null 2>&1; then
+  bad "nested cfg_attr structural suppression fails"
+else
+  ok "nested cfg_attr structural suppression fails"
+fi
+
+printf '%s\n' \
+  '//! `use axum::Router;` is documentation, not a dependency.' \
+  'const EXAMPLE: &str = r#"use crate::api::handlers::SortOrder;"#;' \
+  'pub fn clean() {}' \
+  >"$TMP_REPO/crates/demo/src/lib.rs"
+if "$TMP_REPO/scripts/lint-rust-architecture" >/dev/null 2>&1; then
+  ok "comments and strings do not trigger architecture rules"
+else
+  bad "comments and strings do not trigger architecture rules"
+fi
+
+mkdir -p "$TMP_REPO/crates/demo/src/store"
+printf 'use crate::api::handlers::SortOrder;\n' \
+  >"$TMP_REPO/crates/demo/src/store/direct.rs"
+if "$TMP_REPO/scripts/lint-rust-architecture" >/dev/null 2>&1; then
+  bad "store-to-api import fails"
+else
+  ok "store-to-api import fails"
+fi
+rm "$TMP_REPO/crates/demo/src/store/direct.rs"
+
+printf '%s\n' \
+  'use crate::{' \
+  '    api::handlers::SortOrder,' \
+  '    store::RequestStore,' \
+  '};' \
+  >"$TMP_REPO/crates/demo/src/store/grouped.rs"
+if "$TMP_REPO/scripts/lint-rust-architecture" >/dev/null 2>&1; then
+  bad "grouped multiline store-to-api import fails"
+else
+  ok "grouped multiline store-to-api import fails"
+fi
+rm "$TMP_REPO/crates/demo/src/store/grouped.rs"
+
+printf 'pub fn build() { let _ = axum::Router::new(); }\n' \
+  >"$TMP_REPO/crates/demo/src/domain.rs"
+if "$TMP_REPO/scripts/lint-rust-architecture" >/dev/null 2>&1; then
+  bad "fully qualified Axum use outside an adapter fails"
+else
+  ok "fully qualified Axum use outside an adapter fails"
+fi
+rm "$TMP_REPO/crates/demo/src/domain.rs"
+
+printf 'use axum_extra as transport;\n' \
+  >"$TMP_REPO/crates/demo/src/domain.rs"
+if "$TMP_REPO/scripts/lint-rust-architecture" >/dev/null 2>&1; then
+  bad "aliased Axum transport import outside an adapter fails"
+else
+  ok "aliased Axum transport import outside an adapter fails"
+fi
+rm "$TMP_REPO/crates/demo/src/domain.rs"
+
+mkdir -p \
+  "$TMP_REPO/crates/demo/src/api" \
+  "$TMP_REPO/crates/demo/src/proxy" \
+  "$TMP_REPO/crates/mike/src/extract/request"
+printf 'use axum::Router;\n' >"$TMP_REPO/crates/demo/src/api/routes.rs"
+printf 'use axum::body::Body;\n' >"$TMP_REPO/crates/demo/src/proxy/handler.rs"
+printf 'use axum::Router;\n' >"$TMP_REPO/crates/mike/src/app.rs"
+printf 'use axum::http::HeaderMap;\n' >"$TMP_REPO/crates/mike/src/extract/request/fields.rs"
+if "$TMP_REPO/scripts/lint-rust-architecture" >/dev/null 2>&1; then
+  ok "explicit HTTP adapter locations may import Axum"
+else
+  bad "explicit HTTP adapter locations may import Axum"
+fi
+
+for setting in \
+  'cognitive-complexity-threshold = 15' \
+  'too-many-arguments-threshold = 6' \
+  'too-many-lines-threshold = 100'; do
+  if grep -Fxq "$setting" "$REPO/clippy.toml"; then
+    ok "clippy.toml pins $setting"
+  else
+    bad "clippy.toml pins $setting"
+  fi
+done
+
+if (( fail == 0 )); then
+  echo "rust-lint-policy: PASS (${pass} checks)"
+  exit 0
+fi
+
+echo "rust-lint-policy: FAIL (${fail} failed, ${pass} passed)" >&2
+exit 1

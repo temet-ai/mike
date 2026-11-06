@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO sync.cursor (table_name, last_local_id, updated_at)\n             VALUES ($1, $2, now())\n             ON CONFLICT (table_name) DO UPDATE\n                SET last_local_id = EXCLUDED.last_local_id, updated_at = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "04f932211204f500bebab821603e7b45b2c7e51311ae4cbd8027ce03b8cba4b1"
+}

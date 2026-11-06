@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.ask_ledger_entries\n        (session_id, operator_turn_id, request_id, kind, kind_source, keyword_kind, content)\n VALUES ($1, $2, $3, $4, $5, CASE WHEN $4 = 'redirect' THEN NULL ELSE $4 END, $6)\n ON CONFLICT (request_id) WHERE request_id IS NOT NULL DO NOTHING\n RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "38cd1b0511a2c5e1c4f9c88db260887b1ff9bd1665786ea4be26d593a8d968c4"
+}

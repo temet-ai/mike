@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO steering.interventions\n                (steerer_id, session_id, verdict_id, mode_id, authority_id, uuid, expires_at,\n                 payload_text, delivered_request_id, created_at)\n         SELECT $1, $2, v.id, m.id, a.id, gen_random_uuid(), $4::timestamptz + interval '10 minutes', $3, $5, $4\n           FROM steering.verdicts v CROSS JOIN steering.modes m CROSS JOIN steering.authorities a\n          WHERE v.code = 'fired' AND m.code = 'augment' AND a.code = 'redirect'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7019d6d0aab5d2c3eb778c20aa62ff12272234ac232c00dea9515b6fd11b0832"
+}

@@ -1,0 +1,138 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.id AS result_id,\n       rq.id AS request_id,\n       s.session_uuid::text AS \"session_id!\",\n       p.project_path AS \"project_path?\",\n       tu.wire_tool_use_id AS tool_use_id,\n       tu.tool_name AS \"tool_name?\",\n       r.created_at,\n       r.content_sha256 AS \"content_sha256?\",\n       r.content_bytes AS \"content_bytes?\",\n       r.content\n  FROM tools.results r\n  JOIN tools.uses tu ON tu.id = r.tool_use_id\n  JOIN requests.requests rq ON rq.id = tu.request_id\n  JOIN sessions.sessions s ON s.id = rq.session_id\n  LEFT JOIN projects.projects p ON p.id = rq.project_id\n WHERE r.is_error\n   AND ($1::timestamptz IS NULL OR r.created_at >= $1)\n   AND ($2::timestamptz IS NULL OR r.created_at < $2)\n   AND ($3::text IS NULL OR p.project_path ILIKE '%' || $3 || '%')\n   AND ($4::text IS NULL OR tu.tool_name = $4)\n   AND ($5::timestamptz IS NULL OR (r.created_at, r.id) < ($5, $6::bigint))\n ORDER BY r.created_at DESC, r.id DESC\n OFFSET $7\n LIMIT $8\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "result_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "session_id!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "project_path?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "tool_use_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "wire_tool_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "tool_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "tool_name"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "content_sha256?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "content_bytes?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "content",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "dabe0667dda2d8ec8a01ba9ba618c809fb7167720002c5e9b7bd268943746c0d"
+}

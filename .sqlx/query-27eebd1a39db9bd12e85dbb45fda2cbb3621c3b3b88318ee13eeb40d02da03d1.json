@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions.sessions\n                SET flow_capture_version = NULL,\n                    flow_admitted_at = NULL,\n                    flow_producer = NULL,\n                    flow_hook_event_name = NULL,\n                    flow_start_source = NULL\n              WHERE session_uuid = $1::text::uuid",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "27eebd1a39db9bd12e85dbb45fda2cbb3621c3b3b88318ee13eeb40d02da03d1"
+}

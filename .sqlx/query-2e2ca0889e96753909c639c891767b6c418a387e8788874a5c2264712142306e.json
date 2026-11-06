@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ordinal, payload_type, body, body_size\n             FROM remote_control.call_payloads\n            WHERE call_id = $1 ORDER BY ordinal",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ordinal",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "remote_control.call_payloads",
+            "name": "ordinal"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "payload_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "remote_control.call_payloads",
+            "name": "payload_type"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "remote_control.call_payloads",
+            "name": "body"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "body_size",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "remote_control.call_payloads",
+            "name": "body_size"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2e2ca0889e96753909c639c891767b6c418a387e8788874a5c2264712142306e"
+}

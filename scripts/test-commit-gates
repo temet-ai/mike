@@ -1,0 +1,328 @@
+#!/usr/bin/env bash
+# test-commit-gates — regression suite for the commit-time gates that decide
+# whether work can land: scripts/fidelity-check (mike#148), the G3/G6 pair
+# (mike#163), G1 through the pre-commit hook, and the G7 and SIGPIPE tests.
+#
+# Both issues were "the gate blocks a commit that satisfies it", which no unit
+# test could have caught because the behaviour only exists in a real repo with a
+# real index. So each case builds a throwaway git repo under a temp dir, drops
+# the real scripts into it, and drives them exactly as a commit would.
+#
+# Usage: scripts/test-commit-gates [-v]
+# Exit:  0 all cases passed, 1 one or more failed.
+#
+# A case needing something absent (psql, a reachable capture DB) reports NOT RUN
+# and does not count as a pass — a skipped case is never silently green.
+set -uo pipefail
+
+verbose=0
+[[ "${1:-}" == "-v" ]] && verbose=1
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(git -C "$script_dir" rev-parse --show-toplevel)"
+MIG_DIR="crates/mike/src/store/persistence/migrations"
+
+pass=0 fail=0 notrun=0
+ok()      { pass=$((pass+1)); printf '  PASS  %s\n' "$1"; }
+bad()     { fail=$((fail+1)); printf '  FAIL  %s\n     -> %s\n' "$1" "$2"; }
+skip()    { notrun=$((notrun+1)); printf ' NOTRUN %s\n     -> %s\n' "$1" "$2"; }
+show()    { [[ "$verbose" -eq 1 ]] && printf '%s\n' "$1" | sed 's/^/       | /'; return 0; }
+
+# A scratch repo carrying the real scripts, so the graders resolve their own
+# paths the way they do in the live tree.
+new_repo() {
+    local d; d="$(mktemp -d)"
+    mkdir -p "$d/scripts/lib" "$d/scripts/db-code-graders" "$d/$MIG_DIR" "$d/src"
+    cp "$REPO/scripts/fidelity-check" "$d/scripts/"
+    cp "$REPO/scripts/lib/git-change-scope.sh" "$d/scripts/lib/"
+    cp "$REPO/scripts/lib/perf-query-sha.sh" "$d/scripts/lib/" 2>/dev/null || true
+    cp "$REPO/scripts/lib/sha256.sh" "$d/scripts/lib/" 2>/dev/null || true
+    cp "$REPO/scripts/db-code-graders/g3_untracked_migrations.sh" "$d/scripts/db-code-graders/"
+    cp "$REPO/scripts/db-code-graders/g6_perf_evidence.sh" "$d/scripts/db-code-graders/"
+    git -C "$d" init -q .
+    git -C "$d" config user.email gate@test
+    git -C "$d" config user.name gate
+    git -C "$d" add -A >/dev/null
+    git -C "$d" commit -qm base
+    printf '%s\n' "$d"
+}
+
+# ── mike#148 — fidelity-check must not report a cleanup as the violation ──────
+echo "mike#148 — fidelity-check scan scope"
+d="$(new_repo)"
+cat >"$d/src/in_flight.rs" <<'EOF'
+/// `RequestStatus::Error("aborted: …")` so [`RequestStore::evict_oldest`]
+pub fn evict() {}
+EOF
+git -C "$d" add -A >/dev/null && git -C "$d" commit -qm withviolation
+cat >"$d/src/in_flight.rs" <<'EOF'
+/// Marks the entry aborted so [`RequestStore::evict_oldest`]
+pub fn evict() {}
+EOF
+out="$(cd "$d" && ./scripts/fidelity-check 2>&1)"; rc=$?
+if [[ $rc -eq 0 && "$out" == *CLEAN* ]]; then ok "deleting a banned pattern is CLEAN"
+else bad "deleting a banned pattern is CLEAN" "exit=$rc"; show "$out"; fi
+
+out="$(cd "$d" && ./scripts/fidelity-check --full-diff 2>&1)"; rc=$?
+if [[ $rc -eq 1 && "$out" == *'-///'* ]]; then ok "--full-diff still surfaces the removed line for audit"
+else bad "--full-diff still surfaces the removed line for audit" "exit=$rc"; show "$out"; fi
+
+printf 'const a = body.slice(0, 200);\n' >"$d/src/render.ts"
+git -C "$d" add -N src/render.ts >/dev/null
+out="$(cd "$d" && ./scripts/fidelity-check 2>&1)"; rc=$?
+if [[ $rc -eq 1 && "$out" == *'.slice(0, 200)'* ]]; then ok "an ADDED banned pattern still fails"
+else bad "an ADDED banned pattern still fails" "exit=$rc"; show "$out"; fi
+
+printf 'const t = "mcp__mike__get_request_summary";\n' >"$d/src/render.ts"
+out="$(cd "$d" && ./scripts/fidelity-check 2>&1)"; rc=$?
+if [[ $rc -eq 0 && "$out" == *CLEAN* ]]; then ok "exempt tool-name token stays exempt"
+else bad "exempt tool-name token stays exempt" "exit=$rc"; show "$out"; fi
+rm -rf "$d"
+
+# ── mike#163 — one session's untracked migration must not freeze the tree ─────
+echo "mike#163 — G3 commit scope"
+G3() { (cd "$1" && shift && bash scripts/db-code-graders/g3_untracked_migrations.sh "$@" 2>&1); }
+
+d="$(new_repo)"
+printf 'ALTER TABLE requests.requests ADD COLUMN foo text;\n' >"$d/$MIG_DIR/20260817_peer.sql"
+printf 'export const x = 1;\n' >"$d/src/page.ts"
+git -C "$d" add src/page.ts >/dev/null
+
+out="$(G3 "$d" --commit-scope cached)"; rc=$?
+if [[ $rc -eq 0 && "$out" == *"PASS (advisory)"* ]]; then ok "non-SQL commit succeeds with a peer's untracked migration present (cached)"
+else bad "non-SQL commit succeeds with a peer's untracked migration present (cached)" "exit=$rc"; show "$out"; fi
+
+out="$(G3 "$d" --commit-scope worktree)"; rc=$?
+if [[ $rc -eq 0 && "$out" == *"PASS (advisory)"* ]]; then ok "same under worktree scope (git add … && git commit)"
+else bad "same under worktree scope (git add … && git commit)" "exit=$rc"; show "$out"; fi
+
+if [[ "$out" == *"owner:"* ]]; then ok "the finding names an owner or says attribution is unavailable"
+else bad "the finding names an owner or says attribution is unavailable" "no owner: line"; show "$out"; fi
+
+out="$(G3 "$d")"; rc=$?
+if [[ $rc -eq 1 && "$out" == *"FAIL"* ]]; then ok "audit mode (no --commit-scope) still blocks tree-wide"
+else bad "audit mode (no --commit-scope) still blocks tree-wide" "exit=$rc"; show "$out"; fi
+
+# The 20260526 incident shape: code that could depend on the migration.
+printf 'fn q() { sqlx::query!("SELECT foo FROM requests.requests"); }\n' >"$d/src/store.rs"
+git -C "$d" add src/store.rs >/dev/null
+out="$(G3 "$d" --commit-scope cached)"; rc=$?
+if [[ $rc -eq 1 && "$out" == *"SQL-shaped"* ]]; then ok "a commit carrying .rs query code still blocks (incident guard intact)"
+else bad "a commit carrying .rs query code still blocks (incident guard intact)" "exit=$rc"; show "$out"; fi
+rm -rf "$d"
+
+# ── mike#163 — G6's honest NOT RUN, and that it cannot be self-granted ────────
+echo "mike#163 — G6 Perf-Unavailable"
+G6() { local dir="$1"; shift; local url="$1"; shift; (cd "$dir" && MIKE_DATABASE_URL="$url" bash scripts/db-code-graders/g6_perf_evidence.sh "$@" 2>&1); }
+DEAD="postgres://nobody@127.0.0.1:1/none"
+
+d="$(new_repo)"
+printf 'ALTER TABLE requests.requests ADD COLUMN foo text;\n' >"$d/$MIG_DIR/20260817_mine.sql"
+git -C "$d" add "$MIG_DIR/20260817_mine.sql" >/dev/null
+
+out="$(G6 "$d" "$DEAD" --scope cached --message-string 'feat: add foo column')"; rc=$?
+if [[ $rc -eq 1 ]]; then ok "a migration with no perf evidence still blocks"
+else bad "a migration with no perf evidence still blocks" "exit=$rc"; show "$out"; fi
+
+out="$(G6 "$d" "$DEAD" --scope cached --message-string 'feat: add foo
+Perf-Unavailable: short')"; rc=$?
+if [[ $rc -eq 1 && "$out" == *"concrete reason"* ]]; then ok "Perf-Unavailable with a placeholder reason is rejected"
+else bad "Perf-Unavailable with a placeholder reason is rejected" "exit=$rc"; show "$out"; fi
+
+if ! command -v psql >/dev/null 2>&1; then
+    skip "Perf-Unavailable honoured when the capture DB refuses a connection" "psql not on PATH"
+    skip "Perf-Unavailable rejected when the capture DB is reachable" "psql not on PATH"
+else
+    out="$(G6 "$d" "$DEAD" --scope cached --message-string 'feat: add foo
+Perf-Unavailable: capture DB refusing new connections, evidence NOT RUN')"; rc=$?
+    if [[ $rc -eq 0 && "$out" == *"UNMEASURED"* ]]; then ok "Perf-Unavailable honoured when the capture DB refuses a connection"
+    else bad "Perf-Unavailable honoured when the capture DB refuses a connection" "exit=$rc"; show "$out"; fi
+
+    live=""
+    [[ -f "$REPO/.env" ]] && live="$(sed -n 's/^[[:space:]]*MIKE_DATABASE_URL=//p' "$REPO/.env" | head -1 | tr -d '"')"
+    if [[ -z "$live" ]] || ! PGCONNECT_TIMEOUT=5 psql "$live" -X -q -At -c 'SELECT 1' >/dev/null 2>&1; then
+        skip "Perf-Unavailable rejected when the capture DB is reachable" "no reachable capture DB to prove the negative against"
+    else
+        out="$(G6 "$d" "$live" --scope cached --message-string 'feat: add foo
+Perf-Unavailable: capture DB refusing new connections, evidence NOT RUN')"; rc=$?
+        if [[ $rc -eq 1 && "$out" == *"answered a fresh connection"* ]]; then ok "Perf-Unavailable rejected when the capture DB is reachable"
+        else bad "Perf-Unavailable rejected when the capture DB is reachable" "exit=$rc"; show "$out"; fi
+    fi
+fi
+rm -rf "$d"
+
+# The evidence-binding path (checks 1/2/2b/3) reads the effective change through
+# changed_names/file_content, so it re-proves the shared-lib plumbing as well as
+# the #192 binding contract itself.
+echo "mike#163 — G6 evidence binding still bound after the lib extraction"
+d="$(new_repo)"
+if [[ ! -f "$d/scripts/lib/perf-query-sha.sh" ]]; then
+    skip "a matching Perf-Query-SHA over a staged snapshot passes" "scripts/lib/perf-query-sha.sh missing"
+    skip "a mismatched Perf-Query-SHA is caught" "scripts/lib/perf-query-sha.sh missing"
+else
+    ev="scripts/db-code-graders/perf-evidence/2026-08-20"
+    mkdir -p "$d/$ev"
+    printf 'SELECT count(*) FROM requests.requests WHERE session_id = 7;\n' >"$d/$ev/demo_after.sql"
+    printf 'ALTER TABLE requests.requests ADD COLUMN foo text;\n' >"$d/$MIG_DIR/20260820_demo.sql"
+    git -C "$d" add "$MIG_DIR/20260820_demo.sql" "$ev/demo_after.sql" >/dev/null
+    sha="$( . "$d/scripts/lib/perf-query-sha.sh" && perf_query_sha <"$d/$ev/demo_after.sql" )"
+    good="feat(db): add foo
+Perf-Tier: migration
+Perf-Label: demo
+Perf-Verdict: neutral
+Perf-Query-SHA: $sha"
+    out="$(G6 "$d" "$DEAD" --scope cached --message-string "$good")"; rc=$?
+    if [[ $rc -eq 0 ]]; then ok "a matching Perf-Query-SHA over a staged snapshot passes"
+    else bad "a matching Perf-Query-SHA over a staged snapshot passes" "exit=$rc"; show "$out"; fi
+
+    out="$(G6 "$d" "$DEAD" --scope cached --message-string "${good/$sha/deadbeefdeadbeef}")"; rc=$?
+    if [[ $rc -eq 1 && "$out" == *"does not match"* ]]; then ok "a mismatched Perf-Query-SHA is caught"
+    else bad "a mismatched Perf-Query-SHA is caught" "exit=$rc"; show "$out"; fi
+fi
+rm -rf "$d"
+
+# The two blocking G5 checks are structural detectors carrying their own
+# fixtures. Both replaced heuristics whose every standing hit was a false
+# positive, so what matters is that the ALLOWED shapes stay unflagged.
+echo "sql-set-based — G5 blocking detectors"
+for det in g5_correlated_subquery g5_row_by_row_insert; do
+    out="$(python3 "$REPO/scripts/db-code-graders/$det.py" --self-test 2>&1)"; rc=$?
+    if [[ $rc -eq 0 ]]; then ok "$det self-test ($(printf '%s' "$out" | sed -n 's/.*self-test: \(.*\) correct/\1/p'))"
+    else bad "$det self-test" "exit=$rc"; show "$out"; fi
+done
+
+# An unreadable input must not read as clean — that is the failure mode both
+# detectors were rewritten to remove.
+out="$(python3 "$REPO/scripts/db-code-graders/g5_correlated_subquery.py" /nonexistent/nope.rs 2>&1)"; rc=$?
+if [[ $rc -eq 2 && "$out" == *"refusing to report clean"* ]]; then ok "an unreadable path is an error, not a clean bill"
+else bad "an unreadable path is an error, not a clean bill" "exit=$rc"; show "$out"; fi
+
+# ── scripts/gate must count process crashes as test failures ─────────────────
+echo "gate — nextest crash summary parsing"
+d="$(mktemp -d)"
+mkdir -p "$d/scripts"
+cp "$REPO/scripts/gate" "$d/scripts/"
+cat >"$d/Makefile" <<'EOF'
+crash:
+	@printf '        SIGKILL [   0.027s] (1/2) demo::test\n'
+	@printf '        SIGKILL [   0.027s] (1/2) demo::test\n'
+	@printf '        TIMEOUT [  30.000s] (2/3) demo::timeout\n'
+	@printf '        TIMEOUT [  30.000s] (2/3) demo::timeout\n'
+	@printf '        ABORT [   0.100s] (3/3) demo::abort\n'
+	@printf '        ABORT [   0.100s] (3/3) demo::abort\n'
+	@false
+EOF
+out="$(cd "$d" && ./scripts/gate --json --tail 0 crash 2>&1)"; rc=$?
+summary="$(printf '%s\n' "$out" | tail -1)"
+failures="$(printf '%s' "$summary" | python3 -c 'import json,sys; print(json.load(sys.stdin)["failures"])' 2>/dev/null)"
+if [[ $rc -ne 0 && "$failures" == "3" ]]; then ok "SIGKILL, TIMEOUT, and ABORT are each reported once"
+else bad "SIGKILL, TIMEOUT, and ABORT are each reported once" "exit=$rc failures=${failures:-unparsed}"; show "$out"; fi
+rm -rf "$d"
+
+echo "mike#522 — G3 parallel migrations (own suite)"
+out="$(bash "$REPO/scripts/db-code-graders/test_g3_untracked_migrations.sh" 2>&1)"; rc=$?
+if [[ $rc -eq 0 ]]; then ok "test_g3_untracked_migrations.sh passes"
+else bad "test_g3_untracked_migrations.sh passes" "exit=$rc"; show "$out"; fi
+
+# ── G1 through the real pre-commit hook ──────────────────────────────────────
+# A migration adding a NOT NULL column with no default must block a commit whose
+# staged .rs INSERT omits the column, and let one that sets the column through.
+echo "G1 — INSERT completeness through pre-commit-hook.sh"
+G1_RS_DIR="crates/mike/src/store/persistence"
+g1_repo() {
+    local d; d="$(mktemp -d)"
+    mkdir -p "$d/scripts" "$d/$MIG_DIR" "$d/$G1_RS_DIR"
+    cp -R "$REPO/scripts/db-code-graders" "$d/scripts/"
+    cp -R "$REPO/scripts/lib" "$d/scripts/"
+    cp -R "$REPO/scripts/rule-checks" "$d/scripts/" 2>/dev/null || true
+    cp "$REPO/scripts/private-words-check" "$d/scripts/"
+    rm -rf "$d/scripts/db-code-graders/__pycache__"
+    git -C "$d" init -q .
+    git -C "$d" config user.email gate@test
+    git -C "$d" config user.name gate
+    printf 'CREATE TABLE mike.widgets (id bigint);\n' >"$d/$MIG_DIR/20260101000000_base.sql"
+    printf 'fn old() {}\n' >"$d/$G1_RS_DIR/widgets.rs"
+    git -C "$d" add -A >/dev/null
+    git -C "$d" commit -qm base
+    printf '%s\n' "$d"
+}
+G1HOOK() { (cd "$1" && MIKE_PRIVATE_WORDS=/dev/null bash scripts/db-code-graders/pre-commit-hook.sh 2>&1); }
+
+if ! command -v python3 >/dev/null 2>&1; then
+    skip "G1 blocks an INSERT that omits a new NOT NULL column" "python3 not on PATH"
+    skip "G1 passes an INSERT that sets the new NOT NULL column" "python3 not on PATH"
+else
+    d="$(g1_repo)"
+    printf 'ALTER TABLE mike.widgets\n    ADD COLUMN owner TEXT NOT NULL;\n' >"$d/$MIG_DIR/20260102000000_owner.sql"
+    printf 'fn add() { sqlx::query!("INSERT INTO mike.widgets (id) VALUES ($1)", 1); }\n' >"$d/$G1_RS_DIR/widgets.rs"
+    git -C "$d" add -A >/dev/null
+    out="$(G1HOOK "$d")"; rc=$?
+    if [[ $rc -ne 0 && "$out" == *"G1"* ]]; then ok "G1 blocks an INSERT that omits a new NOT NULL column"
+    else bad "G1 blocks an INSERT that omits a new NOT NULL column" "exit=$rc"; show "$out"; fi
+    rm -rf "$d"
+
+    d="$(g1_repo)"
+    printf 'ALTER TABLE mike.widgets\n    ADD COLUMN owner TEXT NOT NULL;\n' >"$d/$MIG_DIR/20260102000000_owner.sql"
+    printf 'fn add() { sqlx::query!("INSERT INTO mike.widgets (id, owner) VALUES ($1, $2)", 1, "a"); }\n' >"$d/$G1_RS_DIR/widgets.rs"
+    git -C "$d" add -A >/dev/null
+    out="$(G1HOOK "$d")"; rc=$?
+    if [[ $rc -eq 0 ]]; then ok "G1 passes an INSERT that sets the new NOT NULL column"
+    else bad "G1 passes an INSERT that sets the new NOT NULL column" "exit=$rc"; show "$out"; fi
+    rm -rf "$d"
+fi
+
+# ── grader tests that carry their own repos ──────────────────────────────────
+echo "G7 index scope and pre-commit pipeline (own suites)"
+for suite in test_g7_index_scope.sh test_pipeline_sigpipe.sh; do
+    path="$REPO/scripts/db-code-graders/$suite"
+    if [[ ! -f "$path" ]]; then
+        skip "$suite passes" "$suite missing"
+        continue
+    fi
+    out="$(bash "$path" 2>&1)"; rc=$?
+    if [[ $rc -eq 0 ]]; then ok "$suite passes"
+    else bad "$suite passes" "exit=$rc"; show "$out"; fi
+done
+
+# ── the deploy's fleet guard, and that a missing prerequisite is NOT RUN ─────
+echo "deploy fleet guard (scripts/test-fleet-deploy-guard)"
+guard="$REPO/scripts/test-fleet-deploy-guard"
+if [[ ! -x "$guard" ]]; then
+    bad "scripts/test-fleet-deploy-guard is executable" "missing or not executable in $REPO/scripts"
+else
+    out="$("$guard" 2>&1)"; rc=$?
+    if [[ $rc -ne 0 ]]; then bad "the deploy fleet guard passes" "exit=$rc"; show "$out"
+    elif [[ "$out" == *"NOT RUN"* ]]; then skip "the deploy fleet guard passes" "a prerequisite is missing"
+    else ok "the deploy fleet guard passes"; fi
+    out="$(FLEET_GUARD_REQUIRES=no-such-tool-for-the-drill "$guard" 2>&1)"; rc=$?
+    if [[ $rc -eq 0 && "$out" == *"NOT RUN"* && "$out" != *"PASS:"* ]]; then
+        ok "a deploy-guard case missing a prerequisite is NOT RUN, never counted as a pass"
+    else bad "a deploy-guard case missing a prerequisite is NOT RUN, never counted as a pass" "exit=$rc"; show "$out"; fi
+fi
+
+# ── one gate run reports every failure ───────────────────────────────────────
+echo "scripts/gate reports every failure, not the first"
+if grep -Eq '^[[:space:]]*make -k "\$\{TARGET\}"' "$REPO/scripts/gate" \
+    && ! grep -Eq '^[[:space:]]*make "\$\{TARGET\}"' "$REPO/scripts/gate"; then
+    ok "gate runs make -k, so a failing step does not skip the steps after it"
+else
+    bad "gate runs make -k, so a failing step does not skip the steps after it" \
+        "scripts/gate runs make without -k (2569f121); one run would show one failure"
+fi
+for profile in ci db; do
+    setting="$(awk -v want="[profile.${profile}]" '
+        /^\[/ { inside = ($0 == want) }
+        inside && /^fail-fast[[:space:]]*=/ { print $3 }
+    ' "$REPO/.config/nextest.toml")"
+    if [[ "$setting" == "false" ]]; then
+        ok "nextest ${profile} profile runs every test (fail-fast = false)"
+    else
+        bad "nextest ${profile} profile runs every test (fail-fast = false)" \
+            "found fail-fast='${setting:-unset}' in [profile.${profile}] of .config/nextest.toml"
+    fi
+done
+
+echo "────────────────────────────────────────"
+printf 'passed=%d failed=%d not-run=%d\n' "$pass" "$fail" "$notrun"
+[[ "$fail" -eq 0 ]] || exit 1
+exit 0

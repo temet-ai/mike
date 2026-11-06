@@ -1,0 +1,106 @@
+name: Install or update problem
+description: Report a non-sensitive setup, installation, or update problem.
+title: "[install] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        These issues may be public. Use only synthetic, non-sensitive examples.
+        Never include .env files, full environment output, prompts, conversation dumps,
+        request headers, tokens, credentials, full database URLs, or sensitive paths.
+        Do not attach raw logs, screenshots, or support bundles without reviewing them.
+        Security vulnerabilities belong in a verified private reporting channel, not here.
+        See the [pilot feedback guide](https://github.com/temet-ai/mike/blob/main/docs/PILOT_FEEDBACK.md#security-reports)
+        for the reporting boundary and what to do if no private channel is available.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Before submitting
+      options:
+        - label: I reviewed every field and attachment for private data and secrets.
+          required: true
+        - label: This is an ordinary product problem, not a security vulnerability report.
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or build identity
+      description: Release label, archive filename, or source commit; use unknown if unavailable. No private download links.
+      placeholder: "Example: source commit abc1234; or unknown"
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: Operating system, OS version, and CPU architecture only.
+      placeholder: "Example: Arch Linux, x86_64"
+    validations:
+      required: true
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation method
+      description: Select what you actually used; a listed option does not mean a channel is published or qualified.
+      options:
+        - Archive supplied for a pilot
+        - Published archive or download
+        - Homebrew
+        - Source checkout
+        - Other or unknown
+    validations:
+      required: true
+  - type: dropdown
+    id: storage
+    attributes:
+      label: Storage method
+      description: Method only; no database URL, hostname, username, password, or local path.
+      options:
+        - Trial / in-memory (ephemeral)
+        - Docker PostgreSQL
+        - Existing PostgreSQL (including user-managed native or Homebrew)
+        - Not configured yet
+        - Other or unknown
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What did you try?
+      description: Name the setup or update step and actions in your own words, using synthetic names.
+      placeholder: "Example: selected Docker storage during setup on a fresh test account."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      placeholder: "Example: setup would explain how to start Docker and let me retry."
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened?
+      description: Summarize the result and any error code or exit status; no raw command output.
+      placeholder: "Example: setup stopped at the database check; no capture was attempted."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproducible non-sensitive example
+      description: Numbered steps using disposable test data. If reproduction needs private data, say cannot share safely.
+      placeholder: |
+        1. Use a fresh disposable test account with Docker stopped.
+        2. Select Docker storage in setup.
+        3. Observe the database check.
+        This is a synthetic example, not evidence of an existing bug.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Safe diagnostic summary (optional)
+      description: Error codes, exit statuses, prerequisite availability, and coarse config source (defaults, environment, CLI, or saved settings) only. Review before sharing.
+      placeholder: "Example: Docker installed but stopped; config source: defaults; exit status: unknown."

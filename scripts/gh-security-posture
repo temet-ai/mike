@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# gh-security-posture — dependabot alerts (open counts by severity), security_and_analysis
+# settings, vulnerability-alerts bit, and recent dependabot PRs, in one call.
+#
+# Kills the report's ~8-call security join (§P7, 0be30667): dependabot alert counts,
+# repo security settings, and dependabot PR status each needed a separate `gh api`
+# call plus manual counting/filtering.
+#
+# Usage: gh-security-posture [--repo owner/repo] [--prs N]
+#
+#   --repo owner/repo   Defaults to the current directory's repo (gh's own default)
+#   --prs N             How many recent dependabot PRs to list (default 10)
+#
+# Honest exit codes:
+#   0  ran successfully (regardless of alert counts found)
+#   1  repo not found / no access
+#   2  usage error
+#   other non-zero: gh/network failure passed through
+#
+# Read-only: gh api GET calls only. Never dismisses/reopens an alert or touches a PR.
+set -euo pipefail
+
+usage() {
+  local rc="${1:-2}"
+  if [[ "$rc" -eq 0 ]]; then
+    sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
+  else
+    sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//' >&2
+  fi
+  exit "$rc"
+}
+
+err() { printf 'gh-security-posture: %s\n' "$1" >&2; }
+
+repo="" n_prs=10
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --repo) [[ $# -ge 2 ]] || { err "--repo needs a value"; exit 2; }; repo="$2"; shift 2 ;;
+    --prs)  [[ $# -ge 2 ]] || { err "--prs needs a value"; exit 2; };  n_prs="$2"; shift 2 ;;
+    -h|--help) usage 0 ;;
+    -*) err "unknown option: $1"; exit 2 ;;
+    *) err "unexpected argument: $1"; exit 2 ;;
+  esac
+done
+
+command -v gh >/dev/null 2>&1 || { err "gh is required but not found on PATH (install: brew install gh, then gh auth login)"; exit 2; }
+command -v jq >/dev/null 2>&1 || { err "jq is required but not found on PATH"; exit 2; }
+[[ "$n_prs" =~ ^[0-9]+$ ]] || { err "--prs must be an integer"; exit 2; }
+
+repo_args=()
+[[ -n "$repo" ]] && repo_args=(--repo "$repo")
+
+if [[ -z "$repo" ]]; then
+  repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>&1) || {
+    err "could not determine repo from cwd and no --repo given: $repo"
+    exit 1
+  }
+fi
+
+echo "=== Repo: $repo ==="
+echo
+
+echo "--- security_and_analysis settings ---"
+sec=$(gh api "repos/$repo" --jq '.security_and_analysis // {}' 2>&1) || { err "could not fetch repo settings: $sec"; exit 1; }
+printf '%s\n' "$sec" | jq -r 'to_entries[] | "\(.key): \(.value.status // "n/a")"'
+echo
+
+echo "--- vulnerability alerts enabled ---"
+if gh api "repos/$repo/vulnerability-alerts" --silent 2>/dev/null; then
+  echo "enabled: true"
+else
+  echo "enabled: false (or insufficient permission to check)"
+fi
+echo
+
+echo "--- dependabot alerts (open, by severity) ---"
+alerts=$(gh api "repos/$repo/dependabot/alerts?state=open&per_page=100" 2>&1) || {
+  echo "(could not fetch — dependabot alerts may be disabled or access is insufficient: $alerts)"
+  alerts="[]"
+}
+if printf '%s' "$alerts" | jq -e 'type == "array"' >/dev/null 2>&1; then
+  total=$(printf '%s' "$alerts" | jq 'length')
+  echo "open total: $total"
+  printf '%s' "$alerts" | jq -r '
+    group_by(.security_advisory.severity)
+    | map({severity: .[0].security_advisory.severity, count: length})
+    | sort_by(.severity)
+    | .[]
+    | "  \(.severity): \(.count)"'
+else
+  echo "(unexpected response shape — see above)"
+fi
+echo
+
+echo "--- recent dependabot PRs (last $n_prs) ---"
+gh pr list "${repo_args[@]}" --author "app/dependabot" --state all --limit "$n_prs" \
+  --json number,title,state,mergedAt,createdAt \
+  --jq '.[] | "#\(.number) [\(.state)] \(.title) (created \(.createdAt))"' 2>&1 || echo "(no dependabot PRs found or gh pr list failed)"

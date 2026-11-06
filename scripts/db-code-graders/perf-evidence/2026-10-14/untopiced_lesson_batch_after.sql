@@ -1,0 +1,2 @@
+WITH busiest AS (SELECT l.project_id FROM memory.lessons l JOIN memory.lesson_stages ls ON ls.id = l.stage_id AND ls.code IN ('daily','long_term') WHERE l.archived_at IS NULL AND l.topic IS NULL AND l.project_id IS NOT NULL GROUP BY l.project_id ORDER BY count(*) DESC, l.project_id LIMIT 1)
+SELECT l.id, l.project_id, l.text FROM memory.lessons l JOIN busiest b ON b.project_id = l.project_id JOIN memory.lesson_stages ls ON ls.id = l.stage_id AND ls.code IN ('daily','long_term') WHERE l.archived_at IS NULL AND l.topic IS NULL ORDER BY l.id LIMIT 30

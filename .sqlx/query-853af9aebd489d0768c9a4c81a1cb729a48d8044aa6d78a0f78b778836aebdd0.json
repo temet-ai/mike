@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO mailbox.failed_sends\n                       (attempted_by_session_id, attempted_to, reason, request_id)\n                   VALUES (\n                       (SELECT id FROM sessions.sessions WHERE session_uuid = $1),\n                       $2, $3, $4\n                   )\n                   RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mailbox.failed_sends",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "853af9aebd489d0768c9a4c81a1cb729a48d8044aa6d78a0f78b778836aebdd0"
+}

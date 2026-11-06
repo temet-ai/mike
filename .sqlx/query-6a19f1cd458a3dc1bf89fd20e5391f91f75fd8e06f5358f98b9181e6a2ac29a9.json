@@ -1,0 +1,80 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.id AS turn_id,\n                          s.session_uuid,\n                          t.created_at,\n                          COALESCE(p.project_path, '') AS \"project_path!\",\n                          t.user_prompt AS \"text!\",\n                          c.chunk_embedding::real[] AS \"embedding!\"\n                     FROM memory.operator_turns t\n                     JOIN memory.turn_facts f ON f.operator_turn_id = t.id\n                     JOIN sessions.sessions s ON s.id = t.session_id\n                     LEFT JOIN projects.projects p ON p.id = t.project_id\n                     JOIN memory.operator_turn_chunks c ON c.turn_id = t.id AND c.chunk_idx = 0\n                     JOIN memory.chunk_roles r ON r.id = c.chunk_role_id AND r.code = 'prompt'\n                    WHERE t.created_at >= $1\n                      AND f.prompt_kind = 'genuine'\n                      AND t.reaction IN ('corrected', 'redirected')\n                      AND (t.subject_agent IS NULL OR t.subject_agent = 'main')\n                      AND t.user_prompt IS NOT NULL\n                      AND length(t.user_prompt) BETWEEN $2 AND $3\n                      AND t.user_prompt !~ '^[A-Za-z0-9_-]+\\. Your (brief|handover) is saved at'\n                      AND t.user_prompt !~ '^<session>'\n                      AND t.user_prompt NOT LIKE '%[Image: source:%'\n                      AND t.user_prompt NOT LIKE '%[Request interrupted by user]%'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "project_path!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "user_prompt"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "embedding!",
+        "type_info": "Float4Array",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null,
+      true,
+      null
+    ]
+  },
+  "hash": "6a19f1cd458a3dc1bf89fd20e5391f91f75fd8e06f5358f98b9181e6a2ac29a9"
+}

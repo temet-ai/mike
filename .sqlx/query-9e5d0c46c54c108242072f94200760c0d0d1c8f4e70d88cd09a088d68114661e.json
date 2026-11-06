@@ -1,0 +1,71 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT role AS \"key!\",\n       COALESCE(SUM(call_count), 0)::bigint AS \"call_count!\",\n       COALESCE(SUM(cost_usd), 0.0)::float8 AS \"cost_usd!\",\n       COALESCE(SUM(prompt_tokens), 0)::bigint AS \"prompt_tokens!\",\n       COALESCE(SUM(completion_tokens), 0)::bigint AS \"completion_tokens!\",\n       COALESCE(SUM(reasoning_tokens), 0)::bigint AS \"reasoning_tokens!\",\n       COALESCE(SUM(call_count) FILTER (WHERE model LIKE 'codex/%' OR model LIKE 'claude/%'), 0)::bigint AS \"subscription_call_count!\"\n  FROM llm.daily_spend\n WHERE day >= $1 AND day <= $2\n GROUP BY role\n ORDER BY role\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "key!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "llm.daily_spend",
+            "name": "role"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "call_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "cost_usd!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "prompt_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "completion_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "reasoning_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "subscription_call_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Date",
+        "Date"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "9e5d0c46c54c108242072f94200760c0d0d1c8f4e70d88cd09a088d68114661e"
+}

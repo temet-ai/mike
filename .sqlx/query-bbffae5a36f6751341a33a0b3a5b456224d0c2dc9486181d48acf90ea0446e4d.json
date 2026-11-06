@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT ON (r.session_id)\n                      r.id AS request_id, r.session_id\n               FROM requests.requests r\n               JOIN requests.turn_origins t ON t.id = r.turn_origin_id\n               WHERE t.code IN ('primary', 'primary_first')\n                 AND r.request_body IS NOT NULL\n                 AND octet_length(r.request_body) BETWEEN 1 AND $1::bigint\n                 AND NOT EXISTS (\n                     SELECT 1 FROM system_prompts.session_prompts sp\n                     WHERE sp.session_id = r.session_id AND sp.lane = 'main'\n                 )\n               ORDER BY r.session_id, r.id ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "session_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "bbffae5a36f6751341a33a0b3a5b456224d0c2dc9486181d48acf90ea0446e4d"
+}

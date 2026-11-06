@@ -1,0 +1,85 @@
+[
+  {
+    "request_id": 444177,
+    "agent_id": "a48bb91db219064a7",
+    "system": [
+      {
+        "type": "text",
+        "text": "You are Claude Code, Anthropic's official CLI for Claude."
+      },
+      {
+        "type": "text",
+        "text": "You are a subagent spawned by a workflow orchestration script. Use the tools available to complete the task.\n\nCRITICAL: Your final text response is returned **verbatim** as a string to the calling script — it is your return value, not a mes"
+      }
+    ],
+    "first_user_blocks": [
+      {
+        "type": "text",
+        "text": "[Workflow harness — user request] The harness relays, verbatim and indented below, the user request that triggered this "
+      },
+      {
+        "type": "text",
+        "text": "[Workflow harness — computed task] The task text below was computed at runtime by a workflow script. It was not typed by"
+      }
+    ]
+  },
+  {
+    "request_id": 444194,
+    "agent_id": null,
+    "system": [
+      {
+        "type": "text",
+        "text": "You are Claude Code, Anthropic's official CLI for Claude."
+      }
+    ],
+    "first_user_blocks": []
+  },
+  {
+    "request_id": 444612,
+    "agent_id": "a48bb91db219064a7",
+    "system": [
+      {
+        "type": "text",
+        "text": "You are Claude Code, Anthropic's official CLI for Claude."
+      },
+      {
+        "type": "text",
+        "text": "You are a subagent spawned by a workflow orchestration script. Use the tools available to complete the task.\n\nCRITICAL: Your final text response is returned **verbatim** as a string to the calling script — it is your return value, not a mes"
+      }
+    ],
+    "first_user_blocks": [
+      {
+        "type": "text",
+        "text": "[Workflow harness — user request] The harness relays, verbatim and indented below, the user request that triggered this "
+      },
+      {
+        "type": "text",
+        "text": "[Workflow harness — computed task] The task text below was computed at runtime by a workflow script. It was not typed by"
+      }
+    ]
+  },
+  {
+    "request_id": 445292,
+    "agent_id": "a3ee68f3fca98cafd",
+    "system": [
+      {
+        "type": "text",
+        "text": "You are Claude Code, Anthropic's official CLI for Claude."
+      },
+      {
+        "type": "text",
+        "text": "You are a subagent spawned by a workflow orchestration script. Use the tools available to complete the task.\n\nCRITICAL: You MUST call the StructuredOutput tool exactly once to return your final answer. The tool's input schema defines the re"
+      }
+    ],
+    "first_user_blocks": [
+      {
+        "type": "text",
+        "text": "[Workflow harness — user request] The harness relays, verbatim and indented below, the user request that triggered this "
+      },
+      {
+        "type": "text",
+        "text": "[Workflow harness — computed task] The task text below was computed at runtime by a workflow script. It was not typed by"
+      }
+    ]
+  }
+]

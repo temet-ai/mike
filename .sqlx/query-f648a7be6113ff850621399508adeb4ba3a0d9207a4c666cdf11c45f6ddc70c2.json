@@ -1,0 +1,110 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, for_day, sql_version, mode, labels_as_of, started_at, finished_at,\n                        rows_written\n                   FROM eval.rollups WHERE finished_at IS NOT NULL\n                  ORDER BY for_day DESC, started_at DESC, id DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.rollups",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "for_day",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "eval.rollups",
+            "name": "for_day"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "sql_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rollups",
+            "name": "sql_version"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "mode",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rollups",
+            "name": "mode"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "labels_as_of",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.rollups",
+            "name": "labels_as_of"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "started_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.rollups",
+            "name": "started_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "finished_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.rollups",
+            "name": "finished_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "rows_written",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.rollups",
+            "name": "rows_written"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "f648a7be6113ff850621399508adeb4ba3a0d9207a4c666cdf11c45f6ddc70c2"
+}

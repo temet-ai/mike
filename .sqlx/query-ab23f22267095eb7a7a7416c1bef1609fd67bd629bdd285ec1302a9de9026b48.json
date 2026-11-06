@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT sg.display_name AS \"display_name?\"\n                     FROM sessions.session_goals sg\n                     JOIN sessions.sessions s ON s.id = sg.session_id\n                    WHERE s.session_uuid = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "display_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "display_name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "ab23f22267095eb7a7a7416c1bef1609fd67bd629bdd285ec1302a9de9026b48"
+}

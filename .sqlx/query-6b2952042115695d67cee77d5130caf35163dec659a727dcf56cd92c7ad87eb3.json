@@ -1,0 +1,78 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH turn_use AS (\n    SELECT tu.id, tu.input\n      FROM tools.uses tu\n      JOIN requests.requests r ON r.id = tu.request_id\n     WHERE r.operator_turn_id = $1\n       AND tu.session_id = $2\n       AND tu.wire_tool_use_id = $3\n     LIMIT 1\n)\nSELECT tu.input                AS \"input?\",\n       res.is_error            AS \"result_is_error?\",\n       res.content             AS \"result_content?\",\n       res.content_bytes       AS \"result_content_bytes?\",\n       res.content_sha256      AS \"result_content_sha256?\"\n  FROM turn_use tu\n  LEFT JOIN tools.results res ON res.tool_use_id = tu.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "input?",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "input"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "result_is_error?",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "is_error"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "result_content?",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "result_content_bytes?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "result_content_sha256?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content_sha256"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "6b2952042115695d67cee77d5130caf35163dec659a727dcf56cd92c7ad87eb3"
+}

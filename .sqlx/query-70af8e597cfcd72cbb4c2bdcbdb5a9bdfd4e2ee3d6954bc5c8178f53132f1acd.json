@@ -1,0 +1,114 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.id AS \"id!\", r.uuid::text AS \"uuid!\", rk.code AS \"kind!\", tr.code AS \"trigger!\",\n       st.code AS \"status!\", r.started_at AS \"started_at!\", r.finished_at, r.error,\n       COALESCE(ac.action_count, 0) AS \"action_count!\"\n  FROM memory.consolidation_runs r\n  JOIN memory.consolidation_run_kinds rk ON rk.id = r.run_kind_id\n  JOIN memory.consolidation_triggers tr ON tr.id = r.trigger_id\n  JOIN memory.consolidation_run_statuses st ON st.id = r.status_id\n  LEFT JOIN (\n      SELECT run_id, count(*)::bigint AS action_count\n        FROM memory.consolidation_actions\n       GROUP BY run_id\n  ) ac ON ac.run_id = r.id\n WHERE r.id = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_runs",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "uuid!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_run_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "trigger!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_triggers",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "status!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_run_statuses",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "started_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_runs",
+            "name": "started_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "finished_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_runs",
+            "name": "finished_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "error",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_runs",
+            "name": "error"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "action_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "70af8e597cfcd72cbb4c2bdcbdb5a9bdfd4e2ee3d6954bc5c8178f53132f1acd"
+}

@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- Claim `steering.interventions.pushed_at` and insert the provenance row in\n-- one statement — the steerer-source counterpart of reserve_injection.sql's\n-- mailbox claim. `created_at` is returned (not `pushed_at` itself, which\n-- isn't a column of the table being inserted into) as the reservation's\n-- timestamp: `now()` is stable for the whole statement (transaction\n-- timestamp semantics), so the row's own `created_at` DEFAULT and the\n-- claim's `pushed_at = now()` above evaluate to the identical value. The\n-- caller uses it to arm the emitted-but-unacked fallback timer\n-- (`release_stale_steerer_push.sql`) against the exact instant this\n-- reservation stamped.\nWITH recipient_channel AS (\n    SELECT c.id AS channel_id, s.id AS session_id\n      FROM remote_control.channels c\n      JOIN sessions.sessions s ON s.session_uuid = c.local_session_uuid\n     WHERE c.cse_id = $1 AND s.session_uuid = $2\n), claimed AS (\n    UPDATE steering.interventions i SET pushed_at = now()\n      FROM recipient_channel c\n     WHERE i.uuid = $3 AND i.session_id = c.session_id\n       AND i.pushed_at IS NULL AND i.acked_at IS NULL AND i.reverted_at IS NULL\n       AND (i.expires_at IS NULL OR i.expires_at > now())\n    RETURNING i.uuid, c.channel_id\n)\nINSERT INTO remote_control.injections(event_id, channel_id, message_uuid, source_kind, source_id, frame)\nSELECT $4, channel_id, NULL, 'steerer', uuid::text, $5 FROM claimed\nRETURNING event_id AS \"event_id!\", created_at AS \"created_at!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "event_id!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "remote_control.injections",
+            "name": "event_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "remote_control.injections",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Bytea"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "f49b384b64a1b8f76419ba3ad5eb85d9a8217966cd9c99d955f9764b2d79dea2"
+}

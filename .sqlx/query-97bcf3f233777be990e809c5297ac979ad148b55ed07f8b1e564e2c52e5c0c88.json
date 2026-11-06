@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO mailbox.message_context_items (message_id, kind, value, label)\n             SELECT $1, u.kind, u.value, u.label\n               FROM UNNEST($2::text[], $3::text[], $4::text[]) AS u(kind, value, label)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "TextArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "97bcf3f233777be990e809c5297ac979ad148b55ed07f8b1e564e2c52e5c0c88"
+}

@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.skill_drafts\n                    SET status = $2, eval = $3, evaluated_at = now(), eval_progress = NULL,\n                        description = COALESCE($4, description),\n                        skill_md = COALESCE($5, skill_md)\n                  WHERE id = $1 AND status = 'evaluating'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Jsonb",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2ef2e779bf033f6c31b69fb8588f7537354c0668beeb7dfece1de844f41d4107"
+}

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT request_body FROM requests.requests WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "request_body"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "7a20f814f41a3e77c7e6009fd250b132156c6b61c9730eedac2bcf4737c309b9"
+}

@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT tldr, where_we_are, next_up, blockers, open_questions, decisions, files, updated_at\n               FROM work.thread_state WHERE thread_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tldr",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_state",
+            "name": "tldr"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "where_we_are",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_state",
+            "name": "where_we_are"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "next_up",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_state",
+            "name": "next_up"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "blockers",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_state",
+            "name": "blockers"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "open_questions",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_state",
+            "name": "open_questions"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "decisions",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_state",
+            "name": "decisions"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "files",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "work.thread_state",
+            "name": "files"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "work.thread_state",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6809beb6c0aa8cdb68b1b2599105baf9e942cc2ee9267f9dca2ed805835a3e4a"
+}

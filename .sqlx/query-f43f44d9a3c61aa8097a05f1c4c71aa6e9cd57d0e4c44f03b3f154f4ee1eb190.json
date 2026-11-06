@@ -1,0 +1,107 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT li.id AS \"id!\", li.lesson_id AS \"lesson_id!\", li.request_id AS \"request_id!\", li.session_id,\n       s.session_uuid::text AS \"session_uuid?\", li.injected_at AS \"injected_at!\",\n       lane.code AS \"lane!\", li.persona\n  FROM memory.lesson_injections li\n  JOIN memory.lesson_injection_lanes lane ON lane.id = li.lane_id\n  LEFT JOIN sessions.sessions s ON s.id = li.session_id\n WHERE li.lesson_id = $1\n ORDER BY li.injected_at ASC\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_injections",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "lesson_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_injections",
+            "name": "lesson_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_injections",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_injections",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "session_uuid?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "injected_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_injections",
+            "name": "injected_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "lane!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_injection_lanes",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "persona",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_injections",
+            "name": "persona"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      null,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "f43f44d9a3c61aa8097a05f1c4c71aa6e9cd57d0e4c44f03b3f154f4ee1eb190"
+}

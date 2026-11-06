@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT operator_turn_id, mode, bundle_id FROM memory.turn_verdicts WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "operator_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "mode",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "mode"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "bundle_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "bundle_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "ad65ec1f199f815b5d2a9eed7cf7cefaf09dbe84ac01b3ff33d657aa9317e057"
+}

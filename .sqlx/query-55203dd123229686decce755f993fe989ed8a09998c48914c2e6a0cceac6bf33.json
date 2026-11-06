@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO tools.uses\n            (wire_tool_use_id, request_id, ord, tool_name, input,\n             file_path, operation, created_at, session_id)\n         SELECT u.wire_tool_use_id, $1, u.ord, u.name, u.input,\n                u.file_path, u.operation, $2, $9\n         FROM UNNEST($3::text[], $4::int[], $5::text[], $6::jsonb[],\n                     $7::text[], $8::text[])\n              AS u(wire_tool_use_id, ord, name, input, file_path, operation)\n         ON CONFLICT (wire_tool_use_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "TextArray",
+        "Int4Array",
+        "TextArray",
+        "JsonbArray",
+        "TextArray",
+        "TextArray",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "55203dd123229686decce755f993fe989ed8a09998c48914c2e6a0cceac6bf33"
+}

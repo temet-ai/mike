@@ -1,0 +1,103 @@
+# Per-session dev containers with accurate edges.
+#
+# Each session is ONE compose project, so many can run at once without colliding
+# (each gets its own container network namespace; only host port mappings need to
+# differ). The container entrypoint runs `scripts/session-up.sh <profile>` BEFORE
+# the long-running command — boot is fail-closed, so a container whose interfaces
+# or data are stale never starts serving.
+#
+#   # build the shared toolchain image once:
+#   docker compose -f docker-compose.dev.yml build
+#
+#   # frontend session (SPA only, no cargo, real inspect API as its edge):
+#   MIKE_INSPECT_URL=http://host.docker.internal:9989 \
+#     docker compose -f docker-compose.dev.yml --profile frontend -p sess-ui up
+#
+#   # backend logic session (DB-less, builds against .sqlx):
+#   docker compose -f docker-compose.dev.yml --profile backend -p sess-api up
+#
+#   # db/e2e session (own ephemeral Postgres + per-session data clone):
+#   docker compose -f docker-compose.dev.yml --profile db -p sess-e2e up
+#
+# Run a second concurrent session by giving it a new -p NAME and non-colliding
+# HOST_* ports, e.g. HOST_SPA_PORT=9991 ... -p sess-ui2.
+
+x-dev-image: &dev-image
+  build:
+    context: .
+    dockerfile: Dockerfile.dev
+  image: temet-proxy-dev:local
+
+x-shared-caches: &shared-caches
+  # The repo is bind-mounted (toolchain-only image); caches are named volumes so
+  # the warm sccache/cargo/pnpm state is shared across every session container.
+  - .:/work
+  - cargo-target-shared:/root/.cargo-target-shared
+  - cargo-registry:/usr/local/cargo/registry
+  - pnpm-store:/root/.local/share/pnpm/store
+
+services:
+  # frontend — SPA work. No cargo, no DB. Its edge is a REAL inspect API
+  # (shared/long-running on the host), reached via MIKE_INSPECT_URL.
+  frontend:
+    <<: *dev-image
+    profiles: [frontend]
+    working_dir: /work
+    volumes: *shared-caches
+    environment:
+      MIKE_FRONTEND_PORT: 9990
+      MIKE_INSPECT_URL: ${MIKE_INSPECT_URL:-http://host.docker.internal:9989}
+    ports:
+      - "${HOST_SPA_PORT:-9990}:9990"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    entrypoint: ["bash", "scripts/session-entrypoint.sh", "frontend"]
+
+  # backend — Rust logic. Builds DB-less against the committed .sqlx cache.
+  backend:
+    <<: *dev-image
+    profiles: [backend]
+    working_dir: /work
+    volumes: *shared-caches
+    entrypoint: ["bash", "scripts/session-entrypoint.sh", "backend"]
+
+  # db — backend + e2e. Gets its own ephemeral Postgres; session-up clones a
+  # per-session DB from the golden template living in that Postgres.
+  postgres:
+    image: mike/postgres-pgvector:19rc1-0.8.7
+    build:
+      context: scripts/capture-db
+      dockerfile: Dockerfile.pg19
+    profiles: [db]
+    environment:
+      PGDATA: /var/lib/postgresql/data
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "${HOST_DB_PORT:-6666}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  db-session:
+    <<: *dev-image
+    profiles: [db]
+    working_dir: /work
+    volumes: *shared-caches
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      MIKE_TEST_ADMIN_URL: postgres://postgres:postgres@postgres:5432/postgres
+    ports:
+      - "${HOST_PROXY_PORT:-9988}:9988"
+      - "${HOST_INSPECT_PORT:-9989}:9989"
+    entrypoint: ["bash", "scripts/session-entrypoint.sh", "db"]
+
+volumes:
+  cargo-target-shared:
+  cargo-registry:
+  pnpm-store:

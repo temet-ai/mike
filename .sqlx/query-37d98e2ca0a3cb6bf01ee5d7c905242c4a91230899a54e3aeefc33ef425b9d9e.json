@@ -1,0 +1,391 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT v.id AS \"id!\", v.operator_turn_id AS \"operator_turn_id!\", v.session_id AS \"session_id!\",\n       s.session_uuid AS \"session_uuid!\", o.code AS \"turn_outcome?\", v.mode AS \"mode!\",\n       v.bundle_id, v.rubric_version AS \"rubric_version!\",\n       v.input_builder_version AS \"input_builder_version!\", v.slices AS \"slices!\", v.model AS \"model!\",\n       v.source AS \"source!\", v.reaction, v.delivery, v.legacy_label,\n       v.confidence AS \"confidence!\", v.rationale AS \"rationale!\", v.unmet_ask AS \"unmet_ask!\",\n       v.evidence_quality AS \"evidence_quality!\", v.projected AS \"projected!\",\n       v.next_genuine_request_id, v.as_of AS \"as_of!\", v.input_text AS \"input_text!\",\n       v.generation_id, v.cost_usd, v.failure_tags, v.severity,\n       v.prompt_tokens, v.completion_tokens, v.latency_ms, v.created_at AS \"created_at!\"\n  FROM memory.turn_verdicts v\n  JOIN sessions.sessions s ON s.id = v.session_id\n  JOIN memory.operator_turns t ON t.id = v.operator_turn_id\n  LEFT JOIN memory.turn_outcomes o ON o.id = t.outcome_id\n WHERE v.operator_turn_id = $1 AND v.mode = ANY($2::text[])\n ORDER BY v.created_at DESC, v.id DESC\n LIMIT $3 OFFSET $4\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "operator_turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "turn_outcome?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_outcomes",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "mode!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "mode"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "bundle_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "bundle_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "rubric_version!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "rubric_version"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "input_builder_version!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "input_builder_version"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "slices!",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "slices"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "model!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "reaction",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "reaction"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "delivery",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "delivery"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "legacy_label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "legacy_label"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "confidence!",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "confidence"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "rationale!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "rationale"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "unmet_ask!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "unmet_ask"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "evidence_quality!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "evidence_quality"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "projected!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "projected"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "next_genuine_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "next_genuine_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "as_of!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "as_of"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "input_text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "input_text"
+          }
+        }
+      },
+      {
+        "ordinal": 23,
+        "name": "generation_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "generation_id"
+          }
+        }
+      },
+      {
+        "ordinal": 24,
+        "name": "cost_usd",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "cost_usd"
+          }
+        }
+      },
+      {
+        "ordinal": 25,
+        "name": "failure_tags",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "failure_tags"
+          }
+        }
+      },
+      {
+        "ordinal": 26,
+        "name": "severity",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "severity"
+          }
+        }
+      },
+      {
+        "ordinal": 27,
+        "name": "prompt_tokens",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "prompt_tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 28,
+        "name": "completion_tokens",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "completion_tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 29,
+        "name": "latency_ms",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "latency_ms"
+          }
+        }
+      },
+      {
+        "ordinal": 30,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "TextArray",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "37d98e2ca0a3cb6bf01ee5d7c905242c4a91230899a54e3aeefc33ef425b9d9e"
+}

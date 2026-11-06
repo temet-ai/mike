@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO runtime.codex_item_state\n         (generation_id, namespace_id, thread_id, turn_id, item_id, terminal, reconciliation_required,\n          first_capture_sequence, latest_capture_sequence, state_codec_version, state_document)\n         SELECT $1, $2, item.thread_id, item.turn_id, item.item_id, item.terminal, item.reconciliation,\n                item.first_sequence, item.latest_sequence, $3, item.document::json\n         FROM UNNEST($4::text[], $5::text[], $6::text[], $7::boolean[], $8::boolean[],\n                     $9::bigint[], $10::bigint[], $11::text[])\n         AS item(thread_id, turn_id, item_id, terminal, reconciliation, first_sequence, latest_sequence, document)\n         ON CONFLICT (generation_id, thread_id, turn_id, item_id) DO UPDATE\n         SET terminal = EXCLUDED.terminal, reconciliation_required = EXCLUDED.reconciliation_required,\n             latest_capture_sequence = EXCLUDED.latest_capture_sequence, state_document = EXCLUDED.state_document",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int4",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "BoolArray",
+        "BoolArray",
+        "Int8Array",
+        "Int8Array",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f7a890fcb6367b3c06adfab849e94f0d8c10977ed57cdb4d05a322bc1e95ffaf"
+}

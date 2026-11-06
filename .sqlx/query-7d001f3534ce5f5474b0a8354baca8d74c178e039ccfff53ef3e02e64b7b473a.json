@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.queryid AS \"queryid!\", s.query\n                   FROM pg_stat_statements(true) s\n                   WHERE s.toplevel\n                     AND s.queryid = ANY($1::bigint[])\n                     AND s.userid = (SELECT r.oid FROM pg_catalog.pg_roles r WHERE r.rolname = current_user)\n                     AND s.dbid = (SELECT d.oid FROM pg_catalog.pg_database d WHERE d.datname = current_database())",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "queryid!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "query",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "7d001f3534ce5f5474b0a8354baca8d74c178e039ccfff53ef3e02e64b7b473a"
+}

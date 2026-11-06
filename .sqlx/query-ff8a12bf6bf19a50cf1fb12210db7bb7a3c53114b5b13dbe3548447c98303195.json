@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM eval.rates WHERE rollup_id = $1 AND family = 'action_effect' AND dimension = 'lesson'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ff8a12bf6bf19a50cf1fb12210db7bb7a3c53114b5b13dbe3548447c98303195"
+}

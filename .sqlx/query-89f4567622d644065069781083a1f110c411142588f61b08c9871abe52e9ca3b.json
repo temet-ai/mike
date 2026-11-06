@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE agents.dispatches d\n            SET worker_producer_id = u.producer_id\n           FROM UNNEST($1::text[], $2::text[]) AS u(wire_tool_use_id, producer_id)\n           JOIN tools.uses tu ON tu.wire_tool_use_id = u.wire_tool_use_id\n          WHERE d.tool_use_id = tu.id\n            AND tu.tool_name = 'Agent'\n            AND d.worker_producer_id IS DISTINCT FROM u.producer_id",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "89f4567622d644065069781083a1f110c411142588f61b08c9871abe52e9ca3b"
+}

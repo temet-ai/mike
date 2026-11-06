@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO projects.projects (project_path, display_name) VALUES ($1, $1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9dfc3e823dffb4a8328c9b6bdc8019c9697e904f85bd20d3d02488b34f6dc6e0"
+}

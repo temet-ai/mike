@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# scripts/callsites test suite.
+#
+# Guards the two SILENT ZEROS the tool exists to prevent — both return "no
+# results" for a correct question, which reads as "nothing calls this" and is
+# how a signature change loses a caller:
+#
+#   1. `ast-grep -p 'name($$$)'` matches no METHOD call. Real call sites are
+#      `$_.name($$$)`. The tool must union the call forms.
+#   2. `ast-grep -p 'fn name($$$) { $$$ }'` matches no definition carrying a
+#      visibility or async modifier — `pub(crate) fn`, `pub async fn` — which is
+#      most of them. --def must match by node kind plus name instead.
+#
+# Also checks that a genuine zero falls back to text search rather than
+# reporting nothing, and that --sql filters on the full macro text.
+#
+# Usage: scripts/test-callsites     Exit: 0 = all PASS, 1 = any FAIL.
+set -uo pipefail
+cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}" || exit 1
+cs="scripts/callsites"
+fails=0
+
+if ! command -v ast-grep >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
+  echo "SKIP: ast-grep or jq unavailable"; exit 0
+fi
+
+check() { if [[ "$3" == *"$2"* ]]; then echo "PASS: $1"; else
+  echo "FAIL: $1"; echo "  wanted substring: $2"; echo "  got: ${3:0:300}"; fails=$((fails+1)); fi; }
+
+# 1. Method call sites are found where the bare ast-grep pattern finds none.
+bare=$(ast-grep run -p 'claim_reminders($$$)' -l rust crates/ --json=compact 2>/dev/null | jq 'length')
+out=$("$cs" claim_reminders)
+if [[ "$bare" == "0" ]]; then echo "PASS: bare pattern confirms the silent zero (0 hits)"
+else echo "FAIL: bare pattern returned $bare — premise changed, revisit this suite"; fails=$((fails+1)); fi
+check "method call sites found" "steerer/stage/mod.rs" "$out"
+check "call-site count reported" "structural call sites" "$out"
+
+# 2. A definition with a visibility modifier is found.
+out=$("$cs" claim_reminders --def)
+check "pub(crate) fn definition found" "store/reminders.rs" "$out"
+check "def summary says definitions" "definitions in" "$out"
+
+# 3. A genuine zero falls back to text rather than reporting silence.
+out=$("$cs" MIKE_DATABASE_URL)
+check "zero-match explains itself" "No structural match" "$out"
+check "zero-match falls back to text" "Falling back to text search" "$out"
+
+# 4. --sql filters on the full macro text, not the truncated display line.
+out=$("$cs" --sql requests.requests --files)
+check "sql filter finds the table" "persistence" "$out"
+out=$("$cs" --sql zzz_no_such_table --files)
+check "sql filter excludes non-matches" "No structural match" "$out"
+
+echo
+if (( fails )); then echo "callsites: $fails FAILED"; exit 1; fi
+echo "callsites: all PASS"

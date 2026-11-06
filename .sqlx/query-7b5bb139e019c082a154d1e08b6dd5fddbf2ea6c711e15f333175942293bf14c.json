@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.operator_turns ot\n   SET subject_command = NULLIF(substring(ot.user_prompt FROM '^\\s*(/[A-Za-z0-9][A-Za-z0-9_:-]*)'), ''),\n       subject_agent   = COALESCE(r.subagent_persona, 'main')\n  FROM requests.requests r\n WHERE ot.id = $1 AND r.id = ot.start_request_id\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7b5bb139e019c082a154d1e08b6dd5fddbf2ea6c711e15f333175942293bf14c"
+}

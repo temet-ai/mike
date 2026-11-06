@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.system_prompts\n                            SET prompt_sha256 = $2,\n                                unknown_blocks = NULL\n                          WHERE request_id = $1\n                            AND prompt_sha256 IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b548a8352afe41feec50925167cec68711d2043f9a6c1713af2f758e1f4621b5"
+}

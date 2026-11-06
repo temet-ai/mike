@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- $1 = cse_id, $2 = the local session's uuid.\n--\n-- Single-row UPDATE scoped by cse_id; the session_id subquery reads only\n-- the bind parameter $2, not the outer channels row, so it runs once\n-- regardless of how many rows cse_id matches (at most one — cse_id is\n-- the channel's natural key). A session not yet in sessions.sessions\n-- leaves session_id NULL rather than blocking the local_session_uuid\n-- write, matching the resolve-alongside-it behaviour the column comment\n-- on remote_control.channels.local_session_uuid documents.\nUPDATE remote_control.channels\n   SET local_session_uuid = $2,\n       session_id = (SELECT id FROM sessions.sessions WHERE session_uuid = $2)\n WHERE cse_id = $1\n   AND local_session_uuid IS NULL\nRETURNING id AS \"id!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a1ff06e925d74a00e3c06b4cbd56300278ddaaa5e0a976c716727d0ad89fcdd4"
+}

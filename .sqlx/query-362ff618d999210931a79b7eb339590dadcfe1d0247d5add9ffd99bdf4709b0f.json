@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH reset AS (\n                       UPDATE memory.skill_drafts d\n                          SET status = 'draft', eval = NULL, evaluated_at = NULL,\n                              eval_progress = NULL\n                        WHERE d.status = 'rejected'\n                          AND d.evaluated_at IS NOT NULL\n                          AND COALESCE((d.eval ->> 'evaluator_version')::integer, 0) < $1\n                    RETURNING d.id),\n                   cleared AS (\n                       DELETE FROM memory.skill_draft_eval_failures f\n                        USING reset\n                        WHERE f.draft_id = reset.id\n                    RETURNING f.draft_id)\n                   SELECT count(*) AS \"requeued!\" FROM reset",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "requeued!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "362ff618d999210931a79b7eb339590dadcfe1d0247d5add9ffd99bdf4709b0f"
+}

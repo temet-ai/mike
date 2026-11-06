@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE steering.interventions\n            SET delivered_request_id = $1,\n                processed_at = now()\n          WHERE uuid = $2::text::uuid\n            AND sent_request_id IS NOT NULL\n            AND delivered_request_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9e87943f4f313b7a03c9be57864982fea7e068765ee78f293bd634c315da4e13"
+}

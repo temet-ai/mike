@@ -1,0 +1,257 @@
+{
+  "entries": {
+    "desktop:2.1.246": {
+      "checked_at": "2026-09-03T11:05:24Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/Users/vimes/Library/Application Support/Claude/claude-code/2.1.246/claude.app/Contents/MacOS/claude",
+      "sha256": "22900f9a2e0492b68e753bbab2a9654dfe97f1d98d4a148fd46711993fbd05ce",
+      "slot": "desktop",
+      "version": "2.1.246"
+    },
+    "desktop:2.1.258": {
+      "checked_at": "2026-09-09T10:09:02Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/Users/vimes/Library/Application Support/Claude/claude-code/2.1.258/claude.app/Contents/MacOS/claude",
+      "sha256": "6346eee8d9dbd6e849969a25dcb8e295768dfcbcf71fed74feb1b1e4603d46fa",
+      "slot": "desktop",
+      "version": "2.1.258"
+    },
+    "desktop:2.1.260": {
+      "checked_at": "2026-09-09T10:09:02Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/Users/vimes/Library/Application Support/Claude/claude-code/2.1.260/claude.app/Contents/MacOS/claude",
+      "sha256": "324a7cb441e4f1ce358dcb7107edd8a310e85b8cdaf25fc7087434e7331b5b5b",
+      "slot": "desktop",
+      "version": "2.1.260"
+    },
+    "mise:2.1.270": {
+      "checked_at": "2026-10-05T21:46:50Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/home/vimes/.local/share/mise/installs/claude/2.1.270/claude",
+      "sha256": "3a624a5a7cd79bbad4d32bd7db36f1197ecf458bc5bf1e2aed81834a01ad3ef0",
+      "slot": "mise",
+      "version": "2.1.270"
+    },
+    "mise:2.1.272": {
+      "checked_at": "2026-10-05T21:46:50Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/home/vimes/.local/share/mise/installs/claude/2.1.272/claude",
+      "sha256": "d81396a668eb76fbddb49a2a5841f1b5d7af96b4c1f6500ced92f2c988f5bcd4",
+      "slot": "mise",
+      "version": "2.1.272"
+    },
+    "mise:2.1.274": {
+      "checked_at": "2026-10-05T21:46:50Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/home/vimes/.local/share/mise/installs/claude/2.1.274/claude",
+      "sha256": "15e2d05148f801b5774032faad87e624ecd172e9903288bda448b892eb58fa07",
+      "slot": "mise",
+      "version": "2.1.274"
+    },
+    "mise:2.1.278": {
+      "checked_at": "2026-10-05T21:46:50Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/home/vimes/.local/share/mise/installs/claude/2.1.278/claude",
+      "sha256": "5c4735937844e84f8a93306e841a5b0e12252909b07870f789b190468da147ab",
+      "slot": "mise",
+      "version": "2.1.278"
+    },
+    "mise:2.1.280": {
+      "checked_at": "2026-10-05T21:46:50Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/home/vimes/.local/share/mise/installs/claude/2.1.280/claude",
+      "sha256": "1e08503dbdf3c2cb0d706d32f3408277388d1c76ef108673e8fe42c1b322925b",
+      "slot": "mise",
+      "version": "2.1.280"
+    },
+    "mise:2.1.283": {
+      "checked_at": "2026-10-05T21:46:50Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/home/vimes/.local/share/mise/installs/claude/2.1.283/claude",
+      "sha256": "1859583ce32920595c61ef868bee52e1b1594f7486db209935e01f1e5e804ae2",
+      "slot": "mise",
+      "version": "2.1.283"
+    },
+    "mise:2.1.284": {
+      "checked_at": "2026-10-05T21:46:50Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/home/vimes/.local/share/mise/installs/claude/2.1.284/claude",
+      "sha256": "5cd90aabd83f8a15136c35aa37bb1d92b348993573316643dc3fe4e04afbf88f",
+      "slot": "mise",
+      "version": "2.1.284"
+    },
+    "mise:2.1.287": {
+      "checked_at": "2026-10-05T21:46:50Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/home/vimes/.local/share/mise/installs/claude/2.1.287/claude",
+      "sha256": "3920489a5109cff5786a1a392c25277408ff22bc796d5edb9c16a60e5a1718f0",
+      "slot": "mise",
+      "version": "2.1.287"
+    },
+    "mise:2.1.289": {
+      "checked_at": "2026-10-05T21:46:50Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/home/vimes/.local/share/mise/installs/claude/2.1.289/claude",
+      "sha256": "a186b99e4a9c88366cd49df2f7dad56c61fc306ef0140b19ee64b7c42a8d1348",
+      "slot": "mise",
+      "version": "2.1.289"
+    },
+    "path:claude": {
+      "checked_at": "2026-10-04T19:30:15Z",
+      "missing_assertions": [
+        "session_url_prefix",
+        "session_host",
+        "inbound_stream_path",
+        "heartbeat_path",
+        "worker_status_field",
+        "status_value_idle",
+        "status_value_requires_action",
+        "frame_event_client_event",
+        "frame_field_sequence_num",
+        "frame_field_event_id",
+        "frame_field_event_type",
+        "frame_field_payload_type",
+        "envelope_anchor_sessionsv2",
+        "envelope_anchor_ssetransport",
+        "envelope_anchor_sse_event_link_1",
+        "envelope_anchor_sse_event_link_2",
+        "heartbeat_probe_event",
+        "server_only_workflow_launch",
+        "server_only_queued_notification",
+        "server_only_session_notice",
+        "heartbeat_body_worker_epoch",
+        "heartbeat_body_supports_probe",
+        "heartbeat_body_interval",
+        "heartbeat_body_idle_seconds",
+        "work_item_bash_launch",
+        "work_item_bash_output",
+        "work_item_agent_launch",
+        "work_item_agent_output",
+        "work_item_notification_open",
+        "work_item_notification_close",
+        "work_item_notification_tool_use",
+        "work_item_notification_exit",
+        "class_sessions_v2_client",
+        "class_sse_transport"
+      ],
+      "passed": false,
+      "path": "/home/vimes/.local/bin/claude",
+      "sha256": "b66d6f6473d4e07c2601e7dcddd6264df77d39059429503a0870e06fb3562122",
+      "slot": "path",
+      "version": "claude"
+    },
+    "terminal:2.1.252": {
+      "checked_at": "2026-09-03T10:46:06Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/Users/vimes/.local/share/claude/versions/2.1.252",
+      "sha256": "b661c6a094fcc32656bf7c0071c5b45bf900b34d4f0a1ab3d78fd59aeba2c2c7",
+      "slot": "terminal",
+      "version": "2.1.252"
+    },
+    "terminal:2.1.257": {
+      "checked_at": "2026-09-03T11:05:24Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/Users/vimes/.local/share/claude/versions/2.1.257",
+      "sha256": "64590d7d9d9c189d33fb3dfa58c5408eaf2a10fe556bd84155d95efaab46b60e",
+      "slot": "terminal",
+      "version": "2.1.257"
+    },
+    "terminal:2.1.258": {
+      "checked_at": "2026-09-03T11:05:24Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/Users/vimes/.local/share/claude/versions/2.1.258",
+      "sha256": "b63136194160791c27cfa7b0403060d85eb0752991625fde8c09f9acacb17c78",
+      "slot": "terminal",
+      "version": "2.1.258"
+    },
+    "terminal:2.1.259": {
+      "checked_at": "2026-09-03T11:05:24Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/Users/vimes/.local/share/claude/versions/2.1.259",
+      "sha256": "884baa38fe1a624be25c4a91568bf5a08b5cf4e7d7acf29b7760e3525d964898",
+      "slot": "terminal",
+      "version": "2.1.259"
+    },
+    "terminal:2.1.260": {
+      "checked_at": "2026-09-08T12:55:32Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/Users/vimes/.local/share/claude/versions/2.1.260",
+      "sha256": "3c269f66801028823e24a63ced9fdd3988cb86cf85fccd9f03f87e463b9d3e3c",
+      "slot": "terminal",
+      "version": "2.1.260"
+    },
+    "terminal:2.1.261": {
+      "checked_at": "2026-09-09T10:09:02Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/Users/vimes/.local/share/claude/versions/2.1.261",
+      "sha256": "5efecaff231b798be3c66def9be54183623b328b80eaef17f93c43987024e82a",
+      "slot": "terminal",
+      "version": "2.1.261"
+    },
+    "terminal:2.1.263": {
+      "checked_at": "2026-09-09T10:09:02Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/Users/vimes/.local/share/claude/versions/2.1.263",
+      "sha256": "ef5d2909c8af49f31ab6d5487e90316777bc2fac170adfe8160716caa8aaf4f9",
+      "slot": "terminal",
+      "version": "2.1.263"
+    },
+    "terminal:2.1.265": {
+      "checked_at": "2026-09-09T10:09:02Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/Users/vimes/.local/share/claude/versions/2.1.265",
+      "sha256": "164b09eb800dedb9bb06304129fbf07743ab9db972ae07333ef4f18cde0cb8d5",
+      "slot": "terminal",
+      "version": "2.1.265"
+    },
+    "terminal:2.1.266": {
+      "checked_at": "2026-09-09T10:09:02Z",
+      "missing_assertions": [],
+      "passed": true,
+      "path": "/Users/vimes/.local/share/claude/versions/2.1.266",
+      "sha256": "553d1b9e9e7068b275c0a783c7e139ff6503096f286e674c8c919379fb0eca62",
+      "slot": "terminal",
+      "version": "2.1.266"
+    }
+  },
+  "evicted_noticed": {
+    "desktop:2.1.246": "2026-09-08T12:34:41Z",
+    "desktop:2.1.258": "2026-09-23T04:55:31Z",
+    "desktop:2.1.260": "2026-09-23T04:55:31Z",
+    "terminal:2.1.252": "2026-09-03T11:04:36Z",
+    "terminal:2.1.257": "2026-09-08T12:34:41Z",
+    "terminal:2.1.258": "2026-09-08T12:34:41Z",
+    "terminal:2.1.259": "2026-09-08T12:34:41Z",
+    "terminal:2.1.260": "2026-09-09T09:01:56Z",
+    "terminal:2.1.261": "2026-09-23T04:55:31Z",
+    "terminal:2.1.263": "2026-09-23T04:55:31Z",
+    "terminal:2.1.265": "2026-09-23T04:55:31Z",
+    "terminal:2.1.266": "2026-09-23T04:55:31Z"
+  },
+  "latest_seen": {
+    "desktop": "2.1.260",
+    "mise": "2.1.289",
+    "path": "claude",
+    "terminal": "2.1.266"
+  }
+}

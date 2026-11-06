@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT map_id, ord, criterion, provenance, operator_span\n                 FROM memory.acceptance_criteria\n                WHERE map_id = ANY($1)\n                ORDER BY map_id, ord ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "map_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.acceptance_criteria",
+            "name": "map_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "ord",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.acceptance_criteria",
+            "name": "ord"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "criterion",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.acceptance_criteria",
+            "name": "criterion"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "provenance",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.acceptance_criteria",
+            "name": "provenance"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "operator_span",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.acceptance_criteria",
+            "name": "operator_span"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "5ee5e62ce2c856f5fac1d38c82b9c3315637f80ad26c24377346d0142915d6f7"
+}

@@ -1,0 +1,242 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH target AS (\n    SELECT unnest($1::bigint[]) AS session_id\n),\ngenuine AS (\n    SELECT t.session_id, t.id, t.start_request_id, t.reaction, COALESCE(t.user_prompt, '') AS user_prompt,\n           row_number() OVER (PARTITION BY t.session_id ORDER BY t.start_request_id DESC) AS rn,\n           count(*) OVER (PARTITION BY t.session_id) AS n\n      FROM target g\n      JOIN memory.operator_turns t ON t.session_id = g.session_id\n      JOIN memory.turn_facts f ON f.operator_turn_id = t.id\n      JOIN requests.requests r ON r.id = t.start_request_id\n     WHERE f.prompt_kind = 'genuine' AND r.claude_code_agent_id IS NULL AND t.created_at <= $2\n),\nprior AS (\n    SELECT session_id, array_agg(reaction ORDER BY start_request_id) AS reactions\n      FROM genuine\n     WHERE rn BETWEEN 2 AND 4\n     GROUP BY session_id\n),\nlaunch_row AS (\n    SELECT DISTINCT ON (s.id) s.id AS session_id, l.seat, l.run_id, l.template_id, l.brief_path, l.brief_text,\n           l.brief_note_uuid\n      FROM target g\n      JOIN sessions.sessions s ON s.id = g.session_id\n      JOIN launch.launches l ON l.session_uuid = s.session_uuid\n     ORDER BY s.id, l.id DESC\n),\nbrief AS (\n    SELECT g.session_id,\n           bool_and(COALESCE(\n               (la.brief_path IS NOT NULL AND position(la.brief_path IN g.user_prompt) > 0)\n               OR (la.brief_note_uuid IS NOT NULL\n                   AND position(la.brief_note_uuid::text IN g.user_prompt) > 0)\n               OR (la.brief_text IS NOT NULL AND g.user_prompt = la.brief_text), false)) AS all_brief\n      FROM genuine g\n      JOIN launch_row la ON la.session_id = g.session_id\n     GROUP BY g.session_id\n)\nSELECT e.session_id AS \"session_id!\", e.id AS \"end_turn_id!\", t.closed_at AS end_turn_closed_at,\n       f.next_state AS \"next_state!\", f.session_class AS \"session_class!\",\n       f.session_class_rule AS \"session_class_rule!\", f.aborted AS \"aborted!\",\n       f.interrupted AS \"interrupted!\", f.close_cause AS \"close_cause!\", f.stop_reason,\n       f.ended_on AS \"ended_on!\", e.n AS \"genuine_turns!\",\n       COALESCE(p.reactions, '{}') AS \"prior_reactions!: Vec<Option<String>>\",\n       la.seat AS \"launch_seat?\", la.run_id AS \"launch_run_id?\",\n       la.template_id AS \"launch_template_id?\", la.brief_path AS \"brief_path?\",\n       la.brief_text AS \"brief_text?\", sg.role AS \"goal_role?\",\n       COALESCE(b.all_brief, false) AS \"all_genuine_are_brief!\"\n  FROM genuine e\n  JOIN memory.operator_turns t ON t.id = e.id\n  JOIN memory.turn_facts f ON f.operator_turn_id = e.id\n  LEFT JOIN prior p ON p.session_id = e.session_id\n  LEFT JOIN launch_row la ON la.session_id = e.session_id\n  LEFT JOIN brief b ON b.session_id = e.session_id\n  LEFT JOIN sessions.session_goals sg ON sg.session_id = e.session_id\n WHERE e.rn = 1\n ORDER BY e.session_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "end_turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "end_turn_closed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "closed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "next_state!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "next_state"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "session_class!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "session_class"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "session_class_rule!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "session_class_rule"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "aborted!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "aborted"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "interrupted!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "interrupted"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "close_cause!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "close_cause"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "stop_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "stop_reason"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "ended_on!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "ended_on"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "genuine_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 12,
+        "name": "prior_reactions!: Vec<Option<String>>",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 13,
+        "name": "launch_seat?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "seat"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "launch_run_id?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "run_id"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "launch_template_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "template_id"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "brief_path?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "brief_path"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "brief_text?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "brief_text"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "goal_role?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "role"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "all_genuine_are_brief!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      null,
+      null,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "ca2c580b00f7c9b26c4ead17295ac8120474630c9ba33bb456fd6c270e51fe0a"
+}

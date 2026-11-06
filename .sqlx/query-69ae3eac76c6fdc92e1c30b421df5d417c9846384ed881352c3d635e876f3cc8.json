@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lesson_injections\n                    (lesson_id, request_id, session_id, lane_id, origin)\n                 SELECT l.id, $1::bigint, s.id, lane.id, 'mod'\n                   FROM UNNEST($2::bigint[]) AS u(lesson_id)\n                   JOIN memory.lessons l ON l.id = u.lesson_id\n                   JOIN sessions.sessions s ON s.session_uuid = $3::text::uuid\n                   JOIN memory.lesson_injection_lanes lane ON lane.code = $4\n                  WHERE NOT EXISTS (\n                        SELECT 1 FROM memory.lesson_injections seen\n                         WHERE seen.session_id = s.id\n                           AND seen.lesson_id = l.id\n                           AND seen.origin = 'mod')\n                 ON CONFLICT (lesson_id, request_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8Array",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "69ae3eac76c6fdc92e1c30b421df5d417c9846384ed881352c3d635e876f3cc8"
+}

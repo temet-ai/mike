@@ -1,0 +1,77 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH c AS (\n    SELECT u.item_id, u.session_uuid, u.request_id, u.vec::vector AS v\n      FROM unnest($1::bigint[], $2::text[], $3::bigint[], $4::text[]) AS u(item_id, session_uuid, request_id, vec)\n)\nSELECT c.item_id AS \"correction_item_id!\", a.id AS \"anchor_item_id!\", a.pattern AS pattern,\n       a.origin_session_uuid::text AS origin_session_uuid, a.request_id,\n       a.similarity AS \"similarity!\"\n  FROM c\n  CROSS JOIN LATERAL (\n      SELECT x.id, x.pattern, x.origin_session_uuid, x.request_id,\n             (1 - (x.embedding <=> c.v))::float8 AS similarity\n        FROM memory.semantic_items x\n       WHERE x.kind = 'anchor' AND x.embedder_key = $5\n         AND x.origin_session_uuid::text IS DISTINCT FROM c.session_uuid\n         AND (c.request_id IS NULL OR x.request_id IS DISTINCT FROM c.request_id)\n       ORDER BY x.embedding <=> c.v, x.id\n       LIMIT 10\n  ) a\n ORDER BY c.item_id, a.similarity DESC\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "correction_item_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "anchor_item_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "pattern",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "pattern"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "origin_session_uuid",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "similarity!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TextArray",
+        "Int8Array",
+        "TextArray",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      true,
+      null,
+      true,
+      null
+    ]
+  },
+  "hash": "9b00fd5e75f44affda4a3b9de10c36c13d637f1d3b8b175f1e6e996f44fbd773"
+}

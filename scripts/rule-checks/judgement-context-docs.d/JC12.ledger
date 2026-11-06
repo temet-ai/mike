@@ -1,0 +1,11 @@
+# JC12 ledger. First landing; 797c1ed2 added the single-writer structural test. The second landing (r3 deletion) waits on promotion.
+landed   JC12 2026-09-24 50cf625a
+table    memory.operator_turn_legacy_labels
+table    eval.rejudge_runs
+setting  turn_judge.live_bundle_id
+setting  turn_judge.immediate
+setting  turn_judge.immediate_delay_ms
+setting  turn_judge.live_window_days
+setting  turn_judge.rejudge_daily_call_cap
+setting  steerer.openrouter_api_key_env
+cli      mike eval rejudge

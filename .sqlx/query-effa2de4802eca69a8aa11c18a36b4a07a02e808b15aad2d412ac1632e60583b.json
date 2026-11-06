@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"rows!\",\n                          COALESCE(bit_xor(hashtextextended(id::text || ' ' || embedded_at::text, 0)), 0) AS \"digest!\"\n                     FROM memory.lessons\n                    WHERE embedding_model = $1 AND embedding IS NOT NULL AND archived_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "rows!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "digest!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "effa2de4802eca69a8aa11c18a36b4a07a02e808b15aad2d412ac1632e60583b"
+}

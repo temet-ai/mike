@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"n!\"\n                     FROM memory.lesson_proposal_evidence e\n                     JOIN (SELECT $1::bigint AS lesson_id\n                           UNION\n                           SELECT r.to_lesson_id\n                             FROM memory.lesson_relations r\n                             JOIN memory.lesson_relation_kinds k ON k.id = r.kind_id\n                             JOIN memory.lesson_relation_methods m ON m.id = r.method_id\n                            WHERE r.from_lesson_id = $1\n                              AND k.code IN ('supersedes', 'refines')\n                              AND m.code = 'write_time') backed\n                       ON backed.lesson_id = e.lesson_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "n!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "c4c4a90e8d7535d7fb139c1f97df47aab84f3cad574b7e994e05652024f21cef"
+}

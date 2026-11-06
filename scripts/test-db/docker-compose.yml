@@ -1,0 +1,72 @@
+# Throwaway Postgres for the database test suite (MIKE_TEST_ADMIN_URL).
+#
+# Tests must never touch the live capture instance (armitage-pg on 5440, whose
+# data sits on the rotating disk under /mnt/data). This instance keeps its data
+# on the NVMe under ~/.local/share/mike-test-db-19, runs the same PostgreSQL 19 +
+# pgvector image as the capture DB (built from ../capture-db/Dockerfile.pg19), and is tuned for disposable
+# data: no fsync, no full-page writes, so a crash may lose the data and nothing
+# else. 6666 is reserved for the local fallback capture DB (scripts/local-db), so
+# this listens on 6667.
+#
+#   scripts/test-db/up.sh      # start (or resume) it and wait for health
+#   scripts/test-db/down.sh    # stop it, keeping the data
+#
+# On macOS, up.sh keeps the data in the docker volume mike_test_db_vm inside the
+# docker VM instead: a bind mount from the Mac (virtiofs) answers "Permission
+# denied" when the suite drops a database while a checkpoint runs, which fails
+# CREATE DATABASE and DROP DATABASE in parallel tests.
+#
+# MIKE_TEST_ADMIN_URL=postgres://postgres:postgres@127.0.0.1:6667/postgres
+name: mike-test-db
+
+services:
+  postgres:
+    image: mike/postgres-pgvector:19rc1-0.8.7
+    build:
+      context: ../capture-db
+      dockerfile: Dockerfile.pg19
+    container_name: mike-test-pg
+    restart: unless-stopped
+    environment:
+      PGDATA: /var/lib/postgresql/data
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - autovacuum_max_parallel_workers=4
+      - -c
+      - fsync=off
+      - -c
+      - synchronous_commit=off
+      - -c
+      - full_page_writes=off
+      - -c
+      - max_connections=400
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - max_wal_size=4GB
+    ports:
+      - "127.0.0.1:${MIKE_TEST_DB_PORT:-6667}:5432"
+    volumes:
+      - ${MIKE_TEST_DB_DATA:-${HOME}/.local/share/mike-test-db-19}:/var/lib/postgresql/data
+    shm_size: "1gb"
+    # The suite's parallel CREATE/DROP DATABASE checkpoints can hold the server
+    # for several seconds. A healthcheck killed at its timeout in that window took
+    # a server process down with it (exit code 2), and Postgres restarted every
+    # connection: three crashes on 2026-10-28, each exactly 3s after a
+    # pg_isready. The timeout now outlasts those stalls.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 60s
+      retries: 6
+      start_period: 10s
+
+volumes:
+  mike_test_db_vm:
+    name: mike_test_db_vm

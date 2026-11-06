@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ot.start_request_id AS request_id,\n                  ot.user_prompt AS \"user_prompt!\",\n                  ot.final_assistant_text AS stop_response\n             FROM memory.operator_turns ot\n            WHERE ot.session_id = $1\n            ORDER BY ot.start_request_id ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "start_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "user_prompt!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "user_prompt"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "stop_response",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "final_assistant_text"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "db50b35c46b3c05b4c1581a6275a14f3fec2c810b552266e3121ea66bd24bdce"
+}

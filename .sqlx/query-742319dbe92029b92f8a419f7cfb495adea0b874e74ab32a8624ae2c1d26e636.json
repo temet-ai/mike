@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO mailbox.failed_sends (attempted_by_session_id, attempted_to, reason)\n             SELECT $1, session_uuid::text, 'recipient_ended'\n               FROM sessions.sessions WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "742319dbe92029b92f8a419f7cfb495adea0b874e74ab32a8624ae2c1d26e636"
+}

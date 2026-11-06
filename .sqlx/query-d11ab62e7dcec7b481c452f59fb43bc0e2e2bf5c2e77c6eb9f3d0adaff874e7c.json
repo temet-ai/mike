@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM memory.knowledge_embedding_chunks WHERE state_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d11ab62e7dcec7b481c452f59fb43bc0e2e2bf5c2e77c6eb9f3d0adaff874e7c"
+}

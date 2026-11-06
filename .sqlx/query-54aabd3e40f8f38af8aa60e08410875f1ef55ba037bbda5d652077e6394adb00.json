@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions.sessions\n                 SET ttl_override = $2,\n                     ttl_override_set_at = CASE WHEN $3 THEN NOW() ELSE NULL END\n                 WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Interval",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "54aabd3e40f8f38af8aa60e08410875f1ef55ba037bbda5d652077e6394adb00"
+}

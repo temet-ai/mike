@@ -1,0 +1,28 @@
+{
+	"name": "prompt-assistant",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"description": "Provider-selectable assistant service that helps the operator reword captured Claude Code system prompts.",
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"start": "node dist/server.js",
+		"dev": "tsx src/server.ts",
+		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"test": "vitest run",
+		"e2e": "tsx scripts/e2e.ts"
+	},
+	"engines": {
+		"node": ">=26"
+	},
+	"dependencies": {
+		"@anthropic-ai/claude-agent-sdk": "^0.3.280",
+		"zod": "^4.0.0"
+	},
+	"devDependencies": {
+		"@types/node": "^24.0.0",
+		"tsx": "^4.19.2",
+		"typescript": "^5.7.3",
+		"vitest": "^2.1.8"
+	}
+}

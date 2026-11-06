@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ai.id\n           FROM agents.instances ai\n          WHERE ai.session_id      = $1\n            AND ai.subagent_persona = $2\n          ORDER BY (ai.first_request_id IS NULL),\n                   ai.first_request_id DESC,\n                   ai.id DESC\n          LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.instances",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a92fbb3e8e2351a60d7a31fe92a68046f3d5b8d77f8e11053030f08915816770"
+}

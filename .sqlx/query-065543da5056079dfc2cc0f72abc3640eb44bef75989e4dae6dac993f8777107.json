@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT coalesce(sp.mode, 'ask') AS \"mode!\",\n                          sp.project_id IS NOT NULL AS \"mode_set!\"\n                     FROM projects.projects p\n                     LEFT JOIN memory.skill_policies sp ON sp.project_id = p.id\n                    WHERE p.project_uuid = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "mode!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "mode_set!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "065543da5056079dfc2cc0f72abc3640eb44bef75989e4dae6dac993f8777107"
+}

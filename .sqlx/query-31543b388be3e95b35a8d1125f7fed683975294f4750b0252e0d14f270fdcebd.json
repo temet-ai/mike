@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO requests.errors (request_id, message)\n             SELECT $1, $2\n             WHERE NOT EXISTS (\n                 SELECT 1 FROM requests.errors WHERE request_id = $1\n             )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "31543b388be3e95b35a8d1125f7fed683975294f4750b0252e0d14f270fdcebd"
+}

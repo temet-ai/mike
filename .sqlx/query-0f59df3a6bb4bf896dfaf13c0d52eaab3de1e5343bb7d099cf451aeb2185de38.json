@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.dossier_entries d\n    SET status = 'superseded',\n        closed_at = n.effective_at,\n        close_recorded_at = now(),\n        closed_by = n.source_ref\n   FROM (\n        SELECT DISTINCT ON (d.id) d.id, n.effective_at, n.source_ref\n          FROM memory.dossier_entries d\n          JOIN memory.dossier_entries n\n            ON n.session_id = d.session_id\n           AND n.kind = 'directive'\n           AND n.data->>'class' = d.data->>'class'\n           AND n.data->>'polarity' <> d.data->>'polarity'\n           AND n.effective_at > d.effective_at\n         WHERE d.kind = 'directive'\n           AND d.status = 'open'\n           AND d.session_id = ANY($1)\n         ORDER BY d.id, n.effective_at, n.id\n   ) n\n  WHERE d.id = n.id\n    AND d.status = 'open'\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0f59df3a6bb4bf896dfaf13c0d52eaab3de1e5343bb7d099cf451aeb2185de38"
+}

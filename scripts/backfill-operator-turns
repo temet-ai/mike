@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ -z "${MIKE_DATABASE_URL:-}" && -f "$repo_root/.env" ]]; then set -a; source "$repo_root/.env"; set +a; fi
+: "${MIKE_DATABASE_URL:?Set MIKE_DATABASE_URL}"
+# Each transaction handles at most 100 captured requests. Progress is by request
+# id, including unresolved rows, so missing lineage cannot stall the backfill.
+cursor=0
+while :; do
+  result=$({
+    cat <<'SQL'
+BEGIN;
+SET LOCAL jit = off;
+CREATE TEMP TABLE attribution_batch ON COMMIT DROP AS
+SELECT id FROM requests.requests
+WHERE id > :'cursor'::bigint AND operator_turn_id IS NULL
+ORDER BY id LIMIT 100;
+SQL
+    sed 's/\$1::bigint\[\]/ARRAY(SELECT id FROM attribution_batch)/g' \
+      "$repo_root/crates/mike/src/store/persistence/turn_lifecycle/inheritance/attribute.sql"
+    cat <<'SQL'
+SELECT memory.refresh_inherited_turns(array_agg(DISTINCT r.operator_turn_id))
+FROM requests.requests r JOIN attribution_batch b ON b.id = r.id
+WHERE r.operator_turn_id IS NOT NULL;
+SELECT 'cursor=' || coalesce(max(id)::text, '') FROM attribution_batch;
+COMMIT;
+SQL
+  } | psql "$MIKE_DATABASE_URL" -XAt -v ON_ERROR_STOP=1 -v cursor="$cursor")
+  cursor=$(printf '%s\n' "$result" | sed -n 's/^cursor=//p')
+  [[ -n "$cursor" ]] || break
+  printf 'Processed through request %s\n' "$cursor"
+done

@@ -1,0 +1,68 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- The channel roll-up half of recording a batch of Remote Control calls on one\n-- channel. The caller merges the batch's signals first (newest of each dated\n-- signal, earliest created_at as $18, latest as $4), so a burst of calls costs\n-- one roll-up statement, and record_calls.sql then inserts the calls.\n--\n-- The channel row is written only when the call changes something a reader\n-- can see: a new status, a newer heartbeat, a newly opened stream, a newer\n-- delivery, a first link to a session, a new post-turn summary, or a call\n-- that is more than $17 seconds newer than last_seen_at. A call that changes\n-- nothing (most /worker/events and /worker batches) takes no row lock at all,\n-- because the UPDATE finds no row to write and the plain SELECT below does\n-- not lock.\n--\n-- Bind parameters:\n--   $1-$11   cse_id, client_session_id, worker_epoch, created_at,\n--            heartbeat_at, idle_seconds, current_interval_seconds,\n--            worker_status, worker_status_at, delivery_at, stream_opened_at\n--   $12-$16  local_session_uuid, local_cwd, client_version,\n--            post_turn_summary, post_turn_summary_at\n--   $17      last_seen_at debounce, in seconds\n--   $18      first_seen_at for a channel this statement creates\n--\n-- Always returns exactly one row. `id` is NULL only when a concurrent call\n-- created the channel between this statement's snapshot and its insert; the\n-- caller runs the statement again and the second pass finds the row.\nWITH cur AS (\n    SELECT id, worker_status, worker_status_at\n      FROM remote_control.channels\n     WHERE cse_id = $1::text\n),\nupd AS (\n    UPDATE remote_control.channels c SET\n        client_session_id = COALESCE($2::text, c.client_session_id),\n        worker_epoch      = COALESCE($3::bigint, c.worker_epoch),\n        last_seen_at      = GREATEST(c.last_seen_at, $4::timestamptz),\n        last_heartbeat_at = GREATEST(c.last_heartbeat_at, $5::timestamptz),\n        last_idle_seconds = CASE\n            WHEN $5::timestamptz IS NOT NULL\n             AND (c.last_heartbeat_at IS NULL OR $5::timestamptz >= c.last_heartbeat_at)\n            THEN $6::integer ELSE c.last_idle_seconds END,\n        last_heartbeat_interval_seconds = CASE\n            WHEN $5::timestamptz IS NOT NULL\n             AND (c.last_heartbeat_at IS NULL OR $5::timestamptz >= c.last_heartbeat_at)\n            THEN $7::integer ELSE c.last_heartbeat_interval_seconds END,\n        worker_status     = CASE\n            WHEN $9::timestamptz IS NOT NULL\n             AND (c.worker_status_at IS NULL OR $9::timestamptz >= c.worker_status_at)\n            THEN $8::text ELSE c.worker_status END,\n        worker_status_at  = GREATEST(c.worker_status_at, $9::timestamptz),\n        last_delivery_at  = GREATEST(c.last_delivery_at, $10::timestamptz),\n        stream_opened_at  = GREATEST(c.stream_opened_at, $11::timestamptz),\n        local_session_uuid = COALESCE(c.local_session_uuid, $12::uuid),\n        local_cwd = CASE WHEN c.local_session_uuid IS NULL THEN $13::text ELSE c.local_cwd END,\n        client_version = CASE WHEN c.local_session_uuid IS NULL THEN $14::text ELSE c.client_version END,\n        session_id = COALESCE(c.session_id,\n            (SELECT s.id FROM sessions.sessions s\n              WHERE s.session_uuid = COALESCE(c.local_session_uuid, $12::uuid))),\n        post_turn_summary = CASE\n            WHEN $16::timestamptz IS NOT NULL\n             AND (c.post_turn_summary_at IS NULL OR $16::timestamptz >= c.post_turn_summary_at)\n            THEN $15::jsonb ELSE c.post_turn_summary END,\n        post_turn_summary_at = GREATEST(c.post_turn_summary_at, $16::timestamptz)\n     WHERE c.cse_id = $1::text\n       AND (\n            ($2::text IS NOT NULL AND $2::text IS DISTINCT FROM c.client_session_id)\n         OR ($3::bigint IS NOT NULL AND $3::bigint IS DISTINCT FROM c.worker_epoch)\n         OR $4::timestamptz > c.last_seen_at + make_interval(secs => $17::integer)\n         OR ($5::timestamptz IS NOT NULL\n             AND (c.last_heartbeat_at IS NULL OR $5::timestamptz > c.last_heartbeat_at))\n         OR ($9::timestamptz IS NOT NULL\n             AND (c.worker_status_at IS NULL OR $9::timestamptz >= c.worker_status_at)\n             AND $8::text IS DISTINCT FROM c.worker_status)\n         OR ($10::timestamptz IS NOT NULL\n             AND (c.last_delivery_at IS NULL OR $10::timestamptz > c.last_delivery_at))\n         OR ($11::timestamptz IS NOT NULL\n             AND (c.stream_opened_at IS NULL OR $11::timestamptz > c.stream_opened_at))\n         OR ($12::uuid IS NOT NULL AND c.local_session_uuid IS NULL)\n         OR (c.session_id IS NULL\n             AND EXISTS (SELECT 1 FROM sessions.sessions s\n                          WHERE s.session_uuid = COALESCE(c.local_session_uuid, $12::uuid)))\n         OR ($16::timestamptz IS NOT NULL\n             AND (c.post_turn_summary_at IS NULL OR $16::timestamptz >= c.post_turn_summary_at)\n             AND $15::jsonb IS DISTINCT FROM c.post_turn_summary)\n       )\n    RETURNING c.id, c.worker_status, c.worker_status_at\n),\nins AS (\n    INSERT INTO remote_control.channels\n        (cse_id, client_session_id, worker_epoch, first_seen_at, last_seen_at,\n         last_heartbeat_at, last_idle_seconds, last_heartbeat_interval_seconds,\n         worker_status, worker_status_at, last_delivery_at, stream_opened_at,\n         local_session_uuid, local_cwd, client_version,\n         post_turn_summary, post_turn_summary_at, session_id)\n    SELECT $1::text, $2::text, $3::bigint, $18::timestamptz, $4::timestamptz,\n           $5::timestamptz, $6::integer, $7::integer,\n           $8::text, $9::timestamptz, $10::timestamptz, $11::timestamptz,\n           $12::uuid, $13::text, $14::text, $15::jsonb, $16::timestamptz,\n           (SELECT s.id FROM sessions.sessions s WHERE s.session_uuid = $12::uuid)\n     WHERE NOT EXISTS (SELECT 1 FROM cur)\n    ON CONFLICT (cse_id) DO NOTHING\n    RETURNING id, worker_status, worker_status_at\n)\nSELECT COALESCE((SELECT id FROM upd), (SELECT id FROM ins), (SELECT id FROM cur)) AS id,\n       (SELECT worker_status FROM cur) AS previous_status,\n       (SELECT worker_status_at FROM cur) AS previous_status_at,\n       COALESCE((SELECT worker_status FROM upd), (SELECT worker_status FROM ins),\n                (SELECT worker_status FROM cur)) AS current_status,\n       COALESCE((SELECT worker_status_at FROM upd), (SELECT worker_status_at FROM ins),\n                (SELECT worker_status_at FROM cur)) AS current_status_at\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "previous_status",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "previous_status_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "current_status",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "current_status_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8",
+        "Timestamptz",
+        "Timestamptz",
+        "Int4",
+        "Int4",
+        "Text",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamptz",
+        "Uuid",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Timestamptz",
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "8897cc379c7d4b56d0c512c9ecfb2c144b1772adf207c3304dd0e4ecdd2ac972"
+}

@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE steering.evaluations\n                    SET arm = $2, holdback_draw = $3, arm_anchor_turn_id = $4, due_at = $5\n                  WHERE uuid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Float8",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5b823b7ee878a2874e7c7e57b04eb0029e68bb02a7cf3adf50ff541b3106d69f"
+}

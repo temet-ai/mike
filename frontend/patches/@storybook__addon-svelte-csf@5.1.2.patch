@@ -1,0 +1,169 @@
+diff --git a/dist/compiler/post-transform/appendix/create-export-order.test.d.ts b/dist/compiler/post-transform/appendix/create-export-order.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/post-transform/appendix/create-export-order.test.js b/dist/compiler/post-transform/appendix/create-export-order.test.js
+deleted file mode 100644
+index 0a2e7e1903e7ac3697508f5bacaff544a9f9bf18..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/post-transform/appendix/create-import.test.d.ts b/dist/compiler/post-transform/appendix/create-import.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/post-transform/appendix/create-import.test.js b/dist/compiler/post-transform/appendix/create-import.test.js
+deleted file mode 100644
+index bb392037fbd8d14454f2353517d90e25530adb2f..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/post-transform/appendix/create-named-export-stories.test.d.ts b/dist/compiler/post-transform/appendix/create-named-export-stories.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/post-transform/appendix/create-named-export-stories.test.js b/dist/compiler/post-transform/appendix/create-named-export-stories.test.js
+deleted file mode 100644
+index 349a42af7997179c126db18f0b02e1e0f9d73afa..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/post-transform/appendix/create-runtime-story-variable-declaration.test.d.ts b/dist/compiler/post-transform/appendix/create-runtime-story-variable-declaration.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/post-transform/appendix/create-runtime-story-variable-declaration.test.js b/dist/compiler/post-transform/appendix/create-runtime-story-variable-declaration.test.js
+deleted file mode 100644
+index 8825103007647f171431a986845c9d2adc691c4f..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/post-transform/appendix/create-variable-from-runtime-stories-call.test.d.ts b/dist/compiler/post-transform/appendix/create-variable-from-runtime-stories-call.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/post-transform/appendix/create-variable-from-runtime-stories-call.test.js b/dist/compiler/post-transform/appendix/create-variable-from-runtime-stories-call.test.js
+deleted file mode 100644
+index 910b3a2458bd6beffd8b20bd967d6f72f4384493..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/post-transform/define-meta/index.test.d.ts b/dist/compiler/post-transform/define-meta/index.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/post-transform/define-meta/index.test.js b/dist/compiler/post-transform/define-meta/index.test.js
+deleted file mode 100644
+index 03a471af4db2556cc44ac4fcf61c5a27ef7efaed..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/post-transform/index.test.d.ts b/dist/compiler/post-transform/index.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/post-transform/index.test.js b/dist/compiler/post-transform/index.test.js
+deleted file mode 100644
+index 3993491e0c7d454d4990958e40ab837ed75ce987..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/post-transform/remove-export-default.test.d.ts b/dist/compiler/post-transform/remove-export-default.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/post-transform/remove-export-default.test.js b/dist/compiler/post-transform/remove-export-default.test.js
+deleted file mode 100644
+index 8e927f12713fb074874c602494aee020953fe415..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/post-transform/story/index.test.d.ts b/dist/compiler/post-transform/story/index.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/post-transform/story/index.test.js b/dist/compiler/post-transform/story/index.test.js
+deleted file mode 100644
+index 4a87606b799e55a0eacad4cab6901ac125c0e845..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/pre-transform/codemods/component-meta-to-define-meta.test.d.ts b/dist/compiler/pre-transform/codemods/component-meta-to-define-meta.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/pre-transform/codemods/component-meta-to-define-meta.test.js b/dist/compiler/pre-transform/codemods/component-meta-to-define-meta.test.js
+deleted file mode 100644
+index e1933208ad0dc29ddc105714b3018bed9c2114c1..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/pre-transform/codemods/export-const-to-define-meta.test.d.ts b/dist/compiler/pre-transform/codemods/export-const-to-define-meta.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/pre-transform/codemods/export-const-to-define-meta.test.js b/dist/compiler/pre-transform/codemods/export-const-to-define-meta.test.js
+deleted file mode 100644
+index 042360fd831698a878943c7baac75e3a89927946..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/pre-transform/codemods/import-declaration.test.d.ts b/dist/compiler/pre-transform/codemods/import-declaration.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/pre-transform/codemods/import-declaration.test.js b/dist/compiler/pre-transform/codemods/import-declaration.test.js
+deleted file mode 100644
+index 54a70851b01878a35bb9d06169d7ae710a284825..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/pre-transform/codemods/legacy-story.test.d.ts b/dist/compiler/pre-transform/codemods/legacy-story.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/pre-transform/codemods/legacy-story.test.js b/dist/compiler/pre-transform/codemods/legacy-story.test.js
+deleted file mode 100644
+index 65a17f0a22fad7ef19cb270e78286fab05eae0de..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/pre-transform/codemods/template-to-snippet.test.d.ts b/dist/compiler/pre-transform/codemods/template-to-snippet.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/pre-transform/codemods/template-to-snippet.test.js b/dist/compiler/pre-transform/codemods/template-to-snippet.test.js
+deleted file mode 100644
+index 71af99f518f4e55df21e6a92642ba1d0740ed17d..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/pre-transform/index.test.d.ts b/dist/compiler/pre-transform/index.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/compiler/pre-transform/index.test.js b/dist/compiler/pre-transform/index.test.js
+deleted file mode 100644
+index a0856a3f3673cf7b3d7297a63e6f81a5df4493d3..0000000000000000000000000000000000000000
+diff --git a/dist/parser/analyse/story/attributes/identifiers.test.d.ts b/dist/parser/analyse/story/attributes/identifiers.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/parser/analyse/story/attributes/identifiers.test.js b/dist/parser/analyse/story/attributes/identifiers.test.js
+deleted file mode 100644
+index ffe1c2845d106da4a6b2d143c083928640a70042..0000000000000000000000000000000000000000
+diff --git a/dist/parser/analyse/story/attributes.test.d.ts b/dist/parser/analyse/story/attributes.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/parser/analyse/story/attributes.test.js b/dist/parser/analyse/story/attributes.test.js
+deleted file mode 100644
+index dba23a4aa77b94d9bd852741a9cb1a6061af249d..0000000000000000000000000000000000000000
+diff --git a/dist/parser/analyse/story/content.test.d.ts b/dist/parser/analyse/story/content.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/parser/analyse/story/content.test.js b/dist/parser/analyse/story/content.test.js
+deleted file mode 100644
+index a45dbe5351d584c76758d5eeb55927f73bd20725..0000000000000000000000000000000000000000
+diff --git a/dist/parser/extract/svelte/define-meta.test.d.ts b/dist/parser/extract/svelte/define-meta.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/parser/extract/svelte/define-meta.test.js b/dist/parser/extract/svelte/define-meta.test.js
+deleted file mode 100644
+index acb4c67c6042b74da31d3eb1325ee5b843558695..0000000000000000000000000000000000000000
+diff --git a/dist/parser/extract/svelte/fragment-nodes.test.d.ts b/dist/parser/extract/svelte/fragment-nodes.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/parser/extract/svelte/fragment-nodes.test.js b/dist/parser/extract/svelte/fragment-nodes.test.js
+deleted file mode 100644
+index 1708c8b963eb9890899c36793443e825a08c4ca6..0000000000000000000000000000000000000000
+diff --git a/dist/parser/extract/svelte/module-nodes.test.d.ts b/dist/parser/extract/svelte/module-nodes.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/parser/extract/svelte/module-nodes.test.js b/dist/parser/extract/svelte/module-nodes.test.js
+deleted file mode 100644
+index 6c59526fe229c1b1122d9af83941f51eca7f026b..0000000000000000000000000000000000000000
+diff --git a/dist/parser/extract/svelte/nodes.test.d.ts b/dist/parser/extract/svelte/nodes.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/parser/extract/svelte/nodes.test.js b/dist/parser/extract/svelte/nodes.test.js
+deleted file mode 100644
+index 93d51d44e254dd53ce06a57c4dbaf1453cf2b1f8..0000000000000000000000000000000000000000
+diff --git a/dist/parser/extract/svelte/story/attributes.test.d.ts b/dist/parser/extract/svelte/story/attributes.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/parser/extract/svelte/story/attributes.test.js b/dist/parser/extract/svelte/story/attributes.test.js
+deleted file mode 100644
+index a086e069f3d669a4cd806e506388cb0605918fa2..0000000000000000000000000000000000000000
+diff --git a/dist/parser/extract/svelte/story/template.test.d.ts b/dist/parser/extract/svelte/story/template.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/parser/extract/svelte/story/template.test.js b/dist/parser/extract/svelte/story/template.test.js
+deleted file mode 100644
+index 8f48316c30afbed999681c12f6588ebed35b92c7..0000000000000000000000000000000000000000
+diff --git a/dist/runtime/emit-code.js b/dist/runtime/emit-code.js
+index 33f83f425322e8ebcf7020dea05c8c6b42a4ab0e..7bbb20e3ea218b2e091f93419094f1e512a217f2 100644
+--- a/dist/runtime/emit-code.js
++++ b/dist/runtime/emit-code.js
+@@ -79,7 +79,7 @@ const getFunctionName = (fn) => {
+  * convert a value to a stringified version
+  */
+ const valueToString = (value) => {
+-    if (typeof value === 'object' && value[Symbol.for('svelte.snippet')]) {
++    if (value !== null && typeof value === 'object' && value[Symbol.for('svelte.snippet')]) {
+         return 'snippet';
+     }
+     if (typeof value === 'function') {
+diff --git a/dist/runtime/emit-code.test.d.ts b/dist/runtime/emit-code.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/runtime/emit-code.test.js b/dist/runtime/emit-code.test.js
+deleted file mode 100644
+index 0daa7d27f0f67260d232b217b5828781236fc288..0000000000000000000000000000000000000000
+diff --git a/dist/utils/identifier-utils.test.d.ts b/dist/utils/identifier-utils.test.d.ts
+deleted file mode 100644
+index cb0ff5c3b541f646105198ee23ac0fc3d805023e..0000000000000000000000000000000000000000
+diff --git a/dist/utils/identifier-utils.test.js b/dist/utils/identifier-utils.test.js
+deleted file mode 100644
+index fd8da697e4349cef4393eadc67f35dea21a42dde..0000000000000000000000000000000000000000

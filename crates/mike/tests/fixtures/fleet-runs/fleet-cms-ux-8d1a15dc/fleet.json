@@ -1,0 +1,139 @@
+{
+  "slug": "cms-ux",
+  "state": "done",
+  "tasks": [
+    {
+      "id": "T1",
+      "after": [],
+      "criteria": [
+        "C1",
+        "C3",
+        "C4"
+      ],
+      "discipline": "design"
+    },
+    {
+      "id": "T2",
+      "after": [
+        "T1"
+      ],
+      "criteria": [
+        "C1",
+        "C2",
+        "C4"
+      ],
+      "discipline": "web-hard"
+    },
+    {
+      "id": "T3",
+      "after": [
+        "T1",
+        "T7"
+      ],
+      "criteria": [
+        "C2",
+        "C5"
+      ],
+      "discipline": "web"
+    },
+    {
+      "id": "T4",
+      "after": [
+        "T1"
+      ],
+      "criteria": [
+        "C2",
+        "C3",
+        "C6"
+      ],
+      "discipline": "web-hard"
+    },
+    {
+      "id": "T5",
+      "after": [
+        "T1"
+      ],
+      "criteria": [
+        "C2",
+        "C3",
+        "C6"
+      ],
+      "discipline": "web-hard"
+    },
+    {
+      "id": "T6",
+      "after": [
+        "T1"
+      ],
+      "criteria": [
+        "C2",
+        "C3"
+      ],
+      "discipline": "web"
+    },
+    {
+      "id": "T7",
+      "after": [],
+      "criteria": [
+        "C5"
+      ],
+      "discipline": "backend-hard"
+    },
+    {
+      "id": "T8",
+      "after": [],
+      "criteria": [
+        "C3"
+      ],
+      "discipline": "backend-hard"
+    },
+    {
+      "id": "T9",
+      "after": [],
+      "criteria": [
+        "C2"
+      ],
+      "discipline": "backend-hard"
+    },
+    {
+      "id": "T10",
+      "after": [],
+      "criteria": [
+        "C6"
+      ],
+      "discipline": "design"
+    },
+    {
+      "id": "T11",
+      "after": [],
+      "criteria": [
+        "C6"
+      ],
+      "discipline": "backend-hard"
+    },
+    {
+      "id": "T12",
+      "after": [],
+      "criteria": [
+        "C3",
+        "C5"
+      ],
+      "discipline": "backend-hard"
+    },
+    {
+      "id": "T13",
+      "after": [],
+      "criteria": [
+        "C5",
+        "C6"
+      ],
+      "discipline": "backend-hard"
+    }
+  ],
+  "run_id": "fleet-cms-ux-8d1a15dc",
+  "ready_at": "2026-10-21T13:55:57.784353+00:00",
+  "created_at": "2026-10-21T13:42:14.019627+00:00",
+  "started_at": "2026-10-21T13:57:26.106736+00:00",
+  "finished_at": "2026-10-21T17:51:41.251165+00:00",
+  "missing_count": 0
+}

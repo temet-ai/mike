@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH days AS (\n    SELECT unnest($1::timestamptz[]) AS d),\nbounds AS (\n    SELECT min(d) - interval '35 days' AS lo, max(d) AS hi FROM days),\nj AS (\n    SELECT p.created_at, p.legacy_outcome AS code, p.bundle_label, p.bundle_id, p.is_replied\n      FROM eval.turn_population_v p\n      JOIN bounds ON p.created_at >= bounds.lo AND p.created_at < bounds.hi\n     WHERE p.is_real AND p.legacy_outcome <> 'unknown'\n),\nwj AS (\n    SELECT dy.d,\n           CASE WHEN j.created_at >= dy.d - interval '7 days' THEN 'current' ELSE 'baseline' END AS win,\n           j.code, j.bundle_label, j.bundle_id, j.is_replied\n      FROM days dy\n      JOIN j ON j.created_at >= dy.d - interval '35 days' AND j.created_at < dy.d\n),\ncls AS (\n    SELECT d, win, code, count(*) AS k, count(*) FILTER (WHERE is_replied) AS kr\n      FROM wj GROUP BY d, win, code\n),\nper_win AS (\n    SELECT d, win, jsonb_object_agg(code, k) AS classes, sum(k)::bigint AS n,\n           sum(kr)::bigint AS replied_n,\n           coalesce(sum(kr) FILTER (WHERE code = 'corrected'), 0)::bigint AS replied_corrected\n      FROM cls GROUP BY d, win\n),\nbun AS (\n    SELECT wj.d, wj.win, wj.bundle_label, wj.bundle_id, count(*) AS k,\n           coalesce(bool_or(b.status = 'live' OR b.gate_run_id IS NOT NULL\n                            OR b.override_reason IS NOT NULL), false) AS gated\n      FROM wj LEFT JOIN eval.bundles b ON b.id = wj.bundle_id\n     GROUP BY wj.d, wj.win, wj.bundle_label, wj.bundle_id\n),\nper_bun AS (\n    SELECT d, win, jsonb_agg(jsonb_build_object('label', bundle_label, 'bundle_id', bundle_id,\n                                                'count', k, 'gated', gated) ORDER BY k DESC) AS bundles\n      FROM bun GROUP BY d, win\n)\nSELECT pw.d AS \"d!\", pw.win AS \"win!\", pw.n AS \"n!\", pw.classes AS \"classes!\", pb.bundles AS \"bundles!\",\n       pw.replied_n AS \"replied_n!\", pw.replied_corrected AS \"replied_corrected!\"\n  FROM per_win pw JOIN per_bun pb USING (d, win)\n ORDER BY pw.d, pw.win\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "d!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "win!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "n!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "classes!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "bundles!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "replied_n!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "replied_corrected!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TimestamptzArray"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "c353fdda3645f7843a00fcb50fa21133bf206652bb1b12f6e7fc311b54fdcc91"
+}

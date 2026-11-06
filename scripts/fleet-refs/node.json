@@ -1,0 +1,201 @@
+{
+  "name": "fleet-ref-node",
+  "note": "Smoke reference fleet. __REPO__ is the prepared working copy, __ORIGIN__ its bare origin. The known answers are .answers/<task>/ in the fixture: prepare puts them on a branch of a separate repository the fleet cannot see. Seeded faults: T3 waits on T1; T4's brief leaves out the half-away-from-zero rule that docs/rounding.md states, so a plain Math.round fails the stated rule; T5's brief names src/format/money.ts, which does not exist (src/money.ts does); variant red-baseline leaves node_modules out so the baseline check exits 127.",
+  "definition": {
+    "goal": "The package has slugify, titleSlug, clamp, roundTo and formatMoney, each with a passing test.",
+    "ask": "smoke reference run: five small helpers in a TypeScript package",
+    "repo": "__REPO__",
+    "branch": "main",
+    "check": {
+      "command": "scripts/check",
+      "paths": [
+        "src/",
+        "test/",
+        "package.json",
+        "tsconfig.json"
+      ]
+    },
+    "gate": {
+      "command": "scripts/check"
+    },
+    "retrospective": {
+      "enabled": false
+    },
+    "criteria": {
+      "C1": {
+        "text": "slugify and titleSlug exist and are tested",
+        "check": "Derived: node --test test/slug.test.ts test/title.test.ts exits 0",
+        "paths": [
+          "src/slug.ts",
+          "src/title.ts",
+          "test/slug.test.ts",
+          "test/title.test.ts"
+        ]
+      },
+      "C2": {
+        "text": "clamp and roundTo exist and are tested",
+        "check": "Derived: node --test test/clamp.test.ts test/round.test.ts exits 0",
+        "paths": [
+          "src/clamp.ts",
+          "src/round.ts",
+          "test/clamp.test.ts",
+          "test/round.test.ts"
+        ]
+      },
+      "C3": {
+        "text": "formatMoney exists and is tested",
+        "check": "Derived: node --test test/money-currency.test.ts exits 0",
+        "paths": [
+          "src/money.ts",
+          "test/money-currency.test.ts"
+        ]
+      }
+    },
+    "coordinator": {
+      "model": "sonnet",
+      "agent": "fleet-coordinator",
+      "brief": "A smoke reference run of five small tasks; T3 waits for T1. Nothing here needs the operator."
+    },
+    "acceptance": {
+      "model": "sonnet",
+      "agent": "fleet-acceptance",
+      "brief": "The full gate is scripts/check. Each task's brief ends with a done_when command; run it at the reported commit and record the verdict."
+    },
+    "reference": {
+      "enabled": false
+    },
+    "workers": {
+      "ts": {
+        "model": "haiku"
+      }
+    },
+    "goals": {
+      "workers": "task {task} ({name}) has its own commit, exercise evidence and fleet_report for {criteria}, with the done_when command in its brief shown passing in its own output; or stop after 20 turns"
+    },
+    "rules": [
+      "Nothing outside the task's files is changed.",
+      "No seat runs npm install: node_modules is in place."
+    ],
+    "tasks": {
+      "T1": {
+        "name": "Slugify",
+        "discipline": "ts",
+        "criteria": [
+          "C1"
+        ],
+        "files": [
+          "src/slug.ts",
+          "test/slug.test.ts"
+        ],
+        "new_files": [
+          "src/slug.ts",
+          "test/slug.test.ts"
+        ],
+        "after": [],
+        "brief": "Fleet reference task. Read .claude/fleet/project.md first. Add src/slug.ts exporting slugify(text): lowercase, every run of characters outside a-z and 0-9 becomes one dash, no leading or trailing dash. Cover it in test/slug.test.ts. Done when `node --test test/slug.test.ts` exits 0 and `npm run typecheck` exits 0."
+      },
+      "T2": {
+        "name": "Clamp",
+        "discipline": "ts",
+        "criteria": [
+          "C2"
+        ],
+        "files": [
+          "src/clamp.ts",
+          "test/clamp.test.ts"
+        ],
+        "new_files": [
+          "src/clamp.ts",
+          "test/clamp.test.ts"
+        ],
+        "after": [],
+        "brief": "Fleet reference task. Read .claude/fleet/project.md first. Add src/clamp.ts exporting clamp(value, min, max); it throws a RangeError when min is above max. Cover it in test/clamp.test.ts. Done when `node --test test/clamp.test.ts` exits 0 and `npm run typecheck` exits 0."
+      },
+      "T3": {
+        "name": "Title slug",
+        "discipline": "ts",
+        "criteria": [
+          "C1"
+        ],
+        "files": [
+          "src/title.ts",
+          "test/title.test.ts"
+        ],
+        "new_files": [
+          "src/title.ts",
+          "test/title.test.ts"
+        ],
+        "after": [
+          "T1"
+        ],
+        "brief": "Fleet reference task. Read .claude/fleet/project.md first. Add src/title.ts exporting titleSlug(title, id) = the id, a dash, then the slug of the title. Reuse slugify from src/slug.ts, which the seat of task T1 commits first; read it, do not rewrite it. Cover it in test/title.test.ts. Done when `node --test test/title.test.ts` exits 0 and `npm run typecheck` exits 0."
+      },
+      "T4": {
+        "name": "Round to digits",
+        "discipline": "ts",
+        "criteria": [
+          "C2"
+        ],
+        "files": [
+          "src/round.ts",
+          "test/round.test.ts"
+        ],
+        "new_files": [
+          "src/round.ts",
+          "test/round.test.ts"
+        ],
+        "after": [],
+        "brief": "Fleet reference task. Read .claude/fleet/project.md first. Add src/round.ts exporting roundTo(value, digits): round to the nearest number with that many decimal places. docs/rounding.md has the rules. Cover it in test/round.test.ts. Done when `node --test test/round.test.ts` exits 0 and `npm run typecheck` exits 0."
+      },
+      "T5": {
+        "name": "Money with currency",
+        "discipline": "ts",
+        "criteria": [
+          "C3"
+        ],
+        "files": [
+          "src/money.ts",
+          "test/money-currency.test.ts"
+        ],
+        "new_files": [
+          "test/money-currency.test.ts"
+        ],
+        "after": [],
+        "brief": "Fleet reference task. Read .claude/fleet/project.md first. Extend src/format/money.ts with formatMoney(cents, currency) returning the currency code, a space, then formatCents(cents). Cover it in test/money-currency.test.ts. Done when `node --test test/money-currency.test.ts` exits 0 and `npm run typecheck` exits 0."
+      }
+    },
+    "observer": {
+      "model": "sonnet",
+      "agent": "fleet-observer",
+      "contract": ".claude/fleet/observer-contract.md",
+      "brief": "A smoke reference run of five small tasks; watch the launch, mail and report paths."
+    }
+  },
+  "answers": {
+    "T1": [
+      "src/slug.ts",
+      "test/slug.test.ts"
+    ],
+    "T2": [
+      "src/clamp.ts",
+      "test/clamp.test.ts"
+    ],
+    "T3": [
+      "src/title.ts",
+      "test/title.test.ts"
+    ],
+    "T4": [
+      "src/round.ts",
+      "test/round.test.ts"
+    ],
+    "T5": [
+      "src/money.ts",
+      "test/money-currency.test.ts"
+    ]
+  },
+  "variants": {
+    "red-baseline": {
+      "install": false
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO workspace.coordination_events\n             (project_id, session_id, actor_label, kind_id, subject, detail)\n         SELECT $1, $2, $3, ek.id, $4, '{}'::jsonb\n           FROM workspace.event_kinds ek\n          WHERE ek.code = $5",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "66a50392a2f7cdc1802195905abc03eddd52ed16a0ca23fa0445f8581e6a13bc"
+}

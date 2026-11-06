@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.consolidation_runs r\n                    SET status_id = s.id,\n                        finished_at = NOW(),\n                        error = $3\n                   FROM memory.consolidation_run_statuses s\n                  WHERE s.code = $2\n                    AND r.id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e84758423ecf5c6ea439ea889cfb83fb4378d22c8bfc0814c58f81eb4dba8b08"
+}

@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT url AS \"url!\" FROM (\n               SELECT unnest(urls_seen) AS url FROM memory.semantic_embedders\n               UNION\n               SELECT value #>> '{}' FROM config.settings WHERE key = 'embedding.url'\n             ) candidates WHERE url IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "url!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "619ad0c5507064e693818a9dab6e0d246ca9527466aad3426809f9883ec22704"
+}

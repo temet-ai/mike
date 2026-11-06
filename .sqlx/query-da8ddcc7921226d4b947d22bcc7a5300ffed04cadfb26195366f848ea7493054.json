@@ -1,0 +1,90 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT v.id, o.code AS outcome, v.quality_score::double precision AS \"quality_score?\",\n                  CASE WHEN octet_length(v.judge_model) <= 128 THEN v.judge_model END AS \"model?\",\n                  v.rubric_version, v.judged_at, v.created_at\n             FROM session_judges.verdicts v JOIN session_judges.outcomes o ON o.id = v.outcome_id\n            WHERE v.id = ANY($1) AND v.mode = 'live' ORDER BY v.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "outcome",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.outcomes",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "quality_score?",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "model?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "rubric_version",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "rubric_version"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "judged_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "judged_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      null,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "da8ddcc7921226d4b947d22bcc7a5300ffed04cadfb26195366f848ea7493054"
+}

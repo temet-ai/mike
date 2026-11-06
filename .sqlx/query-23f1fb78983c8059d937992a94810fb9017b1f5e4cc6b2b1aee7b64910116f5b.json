@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.consolidation_runs (run_kind_id, trigger_id, status_id)\n                 SELECT k.id, t.id, s.id\n                   FROM memory.consolidation_run_kinds k,\n                        memory.consolidation_triggers t,\n                        memory.consolidation_run_statuses s\n                  WHERE k.code = $1 AND t.code = $2 AND s.code = 'running'\n                 RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_runs",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "23f1fb78983c8059d937992a94810fb9017b1f5e4cc6b2b1aee7b64910116f5b"
+}

@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH closed AS (\n    UPDATE launch.launches\n       SET closed_at            = COALESCE(closed_at, now()),\n           close_reason         = COALESCE(close_reason, $2),\n           close_process_exited = COALESCE(close_process_exited, $3)\n     WHERE id = $1\n    RETURNING id, session_uuid\n),\nreleased AS (\n    UPDATE workspace.session_registrations r\n       SET released_at = now()\n      FROM closed c\n      JOIN sessions.sessions s ON s.session_uuid = c.session_uuid\n     WHERE r.session_id = s.id\n       AND r.released_at IS NULL\n    RETURNING r.session_id\n)\nSELECT id AS \"id!\" FROM closed\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "382fa766b7e982dfa1540b435d64bea038f67b0f8b5ca341e7f60130d667c432"
+}

@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO launch.launches (\n    session_uuid, backend, folder, repo_root, worktree,\n    run_id, seat, template_id, model, agent, claude_args,\n    prompt_present, brief_mode, brief_path, brief_text,\n    requested_placement, split_direction, anchor_ref,\n    remote_control, proxy_env, identity, brief_note_uuid, backend_reason\n)\nVALUES ($1, $2, $3, $4, $5,\n        $6, $7, $8, $9, $10, $11,\n        $12, $13, $14, $15,\n        $16, $17, $18,\n        $19, $20, $21, $22, $23)\nRETURNING id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Bool",
+        "Text",
+        "Text",
+        "Int8",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Bool",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Bool",
+        "Bool",
+        "Jsonb",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c9f321d37c6239a03c392599b11f5150e02084cb20b10726ce2e679349aed48a"
+}

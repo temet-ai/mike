@@ -1,0 +1,102 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.id AS \"lesson_id!\", l.uuid::text AS \"lesson_uuid!\", l.text AS \"lesson_text!\",\n       lk.code AS \"kind!\", ls.code AS \"stage!\", l.created_at AS \"created_at!\",\n       s.session_uuid::text AS \"session_uuid?\", l.source_turn_id\n  FROM memory.lessons l\n  JOIN memory.lesson_kinds lk ON lk.id = l.kind_id\n  JOIN memory.lesson_stages ls ON ls.id = l.stage_id\n  LEFT JOIN sessions.sessions s ON s.id = l.session_id\n WHERE l.id = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lesson_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "lesson_uuid!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "lesson_text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "stage!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_stages",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "session_uuid?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "source_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "source_turn_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      false,
+      false,
+      false,
+      false,
+      null,
+      true
+    ]
+  },
+  "hash": "1e9c265703a5a9e9e577996fab0732f31117a290ef29d5bb4331800e2f6cbb82"
+}

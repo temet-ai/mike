@@ -1,0 +1,2 @@
+SELECT COUNT(*) FROM tools.results r JOIN tools.uses tu ON tu.id = r.tool_use_id JOIN requests.requests rq ON rq.id = tu.request_id LEFT JOIN projects.projects p ON p.id = rq.project_id
+ WHERE r.is_error = TRUE AND ('2026-01-01 00:00:00+00'::timestamptz IS NULL OR r.created_at >= '2026-01-01 00:00:00+00'::timestamptz) AND (NULL::timestamptz IS NULL OR r.created_at < NULL::timestamptz) AND (NULL::text IS NULL OR p.project_path ILIKE '%' || NULL::text || '%') AND (NULL::text IS NULL OR tu.tool_name = NULL::text)

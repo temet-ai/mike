@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.id AS \"session_id!\", l.created_at AS \"created_at!\"\n                 FROM unnest($1::bigint[]) AS s(id)\n                CROSS JOIN LATERAL (\n                      SELECT r.created_at\n                        FROM requests.requests r\n                        JOIN requests.turn_origins ro ON ro.id = r.turn_origin_id\n                       WHERE r.session_id = s.id\n                         AND ro.code IN ('primary', 'primary_first')\n                       ORDER BY r.created_at DESC\n                       LIMIT 1\n                ) l",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      null,
+      false
+    ]
+  },
+  "hash": "87d36a04aff4be616262aecdfbb07a398fe0aa056d6d358fcd9b1aaf50d914e2"
+}

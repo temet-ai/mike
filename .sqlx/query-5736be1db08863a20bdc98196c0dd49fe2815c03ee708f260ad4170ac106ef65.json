@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT flow_capture_version FROM sessions.sessions WHERE session_uuid = $1::text::uuid",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "flow_capture_version",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "flow_capture_version"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "5736be1db08863a20bdc98196c0dd49fe2815c03ee708f260ad4170ac106ef65"
+}

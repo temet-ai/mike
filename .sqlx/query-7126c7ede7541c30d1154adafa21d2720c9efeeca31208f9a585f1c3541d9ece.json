@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.semantic_floors\n                    (embedder_key, pair, quantile, floor, n_pairs, p50, p95, p99, p999, sample,\n                     builder_version, status, promoted_from_id)\n                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)\n                 RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_floors",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Float8",
+        "Float8",
+        "Int8",
+        "Float8",
+        "Float8",
+        "Float8",
+        "Float8",
+        "Jsonb",
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7126c7ede7541c30d1154adafa21d2720c9efeeca31208f9a585f1c3541d9ece"
+}

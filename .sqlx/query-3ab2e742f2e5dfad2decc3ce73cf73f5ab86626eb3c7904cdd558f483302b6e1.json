@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT frame_ordinal FROM runtime.codex_receipt_context\n         WHERE namespace_id = $1 AND connection_epoch = $2\n         ORDER BY frame_ordinal DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "frame_ordinal",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_receipt_context",
+            "name": "frame_ordinal"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "3ab2e742f2e5dfad2decc3ce73cf73f5ab86626eb3c7904cdd558f483302b6e1"
+}

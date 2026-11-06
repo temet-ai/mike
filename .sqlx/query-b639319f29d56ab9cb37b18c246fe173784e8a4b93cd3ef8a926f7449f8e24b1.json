@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO work.thread_acceptance_criteria (thread_id, criteria_text)\n         VALUES ($1, $2)\n         ON CONFLICT (thread_id) DO UPDATE SET\n            criteria_text = EXCLUDED.criteria_text,\n            parsed_at = now(),\n            parse_error = NULL,\n            embedding = NULL, embedding_model = NULL, embedded_at = NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b639319f29d56ab9cb37b18c246fe173784e8a4b93cd3ef8a926f7449f8e24b1"
+}

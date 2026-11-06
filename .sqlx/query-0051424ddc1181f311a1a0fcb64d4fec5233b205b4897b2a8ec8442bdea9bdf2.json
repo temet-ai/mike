@@ -1,0 +1,54 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO projects.projects(project_uuid, project_path, display_name, custom_name)\n             VALUES ($1, $2, $3, $3) ON CONFLICT(project_uuid)\n             DO UPDATE SET last_seen = now()\n             RETURNING id, project_uuid, project_path",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "project_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "0051424ddc1181f311a1a0fcb64d4fec5233b205b4897b2a8ec8442bdea9bdf2"
+}

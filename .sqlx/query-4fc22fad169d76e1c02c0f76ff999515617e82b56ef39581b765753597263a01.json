@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH candidates AS (\n    SELECT u.lesson_id, u.lesson_text, u.action_kind, u.outcome, u.error,\n           u.before_stage, u.after_stage, u.decided_by, u.distance, u.threshold,\n           u.embedding_model, u.counterpart_lesson_id, u.counterpart_uuid, u.counterpart_text,\n           u.runners_up, u.rank_detail\n      FROM UNNEST(\n               $2::bigint[], $3::text[], $4::text[], $5::text[], $6::text[],\n               $7::text[], $8::text[], $9::text[], $10::real[], $11::real[],\n               $12::text[], $13::bigint[], $14::uuid[], $15::text[], $16::jsonb[], $17::jsonb[]\n           ) AS u(lesson_id, lesson_text, action_kind, outcome, error,\n                  before_stage, after_stage, decided_by, distance, threshold,\n                  embedding_model, counterpart_lesson_id, counterpart_uuid, counterpart_text,\n                  runners_up, rank_detail)\n),\n-- Top-N-per-group (N=1) over EXISTING rows, not a\n-- correlated subquery: DISTINCT ON resolves the whole set\n-- in one pass, then the NOT EXISTS below probes it by\n-- equality per candidate rather than re-aggregating per row.\nlatest AS (\n    SELECT DISTINCT ON (a.lesson_id)\n           a.lesson_id, ak2.code AS action_kind, oc2.code AS outcome, a.error\n      FROM memory.consolidation_actions a\n      JOIN memory.consolidation_action_kinds ak2 ON ak2.id = a.action_kind_id\n      JOIN memory.consolidation_outcomes oc2 ON oc2.id = a.outcome_id\n     WHERE a.lesson_id = ANY($2::bigint[])\n     ORDER BY a.lesson_id, a.id DESC\n)\nINSERT INTO memory.consolidation_actions (\n    run_id, lesson_id, lesson_uuid, project_id, agent_id, session_id, session_uuid,\n    source_turn_id, files_touched, lesson_text,\n    action_kind_id, outcome_id, error,\n    before_stage_id, after_stage_id, decided_by_id,\n    distance, threshold, embedding_model,\n    counterpart_lesson_id, counterpart_uuid, counterpart_text,\n    runners_up, rank_detail, injection_count\n)\nSELECT $1, l.id, l.uuid, l.project_id, l.agent_id, l.session_id, sess.session_uuid,\n       l.source_turn_id, ot.files_touched, c.lesson_text,\n       ak.id, oc.id, c.error,\n       bs.id, as_.id, db.id,\n       c.distance, c.threshold, c.embedding_model,\n       c.counterpart_lesson_id, c.counterpart_uuid, c.counterpart_text,\n       c.runners_up, c.rank_detail, COALESCE(inj.injection_count, 0)\n  FROM candidates c\n  JOIN memory.lessons l ON l.id = c.lesson_id\n  LEFT JOIN sessions.sessions sess ON sess.id = l.session_id\n  LEFT JOIN memory.operator_turns ot ON ot.id = l.source_turn_id\n  JOIN memory.consolidation_action_kinds ak ON ak.code = c.action_kind\n  JOIN memory.consolidation_outcomes oc ON oc.code = c.outcome\n  LEFT JOIN memory.lesson_stages bs ON bs.code = c.before_stage\n  LEFT JOIN memory.lesson_stages as_ ON as_.code = c.after_stage\n  LEFT JOIN memory.consolidation_decided_by db ON db.code = c.decided_by\n  LEFT JOIN (\n      SELECT lesson_id, count(*)::integer AS injection_count\n        FROM memory.lesson_injections\n       GROUP BY lesson_id\n  ) inj ON inj.lesson_id = c.lesson_id\n WHERE c.action_kind <> 'evaluated' OR c.outcome <> 'skipped'\n    OR NOT EXISTS (\n        SELECT 1 FROM latest lt\n         WHERE lt.lesson_id = c.lesson_id\n           AND lt.action_kind = c.action_kind\n           AND lt.outcome = c.outcome\n           AND lt.error IS NOT DISTINCT FROM c.error\n    )\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8Array",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "Float4Array",
+        "Float4Array",
+        "TextArray",
+        "Int8Array",
+        "UuidArray",
+        "TextArray",
+        "JsonbArray",
+        "JsonbArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4fc22fad169d76e1c02c0f76ff999515617e82b56ef39581b765753597263a01"
+}

@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH cfg AS (\n    SELECT coalesce(max((value #>> '{}')::bigint), 0) AS live_id\n      FROM config.settings\n     WHERE key = 'turn_judge.live_bundle_id'\n),\nlatest AS (\n    SELECT max(id) AS rollup_id FROM eval.rollups\n     WHERE finished_at IS NOT NULL AND started_at <= $1::timestamptz\n),\nagg AS (\n    SELECT r.metric, sum(r.k)::bigint AS k, sum(r.n)::bigint AS n\n      FROM eval.rates r, cfg, latest\n     WHERE cfg.live_id > 0\n       AND r.rollup_id = latest.rollup_id\n       AND r.family = 'accuracy' AND r.role = 'turn_judge'\n       AND r.axis = 'legacy_outcome' AND r.class = 'corrected'\n       AND r.bundle_label = 'bundle:' || cfg.live_id::text\n       AND r.label_tier = ANY(ARRAY['gold', 'relayed'])\n       AND r.metric IN ('precision', 'recall')\n       AND r.window_days = $2\n     GROUP BY r.metric\n)\nSELECT 'turn_judge:' || cfg.live_id::text || ':' || agg.metric AS \"subject!\",\n       jsonb_build_object(\n           'k', agg.k, 'n', agg.n, 'bundle_id', cfg.live_id, 'window_days', $2::int,\n           'wilson_high', eval.wilson_high(agg.k::float8 / nullif(agg.n, 0), agg.n::float8),\n           'floor', CASE WHEN agg.metric = 'precision' THEN $4::float8 ELSE $5::float8 END) AS \"detail!\",\n       agg.n >= $3::bigint\n         AND eval.wilson_high(agg.k::float8 / nullif(agg.n, 0), agg.n::float8)\n             < CASE WHEN agg.metric = 'precision' THEN $4::float8 ELSE $5::float8 END AS \"fires!\"\n  FROM agg CROSS JOIN cfg\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "subject!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "detail!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "fires!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int4",
+        "Int8",
+        "Float8",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "7e47e19c8e068193310b2565b817ee4b4bf8766b7171fe49f16291382cf7b54b"
+}

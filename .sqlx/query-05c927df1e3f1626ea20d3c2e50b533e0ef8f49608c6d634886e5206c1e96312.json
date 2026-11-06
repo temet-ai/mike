@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH origins AS (\n                 SELECT r.id, r.session_id, r.agent_instance_id, r.created_at,\n                        pto.code AS turn_origin_code\n                   FROM requests.requests r\n                   JOIN requests.turn_origins pto ON pto.id = r.turn_origin_id\n             ),\n             flagged AS (\n                 SELECT id, session_id, created_at,\n                        COALESCE(agent_instance_id, 0) AS part_key,\n                        ((agent_instance_id IS NULL AND turn_origin_code IN ('primary', 'primary_first'))\n                      OR (agent_instance_id IS NOT NULL AND turn_origin_code = 'subagent')) AS is_candidate\n                   FROM origins\n             ),\n             counted AS (\n                 SELECT id, session_id, part_key, created_at, is_candidate,\n                        SUM(CASE WHEN is_candidate THEN 1 ELSE 0 END) OVER (\n                            PARTITION BY session_id, part_key ORDER BY created_at, id\n                            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING\n                        ) AS prior_candidate_count\n                   FROM flagged\n             ),\n             candidates_ordinal AS (\n                 SELECT id, session_id, part_key,\n                        ROW_NUMBER() OVER (\n                            PARTITION BY session_id, part_key ORDER BY created_at, id\n                        ) AS ordinal\n                   FROM flagged\n                  WHERE is_candidate\n             )\n             UPDATE requests.requests r\n                SET predecessor_request_id = co.id\n               FROM counted c\n               LEFT JOIN candidates_ordinal co\n                      ON co.session_id = c.session_id\n                     AND co.part_key   = c.part_key\n                     AND co.ordinal    = c.prior_candidate_count\n              WHERE c.id = r.id\n                AND EXISTS (SELECT 1 FROM requests.messages m WHERE m.request_id = r.id)\n                AND r.predecessor_request_id IS DISTINCT FROM co.id",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "05c927df1e3f1626ea20d3c2e50b533e0ef8f49608c6d634886e5206c1e96312"
+}

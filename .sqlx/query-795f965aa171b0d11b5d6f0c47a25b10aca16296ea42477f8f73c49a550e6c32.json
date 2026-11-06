@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO projects.projects (project_path, display_name, first_seen, last_seen)\n         VALUES ('/tmp/tool-call-reads', '/tmp/tool-call-reads', NOW(), NOW())\n         ON CONFLICT (project_path) DO UPDATE SET last_seen = NOW()\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "795f965aa171b0d11b5d6f0c47a25b10aca16296ea42477f8f73c49a550e6c32"
+}

@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT last_idle_seconds, worker_status, last_heartbeat_at, last_seen_at\n             FROM remote_control.channels WHERE cse_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "last_idle_seconds",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "last_idle_seconds"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "worker_status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "worker_status"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "last_heartbeat_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "last_heartbeat_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "last_seen_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "last_seen_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "c7d905ad2a4bc5d19cf0123d91166b554e1e42291c2dd9b873feb10ed135258a"
+}

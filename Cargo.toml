@@ -1,0 +1,79 @@
+[workspace]
+resolver = "2"
+members = ["crates/mike", "crates/mike-mcp", "crates/proxy-forward"]
+
+[workspace.package]
+edition = "2024"
+# The oldest compiler this workspace builds on. It tracks the version named in
+# rust-toolchain.toml rather than the oldest one that could work: nothing here
+# is published to crates.io, so the floor buys no downstream compatibility and
+# only decides which dependency versions are reachable. It sat at 1.85 (where
+# edition 2024 stabilised) and held back serial_test 4, ratatui 0.30, rmcp 3
+# and sqlx 0.9, all of which need something newer.
+rust-version = "1.95"
+license = "MIT"
+# mike + mike-mcp ship together off one tag (vX.Y.Z) — see docs/RELEASING.md.
+# proxy-forward stays independently versioned; it ships inside the mike binary as `mike forward`.
+version = "0.1.0-alpha.1"
+
+[workspace.dependencies]
+# Shared dep versions so both crates resolve identically. Crate-specific
+# deps (axum, rmcp, etc.) stay in the individual crate manifests.
+anyhow = "1"
+async-trait = "0.1"
+bytes = "1"
+bytesize = "2"
+chrono = { version = "0.4", features = ["serde"] }
+dashmap = "6"
+directories = "6"
+figment = { version = "0.10", features = ["toml", "env"] }
+humantime = "2"
+hex = "0.4"
+# MITM CA + per-host leaf minting for the proxy-forward sidecar. `ring`
+# feature pins rcgen's crypto to the same provider the workspace's rustls
+# uses (ring), avoiding an aws-lc-rs C toolchain pull-in.
+rcgen = { version = "0.14", default-features = false, features = ["pem", "ring", "x509-parser"] }
+# OS trust roots for proxy-forward's direct-to-Anthropic TLS leg.
+rustls-native-certs = "0.8"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "json", "charset", "http2", "system-proxy"] }
+secrecy = { version = "0.10", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.11"
+# Unified-diff generation for the compression-measurement spike. Already
+# present in the build graph transitively (via `insta`); promoted to a
+# direct workspace dep so the `compress` preview endpoint can emit a full
+# unified diff without a hand-rolled LCS.
+similar = { version = "3", features = ["text"] }
+# sqlx 0.9 split the old combined `runtime-tokio-rustls` feature into a runtime
+# and a TLS backend chosen separately. `tls-rustls-ring` keeps the ring crypto
+# provider the rest of the workspace uses (see rcgen above), so the build still
+# pulls no aws-lc C toolchain.
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring", "postgres", "macros", "migrate", "uuid", "chrono", "json"] }
+tempfile = "3"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+toml_edit = "0.25"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# Shrink debug builds: keep line numbers for backtraces, drop full DWARF.
+# Cuts target/debug size by ~50-60% with negligible debug-usability loss.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.test]
+debug = "line-tables-only"
+
+# Full DWARF for interactive debugging (locals/structs are invisible under the
+# dev profile's line-tables-only). Separate profile so it gets its own
+# target/debugging fingerprint dir and never invalidates the dev cache.
+[profile.debugging]
+inherits = "dev"
+debug = "full"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

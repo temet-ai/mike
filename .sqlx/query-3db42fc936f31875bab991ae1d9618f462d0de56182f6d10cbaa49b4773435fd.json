@@ -1,0 +1,59 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.id AS session_db_id, s.session_uuid::text AS \"session_uuid!\",\n                          p.project_path AS \"project_path?\", s.first_seen\n                     FROM sessions.sessions s\n                     LEFT JOIN projects.projects p ON p.id = s.project_id\n                    WHERE s.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_db_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_uuid!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "project_path?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "first_seen",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "first_seen"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      true,
+      false
+    ]
+  },
+  "hash": "3db42fc936f31875bab991ae1d9618f462d0de56182f6d10cbaa49b4773435fd"
+}

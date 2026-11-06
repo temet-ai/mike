@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH fires AS (\n    SELECT i.id, i.session_id, i.operator_turn_id AS stamped, r.operator_turn_id AS request_turn,\n           r.created_at AS request_at\n      FROM steering.interventions i\n      JOIN steering.steerers st ON st.id = i.steerer_id AND st.kind = 'verifier'\n      JOIN steering.verdicts v ON v.id = i.verdict_id AND v.code = 'fired'\n      LEFT JOIN requests.requests r ON r.id = i.trigger_request_id\n     WHERE i.created_at < $1\n),\nprior AS (\n    SELECT DISTINCT ON (f.id) f.id, t.id AS turn_id\n      FROM fires f\n      JOIN memory.operator_turns t ON t.session_id = f.session_id AND t.created_at <= f.request_at\n     WHERE f.stamped IS NULL AND f.request_turn IS NULL\n     ORDER BY f.id, t.created_at DESC\n),\nfired_turns AS (\n    SELECT DISTINCT coalesce(f.stamped, f.request_turn, prior.turn_id) AS turn_id\n      FROM fires f LEFT JOIN prior ON prior.id = f.id\n),\ncensus AS (\n    SELECT l.operator_turn_id, l.label,\n           l.tags && ARRAY['false-done', 'unverified-claim'] AS tagged\n      FROM eval.labels_as_of($3) l\n     WHERE l.subject_kind = 'turn' AND l.axis = 'reaction' AND l.source = 'fleet_mirror/census'\n),\njoined AS (\n    SELECT c.*, ft.turn_id IS NOT NULL AS fired\n      FROM census c LEFT JOIN fired_turns ft ON ft.turn_id = c.operator_turn_id\n),\nagg AS (\n    SELECT 'fire_precision'::text AS metric, NULL::text AS dimension, NULL::text AS dimension_value,\n           count(*) FILTER (WHERE fired AND label = 'corrected') AS k,\n           count(*) FILTER (WHERE fired) AS n\n      FROM joined\n    UNION ALL\n    SELECT 'fire_precision', 'failure_tag', 'false-done|unverified-claim',\n           count(*) FILTER (WHERE fired AND label = 'corrected' AND tagged),\n           count(*) FILTER (WHERE fired)\n      FROM joined\n    UNION ALL\n    SELECT 'fire_recall', 'failure_tag', 'false-done|unverified-claim',\n           count(*) FILTER (WHERE fired AND label = 'corrected' AND tagged),\n           count(*) FILTER (WHERE label = 'corrected' AND tagged)\n      FROM joined\n)\nINSERT INTO eval.rates (rollup_id, family, metric, population, scope_kind, window_end, role,\n                        axis, class, label_source, dimension, dimension_value, mode, k, n, value,\n                        ci_low, ci_high, weighted, detail)\nSELECT $2, 'steer_calibration', agg.metric, 'labelled_turns', 'global', $1, 'steerer',\n       'reaction', 'corrected', 'fleet_mirror/census', agg.dimension, agg.dimension_value, 'live',\n       agg.k::int, agg.n::int, agg.k::float8 / nullif(agg.n, 0),\n       eval.wilson_low(agg.k::float8 / nullif(agg.n, 0), agg.n),\n       eval.wilson_high(agg.k::float8 / nullif(agg.n, 0), agg.n), false,\n       jsonb_build_object('baseline', 'verifier')\n  FROM agg\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "de0710e4fdc09956cff552085b65c237278c27edf6721adf391f2655643ac298"
+}

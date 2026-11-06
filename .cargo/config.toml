@@ -1,0 +1,17 @@
+# Database-backed tests require an explicit MIKE_TEST_ADMIN_URL pointing at
+# a disposable local database. Never commit a maintainer-specific default.
+
+[env]
+MIKE_SANDBOX = { value = "1", force = false }
+
+[target.'cfg(all())']
+rustflags = [
+    "-D", "clippy::unwrap_used",
+    "-D", "clippy::expect_used",
+    "-D", "clippy::complexity",
+    "-D", "clippy::cognitive_complexity",
+    "-D", "clippy::too_many_arguments",
+    "-D", "clippy::too_many_lines",
+]
+
+# Build accelerators are opt-in via `cargo --config` from scripts/cx and the Makefile build/test/lint targets — see scripts/lib/preflight-toolchain.sh. A plain `cargo build` here stays stock.

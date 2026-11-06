@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH cur AS (\n    SELECT DISTINCT ON (role, subject_key)\n           id, role, subject_key, components, cause, created_at, status, gate_run_id,\n           override_reason\n      FROM eval.bundles\n     WHERE origin = 'resolver' AND superseded_at IS NULL\n     ORDER BY role, subject_key, created_at DESC, id DESC\n)\nSELECT 'bundle:' || cur.id::text AS \"subject!\",\n       jsonb_build_object('role', cur.role, 'subject_key', cur.subject_key,\n                          'components', cur.components, 'cause', cur.cause,\n                          'created_at', cur.created_at, 'previous_id', prev.id,\n                          'previous_components', prev.components) AS \"detail!\"\n  FROM cur\n  LEFT JOIN eval.bundles prev ON prev.superseded_by_id = cur.id\n WHERE cur.role = ANY($1::text[])\n   AND cur.status = 'live_ungated' AND cur.gate_run_id IS NULL AND cur.override_reason IS NULL\n   AND cur.created_at < now() - make_interval(hours => $2::int)\n   AND NOT EXISTS (SELECT 1 FROM config.settings ls\n                    WHERE ls.key = cur.role || '.live_bundle_id'\n                      AND jsonb_typeof(ls.value) = 'number' AND (ls.value)::text::numeric > 0)\n   AND (cur.role <> 'steerer'\n        OR EXISTS (SELECT 1 FROM steering.steerers st\n                    WHERE st.id::text = cur.subject_key AND st.enabled))\n ORDER BY cur.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "subject!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "detail!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "d113d53e4c8ef546d10839d24373b39cc1b6396773a618dfe11d2a3bb83afce2"
+}

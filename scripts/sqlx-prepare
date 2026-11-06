@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# sqlx-prepare — describe this tree's sqlx queries and ADD the new ones to .sqlx/, never deleting.
+#
+# `cargo sqlx prepare` rewrites .sqlx/ in place and empties it while it runs. In a checkout that
+# several sessions share, every other session then sees hundreds of deleted files and cannot
+# commit or build offline until it ends (mike#405). This does the same describe work into a
+# temporary folder and copies in only what is new, so it is safe to run while others work and
+# two runs do not disturb each other.
+#
+# Usage: scripts/sqlx-prepare [--db <url>] [--update-changed] [--prune] [-- <cargo check args>]
+#   --db <url>         the database to describe against. Default: MIKE_DATABASE_URL from .env
+#                      (the capture database; describing a query changes nothing in it). Give a
+#                      migrated scratch database when a query reads a column or table that only
+#                      a migration not yet deployed adds.
+#   --update-changed   also replace entries whose description differs from the stored one.
+#                      Default: list them and leave them, because a differing description of an
+#                      unchanged query means the two databases disagree, which is for a person
+#                      to look at.
+#   --prune            also delete entries no query in the tree produces any more. Only when no
+#                      other session has uncommitted queries in the tree.
+#   cargo check args   default: --workspace --all-targets
+#
+# The last line is `SQLX-PREPARE: PASS|FAIL new=<n> changed=<n> stale=<n>`.
+set -uo pipefail
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(git -C "$script_dir" rev-parse --show-toplevel)"
+cd "$repo_root"
+
+db=""; update_changed=0; prune=0; check_args=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --db) db="${2:?--db needs a url}"; shift 2 ;;
+    --update-changed) update_changed=1; shift ;;
+    --prune) prune=1; shift ;;
+    --) shift; check_args=("$@"); break ;;
+    -h|--help) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "sqlx-prepare: unknown argument $1" >&2; exit 2 ;;
+  esac
+done
+[[ ${#check_args[@]} -eq 0 ]] && check_args=(--workspace --all-targets)
+
+if [[ -z "$db" ]]; then
+  db="$(set -a; source .env 2>/dev/null; set +a; printf '%s' "${MIKE_DATABASE_URL:-}")"
+fi
+if [[ -z "$db" ]]; then
+  echo "sqlx-prepare: no database: pass --db <url> or set MIKE_DATABASE_URL in .env" >&2
+  echo "SQLX-PREPARE: FAIL new=0 changed=0 stale=0"; exit 2
+fi
+
+out="$(mktemp -d "${TMPDIR:-/tmp}/sqlx-prepare.XXXXXX")"
+trap 'rm -rf "${out:?}"' EXIT
+
+# sqlx's macros only run for a crate that is compiled again, and cargo decides that from the
+# modified time of the crate's sources. Touching each crate root makes cargo re-check the
+# workspace's own crates, not their dependencies.
+for root in crates/*/src/lib.rs crates/*/src/main.rs; do
+  [[ -f "$root" ]] && touch "$root"
+done
+
+echo "sqlx-prepare: describing queries (cargo check ${check_args[*]})" >&2
+if ! DATABASE_URL="$db" SQLX_OFFLINE=false SQLX_OFFLINE_DIR="$out" \
+     "$script_dir/cx" check "${check_args[@]}" >&2; then
+  echo "sqlx-prepare: the check failed, so .sqlx/ was left as it was" >&2
+  echo "SQLX-PREPARE: FAIL new=0 changed=0 stale=0"; exit 1
+fi
+
+mkdir -p .sqlx
+new=0; changed=0; stale=0
+for f in "$out"/query-*.json; do
+  [[ -e "$f" ]] || continue
+  name="$(basename "$f")"
+  if [[ ! -f ".sqlx/$name" ]]; then
+    cp "$f" ".sqlx/$name"; new=$((new + 1)); echo "new      .sqlx/$name"
+  elif ! cmp -s "$f" ".sqlx/$name"; then
+    changed=$((changed + 1))
+    if [[ $update_changed -eq 1 ]]; then
+      cp "$f" ".sqlx/$name"; echo "updated  .sqlx/$name"
+    else
+      echo "differs  .sqlx/$name (left as stored; --update-changed replaces it)"
+    fi
+  fi
+done
+for f in .sqlx/query-*.json; do
+  [[ -e "$f" ]] || continue
+  if [[ ! -f "$out/$(basename "$f")" ]]; then
+    stale=$((stale + 1))
+    if [[ $prune -eq 1 ]]; then rm -f "$f"; echo "pruned   $f"; fi
+  fi
+done
+[[ $stale -gt 0 && $prune -eq 0 ]] && echo "sqlx-prepare: $stale stored entries were not produced by this check (other targets, or a peer's uncommitted query); kept" >&2
+echo "SQLX-PREPARE: PASS new=$new changed=$changed stale=$stale"

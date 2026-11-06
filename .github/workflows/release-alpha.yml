@@ -1,0 +1,169 @@
+name: Release alpha
+
+# Pushing a tag v0.1.0-alpha.N builds both archives on each supported target's
+# own free runner with scripts/release.sh, publishes a pre-release and updates
+# the tap temet-ai/homebrew-mike. workflow_dispatch builds and packages every
+# target without publishing (publishing needs a tag). See docs/RELEASING.md.
+
+on:
+  push:
+    tags:
+      - 'v*-alpha.*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TAP_REPOSITORY: temet-ai/homebrew-mike
+
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Check tag and workspace version
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')"
+          [[ "$actual" =~ ^[0-9]+\.[0-9]+\.[0-9]+-alpha\.[0-9]+$ ]]
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            test "${GITHUB_REF_NAME#v}" = "$actual"
+          fi
+      - name: Formula renderer and release tooling contracts
+        run: python3 -m unittest discover -s scripts/release -p 'test_homebrew*.py'
+
+  build:
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ubuntu-22.04 is the glibc 2.35 floor: the archive is built where it must run.
+          - runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - runner: macos-14
+            target: aarch64-apple-darwin
+          # scripts/release.sh builds natively and supports these two targets only:
+          # no Linux ARM, Intel macOS or Windows archive.
+    runs-on: ${{ matrix.runner }}
+    # scripts/release.sh builds with one Cargo job by contract.
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      # The exact toolchain, Node and pnpm that scripts/release.sh insists on.
+      - name: Install the pinned Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install
+          rustc -vV
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: frontend/package.json
+      # scripts/release.sh builds offline, so this is the one step that downloads:
+      # it fills Cargo's registry and pnpm's store from the lockfiles.
+      - name: Fetch locked dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fetch --locked
+          pnpm --dir frontend install --frozen-lockfile
+      - name: Prepare the candidate
+        id: prepare
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')"
+          # The log stays outside the checkout: preparation requires a clean tree to the end.
+          scripts/release.sh "$version" --target "${{ matrix.target }}" | tee "$RUNNER_TEMP/prepare.out"
+          candidate="$(sed -n 's/^Candidate: //p' "$RUNNER_TEMP/prepare.out")"
+          test -f "$candidate/manifest.json"
+          echo "candidate=$candidate" >> "$GITHUB_OUTPUT"
+      - name: Linux glibc 2.35 floor
+        if: runner.os == 'Linux'
+        run: python3 scripts/release/glibc_floor.py "${{ steps.prepare.outputs.candidate }}/manifest.json"
+      - name: Verify the archived bytes
+        run: scripts/release.sh --verify "${{ steps.prepare.outputs.candidate }}"
+      - name: Collect the release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate="${{ steps.prepare.outputs.candidate }}"
+          mkdir -p "$RUNNER_TEMP/dist"
+          cp "$candidate"/mike-v*.tar.gz "$candidate"/mike-v*.tar.gz.sha256 \
+            "$candidate"/mike-mcp-v*.tar.gz "$candidate"/mike-mcp-v*.tar.gz.sha256 "$RUNNER_TEMP/dist/"
+          cp "$candidate/manifest.json" "$RUNNER_TEMP/dist/manifest-${{ matrix.target }}.json"
+          ls -l "$RUNNER_TEMP/dist"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mike-${{ matrix.target }}
+          path: ${{ runner.temp }}/dist/*
+          if-no-files-found: error
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [validate, build]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: src
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mike-*
+          path: dist
+          merge-multiple: true
+      - name: Publish prerelease and checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          # Two archives (mike, mike-mcp) for each of the two targets.
+          test "$(find . -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 4
+          cat ./*.tar.gz.sha256 | sort -k2 > checksums.txt
+          sha256sum --check checksums.txt
+          rm ./*.tar.gz.sha256
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" ./*.tar.gz checksums.txt manifest-*.json \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease --title "mike $version" \
+            --notes "mike $version, an alpha. Install: \`brew tap temet-ai/mike && brew install mike mike-mcp\`, or mise with \`github:temet-ai/mike\`. Linux x86_64 archives need glibc 2.35 or newer; macOS archives are Apple Silicon and unsigned."
+      # The tap's formulas, rendered from this release's checksums. Needs
+      # HOMEBREW_TAP_TOKEN, a token that can write to temet-ai/homebrew-mike;
+      # without it the step warns and the manual step in docs/RELEASING.md applies.
+      - name: Update the Homebrew tap
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::HOMEBREW_TAP_TOKEN is not set: update ${TAP_REPOSITORY} by hand (docs/RELEASING.md)"
+            exit 0
+          fi
+          version="${GITHUB_REF_NAME#v}"
+          git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${TAP_REPOSITORY}.git" tap
+          python3 src/scripts/release/homebrew_alpha.py "$version" "$GITHUB_REPOSITORY" dist/checksums.txt tap/Formula
+          cd tap
+          git config user.name "mike release"
+          git config user.email "mike-release@users.noreply.github.com"
+          git add Formula/mike.rb Formula/mike-mcp.rb
+          git commit -m "mike $version"
+          git push

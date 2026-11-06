@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "execution": {
+    "operations": {
+      "check": {
+        "command": "scripts/check",
+        "purpose": "Type check and run every test of the package",
+        "resources": ["fleet-ref-node-check"],
+        "timeout_seconds": 300
+      }
+    }
+  }
+}

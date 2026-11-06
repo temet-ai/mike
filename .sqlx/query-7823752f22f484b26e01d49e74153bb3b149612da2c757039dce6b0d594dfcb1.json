@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT disposition_reason FROM agents.work_item_attention WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "disposition_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_item_attention",
+            "name": "disposition_reason"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "7823752f22f484b26e01d49e74153bb3b149612da2c757039dce6b0d594dfcb1"
+}

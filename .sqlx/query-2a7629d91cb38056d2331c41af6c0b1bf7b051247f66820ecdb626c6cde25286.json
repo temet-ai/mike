@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO requests.diagnostics (\n            request_id, category, analyzer, advice,\n            matched_text, match_range, other_hits, created_at\n         )\n         SELECT $1,\n                d->>'category', d->>'analyzer', d->>'advice',\n                d->>'matched_text', d->'match_range',\n                COALESCE(d->'other_hits', '[]'::jsonb),\n                COALESCE((d->>'created_at')::timestamptz, NOW())\n         FROM jsonb_array_elements($2::jsonb) d\n         WHERE NOT EXISTS (\n             SELECT 1 FROM requests.diagnostics WHERE request_id = $1\n         )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2a7629d91cb38056d2331c41af6c0b1bf7b051247f66820ecdb626c6cde25286"
+}

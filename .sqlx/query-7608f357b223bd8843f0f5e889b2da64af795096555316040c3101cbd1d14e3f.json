@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT i.wake_state AS \"wake_state?\",\n                          (i.delivered_request_id IS NOT NULL OR i.pushed_at IS NOT NULL) AS \"delivered!\"\n                     FROM steering.evaluations e\n                     JOIN steering.interventions i ON i.uuid = e.intervention_uuid\n                    WHERE e.steerer_id = $1 AND e.question = $2 AND e.arm = 'treated'\n                      AND e.arm_anchor_turn_id = $3\n                    ORDER BY e.dispatched_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "wake_state?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "wake_state"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "delivered!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      null
+    ]
+  },
+  "hash": "7608f357b223bd8843f0f5e889b2da64af795096555316040c3101cbd1d14e3f"
+}

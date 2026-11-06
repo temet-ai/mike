@@ -1,0 +1,141 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.id AS request_id,\n       r.session_id,\n       r.created_at,\n       o.code AS origin,\n       tt.code AS turn_type,\n       ak.code AS author,\n       (r.claude_code_agent_id IS NOT NULL) AS \"has_agent_id!\",\n       r.human_prompt,\n       r.last_user_message,\n       (ts.id IS NOT NULL) AS \"opened!\",\n       (c.request_id IS NOT NULL) AS \"closed_turn!\",\n       (r.operator_turn_id IS NOT NULL) AS \"attached!\"\n  FROM requests.requests r\n  JOIN requests.turn_types tt ON tt.id = r.turn_type_id\n  JOIN requests.turn_origins o ON o.id = r.turn_origin_id\n  JOIN requests.author_kinds ak ON ak.id = r.author_kind_id\n  LEFT JOIN memory.operator_turns ts ON ts.start_request_id = r.id\n  LEFT JOIN (SELECT DISTINCT outcome_evidence_request_id AS request_id\n               FROM memory.operator_turns\n              WHERE created_at >= $1 AND created_at < $2) c ON c.request_id = r.id\n WHERE r.created_at >= $1 AND r.created_at < $2\n   AND o.code IN ('primary', 'primary_first')\n ORDER BY r.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "origin",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.turn_origins",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "turn_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.turn_types",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "author",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.author_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "has_agent_id!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "human_prompt",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "human_prompt"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "last_user_message",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "last_user_message"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "opened!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "closed_turn!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "attached!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null,
+      false,
+      false,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "acae064fae70648b272a5896dc2dfaee9b934e8e47dd6054d1078ace7fc26482"
+}

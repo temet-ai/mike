@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE remote_control.channels\n   SET local_session_uuid = $2,\n       local_cwd          = COALESCE(NULLIF(local_cwd, ''), $3)\n WHERE cse_id = $1\n   AND local_session_uuid IS NULL\nRETURNING id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "8a807a1d77e3d0d1808c5ca56175465db04684f8cc038288d21ef242d44c941c"
+}

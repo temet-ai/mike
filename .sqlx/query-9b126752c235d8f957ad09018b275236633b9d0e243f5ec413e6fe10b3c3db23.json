@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*)::bigint AS \"count!\"\n                     FROM memory.operator_turns t\n                    WHERE t.created_at >= $1\n                      AND t.outcome_id = ANY($2)\n                      AND (t.outcome_id = $3\n                           OR t.outcome_source IS NOT DISTINCT FROM 'frustration_close')",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8Array",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "9b126752c235d8f957ad09018b275236633b9d0e243f5ec413e6fe10b3c3db23"
+}

@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE launch.launches\n   SET sibling_wait_seconds = $2,\n       waited_for_seat      = $3\n WHERE id = (SELECT l.id\n               FROM launch.launches l\n              WHERE l.session_uuid = $1\n              ORDER BY l.created_at DESC, l.id DESC\n              LIMIT 1)\nRETURNING id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "3cfa75124a159cedf983d0b3d66d9e5da8a04380aad3e9674d1078771e0788e0"
+}

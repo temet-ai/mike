@@ -1,0 +1,28 @@
+export type RequestSummary = {
+	id: bigint;
+	session_id: string;
+	method: string;
+	path: string;
+	model: string | null;
+	status: string;
+	is_streaming: boolean;
+	message_count: number;
+	max_tokens: number | null;
+	created_at: string;
+	completed_at: string | null;
+	project: string | null;
+	git_repo: string | null;
+	human_prompt: string;
+	turn_type: string;
+	turn_origin: string;
+	subagent_persona: string | null;
+	tool_names: Array<string>;
+	response_tool_count: number;
+	response_tools_used: Array<string>;
+	prompt_sha256: string | null;
+	prompt_composition_id: string | null;
+	predecessor_request_id: bigint | null;
+	request_number: bigint | null;
+	agent_instance_id: bigint | null;
+	dispatch_request_id: bigint | null;
+};

@@ -1,0 +1,330 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n                   intervention_id,\n                   session_id,\n                   session_uuid,\n                   project_path,\n                   steerer_name,\n                   steerer_display_name,\n                   verdict,\n                   authority,\n                   mode,\n                   trigger_request_id,\n                   sent_request_id,\n                   sent_response_id,\n                   operator_turn_id,\n                   gate_reason,\n                   off_thread_topic,\n                   confidence,\n                   anchor_text,\n                   verdict_json,\n                   payload_text,\n                   model,\n                   sent_at,\n                   processed_at,\n                   expires_at,\n                   reverted_at,\n                   revert_reason,\n                   created_at\n               FROM mike.session_steering_v\n              WHERE session_uuid = $1\n              ORDER BY created_at DESC\n              OFFSET $2 LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "intervention_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "intervention_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "session_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "project_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "steerer_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "steerer_name"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "steerer_display_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "steerer_display_name"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "verdict",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "verdict"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "authority",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "authority"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "mode",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "mode"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "trigger_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "trigger_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "sent_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "sent_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "sent_response_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "sent_response_id"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "operator_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "gate_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "gate_reason"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "off_thread_topic",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "off_thread_topic"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "confidence",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "confidence"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "anchor_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "anchor_text"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "verdict_json",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "verdict_json"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "payload_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "payload_text"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "model",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "sent_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "sent_at"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "processed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "processed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 23,
+        "name": "reverted_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "reverted_at"
+          }
+        }
+      },
+      {
+        "ordinal": 24,
+        "name": "revert_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "revert_reason"
+          }
+        }
+      },
+      {
+        "ordinal": 25,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mike.session_steering_v",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "7a2f1bc9f6fe1cff8b0cfb52b30dcafecd5d9f23a9550f46b3a0a2c90e075f1b"
+}

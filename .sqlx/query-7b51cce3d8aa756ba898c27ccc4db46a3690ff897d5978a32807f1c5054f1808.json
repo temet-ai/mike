@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH newest AS (\n                       SELECT DISTINCT ON (d.project_id, d.folder)\n                              d.id, d.project_id, d.topic, d.lesson_ids, d.review, d.eval\n                         FROM memory.skill_drafts d\n                        ORDER BY d.project_id, d.folder, d.id DESC),\n                   verdicts AS (\n                       SELECT n.id, n.project_id, n.topic, n.lesson_ids,\n                              COALESCE(n.eval #>> '{review,reason}', '') AS reason\n                         FROM newest n\n                        WHERE n.review IS NULL\n                          AND n.eval #>> '{review,decision}' = 'wrong_place'\n                          AND n.eval #>> '{review,belongs_in}' = 'rule')\n                   UPDATE memory.lessons l\n                      SET placement_id = rule.id,\n                          placement_reason = 'The skill reviewer of draft ' || v.id\n                                             || ' placed this lesson in a rule: ' || v.reason,\n                          placed_at = now()\n                     FROM verdicts v\n                     JOIN memory.lesson_placements rule ON rule.code = 'rule'\n                     JOIN memory.lesson_placements skill ON skill.code = 'skill'\n                    WHERE l.project_id = v.project_id\n                      AND l.topic = v.topic\n                      AND l.id = ANY (v.lesson_ids)\n                      AND l.archived_at IS NULL\n                      AND (l.placement_id IS NULL OR l.placement_id = skill.id)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "7b51cce3d8aa756ba898c27ccc4db46a3690ff897d5978a32807f1c5054f1808"
+}

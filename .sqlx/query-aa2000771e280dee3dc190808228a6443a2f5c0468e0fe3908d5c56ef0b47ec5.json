@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT attempted_by_session_id FROM mailbox.failed_sends WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "attempted_by_session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mailbox.failed_sends",
+            "name": "attempted_by_session_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "aa2000771e280dee3dc190808228a6443a2f5c0468e0fe3908d5c56ef0b47ec5"
+}

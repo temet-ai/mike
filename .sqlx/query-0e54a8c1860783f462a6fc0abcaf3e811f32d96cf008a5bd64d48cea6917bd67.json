@@ -1,0 +1,381 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT v.id, v.session_id, o.code AS outcome, v.quality_score::float8 AS \"quality_score?\",\n       v.rationale, v.judge_model, v.rubric_version, v.judged_at, v.mode, v.bundle_id, v.rubric_id,\n       v.end_turn_id, v.end_label, v.end_source, v.end_rule, v.end_confidence, v.end_evidence,\n       v.failure, v.failure_tags, v.severity, v.slices, v.as_of, v.digest_version, v.input_text,\n       v.llm_output, v.generation_id, v.cost_usd, v.prompt_tokens, v.completion_tokens, v.latency_ms,\n       count(*) OVER () AS \"total!\"\n  FROM session_judges.verdicts v\n  JOIN session_judges.outcomes o ON o.id = v.outcome_id\n WHERE v.session_id = $1\n   AND v.mode = $2\n ORDER BY v.judged_at DESC, v.id DESC\n LIMIT $3 OFFSET $4\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "outcome",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.outcomes",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "quality_score?",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "rationale",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "rationale"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "judge_model",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "judge_model"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "rubric_version",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "rubric_version"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "judged_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "judged_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "mode",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "mode"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "bundle_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "bundle_id"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "rubric_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "rubric_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "end_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "end_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "end_label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "end_label"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "end_source",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "end_source"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "end_rule",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "end_rule"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "end_confidence",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "end_confidence"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "end_evidence",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "end_evidence"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "failure",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "failure"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "failure_tags",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "failure_tags"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "severity",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "severity"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "slices",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "slices"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "as_of",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "as_of"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "digest_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "digest_version"
+          }
+        }
+      },
+      {
+        "ordinal": 23,
+        "name": "input_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "input_text"
+          }
+        }
+      },
+      {
+        "ordinal": 24,
+        "name": "llm_output",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "llm_output"
+          }
+        }
+      },
+      {
+        "ordinal": 25,
+        "name": "generation_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "generation_id"
+          }
+        }
+      },
+      {
+        "ordinal": 26,
+        "name": "cost_usd",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "cost_usd"
+          }
+        }
+      },
+      {
+        "ordinal": 27,
+        "name": "prompt_tokens",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "prompt_tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 28,
+        "name": "completion_tokens",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "completion_tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 29,
+        "name": "latency_ms",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "latency_ms"
+          }
+        }
+      },
+      {
+        "ordinal": 30,
+        "name": "total!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "0e54a8c1860783f462a6fc0abcaf3e811f32d96cf008a5bd64d48cea6917bd67"
+}

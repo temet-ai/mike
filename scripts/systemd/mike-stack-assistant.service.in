@@ -1,0 +1,22 @@
+[Unit]
+Description=mike prompt-assistant service (:9985, Claude Agent SDK)
+Documentation=file://@PROJECT_ROOT@/services/prompt-assistant/README.md
+After=mike-stack-proxy.service
+StartLimitIntervalSec=600
+StartLimitBurst=10
+
+[Service]
+Type=simple
+WorkingDirectory=@PROJECT_ROOT@/services/prompt-assistant
+Environment=PATH=@PATH@
+Environment=PROMPT_ASSISTANT_PORT=9985
+Environment=INSPECT_URL=http://127.0.0.1:9989
+ExecStart=/usr/bin/env node dist/server.js
+UnsetEnvironment=CLAUDE_CODE_SESSION_ID CLAUDE_EFFORT CLAUDE_CODE_CHILD_SESSION CLAUDE_CODE_BRIDGE_SESSION_ID CLAUDE_CODE_MESSAGING_SOCKET CLAUDE_CODE_MESSAGING_TOKEN MAX_THINKING_TOKENS
+Restart=always
+RestartSec=3
+StandardOutput=append:@PROJECT_ROOT@/.deploy/prompt-assistant.log
+StandardError=append:@PROJECT_ROOT@/.deploy/prompt-assistant.log
+
+[Install]
+WantedBy=default.target

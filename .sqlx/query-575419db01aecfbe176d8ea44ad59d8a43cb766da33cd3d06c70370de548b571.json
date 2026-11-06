@@ -1,0 +1,57 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT role,\n                          machine_uuid,\n                          heartbeat_at,\n                          EXTRACT(EPOCH FROM now() - heartbeat_at)::float8 AS \"age_secs!\"\n                     FROM llm.worker_leases\n                    ORDER BY role",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "role",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "llm.worker_leases",
+            "name": "role"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "machine_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "llm.worker_leases",
+            "name": "machine_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "heartbeat_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "llm.worker_leases",
+            "name": "heartbeat_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "age_secs!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "575419db01aecfbe176d8ea44ad59d8a43cb766da33cd3d06c70370de548b571"
+}

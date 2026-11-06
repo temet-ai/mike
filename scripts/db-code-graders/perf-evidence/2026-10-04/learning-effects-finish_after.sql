@@ -1,0 +1,1 @@
+UPDATE eval.rollups SET finished_at = NOW(), rows_written = 0 WHERE id = 1

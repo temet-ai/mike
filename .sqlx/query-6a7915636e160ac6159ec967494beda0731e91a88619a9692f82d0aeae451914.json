@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO runtime.codex_projection_heads (namespace_id) VALUES ($1)\n             ON CONFLICT (namespace_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6a7915636e160ac6159ec967494beda0731e91a88619a9692f82d0aeae451914"
+}

@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Reject oversized Rust source files. Clippy limits function size, but it does
+# not limit module/file size; this closes that gap for every Rust file in crates/.
+set -uo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(dirname "$SCRIPT_DIR")"
+MAX_LINES=500
+RESULTS="$(mktemp "${TMPDIR:-/tmp}/lint-rust-size.XXXXXX")"
+FILES="$(mktemp "${TMPDIR:-/tmp}/lint-rust-files.XXXXXX")"
+trap 'rm -f "$RESULTS" "$FILES"' EXIT
+
+if [[ ! -d "$REPO/crates" ]]; then
+  echo "rust-size: ERROR — missing crates directory: $REPO/crates" >&2
+  exit 2
+fi
+if ! find "$REPO/crates" -type f -name '*.rs' -print0 >"$FILES"; then
+  echo "rust-size: ERROR — Rust file discovery failed" >&2
+  exit 2
+fi
+
+while IFS= read -r -d '' file; do
+  if ! lines="$(awk 'END { print NR }' "$file")"; then
+    echo "rust-size: ERROR — could not count $file" >&2
+    exit 2
+  fi
+  if (( lines > MAX_LINES )); then
+    relative="${file#"$REPO"/}"
+    printf '%08d\t%s\n' "$lines" "$relative"
+  fi
+done <"$FILES" >"$RESULTS"
+
+count="$(wc -l <"$RESULTS" | tr -d ' ')"
+if (( count == 0 )); then
+  echo "rust-size: PASS — every Rust file is <= ${MAX_LINES} lines"
+  exit 0
+fi
+
+echo "rust-size: FAIL — ${count} Rust file(s) exceed the ${MAX_LINES}-line ceiling" >&2
+sort -nr "$RESULTS" | while IFS=$'\t' read -r padded_lines relative; do
+  lines="$((10#$padded_lines))"
+  printf '  %5d  %s\n' "$lines" "$relative" >&2
+done
+echo "Split modules by responsibility; exemptions and legacy allowlists are not supported." >&2
+exit 1

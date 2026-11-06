@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT envelope AS \"envelope!: Json<RuntimeEventEnvelope>\",\n                      raw_payload AS \"raw_payload!\",\n                      parsed_payload AS \"parsed_payload?: Json<Value>\"\n                 FROM runtime.events\n                WHERE namespace_id = $1 AND ingestion_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "envelope!: Json<RuntimeEventEnvelope>",
+        "type_info": "Json",
+        "origin": {
+          "Table": {
+            "table": "runtime.events",
+            "name": "envelope"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "raw_payload!",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "runtime.events",
+            "name": "raw_payload"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "parsed_payload?: Json<Value>",
+        "type_info": "Json",
+        "origin": {
+          "Table": {
+            "table": "runtime.events",
+            "name": "parsed_payload"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "5266c55eeaaa6b3ec3addf18c0271fd8ca4955bac19008abb1e678998a5ad128"
+}

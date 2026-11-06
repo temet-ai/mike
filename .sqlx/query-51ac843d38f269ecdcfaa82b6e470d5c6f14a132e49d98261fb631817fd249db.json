@@ -1,0 +1,83 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH target AS (\n    SELECT DISTINCT unnest($1::bigint[]) AS turn_id\n),\nv2 AS (\n    SELECT DISTINCT ON (v.operator_turn_id)\n           v.operator_turn_id AS turn_id, v.id, v.bundle_id, v.reaction, v.delivery, v.created_at\n      FROM memory.turn_verdicts v\n      JOIN target t ON t.turn_id = v.operator_turn_id\n     WHERE v.mode = 'live' AND v.reaction IS NOT NULL AND v.created_at <= $2\n     ORDER BY v.operator_turn_id, v.created_at DESC, v.id DESC\n),\nr3 AS (\n    SELECT DISTINCT ON (v.operator_turn_id)\n           v.operator_turn_id AS turn_id, v.id, v.bundle_id, v.legacy_label, v.created_at\n      FROM memory.turn_verdicts v\n      JOIN target t ON t.turn_id = v.operator_turn_id\n     WHERE v.mode = 'live' AND v.reaction IS NULL AND v.legacy_label IS NOT NULL\n       AND v.created_at <= $2\n     ORDER BY v.operator_turn_id, v.created_at DESC, v.id DESC\n)\nSELECT t.turn_id AS \"turn_id!\",\n       COALESCE(a.id, b.id) AS \"verdict_id!\",\n       CASE WHEN a.id IS NOT NULL THEN a.bundle_id ELSE b.bundle_id END AS \"bundle_id?\",\n       (a.id IS NOT NULL) AS \"is_v2!\",\n       a.reaction AS \"reaction?\",\n       a.delivery AS \"delivery?\",\n       CASE WHEN a.id IS NULL THEN b.legacy_label END AS \"legacy_label?\",\n       COALESCE(a.created_at, b.created_at) AS \"created_at!\"\n  FROM target t\n  LEFT JOIN v2 a ON a.turn_id = t.turn_id\n  LEFT JOIN r3 b ON b.turn_id = t.turn_id\n WHERE a.id IS NOT NULL OR b.id IS NOT NULL\n ORDER BY t.turn_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "turn_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "verdict_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "bundle_id?",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "is_v2!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "reaction?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "reaction"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "delivery?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "delivery"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "legacy_label?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      true,
+      true,
+      null,
+      null
+    ]
+  },
+  "hash": "51ac843d38f269ecdcfaa82b6e470d5c6f14a132e49d98261fb631817fd249db"
+}

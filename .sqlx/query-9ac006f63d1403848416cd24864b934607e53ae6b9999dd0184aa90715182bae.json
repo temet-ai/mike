@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT local_session_uuid, local_cwd, client_version\n             FROM remote_control.channels WHERE cse_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "local_session_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "local_session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "local_cwd",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "local_cwd"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "client_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "client_version"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "9ac006f63d1403848416cd24864b934607e53ae6b9999dd0184aa90715182bae"
+}

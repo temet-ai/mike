@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lessons l\n   SET stage_id           = ls.id,\n       archived_at        = NULL,\n       archived_reason_id = NULL,\n       duplicate_of_id    = NULL\n  FROM memory.lesson_stages ls\n WHERE ls.code = 'long_term'\n   AND l.id = $1\n   AND l.archived_at IS NOT NULL\nRETURNING l.id AS \"id!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5f59d660086f9c6792358cfe39f1c50bca1e0749f8c8c041b42d8daa0cb5b4bc"
+}

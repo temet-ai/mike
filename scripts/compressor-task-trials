@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+"""Paired full-task trials of the file-read compressor (#636).
+
+  plan    --dir D [--model sonnet] [--effort medium] [--reps 3] [--seed N]   freeze the plan
+  run     --dir D [--proxy-url U] [--concurrency 4] [--only N]               run it; a rerun resumes
+  collect --dir D [--out qualification.json]                                 read capture, write evidence
+
+Arms come from each session's id, so no shared setting changes. Each session reads its files,
+idles past the one-hour prompt cache, then resumes with the task, because the compressor only
+cuts a conversation whose cache has gone cold.
+"""
+import argparse
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import urllib.request
+
+ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT))
+from compressor_eval import task_trials as tt
+from compressor_eval.protected import refuse_protected_directory
+
+INSPECT = os.environ.get('MIKE_INSPECT_URL', 'http://127.0.0.1:9989')
+POLICY_KEYS = ('min_bytes', 'head_lines', 'tail_lines', 'grace_turns', 'enabled_producers', 'protected_paths')
+
+
+def inspect_json(path):
+    with urllib.request.urlopen(f'{INSPECT}{path}', timeout=30) as response:
+        return json.load(response)
+
+
+def settings():
+    return {row['key']: row['value'] for row in inspect_json('/api/settings')['settings']}
+
+
+def live_policy():
+    values = settings()
+    build = inspect_json('/api/health')['build']
+    policy = {key: values.get('file_read_compression.' + key) for key in POLICY_KEYS}
+    policy['implementation'] = 'file-read-v3-ranged-recovery'
+    policy['build_sha'] = build['sha'] if not build.get('dirty', True) else None
+    return policy
+
+
+def database_url():
+    if os.environ.get('MIKE_DATABASE_URL'):
+        return os.environ['MIKE_DATABASE_URL']
+    for line in (ROOT.parent / '.env').read_text().splitlines():
+        if line.startswith('MIKE_DATABASE_URL='):
+            return line.split('=', 1)[1].strip().strip('"\'')
+    raise SystemExit('MIKE_DATABASE_URL is not set')
+
+
+def run_sql(sql):
+    env = dict(os.environ, PGOPTIONS='-c default_transaction_read_only=on -c statement_timeout=60000')
+    done = subprocess.run([shutil.which('psql') or 'psql', database_url(), '-X', '-qAt', '-v', 'ON_ERROR_STOP=1', '-c', sql],
+                          env=env, capture_output=True, text=True, check=False, timeout=90)
+    if done.returncode != 0:
+        raise SystemExit(f'capture query failed: {done.stderr.strip()}')
+    return done.stdout
+
+
+def load_plan(directory):
+    return json.loads((Path(directory) / 'plan.json').read_text())
+
+
+def cmd_plan(args):
+    target = Path(args.dir) / 'plan.json'
+    if target.exists():
+        raise SystemExit(f'{target} exists; a frozen plan is never replaced')
+    version = subprocess.run(['claude', '--version'], capture_output=True, text=True, check=True).stdout.strip()
+    share = settings()['file_read_compression.forward_share']
+    plan = tt.make_plan(args.model, args.effort, version, share, args.reps, args.seed)
+    plan['policy'] = live_policy()
+    refuse_protected_directory(plan['policy'], args.dir)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(plan, indent=1))
+    print(f"planned {len(plan['runs'])} sessions at build {plan['policy']['build_sha']}")
+
+
+def cmd_run(args):
+    plan = load_plan(args.dir)
+    if live_policy() != plan['policy']:
+        raise SystemExit('the running proxy no longer matches the frozen policy; refusing to mix builds')
+    refuse_protected_directory(plan['policy'], args.dir)
+    if args.only:
+        plan['runs'] = plan['runs'][:args.only]
+    if args.awake_wait is not None:
+        plan['cold_wait_seconds'] = 0
+        tt.wait_awake(args.awake_wait)
+    tt.run_all(plan, args.dir, tt.ClaudeAgent(plan, args.proxy_url), concurrency=args.concurrency)
+    print('finished')
+
+
+def cmd_collect(args):
+    plan = load_plan(args.dir)
+    evidence = tt.collect(plan, args.dir, lambda s: tt.read_capture(s, run_sql), plan['policy'])
+    out = Path(args.out or Path(args.dir) / 'qualification.json')
+    out.write_text(json.dumps(evidence, indent=1))
+    print(json.dumps({'verdict': tt.verdict_of(evidence, plan['policy']), 'recovery': evidence['recovery'],
+                      'runs_finished': evidence['runs_finished'], 'runs_planned': evidence['runs_planned'],
+                      'summary': evidence['summary']}, indent=1))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    commands = parser.add_subparsers(dest='command', required=True)
+    plan = commands.add_parser('plan')
+    plan.add_argument('--dir', required=True)
+    plan.add_argument('--model', default='sonnet')
+    plan.add_argument('--effort', default='medium')
+    plan.add_argument('--reps', type=int, default=3)
+    plan.add_argument('--seed', type=int, default=636)
+    plan.set_defaults(handler=cmd_plan)
+    run = commands.add_parser('run')
+    run.add_argument('--dir', required=True)
+    run.add_argument('--proxy-url', default='http://127.0.0.1:9988')
+    run.add_argument('--concurrency', type=int, default=4)
+    run.add_argument('--only', type=int)
+    run.add_argument('--awake-wait', type=int, help='on a resumed run: seconds of awake time still to idle before the second stage')
+    run.set_defaults(handler=cmd_run)
+    collect = commands.add_parser('collect')
+    collect.add_argument('--dir', required=True)
+    collect.add_argument('--out')
+    collect.set_defaults(handler=cmd_collect)
+    args = parser.parse_args()
+    args.handler(args)
+
+
+if __name__ == '__main__':
+    main()

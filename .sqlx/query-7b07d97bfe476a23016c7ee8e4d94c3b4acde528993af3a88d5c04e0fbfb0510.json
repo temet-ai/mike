@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(DISTINCT li.request_id) AS \"count!\"\n             FROM memory.lesson_injections li\n            WHERE li.session_id = $1 AND li.origin = 'proxy'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "7b07d97bfe476a23016c7ee8e4d94c3b4acde528993af3a88d5c04e0fbfb0510"
+}

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lessons l\n                    SET stage_id        = daily_s.id,\n                        embedding       = $2::text::vector,\n                        embedding_model = $3,\n                        embedded_at     = NOW()\n                   FROM memory.lesson_stages daily_s,\n                        memory.lesson_stages raw_s\n                  WHERE daily_s.code = 'daily'\n                    AND raw_s.code = 'raw'\n                    AND l.id = $1\n                    AND l.stage_id = raw_s.id",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "042df7c8f534452c2a25469ded0285703dc695c47262abf5f6c7b5329c68a9b0"
+}

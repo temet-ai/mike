@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO launch.tree_changes (run_id, path, change, content_sha)\nSELECT $1, p.path, p.change, p.content_sha\n  FROM unnest($2::text[], $3::text[], $4::text[]) AS p(path, change, content_sha)\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c7f4cf6102f4aeacf725d6011e99a3a139cf1fdc0bd456f687851927e160f9d1"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lesson_placement_reviews (lesson_id, decision)\n                         VALUES ($1, $2)\n                         ON CONFLICT (lesson_id) DO UPDATE\n                            SET decision = EXCLUDED.decision, decided_at = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5ee38e397917f4670e6bdd15d4457b70b4f236092f4333a307948efdf07770e1"
+}

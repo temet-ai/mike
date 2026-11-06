@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH recipient_channel AS (\n    SELECT c.id AS channel_id, s.id AS session_id\n      FROM remote_control.channels c\n      JOIN sessions.sessions s ON s.session_uuid = c.local_session_uuid\n     WHERE c.cse_id = $1 AND s.session_uuid = $2\n), claimed AS (\n    UPDATE mailbox.messages m SET claimed_at = now()\n      FROM recipient_channel c\n     WHERE m.message_uuid = $3 AND m.to_session_id = c.session_id\n       AND m.claimed_at IS NULL AND m.sent_at IS NULL\n       AND m.channel_delivered_at IS NULL\n       AND m.consumed_at IS NULL AND m.dead_lettered_at IS NULL\n    RETURNING m.message_uuid, c.channel_id\n)\nINSERT INTO remote_control.injections(event_id, channel_id, message_uuid, source_kind, source_id, frame)\nSELECT $4, channel_id, message_uuid, 'mailbox', message_uuid::text, $5 FROM claimed\nRETURNING event_id AS \"event_id!\", created_at AS \"created_at!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "event_id!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "remote_control.injections",
+            "name": "event_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "remote_control.injections",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Bytea"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "fd85a7c2264b564848a58b66b488df07b0c55d08a18e97a911e8161ad127448d"
+}

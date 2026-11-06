@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE mailbox.messages SET dead_lettered_at = now() WHERE message_uuid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e3620df1c8c26d4cdacfac6da3a7ea58d1b1c00e464d258670d1102cb0e8198e"
+}

@@ -1,0 +1,130 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO work.thread_log\n             (thread_id, ord, session_uuid, commit_sha, summary, kind, body, data)\n         SELECT $1::bigint, COALESCE(MAX(l.ord), 0) + 1, $2::uuid, $3::text, $4::text, $5::text,\n                $6::text, $7::jsonb\n           FROM work.thread_log l WHERE l.thread_id = $1\n         RETURNING ord, kind, entry_date, session_uuid, commit_sha, summary, body, data, created_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ord",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "work.thread_log",
+            "name": "ord"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_log",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "entry_date",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "work.thread_log",
+            "name": "entry_date"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "session_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "work.thread_log",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "commit_sha",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_log",
+            "name": "commit_sha"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "summary",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_log",
+            "name": "summary"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "body",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_log",
+            "name": "body"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "data",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "work.thread_log",
+            "name": "data"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "work.thread_log",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "fe77d1e1da9ae665438c6505cf09599514a52bd6d25eb6c29401e65f83b36bdd"
+}

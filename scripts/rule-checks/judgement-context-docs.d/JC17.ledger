@@ -1,0 +1,12 @@
+# JC17 ledger. The landed sha is the JC17 commit on feat/judgement-context.
+landed   JC17 2026-09-25 ee340eb3
+table    steering.question_promotions
+setting  steerer.turn_guard.holdback_pct
+setting  steerer.turn_guard.wake_grace_relapse_secs
+setting  steerer.turn_guard.wake_grace_wait_secs
+setting  steerer.turn_guard.wake_cap_per_session_hour
+setting  steerer.turn_guard.auto_demote
+setting  steerer.turn_guard.wrong_wake_ceiling_per_week
+tool     get_steer_questions full
+tool     list_steer_question_events full
+cli      mike steer-questions

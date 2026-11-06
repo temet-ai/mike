@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH seat AS (\n    SELECT s.id\n      FROM sessions.sessions s\n      JOIN launch.launches l ON l.session_uuid = s.session_uuid\n     WHERE l.run_id IS NOT NULL OR l.seat IS NOT NULL OR l.template_id IS NOT NULL\n        OR l.claude_args ? '--fork-session'\n),\ntemplated AS (\n    SELECT s.id\n      FROM sessions.sessions s\n      JOIN launch.templates tp ON tp.session_uuid = s.session_uuid\n),\nnamed AS (\n    SELECT s.id\n      FROM sessions.sessions s\n      JOIN sessions.session_goals g ON g.session_id = s.id\n     WHERE COALESCE(g.role, '') ~* '^(observer|worker|template|probe|J[0-9]+|rust-|db-|frontend-)'\n        OR COALESCE(g.display_name, '') ~* '^(observer|worker|template|probe|J[0-9]+|rust-|db-|frontend-)'\n),\nmachine_only AS (\n    SELECT t.session_id AS id\n      FROM memory.operator_turns t\n      JOIN memory.turn_facts f ON f.operator_turn_id = t.id\n     WHERE t.created_at >= $1\n     GROUP BY t.session_id\n    HAVING bool_and(f.prompt_kind <> 'genuine')\n)\nSELECT id AS \"id!\" FROM seat\nUNION SELECT id FROM templated\nUNION SELECT id FROM named\nUNION SELECT id FROM machine_only\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "67304c56bd4a2d74c713fac538f61e7cfaedf921efa03715fc053d9f19d3fcfc"
+}

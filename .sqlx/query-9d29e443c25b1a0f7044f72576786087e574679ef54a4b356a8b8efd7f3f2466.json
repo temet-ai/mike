@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO tools.uses\n                     (wire_tool_use_id, request_id, ord, tool_name, input,\n                      file_path, operation, created_at, session_id)\n                 SELECT $1, $2, $3, $4, $5, $6, $7, $8, r.session_id\n                 FROM requests.requests r\n                 WHERE r.id = $2\n                 ON CONFLICT (wire_tool_use_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int4",
+        "Text",
+        "Jsonb",
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9d29e443c25b1a0f7044f72576786087e574679ef54a4b356a8b8efd7f3f2466"
+}

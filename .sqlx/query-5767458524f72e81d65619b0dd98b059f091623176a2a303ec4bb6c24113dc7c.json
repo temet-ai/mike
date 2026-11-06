@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE agents.instances\n            SET first_request_id = $2,\n                started_at = (\n                    SELECT created_at FROM requests.requests\n                     WHERE id = $2\n                )\n          WHERE id = $1\n            AND first_request_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5767458524f72e81d65619b0dd98b059f091623176a2a303ec4bb6c24113dc7c"
+}

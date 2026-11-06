@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TUI Design</title>
+<style>/* Display rules for terminal mockups: embedded mono font (subset DejaVu Sans Mono),
+   line-height 1.0 so borders join, text-size-adjust off, fit-to-viewport font-size
+   ((100vw - chrome) / (cols x 0.602em)) so a screen never clips or scrolls sideways. */
+@font-face{font-family:'TermMono';src:url(data:font/woff2;base64,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) format('woff2');font-display:block}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+
+/* Published SilkCircuit Neon tokens (lua/silkcircuit/variants.lua) — nothing invented. */
+:root{
+  --bg-base:#0a0812; --bg-surface:#12101a; --bg-overlay:#1a162a; --bg-selection:#44475a;
+  --text-primary:#f8f8f2; --text-lavender:#e9d5ff; --text-muted:#6272a4; --text-emphasis:#ffffff;
+  --accent-primary:#e135ff; --accent-muted:#9580ff; --accent-secondary:#80ffea; --cyan-bright:#5fffff;
+  --accent-tertiary:#ff6ac1; --pink:#ff00ff; --hot-pink:#ff79c6;
+  --success:#50fa7b; --warning:#f1fa8c; --error:#ff6363; --info:#82aaff; --number:#ffb86c;
+  --line:rgba(98,114,164,.28); --line-strong:#44475a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg-base);color:var(--text-primary);
+  font-family:"JetBrains Mono","Fira Code","Cascadia Code",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:14px;line-height:1.55;}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px 96px;}
+a{color:var(--accent-secondary);text-decoration:none}
+a:hover{text-decoration:underline}
+a:focus-visible,nav a:focus-visible{outline:1px solid var(--accent-primary);outline-offset:2px}
+table,pre,.num{font-variant-numeric:tabular-nums}
+h1,h2,h3,h4{text-wrap:balance}
+/* top bar */
+.topbar{position:sticky;top:0;z-index:10;background:rgba(10,8,18,.92);backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--line);}
+.topbar .in{max-width:1120px;margin:0 auto;padding:10px 24px;display:flex;gap:18px;align-items:baseline;flex-wrap:wrap;}
+.brand{color:var(--text-emphasis);font-weight:700}
+.brand .p{color:var(--accent-primary);text-shadow:0 0 10px rgba(225,53,255,.5)}
+.topbar nav{display:flex;gap:14px;flex-wrap:wrap;font-size:12px}
+.topbar nav a{color:var(--text-muted)}
+.topbar nav a:hover{color:var(--accent-secondary);text-decoration:none}
+
+header.masthead{padding:56px 0 8px}
+h1{font-size:30px;margin:0 0 6px;color:var(--text-emphasis)}
+h1 .p{color:var(--accent-primary);text-shadow:0 0 18px rgba(225,53,255,.65),0 0 42px rgba(225,53,255,.3)}
+.sub{color:var(--text-muted);max-width:78ch}
+.badges{margin:14px 0 0;display:flex;gap:8px;flex-wrap:wrap}
+.badge{font-size:11px;padding:2px 9px;border:1px solid var(--line);color:var(--text-muted)}
+.badge.on{border-color:var(--accent-primary);color:var(--accent-primary)}
+.badge.cy{border-color:var(--accent-secondary);color:var(--accent-secondary)}
+
+section{margin:44px 0}
+h2{font-size:20px;color:var(--text-emphasis);margin:0 0 4px;padding-left:12px;
+  border-left:3px solid var(--accent-primary);text-shadow:0 0 16px rgba(225,53,255,.35)}
+h2 .rid{margin-left:10px}
+.lede{color:var(--text-lavender);margin:0 0 18px;padding-left:15px;max-width:88ch}
+.lede code{color:var(--accent-secondary)}
+h3{font-size:14px;color:var(--accent-secondary);margin:22px 0 8px;text-shadow:0 0 10px rgba(128,255,234,.35)}
+
+.rid{display:inline-block;font-size:10.5px;letter-spacing:.4px;color:var(--accent-secondary);
+  border:1px solid rgba(128,255,234,.35);padding:0 6px;vertical-align:2px}
+.card{background:var(--bg-surface);border:1px solid var(--line);padding:18px 20px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+
+/* terminal frames */
+.term{background:var(--bg-base);border:1px solid var(--line);padding:0;overflow:hidden}
+.term .bar{display:flex;gap:6px;align-items:center;padding:8px 12px;background:var(--bg-surface);
+  border-bottom:1px solid var(--line);font-size:11px;color:var(--text-muted)}
+.term pre{margin:0;padding:14px 16px;overflow-x:auto;line-height:1.0;color:var(--text-primary);
+  font-size:min(16px,calc((min(100vw,1120px) - 82px)/48.2));
+  font-family:'TermMono','JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.caption{font-size:12px;color:var(--text-muted);margin-top:8px}
+
+/* mockup span classes */
+.bd{color:var(--text-muted)}.bdf{color:var(--accent-primary)}
+.tt{color:var(--text-emphasis);font-weight:700}
+.mut{color:var(--text-muted)}.emp{color:var(--text-emphasis);font-weight:700}
+.ok{color:var(--success)}.warn{color:var(--warning)}.err{color:var(--error)}
+.num{color:var(--number)}.cy{color:var(--accent-secondary)}.pk{color:var(--hot-pink)}
+.sel{color:var(--accent-primary);font-weight:700;text-shadow:0 0 8px rgba(225,53,255,.55)}
+.key{color:var(--accent-secondary);font-weight:700;text-shadow:0 0 8px rgba(128,255,234,.5)}
+.hdrbar{background:var(--bg-surface)}
+.appbar{background:var(--bg-surface)}
+.act{background:var(--bg-selection);color:var(--text-emphasis)}
+.sc{color:var(--accent-secondary);font-weight:700;text-decoration:underline}
+.a16g{color:#00d700}.a16y{color:#d7d700}.a16k{color:#808080}
+
+/* palette */
+.swatches{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(215px,1fr))}
+.sw{background:var(--bg-surface);border:1px solid var(--line);overflow:hidden}
+.sw .chip{height:56px;display:flex;align-items:flex-end;padding:8px 10px;font-size:11px;font-weight:700}
+.sw .meta{padding:10px 12px;font-size:12px}
+.sw .slot{color:var(--text-emphasis);font-weight:700}
+.sw .hex{color:var(--text-muted)}
+.sw .role{color:var(--text-muted);font-size:11px;margin-top:4px;line-height:1.4}
+.sw .fb{float:right;color:var(--accent-secondary);font-size:10.5px;border:1px solid rgba(128,255,234,.3);
+  padding:0 5px}
+
+/* variants */
+.variants{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
+.variant{border:1px solid var(--line);overflow:hidden;background:var(--bg-surface)}
+.variant .vhead{padding:8px 12px;font-size:12px;color:var(--text-emphasis);border-bottom:1px solid var(--line);
+  display:flex;justify-content:space-between;align-items:baseline}
+.variant .vhead small{color:var(--text-muted);font-size:10px}
+.variant pre{margin:0;padding:12px;font-size:12px;line-height:1.5;background:var(--bg-base);
+  font-family:'TermMono','JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.vdefault{color:var(--accent-primary);font-size:10px;border:1px solid rgba(225,53,255,.4);padding:0 5px}
+
+/* principles */
+.pr{background:var(--bg-surface);border:1px solid var(--line);padding:16px 18px}
+.pr h4{margin:0 0 6px;font-size:13.5px;color:var(--text-emphasis)}
+.pr p{margin:0;font-size:12px;color:var(--text-muted);line-height:1.55}
+.pr .q{color:var(--hot-pink)}
+
+/* keyboard */
+kbd{display:inline-block;background:var(--bg-overlay);border:1px solid var(--line-strong);border-bottom-width:3px;
+  padding:1px 7px;font-size:12px;color:var(--accent-secondary);font-family:inherit}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;color:var(--text-muted);font-weight:400;font-size:11px;letter-spacing:.5px;
+  text-transform:uppercase;border-bottom:1px solid var(--line);padding:6px 10px}
+td{border-bottom:1px solid rgba(44,39,64,.6);padding:8px 10px;vertical-align:top}
+td.c-l{color:var(--accent-primary);font-weight:700;white-space:nowrap}
+
+/* pipeline */
+.pipe{display:flex;gap:0;align-items:stretch;flex-wrap:wrap}
+.pipe .stage{flex:1;min-width:170px;background:var(--bg-surface);border:1px solid var(--line);
+  padding:12px 14px;margin:0 18px 12px 0;position:relative}
+.pipe .stage:after{content:"\2192";position:absolute;right:-16px;top:42%;color:var(--accent-primary);font-weight:700}
+.pipe .stage:last-child:after{content:""}
+.pipe h4{margin:0 0 4px;font-size:12.5px;color:var(--accent-secondary)}
+.pipe p{margin:0;font-size:11px;color:var(--text-muted)}
+.pipe code{color:var(--text-primary);font-size:11px}
+.gradbar{height:10px;margin-top:8px;
+  background:linear-gradient(90deg,#e135ff,#ff00ff,#ff6ac1,#80ffea);box-shadow:0 0 14px rgba(225,53,255,.35)}
+
+/* state chips */
+.states{display:flex;gap:10px;flex-wrap:wrap}
+.state{display:flex;gap:8px;align-items:center;background:var(--bg-surface);border:1px solid var(--line);
+  padding:7px 12px;font-size:12px}
+.state .g{font-size:13px}
+
+/* glyphs */
+.glyphs{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.gl{background:var(--bg-surface);border:1px solid var(--line);padding:10px 12px;
+  display:flex;gap:12px;align-items:center}
+.gl .g{font-size:20px;width:28px;text-align:center}
+.gl .m{font-size:11px;color:var(--text-muted);line-height:1.4}
+.gl .m b{color:var(--text-primary);display:block;font-size:12px}
+
+/* wrong-right */
+.wr{display:grid;gap:14px;grid-template-columns:1fr 1fr}
+.wr .side{border:1px solid var(--line);overflow:hidden;background:var(--bg-surface)}
+.wr .side .tag{font-size:10.5px;letter-spacing:1px;padding:5px 12px;font-weight:700}
+.wr .wrong .tag{color:var(--error);background:rgba(255,99,99,.08);border-bottom:1px solid rgba(255,99,99,.25)}
+.wr .right .tag{color:var(--success);background:rgba(80,250,123,.07);border-bottom:1px solid rgba(80,250,123,.25)}
+.wr pre{margin:0;padding:12px 14px;font-size:12px;line-height:1.45;overflow-x:auto}
+.wr .why{font-size:11px;color:var(--text-muted);padding:0 14px 12px}
+
+/* checklist */
+.check li{list-style:none;margin:7px 0;color:var(--text-primary);font-size:13px}
+.check li:before{content:"—";color:var(--accent-primary);margin-right:10px}
+.check{padding-left:6px;margin:0}
+.check .rid{margin-left:8px}
+
+/* loop */
+.loop{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px}
+.loop .st{background:var(--bg-surface);border:1px solid var(--line);padding:5px 16px;
+  color:var(--text-emphasis)}
+.loop .st.hot{border-color:var(--accent-primary);color:var(--accent-primary)}
+.loop .ar{color:var(--accent-secondary)}
+
+footer{margin-top:70px;border-top:1px solid var(--line);padding-top:18px;font-size:11.5px;color:var(--text-muted)}
+.mono-demo{filter:grayscale(1)}
+</style>
+</head><body>
+
+
+<div class="topbar"><div class="in">
+  <span class="brand">TUI <span class="p">Design</span></span>
+  <nav>
+    <a href="#layout">layout</a><a href="#panels">panels</a><a href="#palette">colors</a>
+    <a href="#animation">animation</a><a href="#navhelp">navigation &amp; help</a>
+    <a href="#best">best practices</a><a href="#checklist">checklist</a><a href="#wr">wrong/right</a>
+  </nav>
+</div></div>
+
+<div class="wrap">
+<header class="masthead">
+  <h1>TUI Design</h1>
+  <p class="sub">The designed rendition of <a href="STYLE_GUIDE.md">STYLE_GUIDE.md</a> — same numbered,
+  binding rules (TUI-L/P/K/C/G/A/V), rendered instead of described. Codified from
+  <em>&ldquo;The Terminal Renaissance&rdquo;</em> (hyperbliss.tech, 2026-04-04) and the
+  SilkCircuit design language. TUI Design is portable and application-neutral; application
+  screen specs are layered on top. The terminal system does not derive from SPA web tokens.</p>
+  <div class="badges">
+    <span class="badge on">status: active</span>
+    <span class="badge cy">palette: SilkCircuit Neon</span>
+    <span class="badge">floor: 80×24</span>
+    <span class="badge">usable at 16 colors · beautiful at truecolor</span>
+  </div>
+</header>
+
+<section id="hero">
+  <h2>The design language at a glance</h2>
+  <p class="lede">The universal layout (TUI-L1, <a href="LAYOUT.md">LAYOUT.md</a>) shown
+  with a labelled mike application example at 80×24:
+  app bar with the navigation path, content-sized nav, panels titled by what they show
+  (<code>sessions</code>, <code>opus-48</code>) with shortcut letters from the names, focused
+  border in <code>accent.primary</code>, full-width row selection with no markers, state as
+  text in semantic color, block sparklines for data (TUI-G2), help bar with navigation
+  commands only.</p>
+  <div class="term">
+    <div class="bar">Mike / sessions / opus-48 — 80×24 — SilkCircuit Neon</div>
+    <pre><span class="appbar"> <span class="emp">Mike</span><span class="mut"> / </span>sessions<span class="mut"> / </span><span class="emp">opus-48</span>                                                      </span>
+<span class="bd">┌─ </span><span class="sc">n</span><span class="tt">av</span><span class="bd"> ────┐</span><span class="bdf">┌─ </span><span class="sc">s</span><span class="tt">essions</span><span class="bdf"> ─────────────────────┐</span><span class="bd">┌─ </span><span class="sc">o</span><span class="tt">pus-48</span><span class="bd"> ──────────────────────┐</span>
+<span class="bd">│</span> traffic  <span class="bd">│</span><span class="bdf">│</span><span class="mut"> name      branch   state  turns</span><span class="bdf">│</span><span class="bd">│</span><span class="mut"> model    </span><span class="cy">opus-48</span>               <span class="bd">│</span>
+<span class="bd">│</span><span class="act"> sessions </span><span class="bd">│</span><span class="bdf">│</span><span class="act"> opus-48   main     live     142</span><span class="bdf">│</span><span class="bd">│</span><span class="mut"> branch   </span>main                  <span class="bd">│</span>
+<span class="bd">│</span> steering <span class="bd">│</span><span class="bdf">│</span> sonnet-5  review   <span class="ok">live</span>      <span class="num">89</span><span class="bdf">│</span><span class="bd">│</span><span class="mut"> state    </span><span class="ok">live</span>                  <span class="bd">│</span>
+<span class="bd">│</span> memory   <span class="bd">│</span><span class="bdf">│</span> haiku-45  fleet-3  <span class="warn">busy</span>      <span class="num">57</span><span class="bdf">│</span><span class="bd">│</span><span class="mut"> turns    </span><span class="num">142</span>                   <span class="bd">│</span>
+<span class="bd">│</span> settings <span class="bd">│</span><span class="bdf">│</span> sonnet-4  scratch  <span class="mut">idle</span>       <span class="num">3</span><span class="bdf">│</span><span class="bd">│</span><span class="mut"> tokens   </span><span class="num">1.8M</span>                  <span class="bd">│</span>
+<span class="bd">│</span>          <span class="bd">│</span><span class="bdf">│</span>                                <span class="bdf">│</span><span class="bd">│</span><span class="mut"> uptime   </span><span class="num">3h 12m</span>                <span class="bd">│</span>
+<span class="bd">│</span>          <span class="bd">│</span><span class="bdf">│</span><span class="mut"> traffic</span>                        <span class="bdf">│</span><span class="bd">│</span>                                <span class="bd">│</span>
+<span class="bd">│</span>          <span class="bd">│</span><span class="bdf">│</span><span class="mut"> rx </span><span class="cy">▁▂▄▆██▆▄▂▁▂▄▆█▆▄▂▁</span>  <span class="num">1.2 MB/s</span><span class="bdf">│</span><span class="bd">│</span><span class="mut"> last request</span>                   <span class="bd">│</span>
+<span class="bd">│</span>          <span class="bd">│</span><span class="bdf">│</span><span class="mut"> tx </span><span class="pk">▁▁▂▄▆▆▄▂▁▁▁▂▄▆▄▂▁▁</span>  <span class="num">312 kB/s</span><span class="bdf">│</span><span class="bd">│</span>  in    <span class="num">12.4 kB</span>                 <span class="bd">│</span>
+<span class="bd">│</span>          <span class="bd">│</span><span class="bdf">│</span>                                <span class="bdf">│</span><span class="bd">│</span>  out   <span class="num">3.1 kB</span>                  <span class="bd">│</span>
+<span class="bd">│</span>          <span class="bd">│</span><span class="bdf">│</span><span class="mut"> requests</span>                       <span class="bdf">│</span><span class="bd">│</span>  ttfb  <span class="num">412 ms</span>                  <span class="bd">│</span>
+<span class="bd">│</span>          <span class="bd">│</span><span class="bdf">│</span><span class="mut"> 09:41:07</span> POST /v1/messages <span class="ok">200</span> <span class="bdf">│</span><span class="bd">│</span>                                <span class="bd">│</span>
+<span class="bd">│</span>          <span class="bd">│</span><span class="bdf">│</span><span class="mut"> 09:41:12</span> GET  /api/turns   <span class="ok">200</span> <span class="bdf">│</span><span class="bd">│</span><span class="mut"> injections</span>                     <span class="bd">│</span>
+<span class="bd">│</span>          <span class="bd">│</span><span class="bdf">│</span><span class="mut"> 09:41:15</span> POST /v1/messages <span class="err">529</span> <span class="bdf">│</span><span class="bd">│</span>  recall     <span class="num">2</span>                  <span class="bd">│</span>
+<span class="bd">│</span>          <span class="bd">│</span><span class="bdf">│</span>                                <span class="bdf">│</span><span class="bd">│</span>  reminder   <span class="num">1</span>                  <span class="bd">│</span>
+<span class="bd">│</span>          <span class="bd">│</span><span class="bdf">│</span><span class="mut"> 142 req · 0 dropped</span>            <span class="bdf">│</span><span class="bd">│</span>  weasel     <span class="mut">—</span>                  <span class="bd">│</span>
+<span class="bd">│</span>          <span class="bd">│</span><span class="bdf">│</span>                                <span class="bdf">│</span><span class="bd">│</span>                                <span class="bd">│</span>
+<span class="bd">│</span>          <span class="bd">│</span><span class="bdf">│</span>                                <span class="bdf">│</span><span class="bd">│</span>                                <span class="bd">│</span>
+<span class="bd">│</span>          <span class="bd">│</span><span class="bdf">│</span>                                <span class="bdf">│</span><span class="bd">│</span>                                <span class="bd">│</span>
+<span class="bd">│</span>          <span class="bd">│</span><span class="bdf">│</span>                                <span class="bdf">│</span><span class="bd">│</span>                                <span class="bd">│</span>
+<span class="bd">└──────────┘</span><span class="bdf">└────────────────────────────────┘</span><span class="bd">└────────────────────────────────┘</span>
+ <span class="key">j/k</span><span class="mut"> navigate · </span><span class="key">tab</span><span class="mut"> panel · </span><span class="key">enter</span><span class="mut"> open · </span><span class="key">n s o</span><span class="mut"> jump · </span><span class="key">?</span><span class="mut"> help · </span><span class="key">q</span><span class="mut"> quit</span>           </pre>
+  </div>
+  <div class="caption">Every element on this screen resolves to a semantic slot — nothing is a raw hex value (TUI-C4).</div>
+</section>
+
+<section id="layout">
+  <h2>Layout — one design <span class="rid">TUI-L1</span></h2>
+  <p class="lede"><strong>Every application uses one universal layout</strong> (operator decision
+  2026-07-23), defined in <a href="LAYOUT.md">docs/tui/LAYOUT.md</a> and rendered at four sizes
+  in the layout artifact: app bar with the navigation path, content-sized nav, middle and
+  detail/preview splitting the rest equally with contextual titles, help bar with navigation
+  commands only. Narrow real estate stacks right items below left items; when stacking is
+  impossible the panel's view becomes a modal. There is no per-screen layout choice. The
+  floor is 80×24 (TUI-L2); multi-mode apps keep one frame (TUI-L3).</p>
+  <div class="grid g2"><div class="pr"><h4><span class="rid">TUI-P1</span> Spatial consistency is the foundation</h4><p>Panels don't move. Tabs stay in order. The user builds a mental map in the first minute and navigates by location memory after that. <span class='q'>Every shuffle resets their spatial model to zero.</span></p></div></div>
+</section>
+
+<section id="panels">
+  <h2>Panels <span class="rid">TUI-PN</span></h2>
+  <p class="lede">What lives inside a panel. <strong>This is the next design phase; nothing
+  below is defined yet.</strong> Panel-internal table and row structure, cell padding, gaps,
+  banding, spacing, and alignment will be developed in the future generic
+  <code>tui-kit</code> repository and made enforceable there. Do not infer those rules from
+  the illustrative mike mockups.</p>
+  <div class="grid g3">
+    <div class="pr"><h4>Tables</h4><p>—</p></div>
+    <div class="pr"><h4>Data</h4><p>—</p></div>
+    <div class="pr"><h4>Graphics</h4><p>—</p></div>
+    <div class="pr"><h4>Toggles</h4><p>—</p></div>
+    <div class="pr"><h4>Views</h4><p>—</p></div>
+    <div class="pr"><h4>Logs</h4><p>—</p></div>
+    <div class="pr"><h4>Modals</h4><p>—</p></div>
+    <div class="pr"><h4>Inputs</h4><p>—</p></div>
+    <div class="pr"><h4>Form options</h4><p>—</p></div>
+  </div>
+</section>
+
+<section id="palette">
+  <h2>Palette <span class="rid">TUI-C4a</span></h2>
+  <p class="lede">Colors are defined by function, not appearance (TUI-C4): widget code references
+  slots, never values. Every value here is a <strong>published SilkCircuit Neon token</strong>
+  (<code>lua/silkcircuit/variants.lua</code>) — the role text names the exact token. The Neon
+  backgrounds are purple-tinted (<code>#0a0812 → #12101a → #1a162a</code>), primary text is warm
+  white <code>#f8f8f2</code>, secondary text is lavender, muted text is blue-violet — neutral
+  greys here would reproduce a generic dark theme and are Wrong. Each slot carries its nearest
+  xterm-256 fallback (TUI-C2).</p>
+  <div class="swatches"><div class="sw">
+  <div class="chip" style="background:#0a0812;color:rgba(255,255,255,.85)">#0a0812</div>
+  <div class="meta"><span class="fb">256: 232</span><span class="slot">bg.base</span>
+  <div class="role">bg_dark — the app canvas</div></div></div><div class="sw">
+  <div class="chip" style="background:#12101a;color:rgba(255,255,255,.85)">#12101a</div>
+  <div class="meta"><span class="fb">256: 233</span><span class="slot">bg.surface</span>
+  <div class="role">bg — panels, cards</div></div></div><div class="sw">
+  <div class="chip" style="background:#1a162a;color:rgba(255,255,255,.85)">#1a162a</div>
+  <div class="meta"><span class="fb">256: 235</span><span class="slot">bg.overlay</span>
+  <div class="role">bg_highlight — modals, overlays</div></div></div><div class="sw">
+  <div class="chip" style="background:#44475a;color:rgba(255,255,255,.85)">#44475a</div>
+  <div class="meta"><span class="fb">256: 239</span><span class="slot">bg.selection</span>
+  <div class="role">selection / bg_visual — selected rows, visual ranges</div></div></div><div class="sw">
+  <div class="chip" style="background:#f8f8f2;color:#1a1a1a">#f8f8f2</div>
+  <div class="meta"><span class="fb">256: 255</span><span class="slot">text.primary</span>
+  <div class="role">fg — main body text</div></div></div><div class="sw">
+  <div class="chip" style="background:#e9d5ff;color:#1a1a1a">#e9d5ff</div>
+  <div class="meta"><span class="fb">256: 189</span><span class="slot">text.secondary</span>
+  <div class="role">fg_dark — lavender; ledes, secondary emphasis</div></div></div><div class="sw">
+  <div class="chip" style="background:#6272a4;color:rgba(255,255,255,.85)">#6272a4</div>
+  <div class="meta"><span class="fb">256: 61</span><span class="slot">text.muted</span>
+  <div class="role">fg_gutter — metadata, labels, timestamps</div></div></div><div class="sw">
+  <div class="chip" style="background:#ffffff;color:#1a1a1a">#ffffff</div>
+  <div class="meta"><span class="fb">256: 231</span><span class="slot">text.emphasis</span>
+  <div class="role">fg_light + bold — headers, focused items</div></div></div><div class="sw">
+  <div class="chip" style="background:#e135ff;color:rgba(255,255,255,.85)">#e135ff</div>
+  <div class="meta"><span class="fb">256: 171</span><span class="slot">accent.primary</span>
+  <div class="role">purple — brand, focus states, keywords</div></div></div><div class="sw">
+  <div class="chip" style="background:#9580ff;color:rgba(255,255,255,.85)">#9580ff</div>
+  <div class="meta"><span class="fb">256: 105</span><span class="slot">accent.muted</span>
+  <div class="role">purple_dark — non-focused accent structure</div></div></div><div class="sw">
+  <div class="chip" style="background:#80ffea;color:#1a1a1a">#80ffea</div>
+  <div class="meta"><span class="fb">256: 122</span><span class="slot">accent.secondary</span>
+  <div class="role">cyan — interaction, paths, links · bright #5fffff / 87</div></div></div><div class="sw">
+  <div class="chip" style="background:#ff6ac1;color:rgba(255,255,255,.85)">#ff6ac1</div>
+  <div class="meta"><span class="fb">256: 205</span><span class="slot">accent.tertiary</span>
+  <div class="role">coral — accents, hashes · #ff79c6 strings · #ff00ff pink for glow moments</div></div></div><div class="sw">
+  <div class="chip" style="background:#50fa7b;color:#1a1a1a">#50fa7b</div>
+  <div class="meta"><span class="fb">256: 84</span><span class="slot">status.success</span>
+  <div class="role">green — confirmations, additions, online</div></div></div><div class="sw">
+  <div class="chip" style="background:#f1fa8c;color:#1a1a1a">#f1fa8c</div>
+  <div class="meta"><span class="fb">256: 228</span><span class="slot">status.warning</span>
+  <div class="role">yellow — warnings, attention · diagnostics #ecc48d</div></div></div><div class="sw">
+  <div class="chip" style="background:#ff6363;color:rgba(255,255,255,.85)">#ff6363</div>
+  <div class="meta"><span class="fb">256: 203</span><span class="slot">status.error</span>
+  <div class="role">red_error — danger, offline · diagnostics #ff5874</div></div></div><div class="sw">
+  <div class="chip" style="background:#82aaff;color:#1a1a1a">#82aaff</div>
+  <div class="meta"><span class="fb">256: 111</span><span class="slot">status.info</span>
+  <div class="role">info / blue — informational</div></div></div><div class="sw">
+  <div class="chip" style="background:#ffb86c;color:#1a1a1a">#ffb86c</div>
+  <div class="meta"><span class="fb">256: 215</span><span class="slot">data.number</span>
+  <div class="role">Warm Orange (README) — numbers, counts, constants</div></div></div><div class="sw"><div class="chip" style="background:linear-gradient(90deg,#e135ff,#ff00ff,#80ffea);color:#1a1a1a">glow_*</div>
+  <div class="meta"><span class="fb">171·201·122</span><span class="slot">glow.purple/pink/cyan</span>
+  <div class="role">glow_purple #e135ff · glow_pink #ff00ff · glow_cyan #80ffea — static glow emphasis</div></div></div></div>
+</section>
+
+<section id="variants">
+  <h2>Intensity variants <span class="rid">TUI-C4b</span></h2>
+  <p class="lede">Same semantic slots, five energies — each a <strong>full published palette</strong>
+  in <code>variants.lua</code>, rendered below with its real values (no approximations). Wanting
+  the app dimmer or brighter means selecting a <em>variant</em> through the theme pipeline
+  (TUI-C5) — never hand-adjusting slot values on one screen. &ldquo;The design language is the
+  mapping from meaning to color, not the colors themselves.&rdquo;</p>
+  <div class="variants"><div class="variant"><div class="vhead"><span>Neon <span class="vdefault">default</span></span><small>bg #12101a</small></div>
+<pre style="background:#12101a"><span style="color:#f8f8f2;">steerer</span>  <span style="color:#50fa7b;">active</span>  <span style="color:#f1fa8c;">3</span> <span style="color:#6272a4;">rules</span> <span style="color:#6272a4;">·</span> <span style="color:#e135ff;font-weight:700;">settings</span></pre></div><div class="variant"><div class="vhead"><span>Vibrant</span><small>bg #0f0c1a</small></div>
+<pre style="background:#0f0c1a"><span style="color:#f8f8f2;">steerer</span>  <span style="color:#00ff66;">active</span>  <span style="color:#ffcc00;">3</span> <span style="color:#6272a4;">rules</span> <span style="color:#6272a4;">·</span> <span style="color:#ff00ff;font-weight:700;">settings</span></pre></div><div class="variant"><div class="vhead"><span>Soft</span><small>bg #1a1626</small></div>
+<pre style="background:#1a1626"><span style="color:#f8f8f2;">steerer</span>  <span style="color:#66ff99;">active</span>  <span style="color:#ffe699;">3</span> <span style="color:#6272a4;">rules</span> <span style="color:#6272a4;">·</span> <span style="color:#e892ff;font-weight:700;">settings</span></pre></div><div class="variant"><div class="vhead"><span>Glow</span><small>bg #0a0816 · OLED</small></div>
+<pre style="background:#0a0816"><span style="color:#ffffff;text-shadow:0 0 7px currentColor;">steerer</span>  <span style="color:#00ff00;text-shadow:0 0 7px currentColor;">active</span>  <span style="color:#ffff00;text-shadow:0 0 7px currentColor;">3</span> <span style="color:#666666;text-shadow:0 0 7px currentColor;">rules</span> <span style="color:#666666;text-shadow:0 0 7px currentColor;">·</span> <span style="color:#ff00ff;text-shadow:0 0 7px currentColor;font-weight:700;">settings</span></pre></div><div class="variant"><div class="vhead"><span>Dawn</span><small>bg #faf8ff · light</small></div>
+<pre style="background:#faf8ff"><span style="color:#2b2540;">steerer</span>  <span style="color:#2d8659;">active</span>  <span style="color:#a88600;">3</span> <span style="color:#8e84a8;">rules</span> <span style="color:#8e84a8;">·</span> <span style="color:#7e2bd5;font-weight:700;">settings</span></pre></div></div>
+</section>
+
+<section id="color">
+  <h2>Color tiers &amp; detection <span class="rid">TUI-C1–C3</span></h2>
+  <p class="lede">The golden rule: <strong>usable at 16 colors, beautiful at truecolor.</strong>
+  The same three lines rendered per tier — hierarchy must survive every one of them (TUI-P7).</p>
+  <div class="grid g3">
+    <div><div class="term"><div class="bar">tier 0 — monochrome (bold/dim only)</div><pre class="mono-demo"><span class="emp"> api-9988</span>  forwarding  142 req    
+ steerer   injecting     3 rules  
+<span class="mut"> weasel  </span><span class="mut">  idle        </span><span class="mut">  —</span>        </pre></div></div>
+    <div><div class="term"><div class="bar">tier 1 — 16 ANSI (theme-coherent)</div><pre> api-9988  <span class="a16g">forwarding</span>  142 req    
+ steerer   <span class="a16y">injecting</span>     3 rules  
+<span class="a16k"> weasel    idle          —</span>        </pre></div></div>
+    <div><div class="term"><div class="bar">tier 2 — truecolor (SilkCircuit)</div><pre> api-9988  <span class="ok">forwarding</span>  <span class="num">142 req</span>    
+ steerer   <span class="warn">injecting</span>   <span class="num">  3 rules</span>  
+<span class="mut"> weasel    idle          —</span>        </pre></div></div>
+  </div>
+  <div class="grid g3" style="margin-top:14px">
+    <div class="card"><h3 style="margin-top:0">$COLORTERM</h3><p class="lede" style="padding:0;margin:0"><code>truecolor</code> / <code>24bit</code> → tier 2 enabled</p></div>
+    <div class="card"><h3 style="margin-top:0">$TERM</h3><p class="lede" style="padding:0;margin:0"><code>*-256color</code> → tier 1+ with fixed fallbacks</p></div>
+    <div class="card"><h3 style="margin-top:0">$NO_COLOR</h3><p class="lede" style="padding:0;margin:0">set → strip <em>all</em> color, unconditionally. Professional courtesy, not just accessibility.</p></div>
+  </div>
+  <div class="grid g2" style="margin-top:14px"><div class="pr"><h4><span class="rid">TUI-P4</span> Semantic color</h4><p>Green = success, red = danger, yellow = caution. Color <em>reinforces</em> hierarchy already built by layout, typography, symbols. <span class='q'>If stripping all color makes the app unusable, the design is broken.</span></p></div><div class="pr"><h4><span class="rid">TUI-P7</span> Design in layers</h4><p>Monochrome: usable? → 16 ANSI: hierarchy readable? → truecolor: beautiful? Each tier independently usable. Works over a monochrome SSH session, stunning in Ghostty. <span class='q'>A discipline, not a tradeoff.</span></p></div></div>
+</section>
+
+<section id="theming">
+  <h2>Theming is infrastructure <span class="rid">TUI-C5 · TUI-C6</span></h2>
+  <p class="lede">&ldquo;Hex codes in source files is a phase, not a strategy.&rdquo; Each layer
+  references only the one below; themes are validated by contract tests — a theme that
+  half-resolves is a build failure, not a runtime surprise.</p>
+  <div class="pipe">
+    <div class="stage"><h4>palette</h4><p>raw colors</p><code>electric_purple = #e135ff</code></div>
+    <div class="stage"><h4>tokens</h4><p>semantic names → palette</p><code>accent.primary → electric_purple</code></div>
+    <div class="stage"><h4>styles</h4><p>fg + bg + modifiers</p><code>focused_border = accent.primary + bold</code></div>
+    <div class="stage"><h4>gradients</h4><p>multi-stop interpolation</p><div class="gradbar"></div></div>
+  </div>
+  <h3>State machines get a visual language (TUI-C6)</h3>
+  <p class="lede">Each state maps to a color <em>and</em> a glyph <em>and</em> a style —
+  consistently, everywhere it appears. The screen looks different when things are on fire.</p>
+  <div class="states">
+    <div class="state"><span style="color:var(--error);font-weight:700">hot</span>&nbsp;— needs attention now</div>
+    <div class="state"><span style="color:var(--warning);font-weight:700">waiting</span>&nbsp;— blocked on something</div>
+    <div class="state"><span style="color:var(--success);font-weight:700">ready</span>&nbsp;— good to go</div>
+    <div class="state"><span style="color:var(--text-muted);font-weight:700">dormant</span>&nbsp;— stale</div>
+    <div class="state"><span style="color:var(--accent-secondary);font-weight:700">pending</span>&nbsp;— awaiting action</div>
+  </div>
+</section>
+
+<section id="glyphs">
+  <h2>Glyph vocabulary <span class="rid">TUI-G1–G5</span></h2>
+  <p class="lede">A documented vocabulary: every glyph a screen uses is listed with exactly one
+  meaning, and one meaning never has two glyphs — consistency comes from the table, and additions
+  extend it deliberately. Glyphs stay within the unambiguous-width set (double-width and ZWJ
+  sequences break cell alignment — an engineering constraint, not taste). Sub-cell precision (fractional blocks, braille + halfblock charts)
+  is for data display only, never decoration (TUI-G2). Border weight signals hierarchy — never
+  uniform default borders everywhere (TUI-G3). Inspection content is never truncated: scroll or
+  paginate (TUI-G4). And the geometry is the cell grid's: square corners everywhere the design language appears — no pills, no rounded chrome, no desktop window dressing, on this page included (TUI-G5).</p>
+  <div class="glyphs"><div class="gl"><div class="g" style="color:var(--text-muted)">·</div><div class="m"><b>separator</b>inline metadata divider</div></div><div class="gl"><div class="g" style="color:var(--text-muted)">—</div><div class="m"><b>null</b>no value, never blank</div></div><div class="gl"><div class="g" style="color:var(--success)">▉</div><div class="m"><b>bar cell</b>fractional blocks ▏▎▍▌▋▊▉█</div></div><div class="gl"><div class="g" style="color:var(--accent-secondary)">▅</div><div class="m"><b>sparkline cell</b>block sparklines ▁▂▃▄▅▆▇█</div></div></div>
+  <h3>Sub-cell data display (TUI-G2)</h3>
+  <div class="term"><pre> <span class="mut">cpu </span><span class="ok">▉▉▉▉▉▉▍</span><span class="mut">        </span><span class="num">68%</span>   <span class="mut">rx </span><span class="cy">▁▂▄▆██▆▄▂▁▂▄▆█▆▄▂▁</span>  <span class="num">1.2 MB/s</span>   <span class="mut">borders: </span>─ light  <span class="emp">━ heavy</span>  ═ double</pre></div>
+</section>
+
+<section id="animation">
+  <h2>Animation</h2>
+  <p class="lede"><strong>Reserved.</strong> No rules are defined.</p>
+</section>
+
+<section id="navhelp">
+  <h2>Navigation and help <span class="rid">TUI-K · TUI-P2/P3/P6</span></h2>
+  <p class="lede">Vim keys are the terminal lingua franca — six keystrokes handle 80% of
+  navigation. Four layers, each invisible until the user reaches for it: progressive disclosure
+  applied to the keyboard.</p>
+  <div class="card">
+  <table>
+    <tr><th>layer</th><th>keys</th><th>discoverability</th></tr>
+    <tr><td class="c-l">L0 universal</td><td><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> <kbd>Enter</kbd> <kbd>Esc</kbd> <kbd>q</kbd></td><td>help bar — anyone can use this</td></tr>
+    <tr><td class="c-l">L1 vim navigation</td><td><kbd>j</kbd><kbd>k</kbd><kbd>h</kbd><kbd>l</kbd> <kbd>/</kbd> <kbd>?</kbd> <kbd>:</kbd> <kbd>g</kbd><kbd>G</kbd></td><td>help bar — terminal natives expect this</td></tr>
+    <tr><td class="c-l">L2 actions</td><td>single mnemonics: <kbd>d</kbd> delete · <kbd>s</kbd> stage · <kbd>r</kbd> refresh</td><td><kbd>?</kbd> help overlay; same action = same key on every screen</td></tr>
+    <tr><td class="c-l">L3 power</td><td>composed commands · macros · configuration</td><td>documentation only — the ceiling for experts</td></tr>
+  </table>
+  <h3>The help bar (TUI-P3: 3–5 keys, never a wall)</h3>
+  <div class="term"><pre> <span class="key">j/k</span> <span class="mut">navigate  ·  </span><span class="key">Enter</span> <span class="mut">open  ·  </span><span class="key">/</span> <span class="mut">search  ·  </span><span class="key">?</span> <span class="mut">help  ·  </span><span class="key">q</span> <span class="mut">quit</span></pre></div>
+  </div>
+  <div class="grid g3" style="margin-top:14px"><div class="pr"><h4><span class="rid">TUI-P2</span> Keyboard-first, mouse-optional</h4><p>Every feature reachable without a mouse; mouse support not an afterthought. Power users are keyboard people, beginners will click. Support both; optimize for keys.</p></div><div class="pr"><h4><span class="rid">TUI-P3</span> Progressive disclosure, three tiers</h4><p>Help bar with the 3–5 most important keys (always visible) → <kbd>?</kbd> overlay with the full reference (on demand) → complete docs. <span class='q'>Nobody reads a manual to get started.</span></p></div><div class="pr"><h4><span class="rid">TUI-P6</span> Contextual intelligence</h4><p>Keybindings change as focus moves. The help bar shows only the commands available right now, and <kbd>?</kbd> matches it. The UI earns trust by being accurate about what's possible.</p></div></div>
+</section>
+
+<section id="best">
+  <h2>Best practices for good UI <span class="rid">TUI-P5 · TUI-A · TUI-B · TUI-V</span></h2>
+  <p class="lede">The practices that keep the TUI honest: never block, push don't poll,
+  show processing while it happens, and keep the UI drivable and verifiable by AI agents.</p>
+  <div class="grid g2"><div class="pr"><h4><span class="rid">TUI-P5</span> Async everything</h4><p>Never freeze the UI. File I/O, network, DB — background tasks with progress indicators. <kbd>Esc</kbd> always returns a responsive interface. <span class='q'>A TUI that hangs is a TUI that gets killed.</span></p></div><div class="pr"><h4><span class="rid">TUI-B1</span> AI-friendly UI</h4><p>AI agents build, drive, and verify this TUI, and they are blind by default. Every state change flows through the event system (TUI-A2) so an agent can reason about it; every feature is reachable by keys (TUI-P2); the CLI face exposes the same data scriptably (TUI-A3); the rendered screen is verifiable in a real terminal (TUI-V1). <span class='q'>design → build → run → see → fix → repeat.</span></p></div></div>
+  <h3>Architecture with design consequences (TUI-A)</h3>
+  <div class="grid g3">
+    <div class="pr"><h4><span class="rid">TUI-A1</span> Never poll; push</h4>
+      <p>The UI is told when something changes (watch/broadcast channels) — it never asks
+      &ldquo;has anything changed?&rdquo; on a timer. The responsiveness difference is visceral.</p></div>
+    <div class="pr"><h4><span class="rid">TUI-A2</span> events → state → render</h4>
+      <p>Pure reducers: <code>(state, event) → (new state, side effects)</code>, no I/O inside.
+      Application events and agent output flow through the same event system as keystrokes. Testable,
+      debuggable, auditable.</p></div>
+    <div class="pr"><h4><span class="rid">TUI-A3</span> Know when not to be a TUI</h4>
+      <p>One core, two faces: scriptable CLI (plain/JSON, pipe-composable, zero decoration) and
+      the interactive TUI. When stdout is a pipe: no color and no boxes.</p></div>
+  </div>
+  <h3>Verification (TUI-V)</h3>
+  <p class="lede">An agent building a TUI is blind by default — stdout text can't verify that
+  borders line up or that <kbd>j</kbd>/<kbd>k</kbd> navigates. Every TUI change is verified by
+  running the app in a real terminal and reading the rendered screen (pty harness, snapshot
+  tests). A passing unit test is not a substitute for seeing the screen. Verify per layer:
+  snapshot monochrome, 16-color, truecolor × 80×24 and the wider reference size.</p>
+  <div class="loop">
+    <span class="st">design</span><span class="ar">→</span>
+    <span class="st">build</span><span class="ar">→</span>
+    <span class="st hot">run</span><span class="ar">→</span>
+    <span class="st hot">see</span><span class="ar">→</span>
+    <span class="st">fix</span><span class="ar">→</span>
+    <span class="st">repeat</span>
+  </div>
+</section>
+
+<section id="checklist">
+  <h2>Screen-spec checklist</h2>
+  <p class="lede">Every screen spec under <code>artifacts/</code> — and every review of one — checks:</p>
+  <div class="card"><ul class="check">
+    <li>Uses the universal layout — app bar path, nav/middle/detail-preview with contextual
+    titles, navigation-only help bar in the final row <span class="rid">TUI-L1 · LAYOUT.md</span></li>
+    <li>Exact 80×24 mockup + wider reference; narrow-width behavior stated <span class="rid">TUI-L2</span></li>
+    <li>Keymap listed by layer L0–L3; help bar shows 3–5 keys; <kbd>?</kbd> overlay defined <span class="rid">TUI-K2 · TUI-P3</span></li>
+    <li>All colors as semantic slots with 256-color fallback; no raw values <span class="rid">TUI-C2 · TUI-C4</span></li>
+    <li>Usable-when-stripped: hierarchy holds in monochrome <span class="rid">TUI-P4 · TUI-P7</span></li>
+    <li>Every glyph used is in the documented vocabulary <span class="rid">TUI-G1</span></li>
+    <li>Loading/empty/error/populated states specified; nothing blocks the event loop <span class="rid">TUI-P5</span></li>
+    <li>Focus-dependent keybindings enumerated; help bar matches the current navigation
+    context and carries no status <span class="rid">TUI-P6</span></li>
+    <li>No truncation of inspection content — scroll/paginate <span class="rid">TUI-G4</span></li>
+  </ul></div>
+</section>
+
+<section id="wr">
+  <h2>Wrong / Right — the drift-prone patterns</h2>
+  <div class="wr">
+    <div class="side wrong"><div class="tag">WRONG — help bar as a wall</div>
+<pre><span class="mut"> j:down k:up h:left l:right gg:top G:bottom /:search n:next N:prev ?:help d:del
+ s:stage u:unstage r:refresh c:commit p:push P:pull b:branch t:tag q:quit …</span></pre>
+      <div class="why">Every binding on screen at once — the wall of shortcuts TUI-P3 exists to prevent.</div></div>
+    <div class="side right"><div class="tag">RIGHT — 3–5 keys, rest behind ?</div>
+<pre> <span class="key">j/k</span> <span class="mut">navigate ·</span> <span class="key">Enter</span> <span class="mut">open ·</span> <span class="key">/</span> <span class="mut">search ·</span> <span class="key">?</span> <span class="mut">help ·</span> <span class="key">q</span> <span class="mut">quit</span></pre>
+      <div class="why">Beginners see the floor; the <kbd>?</kbd> overlay holds the ceiling.</div></div>
+    <div class="side wrong"><div class="tag">WRONG — color as the only signal</div>
+<pre> POST /v1/messages   <span class="err">529</span>
+ POST /v1/messages   <span class="ok">200</span></pre>
+      <div class="why">Strip the color and the failure disappears — broken under TUI-P4 / NO_COLOR.</div></div>
+    <div class="side right"><div class="tag">RIGHT — text + color</div>
+<pre> POST /v1/messages   <span class="err">529 overloaded</span>
+ POST /v1/messages   <span class="ok">200 ok</span></pre>
+      <div class="why">The word carries the state; color reinforces it. Hierarchy holds in monochrome.</div></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+  <table><tr><th>wrong</th><th>right</th><th>rule</th></tr><tr><td style='color:var(--error)'>Rearranging panels when data changes</td><td style='color:var(--success)'>Fixed positions; empty panel shows its empty state</td><td class='c-l'>TUI-P1</td></tr><tr><td style='color:var(--error)'>Blocking the render loop on a DB query</td><td style='color:var(--success)'>Background task + progress, <kbd>Esc</kbd> stays responsive</td><td class='c-l'>TUI-P5</td></tr><tr><td style='color:var(--error)'>Style::default().fg(Color::Rgb(…)) at a call site</td><td style='color:var(--success)'>Style resolved from a semantic slot</td><td class='c-l'>TUI-C4</td></tr><tr><td style='color:var(--error)'>Shipping only a truecolor look</td><td style='color:var(--success)'>16-color fallback per token, NO_COLOR honored</td><td class='c-l'>TUI-C2/C3</td></tr><tr><td style='color:var(--error)'>Polling the inspect API on a tick</td><td style='color:var(--success)'>Push via watch/broadcast channel</td><td class='c-l'>TUI-A1</td></tr><tr><td style='color:var(--error)'>&ldquo;Tests pass&rdquo; as TUI completion claim</td><td style='color:var(--success)'>Rendered-screen evidence from a real terminal</td><td class='c-l'>TUI-V1</td></tr><tr><td style='color:var(--error)'>Pill badges, rounded cards, window dots</td><td style='color:var(--success)'>Square corners, box borders, bracketed tokens</td><td class='c-l'>TUI-G5</td></tr></table>
+  </div>
+</section>
+
+<footer>
+  Sources: Stefanie Jane, <em>The Terminal Renaissance</em> (hyperbliss.tech, 2026-04-04) ·
+  SilkCircuit design language (github.com/hyperb1iss/silkcircuit) · operator decision 2026-07-23.
+  Normative text: <a href="STYLE_GUIDE.md">docs/tui/STYLE_GUIDE.md</a> — rule IDs match. This page is
+  self-contained: no external fonts, scripts, or images.
+</footer>
+</div>
+
+</body></html>

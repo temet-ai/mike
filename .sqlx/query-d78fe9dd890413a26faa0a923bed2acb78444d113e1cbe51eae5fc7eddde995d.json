@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH blocked AS (\n                       SELECT unnest(c.member_item_ids) AS item_id\n                         FROM memory.pattern_candidates c\n                        WHERE c.status = 'open'\n                           OR (c.status = 'dismissed' AND c.decided_at > now() - interval '30 days')\n                   )\n                   SELECT i.id AS item_id, i.session_id, i.embedding::text AS \"embedding!\"\n                     FROM memory.pattern_assignments a\n                     JOIN memory.semantic_items i ON i.id = a.correction_item_id\n                    WHERE a.pattern IS NULL AND a.score < 0 AND a.embedder_key = $1\n                      AND i.effective_at > now() - interval '30 days'\n                      AND NOT EXISTS (SELECT 1 FROM blocked b WHERE b.item_id = i.id)\n                    ORDER BY i.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "item_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "embedding!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      null
+    ]
+  },
+  "hash": "d78fe9dd890413a26faa0a923bed2acb78444d113e1cbe51eae5fc7eddde995d"
+}

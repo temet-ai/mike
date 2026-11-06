@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH incoming AS (\n                       SELECT o.*\n                         FROM jsonb_to_recordset($1::jsonb) AS o(\n                              project uuid, folder text, first_shipped_on date,\n                              window_start timestamptz, window_end timestamptz,\n                              loads integer, load_sessions integer, loaded_turns integer,\n                              judged_turns integer, corrected_turns integer,\n                              base_judged_turns integer, base_corrected_turns integer,\n                              retired_at timestamptz, retired_reason text))\n                   INSERT INTO memory.skill_live_outcomes\n                          (project_id, folder, first_shipped_on, window_start, window_end,\n                           loads, load_sessions, loaded_turns, judged_turns, corrected_turns,\n                           base_judged_turns, base_corrected_turns, retired_at, retired_reason)\n                   SELECT p.id, i.folder, i.first_shipped_on, i.window_start, i.window_end,\n                          i.loads, i.load_sessions, i.loaded_turns, i.judged_turns,\n                          i.corrected_turns, i.base_judged_turns, i.base_corrected_turns,\n                          i.retired_at, i.retired_reason\n                     FROM incoming i\n                     JOIN projects.projects p ON p.project_uuid = i.project\n                   ON CONFLICT (project_id, folder, first_shipped_on) DO UPDATE\n                      SET window_start = EXCLUDED.window_start,\n                          window_end = EXCLUDED.window_end,\n                          loads = EXCLUDED.loads,\n                          load_sessions = EXCLUDED.load_sessions,\n                          loaded_turns = EXCLUDED.loaded_turns,\n                          judged_turns = EXCLUDED.judged_turns,\n                          corrected_turns = EXCLUDED.corrected_turns,\n                          base_judged_turns = EXCLUDED.base_judged_turns,\n                          base_corrected_turns = EXCLUDED.base_corrected_turns,\n                          retired_at = COALESCE(memory.skill_live_outcomes.retired_at, EXCLUDED.retired_at),\n                          retired_reason = COALESCE(memory.skill_live_outcomes.retired_reason, EXCLUDED.retired_reason),\n                          measured_at = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c972bd3249b0455c1e416b5e2360bed83de53ed3b0b32b781b0071071d131e25"
+}

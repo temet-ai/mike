@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"total!\"\n  FROM (\n        SELECT 1\n          FROM tools.uses tu\n         WHERE ($1::timestamptz IS NULL OR tu.created_at >= $1)\n           AND ($2::text IS NULL OR tu.tool_name = $2)\n           AND ($3::text IS NULL OR EXISTS (\n                 SELECT 1\n                   FROM requests.requests rq\n                   JOIN projects.projects p ON p.id = rq.project_id\n                  WHERE rq.id = tu.request_id\n                    AND p.project_path = $3))\n           AND ($4::text IS NULL OR tu.session_id = (SELECT x.id FROM sessions.sessions x\n                                                       WHERE x.session_uuid = sessions.try_uuid($4)))\n           AND (NOT $5::boolean OR tu.id IN (SELECT r.tool_use_id FROM tools.results r WHERE r.is_error))\n         LIMIT $6\n       ) capped\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "total!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Text",
+        "Bool",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "1b36bb2cd756a820c0f956d96b186fa55a4bcc9e06a139789b9ce7b0c4047505"
+}

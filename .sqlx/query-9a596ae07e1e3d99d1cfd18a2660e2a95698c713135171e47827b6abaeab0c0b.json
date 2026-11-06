@@ -1,0 +1,184 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT pc.id, pc.uuid, pc.prompt_sha256 AS \"prompt_sha256!\",\n                          pc.label, pc.blocks, m.code AS \"mode!\", pc.lane,\n                          pc.notes, pc.agent_id AS \"agent_id?\", pc.agent_name,\n                          pc.agent_definition_path, pc.version, pc.created_at, pc.updated_at\n                     FROM overrides.overrides pc\n                     JOIN overrides.modes m ON m.id = pc.mode_id\n                    WHERE pc.agent_id = ANY($1)\n                    ORDER BY pc.agent_id, pc.created_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "prompt_sha256!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "prompt_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "label"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "blocks",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "blocks"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "mode!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.modes",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "lane",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "lane"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "notes",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "notes"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "agent_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "agent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "agent_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "agent_name"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "agent_definition_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "agent_definition_path"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "version",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "version"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "9a596ae07e1e3d99d1cfd18a2660e2a95698c713135171e47827b6abaeab0c0b"
+}

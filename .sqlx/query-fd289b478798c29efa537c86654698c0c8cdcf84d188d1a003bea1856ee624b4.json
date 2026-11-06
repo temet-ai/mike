@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT identity AS \"identity!: Json<RuntimeNamespace>\"\n                 FROM runtime.namespaces WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "identity!: Json<RuntimeNamespace>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "runtime.namespaces",
+            "name": "identity"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "fd289b478798c29efa537c86654698c0c8cdcf84d188d1a003bea1856ee624b4"
+}

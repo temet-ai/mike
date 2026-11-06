@@ -1,0 +1,34 @@
+name: Candidate source gates
+
+# Explicit opt-in only. Select the candidate branch/tag as the dispatch ref;
+# every local reusable workflow and checkout resolves to that same commit.
+# Local entrypoints
+# and the distinction between routing checks and execution are documented in
+# docs/RELEASE_SOURCE_GATES.md.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: candidate-source-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Offline source-gate contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Source routing and audit failure regressions
+        run: >-
+          python3 -m unittest discover -s scripts/tests -p 'test_source_gate_routing.py' -v
+          && python3 -m unittest discover -s scripts/tests -p 'test_frontend_audit.py' -v
+  rust:
+    uses: ./.github/workflows/rust-quality.yml
+  frontend:
+    uses: ./.github/workflows/storybook.yml
+  e2e:
+    uses: ./.github/workflows/e2e.yml

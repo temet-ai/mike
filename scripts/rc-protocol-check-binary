@@ -1,0 +1,525 @@
+#!/usr/bin/env bash
+# rc-protocol-check-binary — first of two independent Remote Control protocol
+# drift checks (mike#236). Asserts that the wire shapes mike's Remote Control
+# support depends on are still present in the installed Claude Code binaries,
+# and records which version each assertion last passed against so an
+# unnoticed client upgrade is itself detectable.
+#
+# Why this exists: the whole remote-control-push-wake milestone is built on a
+# private Anthropic protocol read out of a compiled Claude Code binary
+# (strings, no public spec). It can change with no changelog. This script is
+# one of the two checks that turn a silent break into a loud, named one — see
+# scripts/rc-protocol-check-capture for the other (live-traffic) half. Both
+# follow the house pattern in scripts/fidelity-check and
+# scripts/test-commit-gates: a check that cannot run says so and never
+# silently passes, and every failure names exactly what moved.
+#
+# What "the binary" means here is not one path. Claude Code updates itself,
+# so several terminal-CLI versions can sit side by side under
+# ~/.local/share/claude/versions/ (the self-updater layout on macOS), the
+# desktop app (Claude.app) carries its own separate copy under
+# ~/Library/Application Support/Claude/claude-code/ that lags the terminal by
+# design, and a mise-managed install (the Arch layout) keeps one directory per
+# version under ~/.local/share/mise/installs/claude/, with "latest" and
+# partial-version names as symlinks. A claude on PATH is resolved through its
+# symlinks too. This script checks every distinct binary it finds in all of
+# those places rather than guessing which one is "active" — an unnoticed
+# upgrade in any of them is exactly the failure mode this script exists to
+# catch. A binary reachable through several names is checked once.
+#
+# Usage:
+#   rc-protocol-check-binary [--no-record] [PATH ...]
+#   rc-protocol-check-binary --self-test
+#
+#   PATH ...      Optional explicit binary paths to check instead of (or in
+#                 addition to) auto-discovery. Each is labelled "explicit".
+#   --no-record   Run the assertion battery and print results, but do not
+#                 write to the state file (dry run).
+#   --self-test   Prove the check can fail: builds a synthetic "binary" that
+#                 carries every expected string, then a mutated copy with one
+#                 field renamed and one field dropped, and asserts the first
+#                 reports zero missing assertions while the second names
+#                 exactly the two that moved. Touches no real state.
+#
+# Discovery paths (overridable):
+#   CLAUDE_VERSIONS_DIR      default ~/.local/share/claude/versions
+#   CLAUDE_DESKTOP_CODE_DIR  default ~/Library/Application Support/Claude/claude-code
+#   CLAUDE_MISE_DIR          default ${MISE_DATA_DIR:-~/.local/share/mise}/installs/claude
+#   PATH                     the first claude on PATH, resolved through symlinks
+#
+# State: scripts/rc-protocol-state/binary-last-verified.json, git-tracked so
+# its history is the audit trail of which version each assertion last passed
+# against. Every run also compares the newest currently-installed version per
+# location against the newest version recorded last time and prints a
+# VERSION CHANGE line when they differ — independent of whether the new
+# version's assertions pass, because detecting the move is the point.
+#
+# Exit codes (honest — never masked):
+#   0  every discovered binary passed every assertion
+#   1  at least one assertion failed against at least one binary (drift found,
+#      named)
+#   2  NOT RUN — no Claude Code binary could be found to check, or a usage
+#      error; never conflated with 0
+set -uo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" || exit $?
+repo_root="$(git -C "$script_dir" rev-parse --show-toplevel)" || exit $?
+cd "$repo_root" || exit 1
+
+state_file="scripts/rc-protocol-state/binary-last-verified.json"
+
+usage() {
+    sed -n '2,55p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+# The wire shapes mike depends on (issue #236's table), one per line as
+# id|substring|description|confidence. `strings` over a Bun-compiled binary
+# recovers object-literal keys and template-literal text as plain substrings
+# regardless of how long a "line" strings groups them into, so a plain
+# fixed-string search is the right tool — no need to anchor on JS syntax that
+# a minifier is free to reshuffle. The two envelope_anchor rows are whole
+# log-message substrings (verified against Claude Code 2.1.259's
+# SessionsV2Client and SSETransport classes) that tie client_event to
+# payload.type / event_id in one string, so they catch a field rename that
+# the single-token checks below them might individually miss if the renamed
+# field happens to collide with another common word elsewhere in the binary.
+# envelope_anchor_sse_event_link_1 and _2 are the same idea for the
+# per-frame log line in SSETransport, which spells out sequence_num,
+# event_id and event_type together in one template literal — added
+# 2026-09-08 to replace the two single-token checks below it as the real
+# evidence for those two field names, which remain in the table
+# individually only because their own absence is still informative on its
+# own. The literal reads (2.1.263) `SSETransport: Event seq=${r.sequence_num}
+# event_id=${r.event_id} event_type=${r.event_type} payload_type=...`, but
+# the single letter naming the object (`r` here) is chosen fresh by the
+# minifier on every build — 2.1.260's copy of the identical line spells it
+# `${n.sequence_num} event_id=${n.event_id} event_type=${n.event_type}`, one
+# letter different, same shape. A substring that quotes that letter is
+# false-brittle: it reports drift on a build where nothing about the
+# protocol moved. So each of these two rows starts its match right after
+# the object reference (`.sequence_num} event_id=${`, `.event_id}
+# event_type=${`) and never includes the letter itself, verified absent
+# from both 2.1.260 (`n`) and 2.1.263 (`r`) — `grep -F` against `strings`
+# output for each still returns exactly one hit in each binary, so the
+# match stays specific to this one log line, not merely letter-independent.
+#
+# confidence is "strong" when the substring only appears in Remote-Control-
+# specific code, so its presence is real evidence the shape is unchanged, or
+# "weak" when strings(1) also finds it in unrelated code, so its presence
+# alone does not prove the Remote Control shape survived — only its ABSENCE
+# is informative. Two rows are weak, both re-verified against 2.1.263 on
+# 2026-09-08: frame_field_event_id and frame_field_event_type (both also
+# appear in unrelated feedback-survey and experiment telemetry code, and
+# neither has a combined literal of its own the way sequence_num does via
+# envelope_anchor_sse_event_link_1/_2 — those two combined literals are what
+# actually carry the discriminating weight for both field names now).
+# session_host and status_value_idle were weak until 2026-09-08 and are now
+# strong: session_host's pattern moved from the bare host string
+# "api.anthropic.com" (which is every Anthropic API call, not just Remote
+# Control) to the full user-facing message "Remote Control is only
+# available when using Claude via api.anthropic.com.", which names Remote
+# Control and the host together; status_value_idle's pattern moved from the
+# bare word "idle" (which also appears as a certificate-revocation rescan
+# state, an auth-race state and an unrelated busy/shell/idle enum) to the
+# three-value enum literal ["idle","running","requires_action"] from the
+# client's own session-state schema, which is also the observed-status-set
+# assertion this check now carries — the same three values live capture
+# shows, so a fourth value appearing in either the client or live traffic
+# is drift by construction. A weak row still counts toward "missing" if its
+# substring vanishes entirely, which is real signal; it just cannot alone
+# prove a shape present elsewhere in the binary is the Remote Control one.
+# The report below counts strong and weak separately so a reader is not
+# misled about how much of the total is genuinely discriminating.
+ASSERTIONS_TABLE='session_url_prefix|/v1/code/sessions/|session URL path prefix|strong
+session_host|Remote Control is only available when using Claude via api.anthropic.com.|the user-facing message binding api.anthropic.com to Remote Control by name|strong
+inbound_stream_path|worker/events/stream|inbound event stream path|strong
+heartbeat_path|worker/heartbeat|heartbeat POST path|strong
+worker_status_field|worker_status|session-state field name|strong
+status_value_idle|["idle","running","requires_action"]|worker_status enum literal binding all three observed status values together|strong
+status_value_requires_action|requires_action|requires_action status value literal|strong
+frame_event_client_event|client_event|client_event frame type name|strong
+frame_field_sequence_num|sequence_num|sequence_num frame field name|strong
+frame_field_event_id|event_id|event_id frame field name|weak
+frame_field_event_type|event_type|event_type frame field name|weak
+frame_field_payload_type|payload.type|payload.type frame field name|strong
+envelope_anchor_sessionsv2|Dropping client_event with no payload.type|SessionsV2Client frame-drop message binding client_event to payload.type|strong
+envelope_anchor_ssetransport|client_event with no type in payload: event_id=|SSETransport frame-drop message binding client_event to event_id|strong
+envelope_anchor_sse_event_link_1|.sequence_num} event_id=${|SSETransport per-frame log line binding sequence_num to event_id, minifier-object-letter-independent|strong
+envelope_anchor_sse_event_link_2|.event_id} event_type=${|SSETransport per-frame log line binding event_id to event_type, minifier-object-letter-independent|strong
+heartbeat_probe_event|ephemeral_event|heartbeat probe frame type name|strong
+server_only_workflow_launch|workflow_launch|server-authored-only event type|strong
+server_only_queued_notification|queued_notification|server-authored-only event type|strong
+server_only_session_notice|session_notice|server-authored-only event type|strong
+heartbeat_body_worker_epoch|worker_epoch|heartbeat body field|strong
+heartbeat_body_supports_probe|supports_heartbeat_probe|heartbeat body field|strong
+heartbeat_body_interval|current_interval_seconds|heartbeat body field|strong
+heartbeat_body_idle_seconds|idle_seconds|heartbeat body field|strong
+work_item_bash_launch|Command running in background with ID: |background Bash launch result the work-item registry parses|strong
+work_item_bash_output|Output is being written to: |background Bash output path marker the work-item registry parses|strong
+work_item_agent_launch|Async agent launched successfully.|async Agent dispatch result the work-item registry parses|strong
+work_item_agent_output|output_file: |async Agent output file marker the work-item registry parses|weak
+work_item_notification_open|<task-notification>|task-notification block the work-item registry parses for completion|strong
+work_item_notification_close|</task-notification>|task-notification closing tag|strong
+work_item_notification_tool_use|tool-use-id|task-notification tag joining a completion to its launch|weak
+work_item_notification_exit|(exit code |exit code marker in the completion summary of a background command|weak
+class_sessions_v2_client|SessionsV2Client|Remote Control session client class identity|strong
+class_sse_transport|SSETransport|SSE transport class identity|strong'
+
+# run_battery <strings_file> — sets BATTERY_MISSING (array of
+# "id|pattern|desc|confidence") for every assertion whose pattern is absent
+# from strings_file. Empty means every assertion passed.
+run_battery() {
+    local strings_file="$1"
+    BATTERY_MISSING=()
+    local id pattern desc confidence
+    while IFS='|' read -r id pattern desc confidence; do
+        [[ -z "$id" ]] && continue
+        if ! grep -F -q -- "$pattern" "$strings_file"; then
+            BATTERY_MISSING+=("$id|$pattern|$desc|$confidence")
+        fi
+    done <<<"$ASSERTIONS_TABLE"
+}
+
+assertion_count() {
+    printf '%s\n' "$ASSERTIONS_TABLE" | grep -c '|'
+}
+
+# strong_assertion_count — how many of the total are "strong" (see the
+# confidence note above the table). Everything else is weak.
+strong_assertion_count() {
+    printf '%s\n' "$ASSERTIONS_TABLE" | awk -F'|' '$4=="strong"{n++} END{print n+0}'
+}
+
+# --- self-test: prove the check can fail, and fail precisely -------------
+self_test() {
+    if ! command -v strings >/dev/null 2>&1; then
+        echo "NOTRUN self-test: 'strings' not on PATH"
+        return 2
+    fi
+    local tmp good bad
+    tmp="$(mktemp -d)" || return 1
+    good="$tmp/good.bin"
+    bad="$tmp/bad.bin"
+    : >"$good"
+    local id pattern desc confidence
+    while IFS='|' read -r id pattern desc confidence; do
+        [[ -z "$id" ]] && continue
+        printf '%s\n' "$pattern" >>"$good"
+    done <<<"$ASSERTIONS_TABLE"
+    cp "$good" "$bad"
+    # Simulate the exact failure mode this milestone was built to catch: the
+    # client renames one frame field and silently drops another, with no
+    # error anywhere. The substitution runs over every occurrence in the
+    # whole fixture, not just the line holding that assertion's own pattern,
+    # because a real rename in the client's source changes every place that
+    # identifier appears — including inside the two envelope_anchor_sse_
+    # event_link combined literals, which quote sequence_num/event_id and
+    # event_id/event_type verbatim (see the header comment). A rename that
+    # only touched one isolated line would under-test: it would miss that
+    # this check's own combined-literal assertions are supposed to catch the
+    # same drift a second, independent way. sed -i differs BSD vs GNU; try
+    # both.
+    sed -i '' 's/sequence_num/sequenceNumber/g' "$bad" 2>/dev/null \
+        || sed -i 's/sequence_num/sequenceNumber/g' "$bad"
+    sed -i '' 's/event_type//g' "$bad" 2>/dev/null \
+        || sed -i 's/event_type//g' "$bad"
+
+    local st_pass=0 st_fail=0
+    local total; total="$(assertion_count)"
+
+    run_battery "$good"
+    if [[ ${#BATTERY_MISSING[@]} -eq 0 ]]; then
+        echo "  PASS  self-test: an intact contract ($total/$total) reports zero missing assertions"
+        st_pass=$((st_pass + 1))
+    else
+        echo "  FAIL  self-test: an intact contract unexpectedly reported missing assertions: ${BATTERY_MISSING[*]}"
+        st_fail=$((st_fail + 1))
+    fi
+
+    run_battery "$bad"
+    local names=""
+    local m
+    for m in "${BATTERY_MISSING[@]}"; do
+        names+="${m%%|*} "
+    done
+    if [[ "$names" == *"frame_field_sequence_num"* && "$names" == *"frame_field_event_type"* \
+        && "$names" == *"envelope_anchor_sse_event_link_1"* && "$names" == *"envelope_anchor_sse_event_link_2"* \
+        && ${#BATTERY_MISSING[@]} -eq 4 ]]; then
+        echo "  PASS  self-test: a renamed field (sequence_num->sequenceNumber) and a dropped field (event_type) are caught and named exactly, including both combined SSETransport literals that quote them: $names"
+        st_pass=$((st_pass + 1))
+    else
+        echo "  FAIL  self-test: expected exactly frame_field_sequence_num, frame_field_event_type, envelope_anchor_sse_event_link_1 and envelope_anchor_sse_event_link_2 missing, got: ${names:-none}"
+        st_fail=$((st_fail + 1))
+    fi
+
+    rm -rf "$tmp"
+    echo "self-test: passed=$st_pass failed=$st_fail"
+    [[ "$st_fail" -eq 0 ]]
+}
+
+# --- discovery -------------------------------------------------------------
+terminal_dir="${CLAUDE_VERSIONS_DIR:-$HOME/.local/share/claude/versions}"
+desktop_dir="${CLAUDE_DESKTOP_CODE_DIR:-$HOME/Library/Application Support/Claude/claude-code}"
+mise_dir="${CLAUDE_MISE_DIR:-${MISE_DATA_DIR:-$HOME/.local/share/mise}/installs/claude}"
+
+real_path() {
+    [[ -n "$1" ]] || return 1
+    local resolved
+    resolved="$(readlink -f -- "$1" 2>/dev/null)"
+    if [[ -z "$resolved" ]]; then
+        resolved="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$1" 2>/dev/null)"
+    fi
+    [[ -n "$resolved" ]] && printf '%s\n' "$resolved"
+}
+
+version_of_real_path() {
+    local parent
+    parent="$(basename "$(dirname "$1")")"
+    if [[ "$parent" =~ ^[0-9]+(\.[0-9]+)+$ ]]; then
+        printf '%s\n' "$parent"
+    else
+        basename "$1"
+    fi
+}
+
+looks_like_claude_binary() {
+    local name
+    name="$(basename "$1")"
+    [[ "$name" == "claude" || "$name" =~ ^[0-9]+(\.[0-9]+)+$ ]]
+}
+
+discover() {
+    local seen=$'\n'
+
+    emit_once() {
+        local slot="$1" ver="$2" shown="$3" real
+        real="$(real_path "$shown")" || return 0
+        [[ -f "$real" ]] || return 0
+        case "$seen" in
+            *$'\n'"$real"$'\n'*) return 0 ;;
+        esac
+        seen+="$real"$'\n'
+        printf '%s\t%s\t%s\n' "$slot" "$ver" "$shown"
+    }
+
+    if [[ -d "$terminal_dir" ]]; then
+        local f
+        for f in "$terminal_dir"/*; do
+            [[ -f "$f" ]] || continue
+            emit_once terminal "$(basename "$f")" "$f"
+        done
+    fi
+    if [[ -d "$desktop_dir" ]]; then
+        local vdir bin
+        for vdir in "$desktop_dir"/*; do
+            [[ -d "$vdir" ]] || continue
+            bin="$vdir/claude.app/Contents/MacOS/claude"
+            [[ -f "$bin" ]] || continue
+            emit_once desktop "$(basename "$vdir")" "$bin"
+        done
+    fi
+    if [[ -d "$mise_dir" ]]; then
+        local entry candidate real
+        for entry in "$mise_dir"/*; do
+            for candidate in "$entry/claude" "$entry/bin/claude"; do
+                [[ -f "$candidate" ]] || continue
+                real="$(real_path "$candidate")" || continue
+                emit_once mise "$(version_of_real_path "$real")" "$real"
+                break
+            done
+        done
+    fi
+    local on_path real_on_path
+    on_path="$(type -P claude 2>/dev/null)"
+    if [[ -n "$on_path" ]]; then
+        real_on_path="$(real_path "$on_path")" || real_on_path=""
+        if [[ "$(basename "$real_on_path")" == "mise" ]] && command -v mise >/dev/null 2>&1; then
+            real_on_path="$(real_path "$(mise which claude 2>/dev/null)")" || real_on_path=""
+        fi
+        if [[ -n "$real_on_path" ]] && looks_like_claude_binary "$real_on_path"; then
+            emit_once path "$(version_of_real_path "$real_on_path")" "$real_on_path"
+        fi
+    fi
+}
+
+source "${script_dir}/lib/sha256.sh"
+
+sha256_of() {
+    sha256 < "$1"
+}
+
+# --- arg parsing -------------------------------------------------------------
+do_self_test=0
+no_record=0
+explicit_paths=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --self-test) do_self_test=1; shift ;;
+        --no-record) no_record=1; shift ;;
+        -h|--help) usage; exit 0 ;;
+        -*)
+            echo "rc-protocol-check-binary: unknown option: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+        *) explicit_paths+=("$1"); shift ;;
+    esac
+done
+
+if [[ "$do_self_test" -eq 1 ]]; then
+    self_test
+    exit $?
+fi
+
+if ! command -v strings >/dev/null 2>&1; then
+    echo "NOT RUN: 'strings' is not on PATH — cannot inspect any binary" >&2
+    exit 2
+fi
+
+mapfile -t discovered < <(discover)
+
+if [[ ${#discovered[@]} -eq 0 && ${#explicit_paths[@]} -eq 0 ]]; then
+    echo "NOT RUN: no installed Claude Code binary found."
+    echo "  terminal: $terminal_dir (checked, ${terminal_dir:+not present or empty})"
+    echo "  desktop:  $desktop_dir (checked, ${desktop_dir:+not present or empty})"
+    echo "  mise:     $mise_dir (checked, ${mise_dir:+not present or empty})"
+    echo "  PATH:     no claude executable resolved"
+    echo "Set CLAUDE_VERSIONS_DIR / CLAUDE_DESKTOP_CODE_DIR / CLAUDE_MISE_DIR to override, put claude on PATH, or pass explicit binary paths."
+    exit 2
+fi
+
+for p in "${explicit_paths[@]}"; do
+    if [[ ! -f "$p" ]]; then
+        echo "rc-protocol-check-binary: no such file: $p" >&2
+        exit 2
+    fi
+    discovered+=("explicit	$(basename "$p")	$p")
+done
+
+total="$(assertion_count)"
+strong_total="$(strong_assertion_count)"
+weak_total="$((total - strong_total))"
+weak_names="$(printf '%s\n' "$ASSERTIONS_TABLE" | awk -F'|' '$4=="weak"{printf "%s%s", sep, $1; sep=", "}')"
+echo "$weak_total of $total assertions are weak (match text that also appears outside Remote Control code, per the header comment): $weak_names. Their presence is not proof on its own; their absence still is."
+results_file="$(mktemp)" || exit 1
+trap 'rm -f "$results_file" "${strings_tmp:-}"' EXIT
+
+overall_fail=0
+binaries_checked=0
+binaries_passed=0
+checked_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+for entry in "${discovered[@]}"; do
+    IFS=$'\t' read -r slot ver path <<<"$entry"
+    binaries_checked=$((binaries_checked + 1))
+    strings_tmp="$(mktemp)"
+    strings "$path" >"$strings_tmp" 2>/dev/null
+    run_battery "$strings_tmp"
+    sha="$(sha256_of "$path")"
+
+    if [[ ${#BATTERY_MISSING[@]} -eq 0 ]]; then
+        echo "PASS  $slot $ver  ($total/$total shape assertions present: $strong_total strong, $weak_total weak)  $path"
+        binaries_passed=$((binaries_passed + 1))
+        printf '%s\t%s\t%s\t%s\ttrue\t%s\t\n' "$slot" "$ver" "$path" "$sha" "$checked_at" >>"$results_file"
+    else
+        echo "FAIL  $slot $ver  (${#BATTERY_MISSING[@]}/$total shape assertions missing)  $path"
+        m_ids=""
+        for m in "${BATTERY_MISSING[@]}"; do
+            IFS='|' read -r mid mpattern mdesc mconfidence <<<"$m"
+            echo "   MISSING  $mid [$mconfidence]  -- $mdesc  (expected substring: '$mpattern')"
+            m_ids+="${mid},"
+        done
+        overall_fail=1
+        printf '%s\t%s\t%s\t%s\tfalse\t%s\t%s\n' "$slot" "$ver" "$path" "$sha" "$checked_at" "${m_ids%,}" >>"$results_file"
+    fi
+    rm -f "$strings_tmp"
+    strings_tmp=""
+done
+
+echo "────────────────────────────────────────"
+printf 'binaries_checked=%d passed=%d failed=%d\n' "$binaries_checked" "$binaries_passed" "$((binaries_checked - binaries_passed))"
+
+if [[ "$no_record" -eq 1 ]]; then
+    echo "(--no-record: state file not updated)"
+    [[ "$overall_fail" -eq 0 ]] && exit 0 || exit 1
+fi
+
+mkdir -p "$(dirname "$state_file")"
+python3 - "$state_file" "$results_file" <<'PYEOF'
+import json, sys
+
+state_path, results_path = sys.argv[1], sys.argv[2]
+
+try:
+    with open(state_path, encoding="utf-8") as fh:
+        state = json.load(fh)
+except (FileNotFoundError, json.JSONDecodeError):
+    state = {}
+entries = state.setdefault("entries", {})
+latest_seen = state.setdefault("latest_seen", {})
+evicted_noticed = state.setdefault("evicted_noticed", {})
+
+
+def ver_tuple(v):
+    try:
+        return tuple(int(x) for x in v.split("."))
+    except ValueError:
+        return (0,)
+
+
+with open(results_path, encoding="utf-8") as fh:
+    rows = [line.rstrip("\n").split("\t") for line in fh if line.strip()]
+
+# Snapshot which (slot, version) pairs were passing BEFORE this run touches
+# entries, so an install that silently disappeared between runs — Claude
+# Code updating itself and evicting an old version, exactly the failure mode
+# issue #236 exists to catch — can be told apart from one that was simply
+# never checked.
+prior_passing_by_slot = {}
+for key, rec in entries.items():
+    if rec.get("passed") and rec.get("slot") != "explicit":
+        prior_passing_by_slot.setdefault(rec["slot"], set()).add(rec["version"])
+
+changed_slots = []
+current_by_slot = {}
+for slot, ver, path, sha, passed, checked_at, missing in rows:
+    key = f"{slot}:{ver}"
+    prev = entries.get(key)
+    entries[key] = {
+        "slot": slot,
+        "version": ver,
+        "path": path,
+        "sha256": sha,
+        "passed": passed == "true",
+        "checked_at": checked_at,
+        "missing_assertions": missing.split(",") if missing else [],
+    }
+    if slot == "explicit":
+        continue
+    current_by_slot.setdefault(slot, set()).add(ver)
+    prev_latest = latest_seen.get(slot)
+    if prev_latest is None:
+        latest_seen[slot] = ver
+    elif ver_tuple(ver) > ver_tuple(prev_latest):
+        changed_slots.append((slot, prev_latest, ver))
+        latest_seen[slot] = ver
+
+evicted = []
+for slot, prior_versions in prior_passing_by_slot.items():
+    for ver in sorted(prior_versions - current_by_slot.get(slot, set())):
+        evict_key = f"{slot}:{ver}"
+        if evict_key not in evicted_noticed:
+            evicted.append((slot, ver))
+            evicted_noticed[evict_key] = checked_at if rows else None
+
+with open(state_path, "w", encoding="utf-8") as fh:
+    json.dump(state, fh, indent=2, sort_keys=True)
+    fh.write("\n")
+
+for slot, old, new in changed_slots:
+    print(f"VERSION CHANGE: {slot} latest verified was {old}, now {new}")
+for slot, ver in evicted:
+    print(f"VERSION EVICTED: {slot} {ver} was last verified passing and is no longer installed on this machine")
+PYEOF
+
+[[ "$overall_fail" -eq 0 ]] && exit 0 || exit 1

@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*)::bigint AS \"count!\"\n   FROM session_judges.verdicts v\n   JOIN memory.operator_turns t ON t.id = v.end_turn_id\n  WHERE v.mode = 'live' AND v.bundle_id = $1\n    AND v.judged_at >= date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'\n    AND t.closed_at >= $2 AND t.closed_at < $3\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "b9a92d23fe660588d9af724cfeda3020932b8cb5d9aabbbc1a68add14ca7e186"
+}

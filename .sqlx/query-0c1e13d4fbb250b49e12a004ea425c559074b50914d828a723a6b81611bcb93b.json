@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO runtime.events\n             (namespace_id, ingestion_id, provider_thread_id, envelope, raw_payload, parsed_payload)\n             VALUES ($1, $2, $3, $4::text::json, $5, $6::text::json)\n             ON CONFLICT (namespace_id, ingestion_id) DO NOTHING RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.events",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Bytea",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0c1e13d4fbb250b49e12a004ea425c559074b50914d828a723a6b81611bcb93b"
+}

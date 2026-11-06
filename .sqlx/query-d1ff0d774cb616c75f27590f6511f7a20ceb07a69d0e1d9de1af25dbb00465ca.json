@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO steering.enrolments\n                       (session_id, steerer_id, mode_id, authority_id, enrolled_by)\n                   SELECT s.id, $2, m.id, a.id, $5\n                     FROM sessions.sessions    s,\n                          steering.modes       m,\n                          steering.authorities a\n                    WHERE s.session_uuid = $1\n                      AND m.code         = $3\n                      AND a.code         = $4\n                   RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.enrolments",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d1ff0d774cb616c75f27590f6511f7a20ceb07a69d0e1d9de1af25dbb00465ca"
+}

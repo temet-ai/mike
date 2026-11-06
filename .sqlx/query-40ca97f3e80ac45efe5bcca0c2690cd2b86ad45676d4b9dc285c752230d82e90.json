@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT alternate.alias AS \"alias!\", a.id AS \"agent_id!\",\n                          alternate.kind AS \"kind!\"\n                     FROM agents.agents a\n                     CROSS JOIN LATERAL (\n                         SELECT p.alias, 'persona'::text AS kind\n                           FROM UNNEST(a.persona_aliases) AS p(alias)\n                         UNION ALL\n                         SELECT n.alias, 'name_variant'::text AS kind\n                           FROM UNNEST(a.name_variants) AS n(alias)\n                     ) alternate\n                    ORDER BY a.id, alternate.alias",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "alias!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "agent_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      false,
+      null
+    ]
+  },
+  "hash": "40ca97f3e80ac45efe5bcca0c2690cd2b86ad45676d4b9dc285c752230d82e90"
+}

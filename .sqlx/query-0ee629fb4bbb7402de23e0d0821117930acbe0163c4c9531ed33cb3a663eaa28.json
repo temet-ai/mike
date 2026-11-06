@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*)::bigint AS \"n!\"\n                     FROM memory.operator_turns\n                    WHERE closed_at   IS NOT NULL\n                      AND embedded_at IS NULL\n                      AND (opened_by IS NULL OR opened_by = 'operator')",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "n!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "0ee629fb4bbb7402de23e0d0821117930acbe0163c4c9531ed33cb3a663eaa28"
+}

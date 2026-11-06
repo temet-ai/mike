@@ -1,0 +1,59 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT p.project_uuid AS \"project_uuid!\", p.project_path AS \"project_path!\",\n                          coalesce(p.custom_name, p.display_name) AS \"display_name!\",\n                          count(*) AS \"proposals!\",\n                          count(*) FILTER (WHERE r.lesson_id IS NULL) AS \"undecided!\"\n                     FROM memory.lessons l\n                     JOIN memory.lesson_placements pl ON pl.id = l.placement_id\n                     JOIN projects.projects p ON p.id = l.project_id\n                     LEFT JOIN memory.lesson_placement_reviews r ON r.lesson_id = l.id\n                    WHERE pl.code IN ('rule', 'agent') AND l.archived_at IS NULL\n                    GROUP BY p.id\n                    ORDER BY p.project_path, p.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "project_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_path!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "display_name!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "proposals!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "undecided!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "3c609193d8d5309496be7296f8485288b93be44e3852da013f9eea7372b3701a"
+}

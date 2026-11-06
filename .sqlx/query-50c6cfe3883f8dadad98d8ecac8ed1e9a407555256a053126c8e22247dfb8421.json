@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT coalesce(sum(cost_usd), 0)::float8 AS \"spend!\" FROM llm.calls\n                    WHERE role = 'eval' AND created_at >= date_trunc('day', now() AT TIME ZONE 'utc')",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "spend!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "50c6cfe3883f8dadad98d8ecac8ed1e9a407555256a053126c8e22247dfb8421"
+}

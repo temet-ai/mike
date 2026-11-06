@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT sent_at AS \"sent_at?\" FROM mailbox.messages WHERE message_uuid = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "sent_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "sent_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "7075621d163f3221b359ae645f7d93ea478caebad559c106ba42ac8e6f73ed02"
+}

@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT goal AS \"goal!\", next_steps AS \"next_steps?\", role AS \"role?\"\n                     FROM sessions.session_goals\n                    WHERE session_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "goal!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "goal"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "next_steps?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "next_steps"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "role?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "role"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "4676dac4b26aa358d22139200983c6acacd19ac9f55f5e357884638f0c50d16a"
+}

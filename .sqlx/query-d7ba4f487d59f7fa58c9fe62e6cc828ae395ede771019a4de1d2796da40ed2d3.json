@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE projects.projects SET pinned = true\n         WHERE id IN (\n             SELECT project_id FROM sessions.sessions WHERE session_uuid = $1::text::uuid\n         )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d7ba4f487d59f7fa58c9fe62e6cc828ae395ede771019a4de1d2796da40ed2d3"
+}

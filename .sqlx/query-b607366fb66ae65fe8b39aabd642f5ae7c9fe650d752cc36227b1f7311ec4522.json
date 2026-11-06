@@ -1,0 +1,63 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH blk AS (\n    SELECT r.operator_turn_id AS turn_id, b.request_id, b.seq_ord, o.code AS origin,\n           COALESCE(char_length(b.content), 0) AS n,\n           sum(COALESCE(char_length(b.content), 0)) OVER w AS end_off,\n           row_number() OVER (PARTITION BY r.operator_turn_id\n                              ORDER BY b.request_id DESC, b.seq_ord DESC) AS rn_desc,\n           CASE WHEN o.code = lag(o.code) OVER w THEN 0 ELSE 1 END AS run_start\n      FROM requests.requests r\n      JOIN responses.stream_blocks b ON b.request_id = r.id\n      JOIN responses.stream_block_types bt ON bt.id = b.block_type_id AND bt.code = 'text'\n      JOIN requests.turn_origins o ON o.id = r.turn_origin_id\n     WHERE r.operator_turn_id = ANY($1)\n    WINDOW w AS (PARTITION BY r.operator_turn_id ORDER BY b.request_id, b.seq_ord)\n), runs AS (\n    SELECT blk.turn_id, blk.request_id, blk.seq_ord, blk.origin, blk.n, blk.end_off, blk.rn_desc, blk.run_start,\n           sum(run_start) OVER (PARTITION BY turn_id ORDER BY request_id, seq_ord) AS run_no\n      FROM blk\n), spans AS (\n    SELECT turn_id, run_no, origin,\n           min(end_off - n) AS start_off, max(end_off) AS end_off,\n           min(request_id) AS first_request_id, max(request_id) AS last_request_id\n      FROM runs\n     GROUP BY turn_id, run_no, origin\n), span_json AS (\n    SELECT turn_id,\n           jsonb_agg(jsonb_build_object(\n               'origin', origin, 'start', start_off, 'end', end_off,\n               'first_request_id', first_request_id, 'last_request_id', last_request_id\n           ) ORDER BY start_off) AS spans\n      FROM spans\n     GROUP BY turn_id\n), agg AS (\n    SELECT turn_id,\n           max(end_off) AS text_chars,\n           sum(n) FILTER (WHERE origin NOT LIKE '%sidecar') AS conversation_chars,\n           COALESCE(max(end_off) FILTER (WHERE origin NOT LIKE '%sidecar'), 0) AS text_cut_at,\n           max(origin) FILTER (WHERE rn_desc = 1) AS last_text_origin\n      FROM runs\n     GROUP BY turn_id\n)\nSELECT t.id AS turn_id,\n       COALESCE(agg.text_chars, 0)::int AS \"text_chars!\",\n       COALESCE(agg.text_cut_at, 0)::int AS \"text_cut_at!\",\n       agg.last_text_origin,\n       COALESCE(span_json.spans, '[]'::jsonb) AS \"text_spans!\",\n       (COALESCE(agg.conversation_chars, 0) = COALESCE(char_length(t.final_assistant_text), 0)) AS \"consistent!\"\n  FROM memory.operator_turns t\n  LEFT JOIN agg ON agg.turn_id = t.id\n  LEFT JOIN span_json ON span_json.turn_id = t.id\n WHERE t.id = ANY($1)\n ORDER BY t.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "text_chars!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "text_cut_at!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "last_text_origin",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "text_spans!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "consistent!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "b607366fb66ae65fe8b39aabd642f5ae7c9fe650d752cc36227b1f7311ec4522"
+}

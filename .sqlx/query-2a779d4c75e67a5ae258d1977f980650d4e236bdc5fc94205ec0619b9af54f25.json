@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT last_event_id\n  FROM workspace.change_places\n WHERE session_id = $1 AND checkout = $2\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "last_event_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_places",
+            "name": "last_event_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "2a779d4c75e67a5ae258d1977f980650d4e236bdc5fc94205ec0619b9af54f25"
+}

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# scripts/notices: writes THIRD-PARTY-NOTICES.md, the licences of everything a
+# mike release carries: the Rust crates of the default build (cargo-about,
+# about.toml). If the release also bundles JavaScript, add its section with
+# scripts/notices-npm.mjs over the bundler's metafile (see that file).
+# Release archives and the Homebrew formula carry the file.
+# Needs cargo-about (`cargo install cargo-about --locked --features cli`).
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+cd "$root"
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+cargo about generate --locked about.hbs -o "$work/rust.md"
+
+{
+    echo "# Third-party notices"
+    echo
+    echo "mike is MIT licensed (see LICENSE). A mike release also carries the"
+    echo "software below, each under its own licence, reproduced here."
+    echo
+    cat "$work/rust.md"
+} | tr -d "\r" > THIRD-PARTY-NOTICES.md
+echo "THIRD-PARTY-NOTICES.md: $(grep -c '^### ' THIRD-PARTY-NOTICES.md) entries"

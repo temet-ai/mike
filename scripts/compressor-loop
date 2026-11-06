@@ -1,0 +1,613 @@
+#!/usr/bin/env python3
+"""The file-read compressor's evaluate-and-adjust loop.
+
+Sessions are split into two arms by `file_read_compression.forward_share`: the forward arm
+is sent shortened requests, the control arm is not, and both record in every request's
+manifest what the compressor would cut and which arm the session is in. This script:
+
+1. Scores the arms over the window: input-equivalent cost per operator turn per session
+   (fresh 1, cache write 1.25, cache read 0.1, output 5), compared with a permutation test.
+   Subagent lanes are also scored by their total cost, in the report only.
+2. Measures harm per file type. For each read the compressor shortened (forward) or would
+   have shortened (control), it looks at the same session's later calls on that file:
+   a re-read, and an Edit whose anchor sits only in the lines the cut hides. The harm that
+   counts is the forward rate minus the control rate, since the control arm shows how often
+   sessions do that anyway.
+3. With --apply, acts on what it found, one rule each, each logged with its evidence:
+   - a file type whose excess harm is at or above HARM_LIMIT, with enough reads in both
+     arms, is added to `file_read_compression.protected_paths`;
+   - when the forward arm costs more per turn than the control (p < P_LIMIT, enough
+     sessions), `forward_share` goes to 0 and the loop stops widening;
+   - when it costs less and matching task/recovery evidence qualifies, widen while keeping a control arm.
+
+The shell-output reducer (`shell_output_compression`) has its own arms, assigned apart from the
+file-read ones. Its section scores the two arms the same way (cost per operator turn and per
+subagent lane) and counts, per arm, the cuts whose hidden lines held a distinctive token (path,
+Rust path, snake_case name, hash) that a later tool call in the same lane used. Its only
+decision is `stop`; shell output is never widened automatically.
+
+Writes latest.md and appends decisions.jsonl under ~/.local/state/mike/compressor-loop.
+Reads the capture database read-only; changes settings only through the inspect API.
+
+Usage: scripts/compressor-loop [--days N] [--apply] [--evidence qualification.json]
+Without --evidence it reads ~/.local/state/mike/compressor-loop/qualification.json if present.
+"""
+import collections
+import json
+import math
+import os
+import pathlib
+import random
+import re
+import shutil
+import statistics
+import subprocess
+import sys
+import urllib.request
+from compressor_eval.qualification import qualifies
+from compressor_eval.followups import analyze, lane
+from datetime import datetime, timedelta, timezone
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+STATE = pathlib.Path.home() / ".local/state/mike/compressor-loop"
+INSPECT = os.environ.get("MIKE_INSPECT_URL", "http://127.0.0.1:9989")
+WEIGHTS = {"fresh": 1.0, "cache_write": 1.25, "cache_read": 0.1, "output": 5.0}
+MIN_READS_PER_ARM = 30
+MIN_SESSIONS_PER_ARM = 40
+HARM_LIMIT = 0.03
+P_LIMIT = 0.1
+WIDE_SHARE = 90
+NUM = re.compile(r"^\s*(\d+)\t")
+KEPT = re.compile(r"^file (.+?): kept file lines (\d+)-(\d+) and (\d+)-(\d+)")
+SUPERSEDED = re.compile(r"^file (.+?): a later whole read")
+FILE_READ_STAGE = "file_read_compression"
+SHELL_STAGE = "shell_output_compression"
+SHELL_SHARE = SHELL_STAGE + ".forward_share"
+SHELL_KEPT = re.compile(r"^kept output lines (\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*)")
+NO_SHELL_ARMS = "Shell-output compression: no shell-output arms were recorded in the window."
+TOKEN_PATTERNS = [re.compile(p) for p in (
+    r"(?:[\w.@+-]+/)+[\w.@+-]+\.[A-Za-z]\w{0,5}(?::\d+)?",
+    r"\b[A-Za-z_]\w*(?:::[A-Za-z_]\w*)+\b",
+    r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+){2,}\b",
+    r"\b[0-9a-f]{8,40}\b")]
+MIN_TOKEN = 8
+FOLLOWUP_WINDOW = 1800
+SOURCE_BATCH = 500
+
+
+def run_sql(sql):
+    url = os.environ.get("MIKE_DATABASE_URL")
+    if not url and (ROOT / ".env").exists():
+        for line in (ROOT / ".env").read_text().splitlines():
+            if line.startswith("MIKE_DATABASE_URL="):
+                url = line.split("=", 1)[1].strip().strip('"')
+    options = "-c default_transaction_read_only=on -c statement_timeout=300000"
+    if shutil.which("psql") and url:
+        cmd, env = ["psql", url, "-X", "-qAt", "-v", "ON_ERROR_STOP=1"], dict(os.environ, PGOPTIONS=options)
+    else:
+        cmd = ["docker", "exec", "-i", "-e", f"PGOPTIONS={options}", "armitage-pg", "psql",
+               "-U", "devuser", "-d", "claude_proxy", "-X", "-qAt", "-v", "ON_ERROR_STOP=1"]
+        env = None
+    out = subprocess.run(cmd, input=f"SELECT row_to_json(a) FROM ({sql}) a;", text=True,
+                         capture_output=True, env=env)
+    if out.returncode:
+        sys.exit(f"query failed: {out.stderr.strip()}")
+    return [json.loads(line) for line in out.stdout.splitlines() if line]
+
+
+def stamp(value):
+    return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+
+
+def load_arms(start, stage=FILE_READ_STAGE):
+    cursor, until = datetime.fromisoformat(start.replace('Z', '+00:00')), datetime.now(timezone.utc)
+    observed = collections.defaultdict(set)
+    mixed = set()
+    while cursor < until:
+        end = min(cursor + timedelta(days=1), until)
+        rows = run_sql(f"""
+            SELECT q.session_id, min(st->'resolved_parameters'->>'arm') AS arm,
+                   CASE WHEN min(st->'resolved_parameters'->>'arm') = max(st->'resolved_parameters'->>'arm')
+                        THEN 1 ELSE 2 END AS observed_arms
+            FROM requests.requests q
+            CROSS JOIN LATERAL jsonb_array_elements(q.transformation_manifest->'stages') st
+            WHERE q.created_at >= '{cursor.isoformat()}' AND q.created_at < '{end.isoformat()}'
+              AND q.transformation_manifest IS NOT NULL
+              AND st->>'stage' = '{stage}'
+              AND st->'resolved_parameters' ? 'arm'
+            GROUP BY q.session_id""")
+        for row in rows:
+            observed[row['session_id']].add(row['arm'])
+            if row['observed_arms'] != 1:
+                mixed.add(row['session_id'])
+        cursor = end
+    mixed.update(sid for sid, arms in observed.items() if len(arms) != 1)
+    return {sid: next(iter(arms)) for sid, arms in observed.items() if sid not in mixed}, {'mixed_arm_sessions': len(mixed)}
+
+
+def load_cuts(start, ids, stage, reasons):
+    listed = ", ".join(f"'{r}'" for r in reasons)
+    return run_sql(f"""
+        WITH cut_rows AS MATERIALIZED (
+          SELECT q.session_id, q.agent_instance_id, q.claude_code_agent_id, o.code AS origin,
+                 q.created_at, t->>'tool_use_id' AS wire_id,
+                 t->>'reason_code' AS reason, t->>'detail' AS detail
+          FROM requests.requests q
+          JOIN requests.turn_origins o ON o.id = q.turn_origin_id
+          CROSS JOIN LATERAL jsonb_array_elements(q.transformation_manifest->'stages') st
+          CROSS JOIN LATERAL jsonb_array_elements(st->'targets') t
+          WHERE q.created_at >= '{start}' AND q.session_id IN ({ids})
+            AND st->>'stage' = '{stage}'
+            AND t->>'reason_code' IN ({listed})
+        )
+        SELECT DISTINCT ON (session_id, agent_instance_id, claude_code_agent_id, wire_id) *
+        FROM cut_rows ORDER BY session_id, agent_instance_id, claude_code_agent_id, wire_id, created_at""")
+
+
+def load_usage(start, ids):
+    cost, lanes = roll_up(run_sql(f"""
+        WITH billed AS MATERIALIZED (
+          SELECT q.session_id, q.agent_instance_id, q.claude_code_agent_id, o.code AS origin,
+                 CASE WHEN r.id IS NULL THEN NULL
+                      WHEN r.token_usage <> '{{}}'::jsonb THEN r.token_usage
+                      WHEN length(r.response_body) = 0 THEN NULL
+                      WHEN get_byte(r.response_body, 0) <> 123 THEN NULL
+                      WHEN NOT pg_input_is_valid(convert_from(r.response_body, 'UTF8'), 'jsonb') THEN NULL
+                      ELSE convert_from(r.response_body, 'UTF8')::jsonb->'usage' END AS u
+          FROM requests.requests q
+          JOIN requests.turn_origins o ON o.id = q.turn_origin_id
+          LEFT JOIN responses.responses r ON r.request_id = q.id
+          WHERE q.created_at >= '{start}' AND q.session_id IN ({ids})
+            AND q.path = '/v1/messages' AND (r.id IS NULL OR r.response_status = 200)
+        )
+        SELECT session_id, agent_instance_id, claude_code_agent_id, origin,
+               {usage_sum('input_tokens')} AS fresh,
+               {usage_sum('cache_creation_input_tokens')} AS cache_write,
+               {usage_sum('cache_read_input_tokens')} AS cache_read,
+               {usage_sum('output_tokens')} AS output,
+               bool_and(u->>'input_tokens' ~ '^[0-9]+$' AND u->>'output_tokens' ~ '^[0-9]+$') AS complete_usage
+        FROM billed GROUP BY session_id, agent_instance_id, claude_code_agent_id, origin"""))
+    turns = {r["session_id"]: r["n"] for r in run_sql(f"""
+        SELECT session_id, count(*) AS n FROM memory.operator_turns
+        WHERE created_at >= '{start}' AND session_id IN ({ids}) GROUP BY session_id""")}
+    return cost, lanes, turns
+
+
+def load(start):
+    arms, load.gaps = load_arms(start)
+    ids = ",".join(str(i) for i in arms) or "0"
+    cuts = load_cuts(start, ids, FILE_READ_STAGE, ("file_read_reduced", "file_read_superseded"))
+    cost, lanes, turns = load_usage(start, ids)
+    calls = run_sql(f"""
+        SELECT tu.id, tu.session_id, tu.created_at, tu.tool_name, tu.file_path, tu.input,
+               q.agent_instance_id, q.claude_code_agent_id, o.code AS origin
+        FROM tools.uses tu JOIN requests.requests q ON q.id = tu.request_id
+        JOIN requests.turn_origins o ON o.id = q.turn_origin_id
+        WHERE tu.created_at >= '{start}' AND tu.session_id IN ({ids})
+          AND tu.tool_name IN ('Read','Edit','MultiEdit','Write') AND tu.file_path IS NOT NULL""")
+    return arms, cuts, cost, lanes, turns, calls
+
+
+def usage_sum(field):
+    return f"coalesce(sum(CASE WHEN u->>'{field}' ~ '^[0-9]+$' THEN (u->>'{field}')::bigint END), 0)"
+
+
+def roll_up(rows):
+    """Billed usage per session, and per subagent lane (session plus agent identity).
+
+    Only 200 replies to /v1/messages are billed, so count_tokens calls and failed replies are
+    left out rather than making a session incomplete. A request with no reply still is."""
+    cost, lanes = {}, {}
+    for row in rows:
+        for table, key in ((cost, row['session_id']), (lanes, lane(row))):
+            if key is None or (table is lanes and not any(key[1:])):
+                continue
+            into = table.setdefault(key, dict(fresh=0, cache_write=0, cache_read=0, output=0, complete_usage=True))
+            for k in WEIGHTS:
+                into[k] += row[k]
+            into['complete_usage'] = into['complete_usage'] and bool(row['complete_usage'])
+    return cost, lanes
+
+
+def weighted(usage):
+    return sum(usage[k] * w for k, w in WEIGHTS.items())
+
+
+def per_lane(arms, lanes, arm):
+    return [max(1.0, weighted(u)) for key, u in lanes.items()
+            if arms.get(key[0]) == arm and u['complete_usage']]
+
+
+def file_type(path):
+    return pathlib.Path(path).suffix.lower() or "(none)"
+
+
+def anchors(call):
+    data = call.get("input") or {}
+    if call["tool_name"] == "MultiEdit":
+        return [e.get("old_string", "") for e in data.get("edits", [])]
+    return [data.get("old_string", "")]
+
+
+def hidden_text(content, kept):
+    if isinstance(content, list):
+        content = "".join(p.get("text", "") for p in content if isinstance(p, dict))
+    if not isinstance(content, str):
+        return None, None
+    lines, hidden, shown = content.split("\n"), [], []
+    for i, line in enumerate(lines):
+        m = NUM.match(line)
+        number = int(m.group(1)) if m else i + 1
+        body = line[m.end():] if m else line
+        inside = kept is not None and any(a <= number <= b for a, b in kept)
+        (shown if inside else hidden).append(body)
+    return "\n".join(hidden), "\n".join(shown)
+
+
+def parse_cut(cut):
+    m = KEPT.match(cut["detail"] or "") or SUPERSEDED.match(cut["detail"] or "")
+    if m is None:
+        return None
+    kept = None if cut["reason"] == "file_read_superseded" else [
+        (int(m.group(2)), int(m.group(3))), (int(m.group(4)), int(m.group(5)))]
+    return m.group(1), kept
+
+
+def harm(cuts, arms, calls):
+    wanted = {c["wire_id"] for c in cuts}
+    sources = {}
+    if wanted:
+        quoted = ",".join("'" + w.replace("'", "''") + "'" for w in wanted)
+        sources = pick_sources(run_sql(f"""SELECT tu.id, tu.wire_tool_use_id AS wire_id, tu.session_id, tu.file_path,
+            q.agent_instance_id, q.claude_code_agent_id, o.code AS origin, tr.content,
+            receipt.created_at AS result_at
+            FROM tools.uses tu JOIN requests.requests q ON q.id = tu.request_id
+            JOIN requests.turn_origins o ON o.id = q.turn_origin_id
+            JOIN tools.results tr ON tr.tool_use_id = tu.id
+            JOIN requests.requests receipt ON receipt.id = tr.request_id
+            WHERE tu.wire_tool_use_id IN ({quoted}) AND NOT tr.is_error"""))
+    table, gaps = analyze(cuts, arms, calls, sources, parse_cut, hidden_text, anchors, file_type,
+                          datetime.now(timezone.utc).timestamp())
+    harm.gaps = gaps
+    return table
+
+
+def pick_sources(rows):
+    """One result per (lane, wire id): the earliest receipt; a wire id naming two tool uses is dropped."""
+    sources, ambiguous = {}, set()
+    for row in rows:
+        key = (lane(row), row['wire_id'])
+        if key in sources and sources[key]['id'] != row['id']:
+            ambiguous.add(key)
+        elif key not in sources or stamp(row['result_at']) < stamp(sources[key]['result_at']):
+            sources[key] = row
+    for key in ambiguous:
+        sources.pop(key, None)
+    return sources
+
+
+def parse_shell_cut(cut):
+    """The kept 1-based line ranges named by a shell cut's detail, or None when it does not parse."""
+    m = SHELL_KEPT.match(cut.get("detail") or "")
+    if m is None:
+        return None
+    ranges = []
+    for part in m.group(1).split(","):
+        first, _, last = part.partition("-")
+        ranges.append((int(first), int(last or first)))
+    return ranges
+
+
+def split_output(content, kept):
+    """(hidden, kept) text of a Bash output, split on the 1-based indices of content.split('\\n')."""
+    if isinstance(content, list):
+        content = "".join(p.get("text", "") for p in content if isinstance(p, dict))
+    if not isinstance(content, str):
+        return None, None
+    hidden, shown = [], []
+    for number, line in enumerate(content.split("\n"), 1):
+        (shown if any(a <= number <= b for a, b in kept) else hidden).append(line)
+    return "\n".join(hidden), "\n".join(shown)
+
+
+def distinctive_tokens(text):
+    found = set()
+    for pattern in TOKEN_PATTERNS:
+        found.update(m.group(0) for m in pattern.finditer(text))
+    return {t for t in found if len(t) >= MIN_TOKEN}
+
+
+def needed_tokens(hidden, shown, command):
+    """Tokens only the hidden lines carry: absent from the kept lines and from the command that ran."""
+    return {t for t in distinctive_tokens(hidden) if t not in shown and t not in command}
+
+
+def serialised(value):
+    return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, sort_keys=True)
+
+
+def shell_harm_table(cuts, arms, sources, calls, until, window=FOLLOWUP_WINDOW):
+    """Per arm: shell cuts, and cuts whose hidden part a later call in the same lane used.
+
+    Follows followups.analyze: one cut per (lane, wire id), unknown lanes and results are
+    gaps, and a cut whose window runs past `until` is right-censored and left out."""
+    later = collections.defaultdict(list)
+    for call in calls:
+        identity = lane(call)
+        if identity is not None:
+            later[identity].append((stamp(call['created_at']), call['id'], serialised(call.get('input'))))
+    table = {arm: collections.Counter(cuts=0, needed_later=0) for arm in ("forward", "control")}
+    seen, gaps = set(), collections.Counter()
+    for cut in cuts:
+        identity = lane(cut)
+        key = (identity, cut['wire_id'])
+        if identity is None:
+            gaps['missing_agent_identity'] += 1
+            continue
+        if key in seen:
+            continue
+        seen.add(key)
+        kept, arm, source = parse_shell_cut(cut), arms.get(cut['session_id']), sources.get(key)
+        if kept is None or arm not in table or source is None:
+            gaps['missing_source_or_policy'] += 1
+            continue
+        hidden, shown = split_output(source['content'], kept)
+        if hidden is None:
+            gaps['missing_result_text'] += 1
+            continue
+        after = max(stamp(cut['created_at']), stamp(source['result_at']))
+        if after + window > until:
+            gaps['right_censored'] += 1
+            continue
+        use = source.get('input')
+        wanted = needed_tokens(hidden, shown, (use.get('command') or '') if isinstance(use, dict) else '')
+        table[arm]['cuts'] += 1
+        table[arm]['needed_later'] += bool(wanted) and any(
+            cid != source['id'] and after < at <= after + window and any(t in text for t in wanted)
+            for at, cid, text in later[identity])
+    return table, dict(gaps)
+
+
+def shell_harm(cuts, arms, start):
+    ids = ",".join(sorted({str(c['session_id']) for c in cuts})) or "0"
+    wanted = sorted({c['wire_id'] for c in cuts})
+    rows = []
+    for i in range(0, len(wanted), SOURCE_BATCH):
+        quoted = ",".join("'" + w.replace("'", "''") + "'" for w in wanted[i:i + SOURCE_BATCH])
+        rows += run_sql(f"""SELECT tu.id, tu.wire_tool_use_id AS wire_id, tu.session_id, tu.input,
+            q.agent_instance_id, q.claude_code_agent_id, o.code AS origin, tr.content,
+            receipt.created_at AS result_at
+            FROM tools.uses tu JOIN requests.requests q ON q.id = tu.request_id
+            JOIN requests.turn_origins o ON o.id = q.turn_origin_id
+            JOIN tools.results tr ON tr.tool_use_id = tu.id
+            JOIN requests.requests receipt ON receipt.id = tr.request_id
+            WHERE tu.created_at >= '{start}' AND tu.session_id IN ({ids}) AND tu.tool_name = 'Bash'
+              AND tu.wire_tool_use_id IN ({quoted}) AND NOT tr.is_error""")
+    calls = []
+    if cuts:
+        first = datetime.fromtimestamp(min(stamp(c['created_at']) for c in cuts), timezone.utc).isoformat()
+        calls = run_sql(f"""
+            SELECT tu.id, tu.session_id, tu.created_at, tu.tool_name, tu.input,
+                   q.agent_instance_id, q.claude_code_agent_id, o.code AS origin
+            FROM tools.uses tu JOIN requests.requests q ON q.id = tu.request_id
+            JOIN requests.turn_origins o ON o.id = q.turn_origin_id
+            WHERE tu.created_at >= '{first}' AND tu.session_id IN ({ids})""")
+    return shell_harm_table(cuts, arms, pick_sources(rows), calls, datetime.now(timezone.utc).timestamp())
+
+
+def load_shell(start):
+    """Arms, cuts, billed usage and operator turns for the shell arms; None without any arm."""
+    arms, load_shell.gaps = load_arms(start, SHELL_STAGE)
+    if not arms:
+        return None
+    ids = ",".join(str(i) for i in arms)
+    cuts = load_cuts(start, ids, SHELL_STAGE, ("shell_output_reduced",))
+    return (arms, cuts, *load_usage(start, ids))
+
+
+def permutation_p(a, b, rounds=4000, seed=7):
+    if not a or not b:
+        return 1.0
+    la, lb = [math.log(x) for x in a], [math.log(x) for x in b]
+    observed = abs(statistics.mean(la) - statistics.mean(lb))
+    pool, rng, hits = la + lb, random.Random(seed), 0
+    for _ in range(rounds):
+        rng.shuffle(pool)
+        if abs(statistics.mean(pool[:len(la)]) - statistics.mean(pool[len(la):])) >= observed:
+            hits += 1
+    return (hits + 1) / (rounds + 1)
+
+
+def per_turn(arms, cost, turns, arm):
+    out = []
+    for sid, a in arms.items():
+        if a == arm and sid in cost and cost[sid].get('complete_usage', False) and turns.get(sid):
+            out.append(max(1.0, weighted(cost[sid]) / turns[sid]))
+    return out
+
+
+def setting(key):
+    with urllib.request.urlopen(f"{INSPECT}/api/settings", timeout=30) as r:
+        for s in json.load(r)["settings"]:
+            if s["key"] == key:
+                return s["value"]
+    return None
+
+
+def put_setting(key, value):
+    req = urllib.request.Request(f"{INSPECT}/api/settings/{key}", method="PATCH",
+                                 data=json.dumps({"value": value}).encode(),
+                                 headers={"content-type": "application/json", "x-change-source": "cli"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        r.read()
+
+
+def running_build():
+    try:
+        with urllib.request.urlopen(f"{INSPECT}/api/health", timeout=10) as response:
+            build = json.load(response)['build']
+        return build['sha'] if not build.get('dirty', True) else None
+    except (OSError, ValueError, KeyError):
+        return None
+
+
+def read_evidence(argv, state=None):
+    """--evidence FILE if given; otherwise STATE/qualification.json when it exists."""
+    if "--evidence" in argv:
+        return json.loads(pathlib.Path(argv[argv.index("--evidence") + 1]).read_text())
+    saved = (state or STATE) / "qualification.json"
+    return json.loads(saved.read_text()) if saved.is_file() else None
+
+
+def decide(table, fwd, ctl, p, evidence=None, policy=None):
+    decisions = []
+    protected = setting("file_read_compression.protected_paths") or []
+    share = setting("file_read_compression.forward_share") or 0
+    for ext in sorted({k[0] for k in table}):
+        f, c = table.get((ext, "forward"), {}), table.get((ext, "control"), {})
+        if f.get("cuts", 0) < MIN_READS_PER_ARM or c.get("cuts", 0) < MIN_READS_PER_ARM or ext == "(none)":
+            continue
+        excess = f.get("exposures_with_hidden_edit", f["edit_hidden"]) / f["cuts"] - c.get("exposures_with_hidden_edit", c["edit_hidden"]) / c["cuts"]
+        glob = f"**/*{ext}"
+        if excess >= HARM_LIMIT and glob not in protected:
+            decisions.append(dict(action="protect", key="file_read_compression.protected_paths",
+                                  value=protected + [glob], why=f"{ext}: edits needing hidden lines {excess:+.1%} over control"))
+            protected = protected + [glob]
+    if len(fwd) >= MIN_SESSIONS_PER_ARM and len(ctl) >= MIN_SESSIONS_PER_ARM and p < P_LIMIT:
+        dearer = statistics.median(fwd) > statistics.median(ctl)
+        if dearer and share != 0:
+            decisions.append(dict(action="stop", key="file_read_compression.forward_share", value=0,
+                                  why=f"forward arm costs more per turn (p={p:.3f})"))
+        elif not dearer and share < WIDE_SHARE and not decisions and qualifies(evidence, policy):
+            decisions.append(dict(action="widen", key="file_read_compression.forward_share", value=WIDE_SHARE,
+                                  why=f"forward arm costs less per turn (p={p:.3f})"))
+    return decisions
+
+
+def decide_shell(fwd, ctl, p, table):
+    """Stop forwarding shell output when it costs more per turn or hides what sessions then need.
+
+    Only `stop`, and only while the share is non-zero; shell output is never widened here."""
+    if not (setting(SHELL_SHARE) or 0):
+        return []
+    reasons = []
+    if (len(fwd) >= MIN_SESSIONS_PER_ARM and len(ctl) >= MIN_SESSIONS_PER_ARM and p < P_LIMIT
+            and statistics.median(fwd) > statistics.median(ctl)):
+        reasons.append(f"forward arm costs more per turn (p={p:.3f})")
+    f, c = table.get("forward", {}), table.get("control", {})
+    if f.get("cuts", 0) >= MIN_READS_PER_ARM and c.get("cuts", 0) >= MIN_READS_PER_ARM:
+        excess = f["needed_later"] / f["cuts"] - c["needed_later"] / c["cuts"]
+        if excess >= HARM_LIMIT:
+            reasons.append(f"hidden shell output needed later {excess:+.1%} over control")
+    return [dict(action="stop", key=SHELL_SHARE, value=0, why="; ".join(reasons))] if reasons else []
+
+
+def shell_lines(start, arms, exposed, fwd, ctl, p, lane_cost, table, gaps):
+    def rate(row):
+        return f"{row['needed_later'] / row['cuts']:.1%}" if row['cuts'] else "n/a"
+    lines = ["## Shell-output compression", "",
+             f"Window from {start}. Sessions assigned: forward {sum(a == 'forward' for a in arms.values())}, "
+             f"control {sum(a == 'control' for a in arms.values())}. "
+             f"Sessions with a shell cut or candidate: forward {exposed['forward']}, control {exposed['control']}.", "",
+             "| Arm | Sessions with turns | Median cost per turn | Subagent lanes | Median cost per lane |",
+             "|---|---:|---:|---:|---:|"]
+    for name, xs, ys in (("forward", fwd, lane_cost[0]), ("control", ctl, lane_cost[1])):
+        lines.append(f"| {name} | {len(xs)} | {round(statistics.median(xs)) if xs else 'n/a'} "
+                     f"| {len(ys)} | {round(statistics.median(ys)) if ys else 'n/a'} |")
+    lines += ["", f"Permutation test on log cost per turn: p={p:.3f}; per subagent lane: p={lane_cost[2]:.3f}.", "",
+              "| Arm | Shell outputs cut | Hidden part needed later | Rate |", "|---|---:|---:|---:|"]
+    for arm in ("forward", "control"):
+        lines.append(f"| {arm} | {table[arm]['cuts']} | {table[arm]['needed_later']} | {rate(table[arm])} |")
+    f, c = table["forward"], table["control"]
+    if f["cuts"] and c["cuts"]:
+        lines.append(f"\nForward minus control: {f['needed_later'] / f['cuts'] - c['needed_later'] / c['cuts']:+.1%}.")
+    lines += ["", "Measure: a distinctive token (path, Rust path, snake_case name, hash of 8+ characters) in the hidden lines,",
+              "absent from the kept lines and the cut's own command, used in a later tool call's input in the same lane",
+              "within 30 minutes of exposure and receipt. An association, not proven recovery. Right-censored cuts are excluded.",
+              "Evidence gaps: " + json.dumps(gaps, sort_keys=True)]
+    return lines
+
+
+def shell_scorecard(start):
+    """(report lines, decisions) for the shell-output arms; one line and no decisions without arms."""
+    loaded = load_shell(start)
+    if loaded is None:
+        return [NO_SHELL_ARMS], []
+    arms, cuts, cost, lanes, turns = loaded
+    table, gaps = shell_harm(cuts, arms, start)
+    gaps.update(load_shell.gaps)
+    gaps['sessions_with_incomplete_usage'] = sum(not row['complete_usage'] for row in cost.values())
+    fwd, ctl = per_turn(arms, cost, turns, "forward"), per_turn(arms, cost, turns, "control")
+    p = permutation_p(fwd, ctl)
+    lane_fwd, lane_ctl = per_lane(arms, lanes, "forward"), per_lane(arms, lanes, "control")
+    lane_cost = (lane_fwd, lane_ctl, permutation_p(lane_fwd, lane_ctl))
+    lines = shell_lines(start, arms, exposed_sessions(cuts, arms), fwd, ctl, p, lane_cost, table, gaps)
+    return lines, decide_shell(fwd, ctl, p, table)
+
+
+def exposed_sessions(cuts, arms):
+    exposed = {c["session_id"] for c in cuts}
+    return {arm: sum(sid in exposed for sid, a in arms.items() if a == arm) for arm in ("forward", "control")}
+
+
+def report(start, arms, table, fwd, ctl, p, decisions, applied, exposed, lane_cost=((), (), 1.0), shell=()):
+    lines = [f"# File-read compressor scorecard, {datetime.now(timezone.utc):%Y-%m-%d %H:%M}Z", "",
+             f"Window from {start}. Sessions assigned: forward {sum(a == 'forward' for a in arms.values())}, "
+             f"control {sum(a == 'control' for a in arms.values())}. "
+             f"Sessions with a read cut or candidate: forward {exposed['forward']}, control {exposed['control']}.", "",
+             "| Arm | Sessions with turns | Median cost per turn | Subagent lanes | Median cost per lane |",
+             "|---|---:|---:|---:|---:|"]
+    for name, xs, ys in (("forward", fwd, lane_cost[0]), ("control", ctl, lane_cost[1])):
+        lines.append(f"| {name} | {len(xs)} | {round(statistics.median(xs)) if xs else 'n/a'} "
+                     f"| {len(ys)} | {round(statistics.median(ys)) if ys else 'n/a'} |")
+    lines += ["", f"Permutation test on log cost per turn: p={p:.3f}; per subagent lane: p={lane_cost[2]:.3f}.",
+              "Cost counts billed replies only (200s to /v1/messages), usage from the stored body when the column is empty.", "",
+              "| File type | Arm | Reads cut | Re-read later | Edit needing hidden lines |",
+              "|---|---|---:|---:|---:|"]
+    for (ext, arm), row in sorted(table.items()):
+        lines.append(f"| {ext} | {arm} | {row['cuts']} | {row['reread']} | {row['edit_hidden']} |")
+    lines += ["", "Measure: lane-aware-followups-v2; unique follow-up tools within 30 minutes of exposure and receipt.",
+              "Later reads are associations, not proven recovery. Unknown lanes/results and right-censored exposures are excluded.",
+              "Evidence gaps: " + json.dumps(getattr(harm, "gaps", {}), sort_keys=True)]
+    lines += [""] + list(shell) if shell else []
+    lines += ["", "Decisions" + (" (applied)" if applied else " (not applied; run with --apply)") + ":"]
+    lines += [f"- {d['action']}: {d['why']}" for d in decisions] or ["- none"]
+    return "\n".join(lines) + "\n"
+
+
+def main():
+    days = int(sys.argv[sys.argv.index("--days") + 1]) if "--days" in sys.argv else 7
+    apply = "--apply" in sys.argv
+    start = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    arms, cuts, cost, lanes, turns, calls = load(start)
+    table = harm(cuts, arms, calls)
+    harm.gaps.update(getattr(load, 'gaps', {}))
+    harm.gaps['sessions_with_incomplete_usage'] = sum(not row['complete_usage'] for row in cost.values())
+    fwd, ctl = per_turn(arms, cost, turns, "forward"), per_turn(arms, cost, turns, "control")
+    p = permutation_p(fwd, ctl)
+    lane_fwd, lane_ctl = per_lane(arms, lanes, "forward"), per_lane(arms, lanes, "control")
+    lane_cost = (lane_fwd, lane_ctl, permutation_p(lane_fwd, lane_ctl))
+    evidence = read_evidence(sys.argv)
+    policy = {key: setting("file_read_compression." + key) for key in
+              ("min_bytes", "head_lines", "tail_lines", "grace_turns", "enabled_producers", "protected_paths")}
+    policy["implementation"] = "file-read-v3-ranged-recovery"
+    policy["build_sha"] = running_build()
+    decisions = decide(table, fwd, ctl, p, evidence, policy)
+    shell, shell_decisions = shell_scorecard(start)
+    decisions += shell_decisions
+    if apply:
+        for d in decisions:
+            put_setting(d["key"], d["value"])
+    STATE.mkdir(parents=True, exist_ok=True)
+    text = report(start, arms, table, fwd, ctl, p, decisions, apply, exposed_sessions(cuts, arms), lane_cost, shell)
+    text += "\nAutomatic widening: " + ("qualified" if qualifies(evidence, policy) else
+            "blocked: missing, failed, stale or policy-mismatched task/recovery evidence") + "\n"
+    (STATE / "latest.md").write_text(text)
+    with open(STATE / "decisions.jsonl", "a") as log:
+        for d in decisions:
+            log.write(json.dumps(dict(d, at=datetime.now(timezone.utc).isoformat(), applied=apply)) + "\n")
+    print(text)
+
+
+if __name__ == "__main__":
+    main()

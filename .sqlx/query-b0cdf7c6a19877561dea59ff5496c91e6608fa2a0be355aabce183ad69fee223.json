@@ -1,0 +1,77 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH calls AS (\n    SELECT u.id, u.request_id, u.session_id, u.tool_name,\n           u.input ->> 'command' AS command,\n           q.created_at AS answer_started_at,\n           q.completed_at AS answer_completed_at,\n           min(r.created_at) AS result_at\n      FROM tools.uses u\n      JOIN requests.requests q ON q.id = u.request_id\n      JOIN projects.projects p ON p.id = q.project_id\n      JOIN sessions.sessions s ON s.id = u.session_id\n      JOIN tools.results r ON r.tool_use_id = u.id\n     WHERE u.created_at >= $2 AND u.created_at < $3\n       AND q.completed_at IS NOT NULL\n       AND ($1::text IS NULL OR p.project_path ILIKE '%' || $1 || '%')\n       AND ($6::text IS NULL OR p.project_path = $6)\n       AND ($4::bool OR (q.agent_instance_id IS NULL AND q.subagent_persona IS NULL))\n       AND ($5::uuid IS NULL OR s.session_uuid = $5)\n     GROUP BY u.id, q.created_at, q.completed_at\n), kinded AS (\n    SELECT c.*,\n           extract(epoch FROM c.result_at - c.answer_completed_at)::float8 AS seconds,\n           CASE\n             WHEN c.tool_name IN ('Agent', 'Task') THEN 1\n             WHEN c.tool_name <> 'Bash' THEN CASE WHEN c.tool_name LIKE 'mcp\\_\\_%' THEN 12 ELSE 14 END\n             WHEN c.command ~ '(scripts/gate|make (check|gate))' THEN 2\n             WHEN c.command ~ '(nextest|cargo test|cx test|make test)' THEN 3\n             WHEN c.command ~ '(sb-test|vitest|playwright)' THEN 4\n             WHEN c.command ~ '(clippy|make lint|lint-rust)' THEN 5\n             WHEN c.command ~ '((cargo|cx) (build|check|rustc)|make (build|install))' THEN 6\n             WHEN c.command ~ '(start-proxy|deploy-proxy)' THEN 7\n             WHEN c.command ~ '(task-wait|sleep |until )' THEN 8\n             WHEN c.command ~ '(psql|docker exec)' THEN 9\n             WHEN c.command ~ '^\\s*git ' THEN 10\n             ELSE 11 END AS kind_rank\n      FROM calls c\n), answers AS (\n    SELECT request_id, session_id,\n           min(kind_rank) AS kind_rank,\n           extract(epoch FROM min(answer_completed_at) - min(answer_started_at))::float8 AS model_seconds,\n           max(extract(epoch FROM result_at - answer_completed_at))::float8 AS wait_seconds\n      FROM kinded\n     GROUP BY request_id, session_id\n), named AS (\n    SELECT a.*, (ARRAY['subagent', 'gate', 'rust tests', 'frontend tests', 'lint', 'rust build',\n                       'deploy', 'waiting on background', 'database query', 'git', 'other shell',\n                       'mcp tool', 'unused', 'read, edit, search'])[a.kind_rank] AS kind\n      FROM answers a\n)\nSELECT kind AS \"kind!\",\n       count(*) FILTER (WHERE wait_seconds BETWEEN 0 AND 3600)::bigint AS \"answers!\",\n       count(*) FILTER (WHERE wait_seconds > 3600)::bigint AS \"answers_over_an_hour!\",\n       coalesce(sum(wait_seconds) FILTER (WHERE wait_seconds BETWEEN 0 AND 3600), 0)::float8 AS \"wait_seconds!\",\n       coalesce(percentile_cont(0.5) WITHIN GROUP (ORDER BY wait_seconds) FILTER (WHERE wait_seconds BETWEEN 0 AND 3600), 0)::float8 AS \"p50_wait_seconds!\",\n       coalesce(percentile_cont(0.9) WITHIN GROUP (ORDER BY wait_seconds) FILTER (WHERE wait_seconds BETWEEN 0 AND 3600), 0)::float8 AS \"p90_wait_seconds!\",\n       coalesce(sum(model_seconds), 0)::float8 AS \"model_seconds!\",\n       count(DISTINCT session_id)::bigint AS \"sessions!\"\n  FROM named\n GROUP BY kind\n ORDER BY 4 DESC\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "answers!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "answers_over_an_hour!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "wait_seconds!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "p50_wait_seconds!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "p90_wait_seconds!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "model_seconds!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "sessions!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Timestamptz",
+        "Bool",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "b0cdf7c6a19877561dea59ff5496c91e6608fa2a0be355aabce183ad69fee223"
+}

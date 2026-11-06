@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO tools.uses (wire_tool_use_id, request_id, ord, tool_name, input, session_id,\n                                 created_at)\n         SELECT 'tu-page-' || n, $1, n, 'Read', '{}'::jsonb, $2,\n                now() - make_interval(mins => 10 - n)\n           FROM generate_series(1, 5) AS g(n)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0781c222c2bcee96b2ddde1f8ebc2fb1cdfb3bc7a5747684b53c7babbcc4aa11"
+}

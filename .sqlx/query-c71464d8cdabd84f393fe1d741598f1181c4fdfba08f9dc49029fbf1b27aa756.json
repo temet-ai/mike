@@ -1,0 +1,57 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id                                        AS turn_id,\n                          COALESCE(user_prompt, '')           AS \"user_prompt!\",\n                          COALESCE(final_assistant_text, '')  AS \"final_assistant_text!\",\n                          COALESCE(tool_call_count, 0)::int   AS \"tool_call_count!\",\n                          COALESCE(tool_error_count, 0)::int  AS \"tool_error_count!\"\n                     FROM memory.operator_turns\n                    WHERE closed_at   IS NOT NULL\n                      AND outcome_id  = 1\n                      AND (opened_by IS NULL OR opened_by = 'operator')\n                      AND (judge_rubric_version IS NULL OR judge_rubric_version <> $1)\n                      AND judge_failure_reason IS DISTINCT FROM 'permanent'\n                      AND (judge_next_attempt_at IS NULL OR judge_next_attempt_at <= NOW())\n                    ORDER BY closed_at DESC\n                    LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "user_prompt!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "final_assistant_text!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "tool_call_count!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "tool_error_count!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "c71464d8cdabd84f393fe1d741598f1181c4fdfba08f9dc49029fbf1b27aa756"
+}

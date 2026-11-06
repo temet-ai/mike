@@ -1,0 +1,55 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH firing(kind, subject, detail) AS (\n    SELECT * FROM unnest($3::text[], $4::text[], $5::jsonb[])\n),\nup AS (\n    INSERT INTO eval.alarms AS a (kind, subject, detail)\n    SELECT kind, subject, detail FROM firing\n    ON CONFLICT (kind, subject) WHERE cleared_at IS NULL\n    DO UPDATE SET last_seen_at = now(), detail = EXCLUDED.detail,\n                  evaluations = a.evaluations + 1, quiet_evaluations = 0\n    RETURNING a.id, a.kind, a.subject, a.first_seen_at = a.last_seen_at AS opened\n),\nquiet AS (\n    UPDATE eval.alarms a\n       SET quiet_evaluations = a.quiet_evaluations + 1,\n           cleared_at = CASE WHEN a.quiet_evaluations + 1 >= $2 THEN now() END\n     WHERE a.kind = ANY($1::text[]) AND a.cleared_at IS NULL\n       AND NOT EXISTS (SELECT 1 FROM firing f WHERE f.kind = a.kind AND f.subject = a.subject)\n    RETURNING a.id, a.kind, a.subject, a.cleared_at IS NOT NULL AS cleared\n)\nSELECT id AS \"id!\", kind AS \"kind!\", subject AS \"subject!\", opened AS \"opened!\", false AS \"cleared!\" FROM up\nUNION ALL\nSELECT id, kind, subject, false, cleared FROM quiet\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "subject!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "opened!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "cleared!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Int4",
+        "TextArray",
+        "TextArray",
+        "JsonbArray"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "ea170c3757a61a2856b8f2e73ed1bb75f288244f33c64bdae57d986b20b5d6b6"
+}

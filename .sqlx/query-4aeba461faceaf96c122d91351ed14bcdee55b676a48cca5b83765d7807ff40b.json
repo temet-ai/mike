@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO projects.locations(project_id, machine_uuid, root_path)\n         VALUES ($1, $2, $3) ON CONFLICT(machine_uuid, root_path)\n         DO UPDATE SET last_seen = now()\n         WHERE projects.locations.project_id = EXCLUDED.project_id\n         RETURNING location_uuid",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "location_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "location_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4aeba461faceaf96c122d91351ed14bcdee55b676a48cca5b83765d7807ff40b"
+}

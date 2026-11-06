@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT pg_size_pretty(pg_total_relation_size(to_regclass($1))) AS \"tbl!\", pg_size_pretty(pg_database_size(current_database())) AS \"db!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tbl!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "db!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "4f8072d7a0ece315d157902bf5a0dcd2e32244cbfb7055f2ef5c3662fa7c0717"
+}

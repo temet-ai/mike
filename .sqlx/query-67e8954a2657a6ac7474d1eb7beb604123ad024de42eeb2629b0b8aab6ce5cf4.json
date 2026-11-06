@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO agents.agents (name, source_id)\n             SELECT $1, s.id FROM agents.sources s WHERE s.code = 'observed'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "67e8954a2657a6ac7474d1eb7beb604123ad024de42eeb2629b0b8aab6ce5cf4"
+}

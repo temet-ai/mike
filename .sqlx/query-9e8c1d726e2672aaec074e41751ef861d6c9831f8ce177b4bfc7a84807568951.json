@@ -1,0 +1,115 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH turn_uses AS (\n    SELECT tu.id, tu.wire_tool_use_id, tu.tool_name,\n           tu.input, tu.ord, tu.request_id, tu.operation\n      FROM tools.uses tu\n      JOIN requests.requests r ON r.id = tu.request_id\n     WHERE r.operator_turn_id = $1\n       AND tu.session_id = $2\n)\nSELECT u.wire_tool_use_id               AS \"tool_id!\",\n       u.tool_name                      AS \"tool_name!\",\n       octet_length(u.input::text)::int AS \"input_bytes?\",\n       u.ord                            AS \"ord!\",\n       u.request_id                     AS \"request_id!\",\n       (res.tool_use_id IS NOT NULL)    AS \"has_result!\",\n       res.is_error                     AS \"result_is_error?\",\n       res.content_bytes                AS \"result_content_bytes?\",\n       u.operation                      AS \"operation?\"\n  FROM turn_uses u\n  LEFT JOIN tools.results res ON res.tool_use_id = u.id\n ORDER BY u.request_id ASC, u.ord ASC\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tool_id!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "wire_tool_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "tool_name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "tool_name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "input_bytes?",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "ord!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "ord"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "has_result!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "result_is_error?",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "is_error"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "result_content_bytes?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "operation?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "operation"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      false,
+      false,
+      null,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "9e8c1d726e2672aaec074e41751ef861d6c9831f8ce177b4bfc7a84807568951"
+}

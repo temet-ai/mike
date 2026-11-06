@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO eval.population_exclusions\n                        (session_id, operator_turn_id, reason, import_batch_id)\n                 SELECT s.id, x.turn_id, x.reason, $2\n                   FROM jsonb_to_recordset($1::jsonb) AS x(session_uuid text, turn_id bigint, reason text)\n                   JOIN sessions.sessions s ON s.session_uuid = x.session_uuid::uuid",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Jsonb",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f0a8cb7977fd4a9361303de12fd81c13dc115ae877e62652ae8a79b45ec3ece7"
+}

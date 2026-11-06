@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH reaped AS (\n                       UPDATE mailbox.messages m\n                          SET dead_lettered_at = now()\n                        WHERE m.to_session_id IS NOT NULL\n                          AND m.sent_request_id IS NULL\n                          AND m.channel_delivered_at IS NULL\n                          AND m.consumed_at IS NULL\n                          AND m.dead_lettered_at IS NULL\n                          AND m.queued_at < $1\n                          AND NOT EXISTS (\n                              SELECT 1\n                                FROM requests.requests r\n                               WHERE r.session_id = m.to_session_id\n                                 AND r.created_at >= $2\n                          )\n                    RETURNING m.message_uuid, m.from_session_id, m.to_session_id\n                   ),\n                   notices AS (\n                       INSERT INTO mailbox.messages (message_uuid, to_session_id, from_session_id, body)\n                       SELECT gen_random_uuid(), r.from_session_id, NULL,\n                              '[mike mail] Not delivered: your message ' || r.message_uuid::text\n                              || ' to session ' || s.session_uuid::text\n                              || ' was never delivered: that session made no request in time. mike delivers it when that session next makes a request.'\n                         FROM reaped r\n                         JOIN sessions.sessions s ON s.id = r.to_session_id\n                        WHERE r.from_session_id IS NOT NULL\n                    RETURNING id\n                   )\n                   INSERT INTO mailbox.failed_sends\n                       (attempted_by_session_id, attempted_to, reason, request_id)\n                   SELECT r.from_session_id, s.session_uuid::text, 'strand_ttl_expired', NULL\n                     FROM reaped r\n                     JOIN sessions.sessions s ON s.id = r.to_session_id\n                   RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mailbox.failed_sends",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4870b712a486bada0fa9da737780236f9676c20e72186bd1063c8b9165b1108a"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH candidate AS (\n                     SELECT $2::text AS alias\n                      WHERE NOT EXISTS (\n                          SELECT 1\n                            FROM agents.agents named\n                           WHERE LOWER(named.name) = LOWER($2)\n                      )\n                        AND NOT EXISTS (\n                          SELECT 1\n                            FROM agents.agents existing\n                            CROSS JOIN LATERAL UNNEST(\n                                existing.persona_aliases || existing.name_variants\n                            ) AS known(alias)\n                           WHERE LOWER(known.alias) = LOWER($2)\n                      )\n                 )\n                 UPDATE agents.agents target\n                    SET persona_aliases = ARRAY_APPEND(target.persona_aliases, candidate.alias)\n                   FROM candidate\n                  WHERE target.id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "785acf1325edbfacdc89c61eb495afa9a2f995b2bd7b6c2ab9869ec2dde54deb"
+}

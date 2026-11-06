@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT ON (m.id) m.body, r.id AS request_id, r.created_at, r.claude_code_agent_id AS agent_id\n  FROM requests.requests r\n  JOIN requests.messages rm ON rm.request_id = r.id\n  JOIN messages.messages m ON m.id = rm.message_id\n WHERE r.session_id = $1\n   AND m.body::text LIKE '%task-notification>%'\n ORDER BY m.id, r.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "body",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "messages.messages",
+            "name": "body"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "agent_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "claude_code_agent_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "2b338d469875eb896be0103053c8d8113e06cde0c5114caf6a1d9140641e1f2d"
+}

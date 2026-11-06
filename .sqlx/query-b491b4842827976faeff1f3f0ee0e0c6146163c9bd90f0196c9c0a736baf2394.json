@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.operator_turns\n                    SET embedded_at = NOW()\n                  WHERE id = ANY($1)\n                    AND embedded_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b491b4842827976faeff1f3f0ee0e0c6146163c9bd90f0196c9c0a736baf2394"
+}

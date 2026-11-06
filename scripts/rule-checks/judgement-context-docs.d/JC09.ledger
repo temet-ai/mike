@@ -1,0 +1,5 @@
+# JC09 ledger. The landed sha is the JC09 commit on feat/judgement-context.
+landed   JC09 2026-09-24 60d596cd
+table    memory.turn_verdicts
+tool     get_turn_verdicts full
+tool     list_turn_verdicts full

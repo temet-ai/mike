@@ -1,0 +1,66 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT u.id                AS \"use_id!\",\n                  u.request_id        AS \"parent_request_id!\",\n                  r.created_at        AS \"parent_created_at!\",\n                  u.input->>'script'  AS \"script?\",\n                  tr.content#>>'{}'   AS \"result_text?\"\n             FROM tools.uses u\n             JOIN requests.requests r ON r.id = u.request_id\n             LEFT JOIN tools.results tr ON tr.tool_use_id = u.id\n            WHERE u.session_id = $1\n              AND u.tool_name = 'Workflow'\n            ORDER BY r.created_at ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "use_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "parent_request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "parent_created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "script?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "result_text?",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "f57d8ffcc1576cfa0d44ba64d3e2e17c235d4d63d24e70a3502561c476c4e19d"
+}

@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT m.message_uuid AS \"message_uuid!\", m.body AS \"body!\"\n                     FROM mailbox.messages m\n                     JOIN sessions.sessions recip ON recip.id = m.to_session_id\n                    WHERE recip.session_uuid = $1\n                      AND m.consumed_at IS NULL\n                      AND m.dead_lettered_at IS NULL\n                      AND (m.channel_delivered_at IS NOT NULL OR m.sent_request_id IS NOT NULL)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "message_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "message_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "body!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "body"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "e6ac065d91ffd31dde229411aa68dbf676a828826d3c352f29250fabd3858df6"
+}

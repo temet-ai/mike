@@ -1,0 +1,74 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT e.steerer_id, st.name AS \"steerer_name!\",\n                          to_char(least(floor(e.confidence * 20), 19) * 0.05, 'FM0.00') AS \"lower_edge!\",\n                          e.label_source AS \"label_source!\",\n                          (count(*) FILTER (WHERE e.outcome_label = 'right'))::int AS \"k!\",\n                          count(*)::int AS \"n!\"\n                     FROM steering.evaluations e\n                     JOIN steering.steerers st ON st.id = e.steerer_id\n                    WHERE st.name = ANY($2)\n                      AND e.dispatched_at >= $1::timestamptz - interval '30 days' AND e.dispatched_at < $1\n                      AND e.outcome_label IN ('right', 'wrong')\n                      AND e.confidence IS NOT NULL\n                      AND e.label_source IN ('operator', 'session_reply', 'session_end', 'next_message')\n                    GROUP BY e.steerer_id, st.name, 3, e.label_source",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "steerer_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "steerer_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "steerer_name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "lower_edge!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "label_source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "label_source"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "k!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "n!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      true,
+      null,
+      null
+    ]
+  },
+  "hash": "ce13ba0d354fd2ff3a0c19b7af03f02acb5785ff50e384a002b116b27e10d47d"
+}

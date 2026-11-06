@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT (NOT EXISTS (\n           SELECT 1\n             FROM launch.launches\n            WHERE run_id = $1\n              AND ((opened AND (closed_at IS NULL OR close_process_exited IS DISTINCT FROM TRUE))\n                   OR (NOT opened AND result <> 'failed'))\n       )\n       AND NOT EXISTS (\n           SELECT 1\n             FROM launch.tree_checks\n            WHERE finished_at IS NULL\n              AND (run_id = $1 OR starts_with(run_id, $1 || '#'))\n       )) AS \"settled!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "settled!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "0df311802b4c16943a8600be089ed0bc095f5002678a30c40c918edfc8ab9461"
+}

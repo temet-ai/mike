@@ -1,0 +1,71 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.id AS turn_id, t.session_id, t.start_request_id,\n       COALESCE(t.user_prompt, '') AS \"user_prompt!\", r.created_at AS \"created_at!\"\n  FROM memory.operator_turns t\n  JOIN memory.turn_facts f ON f.operator_turn_id = t.id AND f.prompt_kind = 'genuine'\n  JOIN requests.requests r ON r.id = t.start_request_id\n WHERE t.session_id = ANY($1)\n   AND (t.opened_by IS NULL OR t.opened_by = 'operator')\n ORDER BY t.session_id, r.created_at, t.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "start_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "start_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "user_prompt!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null,
+      false
+    ]
+  },
+  "hash": "42f7ad6d56cf5a6abbc407ea315484af01e92e83c7fb8c4b06c8219e2c913b3c"
+}

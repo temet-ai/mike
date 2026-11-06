@@ -1,0 +1,19 @@
+Update on channels ch  (cost=8.59..16.63 rows=1 width=54) (actual time=0.259..0.265 rows=1 loops=1)
+  Buffers: shared hit=70
+  CTE c
+    ->  Update on calls  (cost=0.29..8.30 rows=1 width=14) (actual time=0.202..0.204 rows=1 loops=1)
+          Buffers: shared hit=52
+          ->  Index Scan using calls_pkey on calls  (cost=0.29..8.30 rows=1 width=14) (actual time=0.023..0.024 rows=1 loops=1)
+                Index Cond: (id = 2)
+                Buffers: shared hit=8
+  ->  Nested Loop  (cost=0.29..8.33 rows=1 width=54) (actual time=0.222..0.225 rows=1 loops=1)
+        Buffers: shared hit=55
+        ->  CTE Scan on c  (cost=0.00..0.02 rows=1 width=40) (actual time=0.217..0.219 rows=1 loops=1)
+              Buffers: shared hit=52
+        ->  Index Scan using channels_pkey on channels ch  (cost=0.29..8.30 rows=1 width=30) (actual time=0.003..0.003 rows=1 loops=1)
+              Index Cond: (id = c.channel_id)
+              Buffers: shared hit=3
+Planning:
+  Buffers: shared hit=329
+Planning Time: 0.816 ms
+Execution Time: 0.428 ms

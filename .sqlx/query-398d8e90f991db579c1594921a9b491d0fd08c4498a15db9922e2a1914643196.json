@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.operator_turns t\n                    SET judge_failure_reason  = $2,\n                        judge_attempt_count   = t.judge_attempt_count + 1,\n                        judge_next_attempt_at = CASE\n                            WHEN $2 = 'transient_exhausted'\n                            THEN now() + (INTERVAL '1 second' * LEAST(\n                                $5::int8::float8,\n                                $4::int8::float8 * POWER(2::float8, t.judge_attempt_count::float8)\n                            ))\n                            ELSE NULL\n                        END,\n                        judge_queued_at       = CASE WHEN $2 = 'permanent' THEN NULL ELSE t.judge_queued_at END\n                  WHERE t.id = $1\n                    AND NOT EXISTS (\n                        SELECT 1 FROM memory.turn_verdicts v\n                          JOIN memory.turn_facts f ON f.operator_turn_id = v.operator_turn_id\n                         WHERE v.operator_turn_id = t.id AND v.mode = 'live'\n                           AND v.bundle_id = $3 AND v.reaction IS NOT NULL\n                           AND v.next_genuine_request_id IS NOT DISTINCT FROM f.next_genuine_request_id)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "398d8e90f991db579c1594921a9b491d0fd08c4498a15db9922e2a1914643196"
+}

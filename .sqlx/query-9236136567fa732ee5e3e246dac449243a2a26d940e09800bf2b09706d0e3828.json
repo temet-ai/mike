@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT w.id AS work_item_id, w.session_id, w.kind, w.task_id,\n       w.owner_agent_id, w.description, w.launched_at, w.finished_at\n  FROM agents.work_items w\n WHERE w.session_id = ANY($1)\n ORDER BY w.session_id, w.launched_at, w.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "work_item_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "task_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "task_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "owner_agent_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "owner_agent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "launched_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "launched_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "finished_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "finished_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "9236136567fa732ee5e3e246dac449243a2a26d940e09800bf2b09706d0e3828"
+}

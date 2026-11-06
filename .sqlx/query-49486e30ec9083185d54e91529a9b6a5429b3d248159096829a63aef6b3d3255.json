@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO agents.dispatches (tool_use_id, agent_id)\n                 SELECT $1, $2\n                 WHERE NOT EXISTS (\n                     SELECT 1 FROM agents.dispatches WHERE tool_use_id = $1\n                 )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "49486e30ec9083185d54e91529a9b6a5429b3d248159096829a63aef6b3d3255"
+}

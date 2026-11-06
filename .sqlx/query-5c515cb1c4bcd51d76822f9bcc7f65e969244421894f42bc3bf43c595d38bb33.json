@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.id AS \"id!\"\n             FROM unnest($1::bigint[]) AS t(id)\n            WHERE EXISTS (SELECT 1 FROM eval.run_items ri WHERE ri.operator_turn_id = t.id)\n               OR EXISTS (SELECT 1 FROM eval.labels l\n                            JOIN eval.session_end_run_items si ON si.label_id = l.id\n                           WHERE l.operator_turn_id = t.id)\n            ORDER BY t.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "5c515cb1c4bcd51d76822f9bcc7f65e969244421894f42bc3bf43c595d38bb33"
+}

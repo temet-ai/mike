@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO work.thread_sessions (thread_id, session_uuid, contribution)\n         VALUES ($1, $2, COALESCE($3, ''))\n         ON CONFLICT (thread_id, session_uuid) DO UPDATE\n            SET last_seen_at = now(),\n                contribution = COALESCE($3, work.thread_sessions.contribution)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e840125258a228e4c1148ce6ca237dbe1a9d1d9a21180a580b3f653a09890b34"
+}

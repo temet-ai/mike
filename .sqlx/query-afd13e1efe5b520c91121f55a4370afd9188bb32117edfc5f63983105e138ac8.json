@@ -1,0 +1,72 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.id AS \"label_id!\", l.tier AS \"tier!\", l.split AS \"split!\",\n                          l.created_at AS \"created_at!\",\n                          l.operator_turn_id AS \"corrected_turn_id!\",\n                          t.created_at AS \"corrected_created_at!\",\n                          COALESCE(t.user_prompt, '') AS \"corrected_prompt!\"\n                     FROM eval.labels_as_of($2) l\n                     JOIN memory.operator_turns t ON t.id = l.operator_turn_id\n                    WHERE l.session_uuid = $1\n                      AND l.subject_kind = 'turn'\n                      AND l.axis = 'reaction'\n                      AND l.label = 'corrected'\n                      AND l.tier = ANY($3)\n                    ORDER BY l.created_at, l.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "label_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "tier!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "split!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "corrected_turn_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "corrected_created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "corrected_prompt!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      false,
+      null
+    ]
+  },
+  "hash": "afd13e1efe5b520c91121f55a4370afd9188bb32117edfc5f63983105e138ac8"
+}

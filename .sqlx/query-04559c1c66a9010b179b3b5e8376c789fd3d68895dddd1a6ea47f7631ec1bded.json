@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT c.completed_at, ch.stream_opened_at, ch.stream_closed_at\n             FROM remote_control.calls c\n             JOIN remote_control.channels ch ON ch.id = c.channel_id\n            WHERE c.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "completed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "completed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "stream_opened_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "stream_opened_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "stream_closed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "stream_closed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "04559c1c66a9010b179b3b5e8376c789fd3d68895dddd1a6ea47f7631ec1bded"
+}

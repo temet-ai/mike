@@ -1,0 +1,5 @@
+# JC04 ledger. The landed sha is JC04 H; JC04 landed as 6c5c261b, b2956a8c and 830b9e39.
+landed   JC04 2026-09-24 830b9e39
+tool     get_session_dossier full
+tool     get_turn_facts full
+cli      mike dossier-render

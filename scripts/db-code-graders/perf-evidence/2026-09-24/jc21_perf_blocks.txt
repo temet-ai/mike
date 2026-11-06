@@ -1,0 +1,125 @@
+AFTER : 3.000 ms  
+✓ baseline recorded (no before to compare)
+Perf-Tier: read
+Perf-Label: jc21_action_list_recent500
+Perf-After-ms: 3.000
+Perf-Budget-ms: 50
+Perf-Verdict: baseline
+Perf-Query-SHA: b4ed3cce45212610
+== jc21_action_list_recent500 exit 0
+AFTER : 16.266 ms  
+✓ baseline recorded (no before to compare)
+Perf-Tier: read
+Perf-Label: jc21_action_counts
+Perf-After-ms: 16.266
+Perf-Budget-ms: 50
+Perf-Verdict: baseline
+Perf-Query-SHA: 2a5344bc97c492b8
+== jc21_action_counts exit 0
+AFTER : 22.554 ms  
+✓ baseline recorded (no before to compare)
+Perf-Tier: read
+Perf-Label: jc21_asof_actions
+Perf-After-ms: 22.554
+Perf-Budget-ms: 50
+Perf-Verdict: baseline
+Perf-Query-SHA: 91a4de050528fcf6
+== jc21_asof_actions exit 0
+AFTER : 1.173 ms  
+✓ baseline recorded (no before to compare)
+Perf-Tier: read
+Perf-Label: jc21_asof_recent
+Perf-After-ms: 1.173
+Perf-Budget-ms: 50
+Perf-Verdict: baseline
+Perf-Query-SHA: baa6454f01ef560f
+== jc21_asof_recent exit 0
+AFTER : 13.998 ms  
+✓ baseline recorded (no before to compare)
+Perf-Tier: read
+Perf-Label: jc21_asof_counts
+Perf-After-ms: 13.998
+Perf-Budget-ms: 50
+Perf-Verdict: baseline
+Perf-Query-SHA: 0a0624592984c415
+== jc21_asof_counts exit 0
+AFTER : 0.096 ms  
+✓ baseline recorded (no before to compare)
+Perf-Tier: read
+Perf-Label: jc21_asof_calls
+Perf-After-ms: 0.096
+Perf-Budget-ms: 50
+Perf-Verdict: baseline
+Perf-Query-SHA: 649a4482c8b4561c
+== jc21_asof_calls exit 0
+AFTER : 0.079 ms  
+✓ baseline recorded (no before to compare)
+Perf-Tier: read
+Perf-Label: jc21_asof_ledger
+Perf-After-ms: 0.079
+Perf-Budget-ms: 50
+Perf-Verdict: baseline
+Perf-Query-SHA: 54ad770bf7623629
+== jc21_asof_ledger exit 0
+AFTER : 0.132 ms  
+✓ baseline recorded (no before to compare)
+Perf-Tier: read
+Perf-Label: jc21_asof_fires
+Perf-After-ms: 0.132
+Perf-Budget-ms: 50
+Perf-Verdict: baseline
+Perf-Query-SHA: e6cf17d4a997f973
+== jc21_asof_fires exit 0
+AFTER : 0.039 ms  
+✓ baseline recorded (no before to compare)
+Perf-Tier: read
+Perf-Label: jc21_asof_criteria
+Perf-After-ms: 0.039
+Perf-Budget-ms: 50
+Perf-Verdict: baseline
+Perf-Query-SHA: f0b7dc9206093f58
+== jc21_asof_criteria exit 0
+AFTER : 0.079 ms  
+✓ baseline recorded (no before to compare)
+Perf-Tier: read
+Perf-Label: jc21_asof_textblocks
+Perf-After-ms: 0.079
+Perf-Budget-ms: 50
+Perf-Verdict: baseline
+Perf-Query-SHA: efcb27c8442e6e88
+== jc21_asof_textblocks exit 0
+== jc21_action_list_recent200 / jc21_action_list_operation (re-run, before = full list)
+AFTER : 1.176 ms  
+BEFORE: 21.338 ms  
+✓ improved
+Perf-Tier: read
+Perf-Label: jc21_action_list_recent200
+Perf-Before-ms: 21.338
+Perf-After-ms: 1.176
+Perf-Budget-ms: 50
+Perf-Verdict: improved
+Perf-Query-SHA: b4ed3cce45212610
+AFTER : 24.915 ms  
+BEFORE: 27.343 ms  
+✓ neutral (within tolerance)
+Perf-Tier: read
+Perf-Label: jc21_action_list_operation
+Perf-Before-ms: 27.343
+Perf-After-ms: 24.915
+Perf-Budget-ms: 50
+Perf-Verdict: neutral
+Perf-Query-SHA: 102877eb43d8e49d
+== jc21_asof_fires_v2 (fetch_prior_verifier_fires_as_of with steerer_id + off_thread_topic; before = landed query; session 1173418, steerer 14, --runs 25)
+AFTER : 0.108 ms  
+BEFORE: 0.134 ms  
+✓ improved
+
+── paste into the commit message ──
+Perf-Tier: read
+Perf-Label: jc21_asof_fires_v2
+Perf-Before-ms: 0.134
+Perf-After-ms: 0.108
+Perf-Budget-ms: 50
+Perf-Verdict: improved
+Perf-Query-SHA: 6283a71ee0207a63
+== jc21_asof_fires_v2 exit 0

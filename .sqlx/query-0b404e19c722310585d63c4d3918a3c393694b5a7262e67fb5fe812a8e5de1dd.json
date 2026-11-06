@@ -1,0 +1,194 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.id AS \"id!\", r.uuid AS \"uuid!\", k.code AS \"kind!\", r.value AS \"value!\",\n                          a.code AS \"action!\", r.text, r.trigger_token, r.inject_text, r.enabled AS \"enabled!\",\n                          s.code AS \"source!\", r.updated_at AS \"updated_at!\",\n                          r.project_path, r.sort_order AS \"sort_order!\",\n                          r.style_override AS \"style_override!\", r.title\n                   FROM rules.rules r\n                   JOIN rules.kinds   k ON k.id = r.kind_id\n                   JOIN rules.actions a ON a.id = r.action_id\n                   JOIN rules.sources s ON s.id = r.source_id\n                  WHERE r.deleted_at IS NULL\n                  ORDER BY r.sort_order ASC, r.id ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "rules.kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "value!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "value"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "action!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "rules.actions",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "trigger_token",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "trigger_token"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "inject_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "inject_text"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "enabled!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "rules.sources",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "updated_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "project_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "sort_order!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "sort_order"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "style_override!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "style_override"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "title"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "0b404e19c722310585d63c4d3918a3c393694b5a7262e67fb5fe812a8e5de1dd"
+}

@@ -1,0 +1,73 @@
+# Shared capture DB for temet-proxy — the `claude_proxy` database every session
+# captures into. Since 2026-09-14 it runs as a Docker container on the host
+# itself (omit, now an Arch Linux box). Before that
+# it ran inside WSL2 on the same hardware, behind a Windows portproxy rule.
+#
+#   scripts/capture-db/up.sh      # start (or resume) it and wait for health
+#   scripts/capture-db/down.sh    # stop it, keeping the data
+#
+# The cluster lives in the named volume `armitage_pg_data` under the docker
+# root (/mnt/data/docker), or, after scripts/capture-db/move-to-nvme.sh has run,
+# in the volume named by CAPTURE_DB_VOLUME in scripts/capture-db/.env (a bind of
+# ~/.local/share/mike-capture-db on the NVMe root). It is a byte-for-byte copy of the WSL2 volume of the
+# same name. Since 2026-11-02 it runs PostgreSQL 19 with pgvector 0.8.7, built from
+# Dockerfile.pg19 because pgvector publishes no 19 image yet (upgraded in place from
+# 17 by upgrade-to-19.sh). Superuser `devuser`, published on 5440. PGDATA stays at the
+# mount path below: the 19 image's own default is /var/lib/postgresql/19/docker. The volume is declared external so no compose command can
+# delete it; POSTGRES_* only apply to an empty volume (initdb) — on the existing
+# cluster the roles and passwords inside the data directory are what count.
+#
+# Reached as postgres://devuser:devpass123@127.0.0.1:5440/claude_proxy from this
+# host and at 192.168.1.20:5440 from the LAN. The local *fallback* DB is a
+# different thing: scripts/local-db/ (port 6666, docs/LOCAL_DB_FALLBACK.md).
+name: armitage-pg
+
+services:
+  postgres:
+    image: mike/postgres-pgvector:19rc1-0.8.7
+    build:
+      context: .
+      dockerfile: Dockerfile.pg19
+    container_name: armitage-pg
+    restart: unless-stopped
+    # Memory and planner settings for a ~350 GB cluster on a 46 GB NVMe host.
+    # The defaults (128MB shared_buffers, 4MB work_mem, random_page_cost 4) read
+    # ~86 GB an hour from outside Postgres's cache and spilled 423 sorts to disk.
+    # PostgreSQL 19 disables JIT by default. Command-line -c beats ALTER SYSTEM.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=8GB
+      - -c
+      - effective_cache_size=20GB
+      - -c
+      - work_mem=32MB
+      - -c
+      - maintenance_work_mem=1GB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      - -c
+      - autovacuum_max_parallel_workers=4
+    environment:
+      PGDATA: /var/lib/postgresql/data
+      POSTGRES_USER: ${CAPTURE_DB_USER:-devuser}
+      POSTGRES_PASSWORD: ${CAPTURE_DB_PASSWORD:-devpass123}
+      POSTGRES_DB: devdb
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    ports:
+      - "${CAPTURE_DB_PORT:-5440}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    shm_size: "512mb"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CAPTURE_DB_USER:-devuser} -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+volumes:
+  pgdata:
+    name: ${CAPTURE_DB_VOLUME:-armitage_pg_data}
+    external: true

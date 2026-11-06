@@ -1,0 +1,186 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.id AS \"operator_turn_id!\", s.session_uuid AS \"session_uuid!\", t.closed_at,\n                          t.user_prompt, t.final_assistant_text,\n                          (f.operator_turn_id IS NOT NULL) AS \"facts_present!\",\n                          f.text_chars AS \"text_chars?\", f.text_cut_at AS \"text_cut_at?\",\n                          t.tool_call_count, t.tool_error_count, f.next_state AS \"next_state?\",\n                          f.next_genuine_turn_id, f.next_genuine_request_id, f.next_genuine_at,\n                          COALESCE(nt.user_prompt, nr.human_prompt) AS \"next_genuine_text?\"\n                     FROM memory.operator_turns t\n                     JOIN sessions.sessions s ON s.id = t.session_id\n                     LEFT JOIN memory.turn_facts f ON f.operator_turn_id = t.id\n                     LEFT JOIN memory.operator_turns nt ON nt.id = f.next_genuine_turn_id\n                     LEFT JOIN requests.requests nr ON nr.id = f.next_genuine_request_id\n                    WHERE t.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "operator_turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "closed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "closed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "user_prompt",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "user_prompt"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "final_assistant_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "final_assistant_text"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "facts_present!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "text_chars?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "text_chars"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "text_cut_at?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "text_cut_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "tool_call_count",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "tool_call_count"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "tool_error_count",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "tool_error_count"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "next_state?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "next_state"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "next_genuine_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "next_genuine_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "next_genuine_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "next_genuine_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "next_genuine_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "next_genuine_at"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "next_genuine_text?",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      null,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "a6a20cbbfe67834235475e0e24088787b41879870e90fb57106aac500e82da4a"
+}

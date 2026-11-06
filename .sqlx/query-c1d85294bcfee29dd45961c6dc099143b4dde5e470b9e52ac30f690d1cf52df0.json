@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO mailbox.messages (message_uuid, to_session_id, from_session_id, body)\n           SELECT $1, a.session_id, NULL, $2\n             FROM agents.work_item_attention a\n            WHERE a.id = $3\n           ON CONFLICT (message_uuid) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c1d85294bcfee29dd45961c6dc099143b4dde5e470b9e52ac30f690d1cf52df0"
+}

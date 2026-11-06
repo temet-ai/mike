@@ -1,0 +1,1 @@
+SELECT sub.id, sub.session_id, sub.operator_turn_id, sub.kind, sub.content, sub.created_at FROM (SELECT e.id, e.session_id, e.operator_turn_id, e.kind, e.content, e.created_at FROM memory.ask_ledger_entries e WHERE e.session_id = 1173418 AND e.created_at <= '2026-09-24 08:22:50.453555+00'::timestamptz ORDER BY e.created_at DESC LIMIT 30) sub ORDER BY sub.created_at ASC

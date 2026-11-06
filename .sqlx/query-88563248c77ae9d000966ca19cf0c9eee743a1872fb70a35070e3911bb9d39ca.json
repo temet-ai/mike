@@ -1,0 +1,221 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT family, metric, population, scope_kind, project_id, axis, class, dimension,\n                        dimension_value, question, mode, k, n, value, ci_low, ci_high, detail\n                   FROM eval.rates\n                  WHERE rollup_id = $1\n                    AND ((family = 'steer_calibration' AND axis = 'steer_candidate' AND steerer_id = $2)\n                         OR (family = 'base_rate' AND metric = 'share'\n                             AND (dimension IS NULL OR dimension IN ('ended_on', 'guard_fact'))\n                             AND (dimension_value IS NULL\n                                  OR dimension_value IN ('all', 'after_corrected_turn',\n                                                         'unobserved_after_change'))))\n                  ORDER BY family, scope_kind, project_id, question, dimension, dimension_value",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "family",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "family"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "metric",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "metric"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "population",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "population"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "scope_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "scope_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "axis",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "axis"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "class",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "class"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "dimension",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "dimension"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "dimension_value",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "dimension_value"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "question",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "question"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "mode",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "mode"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "k",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "k"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "n",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "n"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "value",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "value"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "ci_low",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "ci_low"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "ci_high",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "ci_high"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "detail",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "detail"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "88563248c77ae9d000966ca19cf0c9eee743a1872fb70a35070e3911bb9d39ca"
+}

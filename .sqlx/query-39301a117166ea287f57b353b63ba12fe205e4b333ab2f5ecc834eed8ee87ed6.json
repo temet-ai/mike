@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_sources SET generation = generation + 1,\n            last_scan_at = now() WHERE source_uuid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "39301a117166ea287f57b353b63ba12fe205e4b333ab2f5ecc834eed8ee87ed6"
+}

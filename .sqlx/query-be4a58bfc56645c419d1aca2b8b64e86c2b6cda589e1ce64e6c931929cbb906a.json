@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.system_prompts rsp\n                                SET prompt_sha256 = $2,\n                                    system_prompt_id = sp.id\n                               FROM system_prompts.system_prompts sp\n                              WHERE rsp.request_id = $1\n                                AND sp.prompt_sha256 = $2\n                                AND rsp.prompt_sha256 IS NULL\n                                AND rsp.system_prompt_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "be4a58bfc56645c419d1aca2b8b64e86c2b6cda589e1ce64e6c931929cbb906a"
+}

@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO eval.bundles\n    (role, subject_key, origin, status, components, content_sha256, build_sha, build_dirty, cause)\nVALUES ($1, $2, 'candidate', 'candidate', $3, $4, $5, $6, '{\"trigger\": \"candidate\"}'::jsonb)\nRETURNING id AS \"id!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Jsonb",
+        "Text",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "47000457fb4cbb3d04d4af91e952c173dc9f6cce21822e44fd16d5188a4c934f"
+}

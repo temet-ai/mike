@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO sessions.session_analyzer_overrides\n                       (session_id, analyzer_name, enabled, updated_at)\n                   SELECT s.id, $2, $3, now()\n                     FROM sessions.sessions s\n                    WHERE s.session_uuid = $1\n                   ON CONFLICT (session_id, analyzer_name) DO UPDATE\n                       SET enabled    = excluded.enabled,\n                           updated_at = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5af60a2b5ccd662c00db700b98dcc9ba8375266a7cd82aaeba763548cdfab865"
+}

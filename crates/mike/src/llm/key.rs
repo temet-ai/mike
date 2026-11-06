@@ -1,0 +1,481 @@
+use std::sync::Arc;
+
+use arc_swap::ArcSwap;
+use secrecy::{ExposeSecret, SecretString};
+
+use super::model_ref::ModelRef;
+use super::openrouter::missing_key_error;
+use super::provider::{ModelTier, ProviderPolicy};
+use super::{LlmError, OpenRouterClient};
+
+pub(crate) type OpenRouterKeySlot = Arc<ArcSwap<Option<SecretString>>>;
+
+pub(crate) type AnthropicKeySlot = Arc<ArcSwap<Option<SecretString>>>;
+
+pub(crate) fn seed_anthropic_from_env() -> Option<SecretString> {
+    std::env::var("MIKE_ASSISTANT_ANTHROPIC_API_KEY")
+        .ok()
+        .filter(|v| !v.is_empty())
+        .map(|v| SecretString::new(v.into()))
+}
+
+pub(crate) fn seed_from_env(config_key: Option<&SecretString>) -> Option<SecretString> {
+    config_key
+        .map(|s| SecretString::new(s.expose_secret().to_owned().into()))
+        .or_else(|| {
+            std::env::var("MIKE_STEERER_OPENROUTER_API_KEY")
+                .ok()
+                .filter(|v| !v.is_empty())
+                .map(|v| SecretString::new(v.into()))
+        })
+        .or_else(|| {
+            std::env::var("OPENROUTER_API_KEY")
+                .ok()
+                .filter(|v| !v.is_empty())
+                .map(|v| SecretString::new(v.into()))
+        })
+}
+
+pub(crate) fn resolve(slot: &OpenRouterKeySlot) -> Option<SecretString> {
+    let guard = slot.load();
+    let current: &Option<SecretString> = &guard;
+    current.clone()
+}
+
+fn api_key_text(slot: &OpenRouterKeySlot) -> String {
+    resolve(slot)
+        .map(|key| key.expose_secret().to_owned())
+        .unwrap_or_default()
+}
+
+fn with_key(base: &OpenRouterClient, api_key: String) -> Option<OpenRouterClient> {
+    match base.with_api_key(api_key) {
+        Ok(client) => Some(client),
+        Err(e) => {
+            tracing::warn!(err = %e, "openrouter: failed to apply current API key to client");
+            None
+        }
+    }
+}
+
+fn with_model_or_base(base: &OpenRouterClient, model: &str) -> OpenRouterClient {
+    if model.is_empty() || base.model() == model {
+        return base.clone();
+    }
+    base.with_model(model.to_owned()).unwrap_or_else(|e| {
+        tracing::warn!(err = %e, model, "llm: could not switch the client to the requested model");
+        base.clone()
+    })
+}
+
+pub(crate) fn model_needs_openrouter_key(
+    policy: &ProviderPolicy,
+    tier: Option<ModelTier>,
+    model: &str,
+) -> bool {
+    ModelRef::parse(&policy.resolve(tier, model))
+        .provider
+        .needs_openrouter_key()
+}
+
+pub(crate) fn cli_api_key(
+    configured: Option<&SecretString>,
+    policy: &ProviderPolicy,
+    tier: Option<ModelTier>,
+    model: &str,
+) -> Result<String, LlmError> {
+    if let Some(key) = seed_from_env(configured) {
+        return Ok(key.expose_secret().to_owned());
+    }
+    if !model_needs_openrouter_key(policy, tier, model) {
+        return Ok(String::new());
+    }
+    Err(missing_key_error(model, tier.is_some(), policy.provider()))
+}
+
+pub(crate) fn keyed_client(
+    base: &OpenRouterClient,
+    slot: &OpenRouterKeySlot,
+) -> Option<OpenRouterClient> {
+    with_key(base, api_key_text(slot))
+}
+
+pub(crate) fn effective_client(
+    base: &OpenRouterClient,
+    slot: &OpenRouterKeySlot,
+) -> Option<OpenRouterClient> {
+    let api_key = api_key_text(slot);
+    if api_key.is_empty() && base.target().provider.needs_openrouter_key() {
+        return None;
+    }
+    with_key(base, api_key)
+}
+
+pub(crate) fn effective_client_for(
+    base: &OpenRouterClient,
+    slot: &OpenRouterKeySlot,
+    model: &str,
+) -> Option<OpenRouterClient> {
+    effective_client(&with_model_or_base(base, model), slot)
+}
+
+pub(crate) fn effective_client_for_any<'a>(
+    base: &OpenRouterClient,
+    slot: &OpenRouterKeySlot,
+    models: impl IntoIterator<Item = &'a str>,
+) -> Option<OpenRouterClient> {
+    let keyed = keyed_client(base, slot)?;
+    let usable = keyed.has_api_key()
+        || std::iter::once("").chain(models).any(|model| {
+            !with_model_or_base(base, model)
+                .target()
+                .provider
+                .needs_openrouter_key()
+        });
+    usable.then_some(keyed)
+}
+
+#[cfg(test)]
+mod tests {
+    use serde::Deserialize;
+    use serde_json::json;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    use super::*;
+
+    fn slot_with(key: Option<&str>) -> OpenRouterKeySlot {
+        Arc::new(ArcSwap::from_pointee(
+            key.map(|k| SecretString::new(k.to_owned().into())),
+        ))
+    }
+
+    struct EnvVarGuard {
+        key: &'static str,
+        prior: Option<std::ffi::OsString>,
+    }
+
+    impl EnvVarGuard {
+        fn unset(key: &'static str) -> Self {
+            let prior = std::env::var_os(key);
+            unsafe { std::env::remove_var(key) };
+            Self { key, prior }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            match &self.prior {
+                Some(v) => unsafe { std::env::set_var(self.key, v) },
+                None => unsafe { std::env::remove_var(self.key) },
+            }
+        }
+    }
+
+    #[test]
+    #[serial_test::serial(openrouter_env)]
+    fn seed_from_env_prefers_config_field_over_env_vars() {
+        let _guards = [
+            EnvVarGuard::unset("MIKE_STEERER_OPENROUTER_API_KEY"),
+            EnvVarGuard::unset("OPENROUTER_API_KEY"),
+        ];
+        unsafe { std::env::set_var("MIKE_STEERER_OPENROUTER_API_KEY", "from-env") };
+
+        let config_key = SecretString::new("from-config".to_owned().into());
+        let seeded = seed_from_env(Some(&config_key));
+        assert_eq!(
+            seeded.map(|s| s.expose_secret().to_owned()),
+            Some("from-config".to_owned())
+        );
+    }
+
+    #[test]
+    #[serial_test::serial(openrouter_env)]
+    fn seed_from_env_falls_back_to_primary_env_var_then_secondary() {
+        let _guards = [
+            EnvVarGuard::unset("MIKE_STEERER_OPENROUTER_API_KEY"),
+            EnvVarGuard::unset("OPENROUTER_API_KEY"),
+        ];
+        unsafe { std::env::set_var("OPENROUTER_API_KEY", "from-fallback-env") };
+
+        let seeded = seed_from_env(None);
+        assert_eq!(
+            seeded.map(|s| s.expose_secret().to_owned()),
+            Some("from-fallback-env".to_owned())
+        );
+    }
+
+    #[test]
+    #[serial_test::serial(openrouter_env)]
+    fn seed_from_env_none_when_nothing_configured() {
+        let _guards = [
+            EnvVarGuard::unset("MIKE_STEERER_OPENROUTER_API_KEY"),
+            EnvVarGuard::unset("OPENROUTER_API_KEY"),
+        ];
+        assert!(seed_from_env(None).is_none());
+    }
+
+    #[test]
+    #[serial_test::serial(anthropic_env)]
+    fn seed_anthropic_from_env_reads_configured_var() {
+        let _guard = EnvVarGuard::unset("MIKE_ASSISTANT_ANTHROPIC_API_KEY");
+        unsafe { std::env::set_var("MIKE_ASSISTANT_ANTHROPIC_API_KEY", "sk-ant-from-env") };
+
+        let seeded = seed_anthropic_from_env();
+        assert_eq!(
+            seeded.map(|s| s.expose_secret().to_owned()),
+            Some("sk-ant-from-env".to_owned())
+        );
+    }
+
+    #[test]
+    #[serial_test::serial(anthropic_env)]
+    fn seed_anthropic_from_env_none_when_unset() {
+        let _guard = EnvVarGuard::unset("MIKE_ASSISTANT_ANTHROPIC_API_KEY");
+        assert!(seed_anthropic_from_env().is_none());
+    }
+
+    #[test]
+    #[serial_test::serial(anthropic_env)]
+    fn seed_anthropic_from_env_none_when_empty() {
+        let _guard = EnvVarGuard::unset("MIKE_ASSISTANT_ANTHROPIC_API_KEY");
+        unsafe { std::env::set_var("MIKE_ASSISTANT_ANTHROPIC_API_KEY", "") };
+        assert!(seed_anthropic_from_env().is_none());
+    }
+
+    #[test]
+    fn resolve_reflects_a_swap() {
+        let slot = slot_with(Some("old-key"));
+        assert_eq!(
+            resolve(&slot).map(|s| s.expose_secret().to_owned()),
+            Some("old-key".to_owned())
+        );
+
+        slot.store(Arc::new(Some(SecretString::new(
+            "new-key".to_owned().into(),
+        ))));
+
+        assert_eq!(
+            resolve(&slot).map(|s| s.expose_secret().to_owned()),
+            Some("new-key".to_owned())
+        );
+    }
+
+    #[test]
+    fn resolve_none_when_slot_empty() {
+        let slot = slot_with(None);
+        assert!(resolve(&slot).is_none());
+    }
+
+    #[test]
+    fn effective_client_none_when_slot_empty() -> anyhow::Result<()> {
+        let base =
+            OpenRouterClient::new("boot-key".to_owned(), "test-model".to_owned(), None, None)?;
+        let slot = slot_with(None);
+        assert!(effective_client(&base, &slot).is_none());
+        Ok(())
+    }
+
+    fn client_on(model: &str) -> anyhow::Result<OpenRouterClient> {
+        Ok(OpenRouterClient::new(
+            "boot-key".to_owned(),
+            model.to_owned(),
+            None,
+            None,
+        )?)
+    }
+
+    #[test]
+    fn effective_client_without_a_key_serves_codex_and_claude_models() -> anyhow::Result<()> {
+        let slot = slot_with(None);
+        for model in ["codex/gpt-6-sol", "claude/sonnet"] {
+            assert!(
+                effective_client(&client_on(model)?, &slot).is_some(),
+                "{model}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn effective_client_without_a_key_refuses_every_openrouter_name() -> anyhow::Result<()> {
+        let slot = slot_with(None);
+        for model in [
+            "google/gemini-3.8-flash",
+            "openrouter/anthropic/claude-sonnet-5-5",
+            "openrouter/openai/gpt-6-sol",
+        ] {
+            assert!(
+                effective_client(&client_on(model)?, &slot).is_none(),
+                "{model}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn effective_client_with_an_empty_key_counts_as_no_key() -> anyhow::Result<()> {
+        let slot = slot_with(Some(""));
+        assert!(effective_client(&client_on("google/gemini-3.8-flash")?, &slot).is_none());
+        assert!(effective_client(&client_on("codex/gpt-6-sol")?, &slot).is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn effective_client_for_gates_on_the_model_switched_to() -> anyhow::Result<()> {
+        let slot = slot_with(None);
+        let base = client_on("google/gemini-3.8-flash")?;
+        let switched = effective_client_for(&base, &slot, "codex/gpt-6-sol")
+            .ok_or_else(|| anyhow::anyhow!("expected a client for the codex model"))?;
+        assert_eq!(switched.model(), "codex/gpt-6-sol");
+        assert!(effective_client_for(&base, &slot, "").is_none());
+        assert!(
+            effective_client_for(&client_on("codex/gpt-6-sol")?, &slot, "other/model").is_none()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn effective_client_for_any_passes_when_one_candidate_needs_no_key() -> anyhow::Result<()> {
+        let slot = slot_with(None);
+        let base = client_on("google/gemini-3.8-flash")?;
+        assert!(effective_client_for_any(&base, &slot, ["a/b", "claude/haiku"]).is_some());
+        assert!(effective_client_for_any(&base, &slot, ["a/b", "c/d"]).is_none());
+        assert!(effective_client_for_any(&base, &slot_with(Some("k")), ["a/b"]).is_some());
+        Ok(())
+    }
+
+    fn unset_key_env() -> [EnvVarGuard; 2] {
+        [
+            EnvVarGuard::unset("MIKE_STEERER_OPENROUTER_API_KEY"),
+            EnvVarGuard::unset("OPENROUTER_API_KEY"),
+        ]
+    }
+
+    #[test]
+    #[serial_test::serial(openrouter_env)]
+    fn cli_api_key_needs_no_key_for_codex_and_claude_models() {
+        let _guards = unset_key_env();
+        let policy = ProviderPolicy::default();
+        for model in ["codex/gpt-6-sol", "claude/sonnet"] {
+            assert_eq!(
+                cli_api_key(None, &policy, None, model).ok(),
+                Some(String::new()),
+                "{model}"
+            );
+        }
+    }
+
+    #[test]
+    #[serial_test::serial(openrouter_env)]
+    fn cli_api_key_refuses_an_openrouter_model_naming_the_model_and_the_provider() {
+        let _guards = unset_key_env();
+        let policy = ProviderPolicy::default();
+        let message = cli_api_key(None, &policy, None, "google/gemini-3.8-flash")
+            .err()
+            .map(|e| e.to_string())
+            .unwrap_or_default();
+        assert!(message.contains("google/gemini-3.8-flash"), "{message}");
+        assert!(message.contains("OpenRouter"), "{message}");
+    }
+
+    #[test]
+    #[serial_test::serial(openrouter_env)]
+    fn cli_api_key_names_llm_provider_for_a_tierless_job_under_a_cli_provider() {
+        let _guards = unset_key_env();
+        let mut policy = ProviderPolicy::default();
+        assert!(policy.set_provider("claude"));
+        let message = cli_api_key(None, &policy, None, "google/gemini-3.8-flash")
+            .err()
+            .map(|e| e.to_string())
+            .unwrap_or_default();
+        assert!(message.contains("llm.provider is claude"), "{message}");
+    }
+
+    #[test]
+    #[serial_test::serial(openrouter_env)]
+    fn cli_api_key_follows_the_provider_tier_model_not_the_roles_own_name() {
+        let _guards = unset_key_env();
+        let mut policy = ProviderPolicy::default();
+        assert!(policy.set_provider("codex"));
+        assert_eq!(
+            cli_api_key(
+                None,
+                &policy,
+                Some(ModelTier::Strong),
+                "google/gemini-3.8-flash"
+            )
+            .ok(),
+            Some(String::new())
+        );
+    }
+
+    #[test]
+    #[serial_test::serial(openrouter_env)]
+    fn cli_api_key_uses_a_configured_key_whatever_the_model() {
+        let _guards = unset_key_env();
+        let configured = SecretString::new("sk-config".to_owned().into());
+        assert_eq!(
+            cli_api_key(
+                Some(&configured),
+                &ProviderPolicy::default(),
+                None,
+                "codex/gpt-6-sol"
+            )
+            .ok(),
+            Some("sk-config".to_owned())
+        );
+    }
+
+    #[test]
+    fn keyed_client_never_refuses_for_a_missing_key() -> anyhow::Result<()> {
+        let keyless = keyed_client(&client_on("google/gemini-3.8-flash")?, &slot_with(None))
+            .ok_or_else(|| anyhow::anyhow!("expected a client"))?;
+        assert!(!keyless.has_api_key());
+        Ok(())
+    }
+
+    #[derive(Debug, Deserialize, PartialEq)]
+    struct TestVerdict {
+        ok: bool,
+    }
+
+    #[tokio::test]
+    async fn effective_client_sends_current_slot_key_not_boot_key() -> anyhow::Result<()> {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/chat/completions"))
+            .and(wiremock::matchers::header(
+                "authorization",
+                "Bearer new-key",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "choices": [{"message": {"content": r#"{"ok":true}"#}}]
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let base = OpenRouterClient::new(
+            "boot-key".to_owned(),
+            "test-model".to_owned(),
+            Some(server.uri()),
+            None,
+        )?;
+        let slot = slot_with(Some("new-key"));
+
+        let client =
+            effective_client(&base, &slot).ok_or_else(|| anyhow::anyhow!("expected Some"))?;
+        let schema = json!({
+            "type": "object",
+            "properties": {"ok": {"type": "boolean"}},
+            "required": ["ok"],
+            "additionalProperties": false
+        });
+        let result: TestVerdict = client.verdict("sys", "user", schema).await?;
+        assert!(result.ok);
+
+        server.verify().await;
+        Ok(())
+    }
+}

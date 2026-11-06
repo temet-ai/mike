@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.requests\n             SET intercepted                    = TRUE,\n                 correction_request_id          = $2\n             WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "069714ceab0f26612c3887ecd09716d9d1007bcdc8fe4e7b6fb48cc468d0e693"
+}

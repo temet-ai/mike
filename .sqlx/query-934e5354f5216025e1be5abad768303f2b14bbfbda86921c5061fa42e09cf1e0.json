@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE launch.tree_checks\n   SET askers = CASE WHEN $2 = ANY (askers) THEN askers ELSE array_append(askers, $2) END\n WHERE id = $1\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "934e5354f5216025e1be5abad768303f2b14bbfbda86921c5061fa42e09cf1e0"
+}

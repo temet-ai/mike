@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.messages rm\n                SET cache_control = v.cache_control\n               FROM (SELECT UNNEST($1::bigint[]) AS request_id,\n                            UNNEST($2::int[])    AS ord,\n                            UNNEST($3::jsonb[])  AS cache_control) v\n              WHERE rm.request_id = v.request_id\n                AND rm.ord = v.ord\n                AND rm.cache_control IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int4Array",
+        "JsonbArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d2643ef2ea4a63aab8b10eafea98857b5961929bddb17fac4b8b339a1813a9ff"
+}

@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH l AS (\n    SELECT l.subject_id, l.axis, l.operator_turn_id, l.id, l.label, l.inclusion_prob,\n           l.provenance, l.created_at,\n           CASE l.tier WHEN 'gold' THEN 1 WHEN 'relayed' THEN 2 WHEN 'seed' THEN 3 ELSE 4 END AS tier_rank\n      FROM eval.labels_as_of($1) l\n      JOIN eval.import_batches ib ON ib.id = l.import_batch_id AND ib.source_key = $5\n     WHERE l.subject_kind = 'turn'\n       AND l.axis IN ('reaction', 'delivery')\n       AND l.split = $2\n       AND l.tier = ANY($3::text[])\n       AND l.method = ANY($4::text[])\n       AND ($2 <> 'holdout' OR coalesce(l.provenance ->> 'purpose', '') <> 'holdout_spot_check')\n),\nbest AS (\n    SELECT DISTINCT ON (subject_id, axis)\n           subject_id, axis, operator_turn_id, id, label, inclusion_prob, provenance\n      FROM l\n     ORDER BY subject_id, axis, tier_rank, created_at DESC, id DESC\n)\nSELECT r.operator_turn_id AS \"operator_turn_id!\", r.id AS \"reaction_label_id!\",\n       r.label AS \"reaction_label!\", d.id AS \"delivery_label_id?\", d.label AS \"delivery_label?\",\n       r.inclusion_prob AS \"inclusion_prob?\",\n       coalesce(r.provenance ->> 'stratum', 'all') AS \"stratum!\",\n       coalesce(r.provenance -> 'control' = 'true'::jsonb, false) AS \"control!\"\n  FROM best r\n  LEFT JOIN best d ON d.subject_id = r.subject_id AND d.axis = 'delivery'\n WHERE r.axis = 'reaction'\n ORDER BY r.operator_turn_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "operator_turn_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "reaction_label_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "reaction_label!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "delivery_label_id?",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "delivery_label?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "inclusion_prob?",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "stratum!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "control!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Text",
+        "TextArray",
+        "TextArray",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "d9b85e77d1332cca2f0c3db40b1c6b09f852ca02fc9f52758c3dd075a0e57ff9"
+}

@@ -1,0 +1,71 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH resolved AS (\n    SELECT r.id                AS request_id,\n           r.created_at        AS req_created_at,\n           r.subagent_persona,\n           COALESCE(r.claude_code_agent_id, hdr.agent_id_hdr) AS agent_id\n      FROM requests.requests r\n      JOIN requests.turn_origins rto ON rto.id = r.turn_origin_id\n      -- grader-allow: top-1 extraction from a bounded per-request headers array; not expressible as DISTINCT ON without a schema change\n      LEFT JOIN LATERAL (\n          SELECT elem->>1 AS agent_id_hdr\n            FROM jsonb_array_elements(r.request_headers) AS elem\n           WHERE elem->>0 = 'x-claude-code-agent-id'\n           LIMIT 1\n      ) hdr ON true\n     WHERE r.session_id = $1\n       AND rto.code = 'workflow_subagent'\n       AND COALESCE(r.claude_code_agent_id, hdr.agent_id_hdr) IS NOT NULL\n),\nlast_structured_output AS (\n    SELECT DISTINCT ON (tu.request_id)\n           tu.request_id,\n           tu.input AS result_json\n      FROM tools.uses tu\n     WHERE tu.request_id IN (SELECT request_id FROM resolved)\n       AND tu.tool_name = 'StructuredOutput'\n     ORDER BY tu.request_id, tu.id DESC\n)\nSELECT r.agent_id         AS \"agent_id!\",\n       r.request_id       AS \"request_id!\",\n       r.req_created_at   AS \"req_created_at!\",\n       r.subagent_persona AS \"subagent_persona?\",\n       lso.result_json    AS \"result_json?\"\n  FROM resolved r\n  LEFT JOIN last_structured_output lso ON lso.request_id = r.request_id\n ORDER BY r.req_created_at ASC\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "agent_id!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "req_created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "subagent_persona?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "subagent_persona"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "result_json?",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "input"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "c0fb5d375fa856e5ad3da8b0ffe828da519414c17a0adc231881e7123d4a4a3b"
+}

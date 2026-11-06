@@ -1,0 +1,217 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH page AS (\n    SELECT e.id, e.uuid, e.session_id, e.operator_turn_id, e.question, e.arm, e.dispatched_at,\n           e.outcome_label, e.label_source, i.delivered_request_id, i.wake_state,\n           i.delivery_channel, i.payload_text\n      FROM steering.evaluations e\n      JOIN steering.interventions i ON i.uuid = e.intervention_uuid\n     WHERE e.steerer_id = $1\n       AND (i.delivered_request_id IS NOT NULL OR i.pushed_at IS NOT NULL)\n     ORDER BY e.dispatched_at DESC, e.id DESC\n     LIMIT $2 OFFSET $3\n)\nSELECT page.uuid AS \"uuid!\", s.session_uuid AS \"session_uuid!\", s.title AS \"session_title?\",\n       p.project_path AS \"project_path?\",\n       COALESCE(first_op.user_prompt, first_text.human_prompt) AS \"session_first_prompt?\",\n       page.session_id AS \"session_id!\", page.operator_turn_id AS \"operator_turn_id!\",\n       page.question AS \"question?\", page.arm AS \"arm?\", page.dispatched_at AS \"dispatched_at!\",\n       page.outcome_label AS \"outcome_label?\", page.label_source AS \"label_source?\",\n       page.delivered_request_id AS \"delivered_request_id?\", page.wake_state AS \"wake_state?\",\n       page.delivery_channel AS \"delivery_channel?\", page.payload_text AS \"note_text?\",\n       rx.reaction AS \"outcome_reaction?\"\n  FROM page\n  JOIN sessions.sessions s ON s.id = page.session_id\n  LEFT JOIN projects.projects p ON p.id = s.project_id\n  LEFT JOIN LATERAL (\n      SELECT v.reaction\n        FROM memory.turn_verdicts v\n       WHERE v.operator_turn_id = page.operator_turn_id AND v.mode = 'live'\n       ORDER BY v.created_at DESC, v.id DESC\n       LIMIT 1\n  ) rx ON true\n  LEFT JOIN LATERAL (\n      SELECT COALESCE(ot.user_prompt, sr.human_prompt) AS user_prompt\n        FROM (\n            SELECT pk_cls.request_id\n              FROM prompt_kinds.classifications pk_cls\n             WHERE s.title IS NULL\n               AND pk_cls.session_id = page.session_id\n               AND pk_cls.kind_id = (SELECT id FROM prompt_kinds.kinds WHERE code = 'operator')\n             ORDER BY pk_cls.request_id ASC\n             LIMIT 1\n        ) first_cls\n        JOIN memory.operator_turns ot ON ot.start_request_id = first_cls.request_id\n        LEFT JOIN requests.requests sr ON sr.id = first_cls.request_id\n  ) first_op ON true\n  LEFT JOIN LATERAL (\n      SELECT r_any.human_prompt\n        FROM requests.requests r_any\n       WHERE s.title IS NULL\n         AND first_op.user_prompt IS NULL\n         AND r_any.session_id = page.session_id\n         AND r_any.human_prompt IS NOT NULL\n         AND r_any.human_prompt <> ''\n         AND NOT EXISTS (\n             SELECT 1 FROM prompt_kinds.classifications pk_any\n              WHERE pk_any.request_id = r_any.id\n         )\n         AND r_any.turn_origin_id IN (\n             SELECT id FROM requests.turn_origins\n              WHERE code IN ('primary', 'primary_first', 'subagent', 'workflow_subagent')\n         )\n       ORDER BY r_any.created_at ASC, r_any.id ASC\n       LIMIT 1\n  ) first_text ON true\n ORDER BY page.dispatched_at DESC, page.id DESC\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "session_title?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "project_path?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "session_first_prompt?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "operator_turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "question?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "question"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "arm?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "arm"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "dispatched_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "dispatched_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "outcome_label?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "outcome_label"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "label_source?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "label_source"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "delivered_request_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "delivered_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "wake_state?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "wake_state"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "delivery_channel?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "delivery_channel"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "note_text?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "payload_text"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "outcome_reaction?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "reaction"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      null,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "227e7dea54b9b3c5d379a6ab5f0652b41abac5d4180b7b29503710cedc746670"
+}

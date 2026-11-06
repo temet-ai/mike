@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT last_idle_seconds FROM remote_control.channels WHERE cse_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "last_idle_seconds",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "last_idle_seconds"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "8a8e15eae3ad745a4f850953f7531a071dcd99c9b5c9ea07a343502237ad329d"
+}

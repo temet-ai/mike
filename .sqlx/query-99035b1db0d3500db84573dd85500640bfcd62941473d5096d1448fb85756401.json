@@ -1,0 +1,63 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.model AS \"model!\",\n                COUNT(*)::bigint                                           AS \"response_count!\",\n                COALESCE(SUM(resp.input_tokens), 0)::bigint                AS \"input_tokens!\",\n                COALESCE(SUM(resp.output_tokens), 0)::bigint               AS \"output_tokens!\",\n                COALESCE(SUM(resp.cache_read_input_tokens), 0)::bigint     AS \"cache_read_tokens!\",\n                COALESCE(SUM(resp.cache_creation_input_tokens), 0)::bigint AS \"cache_write_tokens!\"\n         FROM requests.requests r\n         JOIN responses.responses resp ON resp.request_id = r.id\n         WHERE r.session_id = $1\n           AND r.model IS NOT NULL\n         GROUP BY r.model\n         ORDER BY r.model ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "model!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "response_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "input_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "output_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "cache_read_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "cache_write_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "99035b1db0d3500db84573dd85500640bfcd62941473d5096d1448fb85756401"
+}

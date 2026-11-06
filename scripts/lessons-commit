@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# lessons-commit — land the lesson files the knowledge collector writes.
+#
+# `mike-knowledge watch` mirrors every lesson into .claude/lessons/ so a lost
+# or re-keyed database is a re-import, not a loss. Those files are only durable
+# once committed. This commits .claude/lessons/ locally and nothing else; it
+# never fetches or pushes, so it needs no credential. The proxy's scheduler runs it
+# daily (the lessons_commit job) in a checkout that other sessions share, so it
+# steps aside rather than competing: it does nothing while a merge, rebase,
+# cherry-pick or another git command is in progress, and it never touches
+# anything outside .claude/lessons/.
+#
+# Usage: scripts/lessons-commit
+set -euo pipefail
+
+repo=$(git -C "$(dirname "$0")" rev-parse --show-toplevel)
+cd "$repo"
+
+gitdir=$(git rev-parse --git-dir)
+for marker in index.lock MERGE_HEAD REBASE_HEAD CHERRY_PICK_HEAD rebase-merge rebase-apply; do
+  if [ -e "$gitdir/$marker" ]; then
+    echo "lessons-commit: skipped, $marker present (another git operation is in progress)"
+    exit 0
+  fi
+done
+
+if [ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]; then
+  echo "lessons-commit: skipped, checkout is not on main"
+  exit 0
+fi
+
+if [ -z "$(git status --porcelain -- .claude/lessons)" ]; then
+  echo "lessons-commit: nothing to commit"
+  exit 0
+fi
+
+count=$(git status --porcelain -- .claude/lessons | wc -l | tr -d ' ')
+git add -- .claude/lessons
+git commit --quiet --only -m "chore(lessons): sync ${count} lesson file(s) from the capture DB" -- .claude/lessons
+echo "lessons-commit: committed ${count} file(s) as $(git rev-parse --short HEAD)"

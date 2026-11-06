@@ -1,0 +1,123 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH anchor AS (\n    SELECT se.embedding, se.session_id, s.project_id\n      FROM memory.session_embeddings se\n      JOIN sessions.sessions s ON s.session_uuid = se.session_id\n     WHERE se.session_id = $1\n),\ndists AS MATERIALIZED (\n    SELECT b.session_id, b.source, a.embedding <=> b.embedding AS distance\n      FROM anchor a\n      JOIN sessions.sessions bs ON bs.project_id = a.project_id\n      JOIN memory.session_embeddings b ON b.session_id = bs.session_uuid\n                                      AND b.session_id <> a.session_id\n),\nranked AS (\n    SELECT d.session_id, d.source, (1.0 - d.distance)::float8 AS similarity, d.distance\n      FROM dists d\n     WHERE (1.0 - d.distance) >= $3\n     ORDER BY d.distance ASC\n     LIMIT $2\n)\nSELECT r.session_id AS \"session_id!\",\n       s.title AS \"title?\",\n       s.project_id AS \"project_id!\",\n       p.project_path AS \"project_path!\",\n       lv.outcome AS \"outcome?\",\n       s.last_seen AS \"last_seen!\",\n       COALESCE(ns.live_status, s.last_status) AS \"last_status?\",\n       r.similarity AS \"similarity!\",\n       r.source AS \"source!\",\n       COALESCE(sk.topics, '{}') AS \"topics!\"\n  FROM ranked r\n  JOIN sessions.sessions s ON s.session_uuid = r.session_id\n  JOIN projects.projects p ON p.id = s.project_id\n  LEFT JOIN LATERAL (\n      SELECT o.code AS outcome\n        FROM session_judges.verdicts v\n        JOIN session_judges.outcomes o ON o.id = v.outcome_id\n       WHERE v.session_id = s.id AND v.mode = 'live'\n       ORDER BY v.judged_at DESC, v.id DESC\n       LIMIT 1\n  ) lv ON TRUE\n  LEFT JOIN memory.session_knowledge sk ON sk.session_id = r.session_id\n  LEFT JOIN LATERAL (\n      -- Newest-request status, read live because sessions.last_status can go stale\n      -- (issue #147). Top-1-per-group over the ranked rows only.\n      SELECT CASE st.code\n                 WHEN 'pending'   THEN 'Pending'\n                 WHEN 'streaming' THEN 'Streaming'\n                 WHEN 'complete'  THEN 'Complete'\n                 WHEN 'error'     THEN 'Error: ' || COALESCE(re.message, '')\n             END AS live_status\n        FROM requests.requests nr\n        JOIN requests.statuses st ON st.id = nr.status_id\n        LEFT JOIN requests.errors re ON re.request_id = nr.id\n       WHERE nr.session_id = s.id\n       ORDER BY nr.created_at DESC, nr.id DESC\n       LIMIT 1\n  ) ns ON TRUE\n ORDER BY r.distance ASC\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "memory.session_embeddings",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "title?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "project_path!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "outcome?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.outcomes",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "last_seen!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "last_seen"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "last_status?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "similarity!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.session_embeddings",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "topics!",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      null,
+      null,
+      false,
+      null
+    ]
+  },
+  "hash": "4d9cbfd095bb9db965e711683f58e2e5c884e805dabfe2fb5c81cf5e28f0db04"
+}

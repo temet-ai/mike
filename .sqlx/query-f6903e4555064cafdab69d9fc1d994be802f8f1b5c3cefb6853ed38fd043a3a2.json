@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT request_body FROM remote_control.calls WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "request_body"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "f6903e4555064cafdab69d9fc1d994be802f8f1b5c3cefb6853ed38fd043a3a2"
+}

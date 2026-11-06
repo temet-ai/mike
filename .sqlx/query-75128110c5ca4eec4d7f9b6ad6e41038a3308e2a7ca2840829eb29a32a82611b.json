@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH newest AS (\n                       SELECT DISTINCT ON (d.project_id, d.folder)\n                              d.project_id, d.folder, d.topic, d.agent_id, d.lesson_ids,\n                              d.review, d.eval\n                         FROM memory.skill_drafts d\n                        ORDER BY d.project_id, d.folder, d.id DESC),\n                   moves AS (\n                       SELECT n.project_id, n.topic AS from_topic, n.lesson_ids,\n                              t.topic AS to_topic, t.agent_id AS to_agent\n                         FROM newest n\n                         JOIN newest t ON t.project_id = n.project_id\n                                      AND t.folder = n.eval #>> '{review,overlap}'\n                        WHERE n.review IS NULL\n                          AND n.eval #>> '{review,decision}' = 'wrong_place'\n                          AND n.eval #>> '{review,belongs_in}' = 'existing_skill'\n                          AND t.topic <> n.topic)\n                   UPDATE memory.lessons l\n                      SET topic = m.to_topic\n                     FROM moves m\n                    WHERE l.project_id = m.project_id\n                      AND l.topic = m.from_topic\n                      AND l.id = ANY (m.lesson_ids)\n                      AND l.archived_at IS NULL\n                      AND (m.to_agent IS NULL OR l.agent_id = m.to_agent)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "75128110c5ca4eec4d7f9b6ad6e41038a3308e2a7ca2840829eb29a32a82611b"
+}

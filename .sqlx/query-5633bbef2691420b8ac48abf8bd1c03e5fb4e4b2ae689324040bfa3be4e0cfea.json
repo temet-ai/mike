@@ -1,0 +1,148 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, session_uuid, backend, seat, surface_ref, pid, opened, result, opened_at, closed_at,\n       close_process_exited\n  FROM launch.launches\n WHERE run_id = $1\n   AND ((opened AND (closed_at IS NULL OR close_process_exited IS DISTINCT FROM TRUE))\n        OR (NOT opened AND result <> 'failed'))\n ORDER BY created_at, id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "backend",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "backend"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "seat",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "seat"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "surface_ref",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "surface_ref"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "pid",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "pid"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "opened",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "opened"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "result",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "result"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "opened_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "opened_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "closed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "closed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "close_process_exited",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "close_process_exited"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "5633bbef2691420b8ac48abf8bd1c03e5fb4e4b2ae689324040bfa3be4e0cfea"
+}

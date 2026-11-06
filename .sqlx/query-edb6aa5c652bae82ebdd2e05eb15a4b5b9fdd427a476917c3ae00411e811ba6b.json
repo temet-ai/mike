@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lessons l\n                    SET placement_id = lp.id,\n                        placement_covered_by = $3,\n                        placement_reason = $4,\n                        placed_at = now()\n                   FROM memory.lesson_placements lp\n                  WHERE lp.code = $2\n                    AND l.id = $1\n                    AND l.placement_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "edb6aa5c652bae82ebdd2e05eb15a4b5b9fdd427a476917c3ae00411e811ba6b"
+}

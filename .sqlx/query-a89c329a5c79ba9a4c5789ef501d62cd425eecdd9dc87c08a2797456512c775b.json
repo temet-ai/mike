@@ -1,0 +1,160 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT operator_turn_id, wait_backing, wait_backing_refs, observed_after_change,\n                        last_change_use_id, last_change_at, last_observation_use_id,\n                        last_observation_at, observation_kind, steering_facts_version,\n                        session_class, session_class_rule\n                   FROM memory.turn_facts WHERE operator_turn_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "operator_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "wait_backing",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "wait_backing"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "wait_backing_refs",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "wait_backing_refs"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "observed_after_change",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "observed_after_change"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "last_change_use_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "last_change_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "last_change_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "last_change_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "last_observation_use_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "last_observation_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "last_observation_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "last_observation_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "observation_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "observation_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "steering_facts_version",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "steering_facts_version"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "session_class",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "session_class"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "session_class_rule",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "session_class_rule"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "a89c329a5c79ba9a4c5789ef501d62cd425eecdd9dc87c08a2797456512c775b"
+}

@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT i.stats_reset, clock_timestamp() AS \"taken_at!\"\n                   FROM pg_stat_statements_info i",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "stats_reset",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "pg_stat_statements_info",
+            "name": "stats_reset"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "taken_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true,
+      null
+    ]
+  },
+  "hash": "b74bb01ccec0cd8406eb4ff28dd203b8ed3ade3e9c51407b54bacbe829a3f6d4"
+}

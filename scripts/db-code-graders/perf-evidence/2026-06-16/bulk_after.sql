@@ -1,0 +1,35 @@
+WITH incoming AS (
+         SELECT n, p, d
+           FROM UNNEST(
+               ARRAY['rust-developer','db-dev','technical-writer','researcher','reviewer','architect']::TEXT[],
+               ARRAY['/Users/vimes/projects/temet/temet-proxy/.claude/agents/rust-developer.md',
+                     '/Users/vimes/projects/temet/temet-proxy/.claude/agents/db-dev.md',
+                     '/Users/vimes/projects/temet/temet-proxy/.claude/agents/technical-writer.md',
+                     '/Users/vimes/projects/temet/temet-proxy/.claude/agents/researcher.md',
+                     '/Users/vimes/.claude/agents/reviewer.md',
+                     '/Users/vimes/.claude/agents/architect.md']::TEXT[],
+               ARRAY['desc-a','desc-b','desc-c','desc-d','desc-e','desc-f']::TEXT[]
+           ) AS t(n, p, d)
+     ),
+     file_backed AS (
+         SELECT id FROM agents.sources WHERE code = 'file_backed' LIMIT 1
+     ),
+     upserted AS (
+         INSERT INTO agents.agents (name, definition_path, description, source_id)
+         SELECT i.n, i.p, i.d, fb.id
+           FROM incoming i, file_backed fb
+         ON CONFLICT (LOWER(name)) DO UPDATE
+            SET source_id       = (SELECT fb2.id FROM agents.sources fb2
+                                   WHERE fb2.code = 'file_backed' LIMIT 1),
+                definition_path = COALESCE(agents.agents.definition_path, EXCLUDED.definition_path),
+                description     = CASE
+                    WHEN agents.agents.description IS NULL
+                        THEN EXCLUDED.description
+                    WHEN agents.agents.description ~ '^[>|][-+]?$'
+                        THEN EXCLUDED.description
+                    ELSE agents.agents.description
+                END,
+                updated_at      = NOW()
+         RETURNING name
+     )
+     SELECT COUNT(*)::BIGINT FROM upserted

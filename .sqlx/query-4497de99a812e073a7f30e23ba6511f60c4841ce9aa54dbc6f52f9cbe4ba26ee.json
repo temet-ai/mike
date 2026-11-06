@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO projects.projects (project_path, display_name, first_seen, last_seen)\n         VALUES ('/tmp/orphan-test', '/tmp/orphan-test', NOW(), NOW())\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4497de99a812e073a7f30e23ba6511f60c4841ce9aa54dbc6f52f9cbe4ba26ee"
+}

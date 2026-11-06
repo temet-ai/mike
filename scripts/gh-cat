@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+# gh-cat — read files, directory listings, and trees from third-party GitHub repos.
+#
+# Replaces the hand-rolled `gh api .../contents/... | jq -r .content | base64 -d`
+# pipeline (catalogue Tier-1 §3). Read-only research tool.
+#
+# Usage:
+#   gh-cat <owner/repo> <path> [--ref R] [--grep RE] [--lines A:B]   # print file contents
+#   gh-cat ls <owner/repo> [dir] [--ref R]                           # list a directory
+#   gh-cat tree <owner/repo> [--ref R] [--grep RE]                   # full recursive tree
+#
+# Honest exit codes:
+#   0  success
+#   1  not found (404) or no --grep match (grep semantics)
+#   2  usage error
+#   other non-zero: gh/network failure passed through
+#
+# Full fidelity: file contents are decoded and printed whole (large files are
+# fetched via the blob API when the contents API omits inline content). The
+# tree subcommand surfaces GitHub's `truncated` flag on stderr instead of
+# silently dropping entries.
+#
+# Works from any cwd — no repo-local state is consulted.
+set -euo pipefail
+
+usage() {
+  sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//' >&2
+  exit 2
+}
+
+err() { printf 'gh-cat: %s\n' "$1" >&2; }
+
+# URL-encode each path segment, preserving the / separators.
+encode_path() {
+  local path="$1" out="" seg first=1
+  IFS='/' read -ra parts <<<"$path"
+  for seg in "${parts[@]}"; do
+    seg=$(printf '%s' "$seg" | jq -sRr '@uri')
+    if [[ $first -eq 1 ]]; then out="$seg"; first=0; else out="$out/$seg"; fi
+  done
+  printf '%s' "$out"
+}
+
+# Run gh api; on failure emit a one-line error and exit 1 (404) or gh's code.
+api() {
+  local out rc
+  if out=$(gh api "$@" 2>&1); then
+    printf '%s' "$out"
+    return 0
+  fi
+  rc=$?
+  # gh prints a JSON error body plus a "gh: Not Found (HTTP 404)" summary line;
+  # prefer the API's message field, fall back to gh's own summary.
+  local msg
+  msg=$(printf '%s' "$out" | jq -r 'select(type == "object") | .message // empty' 2>/dev/null | head -1 || true)
+  [[ -n "$msg" ]] || msg=$(printf '%s\n' "$out" | grep -m1 '^gh:' || true)
+  [[ -n "$msg" ]] || msg=$(printf '%s\n' "$out" | grep -m1 . || true)
+  if printf '%s' "$out" | grep -q 'HTTP 404'; then
+    err "not found (HTTP 404): ${msg:-no detail}"
+    exit 1
+  fi
+  err "${msg:-gh api failed (exit $rc)}"
+  exit "$rc"
+}
+
+default_branch() {
+  api "repos/$1" --jq .default_branch
+}
+
+cmd_ls() {
+  local repo="" dir="" ref=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --ref) [[ $# -ge 2 ]] || { err "--ref needs a value"; exit 2; }; ref="$2"; shift 2 ;;
+      -*) err "unknown option for ls: $1"; exit 2 ;;
+      *)
+        if [[ -z "$repo" ]]; then repo="$1"
+        elif [[ -z "$dir" ]]; then dir="$1"
+        else err "unexpected argument: $1"; exit 2; fi
+        shift ;;
+    esac
+  done
+  [[ -n "$repo" ]] || usage
+  local url="repos/$repo/contents"
+  [[ -n "$dir" ]] && url="$url/$(encode_path "$dir")"
+  [[ -n "$ref" ]] && url="$url?ref=$(printf '%s' "$ref" | jq -sRr '@uri')"
+  api "$url" --jq '
+    if type == "array" then
+      .[] | [.type, (.size | tostring), .name] | @tsv
+    else
+      [.type, (.size | tostring), .name] | @tsv
+    end'
+}
+
+cmd_tree() {
+  local repo="" ref="" grep_re=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --ref)  [[ $# -ge 2 ]] || { err "--ref needs a value"; exit 2; };  ref="$2"; shift 2 ;;
+      --grep) [[ $# -ge 2 ]] || { err "--grep needs a value"; exit 2; }; grep_re="$2"; shift 2 ;;
+      -*) err "unknown option for tree: $1"; exit 2 ;;
+      *)
+        if [[ -z "$repo" ]]; then repo="$1"
+        else err "unexpected argument: $1"; exit 2; fi
+        shift ;;
+    esac
+  done
+  [[ -n "$repo" ]] || usage
+  [[ -n "$ref" ]] || ref=$(default_branch "$repo")
+  local json
+  json=$(api "repos/$repo/git/trees/$(printf '%s' "$ref" | jq -sRr '@uri')?recursive=1")
+  if [[ $(printf '%s' "$json" | jq -r '.truncated') == "true" ]]; then
+    err "warning: GitHub truncated this tree listing (repo too large for the recursive tree API)"
+  fi
+  if [[ -n "$grep_re" ]]; then
+    printf '%s' "$json" | jq -r '.tree[] | [.type, .path] | @tsv' | grep -E -- "$grep_re"
+  else
+    printf '%s' "$json" | jq -r '.tree[] | [.type, .path] | @tsv'
+  fi
+}
+
+cmd_cat() {
+  local repo="" path="" ref="" grep_re="" lines=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --ref)   [[ $# -ge 2 ]] || { err "--ref needs a value"; exit 2; };   ref="$2"; shift 2 ;;
+      --grep)  [[ $# -ge 2 ]] || { err "--grep needs a value"; exit 2; };  grep_re="$2"; shift 2 ;;
+      --lines) [[ $# -ge 2 ]] || { err "--lines needs a value"; exit 2; }; lines="$2"; shift 2 ;;
+      -*) err "unknown option: $1"; exit 2 ;;
+      *)
+        if [[ -z "$repo" ]]; then repo="$1"
+        elif [[ -z "$path" ]]; then path="$1"
+        else err "unexpected argument: $1"; exit 2; fi
+        shift ;;
+    esac
+  done
+  [[ -n "$repo" && -n "$path" ]] || usage
+
+  local url="repos/$repo/contents/$(encode_path "$path")"
+  [[ -n "$ref" ]] && url="$url?ref=$(printf '%s' "$ref" | jq -sRr '@uri')"
+  local json
+  json=$(api "$url")
+
+  local jtype
+  jtype=$(printf '%s' "$json" | jq -r 'if type == "array" then "dir" else .type end')
+  if [[ "$jtype" != "file" ]]; then
+    err "'$path' is a $jtype, not a file (use 'gh-cat ls $repo $path')"
+    exit 1
+  fi
+
+  local content
+  content=$(printf '%s' "$json" | jq -r '.content // empty')
+  if [[ -z "$content" ]]; then
+    # Contents API omits inline content for large files; fall back to the blob
+    # API via .sha so the full bytes are still returned (no truncation).
+    local sha
+    sha=$(printf '%s' "$json" | jq -r '.sha')
+    content=$(api "repos/$repo/git/blobs/$sha" --jq '.content')
+  fi
+
+  decode() { printf '%s' "$content" | base64 -d; }
+
+  if [[ -n "$lines" ]]; then
+    [[ "$lines" =~ ^([0-9]*):([0-9]*)$ ]] || { err "--lines expects A:B (e.g. 10:40, 10:, :40)"; exit 2; }
+    local a="${BASH_REMATCH[1]:-1}" b="${BASH_REMATCH[2]:-\$}"
+    if [[ -n "$grep_re" ]]; then
+      decode | sed -n "${a},${b}p" | grep -nE -- "$grep_re"
+    else
+      decode | sed -n "${a},${b}p"
+    fi
+  elif [[ -n "$grep_re" ]]; then
+    decode | grep -nE -- "$grep_re"
+  else
+    decode
+  fi
+}
+
+[[ $# -ge 1 ]] || usage
+case "$1" in
+  -h|--help) usage ;;
+  ls)   shift; cmd_ls "$@" ;;
+  tree) shift; cmd_tree "$@" ;;
+  *)    cmd_cat "$@" ;;
+esac

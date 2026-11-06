@@ -1,0 +1,87 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH touched AS (\n                       SELECT project_id FROM memory.skill_drafts\n                       UNION SELECT project_id FROM memory.skill_installs\n                       UNION SELECT project_id FROM memory.skill_retirements),\n                   latest AS (\n                       SELECT DISTINCT ON (d.project_id, d.folder)\n                              d.project_id, d.folder, d.id, d.status, d.review\n                         FROM memory.skill_drafts d\n                        ORDER BY d.project_id, d.folder, d.lesson_watermark DESC, d.revision DESC),\n                   approved AS (\n                       SELECT DISTINCT ON (d.project_id, d.folder) d.project_id, d.folder, d.id\n                         FROM memory.skill_drafts d\n                        WHERE d.review = 'approved'\n                        ORDER BY d.project_id, d.folder, d.lesson_watermark DESC, d.revision DESC),\n                   pending AS (\n                       SELECT l.project_id, count(*) AS folders,\n                              count(*) FILTER (WHERE l.status = 'accepted' AND l.review IS NULL\n                                                AND a.id IS DISTINCT FROM l.id) AS awaiting\n                         FROM latest l\n                         LEFT JOIN approved a ON a.project_id = l.project_id AND a.folder = l.folder\n                        WHERE NOT EXISTS (SELECT 1 FROM memory.skill_retirements r\n                                           WHERE r.project_id = l.project_id AND r.folder = l.folder)\n                        GROUP BY l.project_id),\n                   shipped AS (\n                       SELECT i.project_id, count(DISTINCT i.folder) AS shipped\n                         FROM memory.skill_installs i\n                        WHERE i.retired_at IS NULL\n                        GROUP BY i.project_id),\n                   cap AS (\n                       SELECT CASE WHEN jsonb_typeof(s.value) = 'number'\n                                    AND (s.value #>> '{}')::numeric BETWEEN 1 AND 100\n                                   THEN (s.value #>> '{}')::numeric::int END AS value\n                         FROM config.settings s\n                        WHERE s.key = 'lessons.skills.max_per_project')\n                   SELECT p.project_uuid AS \"project_uuid!\", p.project_path AS \"project_path!\",\n                          coalesce(p.custom_name, p.display_name) AS \"display_name!\",\n                          coalesce(sp.mode, 'ask') AS \"mode!\",\n                          sp.project_id IS NOT NULL AS \"mode_set!\",\n                          coalesce(pe.folders, 0) AS \"folders!\",\n                          coalesce(s.shipped, 0) AS \"shipped!\",\n                          coalesce(cap.value, 12) AS \"skill_cap!\",\n                          CASE WHEN coalesce(sp.mode, 'ask') = 'ask'\n                               THEN coalesce(pe.awaiting, 0) ELSE 0 END AS \"waiting!\"\n                     FROM touched t\n                     JOIN projects.projects p ON p.id = t.project_id\n                     LEFT JOIN memory.skill_policies sp ON sp.project_id = p.id\n                     LEFT JOIN pending pe ON pe.project_id = p.id\n                     LEFT JOIN shipped s ON s.project_id = p.id\n                     LEFT JOIN cap ON true\n                    ORDER BY p.project_path, p.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "project_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_path!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "display_name!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "mode!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "mode_set!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "folders!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "shipped!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "skill_cap!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "waiting!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "23f9b719cc9543fd57a7a45811363bfb48aa827394ae06a00daba6c14fdd0b5d"
+}

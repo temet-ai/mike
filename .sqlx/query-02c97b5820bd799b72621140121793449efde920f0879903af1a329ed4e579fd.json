@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO tools.uses\n            (wire_tool_use_id, request_id, session_id, ord, tool_name, input, operation, created_at)\n         VALUES ($1, $2, $3, $4, $5, '{}'::jsonb, 'exec', $6)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8",
+        "Int4",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "02c97b5820bd799b72621140121793449efde920f0879903af1a329ed4e579fd"
+}

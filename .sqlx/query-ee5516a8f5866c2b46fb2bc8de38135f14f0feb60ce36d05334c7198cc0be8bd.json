@@ -1,0 +1,210 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT outcome AS \"outcome!\",\n                  quality_score::float8 AS quality_score,\n                  rationale,\n                  judge_model AS \"judge_model!\",\n                  rubric_version AS \"rubric_version!\",\n                  judged_at AS \"judged_at!\",\n                  bundle_id,\n                  verdict_id AS \"verdict_id!\",\n                  end_turn_id,\n                  end_label,\n                  end_source,\n                  end_rule,\n                  end_confidence,\n                  end_evidence,\n                  failure,\n                  COALESCE(failure_tags, '{}'::text[]) AS \"failure_tags!\",\n                  severity\n             FROM mike.session_quality_v\n            WHERE session_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "outcome!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_quality_v",
+            "name": "outcome"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "quality_score",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "rationale",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_quality_v",
+            "name": "rationale"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "judge_model!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_quality_v",
+            "name": "judge_model"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "rubric_version!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "mike.session_quality_v",
+            "name": "rubric_version"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "judged_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mike.session_quality_v",
+            "name": "judged_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "bundle_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mike.session_quality_v",
+            "name": "bundle_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "verdict_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mike.session_quality_v",
+            "name": "verdict_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "end_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mike.session_quality_v",
+            "name": "end_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "end_label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_quality_v",
+            "name": "end_label"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "end_source",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_quality_v",
+            "name": "end_source"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "end_rule",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_quality_v",
+            "name": "end_rule"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "end_confidence",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_quality_v",
+            "name": "end_confidence"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "end_evidence",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_quality_v",
+            "name": "end_evidence"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "failure",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_quality_v",
+            "name": "failure"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "failure_tags!",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 16,
+        "name": "severity",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_quality_v",
+            "name": "severity"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      null,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      null,
+      true
+    ]
+  },
+  "hash": "ee5516a8f5866c2b46fb2bc8de38135f14f0feb60ce36d05334c7198cc0be8bd"
+}

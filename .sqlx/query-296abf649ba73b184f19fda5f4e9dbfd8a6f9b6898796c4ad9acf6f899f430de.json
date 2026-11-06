@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM memory.semantic_items WHERE embedder_key = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "296abf649ba73b184f19fda5f4e9dbfd8a6f9b6898796c4ad9acf6f899f430de"
+}

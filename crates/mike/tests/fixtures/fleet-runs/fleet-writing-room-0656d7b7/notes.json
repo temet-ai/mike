@@ -1,0 +1,1978 @@
+[
+  {
+    "data": {
+      "task": "T1",
+      "check": null,
+      "slice": null,
+      "commit": "b02f6f35e4c95d8705573cf9d7612f6569d04e91",
+      "criteria": [
+        "C1"
+      ],
+      "evidence": [
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T10:52:27.902631Z",
+        "last_change_at": "2026-10-21T10:52:17.012874Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T1"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T10:52:42.072425+00:00",
+    "updated_at": "2026-10-21T10:52:42.072425+00:00",
+    "session_uuid": "1f5f16cd-b215-42d9-ad32-1b3ed6c1ef66"
+  },
+  {
+    "data": {
+      "task": "T1",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C1"
+      ],
+      "report_note": "d0aa8655-3b6b-4bc4-bfb1-c579a45b0faf",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T1"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T10:53:15.65413+00:00",
+    "updated_at": "2026-10-21T10:53:15.65413+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "check": null,
+      "slice": null,
+      "commit": "dd365071f4d74248945b5ac145fb1981d3b30d90",
+      "criteria": [
+        "C5"
+      ],
+      "evidence": [
+        "site/cms/room/src/callDuck.ts",
+        "site/cms/room/test/callDuck.test.ts",
+        ".agents/skills/writing-duck/SKILL.md",
+        ".claude/skills/writing-duck"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": false,
+        "verdict": null,
+        "checked_at": null,
+        "last_change_at": "2026-10-21T10:54:05.936542Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T10:54:31.58355+00:00",
+    "updated_at": "2026-10-21T10:54:31.58355+00:00",
+    "session_uuid": "9b0d67aa-358a-4a54-badb-a8d4ea466325"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C5"
+      ],
+      "report_note": "5f5fddb3-c50d-420f-90b2-7599e7585f5b",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T10:55:43.812833+00:00",
+    "updated_at": "2026-10-21T10:55:43.812833+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T6",
+      "check": null,
+      "slice": null,
+      "commit": "2ce4125bcb52fca24434af626576a8ab414c538f",
+      "criteria": [
+        "C3"
+      ],
+      "evidence": [
+        "site/cms/admin/src/preview/Preview.tsx",
+        "site/cms/admin/src/preview/preview.css"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T10:55:36.899221Z",
+        "last_change_at": "2026-10-21T10:55:32.406742Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T6"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T10:57:07.20324+00:00",
+    "updated_at": "2026-10-21T10:57:07.20324+00:00",
+    "session_uuid": "dbe66364-bf78-4b36-9f74-3babddaf54a8"
+  },
+  {
+    "data": {
+      "task": "T7",
+      "check": null,
+      "slice": null,
+      "commit": "5b44ecff4ae7037215ed333c8a2857c7c51814f4",
+      "criteria": [
+        "C1"
+      ],
+      "evidence": [
+        "site/cms/admin/test/review.test.ts",
+        "site/cms/admin/test/duck-room.test.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": false,
+        "verdict": null,
+        "checked_at": null,
+        "last_change_at": "2026-10-21T10:57:02.409205Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T7"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T10:57:13.095443+00:00",
+    "updated_at": "2026-10-21T10:57:13.095443+00:00",
+    "session_uuid": "27d0cbb0-4104-4ed9-b81b-a733ae8f411d"
+  },
+  {
+    "data": {
+      "task": "T6",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "fail",
+      "criteria": [
+        "C3"
+      ],
+      "report_note": "60315959-eae2-4b3a-864f-b5b0083e1d10",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T6"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T10:58:00.277195+00:00",
+    "updated_at": "2026-10-21T10:58:00.277195+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T7",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C1"
+      ],
+      "report_note": "7921c91e-7533-4c25-a6b7-0413b61f4c5a",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T7"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T10:59:04.979782+00:00",
+    "updated_at": "2026-10-21T10:59:04.979782+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T6",
+      "check": null,
+      "slice": null,
+      "commit": "d13a3b81851fdc3446a837d90b897b81ac244166",
+      "criteria": [
+        "C3"
+      ],
+      "evidence": [
+        "site/cms/admin/src/preview/Preview.tsx"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": false,
+        "verdict": null,
+        "checked_at": null,
+        "last_change_at": "2026-10-21T10:59:02.410314Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T6"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T10:59:08.959896+00:00",
+    "updated_at": "2026-10-21T10:59:08.959896+00:00",
+    "session_uuid": "dbe66364-bf78-4b36-9f74-3babddaf54a8"
+  },
+  {
+    "data": {
+      "sha": "dd365071f4d74248945b5ac145fb1981d3b30d90",
+      "task": "T4",
+      "limits": null,
+      "evidence": [
+        "e4524b01-ce66-4666-ae5b-04e87f83104b",
+        "d87bbf7f-13a0-4007-8b98-a4a43ce85a7a"
+      ],
+      "readiness": "ready"
+    },
+    "kind": "decision",
+    "tags": [
+      "acceptance",
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T10:59:09.684343+00:00",
+    "updated_at": "2026-10-21T10:59:09.684343+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T3",
+      "check": "passed",
+      "slice": null,
+      "commit": "d3476a83d119628cfbb95bca27a3014338dbc650",
+      "criteria": [
+        "C2",
+        "C4"
+      ],
+      "evidence": [
+        "site/cms/room/test/git.test.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T10:59:08.967835Z",
+        "last_change_at": "2026-10-21T10:56:01.171359Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T3"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T10:59:12.749281+00:00",
+    "updated_at": "2026-10-21T10:59:12.749281+00:00",
+    "session_uuid": "78055477-9d1c-4bca-a636-74c29266838a"
+  },
+  {
+    "data": {
+      "task": "T3",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C2",
+        "C4"
+      ],
+      "report_note": "3d076bec-2be5-4437-98ec-612268046d90",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T3"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:00:16.752156+00:00",
+    "updated_at": "2026-10-21T11:00:16.752156+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T7",
+      "check": "passed",
+      "slice": null,
+      "commit": "5b44ecff4ae7037215ed333c8a2857c7c51814f4",
+      "criteria": [
+        "C1"
+      ],
+      "evidence": [
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T11:00:13.650553Z",
+        "last_change_at": "2026-10-21T10:57:02.409205Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T7"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:01:11.661887+00:00",
+    "updated_at": "2026-10-21T11:01:11.661887+00:00",
+    "session_uuid": "27d0cbb0-4104-4ed9-b81b-a733ae8f411d"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "check": "passed",
+      "slice": null,
+      "commit": "7d0b3524c8dee79ed64d7e8687f0ee489ef3096e",
+      "criteria": [
+        "C2",
+        "C4"
+      ],
+      "evidence": [
+        "site/cms/admin/test/client.test.ts",
+        "site/cms/admin/test/model.test.ts",
+        "site/cms/admin/test/blocks.test.ts",
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T11:00:13.650553Z",
+        "last_change_at": "2026-10-21T10:59:32.411168Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T5"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:02:16.230286+00:00",
+    "updated_at": "2026-10-21T11:02:16.230286+00:00",
+    "session_uuid": "a4da7c29-78bf-48c3-8a65-f09abb556ab4"
+  },
+  {
+    "data": {
+      "task": "T9",
+      "check": null,
+      "slice": null,
+      "commit": "e91265200097f5c2faf30bf555ba2c92b2a1bfdd",
+      "criteria": [
+        "C3"
+      ],
+      "evidence": [
+        "site/cms/room/src/fields.ts",
+        "site/cms/room/src/preview.ts",
+        "site/cms/room/test/fields.test.ts",
+        "site/cms/room/test/preview.test.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": false,
+        "verdict": null,
+        "checked_at": null,
+        "last_change_at": "2026-10-21T11:01:35.354484Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T9"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:02:16.348844+00:00",
+    "updated_at": "2026-10-21T11:02:16.348844+00:00",
+    "session_uuid": "ee20465d-727c-49d0-91e6-9134cf8cbfa9"
+  },
+  {
+    "data": {
+      "task": "T6",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "fail",
+      "criteria": [
+        "C3"
+      ],
+      "report_note": "fb1214aa-80b7-47ea-9503-f4aad3c3349b",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T6"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:03:51.972747+00:00",
+    "updated_at": "2026-10-21T11:03:51.972747+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T9",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C3"
+      ],
+      "report_note": "c58a6be7-d829-4f98-b169-a2950158d53d",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T9"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:03:56.92809+00:00",
+    "updated_at": "2026-10-21T11:03:56.92809+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C2",
+        "C4"
+      ],
+      "report_note": "582587a5-db6a-4440-8ce6-25e3f3865cc6",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T5"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:04:19.778711+00:00",
+    "updated_at": "2026-10-21T11:04:19.778711+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T6",
+      "check": null,
+      "slice": null,
+      "commit": "1d777804459bd33bdc86389f4cba55bbe7751c4c",
+      "criteria": [
+        "C3"
+      ],
+      "evidence": [
+        "site/cms/admin/src/preview/Preview.tsx"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": false,
+        "verdict": null,
+        "checked_at": null,
+        "last_change_at": "2026-10-21T11:04:02.971951Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T6"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:04:22.169579+00:00",
+    "updated_at": "2026-10-21T11:04:22.169579+00:00",
+    "session_uuid": "dbe66364-bf78-4b36-9f74-3babddaf54a8"
+  },
+  {
+    "data": {
+      "tasks": [
+        "T1",
+        "T3",
+        "T9"
+      ],
+      "limits": null,
+      "evidence": [
+        "0ee923ae-45cc-4625-9081-a47d0f9294b9",
+        "b1021693-6c72-4953-b529-cb31b758e2d0",
+        "fab318bd-f869-4ffe-b4c9-36e7e816fc8f"
+      ],
+      "readiness": "ready"
+    },
+    "kind": "decision",
+    "tags": [
+      "acceptance",
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:04:37.687501+00:00",
+    "updated_at": "2026-10-21T11:04:37.687501+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "limits": null,
+      "evidence": [
+        "35c61a92-0bfc-4bb1-b61f-45b3edbff320"
+      ],
+      "readiness": "ready"
+    },
+    "kind": "decision",
+    "tags": [
+      "acceptance",
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:04:41.331991+00:00",
+    "updated_at": "2026-10-21T11:04:41.331991+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T6",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C3"
+      ],
+      "report_note": "94244980-59fe-4921-a802-05789b9c867d",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T6"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:04:52.597441+00:00",
+    "updated_at": "2026-10-21T11:04:52.597441+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "check": "passed",
+      "slice": null,
+      "commit": "e5311447f2059c26595fe6bdce10498afe8b01d3",
+      "criteria": [
+        "C1",
+        "C3"
+      ],
+      "evidence": [
+        "site/cms/room/test/server.test.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T11:07:07.488970Z",
+        "last_change_at": "2026-10-21T11:05:53.603904Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:07:12.049921+00:00",
+    "updated_at": "2026-10-21T11:07:12.049921+00:00",
+    "session_uuid": "0eeff442-1339-44d3-a142-97062588cb86"
+  },
+  {
+    "data": {
+      "task": "T6",
+      "check": "passed",
+      "slice": null,
+      "commit": "1d777804459bd33bdc86389f4cba55bbe7751c4c",
+      "criteria": [
+        "C3"
+      ],
+      "evidence": [
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T11:07:07.488970Z",
+        "last_change_at": "2026-10-21T11:04:02.971951Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T6"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:07:18.258847+00:00",
+    "updated_at": "2026-10-21T11:07:18.258847+00:00",
+    "session_uuid": "dbe66364-bf78-4b36-9f74-3babddaf54a8"
+  },
+  {
+    "data": {
+      "task": "T7",
+      "check": "passed",
+      "slice": null,
+      "commit": "5b44ecff4ae7037215ed333c8a2857c7c51814f4",
+      "criteria": [
+        "C1"
+      ],
+      "evidence": [
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T11:07:20.677334Z",
+        "last_change_at": "2026-10-21T10:57:02.409205Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T7"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:08:07.833538+00:00",
+    "updated_at": "2026-10-21T11:08:07.833538+00:00",
+    "session_uuid": "27d0cbb0-4104-4ed9-b81b-a733ae8f411d"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C1",
+        "C3"
+      ],
+      "report_note": "9db1a6a8-3c80-4a8f-8562-3ed63c967097",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:11:43.564736+00:00",
+    "updated_at": "2026-10-21T11:11:43.564736+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "sha": "e5311447f2059c26595fe6bdce10498afe8b01d3",
+      "task": "T2",
+      "limits": null,
+      "evidence": [
+        "34031daf-42b4-497f-9004-01ef50022eef",
+        "9f28f3e0-5e21-4d99-9b4a-99c53d69bad2"
+      ],
+      "readiness": "ready"
+    },
+    "kind": "decision",
+    "tags": [
+      "acceptance",
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:21:00.450729+00:00",
+    "updated_at": "2026-10-21T11:21:00.450729+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T6",
+      "check": null,
+      "slice": null,
+      "commit": "eef26f473e09198f1f0f2f32d4ab5cbf44ad960d",
+      "criteria": [
+        "C3"
+      ],
+      "evidence": [
+        "site/cms/admin/src/preview/Preview.tsx"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T11:21:46.508411Z",
+        "last_change_at": "2026-10-21T11:04:02.971951Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T6"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:21:54.771711+00:00",
+    "updated_at": "2026-10-21T11:21:54.771711+00:00",
+    "session_uuid": "dbe66364-bf78-4b36-9f74-3babddaf54a8"
+  },
+  {
+    "data": {
+      "task": "T6",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C3"
+      ],
+      "report_note": "3a8c65bf-94ba-4813-89ec-db325edfd71b",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T6"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:22:02.661148+00:00",
+    "updated_at": "2026-10-21T11:22:02.661148+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T10",
+      "check": "passed",
+      "slice": null,
+      "commit": "4c2488f505db5a5cef484e0019901f1109c7e5f6",
+      "criteria": [
+        "C6"
+      ],
+      "evidence": [
+        "site/cms/room/src/entryState.ts",
+        "site/cms/room/test/entryState.test.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T11:24:57.978346Z",
+        "last_change_at": "2026-10-21T11:24:05.450544Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T10"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:25:08.792073+00:00",
+    "updated_at": "2026-10-21T11:25:08.792073+00:00",
+    "session_uuid": "23e92e62-ed3f-4935-9d53-0397b2d0d11c"
+  },
+  {
+    "data": {
+      "task": "T10",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C6"
+      ],
+      "report_note": "a20410fa-f273-4422-860e-19ff64801a8c",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T10"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:25:49.425177+00:00",
+    "updated_at": "2026-10-21T11:25:49.425177+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T10",
+      "check": "passed",
+      "slice": null,
+      "commit": "4c2488f505db5a5cef484e0019901f1109c7e5f6",
+      "criteria": [
+        "C6"
+      ],
+      "evidence": [
+        "site/cms/room/src/entryState.ts",
+        "site/cms/room/test/entryState.test.ts",
+        "site/cms/room/src/server.ts",
+        "site/cms/admin/src/entries/states.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T11:26:24.535793Z",
+        "last_change_at": "2026-10-21T11:24:05.450544Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T10"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:26:29.53408+00:00",
+    "updated_at": "2026-10-21T11:26:29.53408+00:00",
+    "session_uuid": "23e92e62-ed3f-4935-9d53-0397b2d0d11c"
+  },
+  {
+    "data": {
+      "task": "T8",
+      "check": "passed",
+      "slice": null,
+      "commit": "1d6ebfc31dd6fcf5c714a0d24fecbc42ab508284",
+      "criteria": [
+        "C2",
+        "C4",
+        "C5"
+      ],
+      "evidence": [
+        "site/cms/README.md",
+        "site/AGENTS.md",
+        "DEPLOY.md"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T11:26:37.054690Z",
+        "last_change_at": "2026-10-21T11:26:03.015859Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T8"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:26:53.818172+00:00",
+    "updated_at": "2026-10-21T11:26:53.818172+00:00",
+    "session_uuid": "e1748cec-a86b-428c-a30b-75cca52c8d12"
+  },
+  {
+    "data": {
+      "task": "T8",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "fail",
+      "criteria": [
+        "C2",
+        "C4",
+        "C5"
+      ],
+      "report_note": "338bbf49-8355-4e3e-823b-0853a1e39707",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T8"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:28:27.861411+00:00",
+    "updated_at": "2026-10-21T11:28:27.861411+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T8",
+      "check": null,
+      "slice": null,
+      "commit": "2bdbcb1b0ae11503b6acd27dabbb48d87cd3ebd5",
+      "criteria": [
+        "C2",
+        "C4",
+        "C5"
+      ],
+      "evidence": [
+        "site/cms/README.md",
+        "site/cms/room/src/git.ts",
+        "site/cms/room/src/server.ts",
+        "site/cms/room/package.json",
+        "site/cms/admin/src/entries/states.ts",
+        "site/cms/room/src/preview.ts",
+        "scripts/deploy-runner"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": false,
+        "verdict": null,
+        "checked_at": null,
+        "last_change_at": "2026-10-21T11:28:57.586643Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T8"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:29:10.027989+00:00",
+    "updated_at": "2026-10-21T11:29:10.027989+00:00",
+    "session_uuid": "e1748cec-a86b-428c-a30b-75cca52c8d12"
+  },
+  {
+    "data": {
+      "task": "T8",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C2",
+        "C4",
+        "C5"
+      ],
+      "report_note": "5fd656c9-4044-40dd-8501-ee669dd0003a",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T8"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:30:03.27592+00:00",
+    "updated_at": "2026-10-21T11:30:03.27592+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T8",
+      "limits": null,
+      "evidence": [
+        "99cbd451-5b30-468d-8e45-2d68f33300c8",
+        "240bdd0b-8488-4021-ac04-f6e169fd1120"
+      ],
+      "readiness": "ready"
+    },
+    "kind": "decision",
+    "tags": [
+      "acceptance",
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:30:27.069148+00:00",
+    "updated_at": "2026-10-21T11:30:27.069148+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T7",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C1"
+      ],
+      "report_note": "c1e9df85-d63d-4ca5-b11b-f7320c3d8fcd",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T7"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:33:33.073381+00:00",
+    "updated_at": "2026-10-21T11:33:33.073381+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T7",
+      "check": "passed",
+      "slice": null,
+      "commit": "5b44ecff4ae7037215ed333c8a2857c7c51814f4",
+      "criteria": [
+        "C1"
+      ],
+      "evidence": [
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T11:29:36.790831Z",
+        "last_change_at": "2026-10-21T10:57:02.409205Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T7"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:37:39.476281+00:00",
+    "updated_at": "2026-10-21T11:37:39.476281+00:00",
+    "session_uuid": "27d0cbb0-4104-4ed9-b81b-a733ae8f411d"
+  },
+  {
+    "data": {
+      "task": "T9",
+      "scope": "final",
+      "reason": null,
+      "verdict": "fail",
+      "criteria": [
+        "C3"
+      ],
+      "report_note": "c58a6be7-d829-4f98-b169-a2950158d53d",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T9"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:38:00.340625+00:00",
+    "updated_at": "2026-10-21T11:38:00.340625+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "fail",
+      "criteria": [
+        "C3"
+      ],
+      "report_note": "9db1a6a8-3c80-4a8f-8562-3ed63c967097",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:38:06.484597+00:00",
+    "updated_at": "2026-10-21T11:38:06.484597+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T7",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C1"
+      ],
+      "report_note": "efef30aa-45ee-4206-9ab6-26085e5d99ab",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T7"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:38:34.933359+00:00",
+    "updated_at": "2026-10-21T11:38:34.933359+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T10",
+      "check": null,
+      "slice": null,
+      "commit": "12f4c72e2a5960e20a1070e3bf36734381dd1308",
+      "criteria": [
+        "C6"
+      ],
+      "evidence": [
+        "site/cms/room/src/entryState.ts",
+        "site/cms/room/test/entryState.test.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "failed",
+        "checked_at": "2026-10-21T11:38:45.196436Z",
+        "last_change_at": "2026-10-21T11:38:21.414762Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T10"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:39:00.023808+00:00",
+    "updated_at": "2026-10-21T11:39:00.023808+00:00",
+    "session_uuid": "23e92e62-ed3f-4935-9d53-0397b2d0d11c"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "check": null,
+      "slice": null,
+      "commit": "4f866ff932f0d3e65520a28c2fa8676325fdcda2",
+      "criteria": [
+        "C3"
+      ],
+      "evidence": [
+        "site/cms/room/test/server.test.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "failed",
+        "checked_at": "2026-10-21T11:38:45.196436Z",
+        "last_change_at": "2026-10-21T11:38:38.355425Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:39:03.707705+00:00",
+    "updated_at": "2026-10-21T11:39:03.707705+00:00",
+    "session_uuid": "0eeff442-1339-44d3-a142-97062588cb86"
+  },
+  {
+    "data": {
+      "task": "T10",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C6"
+      ],
+      "report_note": "89200344-da50-4839-bef4-213aa054c36e",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T10"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:39:14.829572+00:00",
+    "updated_at": "2026-10-21T11:39:14.829572+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C3"
+      ],
+      "report_note": "758845ae-c091-45e7-8cbc-b26c5260d2d4",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:39:59.849466+00:00",
+    "updated_at": "2026-10-21T11:39:59.849466+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T7",
+      "check": "passed",
+      "slice": null,
+      "commit": "5b44ecff4ae7037215ed333c8a2857c7c51814f4",
+      "criteria": [
+        "C1"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "failed",
+        "checked_at": "2026-10-21T11:40:46.666069Z",
+        "last_change_at": "2026-10-21T10:57:02.409205Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T7"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:40:58.117222+00:00",
+    "updated_at": "2026-10-21T11:40:58.117222+00:00",
+    "session_uuid": "27d0cbb0-4104-4ed9-b81b-a733ae8f411d"
+  },
+  {
+    "data": {
+      "task": "T9",
+      "check": null,
+      "slice": null,
+      "commit": "8d524cb4eca879125c3a05795a1fa8bc9f928ae7",
+      "criteria": [
+        "C3"
+      ],
+      "evidence": [
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "failed",
+        "checked_at": "2026-10-21T11:40:46.666069Z",
+        "last_change_at": "2026-10-21T11:40:22.184918Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T9"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:41:01.321267+00:00",
+    "updated_at": "2026-10-21T11:41:01.321267+00:00",
+    "session_uuid": "7a6d4342-05d1-47bb-afb1-90e8cff2883f"
+  },
+  {
+    "data": {
+      "task": "T7",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C1"
+      ],
+      "report_note": "fd3b72e9-cdcf-4828-9667-0f6fdfbba8c6",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T7"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:41:32.54548+00:00",
+    "updated_at": "2026-10-21T11:41:32.54548+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T10",
+      "check": "passed",
+      "slice": null,
+      "commit": "45c487775be28e1f2482abd917d1591a8dded1d7",
+      "criteria": [
+        "C6"
+      ],
+      "evidence": [
+        "site/cms/room/src/entryState.ts",
+        "site/cms/room/test/entryState.test.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T11:41:32.826629Z",
+        "last_change_at": "2026-10-21T11:40:54.934020Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T10"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:41:42.557083+00:00",
+    "updated_at": "2026-10-21T11:41:42.557083+00:00",
+    "session_uuid": "23e92e62-ed3f-4935-9d53-0397b2d0d11c"
+  },
+  {
+    "data": {
+      "task": "T9",
+      "check": null,
+      "slice": null,
+      "commit": "2ce991f2baac7414f798f90e9d6e3b386756d4c3",
+      "criteria": [
+        "C3"
+      ],
+      "evidence": [
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T11:41:52.105263Z",
+        "last_change_at": "2026-10-21T11:41:31.447718Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T9"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:42:02.662822+00:00",
+    "updated_at": "2026-10-21T11:42:02.662822+00:00",
+    "session_uuid": "7a6d4342-05d1-47bb-afb1-90e8cff2883f"
+  },
+  {
+    "data": {
+      "task": "T10",
+      "check": null,
+      "slice": null,
+      "commit": "ef426de9738be45e0a5134517d64db3d7522a074",
+      "criteria": [
+        "C6"
+      ],
+      "evidence": [
+        "site/cms/room/src/entryState.ts",
+        "site/cms/room/test/entryState.test.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "failed",
+        "checked_at": "2026-10-21T11:42:41.936642Z",
+        "last_change_at": "2026-10-21T11:40:54.934020Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T10"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:42:52.022963+00:00",
+    "updated_at": "2026-10-21T11:42:52.022963+00:00",
+    "session_uuid": "23e92e62-ed3f-4935-9d53-0397b2d0d11c"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "fail",
+      "criteria": [
+        "C2"
+      ],
+      "report_note": "582587a5-db6a-4440-8ce6-25e3f3865cc6",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T5"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:45:59.045269+00:00",
+    "updated_at": "2026-10-21T11:45:59.045269+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T9",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C3"
+      ],
+      "report_note": "0e867701-5da1-445a-b321-8f9baf9415f3",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T9"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:46:24.193026+00:00",
+    "updated_at": "2026-10-21T11:46:24.193026+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T6",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C3"
+      ],
+      "report_note": "3a8c65bf-94ba-4813-89ec-db325edfd71b",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T6"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:46:29.828888+00:00",
+    "updated_at": "2026-10-21T11:46:29.828888+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C1",
+        "C3"
+      ],
+      "report_note": "758845ae-c091-45e7-8cbc-b26c5260d2d4",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:46:35.896146+00:00",
+    "updated_at": "2026-10-21T11:46:35.896146+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T10",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "fail",
+      "criteria": [
+        "C6"
+      ],
+      "report_note": "3e0c4281-d79a-497a-b214-40feccd54370",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T10"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:46:40.928154+00:00",
+    "updated_at": "2026-10-21T11:46:40.928154+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "check": "passed",
+      "slice": null,
+      "commit": "eddbaaa90ba7ed4bc35b11dfc264ffe4296a76e1",
+      "criteria": [
+        "C2"
+      ],
+      "evidence": [
+        "site/cms/admin/test/save.test.ts",
+        "site/cms/admin/test/states.test.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T11:49:47.547224Z",
+        "last_change_at": "2026-10-21T11:49:03.618986Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T5"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:50:28.054843+00:00",
+    "updated_at": "2026-10-21T11:50:28.054843+00:00",
+    "session_uuid": "a4da7c29-78bf-48c3-8a65-f09abb556ab4"
+  },
+  {
+    "data": {
+      "task": "T10",
+      "check": "passed",
+      "slice": null,
+      "commit": "ef426de9738be45e0a5134517d64db3d7522a074",
+      "criteria": [
+        "C6"
+      ],
+      "evidence": [
+        "site/cms/room/src/entryState.ts",
+        "site/cms/admin/src/entries/EntryList.tsx",
+        "site/cms/admin/src/entries/states.ts",
+        "site/cms/admin/test/states.test.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T11:49:47.547224Z",
+        "last_change_at": "2026-10-21T11:40:54.934020Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T10"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:50:29.853161+00:00",
+    "updated_at": "2026-10-21T11:50:29.853161+00:00",
+    "session_uuid": "23e92e62-ed3f-4935-9d53-0397b2d0d11c"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "fail",
+      "criteria": [
+        "C4"
+      ],
+      "report_note": "1b961875-7685-4f14-9a90-31af96f9ac2f",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T5"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:55:49.117078+00:00",
+    "updated_at": "2026-10-21T11:55:49.117078+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T10",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C6"
+      ],
+      "report_note": "b62ebb8b-942d-441c-91bd-5550607aea83",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T10"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:56:03.254348+00:00",
+    "updated_at": "2026-10-21T11:56:03.254348+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "check": null,
+      "slice": null,
+      "commit": "e0b228a4ae51b62ce35e25bea931714e4b95113c",
+      "criteria": [
+        "C4"
+      ],
+      "evidence": [
+        "site/cms/admin/test/model.test.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T11:49:47.547224Z",
+        "last_change_at": "2026-10-21T11:49:03.618986Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T5"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T11:56:20.850422+00:00",
+    "updated_at": "2026-10-21T11:56:20.850422+00:00",
+    "session_uuid": "a4da7c29-78bf-48c3-8a65-f09abb556ab4"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "check": "passed",
+      "slice": null,
+      "commit": "e0b228a4ae51b62ce35e25bea931714e4b95113c",
+      "criteria": [
+        "C4"
+      ],
+      "evidence": [
+        "site/cms/admin/test/model.test.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T11:56:46.647895Z",
+        "last_change_at": "2026-10-21T11:56:33.856269Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T5"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T12:01:35.900776+00:00",
+    "updated_at": "2026-10-21T12:01:35.900776+00:00",
+    "session_uuid": "a4da7c29-78bf-48c3-8a65-f09abb556ab4"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C4"
+      ],
+      "report_note": "4d3475f8-1202-4000-86e5-725363ea092f",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T5"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T12:01:40.167067+00:00",
+    "updated_at": "2026-10-21T12:01:40.167067+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T11",
+      "check": null,
+      "slice": null,
+      "commit": "761cf49e9d3657e57ebe252709c8137e17e43ec6",
+      "criteria": [
+        "C4"
+      ],
+      "evidence": [
+        "/Users/vimes/projects/temet/temet-ai/scripts/check"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": false,
+        "verdict": null,
+        "checked_at": null,
+        "last_change_at": "2026-10-21T12:02:08.605328Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T11"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T12:02:58.454739+00:00",
+    "updated_at": "2026-10-21T12:02:58.454739+00:00",
+    "session_uuid": "4a187165-bc9e-4731-9403-bb898c9362d5"
+  },
+  {
+    "data": {
+      "task": "T11",
+      "check": "passed",
+      "slice": null,
+      "commit": "761cf49e9d3657e57ebe252709c8137e17e43ec6",
+      "criteria": [
+        "C4"
+      ],
+      "evidence": [
+        "/Users/vimes/projects/temet/temet-ai/scripts/check",
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T12:03:29.225162Z",
+        "last_change_at": "2026-10-21T12:02:08.605328Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "report",
+      "task:T11"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T12:03:31.422713+00:00",
+    "updated_at": "2026-10-21T12:03:31.422713+00:00",
+    "session_uuid": "4a187165-bc9e-4731-9403-bb898c9362d5"
+  },
+  {
+    "data": {
+      "task": "T11",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C4"
+      ],
+      "report_note": "7a3aa83f-3de1-40aa-bd2b-a95727fea533",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T11"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T12:03:31.785958+00:00",
+    "updated_at": "2026-10-21T12:03:31.785958+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {},
+    "kind": "decision",
+    "tags": [
+      "fleet-writing-room-0656d7b7",
+      "coordinator"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T12:04:03.046931+00:00",
+    "updated_at": "2026-10-21T12:04:03.046931+00:00",
+    "session_uuid": "d30c3676-f192-4956-a9bc-13b27ddcd316"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C4"
+      ],
+      "report_note": "8de2233d-255e-493f-91ab-635aee978d05",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T5"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T12:14:39.931048+00:00",
+    "updated_at": "2026-10-21T12:14:39.931048+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C2"
+      ],
+      "report_note": "1b961875-7685-4f14-9a90-31af96f9ac2f",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T5"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T12:14:45.180631+00:00",
+    "updated_at": "2026-10-21T12:14:45.180631+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C2"
+      ],
+      "report_note": "1b961875-7685-4f14-9a90-31af96f9ac2f",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "verdict",
+      "task:T5"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T12:27:44.229122+00:00",
+    "updated_at": "2026-10-21T12:27:44.229122+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  },
+  {
+    "data": {
+      "manifest": null,
+      "close_sha": "761cf49e9d3657e57ebe252709c8137e17e43ec6"
+    },
+    "kind": "decision",
+    "tags": [
+      "acceptance",
+      "fleet:0656d7b7-68dd-4d20-a4d5-dc43f3a99e35",
+      "handoff"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T12:28:01.296193+00:00",
+    "updated_at": "2026-10-21T12:28:01.296193+00:00",
+    "session_uuid": "8a596116-7839-4ab8-b6bd-81b17980d460"
+  }
+]

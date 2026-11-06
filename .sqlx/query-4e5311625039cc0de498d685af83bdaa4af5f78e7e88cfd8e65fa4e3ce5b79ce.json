@@ -1,0 +1,51 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH b AS (\n    SELECT GREATEST(COALESCE(eb.promoted_at, now()), now() - make_interval(hours => $3)) AS since\n      FROM eval.bundles eb\n     WHERE eb.id = $2\n),\nends AS (\n    SELECT DISTINCT ON (t.session_id) t.session_id, t.id AS end_turn_id, t.closed_at, f.next_state\n      FROM memory.operator_turns t\n      JOIN b ON t.closed_at >= b.since\n      JOIN memory.turn_facts f ON f.operator_turn_id = t.id\n      JOIN requests.requests r ON r.id = t.start_request_id\n     WHERE f.prompt_kind = 'genuine' AND r.claude_code_agent_id IS NULL\n     ORDER BY t.session_id, t.start_request_id DESC\n)\nSELECT s.id AS session_db_id, s.session_uuid::text AS \"session_uuid!\", e.end_turn_id AS \"end_turn_id!\"\n  FROM ends e\n  JOIN sessions.sessions s ON s.id = e.session_id\n  LEFT JOIN session_judges.attempts att\n         ON att.session_id = s.id AND att.judge_model = $1 AND att.rubric_version = 3\n WHERE e.next_state = 'none_session_settled'\n   AND NOT EXISTS (\n       SELECT 1 FROM session_judges.verdicts v\n        WHERE v.mode = 'live' AND v.end_turn_id = e.end_turn_id AND v.bundle_id = $2)\n   AND (att.session_id IS NULL OR att.window_started_at IS NULL\n        OR att.window_started_at < now() - interval '24 hours' OR att.window_attempts < $4::bigint)\n   AND (att.session_id IS NULL OR att.consecutive_failures = 0\n        OR att.last_attempt_at + least(interval '5 minutes' * power(2, least(att.consecutive_failures, 10) - 1),\n                                       interval '24 hours') < now())\n ORDER BY e.closed_at\n LIMIT $5\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_db_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_uuid!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "end_turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int4",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      false
+    ]
+  },
+  "hash": "4e5311625039cc0de498d685af83bdaa4af5f78e7e88cfd8e65fa4e3ce5b79ce"
+}

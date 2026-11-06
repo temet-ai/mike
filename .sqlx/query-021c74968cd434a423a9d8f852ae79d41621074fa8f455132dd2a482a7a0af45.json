@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE mailbox.messages\n                      SET consumed_at = now()\n                    WHERE message_uuid = ANY($1)\n                      AND consumed_at IS NULL\n                RETURNING message_uuid AS \"message_uuid!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "message_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "message_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "021c74968cd434a423a9d8f852ae79d41621074fa8f455132dd2a482a7a0af45"
+}

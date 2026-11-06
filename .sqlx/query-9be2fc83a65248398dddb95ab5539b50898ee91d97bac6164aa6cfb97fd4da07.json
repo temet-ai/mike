@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) FILTER (WHERE i.wake_state = 'pushed')::bigint AS \"pushed!\",\n                          count(*) FILTER (WHERE i.wake_state = 'pushed'\n                                             AND e.outcome_label = 'wrong'\n                                             AND e.label_source IN ('operator', 'session_reply'))::bigint\n                              AS \"wrong!\"\n                     FROM steering.evaluations e\n                     JOIN steering.interventions i ON i.uuid = e.intervention_uuid\n                    WHERE e.steerer_id = $1 AND e.question = $2 AND e.arm = 'treated'\n                      AND e.dispatched_at >= $3 AND e.dispatched_at < $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "pushed!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "wrong!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "9be2fc83a65248398dddb95ab5539b50898ee91d97bac6164aa6cfb97fd4da07"
+}

@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (\n             SELECT 1 FROM runtime.codex_receipt_context context\n              WHERE context.namespace_id = $1\n                AND NOT EXISTS (SELECT 1 FROM runtime.codex_projection_applications application\n                                 WHERE application.generation_id = $2\n                                   AND application.event_id = context.event_id)\n         ) AS \"incomplete!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "incomplete!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "14571cd22cc674688bb865a55a5dbbdf04a3e9ae66112556368fbd6cae82c741"
+}

@@ -1,0 +1,80 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.id AS \"id!\", r.created_at AS \"created_at!\",\n       oo.code AS \"old_origin!\",\n       CASE WHEN w.is_workflow THEN 'workflow_subagent' ELSE 'subagent' END AS \"new_origin!\",\n       oa.code AS old_author,\n       'agent' AS \"new_author!\"\n  FROM requests.requests r\n  JOIN requests.turn_origins oo ON oo.id = r.turn_origin_id\n  LEFT JOIN requests.author_kinds oa ON oa.id = r.author_kind_id\n  LEFT JOIN requests.request_bodies_v b ON b.request_id = r.id\n CROSS JOIN LATERAL (\n       SELECT COALESCE(b.system_text LIKE ANY($2::text[]), false)\n           OR COALESCE(CASE jsonb_typeof(b.body -> 'messages' -> 0 -> 'content')\n                  WHEN 'string' THEN (b.body -> 'messages' -> 0 ->> 'content') ~ $3\n                  WHEN 'array' THEN EXISTS (\n                       SELECT 1\n                         FROM jsonb_array_elements(b.body -> 'messages' -> 0 -> 'content') blk\n                        WHERE blk ->> 'type' = 'text' AND (blk ->> 'text') ~ $3)\n              END, false) AS is_workflow\n      ) w\n WHERE r.id = ANY($1)\n ORDER BY r.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "old_origin!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.turn_origins",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "new_origin!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "old_author",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.author_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "new_author!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TextArray",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null,
+      false,
+      null
+    ]
+  },
+  "hash": "5a7aa862cfc4bdc75f7531124612647d0ab6a23b0256a2232679968c6213631e"
+}

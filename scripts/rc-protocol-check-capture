@@ -1,0 +1,428 @@
+#!/usr/bin/env bash
+# rc-protocol-check-capture — second of two independent Remote Control
+# protocol drift checks (mike#236). Where rc-protocol-check-binary asserts
+# the wire shapes are still present in the installed Claude Code client,
+# this script asserts the frames actually arriving on the wire still match
+# them, by reading what mike has captured. It catches a server-side change
+# the client binary cannot reveal — the other reason the two checks must be
+# independent: either alone can be fooled.
+#
+# Every sub-check below is graded PASS, FAIL, or NOTRUN independently, in the
+# style of scripts/test-commit-gates: a sub-check that has nothing to verify
+# reports NOTRUN and is never counted as a pass. Issue #230, which built the
+# capture route this script reads, landed 2026-09-03; the live database has
+# carried real Remote Control traffic since (245,000+ rows in
+# remote_control.calls as of 2026-09-08, ~141MB/day — see #250). This
+# script still gates on row counts rather than schema existence, because
+# that is the honest signal either way: a schema with rows captured in the
+# checked window means there is something real to verify, and zero rows
+# — table existing or not — means there is nothing to check yet, which is
+# NOTRUN, not a vacuous pass.
+#
+# Usage:
+#   rc-protocol-check-capture
+#   rc-protocol-check-capture --self-test
+#
+#   --self-test   Prove the check can fail without touching the shared live
+#                 database: substitutes a stub for scripts/proxy-q that
+#                 returns canned rows for a clean scenario (expect PASS) and
+#                 a scenario with a drifted worker_status value ('blocked'),
+#                 an unrecognized payload_type ('debug_event'), and a
+#                 vanished client_event frame — three independent drift
+#                 shapes, all expected FAIL, all named. Every query below
+#                 carries a `-- CHECK:<marker>` comment (inert to Postgres,
+#                 ignored by scripts/proxy-q) that the stub keys its canned
+#                 answer on.
+#
+# DB connection: MIKE_DATABASE_URL (or MIKE_Q_DB_URL), same resolution as
+# scripts/proxy-q, which this script shells out to for every query (its own
+# -At/--jsonl plumbing, no reimplemented psql handling here).
+#
+# Exit codes (honest — never masked):
+#   0  at least one sub-check ran and every sub-check that ran passed
+#   1  at least one sub-check ran and found drift (named)
+#   2  NOT RUN — every sub-check was NOTRUN (nothing to verify yet), or a
+#      usage/connectivity error; never conflated with 0
+set -uo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" || exit $?
+repo_root="$(git -C "$script_dir" rev-parse --show-toplevel)" || exit $?
+
+# proxy-q reads the database URL from an untracked .env, and only the main
+# checkout has one. Inside a linked worktree --show-toplevel answers the
+# worktree, so resolving proxy-q from it makes an ordinary worktree run report
+# the database as unreachable when it is really just looking somewhere with no
+# .env — a wrong diagnosis for a working database. The common git dir is always
+# the main checkout's .git, so its parent is the main working tree.
+main_root="$repo_root"
+if common_dir="$(git -C "$script_dir" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" \
+   && [[ -n "$common_dir" && -x "$(dirname "$common_dir")/scripts/proxy-q" ]]; then
+    main_root="$(dirname "$common_dir")"
+fi
+cd "$repo_root" || exit 1
+
+MIKE_Q="${MIKE_Q_BIN:-$main_root/scripts/proxy-q}"
+
+pass=0 fail=0 notrun=0
+ok()   { pass=$((pass + 1));   printf '  PASS   %s\n' "$1"; }
+bad()  { fail=$((fail + 1));   printf '  FAIL   %s\n     -> %s\n' "$1" "$2"; }
+skip() { notrun=$((notrun + 1)); printf ' NOTRUN  %s\n     -> %s\n' "$1" "$2"; }
+
+# proxy-q resolves its .env from the current directory's repo root, not from
+# its own path, so it is run from the main checkout for the same reason
+# $main_root is resolved above. A --self-test stub ignores the directory.
+sql_jsonl() { (cd "$main_root" && "$MIKE_Q" sql "$1" --jsonl); }
+sql_scalar() { (cd "$main_root" && "$MIKE_Q" sql "$1" 2>/dev/null | head -1); }
+
+# run_checks — the whole graded sub-check sequence, reading $MIKE_Q. Used
+# both for real runs and, with $MIKE_Q pointed at a stub, for --self-test.
+# Sets $result via `return`.
+run_checks() {
+    pass=0 fail=0 notrun=0
+    local overall_fail=0
+
+    echo "remote-control channel — capture reachability"
+    local db_probe
+    if ! db_probe="$(sql_scalar "-- CHECK:probe
+SELECT 1")" || [[ "$db_probe" != "1" ]]; then
+        skip "capture database reachable" "scripts/proxy-q sql 'SELECT 1' did not return 1 — check MIKE_DATABASE_URL / network"
+        echo "────────────────────────────────────────"
+        printf 'passed=%d failed=%d not-run=%d\n' "$pass" "$fail" "$notrun"
+        echo "NOT RUN: the capture database could not be reached, so no sub-check could run."
+        return 2
+    fi
+    ok "capture database reachable"
+
+    local schema_present
+    schema_present="$(sql_scalar "-- CHECK:schema_present
+SELECT count(*) FROM information_schema.tables WHERE table_schema='remote_control' AND table_name IN ('channels','calls')")"
+    if [[ "$schema_present" != "2" ]]; then
+        skip "remote_control schema present" "remote_control.channels / remote_control.calls not both found — issue #230 has not landed its schema yet"
+        echo "────────────────────────────────────────"
+        printf 'passed=%d failed=%d not-run=%d\n' "$pass" "$fail" "$notrun"
+        echo "NOT RUN: no remote_control schema to check yet (issue #230)."
+        return 2
+    fi
+    ok "remote_control schema present (informational — not itself proof capture is landed)"
+
+    local channels_n calls_n
+    channels_n="$(sql_scalar "-- CHECK:channels_count
+SELECT count(*) FROM remote_control.channels")"
+    calls_n="$(sql_scalar "-- CHECK:calls_count
+SELECT count(*) FROM remote_control.calls")"
+
+    if [[ "${channels_n:-0}" -eq 0 ]]; then
+        skip "Remote Control channel rows captured" "remote_control.channels has 0 rows — schema exists but the capture route has not written a live channel yet (issue #230 in flight, or no Remote Control session observed since the schema was applied)"
+        echo "────────────────────────────────────────"
+        printf 'passed=%d failed=%d not-run=%d\n' "$pass" "$fail" "$notrun"
+        echo "NOT RUN: schema exists, zero rows captured — every downstream sub-check depends on this and is honestly skipped rather than reported clean."
+        return 2
+    fi
+    ok "Remote Control channel rows captured ($channels_n channel(s), $calls_n call(s))"
+
+    # Every remote_control.calls / remote_control.call_payloads query below
+    # is scoped to this one-hour window. Those two tables grow without
+    # bound — nothing evicts them (filed as #250: ~141MB/day, 522MB and
+    # 239,063 rows in calls alone as of 2026-09-08) — so a drift check that
+    # scans the whole history on every run gets slower every day for no
+    # benefit: what this check needs to answer is "does traffic look right
+    # right now", not "has it ever looked right".
+    local recent_window="created_at > now() - interval '1 hour'"
+
+    # 2026-09-08 correction: the earlier version of this check compared
+    # captured paths against the prefix '/v1/code/sessions/', which is the
+    # full URL the client calls (the shape rc-protocol-check-binary verifies
+    # against the client binary). mike's capture layer stores only the path
+    # suffix after the session id — every real row here is a bare path like
+    # /worker/heartbeat, never the full URL — so that comparison failed on
+    # every single row regardless of whether anything had actually drifted.
+    # This check instead names the known route vocabulary directly (the 8
+    # distinct paths captured 2026-09-03 through 2026-09-08 per the
+    # worklog: /worker/internal-events, /worker/events, /worker/heartbeat,
+    # /worker, /client/presence, /worker/events/stream,
+    # /worker/events/delivery, /bridge) and treats any path outside that set
+    # as drift — open to the set growing over time, same pattern as the
+    # worker_status and payload-type vocabulary checks below.
+    echo "channel — path vocabulary"
+    local recent_calls_n unknown_paths
+    recent_calls_n="$(sql_scalar "-- CHECK:recent_calls_count
+SELECT count(*) FROM remote_control.calls WHERE $recent_window")"
+    unknown_paths="$(sql_jsonl "-- CHECK:unknown_paths
+SELECT DISTINCT path FROM remote_control.calls WHERE $recent_window AND path NOT IN ('/worker/internal-events','/worker/events','/worker/heartbeat','/worker','/client/presence','/worker/events/stream','/worker/events/delivery','/bridge')")"
+    if [[ "${recent_calls_n:-0}" -eq 0 ]]; then
+        skip "every call path in the last hour is one of the 8 known Remote Control routes" "no calls captured in the last hour — nothing recent to check"
+    elif [[ -z "$unknown_paths" ]]; then
+        ok "every call path in the last hour is one of the 8 known Remote Control routes ($recent_calls_n call(s))"
+    else
+        bad "every call path in the last hour is one of the 8 known Remote Control routes" "new path(s) not in the known vocabulary: $unknown_paths"
+        overall_fail=1
+    fi
+
+    local heartbeat_paths_n
+    heartbeat_paths_n="$(sql_scalar "-- CHECK:heartbeat_paths_count
+SELECT count(*) FROM remote_control.calls WHERE $recent_window AND path LIKE '%worker/heartbeat%'")"
+    if [[ "${heartbeat_paths_n:-0}" -gt 0 ]]; then
+        ok "heartbeat path worker/heartbeat observed in the last hour's captured calls ($heartbeat_paths_n)"
+    else
+        skip "heartbeat path worker/heartbeat observed in the last hour's captured calls" "no call in the last hour matched %worker/heartbeat%"
+    fi
+
+    local stream_paths_n
+    stream_paths_n="$(sql_scalar "-- CHECK:stream_paths_count
+SELECT count(*) FROM remote_control.calls WHERE $recent_window AND path LIKE '%worker/events/stream%'")"
+    if [[ "${stream_paths_n:-0}" -gt 0 ]]; then
+        ok "inbound stream path worker/events/stream observed in the last hour's captured calls ($stream_paths_n)"
+    else
+        skip "inbound stream path worker/events/stream observed in the last hour's captured calls" "no call in the last hour matched %worker/events/stream%"
+    fi
+
+    # payload_type vocabulary: remote_control.call_payloads records one row
+    # per kept payload inside a call's response. Live capture 2026-09-03
+    # through 2026-09-08 shows exactly 7 kept types — system, attachment,
+    # rate_limit_event, result, control_response, control_request,
+    # control_cancel_request — with assistant/user payloads elided before
+    # storage by design (the worklog's own capture design, not a gap). Any
+    # payload_type outside those 7 is a new value the capture pipeline has
+    # never seen, i.e. drift, open to the set growing over time.
+    echo "channel — payload type vocabulary"
+    local recent_payloads_n unknown_payload_types
+    recent_payloads_n="$(sql_scalar "-- CHECK:recent_payloads_count
+SELECT count(*) FROM remote_control.call_payloads WHERE $recent_window")"
+    unknown_payload_types="$(sql_jsonl "-- CHECK:unknown_payload_types
+SELECT DISTINCT payload_type FROM remote_control.call_payloads WHERE $recent_window AND payload_type NOT IN ('system','attachment','rate_limit_event','result','control_response','control_request','control_cancel_request')")"
+    if [[ "${recent_payloads_n:-0}" -eq 0 ]]; then
+        skip "every payload type in the last hour is one of the 7 known kept types" "no payloads captured in the last hour — nothing recent to check"
+    elif [[ -z "$unknown_payload_types" ]]; then
+        ok "every payload type in the last hour is one of the 7 known kept types ($recent_payloads_n payload(s))"
+    else
+        bad "every payload type in the last hour is one of the 7 known kept types" "new payload type(s) not in the known vocabulary: $unknown_payload_types"
+        overall_fail=1
+    fi
+
+    # remote_control.channels holds one row per channel updated in place
+    # (last_seen_at/worker_status_at track recency), not a per-event log, so
+    # this one stays unscoped by time — it is already the current-state
+    # snapshot the one-hour window exists to approximate for the two
+    # growing tables above. The known set was {idle, requires_action} at
+    # this milestone's original baseline (2.1.259); live capture
+    # 2026-09-03 through 2026-09-08 also shows 687 'running' rows, which is
+    # real observed behaviour, not drift, so it is added to the known set
+    # here rather than left to fail forever.
+    echo "channel — worker_status values"
+    local unexpected_status observed_status_n
+    unexpected_status="$(sql_jsonl "-- CHECK:unexpected_status
+SELECT DISTINCT worker_status FROM remote_control.channels WHERE worker_status IS NOT NULL AND worker_status NOT IN ('idle','running','requires_action')")"
+    observed_status_n="$(sql_scalar "-- CHECK:observed_status_count
+SELECT count(DISTINCT worker_status) FROM remote_control.channels WHERE worker_status IS NOT NULL")"
+    if [[ "${observed_status_n:-0}" -eq 0 ]]; then
+        skip "worker_status values are idle/running/requires_action" "no channel row has a non-null worker_status yet"
+    elif [[ -z "$unexpected_status" ]]; then
+        ok "every observed worker_status is idle, running, or requires_action"
+    else
+        bad "every observed worker_status is idle, running, or requires_action" "unexpected value(s): $unexpected_status"
+        overall_fail=1
+    fi
+
+    # request_body is BYTEA; a bare ::text cast on bytea in Postgres yields
+    # the hex-escaped \x... form, not readable text, so decode with
+    # convert_from (this repo's known request_body-is-bytea gotcha) before
+    # parsing json.
+    echo "channel — heartbeat body shape"
+    if [[ "${heartbeat_paths_n:-0}" -eq 0 ]]; then
+        skip "heartbeat body carries session_id and worker_epoch" "no captured heartbeat call to inspect"
+        skip "heartbeat body optional fields (supports_heartbeat_probe / current_interval_seconds / idle_seconds) appear on at least one captured heartbeat" "no captured heartbeat call to inspect"
+    else
+        local missing_required optional_present
+        missing_required="$(sql_scalar "-- CHECK:missing_required_heartbeat_fields
+            SELECT count(*) FROM remote_control.calls
+            WHERE $recent_window
+              AND path LIKE '%worker/heartbeat%'
+              AND request_body IS NOT NULL
+              AND NOT (
+                convert_from(request_body, 'UTF8')::jsonb ? 'session_id'
+                AND convert_from(request_body, 'UTF8')::jsonb ? 'worker_epoch'
+              )")"
+        if [[ "${missing_required:-0}" -eq 0 ]]; then
+            ok "every captured heartbeat body carries session_id and worker_epoch"
+        else
+            bad "every captured heartbeat body carries session_id and worker_epoch" "$missing_required captured heartbeat call(s) missing one or both required fields"
+            overall_fail=1
+        fi
+
+        optional_present="$(sql_scalar "-- CHECK:optional_heartbeat_fields_present
+            SELECT count(*) FROM remote_control.calls
+            WHERE $recent_window
+              AND path LIKE '%worker/heartbeat%'
+              AND request_body IS NOT NULL
+              AND (
+                convert_from(request_body, 'UTF8')::jsonb ? 'supports_heartbeat_probe'
+                OR convert_from(request_body, 'UTF8')::jsonb ? 'current_interval_seconds'
+                OR convert_from(request_body, 'UTF8')::jsonb ? 'idle_seconds'
+              )")"
+        if [[ "${optional_present:-0}" -gt 0 ]]; then
+            ok "at least one captured heartbeat carries an optional field (supports_heartbeat_probe / current_interval_seconds / idle_seconds)"
+        else
+            skip "heartbeat body optional fields (supports_heartbeat_probe / current_interval_seconds / idle_seconds) appear on at least one captured heartbeat" "none of the $heartbeat_paths_n captured heartbeat(s) carried any of the three optional fields — these vary by beat kind (reconnect/reactivate/probe per the worklog), so this is a sampling gap until more beat kinds are observed, not necessarily drift"
+        fi
+    fi
+
+    # AC2 records the stream as an open/close lifecycle, so response_body may
+    # legitimately stay empty by design; report NOTRUN in that case rather
+    # than guessing at content that was never captured.
+    echo "channel — frame envelope shape"
+    if [[ "${stream_paths_n:-0}" -eq 0 ]]; then
+        skip "captured stream response carries the client_event frame envelope" "no captured worker/events/stream call to inspect"
+    else
+        local stream_bytes_n
+        stream_bytes_n="$(sql_scalar "-- CHECK:stream_bytes_count
+SELECT count(*) FROM remote_control.calls WHERE $recent_window AND path LIKE '%worker/events/stream%' AND response_body IS NOT NULL AND response_body_size > 0")"
+        if [[ "${stream_bytes_n:-0}" -eq 0 ]]; then
+            skip "captured stream response carries the client_event frame envelope" "$stream_paths_n stream call(s) captured in the last hour but response_body is empty for all of them — AC2 records the stream as an open/close lifecycle, not full frame content, so there is nothing to inspect yet"
+        else
+            local frame_hits
+            frame_hits="$(sql_scalar "-- CHECK:frame_hits_count
+                SELECT count(*) FROM remote_control.calls
+                WHERE $recent_window
+                  AND path LIKE '%worker/events/stream%'
+                  AND response_body IS NOT NULL AND response_body_size > 0
+                  AND convert_from(response_body, 'UTF8') LIKE '%event: client_event%'")"
+            if [[ "${frame_hits:-0}" -gt 0 ]]; then
+                ok "captured stream response carries an 'event: client_event' frame ($frame_hits call(s))"
+            else
+                bad "captured stream response carries an 'event: client_event' frame" "$stream_bytes_n stream call(s) have non-empty response_body but none contain 'event: client_event' — the server-side frame envelope may have changed"
+                overall_fail=1
+            fi
+        fi
+    fi
+
+    echo "────────────────────────────────────────"
+    printf 'passed=%d failed=%d not-run=%d\n' "$pass" "$fail" "$notrun"
+
+    if [[ "$overall_fail" -eq 1 ]]; then
+        return 1
+    elif [[ "$pass" -eq 0 ]]; then
+        echo "NOT RUN: every sub-check was NOTRUN — nothing could be verified against live traffic yet."
+        return 2
+    else
+        return 0
+    fi
+}
+
+# --- self-test: prove the check can fail, without touching the shared live -
+# database. Substitutes a stub scripts/proxy-q that answers each query by
+# its `-- CHECK:<marker>` comment (inert SQL, ignored by both Postgres and
+# the real scripts/proxy-q) rather than by connecting anywhere.
+self_test() {
+    local tmp; tmp="$(mktemp -d)" || return 1
+    local stub="$tmp/proxy-q"
+    cat >"$stub" <<'STUBEOF'
+#!/usr/bin/env bash
+# Test double for scripts/proxy-q sql: reads the -- CHECK:<marker> comment
+# out of the query and prints the STUB_<marker> env var, nothing else.
+query="$2"
+marker="$(printf '%s' "$query" | grep -oE -- '-- CHECK:[A-Za-z_]+' | head -1 | sed 's/-- CHECK://')"
+var="STUB_${marker}"
+printf '%s\n' "${!var:-}"
+STUBEOF
+    chmod +x "$stub"
+
+    local st_pass=0 st_fail=0
+
+    # Clean scenario: schema landed, traffic flowing, every shape matches.
+    (
+        export MIKE_Q_BIN="$stub"
+        export STUB_probe=1
+        export STUB_schema_present=2
+        export STUB_channels_count=3
+        export STUB_calls_count=12
+        export STUB_recent_calls_count=12
+        export STUB_unknown_paths=""
+        export STUB_heartbeat_paths_count=4
+        export STUB_stream_paths_count=2
+        export STUB_recent_payloads_count=9
+        export STUB_unknown_payload_types=""
+        export STUB_unexpected_status=""
+        export STUB_observed_status_count=2
+        export STUB_missing_required_heartbeat_fields=0
+        export STUB_optional_heartbeat_fields_present=2
+        export STUB_stream_bytes_count=2
+        export STUB_frame_hits_count=2
+        MIKE_Q="$stub"
+        out="$(run_checks)"; rc=$?
+        printf '%s\n' "$out"
+        exit $rc
+    ) >"$tmp/clean.out" 2>&1
+    clean_rc=$?
+    if [[ $clean_rc -eq 0 ]] && ! grep -q FAIL "$tmp/clean.out"; then
+        echo "  PASS  self-test: a fully-matching live scenario reports zero FAILs and exits 0"
+        st_pass=$((st_pass + 1))
+    else
+        echo "  FAIL  self-test: a fully-matching live scenario should exit 0 with no FAIL lines (exit=$clean_rc)"
+        sed 's/^/       | /' "$tmp/clean.out"
+        st_fail=$((st_fail + 1))
+    fi
+
+    # Drifted scenario: the server starts sending a worker_status value the
+    # client has never advertised, a payload_type the capture pipeline has
+    # never kept before, and the stream stops carrying client_event frames
+    # at all — exactly the "renamed endpoint / changed event type" failure
+    # mode the issue describes, with response bytes present (so this is not
+    # the empty-body NOTRUN case) but not matching. Path vocabulary is left
+    # clean in this scenario since worker_status, payload type and frame
+    # envelope already exercise three independent drift shapes.
+    (
+        export MIKE_Q_BIN="$stub"
+        export STUB_probe=1
+        export STUB_schema_present=2
+        export STUB_channels_count=3
+        export STUB_calls_count=12
+        export STUB_recent_calls_count=12
+        export STUB_unknown_paths=""
+        export STUB_heartbeat_paths_count=4
+        export STUB_stream_paths_count=2
+        export STUB_recent_payloads_count=9
+        export STUB_unknown_payload_types='{"payload_type":"debug_event"}'
+        export STUB_unexpected_status='{"worker_status":"blocked"}'
+        export STUB_observed_status_count=3
+        export STUB_missing_required_heartbeat_fields=0
+        export STUB_optional_heartbeat_fields_present=2
+        export STUB_stream_bytes_count=2
+        export STUB_frame_hits_count=0
+        MIKE_Q="$stub"
+        out="$(run_checks)"; rc=$?
+        printf '%s\n' "$out"
+        exit $rc
+    ) >"$tmp/drift.out" 2>&1
+    drift_rc=$?
+    if [[ $drift_rc -eq 1 ]] \
+        && grep -q "every observed worker_status is idle, running, or requires_action" "$tmp/drift.out" \
+        && grep -q 'blocked' "$tmp/drift.out" \
+        && grep -q "every payload type in the last hour is one of the 7 known kept types" "$tmp/drift.out" \
+        && grep -q 'debug_event' "$tmp/drift.out" \
+        && grep -q "captured stream response carries an 'event: client_event' frame" "$tmp/drift.out"; then
+        echo "  PASS  self-test: a new worker_status value ('blocked'), a new payload_type ('debug_event') and a vanished client_event frame are all caught and named, exit=1"
+        st_pass=$((st_pass + 1))
+    else
+        echo "  FAIL  self-test: expected exit=1 naming the unexpected worker_status, the unexpected payload_type and the missing client_event frame (exit=$drift_rc)"
+        sed 's/^/       | /' "$tmp/drift.out"
+        st_fail=$((st_fail + 1))
+    fi
+
+    rm -rf "$tmp"
+    echo "self-test: passed=$st_pass failed=$st_fail"
+    [[ "$st_fail" -eq 0 ]]
+}
+
+if [[ "${1:-}" == "--self-test" ]]; then
+    self_test
+    exit $?
+elif [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    sed -n '2,42p' "$0" | sed 's/^# \{0,1\}//'
+    exit 0
+elif [[ $# -gt 0 ]]; then
+    echo "rc-protocol-check-capture: unknown argument: $1" >&2
+    exit 2
+fi
+
+run_checks
+exit $?

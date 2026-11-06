@@ -1,0 +1,134 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH latest AS (\n    SELECT DISTINCT ON (dimension_value, population)\n           dimension_value, population, k, n, window_start, window_end\n      FROM eval.rates\n     WHERE family = 'action_effect' AND dimension = 'guard_question'\n     ORDER BY dimension_value, population, window_end DESC, id DESC\n)\nSELECT qp.question AS \"question!\", qp.mode AS \"mode!\",\n       hb.k AS \"k_holdback?\", hb.n AS \"n_holdback?\",\n       hb.window_start AS \"window_start_holdback?\", hb.window_end AS \"window_end_holdback?\",\n       tr.k AS \"k_treated?\", tr.n AS \"n_treated?\",\n       tr.window_start AS \"window_start_treated?\", tr.window_end AS \"window_end_treated?\"\n  FROM steering.question_policies qp\n  LEFT JOIN latest hb ON hb.dimension_value = qp.question AND hb.population = 'holdback'\n  LEFT JOIN latest tr ON tr.dimension_value = qp.question AND tr.population = 'treated'\n ORDER BY qp.question\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "question!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.question_policies",
+            "name": "question"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "mode!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.question_policies",
+            "name": "mode"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "k_holdback?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "k"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "n_holdback?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "n"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "window_start_holdback?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "window_start"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "window_end_holdback?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "window_end"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "k_treated?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "k"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "n_treated?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "n"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "window_start_treated?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "window_start"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "window_end_treated?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "window_end"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "5e14196964956c9f2fce0dd2a5bf8b25329c05790c9fe9289b22d94cb0d5913c"
+}

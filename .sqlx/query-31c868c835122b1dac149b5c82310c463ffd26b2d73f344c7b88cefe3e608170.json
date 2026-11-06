@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE launch.tree_checks\n   SET finished_at = now(),\n       exit_code = $2,\n       output = $3,\n       state_after = $4\n WHERE id = $1\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int4",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "31c868c835122b1dac149b5c82310c463ffd26b2d73f344c7b88cefe3e608170"
+}

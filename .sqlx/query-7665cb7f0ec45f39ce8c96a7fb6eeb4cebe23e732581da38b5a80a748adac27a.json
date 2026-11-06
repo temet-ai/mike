@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.skill_draft_failures\n                    (project_id, folder, lesson_watermark, last_error)\n                 VALUES ($1, $2, $3, $4)\n                 ON CONFLICT (project_id, folder, lesson_watermark) DO UPDATE\n                    SET attempts = memory.skill_draft_failures.attempts + 1,\n                        last_error = EXCLUDED.last_error,\n                        last_failed_at = now()\n                 RETURNING attempts",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "attempts",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_draft_failures",
+            "name": "attempts"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7665cb7f0ec45f39ce8c96a7fb6eeb4cebe23e732581da38b5a80a748adac27a"
+}

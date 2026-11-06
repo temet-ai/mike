@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT s.session_uuid    AS \"session_uuid!\",\n                       cand.request_body AS \"request_body?\"\n                  FROM sessions.sessions s\n                  JOIN LATERAL (\n                      SELECT rr.request_body\n                        FROM requests.requests rr\n                       WHERE rr.session_id = s.id\n                       ORDER BY rr.created_at DESC, rr.id DESC\n                       LIMIT 1\n                  ) cand ON true\n                 WHERE s.last_seen >= $1\n                   AND NOT EXISTS (\n                       SELECT 1 FROM remote_control.channels c\n                        WHERE c.local_session_uuid = s.session_uuid\n                   )\n                 ORDER BY s.last_seen DESC\n                 LIMIT $2\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_body?",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "request_body"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "45e68a6786171cdd26922ed2e136b2fcece1fe9fce6afd6963e84970f2512e58"
+}

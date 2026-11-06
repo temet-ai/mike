@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (SELECT 1 FROM workspace.session_notes n\n                               JOIN sessions.sessions s ON s.id = n.session_id\n                              WHERE n.note_uuid = $1 AND s.session_uuid = $2) AS \"belongs!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "belongs!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "24d7cb095ea263b72abf13e742ba1b1b76ca14c3ea3eec94d3b4bd276df5e6be"
+}

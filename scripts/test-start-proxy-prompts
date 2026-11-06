@@ -1,0 +1,264 @@
+#!/usr/bin/env python3
+"""Regression tests for the one question start-proxy.sh asks, and for the one it
+no longer asks.
+
+The question is what to do when the capture database is unreachable. It must be
+incapable of stalling an unattended run: an agent, a CI job or a background
+shell has no controlling terminal, and a prompt that blocked there would hang
+every automated launch of the stack.
+
+The question it no longer asks is "Rebuild and restart it?" when the proxy is
+already running. Running the script is the answer, so it reports what is up and
+carries on; the cases below hold it to that.
+
+The script is driven through a real pseudo-terminal so the prompt is genuinely
+exercised rather than simulated. Nothing here is meant to reach the cargo build
+or a cutover: every case ends at the database question or is stopped at the
+last line before the build, and the already-running cases are pointed at a
+throwaway health server this file starts, never at a real proxy. And nothing
+here can reach them: the script runs as a copy in an empty directory (see
+SANDBOX below), where a run that got past its stop would find nothing to build.
+
+Run: scripts/test-start-proxy-prompts
+"""
+import atexit
+import json
+import os
+import pty
+import re
+import select
+import shutil
+import signal
+import socket
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# The script is never run from the checkout. start-proxy.sh sources the
+# checkout's .env, and a MIKE_DATABASE_URL in it replaces the dead one these
+# tests export: the database then answers, no question stops the run, and the
+# script goes on to a real build and deploy (it did, on 2026-10-01). So each run
+# works on a copy of the script and scripts/lib in an empty directory, where
+# there is no .env to read and no Cargo.toml to build.
+SANDBOX = tempfile.mkdtemp(prefix="start-proxy-prompts-")
+shutil.copytree(os.path.join(PROJECT_ROOT, "scripts", "lib"),
+                os.path.join(SANDBOX, "scripts", "lib"))
+shutil.copy2(os.path.join(PROJECT_ROOT, "scripts", "start-proxy.sh"),
+             os.path.join(SANDBOX, "scripts", "start-proxy.sh"))
+atexit.register(shutil.rmtree, SANDBOX, ignore_errors=True)
+SCRIPT = os.path.join(SANDBOX, "scripts", "start-proxy.sh")
+
+# A port nothing listens on, so the database probe fails the way it does when
+# the capture host is down. Chosen high and fixed rather than allocated, because
+# an allocated-then-closed port can be reused by something else mid-test.
+DEAD_DB = "postgres://u:p@127.0.0.1:59999/nope"
+
+FAKE_HEALTH = {
+    "status": "ok",
+    "build": {"sha_short": "abc1234"},
+    "process": {"uptime_seconds": 7200},
+}
+
+
+class _Health(BaseHTTPRequestHandler):
+    def do_GET(self):
+        body = json.dumps(FAKE_HEALTH).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *_args):
+        pass
+
+
+def start_fake_proxy():
+    """Serve /api/health on a free port; returns (addr, shutdown_callable)."""
+    srv = HTTPServer(("127.0.0.1", 0), _Health)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return "127.0.0.1:%d" % srv.server_address[1], srv.shutdown
+
+
+def free_port_is_dead(port):
+    s = socket.socket()
+    s.settimeout(0.5)
+    try:
+        s.connect(("127.0.0.1", port))
+        return False
+    except OSError:
+        return True
+    finally:
+        s.close()
+
+
+def run(keys, with_tty=True, extra_env=None, timeout=90, stop_on=None):
+    """Run start-proxy.sh, answering `keys` as questions appear.
+
+    `stop_on` kills the run the moment that text appears. It is how the cases
+    that deliberately answer past the database question stay clear of the cargo
+    build that would otherwise follow: nothing in this file may compile or deploy.
+
+    Returns (exit_code, output). exit_code is None if the run had to be killed.
+    """
+    env = dict(os.environ)
+    env["MIKE_DATABASE_URL"] = DEAD_DB
+    env["MIKE_LOCAL_DATABASE_URL"] = ""
+    env["START_PROXY_DB_RETRY_PAUSE"] = "1"
+    env["START_PROXY_PROMPT_TIMEOUT"] = "6"
+    env.pop("START_PROXY_ASSUME_YES", None)
+    if extra_env:
+        env.update(extra_env)
+
+    if not with_tty:
+        # No controlling terminal: the agent / CI / background-job shape.
+        p = subprocess.run(
+            [SCRIPT], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, env=env, timeout=timeout,
+            start_new_session=True, cwd=SANDBOX,
+        )
+        return p.returncode, p.stdout.decode(errors="replace")
+
+    master, slave = pty.openpty()
+    proc = subprocess.Popen(
+        [SCRIPT], stdin=slave, stdout=slave, stderr=slave, env=env,
+        preexec_fn=os.setsid, close_fds=True, cwd=SANDBOX,
+    )
+    os.close(slave)
+    out, pending, deadline = b"", list(keys), time.time() + timeout
+    answered_upto = 0
+    killed = False
+    while True:
+        if proc.poll() is not None and not select.select([master], [], [], 0.2)[0]:
+            break
+        if time.time() > deadline:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            killed = True
+            break
+        r, _, _ = select.select([master], [], [], 0.3)
+        if r:
+            try:
+                chunk = os.read(master, 4096)
+            except OSError:
+                break
+            if not chunk:
+                break
+            out += chunk
+            if stop_on and stop_on.encode() in out:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                killed = True
+                break
+            # Answer once per question. Counting "(Enter =" occurrences over the
+            # whole transcript avoids double-answering when a prompt arrives
+            # split across two reads.
+            asked = out.count(b"(Enter =")
+            while pending and asked > answered_upto:
+                os.write(master, (pending.pop(0) + "\n").encode())
+                answered_upto += 1
+    os.close(master)
+    try:
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        killed = True
+    return (None if killed else proc.returncode), out.decode(errors="replace")
+
+
+FAILURES = []
+
+
+def check(name, ok, detail=""):
+    print(("  pass  " if ok else "  FAIL  ") + name)
+    if not ok:
+        FAILURES.append(name + (" :: " + detail if detail else ""))
+
+
+def main():
+    if not free_port_is_dead(59999):
+        print("Something is listening on 59999; these tests need it closed.")
+        return 2
+    if not os.access(SCRIPT, os.X_OK):
+        print("Not executable: " + SCRIPT)
+        return 2
+    if os.path.exists(os.path.join(SANDBOX, ".env")) or os.path.exists(
+            os.path.join(SANDBOX, "Cargo.toml")):
+        print("NOT RUN: the sandbox copy has a .env or a Cargo.toml; refusing to risk a deploy.")
+        return 2
+
+    print("Database unreachable, no terminal: behaves as it always did")
+    t0 = time.time()
+    code, out = run([], with_tty=False, timeout=40)
+    took = time.time() - t0
+    check("exits 1", code == 1, "got %s" % code)
+    check("explains that the database is unreachable", "is unreachable" in out)
+    check("asks nothing", "(Enter =" not in out)
+    check("does not stall", took < 30, "%.1fs" % took)
+
+    print("Database unreachable, answering 'a': aborts")
+    code, out = run(["a"], timeout=40)
+    check("asks the question", "[r] retry the connection" in out)
+    check("exits 1", code == 1, "got %s" % code)
+
+    print("Database unreachable, answering 'r' then 'a': retries, then aborts")
+    code, out = run(["r", "a"], timeout=60)
+    check("reports the retry", "Retrying 127.0.0.1:59999" in out)
+    check("asks a second time", out.count("[r] retry the connection") >= 2,
+          "asked %d times" % out.count("[r] retry the connection"))
+    check("exits 1", code == 1, "got %s" % code)
+
+    print("Database unreachable, nobody answers: times out instead of hanging")
+    t0 = time.time()
+    code, out = run([], timeout=45)
+    took = time.time() - t0
+    check("says it gave up waiting", "No answer within" in out)
+    check("takes the abort default, exits 1", code == 1, "got %s" % code)
+    check("gives up near the configured timeout", took < 40, "%.1fs" % took)
+
+    print("An unrecognised key is rejected, a valid one is then accepted")
+    code, out = run(["x", "a"], timeout=40)
+    check("rejects the bad key", "Please answer with one of" in out)
+    check("exits 1 once aborted", code == 1, "got %s" % code)
+
+    addr, shutdown = start_fake_proxy()
+    try:
+        print("Proxy already running: reports it and carries on without asking")
+        # Stopped the instant the last line before the build appears, so this
+        # case proves no restart question is asked without compiling anything.
+        code, out = run(["s"], extra_env={"MIKE_INSPECT_ADDR": addr},
+                        timeout=60, stop_on="web UI on :")
+        check("accepts start-anyway for the database", "Starting anyway" in out)
+        check("notices the running proxy", "mike is already running" in out)
+        check("names its build and uptime", "abc1234" in out and "up 2h" in out)
+        check("reports the other ports", re.search(r"web UI on :\d+", out) is not None)
+        check("asks only the database question", out.count("(Enter =") == 1,
+              "asked %d times" % out.count("(Enter ="))
+        check("asks no restart question", "Rebuild and restart" not in out)
+        check("does not stop there", "Left the running stack untouched" not in out)
+
+        print("--yes answers the database question without asking")
+        code, out = run([], extra_env={"MIKE_INSPECT_ADDR": addr,
+                                       "START_PROXY_ASSUME_YES": "1"},
+                        timeout=45, stop_on="web UI on :")
+        check("asks nothing", "(Enter =" not in out)
+        check("takes start-anyway on the database", "Starting anyway" in out)
+        check("still reports the running proxy", "mike is already running" in out)
+    finally:
+        shutdown()
+
+    print()
+    if FAILURES:
+        print("FAILED (%d):" % len(FAILURES))
+        for f in FAILURES:
+            print("  - " + f)
+        return 1
+    print("All start-proxy prompt tests passed.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

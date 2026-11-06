@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*)::bigint AS \"stale_turns!\", MIN(closed_at) AS oldest_closed_at\n                     FROM memory.operator_turns\n                    WHERE closed_at   IS NOT NULL\n                      AND outcome_id  = 1\n                      AND judge_model IS NULL\n                      AND judge_failure_reason IS DISTINCT FROM 'permanent'\n                      AND (opened_by IS NULL OR opened_by = 'operator')\n                      AND closed_at   < $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "stale_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "oldest_closed_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "28a5bf825d825a03dc419e6ca5abcf6ee6dc271275d56965d9032ef40dc510eb"
+}

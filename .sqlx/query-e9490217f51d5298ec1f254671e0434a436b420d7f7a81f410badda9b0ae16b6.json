@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT u.tool_name, res.content, res.request_id\n  FROM tools.results res\n  JOIN tools.uses u ON u.id = res.tool_use_id\n WHERE res.session_id = $1\n   AND u.tool_name = 'SendMessage'\n   AND res.content::text LIKE '%resumedAgentId%'\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tool_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "tool_name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "content",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "request_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e9490217f51d5298ec1f254671e0434a436b420d7f7a81f410badda9b0ae16b6"
+}

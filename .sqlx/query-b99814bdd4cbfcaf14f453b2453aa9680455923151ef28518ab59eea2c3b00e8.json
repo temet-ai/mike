@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH known_prompt AS (\n                   SELECT sp.id\n                     FROM system_prompts.system_prompts sp\n                    WHERE sp.prompt_sha256 = $1\n                    ORDER BY sp.id\n                    LIMIT 1\n               ),\n               new_prompt AS (\n                   INSERT INTO system_prompts.system_prompts\n                          (prompt_sha256, blocks, first_seen_at, last_seen_at)\n                   SELECT $1, $2, NOW(), NOW()\n                    WHERE NOT EXISTS (SELECT 1 FROM known_prompt)\n                   RETURNING id\n               )\n               SELECT id AS \"id!\" FROM new_prompt\n               UNION ALL\n               SELECT id AS \"id!\" FROM known_prompt",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "b99814bdd4cbfcaf14f453b2453aa9680455923151ef28518ab59eea2c3b00e8"
+}

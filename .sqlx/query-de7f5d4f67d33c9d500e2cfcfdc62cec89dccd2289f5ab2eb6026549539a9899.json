@@ -1,0 +1,193 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH rows AS (\n    SELECT e.uuid, e.session_id, e.operator_turn_id, e.question, e.trigger_point, e.status,\n           e.outcome_label, e.label_evidence, e.verdict_json,\n           row_number() OVER (PARTITION BY e.operator_turn_id, e.question, e.trigger_point\n                              ORDER BY e.dispatched_at DESC, e.id DESC) AS recency\n      FROM steering.evaluations e\n     WHERE e.steerer_id = $1\n       AND e.dispatched_at >= $2\n       AND e.dispatched_at < $3\n)\nSELECT uuid AS \"uuid!\", session_id AS \"session_id!\", operator_turn_id AS \"operator_turn_id!\", question AS \"question?\", trigger_point AS \"trigger_point?\", status AS \"status!\", outcome_label AS \"outcome_label?\",\n       verdict_json ->> 'exemption' AS \"exemption?\",\n       verdict_json -> 'gates' -> question ->> 'arm' AS \"arm?\",\n       COALESCE((verdict_json -> 'gates' -> question ->> 'open')::boolean, false) AS \"gate_open!\",\n       verdict_json -> 'gates' -> question ->> 'reason' AS \"gate_reason?\",\n       COALESCE((verdict_json -> 'gates' -> question -> 'other_arms' -> 'g2' ->> 'open')::boolean, false)\n           AS \"other_g2_open!\",\n       COALESCE((verdict_json -> 'gates' -> question -> 'other_arms' -> 'g2b' ->> 'open')::boolean, false)\n           AS \"other_g2b_open!\",\n       verdict_json ->> 'abstention' AS \"abstention?\",\n       COALESCE((verdict_json ->> 'recall_sample')::boolean, false) AS \"recall_sample!\",\n       (verdict_json -> 'first_vote' -> question ->> 'fires')::boolean AS \"first_vote_fires?\",\n       COALESCE((verdict_json -> 'reach' ->> 'stream_open')::boolean, false) AS \"stream_open!\",\n       COALESCE((verdict_json -> 'reach' ->> 'channel_live')::boolean, false) AS \"channel_live!\",\n       (label_evidence ->> 'next_genuine_after_secs')::bigint AS \"next_genuine_after_secs?\",\n       (recency > 1) AS \"superseded!\"\n  FROM rows\n ORDER BY operator_turn_id, question, trigger_point\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "operator_turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "question?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "question"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "trigger_point?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "trigger_point"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "status!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "outcome_label?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "outcome_label"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "exemption?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "arm?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "gate_open!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "gate_reason?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "other_g2_open!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 12,
+        "name": "other_g2b_open!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 13,
+        "name": "abstention?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 14,
+        "name": "recall_sample!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 15,
+        "name": "first_vote_fires?",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 16,
+        "name": "stream_open!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 17,
+        "name": "channel_live!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 18,
+        "name": "next_genuine_after_secs?",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 19,
+        "name": "superseded!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "de7f5d4f67d33c9d500e2cfcfdc62cec89dccd2289f5ab2eb6026549539a9899"
+}

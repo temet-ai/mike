@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH target AS (\n                       SELECT s.id, s.session_uuid, s.title\n                         FROM sessions.sessions s\n                        WHERE s.session_uuid = ANY($1)\n                   ),\n                   subagent AS (\n                       SELECT DISTINCT ON (ai.session_id) ai.session_id, ag.name AS agent_type\n                         FROM agents.instances ai\n                         JOIN agents.agents ag ON ag.id = ai.agent_id\n                        WHERE ai.session_id IN (SELECT id FROM target)\n                        ORDER BY ai.session_id, ai.created_at DESC\n                   )\n                   SELECT\n                       target.session_uuid AS \"session_uuid!\",\n                       target.title,\n                       sg.role,\n                       sg.display_name,\n                       subagent.agent_type\n                     FROM target\n                     LEFT JOIN sessions.session_goals sg ON sg.session_id = target.id\n                     LEFT JOIN subagent ON subagent.session_id = target.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "role",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "role"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "display_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "display_name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "agent_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "46cfea3fe207a3b682b3dd0d0d92eaff99c6af6a6f5fec4ddcbfbc1a33a9fe6f"
+}

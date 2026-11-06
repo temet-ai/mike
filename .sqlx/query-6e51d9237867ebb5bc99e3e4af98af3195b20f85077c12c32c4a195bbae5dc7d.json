@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ls.code\n                   FROM memory.lessons l JOIN memory.lesson_stages ls ON ls.id = l.stage_id\n                  WHERE l.id = $1 FOR UPDATE OF l",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "code",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_stages",
+            "name": "code"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6e51d9237867ebb5bc99e3e4af98af3195b20f85077c12c32c4a195bbae5dc7d"
+}

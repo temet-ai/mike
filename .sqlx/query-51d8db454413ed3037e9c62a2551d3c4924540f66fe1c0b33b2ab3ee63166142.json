@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH cleared AS (\n                     DELETE FROM memory.turn_facts_backstop_attempts a\n                      WHERE a.operator_turn_id = ANY($1)\n                 )\n                 UPDATE memory.turn_facts\n                    SET built_at = $2\n                  WHERE operator_turn_id = ANY($1)\n                    AND built_at < $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "51d8db454413ed3037e9c62a2551d3c4924540f66fe1c0b33b2ab3ee63166142"
+}

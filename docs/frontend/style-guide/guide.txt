@@ -1,0 +1,289 @@
+FUNK style guide, rendered as text
+
+Made by scripts/style-guide-render from docs/frontend/STYLE_GUIDE.html.
+Do not edit by hand. Each section below has a picture of the same name in this folder.
+
+Sections in the guide: Signals · Neutrals · Faces · Voice · Core · Forms · Feedback · Data · Surfaces · Durations · Edge contract · Section stack · Spacing
+
+========================================================================
+Signals    [picture: 01-signals.png]
+========================================================================
+SIGNALS
+six colors · one meaning each
+CYAN
+active / nav
+MAGENTA
+live / primary
+GREEN
+complete
+RED
+error
+BLUE
+info / focus
+YELLOW
+warning only
+base / dim / border triples · one meaning each · the wire never gets a seventh
+
+========================================================================
+Neutrals    [picture: 02-neutrals.png]
+========================================================================
+NEUTRALS
+live tokens — follow the theme
+--bg
+--surface-1
+--surface-2
+--surface-3
+--line
+--line-strong
+--text-3
+--text-2
+--text-1
+swatches read the live tokens — flip the theme in the rail and they follow
+
+========================================================================
+Faces    [picture: 03-faces.png]
+========================================================================
+FACES
+JetBrains Mono · Syne
+SYNE — DISPLAY
+2,847 tokens
+Uplink diagnostics
+JETBRAINS MONO — BODY, DATA, DEFAULT
+Session 0x4A2F opened a persistent link on port 8791. Buffer holds 1,024 frames; last write 3s ago — 2,847 tokens, 200 OK.
+SYNE — BRAND WORDMARK, HERO MARKS ONLY
+FUNK 0x4A2F
+SYNE — MACHINE LABELS, UPPERCASE AND TRACKED
+SECTION HEADER
+ACTIVE ROUTE
+LINK ESTABLISHED
+WRITE FAILED
+
+========================================================================
+Voice    [picture: 04-voice.png]
+========================================================================
+VOICE
+terse and machine
+NEVER
+Oops! Something went wrong 😢
+Your session expired — please log in again!
+About 3k tokens used
+N/A
+ALWAYS
+WRITE FAILED — ERR 507
+SESSION 0x4A2F EXPIRED · 14:02:37
+2,847 tokens
+—
+
+========================================================================
+Core    [picture: 05-core.png]
+========================================================================
+CORE
+Button · IconButton · Tabs · Frame
+OPEN LINK
+FLUSH BUFFER
+PURGE 0X4A2F
+DETACH
+LOCKED
+click any — idle → loading (real % fill) → complete / failed; shape never changes
+▸
+↺
++
+×
+−
+REQUESTS
+1,204
+LOG
+88
+CONFIG
+REQUESTS — 1,204 HELD
+14:02:37.114 GET /v1/stream 200 412ms
+
+========================================================================
+Forms    [picture: 06-forms.png]
+========================================================================
+FORMS
+Input · Select · Checkbox · Radio · Switch
+SESSION ID
+0x
+PORT
+PROTOCOL
+wss
+https
+raw
+▾
+tail
+snapshot
+replay
+■
+persist session
+raw frames
+locked
+tail — on
+
+========================================================================
+Feedback    [picture: 07-feedback.png]
+========================================================================
+FEEDBACK
+StatusIndicator · Badge · Toast · Tooltip
+ACTIVE
+link 0x4A2F
+▸
+↺
+lifecycle 2/8 — recolor transition, no decorative pulse
+ACTIVE
+STREAMING
+200 OK
+ERR 507
+3s ago
+DEGRADED
+—
+hover: trace
+hover: buffer
+REPORT OK
+REPORT ERROR
+
+========================================================================
+Data    [picture: 08-data.png]
+========================================================================
+DATA
+Trace · Readout
+feed — held
+IDLE
+—
+THROUGHPUT
+350 tok/s
+TOKENS
+184,203
++312 since 14:00
+LATENCY P95
+412
+ms
+p50 118ms
+ERRORS
+7
+last ERR 507 · 3s ago
+
+========================================================================
+Surfaces    [picture: 09-surfaces.png]
+========================================================================
+SURFACES
+Panel · Dialog
+▸
+REQUEST HEADERS
+5 keys
+content-type: application/json
+authorization: Bearer sk-…R2c
+x-session: 0x4A2F
+x-retry: 0
+accept: text/event-stream
+▸
+RESPONSE BODY
+2,847 tokens
+{
+  "id": "msg_0x91C",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input": 1204,
+    "output": 2847
+  }
+}
+▸
+TIMING
+412ms
+dns 2ms · connect 14ms · ttfb 118ms · stream 278ms
+expansion is real height — grid-template-rows 0fr → 1fr, never an opacity fade
+PURGE 0X4A2F
+
+========================================================================
+Durations    [picture: 10-durations.png]
+========================================================================
+DURATIONS
+state-triggered only
+--dur-1 120ms · snap
+--dur-2 240ms · snap
+--dur-3 480ms · io
+REPLAY
+every animation is a state change · gated on prefers-reduced-motion globally
+
+========================================================================
+Edge contract    [picture: 11-edge-contract.png]
+========================================================================
+EDGE CONTRACT
+clip and padding share one variable
+VIOLATION
+Trace 0x91C — 412ms, 2,847 tokens written to buffer WARN
+padding hardcoded — text falls inside the cut · translucent label
+CONTRACT
+Trace 0x91C — 412ms, 2,847 tokens written to buffer WARN
+pad = calc(edge + 4px) · opaque chip token
+GROW THE CUT
+--edge: 22px — both sides follow the same variable; only one keeps its content
+--EDGE-SM · 7
+--EDGE-MD · 11
+--EDGE-LG · 18
+EDGE-4
+
+========================================================================
+Section stack    [picture: 12-section-stack.png]
+========================================================================
+SECTION STACK
+one frame per run of sections
+CONTRACT — ONE FRAME, HAIRLINE SEAMS
+▸
+SESSION CONTROLS
+1/9 steerers · 0 graders · 11 rules · 5 analyzers
+▸
+FLAGGED RESPONSES
+0 findings
+▸
+TOOL USES
+256 calls
+▸
+MEMORY ACTIONS
+▸
+LESSONS TOUCHING THIS SESSION
+▸
+MAILBOX
+2 messages
+the group draws the frame AND every seam
+BREAK THE GROUP
+same six sections · one frame, or six
+THE RULES
+A stack of sections is ONE framed object. Each section is a band inside it.
+The group owns the seam: > * + * — never :nth-child, which stops matching the moment a band is added or hidden.
+Members draw NO frame of their own. Press the button and watch each join double from one line to four.
+The group sets --edge-pad: 0; bands own their padding.
+Every band leads with the same header row. A header that labels rather than toggles is a div, never a button — a section that cannot collapse must not advertise the affordance.
+A band's tooltip is a SIBLING of the toggle, never nested inside it.
+One disclosure marker, and it ROTATES. Open a band above and watch it turn 90 degrees and go cyan. Swapping the triangle for a second glyph is banned.
+Never restate the band classes in scoped component CSS. Scoped rules are unlayered and out-specify @layer components, so a local copy wins silently and that one band drifts from every other.
+CORNERS ON AN INTERIOR SEAM
+--EDGE-BR: 0
+--EDGE-TL: 0
+square whichever corner lands on a seam · the pair shares one frame via margin-left: -1px
+GAP DISCIPLINE
+identity header — no frame at all
+overview band — flush against it at 0
+MARGIN-BLOCK
+16px
+mechanism group — one framed instrument
+MARGIN-BLOCK
+16px
+timeline
+the header is bare chrome · a run butts at ZERO · only a self-contained instrument floats clear
+
+========================================================================
+Spacing    [picture: 13-spacing.png]
+========================================================================
+SPACING
+4px grid
+1·4
+2·8
+3·12
+4·16
+5·24
+6·32
+7·48
+8·64
+4px grid · controls 32px, large 40px · hairline 1px
+

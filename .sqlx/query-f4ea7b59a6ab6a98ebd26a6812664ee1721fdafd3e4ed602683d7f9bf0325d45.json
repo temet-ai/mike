@@ -1,0 +1,135 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH injections AS MATERIALIZED (\n    SELECT i.lesson_id, r.operator_turn_id, r.session_id, r.created_at AS captured_at,\n           (origin.code IN ('primary','primary_first') AND r.claude_code_agent_id IS NULL) AS primary_lane\n    FROM memory.lesson_injections i\n    JOIN requests.requests r ON r.id = i.request_id\n    JOIN requests.turn_origins origin ON origin.id = r.turn_origin_id\n    JOIN memory.lessons l ON l.id = i.lesson_id\n    LEFT JOIN projects.projects p ON p.id = l.project_id\n    WHERE i.injected_at >= $2 AND i.injected_at < $3\n      AND ($1::text IS NULL OR p.project_path = $1)\n), counts AS (\n    SELECT i.lesson_id, count(*) AS recorded_injections,\n           count(*) FILTER (WHERE t.id IS NULL OR NOT i.primary_lane) AS unattributed_injections\n    FROM injections i LEFT JOIN memory.operator_turns t ON t.id=i.operator_turn_id AND t.session_id=i.session_id\n    GROUP BY i.lesson_id\n), turns AS MATERIALIZED (\n    SELECT i.lesson_id, t.id AS turn_id, t.session_id, min(i.captured_at) AS exposed_at,\n           t.reaction, t.delivery, f.checks_failed\n    FROM injections i JOIN memory.operator_turns t ON t.id = i.operator_turn_id AND t.session_id = i.session_id\n    JOIN memory.turn_facts f ON f.operator_turn_id = t.id\n    WHERE i.primary_lane AND f.prompt_kind = 'genuine' AND f.text_chars > 0\n    GROUP BY i.lesson_id, t.id, t.session_id, t.reaction, t.delivery, f.checks_failed\n), outcomes AS (\n    SELECT lesson_id, count(*) AS exposed_turns,\n           count(*) FILTER (WHERE reaction IN ('accepted','corrected','redirected')) AS judged_turns,\n           count(*) FILTER (WHERE reaction = 'corrected') AS corrected_turns,\n           count(*) FILTER (WHERE reaction = 'accepted') AS accepted_turns,\n           count(*) FILTER (WHERE delivery IN ('shipped','delivered')) AS delivered_turns,\n           sum(checks_failed)::bigint AS failed_checks\n    FROM turns GROUP BY lesson_id\n), captured AS MATERIALIZED (\n    SELECT r.operator_turn_id, r.session_id, r.created_at, rsp.input_tokens, rsp.output_tokens,\n           rsp.cache_read_input_tokens, rsp.cache_creation_input_tokens, tool_calls\n    FROM requests.requests r\n    JOIN requests.turn_origins origin ON origin.id=r.turn_origin_id\n    LEFT JOIN responses.responses rsp ON rsp.request_id=r.id\n    -- Count tools once per selected request via its indexed request_id; retain one usage row.\n    CROSS JOIN LATERAL (\n        SELECT count(*) AS tool_calls FROM tools.uses u WHERE u.request_id=r.id\n    ) tc\n    WHERE r.operator_turn_id = ANY(ARRAY(SELECT DISTINCT turn_id FROM turns))\n      AND r.created_at >= $2 AND r.created_at < $3\n      AND origin.code IN ('primary','primary_first') AND r.claude_code_agent_id IS NULL\n), usage AS (\n    SELECT t.lesson_id, sum(r.input_tokens)::bigint AS input_tokens,\n           sum(r.output_tokens)::bigint AS output_tokens,\n           sum(r.cache_read_input_tokens)::bigint AS cache_read_tokens,\n           sum(r.cache_creation_input_tokens)::bigint AS cache_write_tokens, count(*) AS requests,\n           count(*) FILTER (WHERE r.input_tokens IS NOT NULL AND r.output_tokens IS NOT NULL) AS usage_requests,\n           sum(r.tool_calls)::bigint AS tool_calls\n    FROM turns t JOIN captured r ON r.operator_turn_id=t.turn_id\n         AND r.session_id=t.session_id AND r.created_at>=t.exposed_at\n    GROUP BY t.lesson_id\n)\nSELECT c.lesson_id AS \"lesson_id!\", c.recorded_injections AS \"recorded_injections!\",\n       c.unattributed_injections AS \"unattributed_injections!\",\n       coalesce(o.exposed_turns,0) AS \"exposed_turns!\",\n       coalesce(o.judged_turns,0) AS \"judged_turns!\",\n       coalesce(o.corrected_turns,0) AS \"corrected_turns!\",\n       coalesce(o.accepted_turns,0) AS \"accepted_turns!\",\n       coalesce(o.delivered_turns,0) AS \"delivered_turns!\",\n       u.input_tokens, u.output_tokens, u.cache_read_tokens, u.cache_write_tokens, coalesce(u.usage_requests,0) AS \"usage_requests!\",\n       coalesce(u.requests,0) AS \"requests!\", coalesce(u.tool_calls,0) AS \"tool_calls!\",\n       coalesce(o.failed_checks,0) AS \"whole_turn_failed_checks!\"\nFROM counts c LEFT JOIN outcomes o USING (lesson_id)\nLEFT JOIN usage u USING (lesson_id)\nORDER BY c.lesson_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lesson_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_injections",
+            "name": "lesson_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "recorded_injections!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "unattributed_injections!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "exposed_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "judged_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "corrected_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "accepted_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "delivered_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "input_tokens",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "output_tokens",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "cache_read_tokens",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "cache_write_tokens",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 12,
+        "name": "usage_requests!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 13,
+        "name": "requests!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 14,
+        "name": "tool_calls!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 15,
+        "name": "whole_turn_failed_checks!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "f4ea7b59a6ab6a98ebd26a6812664ee1721fdafd3e4ed602683d7f9bf0325d45"
+}

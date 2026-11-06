@@ -1,0 +1,49 @@
+# Fast/DB partition is reviewed in test-tiers.json and checked before the gate.
+# New Mike modules/harnesses default to DB until explicitly audited for fast.
+# DB scopes conservatively include pure tests colocated with fixture consumers.
+# scripts/check-test-tiers reports static source counts, never executed counts.
+# Keep compiled nextest JSON inventories and run summaries for actual counts.
+# The complete DB partition, including colocated unit and CLI/proxy tests, is
+# throttled to four concurrent fixtures, and the ci profile (the gate) to eight
+# test threads in all: at six fixtures beside sixteen threads, a loaded host
+# timed DB tests out waiting for a pool connection (2026-10-28, 22 of 9109).
+
+[test-groups]
+mike-db-heavy = { max-threads = 4 }
+
+[profile.default]
+default-filter = "not (package(=mike) & not (binary(=provider_setup_contracts) | binary(=release_contracts) | binary(=reminder_on_token) | binary(=schema) | (binary(=mike) & test(/^(agents|analysis|anthropic_cli|app|cache_scope|capture|change_log|channel_link_sweep|circuit_breaker|claude|cli|compose_prompt|compress|cross_session|db_listener|diagnostics|doctor|dossier|error|eval::fleet(_[a-z0-9_]+)?|eval_metrics|extract|feature_toggles|filter|fleet|in_flight|injection|launch::fleet::build_admission(_[a-z0-9_]+)?|launch::fleet::checks(_[a-z0-9_]+)?|launch::fleet::events(_[a-z0-9_]+)?|launch::fleet::operation_admission(_[a-z0-9_]+)?|launch::fleet::run_record(_[a-z0-9_]+)?|launch::fleet::tests(_[a-z0-9_]+)?|lazy_sections|llm|logged|mailbox_reaper|mcp_channel|memory_cap|memory_harvester|metrics|observability|owner_only_file|pipeline|proxy_tools|quiescence_worker|read_dedup|reminder_on_token|repeated_notices|resolvers|retention_worker|runtime|semantic|serve|service_token|setup|spa|sse|stack|startup|tui|types|work_items|work_registry_worker::delivery(_[a-z0-9_]+)?|workspace|workspace_reaper)::/)) | (binary(=cli) & test(/^(claude_wrapper|db_fixture_contract|doctor|dotenv_db_url_real_boot|installed_config|local_bind|setup|setup_input|setup_persistence|version)::/))))"
+
+[profile.db]
+default-filter = "package(=mike) & not (binary(=provider_setup_contracts) | binary(=release_contracts) | binary(=reminder_on_token) | binary(=schema) | (binary(=mike) & test(/^(agents|analysis|anthropic_cli|app|cache_scope|capture|change_log|channel_link_sweep|circuit_breaker|claude|cli|compose_prompt|compress|cross_session|db_listener|diagnostics|doctor|dossier|error|eval::fleet(_[a-z0-9_]+)?|eval_metrics|extract|feature_toggles|filter|fleet|in_flight|injection|launch::fleet::build_admission(_[a-z0-9_]+)?|launch::fleet::checks(_[a-z0-9_]+)?|launch::fleet::events(_[a-z0-9_]+)?|launch::fleet::operation_admission(_[a-z0-9_]+)?|launch::fleet::run_record(_[a-z0-9_]+)?|launch::fleet::tests(_[a-z0-9_]+)?|lazy_sections|llm|logged|mailbox_reaper|mcp_channel|memory_cap|memory_harvester|metrics|observability|owner_only_file|pipeline|proxy_tools|quiescence_worker|read_dedup|reminder_on_token|repeated_notices|resolvers|retention_worker|runtime|semantic|serve|service_token|setup|spa|sse|stack|startup|tui|types|work_items|work_registry_worker::delivery(_[a-z0-9_]+)?|workspace|workspace_reaper)::/)) | (binary(=cli) & test(/^(claude_wrapper|db_fixture_contract|doctor|dotenv_db_url_real_boot|installed_config|local_bind|setup|setup_input|setup_persistence|version)::/)))"
+
+fail-fast = false
+
+[[profile.db.overrides]]
+filter = "package(=mike) & not (binary(=provider_setup_contracts) | binary(=release_contracts) | binary(=reminder_on_token) | binary(=schema) | (binary(=mike) & test(/^(agents|analysis|anthropic_cli|app|cache_scope|capture|change_log|channel_link_sweep|circuit_breaker|claude|cli|compose_prompt|compress|cross_session|db_listener|diagnostics|doctor|dossier|error|eval::fleet(_[a-z0-9_]+)?|eval_metrics|extract|feature_toggles|filter|fleet|in_flight|injection|launch::fleet::build_admission(_[a-z0-9_]+)?|launch::fleet::checks(_[a-z0-9_]+)?|launch::fleet::events(_[a-z0-9_]+)?|launch::fleet::operation_admission(_[a-z0-9_]+)?|launch::fleet::run_record(_[a-z0-9_]+)?|launch::fleet::tests(_[a-z0-9_]+)?|lazy_sections|llm|logged|mailbox_reaper|mcp_channel|memory_cap|memory_harvester|metrics|observability|owner_only_file|pipeline|proxy_tools|quiescence_worker|read_dedup|reminder_on_token|repeated_notices|resolvers|retention_worker|runtime|semantic|serve|service_token|setup|spa|sse|stack|startup|tui|types|work_items|work_registry_worker::delivery(_[a-z0-9_]+)?|workspace|workspace_reaper)::/)) | (binary(=cli) & test(/^(claude_wrapper|db_fixture_contract|doctor|dotenv_db_url_real_boot|installed_config|local_bind|setup|setup_input|setup_persistence|version)::/)))"
+test-group = "mike-db-heavy"
+
+[profile.ci]
+default-filter = "all()"
+fail-fast = false
+test-threads = 8
+
+[[profile.ci.overrides]]
+filter = "package(=mike) & not (binary(=provider_setup_contracts) | binary(=release_contracts) | binary(=reminder_on_token) | binary(=schema) | (binary(=mike) & test(/^(agents|analysis|anthropic_cli|app|cache_scope|capture|change_log|channel_link_sweep|circuit_breaker|claude|cli|compose_prompt|compress|cross_session|db_listener|diagnostics|doctor|dossier|error|eval::fleet(_[a-z0-9_]+)?|eval_metrics|extract|feature_toggles|filter|fleet|in_flight|injection|launch::fleet::build_admission(_[a-z0-9_]+)?|launch::fleet::checks(_[a-z0-9_]+)?|launch::fleet::events(_[a-z0-9_]+)?|launch::fleet::operation_admission(_[a-z0-9_]+)?|launch::fleet::run_record(_[a-z0-9_]+)?|launch::fleet::tests(_[a-z0-9_]+)?|lazy_sections|llm|logged|mailbox_reaper|mcp_channel|memory_cap|memory_harvester|metrics|observability|owner_only_file|pipeline|proxy_tools|quiescence_worker|read_dedup|reminder_on_token|repeated_notices|resolvers|retention_worker|runtime|semantic|serve|service_token|setup|spa|sse|stack|startup|tui|types|work_items|work_registry_worker::delivery(_[a-z0-9_]+)?|workspace|workspace_reaper)::/)) | (binary(=cli) & test(/^(claude_wrapper|db_fixture_contract|doctor|dotenv_db_url_real_boot|installed_config|local_bind|setup|setup_input|setup_persistence|version)::/)))"
+test-group = "mike-db-heavy"
+
+# `timing` is the measurement profile used by `scripts/test-timing`: every
+# test, DB group throttled like `ci`, plus a JUnit file (per-test wall time)
+# at target/nextest/timing/junit.xml. Not a gate — use `ci` for that.
+[profile.timing]
+default-filter = "all()"
+fail-fast = false
+
+[profile.timing.junit]
+path = "junit.xml"
+store-success-output = false
+store-failure-output = true
+
+[[profile.timing.overrides]]
+filter = "package(=mike) & not (binary(=provider_setup_contracts) | binary(=release_contracts) | binary(=reminder_on_token) | binary(=schema) | (binary(=mike) & test(/^(agents|analysis|anthropic_cli|app|cache_scope|capture|change_log|channel_link_sweep|circuit_breaker|claude|cli|compose_prompt|compress|cross_session|db_listener|diagnostics|doctor|dossier|error|eval::fleet(_[a-z0-9_]+)?|eval_metrics|extract|feature_toggles|filter|fleet|in_flight|injection|launch::fleet::build_admission(_[a-z0-9_]+)?|launch::fleet::checks(_[a-z0-9_]+)?|launch::fleet::events(_[a-z0-9_]+)?|launch::fleet::operation_admission(_[a-z0-9_]+)?|launch::fleet::run_record(_[a-z0-9_]+)?|launch::fleet::tests(_[a-z0-9_]+)?|lazy_sections|llm|logged|mailbox_reaper|mcp_channel|memory_cap|memory_harvester|metrics|observability|owner_only_file|pipeline|proxy_tools|quiescence_worker|read_dedup|reminder_on_token|repeated_notices|resolvers|retention_worker|runtime|semantic|serve|service_token|setup|spa|sse|stack|startup|tui|types|work_items|work_registry_worker::delivery(_[a-z0-9_]+)?|workspace|workspace_reaper)::/)) | (binary(=cli) & test(/^(claude_wrapper|db_fixture_contract|doctor|dotenv_db_url_real_boot|installed_config|local_bind|setup|setup_input|setup_persistence|version)::/)))"
+test-group = "mike-db-heavy"

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO requests.tools (request_id, ord, tool_name) VALUES ($1, 0, 'Bash')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fc3a10c7c53a7eeed4a6d0f27e9ebb6b68070c63556d6c0eb2bb1ceb1ccea6b9"
+}

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT response_body\n         FROM responses.responses\n         WHERE request_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "response_body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "responses.responses",
+            "name": "response_body"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "83381aa894755106c610f970aed9e187f64beffcb19354d57ba1cf7304a9ada7"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.operator_turns t\n                SET closed_at                   = NOW(),\n                    outcome_evidence_request_id = $2,\n                    classified_at               = NOW()\n              WHERE t.id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1cee08b3e4f808bea88b97ae8c56a43d3787782fcbab4085a6f41319d9d6c003"
+}

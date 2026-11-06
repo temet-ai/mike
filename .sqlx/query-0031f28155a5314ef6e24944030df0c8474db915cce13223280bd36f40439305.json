@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, request_body_size FROM remote_control.calls\n            WHERE id = ANY($1) ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_body_size",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "request_body_size"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "0031f28155a5314ef6e24944030df0c8474db915cce13223280bd36f40439305"
+}

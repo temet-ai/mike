@@ -1,0 +1,42 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO requests.requests (\n            session_id, project_id,\n            method_id, path, is_streaming, message_count, is_tool_loop,\n            status_id, params,\n            last_user_message, human_prompt,\n            turn_type_id, turn_origin_id,\n            created_at\n         )\n         VALUES (\n            $1, $2,\n            (SELECT id FROM requests.methods WHERE code = 'POST' LIMIT 1),\n            '/v1/messages', false, 1, false,\n            (SELECT id FROM requests.statuses WHERE code = 'complete' LIMIT 1),\n            '{}'::jsonb,\n            'hello', 'hello',\n            (SELECT id FROM requests.turn_types WHERE code = 'user_prompt' LIMIT 1),\n            (SELECT id FROM requests.turn_origins WHERE code = 'primary' LIMIT 1),\n            $3\n         )\n         RETURNING id, created_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "2e507eae48553f03a6a577d8f6ea061994356eb2a993ecf371552666bcde9557"
+}

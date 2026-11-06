@@ -1,0 +1,36 @@
+mod documents;
+mod embeddings;
+mod guidance;
+mod machine_locations;
+pub(crate) use embeddings::{
+    KNOWLEDGE_COUNT_CAP, KnowledgeEmbeddingSource, KnowledgeStateCounts, PENDING_BATCH,
+};
+mod health;
+mod lesson_sync;
+mod location_view;
+mod locations;
+mod repo_adoption;
+mod search;
+mod session_binding;
+mod session_scope;
+
+pub use documents::{DocumentInput, RegisteredSource, ScanInput, SourceInput};
+pub(crate) use guidance::{AGENTS_SOURCE, MEMORY_SOURCE, RULES_SOURCE, SKILLS_SOURCE};
+pub use guidance::{GuidanceRow, ShownGuidance};
+pub use lesson_sync::LessonImport;
+pub use locations::{LocationInput, ProjectIdentity};
+pub(crate) use repo_adoption::RepoLocationAdoption;
+pub use search::KnowledgeQuery;
+
+use super::PersistError;
+
+fn invalid(message: &str) -> PersistError {
+    PersistError::DataInvariant(message.to_string())
+}
+
+#[cfg(test)]
+mod health_tests;
+#[cfg(test)]
+mod session_binding_tests;
+#[cfg(test)]
+mod tests;

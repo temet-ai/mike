@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Disposable fake tools and synthetic content only; no server or Cargo invocation.
+set -euo pipefail
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+exec python3 -m unittest discover -s "${SCRIPT_DIR}/release" -p 'test_recovery*.py' -v

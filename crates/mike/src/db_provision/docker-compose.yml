@@ -1,0 +1,29 @@
+name: mike-db
+
+services:
+  postgres:
+    image: mike/postgres-pgvector:19rc1-0.8.7
+    build:
+      context: .
+      dockerfile: Dockerfile.pg19
+    pull_policy: never
+    container_name: mike-db
+    restart: unless-stopped
+    environment:
+      PGDATA: /var/lib/postgresql/data
+      POSTGRES_USER: mike
+      POSTGRES_PASSWORD: ${MIKE_DB_PASSWORD:?mike db up sets this}
+      POSTGRES_DB: mike
+    ports:
+      - "127.0.0.1:${MIKE_DB_PORT:-6666}:5432"
+    volumes:
+      - mike_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mike -d mike"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  mike_pg_data:
+    name: mike_pg_data

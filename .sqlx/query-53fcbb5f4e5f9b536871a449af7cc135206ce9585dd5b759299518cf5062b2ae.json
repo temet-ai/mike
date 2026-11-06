@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH pop AS (\n    SELECT p.operator_turn_id, p.project_id\n      FROM eval.turn_population_v p\n     WHERE p.is_real AND p.is_replied AND p.created_at < $1 AND p.created_at >= $1 - interval '30 days'\n),\nranked AS (\n    SELECT l.operator_turn_id, l.label,\n           row_number() OVER (PARTITION BY l.operator_turn_id\n                              ORDER BY CASE l.tier WHEN 'gold' THEN 1 WHEN 'relayed' THEN 2\n                                                   WHEN 'seed' THEN 3 ELSE 4 END,\n                                       l.created_at DESC, l.id DESC) AS rk\n      FROM eval.labels_as_of($3) l\n     WHERE l.split = 'dev' AND l.subject_kind = 'turn' AND l.axis = 'reaction'\n),\nbest AS (\n    SELECT operator_turn_id, label FROM ranked WHERE rk = 1\n),\nprev AS (\n    SELECT t.id AS turn_id, lag(t.id) OVER (PARTITION BY t.session_id ORDER BY t.created_at, t.id) AS prev_id\n      FROM memory.operator_turns t\n     WHERE t.created_at < $1 AND t.created_at >= $1 - interval '31 days'\n),\nafter_corrected AS (\n    SELECT DISTINCT pr.turn_id\n      FROM prev pr\n      JOIN memory.turn_verdicts v ON v.operator_turn_id = pr.prev_id AND v.mode = 'live' AND v.reaction = 'corrected'\n),\nfact_rows AS (\n    SELECT 'after_corrected_turn' AS fact, p.project_id, b.label = 'corrected' AS pos\n      FROM pop p\n      JOIN after_corrected ac ON ac.turn_id = p.operator_turn_id\n      JOIN best b ON b.operator_turn_id = p.operator_turn_id\n    UNION ALL\n    SELECT 'unobserved_after_change', p.project_id, b.label = 'corrected'\n      FROM pop p\n      JOIN memory.turn_facts tf ON tf.operator_turn_id = p.operator_turn_id AND tf.observed_after_change = false\n      JOIN best b ON b.operator_turn_id = p.operator_turn_id\n),\nparts AS (\n    SELECT fact, NULL::bigint AS project_id, count(*) FILTER (WHERE pos) AS k, count(*) AS n\n      FROM fact_rows GROUP BY fact\n    UNION ALL\n    SELECT fact, project_id, count(*) FILTER (WHERE pos), count(*)\n      FROM fact_rows WHERE project_id IS NOT NULL GROUP BY fact, project_id\n)\nINSERT INTO eval.rates (rollup_id, family, metric, population, scope_kind, project_id, window_start,\n                        window_end, window_days, role, axis, class, label_split, dimension, dimension_value,\n                        k, n, value, ci_low, ci_high, weighted, detail)\nSELECT $2, 'base_rate', 'share', 'replied_real_turns',\n       CASE WHEN p.project_id IS NULL THEN 'global' ELSE 'project' END, p.project_id,\n       $1 - interval '30 days', $1, 30, 'turn_judge', 'reaction', 'corrected', 'dev', 'guard_fact', p.fact,\n       p.k::int, p.n::int, p.k::float8 / nullif(p.n, 0),\n       eval.wilson_low(p.k::float8 / nullif(p.n, 0), p.n),\n       eval.wilson_high(p.k::float8 / nullif(p.n, 0), p.n), false,\n       jsonb_build_object('source', 'labels')\n  FROM parts p\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "53fcbb5f4e5f9b536871a449af7cc135206ce9585dd5b759299518cf5062b2ae"
+}

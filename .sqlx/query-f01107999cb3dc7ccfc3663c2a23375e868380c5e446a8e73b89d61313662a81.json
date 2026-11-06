@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE rules.rules\n                 SET enabled = false,\n                     deleted_at = NOW(),\n                     updated_at = NOW()\n                 WHERE id = $1\n                   AND deleted_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f01107999cb3dc7ccfc3663c2a23375e868380c5e446a8e73b89d61313662a81"
+}

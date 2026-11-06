@@ -1,0 +1,147 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT event.id AS \"event_id!\",\n       event.namespace_id AS \"namespace_id!\",\n       event.ingestion_id AS \"ingestion_id!\",\n       event.envelope::text AS \"envelope!\",\n       event.raw_payload AS \"raw_payload!\",\n       event.parsed_payload::text AS \"parsed_payload?\",\n       context.capture_sequence AS \"capture_sequence?\",\n       context.context_version AS \"context_version?\",\n       context.connection_epoch AS \"connection_epoch?\",\n       context.frame_ordinal AS \"frame_ordinal?\",\n       context.transport_gap AS \"transport_gap?\",\n       context.context_document::text AS \"context_document?\"\n  FROM runtime.codex_receipt_context context\n  JOIN runtime.events event\n    ON event.id = context.event_id AND event.namespace_id = context.namespace_id\n WHERE context.namespace_id = $1\n   AND context.capture_sequence > $3\n   AND NOT EXISTS (SELECT 1 FROM runtime.codex_projection_applications application\n                    WHERE application.generation_id = $2 AND application.event_id = event.id)\n ORDER BY context.capture_sequence\n LIMIT 1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "event_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.events",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "namespace_id!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "runtime.events",
+            "name": "namespace_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "ingestion_id!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "runtime.events",
+            "name": "ingestion_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "envelope!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "raw_payload!",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "runtime.events",
+            "name": "raw_payload"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "parsed_payload?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "capture_sequence?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_receipt_context",
+            "name": "capture_sequence"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "context_version?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_receipt_context",
+            "name": "context_version"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "connection_epoch?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_receipt_context",
+            "name": "connection_epoch"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "frame_ordinal?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_receipt_context",
+            "name": "frame_ordinal"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "transport_gap?",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_receipt_context",
+            "name": "transport_gap"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "context_document?",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null,
+      false,
+      null,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "abb995854a2a13584a53dc49b34334f011c7d7ebf651d785d9c0c4dcdb19a3ac"
+}

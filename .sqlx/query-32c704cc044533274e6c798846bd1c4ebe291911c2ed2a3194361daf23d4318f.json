@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO requests.system_prompts\n            (request_id, prompt_sha256, override_id, system_prompt_id,\n             override_applied, filter_modified, unknown_blocks)\n         VALUES ($1, NULL, NULL, NULL, false, true, $2)\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.system_prompts",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "32c704cc044533274e6c798846bd1c4ebe291911c2ed2a3194361daf23d4318f"
+}

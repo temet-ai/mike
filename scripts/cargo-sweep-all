@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+# cargo-sweep-all — the sweep the proxy's scheduler runs every six hours (job
+# cargo_sweep): every cargo target folder under the project roots, this
+# checkout's and every other project's, their worktrees included, then every
+# cargo build-dir under ~/.cargo/build. Exit status is non-zero when a step
+# failed or a swept volume stays under the free-space floor.
+#
+# Target folders are found, not listed: a hand-kept list covered only the
+# folders known the day it was written, and every new project's target/ grew
+# unswept until the disk filled (holdfast 431GB on 2026-10-07, radar 597GB on
+# 2026-10-20). The scope is the machine, not this repository: on 2026-10-20 the
+# sweep was narrowed to this checkout after it had deleted fingerprints under a
+# radar clippy run, and two days later radar's target/ was back at 267GB with
+# nothing sweeping it (2026-10-22). What keeps a sweep from failing a build is
+# cargo-target-sweep holding a profile's cargo locks while it deletes there,
+# not staying out of other projects' folders.
+#
+# Roots: $CARGO_SWEEP_ROOTS (colon-separated), else the folder that holds this
+# checkout's parent (…/projects for …/projects/temet/temet-proxy), $HOME/projects
+# and $HOME/.cache. A target folder is one named target or *-target that holds
+# cargo's CACHEDIR.TAG or .rustc_info.json. Its immediate subfolders that hold
+# CACHEDIR.TAG are target folders too (target/fleet, target/fleet-check, any
+# CARGO_TARGET_DIR=target/<name>); nothing else is searched inside one.
+#
+# Usage: cargo-sweep-all [--dry-run]    --dry-run reports what would go, deletes nothing.
+set -u
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+sweep="${CARGO_SWEEP_SCRIPT:-${root}/scripts/cargo-target-sweep}"
+status=0
+dry=0
+sweep_opts=()
+for arg in "$@"; do
+  case "${arg}" in
+    --dry-run) dry=1; sweep_opts+=(--dry-run) ;;
+    *) echo "cargo-sweep-all: unknown argument ${arg}" >&2; exit 2 ;;
+  esac
+done
+
+roots=()
+if [[ -n "${CARGO_SWEEP_ROOTS:-}" ]]; then
+  IFS=: read -r -a roots <<< "${CARGO_SWEEP_ROOTS}"
+else
+  roots=("$(dirname "$(dirname "${root}")")" "${HOME}/projects" "${HOME}/.cache")
+fi
+
+# Remove a folder for a reason, or say that it would go.
+remove() {
+  local dir="$1" why="$2"
+  if (( dry )); then
+    echo "cargo-sweep-all: ${dir}: would remove, ${why} ($(du -sh "${dir}" 2>/dev/null | cut -f1))"
+  else
+    echo "cargo-sweep-all: ${dir}: removed, ${why} ($(du -sh "${dir}" 2>/dev/null | cut -f1))"
+    rm -rf -- "${dir}" || status=1
+  fi
+}
+
+targets=()
+seen=" "
+searched=" "
+for base in "${roots[@]}"; do
+  [[ -d "${base}" ]] || continue
+  base="$(cd "${base}" && pwd -P)"
+  case "${searched}" in *" ${base} "*) continue ;; esac
+  searched="${searched}${base} "
+  while IFS= read -r dir; do
+    [[ -f "${dir}/CACHEDIR.TAG" || -f "${dir}/.rustc_info.json" ]] || continue
+    real="$(cd "${dir}" && pwd -P)"
+    case "${seen}" in *" ${real} "*) continue ;; esac
+    seen="${seen}${real} "
+    targets+=("${real}")
+    for sub in "${real}"/*/; do
+      sub="${sub%/}"
+      [[ -f "${sub}/CACHEDIR.TAG" ]] || continue
+      case "${seen}" in *" ${sub} "*) continue ;; esac
+      seen="${seen}${sub} "
+      targets+=("${sub}")
+    done
+  done < <(find "${base}" -maxdepth 7 \
+    \( -name node_modules -o -name .git \) -prune -o \
+    -type d \( -name target -o -name '*-target' \) -print -prune 2>/dev/null)
+done
+
+finished_days="${CARGO_SWEEP_FINISHED_DAYS:-3}"
+
+finished_branch() {
+  local tree="$1" branch base
+  [[ -f "${tree}/.git" ]] || return 1
+  branch="$(git -C "${tree}" symbolic-ref -q --short HEAD 2>/dev/null)" || return 1
+  if [[ "$(git -C "${tree}" for-each-ref --format='%(upstream:track)' "refs/heads/${branch}" 2>/dev/null)" == "[gone]" ]]; then
+    return 0
+  fi
+  base="$(git -C "${tree}" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null)"
+  if [[ -z "${base}" ]]; then
+    for base in main master; do
+      git -C "${tree}" show-ref -q --verify "refs/heads/${base}" && break
+      base=""
+    done
+  fi
+  [[ -n "${base}" && "${base}" != "${branch}" ]] || return 1
+  git -C "${tree}" merge-base --is-ancestor "${branch}" "${base}" 2>/dev/null
+}
+
+written_within() {
+  [[ -n "$(find "$1" -maxdepth 3 -mtime -"$2" -print 2>/dev/null | head -1)" ]]
+}
+
+kept=()
+for dir in "${targets[@]+"${targets[@]}"}"; do
+  [[ -d "${dir}" ]] || continue
+  tree="$(dirname "${dir}")"
+  why=""
+  if [[ -f "${tree}/CACHEDIR.TAG" ]]; then
+    why=""   # a target folder inside a target folder goes with its parent
+  elif [[ ! -f "${tree}/Cargo.toml" ]]; then
+    why="no project beside it owns it"
+  elif [[ "$(basename "${dir}")" == target ]] && finished_branch "${tree}"; then
+    why="its worktree's branch is merged or gone"
+  fi
+  if [[ -n "${why}" ]] && ! written_within "${dir}" "${finished_days}"; then
+    remove "${dir}" "${why} and nothing was built for ${finished_days}d"
+    (( dry )) || continue
+  fi
+  kept+=("${dir}")
+done
+targets=("${kept[@]+"${kept[@]}"}")
+
+if [[ ${#targets[@]} -gt 0 ]]; then
+  "${sweep}" "${sweep_opts[@]+"${sweep_opts[@]}"}" "${targets[@]}" || status=1
+fi
+
+# Cargo build-dirs (build.build-dir = "{cargo-cache-home}/build/<project>/{workspace-path-hash}",
+# holdfast and voxel-lab): the hash is two folders deep, and holdfast's
+# scripts/worktree-warm leaves a .checkout file naming the checkout a build-dir
+# was made for. One whose checkout is gone is removed; one whose checkout exists
+# is swept like a target folder; one with no .checkout is swept and removed
+# whole after 14 idle days.
+owned=()
+unowned=()
+for dir in "${HOME}"/.cargo/build/*/*/*; do
+  [[ -d "${dir}" ]] || continue
+  [[ -f "${dir}/CACHEDIR.TAG" || -f "${dir}/.rustc_info.json" ]] || continue
+  if [[ -f "${dir}/.checkout" ]]; then
+    owner="$(head -n 1 "${dir}/.checkout")"
+    if [[ -n "${owner}" && ! -e "${owner}" ]]; then
+      remove "${dir}" "the checkout it was built for (${owner}) no longer exists"
+      (( dry )) || continue
+    fi
+    owned+=("${dir}")
+  else
+    unowned+=("${dir}")
+  fi
+done
+if [[ ${#owned[@]} -gt 0 ]]; then
+  "${sweep}" "${sweep_opts[@]+"${sweep_opts[@]}"}" "${owned[@]}" || status=1
+fi
+if [[ ${#unowned[@]} -gt 0 ]]; then
+  "${sweep}" "${sweep_opts[@]+"${sweep_opts[@]}"}" --remove-idle 14 "${unowned[@]}" || status=1
+fi
+
+floor_gb="${CARGO_SWEEP_FLOOR_GB:-30}"
+swept=("${targets[@]+"${targets[@]}"}" "${owned[@]+"${owned[@]}"}" "${unowned[@]+"${unowned[@]}"}")
+checked=" "
+for dir in "${swept[@]+"${swept[@]}"}"; do
+  [[ -d "${dir}" ]] || continue
+  volume="$(df -Pk "${dir}" 2>/dev/null | awk 'NR==2 {print $6}')"
+  [[ -n "${volume}" ]] || continue
+  case "${checked}" in *" ${volume} "*) continue ;; esac
+  checked="${checked}${volume} "
+  free_kb="$(df -Pk "${dir}" | awk 'NR==2 {print $4}')"
+  if (( free_kb < floor_gb * 1024 * 1024 )); then
+    echo "cargo-sweep-all: ${volume} has $((free_kb / 1024 / 1024))GB free after the sweep, under the ${floor_gb}GB floor; largest build folders on it:"
+    for t in "${swept[@]}"; do
+      [[ -d "${t}" ]] || continue
+      [[ "$(df -Pk "${t}" | awk 'NR==2 {print $6}')" == "${volume}" ]] && du -sk "${t}" 2>/dev/null
+    done | sort -rn | head -5 | awk '{printf "  %dGB %s\n", $1 / 1048576, $2}'
+    status=1
+  fi
+done
+
+exit "${status}"

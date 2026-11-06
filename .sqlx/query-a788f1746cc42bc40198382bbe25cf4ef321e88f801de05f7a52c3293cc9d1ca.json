@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT min(changed_at) FROM config.change_log\n  WHERE op = 'observe' AND subject_kind <> 'build' AND detail->>'baseline' = 'true'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "min",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "a788f1746cc42bc40198382bbe25cf4ef321e88f801de05f7a52c3293cc9d1ca"
+}

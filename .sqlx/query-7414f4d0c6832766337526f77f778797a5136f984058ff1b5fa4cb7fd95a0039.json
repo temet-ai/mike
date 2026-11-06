@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH qual AS (\n    SELECT p.source, p.class, p.polarity, p.proposed_kind,\n           count(*) AS scopes, sum(p.evidence_count) AS evidence_count, sum(p.session_count) AS session_count,\n           min(p.first_evidence_at) AS first_at, max(p.last_evidence_at) AS last_at,\n           string_agg(p.proposed_text, E'\\n\\n' ORDER BY p.last_evidence_at DESC, p.id DESC) AS texts\n      FROM memory.directive_proposals p\n     WHERE p.status = 'open' AND p.scope <> 'operator'\n     GROUP BY p.source, p.class, p.polarity, p.proposed_kind\n    HAVING count(*) >= $1\n),\nins AS (\n    INSERT INTO memory.directive_proposals\n        (source, scope, project_id, class, polarity, proposed_kind, proposed_text, evidence_count,\n         session_count, first_evidence_at, last_evidence_at, window_days, rollup_id, proposer_version)\n    SELECT q.source, 'operator', NULL, q.class, q.polarity, q.proposed_kind, q.texts,\n           q.evidence_count, q.session_count, q.first_at, q.last_at, $2, $3, $4\n      FROM qual q\n     WHERE NOT EXISTS (\n               SELECT 1 FROM memory.directive_proposals o\n                WHERE o.status = 'open' AND o.scope = 'operator' AND o.source = q.source\n                  AND o.class = q.class AND o.polarity = q.polarity)\n    RETURNING id, source, class, polarity\n)\nUPDATE memory.directive_proposals p\n   SET status = 'superseded', superseded_by = i.id\n  FROM ins i\n WHERE p.status = 'open' AND p.scope <> 'operator' AND p.source = i.source\n   AND p.class = i.class AND p.polarity = i.polarity\nRETURNING p.id AS \"id!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int4",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7414f4d0c6832766337526f77f778797a5136f984058ff1b5fa4cb7fd95a0039"
+}

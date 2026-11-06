@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO work.thread_dependencies (thread_id, depends_on_thread_id)\n         SELECT $1::bigint, t.id FROM work.threads t\n          WHERE t.project_id = $3 AND t.slug = ANY($2)\n         ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "TextArray",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "107ec984fe0892e4cc2fd2676033bb4f67a68c0cd6fa0793636a84e679a0111a"
+}

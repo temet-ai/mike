@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO eval.rates (rollup_id, family, metric, population, scope_kind,\n        project_id, window_start, window_end, window_days, role, bundle_label, axis, class,\n        label_tier, label_split, label_source, dimension, dimension_value, steerer_id, question,\n        mode, k, n, value, ci_low, ci_high, weighted, n_effective, detail)\n    SELECT $1, x.family, x.metric, x.population, x.scope_kind, x.project_id, x.window_start,\n           x.window_end, x.window_days, x.role, x.bundle_label, x.axis, x.class, x.label_tier,\n           x.label_split, x.label_source, x.dimension, x.dimension_value, x.steerer_id, x.question,\n           x.mode, x.k, x.n, x.k::float8 / nullif(x.n, 0),\n           eval.wilson_low(x.k::float8 / nullif(x.n, 0), x.n),\n           eval.wilson_high(x.k::float8 / nullif(x.n, 0), x.n), false, NULL,\n           coalesce(x.detail, '{}'::jsonb)\n      FROM jsonb_to_recordset($2::jsonb) AS x(\n           family text, metric text, population text, scope_kind text, project_id bigint,\n           window_start timestamptz, window_end timestamptz, window_days integer, role text,\n           bundle_label text, axis text, class text, label_tier text, label_split text,\n           label_source text, dimension text, dimension_value text, steerer_id bigint,\n           question text, mode text, k integer, n integer, detail jsonb)\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6ee3928480ade8377d092efb24f531ff2968c213885f6fd0997ac47baa3dfe67"
+}

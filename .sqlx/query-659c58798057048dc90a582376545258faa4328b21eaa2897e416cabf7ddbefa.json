@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (\n                     SELECT 1\n                       FROM memory.consolidation_runs r\n                       JOIN memory.consolidation_run_kinds k\n                         ON k.id = r.run_kind_id AND k.code = 'nightly'\n                       JOIN memory.consolidation_run_statuses s\n                         ON s.id = r.status_id AND s.code IN ('completed', 'partial')\n                      WHERE r.started_at >= $1\n                 ) AS \"ran!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ran!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "659c58798057048dc90a582376545258faa4328b21eaa2897e416cabf7ddbefa"
+}

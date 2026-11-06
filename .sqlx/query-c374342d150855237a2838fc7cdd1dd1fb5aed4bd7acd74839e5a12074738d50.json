@@ -1,0 +1,96 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH k AS (\n    SELECT turn_id, session_id, as_of\n      FROM unnest($1::bigint[], $2::bigint[], $3::timestamptz[]) AS k(turn_id, session_id, as_of)\n),\nwi AS (\n    SELECT k.turn_id, 'work_item'::text AS source, w.id, w.kind, w.state, w.launched_at,\n           NULL::timestamptz AS due_at, w.owner_agent_id, NULL::text AS peer_session_uuid,\n           NULL::text AS message_uuid, NULL::bigint AS directive_id\n      FROM k\n      JOIN agents.work_items w ON w.session_id = k.session_id\n     WHERE w.launched_at <= k.as_of\n       AND (w.finished_at IS NULL OR w.finished_at > k.as_of)\n       AND NOT EXISTS (SELECT 1 FROM agents.work_items o\n                        WHERE o.session_id = w.session_id AND o.kind = 'agent'\n                          AND o.task_id = w.owner_agent_id\n                          AND o.finished_at IS NOT NULL AND o.finished_at <= k.as_of)\n),\npeer(turn_id, source, id, kind, state, launched_at, due_at, owner_agent_id, peer_session_uuid, message_uuid, directive_id) AS (\n    SELECT k.turn_id, 'peer_reply'::text, m.id, NULL::text, NULL::text, m.queued_at,\n           NULL::timestamptz, NULL::text, s.session_uuid::text, m.message_uuid::text, NULL::bigint\n      FROM k\n      JOIN mailbox.messages m ON m.from_session_id = k.session_id\n      JOIN sessions.sessions s ON s.id = m.to_session_id\n      JOIN workspace.session_registrations r ON r.session_id = m.to_session_id\n     WHERE m.queued_at >= k.as_of - interval '2 hours' AND m.queued_at <= k.as_of\n       AND m.dead_lettered_at IS NULL\n       AND r.registered_at <= k.as_of AND (r.released_at IS NULL OR r.released_at > k.as_of)\n       AND (r.lease_expires_at > k.as_of\n            OR EXISTS (SELECT 1 FROM requests.requests q\n                        WHERE q.session_id = m.to_session_id\n                          AND q.created_at > k.as_of - interval '30 minutes'\n                          AND q.created_at <= k.as_of))\n       AND NOT EXISTS (SELECT 1 FROM mailbox.messages rep\n                        WHERE rep.from_session_id = m.to_session_id AND rep.to_session_id = k.session_id\n                          AND rep.queued_at > m.queued_at AND rep.queued_at <= k.as_of)\n),\ndir(turn_id, source, id, kind, state, launched_at, due_at, owner_agent_id, peer_session_uuid, message_uuid, directive_id) AS (\n    SELECT k.turn_id, 'operator_requested'::text, NULL::bigint, NULL::text, e.status, e.effective_at,\n           NULL::timestamptz, NULL::text, NULL::text, NULL::text, e.id\n      FROM k\n      JOIN memory.dossier_entries e ON e.session_id = k.session_id\n     WHERE e.kind = 'directive' AND e.data ->> 'class' = 'wait' AND e.data ->> 'polarity' = 'allow'\n       AND e.recorded_at <= k.as_of\n       AND (e.close_recorded_at IS NULL OR e.close_recorded_at > k.as_of)\n),\nunreg(turn_id, source, id, kind, state, launched_at, due_at, owner_agent_id, peer_session_uuid, message_uuid, directive_id) AS (\n    SELECT k.turn_id, 'unregistered_launch'::text, u.id, u.tool_name, NULL::text, u.created_at,\n           NULL::timestamptz, NULL::text, NULL::text, NULL::text, NULL::bigint\n      FROM k\n      JOIN requests.requests q ON q.session_id = k.session_id\n                              AND q.created_at > k.as_of - interval '24 hours'\n                              AND q.created_at <= k.as_of\n      JOIN tools.uses u ON u.request_id = q.id\n     WHERE $4 AND u.tool_name IN ('Monitor', 'ScheduleWakeup', 'CronCreate')\n)\nSELECT turn_id AS \"turn_id!\", source AS \"source!\", id AS \"id?\", kind AS \"kind?\", state AS \"state?\", launched_at AS \"launched_at?\", due_at AS \"due_at?\", owner_agent_id AS \"owner_agent_id?\", peer_session_uuid AS \"peer_session_uuid?\", message_uuid AS \"message_uuid?\", directive_id AS \"directive_id?\" FROM wi\nUNION ALL SELECT turn_id, source, id, kind, state, launched_at, due_at, owner_agent_id, peer_session_uuid, message_uuid, directive_id FROM peer\nUNION ALL SELECT turn_id, source, id, kind, state, launched_at, due_at, owner_agent_id, peer_session_uuid, message_uuid, directive_id FROM dir\nUNION ALL SELECT turn_id, source, id, kind, state, launched_at, due_at, owner_agent_id, peer_session_uuid, message_uuid, directive_id FROM unreg\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "turn_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "id?",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "kind?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "state?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "launched_at?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "due_at?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "owner_agent_id?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "peer_session_uuid?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "message_uuid?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "directive_id?",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8Array",
+        "TimestamptzArray",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "c374342d150855237a2838fc7cdd1dd1fb5aed4bd7acd74839e5a12074738d50"
+}

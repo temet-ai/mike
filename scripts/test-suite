@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+# test-suite — one entrypoint for the repository's independent test families.
+#
+# Usage:
+#   scripts/test-suite fast           # everyday non-DB/non-browser loop
+#   scripts/test-suite rust-fast      # reviewed database-free Rust scopes
+#   scripts/test-suite rust-db        # all DB scopes, including colocated tests
+#   scripts/test-suite rust           # all Rust tests
+#   scripts/test-suite frontend-fast  # typecheck + unit + integration
+#   scripts/test-suite frontend       # typecheck + unit + integration + Storybook
+#   scripts/test-suite frontend-audit # all frontend dependency advisories (registry required)
+#   scripts/test-suite e2e            # production SPA build + Playwright smoke
+#   scripts/test-suite scripts        # shell/Python/Node regression suites
+#   scripts/test-suite all            # every test family above
+#
+# Each underlying runner remains authoritative for its domain. This wrapper only
+# gives contributors a discoverable top-level command and phase timings.
+set -uo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(dirname "$SCRIPT_DIR")"
+cd "$REPO" || exit 2
+
+usage() {
+  sed -n '2,/^set -uo pipefail/p' "$0" | sed 's/^# \{0,1\}//; /^set -uo pipefail/d'
+}
+
+phase() {
+  local label="$1"
+  shift
+  local started elapsed rc=0
+  started="$(date +%s)"
+  printf '\n==> %s\n' "$label"
+  "$@" || rc=$?
+  elapsed=$(( $(date +%s) - started ))
+  if (( rc == 0 )); then
+    printf '<== PASS %s (%ss)\n' "$label" "$elapsed"
+  else
+    printf '<== FAIL %s (%ss, exit %s)\n' "$label" "$elapsed" "$rc" >&2
+  fi
+  return "$rc"
+}
+
+run_rust_fast() {
+  phase "Rust fast tier" "$SCRIPT_DIR/gate" --tail 20 test
+}
+
+run_rust_db() {
+  phase "Rust DB tier" "$SCRIPT_DIR/gate" --tail 20 test-db
+}
+
+run_rust_all() {
+  phase "Rust full suite" "$SCRIPT_DIR/gate" --tail 20 test-all
+}
+
+run_frontend_fast() {
+  phase "Frontend typecheck + logic tiers" "$SCRIPT_DIR/sb-test" --unit --integration
+}
+
+run_frontend_all() {
+  phase "Frontend full suite" "$SCRIPT_DIR/sb-test"
+}
+
+run_frontend_audit() {
+  phase "Frontend dependency advisories" "$SCRIPT_DIR/frontend-audit"
+}
+
+run_e2e() {
+  phase "Frontend Playwright smoke" bash -c 'cd "$1/frontend" && pnpm run test:e2e' _ "$REPO"
+}
+
+run_script_tests() {
+  phase "Fast/DB source classification" "$SCRIPT_DIR/check-test-tiers" &&
+    phase "Runner and release regression tests" python3 -m unittest discover -s "$SCRIPT_DIR/tests" &&
+    phase "Knowledge collector tests" env PYTHONPATH="$SCRIPT_DIR" python3 -m unittest knowledge.test_collector &&
+    phase "Release, recovery, publication and privacy contracts" "$SCRIPT_DIR/test-release-contracts" &&
+    phase "Rust lint policy" "$SCRIPT_DIR/test-rust-lint-policy" &&
+    phase "Commit-gate regressions" "$SCRIPT_DIR/test-commit-gates" &&
+    phase "Call-site lookup" "$SCRIPT_DIR/test-callsites" &&
+    phase "Reference fleet script" "$SCRIPT_DIR/test-fleet-ref" &&
+    phase "Deploy fleet guard" "$SCRIPT_DIR/test-fleet-deploy-guard" &&
+    phase "Docs-agent tests" "$SCRIPT_DIR/docs-agent/test.sh"
+}
+
+MODE="${1:-fast}"
+case "$MODE" in
+  -h|--help|help)
+    usage
+    exit 0
+    ;;
+  fast)
+    run_rust_fast && run_frontend_fast && run_script_tests
+    ;;
+  rust-fast)
+    run_rust_fast
+    ;;
+  rust-db)
+    run_rust_db
+    ;;
+  rust)
+    run_rust_all
+    ;;
+  frontend-fast)
+    run_frontend_fast
+    ;;
+  frontend)
+    run_frontend_all
+    ;;
+  frontend-audit)
+    run_frontend_audit
+    ;;
+  e2e)
+    run_e2e
+    ;;
+  scripts)
+    run_script_tests
+    ;;
+  all)
+    run_rust_all && run_frontend_all && run_frontend_audit && run_e2e && run_script_tests
+    ;;
+  *)
+    echo "test-suite: unknown mode '$MODE'" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
+
+rc=$?
+echo
+if (( rc == 0 )); then
+  echo "TEST-SUITE: PASS ($MODE)"
+else
+  echo "TEST-SUITE: FAIL ($MODE, exit $rc)"
+fi
+exit "$rc"

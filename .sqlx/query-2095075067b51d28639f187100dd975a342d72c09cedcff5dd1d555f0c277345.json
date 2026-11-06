@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE mailbox.messages SET queued_at = now() - INTERVAL '2 hours', consumed_at = now() WHERE message_uuid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2095075067b51d28639f187100dd975a342d72c09cedcff5dd1d555f0c277345"
+}

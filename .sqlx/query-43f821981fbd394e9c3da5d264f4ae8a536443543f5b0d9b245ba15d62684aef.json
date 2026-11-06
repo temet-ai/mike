@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT l.topic AS \"topic!\"\n                     FROM memory.lessons l\n                    WHERE l.project_id = $1\n                      AND l.topic IS NOT NULL\n                      AND l.archived_at IS NULL\n                      AND l.topic NOT LIKE 'shared:%'\n                      AND l.topic NOT LIKE 'verifier:%'\n                    ORDER BY 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "topic!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "topic"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "43f821981fbd394e9c3da5d264f4ae8a536443543f5b0d9b245ba15d62684aef"
+}

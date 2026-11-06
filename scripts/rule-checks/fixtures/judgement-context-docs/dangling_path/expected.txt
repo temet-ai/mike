@@ -1,0 +1,2 @@
+exit 1
+DRIFT C8 crates/mike/src/gone.rs docs/ARCHITECTURE.md:2 path is not in the tree

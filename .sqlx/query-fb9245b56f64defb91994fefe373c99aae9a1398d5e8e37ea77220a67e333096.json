@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH carried AS (\n    UPDATE remote_control.injections i\n       SET carried_request_id = $2\n      FROM remote_control.channels c\n     WHERE i.channel_id = c.id\n       AND c.local_session_uuid = $1\n       AND i.acked_at IS NOT NULL\n       AND i.carried_request_id IS NULL\n       AND i.acked_at <= $3\n       AND i.acked_at > $3 - interval '10 minutes'\n    RETURNING i.source_kind, i.source_id, i.message_uuid\n), steering AS (\n    UPDATE steering.interventions s\n       SET sent_request_id = COALESCE(s.sent_request_id, $2),\n           delivered_request_id = COALESCE(s.delivered_request_id, $2),\n           processed_at = COALESCE(s.processed_at, now())\n      FROM carried c\n     WHERE c.source_kind = 'steerer'\n       AND s.uuid = c.source_id::uuid\n    RETURNING s.id\n), mail AS (\n    UPDATE mailbox.messages m\n       SET sent_request_id = COALESCE(m.sent_request_id, $2)\n      FROM carried c\n     WHERE c.message_uuid IS NOT NULL\n       AND m.message_uuid = c.message_uuid\n    RETURNING m.id\n)\nSELECT (SELECT count(*) FROM carried) AS \"carried!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "carried!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "fb9245b56f64defb91994fefe373c99aae9a1398d5e8e37ea77220a67e333096"
+}

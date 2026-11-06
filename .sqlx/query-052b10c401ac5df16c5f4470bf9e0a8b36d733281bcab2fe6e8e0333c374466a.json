@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.session_uuid::text AS \"session_uuid!\", p.project_path FROM sessions.sessions s\n             JOIN projects.projects p ON p.id = s.project_id WHERE s.location_uuid IS NOT NULL OR s.project_resolution = 'operator'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_uuid!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "project_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      false
+    ]
+  },
+  "hash": "052b10c401ac5df16c5f4470bf9e0a8b36d733281bcab2fe6e8e0333c374466a"
+}

@@ -1,0 +1,54 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO steering.steerers\n                       (name, display_name, description, agent_id,\n                        authority_id, default_mode_id,\n                        model, priority, enabled, config, prompt,\n                        trigger_point, invocation, pattern, project_id)\n                   SELECT $1, $2, $3, $4,\n                          a.id, m.id,\n                          $7, $8, $9, $10, $11,\n                          $12, $13, $14, $15\n                     FROM steering.authorities a,\n                          steering.modes       m\n                    WHERE a.code = $5\n                      AND m.code = $6\n                   RETURNING id, uuid",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Int4",
+        "Bool",
+        "Jsonb",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "57c311a699e4cfe4efb4558c85431792aa11331cab94fe7c50c916c121bf7b10"
+}

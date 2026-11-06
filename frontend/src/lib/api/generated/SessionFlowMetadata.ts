@@ -1,0 +1,23 @@
+export type SessionFlowMetadata = {
+	tool_name: string | null;
+	wire_tool_use_id: string | null;
+	status_code: number | null;
+	model: string | null;
+	latency_ms: number | null;
+	input_tokens: string | null;
+	output_tokens: string | null;
+	stage: string | null;
+	role: string | null;
+	steerer_id: string | null;
+	turn_id: string | null;
+	cost_usd: number | null;
+	scope: string | null;
+	verdict: string | null;
+	has_verdict: boolean | null;
+	attempt: number | null;
+	body_available: boolean | null;
+	heuristic_instance_id: string | null;
+	agent_name: string | null;
+	dispatch_description: string | null;
+	firing_rule_count: number | null;
+};

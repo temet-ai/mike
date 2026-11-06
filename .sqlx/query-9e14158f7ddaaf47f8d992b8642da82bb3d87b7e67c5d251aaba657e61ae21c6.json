@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO steering.enrolments\n                       (session_id, steerer_id, mode_id, authority_id, enrolled_by)\n                   SELECT s.id, st.id, st.default_mode_id, st.authority_id, 'auto'\n                     FROM sessions.sessions   s\n                    CROSS JOIN steering.steerers st\n                    WHERE s.session_uuid = $1\n                      AND st.auto_enrol  = true\n                      AND st.enabled     = true\n                      AND st.deleted_at IS NULL\n                      AND (st.project_id IS NULL OR st.project_id = s.project_id)\n                   ON CONFLICT (session_id, steerer_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9e14158f7ddaaf47f8d992b8642da82bb3d87b7e67c5d251aaba657e61ae21c6"
+}

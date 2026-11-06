@@ -1,0 +1,161 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT f.lesson_id, l.text, l.topic, f.shape, f.detail, f.attempts,\n                        lk.code AS kind, ls.code AS stage, src.code AS source,\n                        l.project_id, l.session_id, s.session_uuid AS \"session_uuid?\"\n                   FROM memory.lesson_shape_findings f\n                   JOIN memory.lessons l ON l.id = f.lesson_id AND l.archived_at IS NULL\n                   JOIN memory.lesson_kinds lk ON lk.id = l.kind_id\n                   JOIN memory.lesson_stages ls ON ls.id = l.stage_id\n                   JOIN memory.lesson_sources src ON src.id = l.source_id\n                   LEFT JOIN sessions.sessions s ON s.id = l.session_id\n                  WHERE f.resolution IS NULL\n                    AND f.attempts < $2\n                    AND (f.last_attempt_at IS NULL\n                         OR f.last_attempt_at <= now() - interval '1 hour' * (2 ^ f.attempts))\n                  ORDER BY (ls.code = 'raw') DESC, f.found_at, f.lesson_id\n                  LIMIT $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lesson_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_shape_findings",
+            "name": "lesson_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "topic",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "topic"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "shape",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_shape_findings",
+            "name": "shape"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "detail",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_shape_findings",
+            "name": "detail"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "attempts",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_shape_findings",
+            "name": "attempts"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "stage",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_stages",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "source",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_sources",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "session_uuid?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "d2b56164972d24c17acce522e67e231740e0b906a83b7f8b025b0c03925f8583"
+}

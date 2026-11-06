@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"count!\"\n               FROM requests.system_prompts rsp\n               JOIN requests.requests r ON r.id = rsp.request_id\n              WHERE rsp.prompt_sha256 IS NULL\n                AND rsp.system_prompt_id IS NULL\n                AND r.request_body IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "f69ae2c959c5a65f6a97791e80dbdd5a0b4d358f7de4e183ed6664f01cdd8fc4"
+}

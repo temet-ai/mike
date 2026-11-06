@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+# test-rc-protocol-discovery — proves scripts/rc-protocol-check-binary finds a
+# Claude Code binary wherever this host keeps it (mise install directory, or
+# PATH through symlinks), checks each distinct binary once, still applies its
+# assertions to what it finds, and still reports NOT RUN when there is none.
+#
+# Usage: scripts/test-rc-protocol-discovery [PATH-TO-CHECKER]
+#
+# Every case runs the checker under `env -i` with a throwaway HOME and a PATH
+# made only of symlinks to the tools the checker needs, so neither this
+# machine's real Claude Code install nor its shell environment can leak in.
+# Fixture "binaries" are plain files carrying every substring the checker
+# asserts, extracted from the checker's own table. Nothing is recorded: every
+# run passes --no-record.
+#
+# Exit 0 when every case passes, 1 when any fails, 2 when the tools the test
+# itself needs are missing (NOT RUN, never a silent pass).
+set -uo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" || exit $?
+checker="${1:-$script_dir/rc-protocol-check-binary}"
+
+if [[ ! -f "$checker" ]]; then
+    echo "test-rc-protocol-discovery: no such checker: $checker" >&2
+    exit 2
+fi
+
+tmp="$(mktemp -d)" || exit 2
+trap 'rm -rf "$tmp"' EXIT
+
+tools="$tmp/tools"
+mkdir -p "$tools"
+missing_tools=""
+for tool in bash git python3 strings sed awk grep mktemp date sha256sum shasum \
+    dirname basename readlink realpath cat rm mkdir sort tr cut head wc uname env; do
+    found="$(command -v "$tool" 2>/dev/null)"
+    if [[ -n "$found" && -x "$found" ]]; then
+        ln -s "$found" "$tools/$tool"
+    else
+        case "$tool" in
+            shasum | sha256sum | realpath | readlink) ;;
+            *) missing_tools+="$tool " ;;
+        esac
+    fi
+done
+if [[ -n "$missing_tools" ]]; then
+    echo "NOT RUN: test-rc-protocol-discovery needs: $missing_tools"
+    exit 2
+fi
+bash_bin="$(command -v bash)"
+
+table_patterns() {
+    awk '/^ASSERTIONS_TABLE=/ { f = 1; sub(/^ASSERTIONS_TABLE=\047/, "") }
+         f { print }
+         f && /\047$/ { exit }' "$checker" | sed "s/'\$//" | cut -d'|' -f2
+}
+
+write_fixture() {
+    local dest="$1" drop="${2:-}"
+    mkdir -p "$(dirname "$dest")"
+    if [[ -n "$drop" ]]; then
+        table_patterns | grep -F -v -x -- "$drop" >"$dest"
+    else
+        table_patterns >"$dest"
+    fi
+    chmod +x "$dest"
+}
+
+pass=0
+fail=0
+out=""
+rc=0
+
+run_checker() {
+    local home="$1"
+    shift
+    local path_value="$tools"
+    [[ -n "${EXTRA_PATH:-}" ]] && path_value="$tools:$EXTRA_PATH"
+    out="$(env -i HOME="$home" PATH="$path_value" "$@" "$bash_bin" "$checker" --no-record 2>&1)"
+    rc=$?
+}
+
+expect() {
+    local name="$1" want_rc="$2"
+    shift 2
+    local ok=1 needle
+    [[ "$rc" -eq "$want_rc" ]] || ok=0
+    for needle in "$@"; do
+        if [[ "$needle" == '!'* ]]; then
+            [[ "$out" != *"${needle:1}"* ]] || ok=0
+        else
+            [[ "$out" == *"$needle"* ]] || ok=0
+        fi
+    done
+    if [[ "$ok" -eq 1 ]]; then
+        echo "  PASS  $name"
+        pass=$((pass + 1))
+    else
+        echo "  FAIL  $name (exit $rc, wanted $want_rc; wanted output to contain: $*)"
+        printf '%s\n' "$out" | sed 's/^/        | /'
+        fail=$((fail + 1))
+    fi
+}
+
+new_home() {
+    local h
+    h="$(mktemp -d "$tmp/home.XXXXXX")"
+    printf '%s\n' "$h"
+}
+
+mise_layout() {
+    local home="$1"
+    shift
+    local root="$home/.local/share/mise/installs/claude" v
+    for v in "$@"; do
+        write_fixture "$root/$v/claude"
+    done
+    ln -s ./"${!#}" "$root/latest"
+    ln -s ./"${!#}" "$root/9"
+    ln -s ./"${!#}" "$root/9.9"
+}
+
+EXTRA_PATH=""
+
+home="$(new_home)"
+mise_layout "$home" 9.9.9
+run_checker "$home"
+expect "mise install is discovered, symlinked names are checked once" 0 \
+    "PASS  mise 9.9.9" "binaries_checked=1 passed=1 failed=0" "!mise latest" "!mise 9.9 "
+
+home="$(new_home)"
+mise_layout "$home" 9.9.8 9.9.9
+run_checker "$home"
+expect "two distinct mise versions are both checked" 0 \
+    "PASS  mise 9.9.8" "PASS  mise 9.9.9" "binaries_checked=2 passed=2 failed=0"
+
+home="$(new_home)"
+write_fixture "$home/opt/9.8.7/claude"
+mkdir -p "$tmp/pathbin.a"
+ln -s "$home/opt/9.8.7/claude" "$tmp/pathbin.a/claude"
+EXTRA_PATH="$tmp/pathbin.a"
+run_checker "$home"
+expect "claude on PATH is resolved through its symlink" 0 \
+    "PASS  path 9.8.7" "binaries_checked=1 passed=1 failed=0"
+
+home="$(new_home)"
+mise_layout "$home" 9.9.9
+mkdir -p "$tmp/pathbin.b"
+ln -s "$home/.local/share/mise/installs/claude/latest/claude" "$tmp/pathbin.b/claude"
+EXTRA_PATH="$tmp/pathbin.b"
+run_checker "$home"
+expect "the same binary reached from mise and PATH is checked once" 0 \
+    "binaries_checked=1 passed=1 failed=0"
+
+home="$(new_home)"
+write_fixture "$tmp/elsewhere/9.7.7/claude"
+EXTRA_PATH=""
+run_checker "$home" CLAUDE_MISE_DIR="$tmp/elsewhere"
+expect "CLAUDE_MISE_DIR overrides the mise location" 0 "PASS  mise 9.7.7"
+
+home="$(new_home)"
+write_fixture "$home/.local/share/mise/installs/claude/9.9.9/claude" "worker/heartbeat"
+run_checker "$home"
+expect "a discovered binary missing an assertion still fails and names it" 1 \
+    "FAIL  mise 9.9.9" "MISSING  heartbeat_path"
+
+home="$(new_home)"
+mkdir -p "$tmp/launcher" "$tmp/pathbin.c"
+printf 'not a claude binary\n' >"$tmp/launcher/mise"
+chmod +x "$tmp/launcher/mise"
+ln -s "$tmp/launcher/mise" "$tmp/pathbin.c/claude"
+EXTRA_PATH="$tmp/pathbin.c"
+run_checker "$home"
+expect "a claude on PATH that resolves to the mise launcher is not treated as the binary" 2 \
+    "NOT RUN" "!FAIL"
+
+home="$(new_home)"
+EXTRA_PATH=""
+run_checker "$home"
+expect "nothing installed anywhere reports NOT RUN, not a pass" 2 "NOT RUN"
+
+echo "test-rc-protocol-discovery: passed=$pass failed=$fail"
+[[ "$fail" -eq 0 ]]

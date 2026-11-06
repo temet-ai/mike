@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT role, subject_key, status, components, promoted_at\n                   FROM eval.bundles WHERE id = $1 FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "role",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "role"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "subject_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "subject_key"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "components",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "components"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "promoted_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "promoted_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "e0a863754ad328b2ced5f99fca6cdd5983442cbef17707ab9e4cf462d1d091fd"
+}

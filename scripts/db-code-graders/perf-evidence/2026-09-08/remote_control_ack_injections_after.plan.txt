@@ -1,0 +1,28 @@
+Update on messages m  (cost=16.90..24.94 rows=0 width=0) (actual time=0.303..0.307 rows=0 loops=1)
+  Buffers: shared hit=68
+  CTE acknowledged
+    ->  Update on injections i  (cost=0.57..16.62 rows=1 width=28) (actual time=0.168..0.171 rows=1 loops=1)
+          Buffers: shared hit=32
+          ->  Nested Loop  (cost=0.57..16.62 rows=1 width=28) (actual time=0.058..0.060 rows=1 loops=1)
+                Join Filter: (c.id = i.channel_id)
+                Buffers: shared hit=8
+                ->  Index Scan using injections_pkey on injections i  (cost=0.29..8.30 rows=1 width=14) (actual time=0.033..0.035 rows=1 loops=1)
+                      Index Cond: (event_id = ANY ('{7b7d0e2e-5f56-0da5-40da-b7c4406f2db6}'::uuid[]))
+                      Filter: ((acked_at IS NULL) AND (failed_at IS NULL))
+                      Buffers: shared hit=5
+                ->  Index Scan using channels_cse_id_key on channels c  (cost=0.29..8.30 rows=1 width=14) (actual time=0.023..0.023 rows=1 loops=1)
+                      Index Cond: (cse_id = 'cse_PerfPush1'::text)
+                      Buffers: shared hit=3
+  ->  Nested Loop  (cost=0.29..8.33 rows=1 width=82) (actual time=0.188..0.190 rows=1 loops=1)
+        Buffers: shared hit=35
+        ->  CTE Scan on acknowledged a  (cost=0.00..0.02 rows=1 width=72) (actual time=0.177..0.180 rows=1 loops=1)
+              Buffers: shared hit=32
+        ->  Index Scan using messages_message_uuid_key on messages m  (cost=0.29..8.30 rows=1 width=42) (actual time=0.008..0.008 rows=1 loops=1)
+              Index Cond: (message_uuid = a.message_uuid)
+              Buffers: shared hit=3
+Planning:
+  Buffers: shared hit=644
+Planning Time: 1.714 ms
+Trigger for constraint injections_ack_call_id_fkey on injections: time=0.529 calls=1
+Trigger trg_mailbox_messages_row_changed on messages: time=1.129 calls=1
+Execution Time: 2.112 ms

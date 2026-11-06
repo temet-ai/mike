@@ -1,0 +1,63 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH cand AS (\n                       SELECT count(*) AS n FROM memory.lessons l\n                         JOIN memory.lesson_stages ls ON ls.id = l.stage_id\n                         JOIN memory.lesson_sources lsrc ON lsrc.id = l.source_id\n                        WHERE ls.code = 'raw' AND lsrc.code = 'judge'\n                   ),\n                   waiting AS (\n                       SELECT count(*) AS n FROM memory.directive_proposals WHERE status = 'open'\n                   ),\n                   decisions AS (\n                       SELECT count(*) FILTER (WHERE cl.new_value ->> 'stage' = 'daily') AS approved,\n                              count(*) FILTER (WHERE cl.new_value ->> 'stage' = 'archived') AS rejected\n                         FROM config.change_log cl\n                        WHERE cl.subject_kind = 'lesson_decision'\n                          AND cl.changed_at >= NOW() - interval '7 days'\n                   ),\n                   decided AS (\n                       SELECT count(*) AS decided,\n                              count(*) FILTER (WHERE status = 'approved') AS approved,\n                              count(*) FILTER (WHERE status = 'rejected') AS rejected\n                         FROM memory.directive_proposals\n                        WHERE status IN ('approved', 'rejected')\n                          AND decided_at >= NOW() - interval '7 days'\n                   )\n                   SELECT cand.n AS \"candidates_waiting!\", waiting.n AS \"directive_proposals_waiting!\",\n                          decisions.approved AS \"lessons_approved_7d!\",\n                          decisions.rejected AS \"lessons_rejected_7d!\",\n                          decided.decided AS \"proposals_decided_7d!\",\n                          decided.approved AS \"proposals_approved_7d!\",\n                          decided.rejected AS \"proposals_rejected_7d!\"\n                     FROM cand, waiting, decisions, decided",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "candidates_waiting!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "directive_proposals_waiting!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "lessons_approved_7d!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "lessons_rejected_7d!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "proposals_decided_7d!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "proposals_approved_7d!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "proposals_rejected_7d!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "c69e4703a7b83a1e42181cd38179dc320edd9b0ca6269fc91ab95003842c3230"
+}

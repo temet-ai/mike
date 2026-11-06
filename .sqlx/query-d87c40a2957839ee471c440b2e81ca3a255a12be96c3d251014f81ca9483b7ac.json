@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH known_prompt AS (\n             SELECT sp.id\n               FROM system_prompts.system_prompts sp\n              WHERE sp.prompt_sha256 = $2::text\n              ORDER BY sp.id\n              LIMIT 1\n         ),\n         new_prompt AS (\n             INSERT INTO system_prompts.system_prompts\n                    (prompt_sha256, blocks, first_seen_at, last_seen_at)\n             SELECT $2::text, $3::jsonb, $4, $4\n              WHERE $2::text IS NOT NULL\n                AND $3::jsonb IS NOT NULL\n                AND NOT EXISTS (SELECT 1 FROM known_prompt)\n             RETURNING id\n         ),\n         prompt AS (\n             SELECT id FROM new_prompt\n             UNION ALL\n             SELECT id FROM known_prompt\n         ),\n         new_observation AS (\n             INSERT INTO requests.system_prompts\n                    (request_id, prompt_sha256, system_prompt_id, override_id,\n                     override_applied, unknown_blocks, filter_modified)\n             SELECT $1, $2::text, prompt.id, $5, $6, $7, $8\n               FROM (VALUES (1)) AS one(n)\n               LEFT JOIN prompt ON true\n              WHERE NOT EXISTS (\n                  SELECT 1 FROM requests.system_prompts WHERE request_id = $1\n              )\n             RETURNING id\n         ),\n         observation AS (\n             SELECT id FROM new_observation\n             UNION ALL\n             SELECT rsp.id FROM requests.system_prompts rsp WHERE rsp.request_id = $1\n         )\n         INSERT INTO requests.system_prompt_firing_rules\n                (request_system_prompt_id, filter_rule_id, ord)\n         SELECT observation.id, u.rule_id, (u.ord - 1)::int\n           FROM observation\n          CROSS JOIN UNNEST($9::bigint[]) WITH ORDINALITY AS u(rule_id, ord)\n          WHERE NOT EXISTS (\n              SELECT 1 FROM requests.system_prompt_firing_rules f\n               WHERE f.request_system_prompt_id = observation.id\n                 AND f.ord = (u.ord - 1)::int\n          )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Jsonb",
+        "Timestamptz",
+        "Int8",
+        "Bool",
+        "Jsonb",
+        "Bool",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d87c40a2957839ee471c440b2e81ca3a255a12be96c3d251014f81ca9483b7ac"
+}

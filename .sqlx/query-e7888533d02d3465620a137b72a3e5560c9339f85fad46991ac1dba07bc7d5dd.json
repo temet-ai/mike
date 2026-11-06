@@ -1,0 +1,155 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH run_launches AS MATERIALIZED (\n    SELECT DISTINCT ON (session_uuid)\n           session_uuid, seat, identity ->> 'role' AS role\n      FROM launch.launches\n     WHERE run_id = $1 AND session_uuid IS NOT NULL\n     ORDER BY session_uuid, created_at, id\n), tagged_notes AS MATERIALIZED (\n    SELECT n.id, n.session_id, f.project_path\n      FROM launch.fleets f\n      JOIN workspace.session_notes n\n        ON n.tags @> ARRAY['fleet:' || f.fleet_uuid::text]\n     WHERE f.run_id = $1\n), note_ids AS (\n    SELECT n.id\n      FROM run_launches l\n      JOIN sessions.sessions s ON s.session_uuid = l.session_uuid\n      JOIN workspace.session_notes n ON n.session_id = s.id\n     WHERE n.kind IN ('decision', 'task') OR n.status = 'operator'\n    UNION\n    SELECT n.id\n      FROM tagged_notes n\n      JOIN sessions.sessions s ON s.id = n.session_id\n      JOIN projects.projects p ON p.id = s.project_id\n                               AND p.project_path = n.project_path\n)\nSELECT n.note_uuid,\n       s.session_uuid,\n       n.kind,\n       n.status,\n       n.title,\n       n.body,\n       n.tags,\n       n.data,\n       n.created_at,\n       n.updated_at,\n       l.seat,\n       l.role\n  FROM note_ids i\n  JOIN workspace.session_notes n ON n.id = i.id\n  JOIN sessions.sessions s ON s.id = n.session_id\n  LEFT JOIN run_launches l ON l.session_uuid = s.session_uuid\n ORDER BY n.updated_at, n.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "note_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_notes",
+            "name": "note_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_notes",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_notes",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_notes",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "body",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_notes",
+            "name": "body"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "tags",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_notes",
+            "name": "tags"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "data",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_notes",
+            "name": "data"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_notes",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_notes",
+            "name": "updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "seat",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "seat"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "role",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      null
+    ]
+  },
+  "hash": "e7888533d02d3465620a137b72a3e5560c9339f85fad46991ac1dba07bc7d5dd"
+}

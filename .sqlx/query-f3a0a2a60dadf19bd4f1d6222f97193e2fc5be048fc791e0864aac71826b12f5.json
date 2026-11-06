@@ -1,0 +1,62 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT pass, reason, cap, refused_at\n                   FROM memory.lesson_maintenance_refusals\n                  WHERE refused_at > now() - interval '2 hours'\n                    AND (refused_at AT TIME ZONE 'UTC')::date = (now() AT TIME ZONE 'UTC')::date\n                  ORDER BY pass",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "pass",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_maintenance_refusals",
+            "name": "pass"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_maintenance_refusals",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "cap",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_maintenance_refusals",
+            "name": "cap"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "refused_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_maintenance_refusals",
+            "name": "refused_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f3a0a2a60dadf19bd4f1d6222f97193e2fc5be048fc791e0864aac71826b12f5"
+}

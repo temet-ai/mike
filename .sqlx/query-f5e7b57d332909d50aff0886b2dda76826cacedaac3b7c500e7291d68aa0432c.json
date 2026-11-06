@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO sessions.sessions (session_uuid, project_id, first_seen, last_seen)\n         VALUES (gen_random_uuid(), $1, NOW(), NOW())\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f5e7b57d332909d50aff0886b2dda76826cacedaac3b7c500e7291d68aa0432c"
+}

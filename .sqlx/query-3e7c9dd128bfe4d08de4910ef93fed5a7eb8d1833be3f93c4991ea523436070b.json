@@ -1,0 +1,518 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, session_uuid, backend, folder, repo_root, worktree,\n       workspace_ref, tab_ref, surface_ref, pid,\n       run_id, seat, template_id, model, agent, claude_args,\n       prompt_present, brief_mode, brief_path, brief_text, brief_note_uuid,\n       COALESCE(\n         (SELECT m.consumed_at FROM mailbox.messages m\n           WHERE m.message_uuid = launch.launches.brief_note_uuid),\n         (SELECT min(u.created_at) FROM tools.uses u\n            JOIN sessions.sessions s ON s.id = u.session_id\n           WHERE s.session_uuid = launch.launches.session_uuid\n             AND u.tool_name = 'Read'\n             AND u.file_path = launch.launches.brief_path)) AS \"brief_read_at?\",\n       requested_placement, actual_placement, split_direction, anchor_ref,\n       remote_control, proxy_env, channel_check, channel_checked_at,\n       opened, delivered, confirmed, result, reason,\n       stderr_text, stderr_truncated,\n       created_at, opened_at, closed_at, close_reason, close_process_exited\n  FROM launch.launches\n WHERE ($1::text IS NULL OR run_id = $1)\n   AND (NOT $2::boolean OR closed_at IS NULL)\n   AND ($3::text IS NULL OR backend = $3)\n ORDER BY created_at DESC, id DESC\n LIMIT $4\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "backend",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "backend"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "folder",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "folder"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "repo_root",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "repo_root"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "worktree",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "worktree"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "workspace_ref",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "workspace_ref"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "tab_ref",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "tab_ref"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "surface_ref",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "surface_ref"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "pid",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "pid"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "run_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "run_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "seat",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "seat"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "template_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "template_id"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "model",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "agent",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "agent"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "claude_args",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "claude_args"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "prompt_present",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "prompt_present"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "brief_mode",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "brief_mode"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "brief_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "brief_path"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "brief_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "brief_text"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "brief_note_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "brief_note_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "brief_read_at?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 22,
+        "name": "requested_placement",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "requested_placement"
+          }
+        }
+      },
+      {
+        "ordinal": 23,
+        "name": "actual_placement",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "actual_placement"
+          }
+        }
+      },
+      {
+        "ordinal": 24,
+        "name": "split_direction",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "split_direction"
+          }
+        }
+      },
+      {
+        "ordinal": 25,
+        "name": "anchor_ref",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "anchor_ref"
+          }
+        }
+      },
+      {
+        "ordinal": 26,
+        "name": "remote_control",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "remote_control"
+          }
+        }
+      },
+      {
+        "ordinal": 27,
+        "name": "proxy_env",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "proxy_env"
+          }
+        }
+      },
+      {
+        "ordinal": 28,
+        "name": "channel_check",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "channel_check"
+          }
+        }
+      },
+      {
+        "ordinal": 29,
+        "name": "channel_checked_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "channel_checked_at"
+          }
+        }
+      },
+      {
+        "ordinal": 30,
+        "name": "opened",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "opened"
+          }
+        }
+      },
+      {
+        "ordinal": 31,
+        "name": "delivered",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "delivered"
+          }
+        }
+      },
+      {
+        "ordinal": 32,
+        "name": "confirmed",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "confirmed"
+          }
+        }
+      },
+      {
+        "ordinal": 33,
+        "name": "result",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "result"
+          }
+        }
+      },
+      {
+        "ordinal": 34,
+        "name": "reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "ordinal": 35,
+        "name": "stderr_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "stderr_text"
+          }
+        }
+      },
+      {
+        "ordinal": 36,
+        "name": "stderr_truncated",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "stderr_truncated"
+          }
+        }
+      },
+      {
+        "ordinal": 37,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 38,
+        "name": "opened_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "opened_at"
+          }
+        }
+      },
+      {
+        "ordinal": 39,
+        "name": "closed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "closed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 40,
+        "name": "close_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "close_reason"
+          }
+        }
+      },
+      {
+        "ordinal": 41,
+        "name": "close_process_exited",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "close_process_exited"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bool",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      null,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "3e7c9dd128bfe4d08de4910ef93fed5a7eb8d1833be3f93c4991ea523436070b"
+}

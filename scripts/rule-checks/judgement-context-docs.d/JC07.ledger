@@ -1,0 +1,13 @@
+# JC07 ledger. The landed sha is the JC07 commit on feat/judgement-context.
+landed   JC07 2026-09-24 38896383
+table    eval.labels
+table    eval.axis_labels
+table    eval.turn_splits
+table    eval.import_batches
+table    eval.population_exclusions
+setting  eval.labels.holdout_percent
+setting  eval.relay_labels_enabled
+tool     relay_label core
+tool     list_eval_labels full
+cli      mike eval import fleet-mirror
+cli      mike eval withdraw-batch

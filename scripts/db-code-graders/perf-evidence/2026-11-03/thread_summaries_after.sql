@@ -1,0 +1,103 @@
+WITH selected AS (SELECT t.id FROM mailbox.threads t WHERE t.id IN (SELECT pm.thread_id FROM mailbox.messages pm JOIN sessions.sessions ps ON ps.session_uuid = '4afb4de5-1055-4b9f-bac0-8f2e8aa5d940' WHERE pm.thread_id IS NOT NULL AND pm.to_session_id IS NOT NULL AND (pm.from_session_id = ps.id OR pm.to_session_id = ps.id)) AND (t.resolved_at IS NOT NULL) = false) 
+,participant_ids AS (
+    SELECT thread_id, from_session_id AS session_id
+      FROM mailbox.messages
+     WHERE thread_id IN (SELECT id FROM selected) AND from_session_id IS NOT NULL
+    UNION
+    SELECT thread_id, to_session_id AS session_id
+      FROM mailbox.messages
+     WHERE thread_id IN (SELECT id FROM selected) AND to_session_id IS NOT NULL
+    UNION
+    SELECT id AS thread_id, created_by_session_id AS session_id
+      FROM mailbox.threads
+     WHERE id IN (SELECT id FROM selected) AND created_by_session_id IS NOT NULL
+),
+participants AS (
+    SELECT pi.thread_id, ARRAY_AGG(DISTINCT s.session_uuid) AS participant_uuids
+      FROM participant_ids pi
+      JOIN sessions.sessions s ON s.id = pi.session_id
+     GROUP BY pi.thread_id
+),
+message_stats AS (
+    SELECT
+        m.thread_id,
+        COUNT(*) AS message_count,
+        COUNT(*) FILTER (
+            WHERE m.to_session_id IS NOT NULL
+              AND (m.sent_request_id IS NOT NULL OR m.channel_delivered_at IS NOT NULL)
+              AND m.consumed_at IS NULL
+              AND m.dead_lettered_at IS NULL
+        ) AS unread_count,
+        MIN(m.queued_at) FILTER (
+            WHERE m.to_session_id IS NOT NULL
+              AND m.sent_request_id IS NULL
+              AND m.channel_delivered_at IS NULL
+              AND m.consumed_at IS NULL
+              AND m.dead_lettered_at IS NULL
+        ) AS oldest_pending_queued_at,
+        MIN(
+            CASE
+                WHEN m.to_session_id IS NULL THEN NULL
+                WHEN m.dead_lettered_at IS NOT NULL THEN 0
+                WHEN m.consumed_at IS NOT NULL THEN 4
+                WHEN m.sent_request_id IS NOT NULL THEN 3
+                WHEN m.channel_delivered_at IS NOT NULL THEN 3
+                WHEN m.claimed_at IS NOT NULL THEN 2
+                ELSE 1
+            END
+        ) AS worst_rank
+      FROM mailbox.messages m
+     WHERE m.thread_id IN (SELECT id FROM selected)
+     GROUP BY m.thread_id
+),
+thread_tag_codes AS (
+    SELECT tt.thread_id, ARRAY_AGG(tg.code ORDER BY tg.code) AS tag_codes
+      FROM mailbox.thread_tags tt
+      JOIN mailbox.tags tg ON tg.id = tt.tag_id
+     WHERE tt.thread_id IN (SELECT id FROM selected)
+     GROUP BY tt.thread_id
+),
+creator_fleet AS (
+    SELECT DISTINCT ON (l.session_uuid) l.session_uuid, f.fleet_uuid
+      FROM launch.launches l
+      JOIN launch.fleets f ON f.run_id = l.run_id
+     WHERE l.session_uuid IN (
+           SELECT cs.session_uuid
+             FROM mailbox.threads ct
+             JOIN sessions.sessions cs ON cs.id = ct.created_by_session_id
+            WHERE ct.id IN (SELECT id FROM selected)
+     )
+     ORDER BY l.session_uuid, l.created_at DESC, l.id DESC
+)
+SELECT
+    t.id,
+    t.thread_uuid,
+    t.subject,
+    t.created_at,
+    t.last_message_at,
+    t.resolved_at,
+    creator.session_uuid AS created_by_session_uuid,
+    COALESCE(p.participant_uuids, ARRAY[]::uuid[]) AS participant_uuids,
+    COALESCE(ttc.tag_codes, ARRAY[]::text[]) AS tag_codes,
+    COALESCE(ms.message_count, 0) AS message_count,
+    COALESCE(ms.unread_count, 0) AS unread_count,
+    ms.oldest_pending_queued_at,
+    ms.worst_rank,
+    pr.project_uuid,
+    COALESCE(NULLIF(btrim(pr.custom_name), ''), pr.display_name) AS project_name,
+    pr.project_path,
+    pr.pinned AS project_pinned,
+    fl.fleet_uuid,
+    fl.slug AS fleet_slug,
+    fl.state AS fleet_state
+  FROM selected sel
+  JOIN mailbox.threads t ON t.id = sel.id
+  LEFT JOIN sessions.sessions creator ON creator.id = t.created_by_session_id
+  LEFT JOIN creator_fleet cf ON cf.session_uuid = creator.session_uuid
+  LEFT JOIN launch.fleets fl ON fl.fleet_uuid = COALESCE(t.fleet_uuid, cf.fleet_uuid)
+  LEFT JOIN projects.projects pr0 ON pr0.id = COALESCE(t.project_id, creator.project_id)
+  LEFT JOIN projects.projects pr ON pr.id = COALESCE(pr0.merged_into_id, pr0.id)
+  LEFT JOIN participants p ON p.thread_id = t.id
+  LEFT JOIN message_stats ms ON ms.thread_id = t.id
+  LEFT JOIN thread_tag_codes ttc ON ttc.thread_id = t.id
+ ORDER BY t.last_message_at DESC

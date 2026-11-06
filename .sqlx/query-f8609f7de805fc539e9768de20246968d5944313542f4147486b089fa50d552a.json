@@ -1,0 +1,149 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT rd.request_id, rd.predecessor_request_id,\n                ck.code AS \"change_kind!\", rd.ord,\n                rd.message_id, m.message_sha256 AS \"message_sha256!\",\n                ro.code AS \"role!\", m.byte_size AS \"byte_size!\", m.body AS \"body!\",\n                rr.code AS \"removed_reason?\", rd.computed_at\n           FROM requests.deltas rd\n           JOIN messages.messages m ON m.id = rd.message_id\n           JOIN requests.delta_change_kinds ck ON ck.id = rd.change_kind_id\n           JOIN messages.roles ro ON ro.id = m.role_id\n           LEFT JOIN requests.delta_removed_reasons rr ON rr.id = rd.removed_reason_id\n          WHERE rd.request_id = $1\n            AND rd.session_id = $2\n          ORDER BY ck.code ASC, rd.ord ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.deltas",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "predecessor_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.deltas",
+            "name": "predecessor_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "change_kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.delta_change_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "ord",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "requests.deltas",
+            "name": "ord"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "message_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.deltas",
+            "name": "message_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "message_sha256!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "messages.messages",
+            "name": "message_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "role!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "messages.roles",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "byte_size!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "messages.messages",
+            "name": "byte_size"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "body!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "messages.messages",
+            "name": "body"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "removed_reason?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.delta_removed_reasons",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "computed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.deltas",
+            "name": "computed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f8609f7de805fc539e9768de20246968d5944313542f4147486b089fa50d552a"
+}

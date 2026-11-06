@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.model AS \"model!\", COUNT(*)::bigint AS \"count!\"\n         FROM requests.requests r\n         WHERE r.session_id = $1\n           AND r.model IS NOT NULL\n         GROUP BY r.model\n         ORDER BY 2 DESC, r.model ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "model!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      null
+    ]
+  },
+  "hash": "7597dbb4507c70a00de02a69b742916c244b7ea3222dc26c6c290712aca9b5e4"
+}

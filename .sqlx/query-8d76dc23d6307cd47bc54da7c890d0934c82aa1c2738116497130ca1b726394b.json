@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH seats AS (\n    SELECT DISTINCT ON (s.id) l.seat, s.id AS sid, l.created_at AS launched_at\n      FROM launch.launches l\n      JOIN sessions.sessions s ON s.session_uuid = l.session_uuid\n     WHERE l.run_id = $1 AND l.seat IS NOT NULL AND l.seat <> 'status'\n     ORDER BY s.id, l.created_at, l.id\n)\nSELECT (SELECT count(*) FROM memory.operator_turns t\n          JOIN seats s ON s.sid = t.session_id AND t.created_at >= s.launched_at\n         WHERE t.opened_by = 'operator') AS \"operator_turns!\",\n       (SELECT count(*) FROM workspace.session_notes n\n          JOIN seats s ON s.sid = n.session_id\n         WHERE n.kind = 'note' AND n.status IN ('operator', 'answered')) AS \"operator_answers!\",\n       (SELECT count(*) FROM workspace.session_notes n\n          JOIN seats s ON s.sid = n.session_id\n         WHERE n.kind = 'report') AS \"reports_filed!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "operator_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "operator_answers!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "reports_filed!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "8d76dc23d6307cd47bc54da7c890d0934c82aa1c2738116497130ca1b726394b"
+}

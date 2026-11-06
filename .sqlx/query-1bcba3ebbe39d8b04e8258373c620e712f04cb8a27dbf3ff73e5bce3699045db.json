@@ -1,0 +1,95 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT u.wire_tool_use_id AS \"wire_tool_use_id!\",\n       u.tool_name AS \"tool_name!\",\n       u.input->>'description' AS \"description?\",\n       res.content AS \"content!\",\n       res.request_id AS \"request_id!\",\n       u.created_at AS \"created_at!\",\n       r.claude_code_agent_id AS \"agent_id?\"\n  FROM tools.results res\n  JOIN tools.uses u ON u.id = res.tool_use_id\n  JOIN requests.requests r ON r.id = res.request_id\n WHERE res.session_id = $1\n   AND u.tool_name IN ('Bash', 'Agent', 'Task')\n   AND (res.content::text LIKE '%Command running in background with ID%'\n        OR res.content::text LIKE '%Async agent launched successfully%')\n ORDER BY res.request_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "wire_tool_use_id!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "wire_tool_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "tool_name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "tool_name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "description?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "content!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "agent_id?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "claude_code_agent_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "1bcba3ebbe39d8b04e8258373c620e712f04cb8a27dbf3ff73e5bce3699045db"
+}

@@ -1,0 +1,1 @@
+DELETE FROM eval.rates WHERE rollup_id = 196 AND family = 'action_effect' AND dimension = 'lesson'

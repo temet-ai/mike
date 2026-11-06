@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT d.datname::text AS \"datname!\" FROM pg_database d\n          WHERE starts_with(d.datname, $1)\n            AND d.datname NOT LIKE 'claude_proxy_test_template%'\n            AND d.datname <> $2\n            AND NOT EXISTS (SELECT 1 FROM pg_stat_activity a WHERE a.datname = d.datname)\n            AND (pg_stat_file('base/' || d.oid || '/PG_VERSION', true)).modification\n                < now() - make_interval(mins => $3)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "datname!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Name",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "9d654baf26a67fe1123714d41823d71ce94a8159b4fb314d5b1f89d843363bac"
+}

@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.operator_turns (\n            session_id, project_id,\n            start_request_id, end_request_id,\n            outcome_id, classified_at, closed_at, created_at\n         )\n         SELECT ss.id, $2, u.rid, u.rid, tot.id, NOW(), NOW(), u.rts\n         FROM UNNEST($3::bigint[], $4::timestamptz[]) AS u(rid, rts),\n              sessions.sessions ss,\n              memory.turn_outcomes tot\n         WHERE ss.session_uuid = $1::text::uuid\n           AND tot.code = 'unknown'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8Array",
+        "TimestamptzArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7b5e185fa8a5da3830890fb17fae74d26f2d27d966a4b6a64710ca9939d98506"
+}

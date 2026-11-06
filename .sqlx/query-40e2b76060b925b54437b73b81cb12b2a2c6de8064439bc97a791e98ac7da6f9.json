@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lesson_proposal_jobs j SET status = 'rejected', updated_at = NOW()\n             WHERE j.status = 'awaiting_embedding' AND NOT EXISTS (\n                 SELECT 1 FROM memory.lesson_eligible_corrections_v v WHERE v.verdict_id = j.verdict_id\n             )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "40e2b76060b925b54437b73b81cb12b2a2c6de8064439bc97a791e98ac7da6f9"
+}

@@ -1,0 +1,45 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT embedder_key, kind, count(*)::bigint AS \"items!\"\n                     FROM memory.semantic_items\n                    GROUP BY embedder_key, kind\n                    ORDER BY embedder_key, kind",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "embedder_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "embedder_key"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "items!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "097c80763f3d7f7f8a0ef99cb8b5cde0e1d97ac6b46132b71448e47e6086d41c"
+}

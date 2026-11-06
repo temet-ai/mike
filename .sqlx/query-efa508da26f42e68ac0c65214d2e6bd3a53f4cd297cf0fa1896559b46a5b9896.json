@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT l.session_uuid AS \"session_uuid!\"\n                     FROM launch.launches l\n                     LEFT JOIN sessions.sessions s ON s.session_uuid = l.session_uuid\n                    WHERE l.session_uuid = ANY($1)\n                      AND (l.closed_at IS NULL\n                           OR s.last_seen > l.closed_at + interval '5 seconds')",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "session_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "efa508da26f42e68ac0c65214d2e6bd3a53f4cd297cf0fa1896559b46a5b9896"
+}

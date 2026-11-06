@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lesson_relations\n            (from_lesson_id, to_lesson_id, kind_id, method_id, status_id, candidate_distance,\n             evidence_json, proposer_model, proposer_rationale, detector_version)\n         SELECT $1, p.to_lesson_id, rk.id, rm.id, rs.id, p.distance, p.evidence, $2, p.rationale, $4\n           FROM jsonb_to_recordset($3::jsonb)\n                AS p(to_lesson_id bigint, kind text, distance float8, rationale text, evidence jsonb)\n           JOIN memory.lesson_relation_kinds rk ON rk.code = p.kind\n          CROSS JOIN memory.lesson_relation_methods rm\n          CROSS JOIN memory.lesson_relation_statuses rs\n          WHERE rm.code = 'write_time' AND rs.code = 'proposed'\n         ON CONFLICT (from_lesson_id, to_lesson_id, kind_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "06fc241ca56f00cef4649cfd67fbb663a979602c3cf8f0fabe86f2ffcf7cfdcc"
+}

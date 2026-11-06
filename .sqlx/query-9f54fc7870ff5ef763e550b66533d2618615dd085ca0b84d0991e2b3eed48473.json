@@ -1,0 +1,280 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, uuid, source, scope, project_id, class, polarity, status, proposed_kind,\n       proposed_text, evidence_count, session_count, first_evidence_at, last_evidence_at, window_days,\n       rollup_id, proposer_version, created_at, decided_at, decision_note, approved_text, superseded_by\n  FROM memory.directive_proposals\n WHERE id = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "source",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "scope",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "scope"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "class",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "class"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "polarity",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "polarity"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "proposed_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "proposed_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "proposed_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "proposed_text"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "evidence_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "evidence_count"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "session_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "session_count"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "first_evidence_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "first_evidence_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "last_evidence_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "last_evidence_at"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "window_days",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "window_days"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "rollup_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "rollup_id"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "proposer_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "proposer_version"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "decided_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "decided_at"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "decision_note",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "decision_note"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "approved_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "approved_text"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "superseded_by",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposals",
+            "name": "superseded_by"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "9f54fc7870ff5ef763e550b66533d2618615dd085ca0b84d0991e2b3eed48473"
+}

@@ -1,0 +1,384 @@
+#!/usr/bin/env bash
+# sb-test — frontend test runner: typecheck + logic tests + Storybook browser tests.
+#
+# WHY THIS EXISTS
+#   Single command for the full frontend test suite: svelte-check (typecheck),
+#   vitest unit + integration projects, and the Storybook browser project
+#   (*.stories.svelte, headless chromium, axe gate). Storybook is the source of
+#   truth for components, so all tiers live here.
+#
+#   The machine thrash a prior session hit (load 100+, 42 chromium) came from N
+#   concurrent browser pools (parallel agents). The rule is one vitest process
+#   at a time. Unit + integration run first with normal Node parallelism, then
+#   Storybook runs separately and serially. This keeps browser stability without
+#   needlessly serializing logic tests or rerunning them for every theme.
+#
+#   Compare scripts/storybook-test-all-themes.mjs: that runs the FULL
+#   Storybook suite across all themes (the per-theme matrix). This script
+#   is the inner-loop runner: filtered, capped-parallel, cleanup-wrapped. Use this
+#   while iterating.
+#
+# USAGE
+#   scripts/sb-test [options] [filter ...]
+#
+#   filter ...        vitest file-path substrings (story or test stems), e.g.
+#                       scripts/sb-test tabs-list popover-portal
+#                     ⚠ QUOTE any filter containing [brackets] — an unquoted
+#                       routes/steering/[id]/page is glob-expanded by zsh/bash
+#                       (nomatch → the command aborts silently before vitest runs):
+#                       scripts/sb-test 'routes/steering/[id]/page.stories'
+#                     With no filter, runs typecheck + unit + integration +
+#                     the whole Storybook suite.
+#
+#   --theme NAME      Run Storybook once under a single theme (STORYBOOK_THEME=NAME).
+#   --themes[=a,b,c]  Run Storybook once per theme, SEQUENTIALLY. With no list, all
+#                     themes discovered in frontend/src/app.css ([data-theme="x"]).
+#   --unit            Run only the unit project (repeatable with other tier flags).
+#   --integration     Run only the integration project.
+#   --storybook       Run only the Storybook browser project.
+#   --skip-typecheck  Skip svelte-check for a faster inner loop. This is not a gate.
+#   --serial          Run Storybook one file at a time; the default.
+#   --workers N       Enable Storybook browser parallelism (disables --serial;
+#                     caution: causes 30s timeouts on visual snapshot-heavy files).
+#   --update          Refresh visual baselines (VITEST_UPDATE_SNAPSHOTS=1).
+#   --raw, --verbose  Stream full vitest stdio instead of the compact summary.
+#   --junit DIR       Also write a JUnit XML per vitest pass into DIR
+#                     (vitest-<label>.xml, per-test wall time). Used by
+#                     scripts/test-timing; the console output is unchanged.
+#   --json            Emit a structured verdict as the LAST line of stdout:
+#                     {verdict, exit_code, failed_files[], failed_stories[],
+#                      unhandled_errors[], counts:{passed,failed,skipped}, raw_log}.
+#                     The human summary (same as default mode) still prints above
+#                     it — nothing is suppressed, the JSON line is additive. Forces
+#                     captured mode (--raw is ignored under --json: JSON needs the
+#                     log to parse). raw_log points at the FULL combined log for
+#                     this run (typecheck + every vitest pass) — the JSON summarizes,
+#                     it never truncates; go to raw_log for full fidelity.
+#   -h, --help        This help.
+#
+# OUTPUT (default)
+#   Built for an agent caller: one line per pass — `[phase] ✓ …` on success, or
+#   `[phase] ✗ FAIL (exit N)` + failing details on failure. A final
+#   `sb-test: PASS|FAIL` verdict. Use --raw for the live stream, --json for a
+#   structured verdict (see above) instead of hand-parsing this text.
+#
+# EXIT CODE
+#   Non-zero if typecheck, any unit/integration test, or any Storybook run fails.
+#   Stops at the first failure.
+#
+# EXAMPLES
+#   scripts/sb-test                                     # typecheck + logic + storybook
+#   scripts/sb-test tabs-list tabs-content              # two stories, default theme
+#   scripts/sb-test --themes dialog-content             # one story, all themes
+#   scripts/sb-test --theme glacier popover-portal      # one story, one theme
+#   scripts/sb-test --unit --skip-typecheck format      # fastest focused unit loop
+#   scripts/sb-test --integration cacheIdb              # integration tier only
+#   scripts/sb-test --storybook tabs-list               # browser tier only
+#   scripts/sb-test --raw popover-portal                # full vitest output
+#   scripts/sb-test --update SteererFleet               # refresh that story's baselines
+#   scripts/sb-test --json timelineTurnView              # structured verdict, one filter
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(dirname "$SCRIPT_DIR")"
+FRONTEND="$REPO/frontend"
+APP_CSS="$FRONTEND/src/app.css"
+
+usage() { sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//; /^set -euo/d'; }
+
+# One kernel-held lock serializes complete runs; a private process group owns
+# every browser/tool child. The supervisor never searches or kills by name.
+if [[ "${1:-}" != "--owned-test-child" ]]; then
+  exec python3 "$SCRIPT_DIR/lib/owned-test-runner.py" "$0" "$@"
+fi
+shift
+
+discover_themes() {
+  # Mirror scripts/storybook-test-all-themes.mjs / lint-tokens.mjs: parse
+  # [data-theme="x"] selectors, after stripping block comments.
+  perl -0777 -ne 's{/\*.*?\*/}{}gs; print "$1\n" while /\[data-theme\s*[~|^\$*]?=\s*["'"'"']([a-z0-9-]+)["'"'"']\s*\]/gi' "$APP_CSS" \
+    | awk '!seen[$0]++'
+}
+
+# --- arg parsing ---------------------------------------------------------------
+THEMES=()           # empty = default theme (no STORYBOOK_THEME)
+declare -a FILTERS=()
+UPDATE=0
+RAW=0
+JSON=0              # --json: structured verdict as the final stdout line; forces captured mode
+JUNIT_DIR=""        # --junit DIR: additionally emit vitest-<label>.xml per pass
+SERIAL=1            # default: --no-file-parallelism. Use --workers N to enable parallel mode.
+WORKERS=6           # used only when --workers is passed explicitly (disables serial)
+RUN_UNIT=0
+RUN_INTEGRATION=0
+RUN_STORYBOOK=0
+EXPLICIT_TIERS=0
+SKIP_TYPECHECK=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    --raw|--verbose) RAW=1; shift ;;
+    --json) JSON=1; shift ;;
+    --junit) JUNIT_DIR="${2:?--junit needs a DIR}"; shift 2 ;;
+    --update) UPDATE=1; shift ;;
+    --serial) SERIAL=1; shift ;;
+    --workers) WORKERS="${2:?--workers needs a COUNT}"; SERIAL=0; shift 2 ;;
+    --unit) RUN_UNIT=1; EXPLICIT_TIERS=1; shift ;;
+    --integration) RUN_INTEGRATION=1; EXPLICIT_TIERS=1; shift ;;
+    --storybook) RUN_STORYBOOK=1; EXPLICIT_TIERS=1; shift ;;
+    --skip-typecheck) SKIP_TYPECHECK=1; shift ;;
+    --theme) THEMES=("${2:?--theme needs a NAME}"); shift 2 ;;
+    --themes) mapfile -t THEMES < <(discover_themes); shift ;;
+    --themes=*) IFS=',' read -r -a THEMES <<< "${1#*=}"; shift ;;
+    --) shift; while [[ $# -gt 0 ]]; do FILTERS+=("$1"); shift; done ;;
+    -*) echo "sb-test: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    *) FILTERS+=("$1"); shift ;;
+  esac
+done
+
+if (( ! EXPLICIT_TIERS )); then
+  RUN_UNIT=1
+  RUN_INTEGRATION=1
+  RUN_STORYBOOK=1
+fi
+
+if (( ${#THEMES[@]} > 0 && ! RUN_STORYBOOK )); then
+  echo "sb-test: --theme/--themes requires the Storybook tier" >&2
+  exit 2
+fi
+
+if (( UPDATE && ! RUN_STORYBOOK )); then
+  echo "sb-test: --update requires the Storybook tier" >&2
+  exit 2
+fi
+
+# --json needs a captured log to parse — --raw streams straight to the terminal
+# with nothing captured, so the two are incompatible. --json wins.
+JSON_LOG=""
+if (( JSON )); then
+  if (( RAW )); then echo "sb-test: --json forces captured mode; ignoring --raw" >&2; fi
+  RAW=0
+  JSON_LOG="$(mktemp "${TMPDIR:-/tmp}/sb-test-json.XXXXXX")"
+fi
+
+# Appends a labelled copy of $1 (a phase log file) into the combined JSON_LOG,
+# used only when --json is set (JSON_LOG is empty/unset otherwise).
+append_json_log() {
+  [[ -z "$JSON_LOG" ]] && return 0
+  { printf '\n=== %s (rc=%s) ===\n' "$2" "$3"; cat "$1"; } >>"$JSON_LOG"
+}
+
+MATCHED_PHASES=0
+
+run_vitest() { # $1 = label, $2 = theme, remaining args = vitest args.
+  local label="$1" theme="$2"
+  shift 2
+  local -a env=()
+  local -a args=(run "$@")
+  [[ -n "$theme" ]] && env+=("STORYBOOK_THEME=$theme")
+  (( UPDATE )) && env+=("VITEST_UPDATE_SNAPSHOTS=1")
+  if [[ -n "$JUNIT_DIR" ]]; then
+    mkdir -p "$JUNIT_DIR"
+    args+=(--reporter=default --reporter=junit "--outputFile.junit=$JUNIT_DIR/vitest-${label//:/-}.xml")
+  fi
+  if (( ${#FILTERS[@]} )); then
+    args+=(--passWithNoTests "${FILTERS[@]}")
+  fi
+
+  local log clean_log rc=0
+  log="$(mktemp "${TMPDIR:-/tmp}/sb-test.XXXXXX")"
+  if (( RAW )); then
+    ( cd "$FRONTEND" && env ${env[@]+"${env[@]}"} pnpm exec vitest "${args[@]}" ) > >(tee "$log") 2>&1 || rc=$?
+  else
+    ( cd "$FRONTEND" && env ${env[@]+"${env[@]}"} pnpm exec vitest "${args[@]}" ) >"$log" 2>&1 || rc=$?
+  fi
+
+  clean_log="$(mktemp "${TMPDIR:-/tmp}/sb-test-clean.XXXXXX")"
+  perl -pe 's/\e\[[0-9;]*[A-Za-z]//g' "$log" >"$clean_log"
+
+  local files tests
+  files="$(grep -aE '^ Test Files +' "$clean_log" | tail -1 | sed 's/^ *//' || true)"
+  tests="$(grep -aE '^ +Tests +[0-9]' "$clean_log" | tail -1 | sed 's/^ *//' || true)"
+
+  if (( rc == 0 )) && [[ -n "$tests" ]]; then
+    (( MATCHED_PHASES += 1 ))
+    (( RAW )) || printf '  [%s] ✓ %s | %s\n' "$label" "${files:-Test Files ?}" "$tests"
+    append_json_log "$clean_log" "vitest:$label" "$rc"
+    rm -f "$log" "$clean_log"
+    return 0
+  fi
+
+  if (( rc == 0 && ${#FILTERS[@]} > 0 )); then
+    (( RAW )) || printf '  [%s] - no matching tests\n' "$label"
+    append_json_log "$clean_log" "vitest:$label" "$rc"
+    rm -f "$log" "$clean_log"
+    return 0
+  fi
+
+  local note=""
+  if [[ -z "$tests" ]]; then note=' — no tests collected (check filter)'; fi
+  (( RAW )) || printf '  [%s] ✗ FAIL (exit %d)%s\n' "$label" "$rc" "$note"
+  # The lines an agent needs to act: failing files, failed-test names, assertions.
+  if (( ! RAW )); then
+    grep -aE '❯|×| FAIL |✗|AssertionError|Error:|Expected|Received|No test files found' "$clean_log" \
+      | grep -avE '✓|passed' | head -40 | sed 's/^/    /' || true
+    echo "    (full log: $log — re-run with --raw for live output)"
+  fi
+  append_json_log "$clean_log" "vitest:$label" "$rc"
+  rm -f "$clean_log"
+  return "$(( rc == 0 ? 1 : rc ))"
+}
+
+# --fail-on-warnings is deliberate. Without it svelte-check exits 0 on any number
+# of warnings, so unused CSS, a11y violations and Svelte-5 reactivity mistakes
+# accumulate silently: this gate passed with 99 of them on 2026-08-28, and the
+# only place they were visible was scrollback from `pnpm build`. A warning is
+# either worth fixing or worth an explicit `<!-- svelte-ignore RULE -- reason -->`
+# next to the code; neither of those is "leave it in the log".
+SVELTE_CHECK_ARGS=(--tsconfig ./tsconfig.json --fail-on-warnings)
+
+run_typecheck() {
+  if (( RAW )); then
+    ( cd "$FRONTEND" && pnpm exec svelte-kit sync && pnpm exec svelte-check "${SVELTE_CHECK_ARGS[@]}" )
+    return $?
+  fi
+  local log rc=0
+  log="$(mktemp "${TMPDIR:-/tmp}/sb-typecheck.XXXXXX")"
+  (
+    cd "$FRONTEND" &&
+      pnpm exec svelte-kit sync &&
+      pnpm exec svelte-check "${SVELTE_CHECK_ARGS[@]}"
+  ) >"$log" 2>&1 || rc=$?
+  if (( rc == 0 )); then
+    printf '  [typecheck] ✓ svelte-kit sync + svelte-check clean\n'
+    append_json_log "$log" "typecheck" "$rc"
+    rm -f "$log"
+  else
+    printf '  [typecheck] ✗ FAIL (exit %d)\n' "$rc"
+    # Warnings fail this step too, so the summary has to show Warn: lines as well
+    # as errors, or a --fail-on-warnings failure prints an empty reason.
+    grep -aE 'Error:|error TS|^Warn:' "$log" | head -30 | sed 's/^/    /' || true
+    echo "    (full log: $log — re-run with: cd frontend && pnpm exec svelte-kit sync && pnpm exec svelte-check --fail-on-warnings)"
+    append_json_log "$log" "typecheck" "$rc"
+  fi
+  return "$rc"
+}
+
+# Prints the structured verdict (last stdout line(s)) by parsing the combined
+# JSON_LOG built by append_json_log. Only called when JSON=1. $1 = overall exit
+# code. Parsing lives in Python (not awk/grep) because the shape — dedup'd file
+# lists, summed counts across N runs, nested JSON — needs real data structures,
+# not just line filters.
+emit_json() {
+  local exit_code="$1" verdict="pass"
+  (( exit_code != 0 )) && verdict="fail"
+  python3 - "$JSON_LOG" "$verdict" "$exit_code" <<'PYEOF'
+import json, re, sys
+
+log_path, verdict, exit_code = sys.argv[1], sys.argv[2], int(sys.argv[3])
+try:
+    text = open(log_path, encoding="utf-8", errors="replace").read()
+except OSError:
+    text = ""
+
+passed = failed = skipped = 0
+for line in re.findall(r"^\s*Tests\s+.*$", text, re.MULTILINE):
+    for count, kind in re.findall(r"(\d+)\s+(failed|passed|skipped)", line):
+        if kind == "failed":
+            failed += int(count)
+        elif kind == "passed":
+            passed += int(count)
+        elif kind == "skipped":
+            skipped += int(count)
+
+failed_files = []
+for m in re.findall(r"^\s*FAIL\s+(\S+)", text, re.MULTILINE):
+    path = m.split(" > ")[0]
+    if path not in failed_files:
+        failed_files.append(path)
+failed_stories = [f for f in failed_files if f.endswith((".stories.svelte", ".stories.ts"))]
+
+# vitest brackets an "Unhandled Errors" / "Unhandled Rejection" section with a
+# banner line of ⎯ characters; the first non-blank, non-banner line after it is
+# the error summary we want (full detail stays in raw_log regardless).
+unhandled_errors = []
+lines = text.splitlines()
+for i, line in enumerate(lines):
+    if re.search(r"Unhandled (Rejection|Error)", line):
+        for follow in lines[i + 1 : i + 6]:
+            stripped = follow.strip().strip("⎯")
+            if stripped and not re.fullmatch(r"[⎯\s]*", follow):
+                if stripped not in unhandled_errors:
+                    unhandled_errors.append(stripped)
+                break
+
+print(json.dumps({
+    "verdict": verdict,
+    "exit_code": exit_code,
+    "failed_files": failed_files,
+    "failed_stories": failed_stories,
+    "unhandled_errors": unhandled_errors,
+    "counts": {"passed": passed, "failed": failed, "skipped": skipped},
+    "raw_log": log_path,
+}))
+PYEOF
+}
+
+if (( ${#FILTERS[@]} == 0 && ! EXPLICIT_TIERS )); then
+  browser_mode=$( (( SERIAL )) && echo "serial browser" || echo "browser x$WORKERS" )
+  echo "sb-test: no filter — running full suite: typecheck + unit + integration + storybook ($browser_mode). Ctrl-C to abort." >&2
+fi
+
+# Typecheck runs once, before any vitest pass (independent of theme).
+if (( SKIP_TYPECHECK )); then
+  echo "sb-test: typecheck skipped (--skip-typecheck; not a gate)"
+else
+  echo "sb-test: typecheck"
+  tc_rc=0; run_typecheck || tc_rc=$?
+  if (( tc_rc != 0 )); then
+    echo "sb-test: FAIL — typecheck failed"
+    (( JSON )) && emit_json "$tc_rc"
+    exit "$tc_rc"
+  fi
+fi
+
+rc=0
+declare -a node_projects=()
+(( RUN_UNIT )) && node_projects+=(--project unit)
+(( RUN_INTEGRATION )) && node_projects+=(--project integration)
+if (( ${#node_projects[@]} )); then
+  echo "sb-test: unit/integration | filters: ${FILTERS[*]:-<all>}"
+  run_vitest "logic" "" "${node_projects[@]}" || rc=$?
+fi
+
+if (( rc == 0 && RUN_STORYBOOK )); then
+  declare -a browser_args=(--project storybook)
+  if (( SERIAL )); then
+    browser_args+=(--no-file-parallelism)
+  else
+    browser_args+=("--maxWorkers=$WORKERS" "--minWorkers=1")
+  fi
+
+  if (( ${#THEMES[@]} == 0 )); then
+    echo "sb-test: storybook | default theme | filters: ${FILTERS[*]:-<all>}"
+    run_vitest "storybook:default" "" "${browser_args[@]}" || rc=$?
+  else
+    echo "sb-test: storybook | themes: ${THEMES[*]} | filters: ${FILTERS[*]:-<all>}"
+    for theme in "${THEMES[@]}"; do
+      if ! run_vitest "storybook:$theme" "$theme" "${browser_args[@]}"; then
+        rc=1
+        echo "sb-test: FAIL — stopped at theme: $theme (themes before it passed)"
+        break
+      fi
+    done
+  fi
+fi
+
+if (( rc == 0 && ${#FILTERS[@]} > 0 && MATCHED_PHASES == 0 )); then
+  rc=1
+  echo "sb-test: FAIL — no selected tier collected tests for filters: ${FILTERS[*]}"
+fi
+
+(( rc == 0 )) && echo "sb-test: PASS" || echo "sb-test: FAIL (exit $rc)"
+(( JSON )) && emit_json "$rc"
+exit "$rc"

@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.id AS session_db_id,\n       s.session_uuid::text AS \"session_id!\",\n       (judged.session_id IS NULL\n        OR (judged.is_unknown\n            AND turned.last_turn_at > judged.judged_at)) AS \"needs_verdict!\"\n  FROM sessions.sessions s\n  LEFT JOIN (\n       SELECT DISTINCT ON (v.session_id)\n              v.session_id,\n              v.judged_at,\n              o.code = 'unknown' AS is_unknown\n         FROM session_judges.verdicts v\n         JOIN session_judges.outcomes o ON o.id = v.outcome_id\n        WHERE v.judge_model = $2\n          AND v.mode = 'live'\n          AND v.rubric_version = $3\n        ORDER BY v.session_id, v.judged_at DESC\n  ) judged ON judged.session_id = s.id\n  LEFT JOIN (\n       SELECT t.session_id, max(t.created_at) AS last_turn_at\n         FROM memory.operator_turns t\n        WHERE (t.opened_by IS NULL OR t.opened_by = 'operator')\n        GROUP BY t.session_id\n  ) turned ON turned.session_id = s.id\n  LEFT JOIN session_judges.attempts att\n         ON att.session_id = s.id\n        AND att.judge_model = $2\n        AND att.rubric_version = $3\n WHERE s.last_seen < $1\n   AND turned.session_id IS NOT NULL\n   AND (\n       att.session_id IS NULL\n       OR turned.last_turn_at > att.last_attempt_at\n       OR (att.consecutive_failures > 0\n           AND att.last_attempt_at\n               + least(\n                   interval '5 minutes' * power(2, least(att.consecutive_failures, 10) - 1),\n                   interval '24 hours'\n                 ) < now())\n   )\n   AND (\n       att.session_id IS NULL\n       OR att.window_started_at IS NULL\n       OR att.window_started_at < now() - interval '24 hours'\n       OR att.window_attempts < $5::bigint\n   )\n   AND (\n       judged.session_id IS NULL\n       OR (judged.is_unknown AND turned.last_turn_at > judged.judged_at)\n       OR s.overview IS NULL\n   )\n ORDER BY s.last_seen DESC\n LIMIT $4\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_db_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "needs_verdict!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Text",
+        "Int4",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "ace7007d3e70e951b25beba0bf1d07ba7a1468b901d0b3f2d09a5e5a32d90cbb"
+}

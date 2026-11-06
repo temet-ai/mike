@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) FILTER (WHERE l.sibling_wait_seconds IS NOT NULL) AS \"waited!\",\n       count(*) AS \"forks!\"\n  FROM launch.launches l\n WHERE l.run_id = $1 AND l.template_id IS NOT NULL\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "waited!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "forks!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "f59af2b76874d57a94acdd908385b2b2284d1fcb245638e8c4996fae1a3cd009"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.system_prompts rsp\n                SET prompt_sha256 = v.sha,\n                    unknown_blocks = NULL\n               FROM unnest($1::bigint[], $2::text[]) AS v(request_id, sha)\n              WHERE rsp.request_id = v.request_id\n                AND rsp.prompt_sha256 IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bb226a27f997b9f00c8ede97ad68dddd071bdeab948178dea23d8da7a775afe2"
+}

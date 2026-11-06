@@ -1,0 +1,100 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT run_id, project_path, backend, workspace_ref, tab_ref, created_at, closed_at\n  FROM launch.runs\n WHERE run_id = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "run_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.runs",
+            "name": "run_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.runs",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "backend",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.runs",
+            "name": "backend"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "workspace_ref",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.runs",
+            "name": "workspace_ref"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "tab_ref",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.runs",
+            "name": "tab_ref"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.runs",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "closed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.runs",
+            "name": "closed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "acd27cfc6ac9f9c89374cb9608ffd742abe61bf320308c71c3fd16755ae8628e"
+}

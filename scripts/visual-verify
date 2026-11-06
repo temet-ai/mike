@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# visual-verify — whole-surface visual verification harness (#157).
+#
+# WHY THIS EXISTS
+#   A green Storybook run proves a component renders in isolation, which is
+#   the one condition under which "does this belong on the page" cannot be
+#   answered — Storybook is an isolation booth by design. This harness
+#   renders the FULL ROUTE on the real running app, with the change's real
+#   neighbours around it, before and after, for every route whose import
+#   graph provably depends on the changed files (never a route the calling
+#   session merely remembers using the component).
+#
+# USAGE
+#   scripts/visual-verify affected --before SHA --after SHA [--changed PATH ...]
+#     Prints the affected-route set as JSON. No rendering, no checkout.
+#
+#   scripts/visual-verify render --before SHA --after SHA
+#       [--route URLPATH ...] [--param name=value ...]
+#       [--viewport WxH] [--out DIR] [--inspect-backend URL]
+#     Full pipeline: discovers affected routes (or renders exactly the
+#     --route set given), checks out `before`/`after` into scratch git
+#     worktrees, boots an isolated `vite dev` per state against the real
+#     Rust inspect API, screenshots every renderable affected route, and
+#     writes manifest.json under --out (default
+#     artifacts/threads/verifier/wip/157/).
+#
+# See artifacts/threads/verifier/wip/157-harness-contract.md for the full
+# I/O contract (this is the file the Rust seam reads before wiring a call
+# site to this script).
+#
+# EXAMPLES
+#   scripts/visual-verify affected --before c5bff623 --after aa60198b
+#   scripts/visual-verify render --before c5bff623 --after aa60198b \
+#     --param sessionId=cdde3fc2-2efd-4446-b858-5c0dc3234480 \
+#     --viewport 1440x900
+#
+# EXIT CODES (render)
+#   0  rendered >=1 route pair
+#   3  affected-route discovery found nothing to render (not a failure —
+#      the caller should still branch on it distinctly from success)
+#   1  hard failure (checkout, install, server boot, or screenshot failure)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(dirname "$SCRIPT_DIR")"
+FRONTEND="$REPO/frontend"
+
+if [[ $# -lt 1 ]]; then
+	sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//; /^set -euo/d'
+	exit 2
+fi
+
+exec node "$FRONTEND/scripts/visual-verify/cli.mjs" "$@"

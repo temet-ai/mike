@@ -1,0 +1,123 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id AS \"id!\", session_id AS \"session_id!\", operator_turn_id AS \"operator_turn_id?\",\n       kind AS \"kind!\", data AS \"data!\",\n       CASE WHEN closed_at <= $2 THEN status ELSE 'open' END AS \"status!\",\n       source AS \"source!\", source_ref AS \"source_ref!\", dedup_key AS \"dedup_key!\",\n       extractor_version AS \"extractor_version!\", effective_at AS \"effective_at!\",\n       recorded_at AS \"recorded_at!\",\n       CASE WHEN closed_at <= $2 THEN closed_at END AS \"closed_at?\",\n       CASE WHEN closed_at <= $2 THEN close_recorded_at END AS \"close_recorded_at?\",\n       CASE WHEN closed_at <= $2 THEN closed_by END AS \"closed_by?\"\n  FROM memory.dossier_entries\n WHERE session_id = $1\n   AND source = 'capture'\n   AND effective_at <= $2\n   AND extractor_version = ANY($3)\nUNION ALL\nSELECT id, session_id, operator_turn_id, kind, data,\n       CASE WHEN close_recorded_at <= $2 THEN status ELSE 'open' END,\n       source, source_ref, dedup_key, extractor_version, effective_at, recorded_at,\n       CASE WHEN close_recorded_at <= $2 THEN closed_at END,\n       CASE WHEN close_recorded_at <= $2 THEN close_recorded_at END,\n       CASE WHEN close_recorded_at <= $2 THEN closed_by END\n  FROM memory.dossier_entries\n WHERE session_id = $1\n   AND source <> 'capture'\n   AND recorded_at <= $2\n ORDER BY \"effective_at!\", \"id!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "operator_turn_id?",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "data!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "status!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "source_ref!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "dedup_key!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "extractor_version!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "effective_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "recorded_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 12,
+        "name": "closed_at?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 13,
+        "name": "close_recorded_at?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 14,
+        "name": "closed_by?",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "d0dff54bd379185027fbbd72264c53179143a990c2b905be9da853eaf0f4384a"
+}

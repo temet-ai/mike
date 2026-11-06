@@ -1,0 +1,74 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH k AS (\n    SELECT turn_id, as_of FROM unnest($1::bigint[], $2::timestamptz[]) AS k(turn_id, as_of)\n)\nSELECT k.turn_id AS \"turn_id!\", u.id AS \"use_id!\", u.created_at AS \"at!\", u.tool_name AS \"tool_name!\",\n       coalesce(u.input, '{}'::jsonb) AS \"input!\",\n       (r.id IS NOT NULL) AS \"has_result!\"\n  FROM k\n  JOIN requests.requests q ON q.operator_turn_id = k.turn_id\n  JOIN tools.uses u ON u.request_id = q.id AND u.created_at <= k.as_of\n  LEFT JOIN tools.results r ON r.tool_use_id = u.id AND r.created_at <= k.as_of\n ORDER BY k.turn_id, u.created_at, u.request_id, u.ord\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "turn_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "use_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "tool_name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "tool_name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "input!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "has_result!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TimestamptzArray"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "c1394ec4c0e44419bb2e4fdcfc1d1aa72944dd3533ba3a8e1268bd0f42a56aef"
+}

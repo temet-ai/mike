@@ -1,0 +1,106 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH updated AS (\n                    UPDATE agents.agents\n                       SET name            = COALESCE($2, name),\n                           definition_path = CASE WHEN $3 THEN $4 ELSE definition_path END,\n                           description     = CASE WHEN $5 THEN $6 ELSE description END,\n                           source_id       = COALESCE(\n                               (SELECT id FROM agents.sources WHERE code = $7 LIMIT 1),\n                               source_id\n                           ),\n                           updated_at      = NOW()\n                     WHERE id = $1\n                   RETURNING id, name, definition_path, description, source_id,\n                             created_at, updated_at\n                )\n                SELECT u.id, u.name, u.definition_path, u.description,\n                       s.code AS \"source!\", u.created_at, u.updated_at\n                  FROM updated u\n                  JOIN agents.sources s ON s.id = u.source_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "definition_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "definition_path"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.sources",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Bool",
+        "Text",
+        "Bool",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "0ab64ecf5c99e9119d9f3dca1d1996d685bb69c4ae6051de800ae3e472d3013c"
+}

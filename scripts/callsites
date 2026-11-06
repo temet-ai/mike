@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+# Find every call site of a symbol, structurally.
+#
+# Why this exists. `ast-grep -p 'claim_reminders($$$)'` returns ZERO on this
+# repo, because these are method calls — the pattern that works is
+# `$_.claim_reminders($$$)`, which is not the one anybody types first. So the
+# tool silently answers "nothing" to a correct question, and everyone falls back
+# to grep. Plain `grep -rn claim_reminders` returns 27 hits of which 7 are
+# noise: comments, doc backticks, a test name, and `claim_reminders_fifo` — a
+# DIFFERENT function that shares the prefix. That last one is how a rename or a
+# signature change quietly misses a caller.
+#
+# This tries every call form and unions them, so the first thing you type is the
+# thing that works.
+#
+# Usage:
+#   scripts/callsites <symbol>            call sites (Rust + TS)
+#   scripts/callsites <symbol> --def      where it is DEFINED
+#   scripts/callsites --sql [table]       every sqlx::query!/query_as! site
+#   scripts/callsites <symbol> --files    file + count only
+#
+# Svelte templates are not AST-parseable by ast-grep; those are matched by text
+# and labelled, so you can see which hits are structural and which are not.
+set -uo pipefail
+
+cd "${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null)}" || exit 1
+command -v ast-grep >/dev/null 2>&1 || { echo "ast-grep not installed" >&2; exit 127; }
+command -v jq >/dev/null 2>&1 || { echo "jq not installed" >&2; exit 127; }
+
+RUST_DIRS=(crates)
+TS_DIRS=(frontend/src)
+
+sym=""; mode="calls"; files_only=0; FILTER=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --def)   mode="def" ;;
+    --sql)   mode="sql" ;;
+    --files) files_only=1 ;;
+    -h|--help) sed -n '2,30p' "$0" | sed 's/^# \?//'; exit 0 ;;
+    *)       sym="$1" ;;
+  esac
+  shift
+done
+
+scan() { # $1=pattern $2=lang $3...=paths
+  local pat="$1" lang="$2"; shift 2
+  ast-grep run -p "$pat" -l "$lang" "$@" --json=compact 2>/dev/null |
+    jq -r --arg f "$FILTER" '.[]
+      | select($f == "" or (.text | ascii_downcase | contains($f | ascii_downcase)))
+      | "\(.file)\t\(.range.start.line+1)\t\(.text|gsub("\\s+";" ")|.[0:120])"' || true
+}
+
+# A definition is matched by NODE KIND plus the name, not by a source pattern:
+# `pub(crate) fn claim_reminders(...)` matches none of `fn X($$$) { $$$ }`,
+# `pub fn ...` or `async fn ...`, so the pattern form answers a silent zero for
+# any item that carries a visibility or async modifier — which is most of them.
+def_rule() { # $1=node kind  $2=name
+  printf 'id: x\nlanguage: %s\nrule:\n  kind: %s\n  has:\n    field: name\n    regex: %s\n' \
+    "$3" "$1" "'^$2\$'"
+}
+
+scan_rule() { # $1=kind $2=name $3=lang $4...=paths
+  local kind="$1" name="$2" lang="$3"; shift 3
+  ast-grep scan --inline-rules "$(def_rule "$kind" "$name" "$lang")" "$@" --json=compact 2>/dev/null |
+    jq -r '.[] | "\(.file)\t\(.range.start.line+1)\t\(.text|gsub("\\s+";" ")|.[0:120])"' || true
+}
+
+out=""
+# --sql filters on the FULL macro text, before display truncation to 120 chars —
+# a table name past that point was being silently filtered out.
+[ "$mode" = "sql" ] && FILTER="$sym"
+
+case "$mode" in
+  sql)
+    for p in 'sqlx::query!($$$)' 'sqlx::query_as!($$$)' 'sqlx::query_scalar!($$$)'; do
+      out+="$(scan "$p" rust "${RUST_DIRS[@]}")"$'\n'
+    done
+    ;;
+  def)
+    [ -z "$sym" ] && { echo "usage: scripts/callsites <symbol> --def" >&2; exit 2; }
+    for k in function_item struct_item enum_item trait_item type_item; do
+      out+="$(scan_rule "$k" "$sym" rust "${RUST_DIRS[@]}")"$'\n'
+    done
+    for k in function_declaration interface_declaration type_alias_declaration class_declaration; do
+      out+="$(scan_rule "$k" "$sym" typescript "${TS_DIRS[@]}")"$'\n'
+    done
+    ;;
+  calls)
+    [ -z "$sym" ] && { echo "usage: scripts/callsites <symbol> [--def|--files]" >&2; exit 2; }
+    for p in "$sym(\$\$\$)" "\$_.$sym(\$\$\$)" "\$_::$sym(\$\$\$)"; do
+      out+="$(scan "$p" rust "${RUST_DIRS[@]}")"$'\n'
+      out+="$(scan "$p" typescript "${TS_DIRS[@]}")"$'\n'
+    done
+    ;;
+esac
+
+out="$(printf '%s' "$out" | grep -v '^$' | sort -u -t$'\t' -k1,1 -k2,2n || true)"
+
+if [ -z "$out" ]; then
+  echo "No structural match for '${sym:-sql}'."
+  if [ "$mode" = "calls" ] && [ -n "$sym" ]; then
+    echo "Falling back to text search so you are not left with a silent zero:"
+    grep -rn --include='*.rs' --include='*.ts' --include='*.svelte' -w -- "$sym" \
+      "${RUST_DIRS[@]}" "${TS_DIRS[@]}" 2>/dev/null | head -40
+  fi
+  exit 0
+fi
+
+if [ "$files_only" = 1 ]; then
+  printf '%s\n' "$out" | cut -f1 | uniq -c | sort -rn
+else
+  printf '%s\n' "$out" | awk -F'\t' '{printf "%s:%s\n    %s\n", $1, $2, $3}'
+  case "$mode" in
+    def) noun="definitions" ;;
+    sql) noun="sqlx query sites" ;;
+    *)   noun="structural call sites" ;;
+  esac
+  printf '\n%s '"$noun"' in %s files.\n' \
+    "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" \
+    "$(printf '%s\n' "$out" | cut -f1 | sort -u | wc -l | tr -d ' ')"
+fi
+
+# Svelte templates cannot be parsed — say so rather than under-reporting.
+if [ "$mode" = "calls" ] && [ -n "$sym" ]; then
+  sv=$(grep -rln --include='*.svelte' -w -- "$sym" "${TS_DIRS[@]}" 2>/dev/null | wc -l | tr -d ' ')
+  [ "$sv" != "0" ] && printf 'Plus %s .svelte files matching by text (not AST-parseable).\n' "$sv"
+fi
+exit 0

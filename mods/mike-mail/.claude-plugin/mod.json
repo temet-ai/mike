@@ -1,0 +1,5 @@
+{
+  "tagline": "Replies to mike mail go back through mike's mailbox",
+  "family": "mike",
+  "offers": { "acts": ["sends replies via mike, with a notice"] }
+}

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO sync.id_map (table_name, local_id, remote_id)\n             SELECT $1, m.l, m.r FROM unnest($2::bigint[], $3::bigint[]) AS m(l, r)\n             ON CONFLICT (table_name, local_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8Array",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f1dfae1987ac4c4b809c999c16c4c53d38f4750406a3c32b43261ea86a066dd5"
+}

@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT encode(digest('filter:' || $1, 'sha256'), 'hex')",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "encode",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "49ece094813d1cba83030620b6a9e861f29891f9b3f55717af155b36bc8bdc6e"
+}

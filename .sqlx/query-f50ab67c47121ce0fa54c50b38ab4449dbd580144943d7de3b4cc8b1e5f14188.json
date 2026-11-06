@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.skill_installs AS si\n                          (machine_uuid, project_id, folder, machine_name, skill_path, draft_id,\n                           lesson_watermark, first_written, retired_at, retired_reason, reported_at)\n                   SELECT $1, p.id, r.folder, $2, r.path, d.id, r.lesson_watermark,\n                          r.first_written, r.retired_at, r.retired_reason, now()\n                     FROM jsonb_to_recordset($3::jsonb)\n                          AS r(project_uuid uuid, folder text, path text, draft_id bigint,\n                               lesson_watermark bigint, first_written date, retired_at date,\n                               retired_reason text)\n                     JOIN projects.projects p ON p.project_uuid = r.project_uuid\n                     LEFT JOIN memory.skill_drafts d ON d.id = r.draft_id\n                   ON CONFLICT (machine_uuid, project_id, folder) DO UPDATE\n                      SET machine_name = EXCLUDED.machine_name, skill_path = EXCLUDED.skill_path,\n                          draft_id = EXCLUDED.draft_id, lesson_watermark = EXCLUDED.lesson_watermark,\n                          first_written = EXCLUDED.first_written, retired_at = EXCLUDED.retired_at,\n                          retired_reason = EXCLUDED.retired_reason,\n                          reported_at = EXCLUDED.reported_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f50ab67c47121ce0fa54c50b38ab4449dbd580144943d7de3b4cc8b1e5f14188"
+}

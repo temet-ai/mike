@@ -1,0 +1,110 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH turns AS (\n    SELECT t.id, t.session_id, t.closed_at, t.opened_by, t.user_prompt, t.start_request_id\n      FROM memory.operator_turns t\n     WHERE t.closed_at IS NOT NULL\n       AND t.closed_at >= $1 AND t.closed_at < $2\n       AND t.id > $3\n     ORDER BY t.id\n     LIMIT $4\n),\ntails AS (\n    SELECT tu.id AS turn_id,\n           right(string_agg(b.content, '' ORDER BY b.request_id, b.seq_ord), 4000) AS tail\n      FROM turns tu\n      JOIN requests.requests r ON r.operator_turn_id = tu.id\n      JOIN requests.turn_origins o ON o.id = r.turn_origin_id AND o.code NOT LIKE '%sidecar%'\n      JOIN responses.stream_blocks b ON b.request_id = r.id\n      JOIN responses.stream_block_types bt ON bt.id = b.block_type_id AND bt.code = 'text'\n     GROUP BY tu.id\n)\nSELECT tu.id AS \"turn_id!\", tu.session_id AS \"session_id!\", s.session_uuid AS \"session_uuid!\",\n       tu.closed_at AS \"closed_at?\", tu.opened_by AS \"opened_by?\", tu.user_prompt AS \"user_prompt?\",\n       sr.claude_code_agent_id AS \"agent_id?\", COALESCE(tl.tail, '') AS \"tail!\"\n  FROM turns tu\n  JOIN sessions.sessions s ON s.id = tu.session_id\n  LEFT JOIN requests.requests sr ON sr.id = tu.start_request_id\n  LEFT JOIN tails tl ON tl.turn_id = tu.id\n ORDER BY tu.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "closed_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "closed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "opened_by?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "opened_by"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "user_prompt?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "user_prompt"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "agent_id?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "claude_code_agent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "tail!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "f65769cfdf32e788e29ecedd250f58a6260c5e9bc406770ef3aeb5d1f0f95fad"
+}

@@ -1,0 +1,58 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH seats AS (\n    SELECT DISTINCT ON (s.id) l.seat, s.id AS sid, l.created_at AS launched_at,\n           CASE WHEN l.seat LIKE 'coordinator%' THEN 'coordinator'\n                WHEN l.seat LIKE 'observer%' THEN 'observer'\n                WHEN l.seat LIKE 'acceptance%' THEN 'acceptance'\n                WHEN l.seat LIKE 'template-%' THEN 'template'\n                WHEN l.seat = 'reference' THEN 'reference'\n                ELSE 'worker' END AS kind\n      FROM launch.launches l\n      JOIN sessions.sessions s ON s.session_uuid = l.session_uuid\n     WHERE l.run_id = $1 AND l.seat IS NOT NULL AND l.seat <> 'status'\n     ORDER BY s.id, l.created_at, l.id\n)\nSELECT s.kind AS \"kind!\",\n       count(*) AS \"requests!\",\n       coalesce(sum(p.input_tokens), 0)::bigint AS \"input_tokens!\",\n       coalesce(sum(p.output_tokens), 0)::bigint AS \"output_tokens!\",\n       coalesce(sum(p.cache_read_input_tokens), 0)::bigint AS \"cache_read_tokens!\",\n       coalesce(sum(p.cache_creation_input_tokens), 0)::bigint AS \"cache_write_tokens!\"\n  FROM seats s\n  JOIN requests.requests q ON q.session_id = s.sid AND q.created_at >= s.launched_at\n  JOIN responses.responses p ON p.request_id = q.id\n GROUP BY s.kind\n ORDER BY s.kind\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "requests!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "input_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "output_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "cache_read_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "cache_write_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "c7034a0be14c12348f552d3f57bcc5acd75e461c8f0d3856ff386bb478806c1d"
+}

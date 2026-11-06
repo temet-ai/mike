@@ -1,0 +1,61 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH seats AS (\n    SELECT DISTINCT ON (s.id) l.seat, s.id AS sid, l.created_at AS launched_at,\n           CASE WHEN l.seat LIKE 'coordinator%' THEN 'coordinator'\n                WHEN l.seat LIKE 'observer%' THEN 'observer'\n                WHEN l.seat LIKE 'acceptance%' THEN 'acceptance'\n                WHEN l.seat LIKE 'template-%' THEN 'template'\n                WHEN l.seat = 'reference' THEN 'reference'\n                ELSE 'worker' END AS kind\n      FROM launch.launches l\n      JOIN sessions.sessions s ON s.session_uuid = l.session_uuid\n     WHERE l.run_id = $1 AND l.seat IS NOT NULL AND l.seat <> 'status'\n     ORDER BY s.id, l.created_at, l.id\n)\nSELECT f.seat AS \"from_seat!\", t.seat AS \"to_seat!\", count(*) AS \"messages!\",\n       count(*) FILTER (WHERE m.channel_delivered_at IS NOT NULL OR m.sent_at IS NOT NULL) AS \"reached!\",\n       count(*) FILTER (WHERE m.consumed_at IS NOT NULL) AS \"acknowledged!\"\n  FROM (SELECT min(launched_at) AS at FROM seats) since\n  JOIN mailbox.messages m ON m.queued_at >= since.at\n  JOIN seats f ON f.sid = m.from_session_id\n  JOIN seats t ON t.sid = m.to_session_id\n GROUP BY f.seat, t.seat\n ORDER BY count(*) DESC, f.seat, t.seat\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "from_seat!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "seat"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "to_seat!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "seat"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "messages!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "reached!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "acknowledged!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "7df6c3abb34fa8a117cc492431a86b5b6a88daf8b460894b6152dffbc06a6ded"
+}

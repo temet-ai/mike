@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT a.id, a.run_id, a.lesson_id, a.lesson_uuid, a.source_turn_id,\n                  k.code AS action, o.code AS outcome, a.created_at\n             FROM memory.consolidation_actions a\n             JOIN memory.consolidation_action_kinds k ON k.id = a.action_kind_id\n             JOIN memory.consolidation_outcomes o ON o.id = a.outcome_id\n            WHERE a.id = ANY($1) ORDER BY a.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "run_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "run_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "lesson_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "lesson_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "lesson_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "lesson_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "source_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "source_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "action",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_action_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "outcome",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_outcomes",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f1c67b0dea36a8e847794868eefe8798141869a5637e03126c66c2621bf564e6"
+}

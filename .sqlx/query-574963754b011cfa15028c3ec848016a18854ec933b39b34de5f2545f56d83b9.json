@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE rules.rules r\n                 SET kind_id       = rk.id,\n                     value         = $3,\n                     action_id     = ra.id,\n                     text          = $5,\n                     trigger_token = $6,\n                     inject_text   = $7,\n                     enabled       = $8,\n                     source_id     = rs.id,\n                     updated_at    = $10,\n                     project_path  = $11,\n                     sort_order    = $12,\n                     style_override = $13,\n                     title         = $14\n                FROM rules.kinds   rk,\n                     rules.actions ra,\n                     rules.sources rs\n                WHERE rk.code = $2\n                  AND ra.code = $4\n                  AND rs.code = $9\n                  AND r.id    = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Bool",
+        "Text",
+        "Timestamptz",
+        "Text",
+        "Int4",
+        "Bool",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "574963754b011cfa15028c3ec848016a18854ec933b39b34de5f2545f56d83b9"
+}

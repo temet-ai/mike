@@ -1,0 +1,59 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT i.expires_at, i.pushed_at, i.acked_at,\n                          (sub.id IS NOT NULL) AS \"superseded!\"\n                     FROM steering.interventions i\n                     LEFT JOIN LATERAL (\n                         SELECT r.id\n                           FROM requests.requests r\n                          WHERE r.session_id = i.session_id\n                            AND r.id > i.trigger_request_id\n                            AND r.human_prompt <> ''\n                            AND r.turn_origin_id IN (1, 6)\n                            AND r.human_prompt NOT LIKE '<channel %'\n                            AND r.human_prompt NOT LIKE '%<task-notification>%'\n                            AND r.human_prompt NOT LIKE '%<teammate-message%'\n                            AND r.human_prompt NOT LIKE '%<agent-message from=%'\n                            AND r.human_prompt NOT LIKE '%Stop hook feedback:%'\n                            AND r.human_prompt NOT LIKE '%[SYSTEM NOTIFICATION - NOT USER INPUT]%'\n                            AND r.human_prompt NOT LIKE 'Tool loaded.%'\n                            AND r.human_prompt NOT LIKE '%<<autonomous-loop-dynamic>>%'\n                            AND r.human_prompt NOT LIKE '%<<autonomous-loop>>%'\n                            AND r.human_prompt NOT LIKE '%Fleet coordinator cycle wake%'\n                            AND r.human_prompt NOT LIKE '%Cross-session message from%'\n                            AND r.human_prompt NOT LIKE '%The user stepped away and is coming back%'\n                            AND r.human_prompt NOT LIKE '%Steering note from the operator''s proxy:%'\n                          LIMIT 1\n                     ) sub ON true\n                    WHERE i.uuid = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "pushed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "pushed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "acked_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "acked_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "superseded!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "c5df667ce49a9ae435b3fdd56e29502de26317381f1868d172de5ea63be79d3a"
+}

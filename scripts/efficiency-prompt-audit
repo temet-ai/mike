@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+"""Audit captured prompt overhead locally, exporting hashes and sizes only."""
+import argparse
+import json
+import os
+from pathlib import Path
+from efficiency_report.prompts import audit
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--request', action='append', type=int, required=True)
+parser.add_argument('--repo', type=Path, required=True)
+parser.add_argument('--inspect', default=os.environ.get('MIKE_INSPECT_URL', 'http://127.0.0.1:9989'))
+parser.add_argument('--output', type=Path, required=True)
+args = parser.parse_args()
+if args.output.exists():
+    parser.error('output already exists')
+report = audit(args.inspect, args.request, args.repo)
+args.output.parent.mkdir(parents=True, exist_ok=True)
+args.output.write_text(json.dumps(report, indent=2)+'\n')
+print(json.dumps(dict(output=str(args.output), observations=len(report['observations']))))

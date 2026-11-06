@@ -1,0 +1,40 @@
+packages:
+  - '.'
+
+# pnpm 11 no longer reads the `pnpm` field in package.json — it warns and
+# ignores it — so the settings that used to live there live here instead.
+# Both of them fail silently when they are dropped, which is why the move
+# matters: the overrides pin transitive dependencies to CVE-patched ranges,
+# and the patch is what makes @storybook/addon-svelte-csf work with our
+# Svelte 5 setup.
+
+# Bound every override at its major (`>=x <x+1`). An unbounded override lets a
+# breaking major in through the back door.
+overrides:
+  undici: '>=7.28.0 <8'
+  ws: '>=8.18.0 <9'
+  devalue: '>=5.9.3 <6'
+  source-map-js: '>=1.2.2 <2'
+  # markdown-it 15 needs linkify-it 6 (it imports the named `LinkifyIt` export,
+  # which 5.x does not have), so this floor moved up a major with it. 6.x
+  # carries the redirect-loop fix that made 5.0.1 the original floor.
+  linkify-it: '>=6.1.0 <7'
+  brace-expansion: '>=5.0.6 <6'
+  js-yaml: '>=4.2.0 <6'
+  cookie: '>=0.7.0 <0.8'
+  # @storybook/mcp depends on valibot 1.2.0 exactly, while its own
+  # @valibot/to-json-schema needs >=1.4.0 — an unmet peer that pnpm reports on
+  # every install. Lifting valibot to 1.4+ satisfies both.
+  valibot: '>=1.4.0 <2'
+
+patchedDependencies:
+  '@storybook/addon-svelte-csf@5.1.2': patches/@storybook__addon-svelte-csf@5.1.2.patch
+
+# pnpm 10 and later refuse to run a dependency's install scripts unless it is
+# named here; pnpm 9 ran them all without asking. esbuild's postinstall puts its
+# native binary in place, and vite, vitest and Storybook all shell out to it. An
+# unapproved build script is not just skipped — `pnpm install` exits 1, and
+# `pnpm exec` runs an install check first, so leaving one unanswered breaks
+# every `pnpm exec` command in the repo.
+allowBuilds:
+  esbuild: true

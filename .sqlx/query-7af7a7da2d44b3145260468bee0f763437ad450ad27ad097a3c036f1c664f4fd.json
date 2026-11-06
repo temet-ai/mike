@@ -1,0 +1,186 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.id AS \"id!\", l.uuid::text AS \"uuid!\", l.project_id, p.project_path,\n       lk.code AS \"kind!\", l.text AS \"text!\", l.topic,\n       l.session_id, s.session_uuid::text AS \"session_uuid?\", l.source_turn_id,\n       l.agent_id, l.created_at AS \"created_at!\", l.archived_at, ar.code AS \"archived_reason?\",\n       l.duplicate_of_id\n  FROM memory.lessons l\n  LEFT JOIN projects.projects p ON p.id = l.project_id\n  JOIN memory.lesson_kinds lk ON lk.id = l.kind_id\n  LEFT JOIN sessions.sessions s ON s.id = l.session_id\n  LEFT JOIN memory.lesson_archived_reasons ar ON ar.id = l.archived_reason_id\n WHERE p.project_path = $1\n   AND l.archived_at IS NOT NULL\n ORDER BY l.archived_at DESC\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "uuid!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "project_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "topic",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "topic"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "session_uuid?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "source_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "source_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "agent_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "agent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "archived_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "archived_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "archived_reason?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_archived_reasons",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "duplicate_of_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "duplicate_of_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      null,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "7af7a7da2d44b3145260468bee0f763437ad450ad27ad097a3c036f1c664f4fd"
+}

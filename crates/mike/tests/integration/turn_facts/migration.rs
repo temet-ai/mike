@@ -1,0 +1,40 @@
+use super::fixture;
+
+#[tokio::test]
+async fn migration_turn_facts_creates_table_and_toggle_row() -> anyhow::Result<()> {
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let table: Option<String> = sqlx::query_scalar("SELECT to_regclass('memory.turn_facts')::text")
+        .fetch_one(f.handle.pool())
+        .await?;
+    assert_eq!(table.as_deref(), Some("memory.turn_facts"));
+    let toggle: (bool, bool) = sqlx::query_as(
+        "SELECT enabled, operator_set FROM config.feature_toggles WHERE key = 'dossier_builder'",
+    )
+    .fetch_one(f.handle.pool())
+    .await?;
+    assert_eq!(
+        toggle,
+        (false, false),
+        "dossier_builder ships off by default"
+    );
+    f.db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn feature_toggles_key_check_still_rejects_unknown_keys() -> anyhow::Result<()> {
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let outcome = sqlx::query(
+        "INSERT INTO config.feature_toggles (key, enabled, operator_set)
+         VALUES ('not_a_toggle', true, false)",
+    )
+    .execute(f.handle.pool())
+    .await;
+    assert!(outcome.is_err());
+    f.db.cleanup().await?;
+    Ok(())
+}

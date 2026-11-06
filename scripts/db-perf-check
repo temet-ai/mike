@@ -1,0 +1,253 @@
+#!/usr/bin/env bash
+# db-perf-check — capture EXPLAIN (ANALYZE, BUFFERS) for a query against the live
+# DB with REAL data, compare a before/after pair, and emit a commit-ready
+# `Perf:` block. The enforcement arm of .claude/rules/rust-database-reliability.md.
+#
+# "Actual values" = EXPLAIN (ANALYZE, BUFFERS), which EXECUTES the query and
+# reports real timing/rows/buffers — not estimates. Mutations and DDL are
+# wrapped in BEGIN; … ROLLBACK; so measurement NEVER writes.
+#
+# Queries must be ready to run: substitute representative literal values for
+# $1/$2 placeholders (use real ids from the live DB, not 1 / -1). EXPLAIN
+# ANALYZE on an empty or unrepresentative table proves nothing.
+#
+# Usage:
+#   --db URL measures on that database instead of the live one (MIKE_DATABASE_URL
+#   from .env): a scratch copy for a query that needs an undeployed migration,
+#   per .claude/rules/rust-database-reliability.md.
+#   db-perf-check --tier <hot|read|periodic|migration> --label NAME \
+#                 --after  after.sql  [--before before.sql] [--runs N]
+#   echo "<sql>" | db-perf-check --tier read --label fetch_request_number   # after from stdin
+#
+# Tiers set the regression tolerance (how much slower the AFTER may be):
+#   hot       per captured request (capture/persistence) — 0% (must be ≤ before)
+#   read      per page-load / API call (inspect reads)    — 10%
+#   periodic  background workers / sweeps                 — 25%
+#   migration one-shot backfill                           — 50% (also warns on absolute runtime)
+#
+# Exit: 0 = pass (improved | neutral | baseline-only),
+#       1 = REGRESSION (slower past tolerance, or a new bad plan node),
+#       2 = could not measure (psql/DB error) — gate treats this as fail-open warn.
+#           When the DB is what failed, it prints the Perf-Unavailable: trailer to
+#           record that NOT RUN on the commit (mike#163).
+#
+# Evidence binding (issue #192): the emitted block includes `Perf-Query-SHA:`,
+# a normalized fingerprint of the AFTER query, and the before/after snapshots
+# are persisted under scripts/db-code-graders/perf-evidence/<date>/ as
+# <label>_{before,after}.sql. The G6 gate requires those snapshots STAGED in
+# the same commit and recomputes the fingerprint over them — a pasted verdict
+# without its matching staged measurement no longer passes.
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(git -C "$script_dir" rev-parse --show-toplevel 2>/dev/null || pwd)"
+if [[ -f "$repo_root/.env" ]]; then set -a; source "$repo_root/.env"; set +a; fi
+# Shared query fingerprint (also recomputed by g6_perf_evidence.sh).
+if [[ -f "$script_dir/lib/perf-query-sha.sh" ]]; then
+  source "$script_dir/lib/perf-query-sha.sh"
+fi
+
+DB_URL="${MIKE_DATABASE_URL:?MIKE_DATABASE_URL not set (expected in .env)}"
+
+TIER="" LABEL="" BEFORE_FILE="" AFTER_FILE="" SEQ_SCAN_ROWS=5000 BUDGET="" RUNS=3
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --db)    DB_URL="${2:?--db needs a database URL}"; shift 2 ;;
+    --tier)  TIER="$2"; shift 2 ;;
+    --label) LABEL="$2"; shift 2 ;;
+    --before) BEFORE_FILE="$2"; shift 2 ;;
+    --after)  AFTER_FILE="$2"; shift 2 ;;
+    --budget) BUDGET="$2"; shift 2 ;;
+    --seq-scan-rows) SEQ_SCAN_ROWS="$2"; shift 2 ;;
+    --runs) RUNS="$2"; shift 2 ;;
+    -h|--help) sed -n '2,54p' "$0"; exit 0 ;;
+    *) echo "unknown arg: $1" >&2; exit 2 ;;
+  esac
+done
+
+# TOL = how much slower than BEFORE is tolerated. DEFAULT_BUDGET = absolute exec-time
+# ceiling for the tier (a query over budget fails even if it didn't regress — being
+# performance-driven means designing to a target, not just "not worse than before").
+case "$TIER" in
+  hot) TOL=1.00; DEFAULT_BUDGET=5 ;;
+  read) TOL=1.10; DEFAULT_BUDGET=50 ;;
+  periodic) TOL=1.25; DEFAULT_BUDGET=500 ;;
+  migration) TOL=1.50; DEFAULT_BUDGET=5000 ;;
+  *) echo "--tier must be one of: hot|read|periodic|migration" >&2; exit 2 ;;
+esac
+BUDGET="${BUDGET:-$DEFAULT_BUDGET}"
+# EXPLAIN ANALYZE cannot resolve a delta smaller than its own run-to-run spread, so a
+# percentage tolerance alone declares a regression on jitter — at hot's 0% a query
+# measured against ITSELF fails. NOISE_MS is that floor, scaled to the tier's budget.
+NOISE_MS="$(awk "BEGIN{printf \"%.3f\", $BUDGET*0.05}")"
+[[ -n "$LABEL" ]] || { echo "--label is required" >&2; exit 2; }
+
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "$tmpdir"' EXIT
+
+# after from stdin if no --after
+if [[ -z "$AFTER_FILE" ]]; then
+  AFTER_FILE="$tmpdir/after.sql"; cat > "$AFTER_FILE"
+fi
+[[ -s "$AFTER_FILE" ]] || { echo "no AFTER query provided" >&2; exit 2; }
+
+# Detect a data-modifying statement (so we wrap it in a rolled-back tx).
+is_mutation() {
+  local first
+  first="$(grep -vE '^\s*--' "$1" | grep -oiE '\b(INSERT|UPDATE|DELETE|MERGE|CREATE|ALTER|DROP|TRUNCATE)\b' | head -1 | tr '[:lower:]' '[:upper:]')"
+  [[ -n "$first" ]]
+}
+
+# Run EXPLAIN (ANALYZE, BUFFERS) on a query file; print the plan to stdout.
+# Mutations/DDL are wrapped BEGIN; … ROLLBACK; so nothing is persisted.
+run_explain() {
+  local qfile="$1" wrap="$tmpdir/wrap.sql"
+  if is_mutation "$qfile"; then
+    { echo "BEGIN;"; echo "EXPLAIN (ANALYZE, BUFFERS)"; cat "$qfile"; echo ";"; echo "ROLLBACK;"; } > "$wrap"
+  else
+    { echo "EXPLAIN (ANALYZE, BUFFERS)"; cat "$qfile"; echo ";"; } > "$wrap"
+  fi
+  # -f file (never a pipe) so the exit code is honest (psql-in-a-pipe masks it).
+  psql "$DB_URL" -X -q -v ON_ERROR_STOP=1 -f "$wrap" 2>&1
+}
+
+exec_ms()  { grep -oE 'Execution Time: [0-9.]+' <<<"$1" | grep -oE '[0-9.]+' | tail -1; }
+# Bad plan nodes: correlated SubPlan, or a Seq Scan whose estimated rows exceed the threshold.
+bad_nodes() {
+  local plan="$1" hits=""
+  grep -q 'SubPlan' <<<"$plan" && hits+="SubPlan "
+  while IFS= read -r line; do
+    local rows; rows="$(grep -oE 'rows=[0-9]+' <<<"$line" | head -1 | grep -oE '[0-9]+')"
+    [[ -n "$rows" && "$rows" -gt "$SEQ_SCAN_ROWS" ]] && hits+="SeqScan(rows=$rows) "
+  done < <(grep -E 'Seq Scan' <<<"$plan")
+  echo "$hits"
+}
+
+# Best-of-N: EXPLAIN ANALYZE timing is noisy for sub-10ms queries; take the minimum
+# of several runs (warmest cache, least interference) so a verdict is stable, not luck.
+# Raise --runs when the pair is sub-5ms on a shared DB, where 3 samples still leave
+# the winner decided by scheduler jitter rather than by the plans.
+measure() {  # $1=qfile → sets MEAS_MS (min exec over RUNS) and MEAS_PLAN (fastest run's plan)
+  local qfile="$1" best="" bestplan="" plan ms i
+  for ((i=0; i<RUNS; i++)); do
+    plan="$(run_explain "$qfile")" || { MEAS_PLAN="$plan"; MEAS_MS=""; return 1; }
+    ms="$(exec_ms "$plan")"; [[ -z "$ms" ]] && { MEAS_PLAN="$plan"; MEAS_MS=""; return 1; }
+    if [[ -z "$best" ]] || awk "BEGIN{exit !($ms < $best)}"; then best="$ms"; bestplan="$plan"; fi
+  done
+  MEAS_MS="$best"; MEAS_PLAN="$bestplan"; return 0
+}
+
+# A failed EXPLAIN is either a broken query or a DB that cannot be reached, and
+# only the second one is unfixable from here. Re-probe with a fresh connection to
+# tell them apart: on a full-disk Postgres every new backend dies writing its init
+# file while established ones keep answering, so "reads still work" is not a
+# reachable DB (mike#163).
+explain_failed() {  # $1 = which query, $2 = plan/error text
+  echo "$1 query failed to EXPLAIN:"
+  echo "$2"
+  if PGCONNECT_TIMEOUT=5 psql "$DB_URL" -X -q -At -c 'SELECT 1' >/dev/null 2>&1; then
+    echo ""
+    echo "The capture DB is reachable, so this is the query, not the connection."
+    exit 2
+  fi
+  cat <<EOF
+
+The capture DB refused a fresh connection, so this change cannot be measured at
+all right now. Record the honest NOT RUN in the commit message instead of
+shipping without saying so:
+
+  Perf-Unavailable: capture DB unreachable at commit time; <label> NOT RUN.
+
+G6 re-probes the DB itself and only honours that trailer while the DB is really
+down — re-measure and land the evidence once it is back.
+EOF
+  exit 2
+}
+
+echo "── db-perf-check: $LABEL (tier=$TIER, tolerance=$(awk "BEGIN{printf \"%d\", ($TOL-1)*100}")%+${NOISE_MS}ms, budget=${BUDGET}ms, best of ${RUNS}) ──"
+
+measure "$AFTER_FILE" || explain_failed AFTER "$MEAS_PLAN"
+after_ms="$MEAS_MS"; after_plan="$MEAS_PLAN"; after_bad="$(bad_nodes "$after_plan")"
+echo "AFTER : ${after_ms} ms  ${after_bad:+[bad nodes: $after_bad]}"
+
+verdict="baseline" exit_code=0 before_ms="" before_bad=""
+if [[ -n "$BEFORE_FILE" ]]; then
+  measure "$BEFORE_FILE" || explain_failed BEFORE "$MEAS_PLAN"
+  before_ms="$MEAS_MS"; before_plan="$MEAS_PLAN"; before_bad="$(bad_nodes "$before_plan")"
+  echo "BEFORE: ${before_ms} ms  ${before_bad:+[bad nodes: $before_bad]}"
+  # New bad node introduced by the rewrite?
+  new_bad=""
+  for n in $after_bad; do grep -qw -- "${n%%(*}" <<<"$before_bad" || new_bad+="$n "; done
+  limit="$(awk "BEGIN{printf \"%.3f\", $before_ms*$TOL+$NOISE_MS}")"
+  if [[ -n "$new_bad" ]]; then
+    verdict="regression"; exit_code=1; echo "✗ REGRESSION: new bad plan node(s): $new_bad"
+  elif awk "BEGIN{exit !($after_ms > $limit)}"; then
+    verdict="regression"; exit_code=1
+    echo "✗ REGRESSION: ${after_ms} ms > ${limit} ms (before ${before_ms} ms + ${TIER} tolerance + ${NOISE_MS} ms noise floor)"
+  elif awk "BEGIN{exit !($after_ms < $before_ms*0.9)}"; then
+    verdict="improved"; echo "✓ improved"
+  else
+    verdict="neutral"; echo "✓ neutral (within tolerance)"
+  fi
+else
+  # No baseline (new query). Flag bad nodes on latency-sensitive tiers as a regression signal.
+  if [[ -n "$after_bad" && ( "$TIER" == "hot" || "$TIER" == "read" ) ]]; then
+    verdict="regression"; exit_code=1; echo "✗ REGRESSION: bad plan node on a $TIER-tier query: $after_bad"
+  else
+    echo "✓ baseline recorded (no before to compare)"
+  fi
+fi
+
+# Absolute budget: a query slower than its tier budget is a FAIL even if it did not
+# regress vs the old version — performance-driven means hitting the target for the
+# area, not merely "no worse than before".
+if awk "BEGIN{exit !($after_ms > $BUDGET)}"; then
+  echo "✗ OVER BUDGET: ${after_ms} ms > ${BUDGET} ms budget for the ${TIER} tier — design to the target, not just to beat the baseline"
+  [[ "$verdict" != "regression" ]] && verdict="over_budget"
+  exit_code=1
+fi
+
+# ── persist snapshots as tracked evidence (G6 binding, issue #192) ────────────
+# The G6 gate requires the measured snapshots staged in the same commit as the
+# SQL change, so copy the inputs to their canonical tracked home. Best-effort:
+# a copy failure degrades the hint, never the measurement.
+evid_rel="scripts/db-code-graders/perf-evidence/$(date +%F)"
+evidence_paths=()
+persist_evidence() {  # $1 = source file, $2 = before|after
+  local src="$1" kind="$2" src_abs dst
+  src_abs="$(cd "$(dirname "$src")" 2>/dev/null && pwd)/$(basename "$src")" || return 0
+  dst="$repo_root/$evid_rel/${LABEL}_${kind}.sql"
+  if [[ "$src_abs" == "$dst" ]]; then
+    evidence_paths+=("$evid_rel/${LABEL}_${kind}.sql")
+  elif mkdir -p "$repo_root/$evid_rel" 2>/dev/null && cp "$src_abs" "$dst" 2>/dev/null; then
+    evidence_paths+=("$evid_rel/${LABEL}_${kind}.sql")
+  fi
+  return 0
+}
+[[ -n "$BEFORE_FILE" ]] && persist_evidence "$BEFORE_FILE" before
+persist_evidence "$AFTER_FILE" after
+
+# Fingerprint of the measured AFTER query — g6 recomputes this over the staged
+# after-snapshot and blocks on mismatch. Empty (no sha tool / lib missing) is
+# tolerated fail-open by the gate.
+query_sha=""
+if declare -F perf_query_sha >/dev/null; then
+  query_sha="$(perf_query_sha < "$AFTER_FILE" || true)"
+fi
+
+echo ""
+echo "── paste into the commit message ──"
+echo "Perf-Tier: $TIER"
+echo "Perf-Label: $LABEL"
+[[ -n "$before_ms" ]] && echo "Perf-Before-ms: $before_ms"
+echo "Perf-After-ms: $after_ms"
+echo "Perf-Budget-ms: $BUDGET"
+echo "Perf-Verdict: $verdict"
+[[ -n "$query_sha" ]] && echo "Perf-Query-SHA: $query_sha"
+
+if (( ${#evidence_paths[@]} > 0 )); then
+  echo ""
+  echo "── stage the measured snapshots with the commit (G6 requires them) ──"
+  echo "  git add ${evidence_paths[*]}"
+fi
+exit "$exit_code"

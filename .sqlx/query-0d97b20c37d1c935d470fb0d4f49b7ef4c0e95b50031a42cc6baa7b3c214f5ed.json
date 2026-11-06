@@ -1,0 +1,72 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH launches AS (\n    SELECT l.id, l.seat, l.created_at, l.closed_at, l.opened_at, l.channel_checked_at,\n           l.brief_mode = 'inline' AS by_hand,\n           substring(l.seat from '-([A-Z]+[0-9]+)[a-z]*$') AS task,\n           CASE WHEN l.seat LIKE 'coordinator%' OR l.seat LIKE 'observer%' OR l.seat LIKE 'acceptance%'\n                     OR l.seat LIKE 'template-%' OR l.seat = 'reference' THEN false\n                ELSE true END AS is_worker\n      FROM launch.launches l\n     WHERE l.run_id = $1 AND l.seat IS NOT NULL AND l.seat <> 'status'\n),\nfirst_per_task AS (\n    SELECT DISTINCT ON (task) task, created_at, by_hand\n      FROM launches\n     WHERE is_worker AND task IS NOT NULL\n     ORDER BY task, created_at, id\n),\nlast_auto AS (\n    SELECT max(created_at) AS at FROM first_per_task WHERE NOT by_hand\n),\nhand_firsts AS (\n    SELECT f.task, f.created_at,\n           f.created_at - lag(f.created_at) OVER (ORDER BY f.created_at, f.task) AS gap\n      FROM first_per_task f, last_auto a\n     WHERE f.by_hand AND f.created_at > a.at\n),\nbursts AS (\n    SELECT task, created_at,\n           sum(CASE WHEN gap IS NULL OR gap > interval '60 seconds' THEN 1 ELSE 0 END)\n               OVER (ORDER BY created_at, task) AS burst\n      FROM hand_firsts\n),\nstalled AS (\n    SELECT b.task, extract(epoch FROM b.created_at - a.at) / 60 AS minutes\n      FROM bursts b, last_auto a\n     WHERE b.burst = 1\n       AND (SELECT min(created_at) FROM bursts) - a.at > interval '5 minutes'\n),\nbounds AS (\n    SELECT min(created_at) AS first_launch, max(closed_at) AS last_closed FROM launches\n)\nSELECT coalesce(round((extract(epoch FROM b.last_closed - b.first_launch) / 60)::numeric, 1), 0)::float8 AS \"time_to_done_minutes!\",\n       coalesce(round((greatest(extract(epoch FROM r.closed_at - b.last_closed), 0) / 60)::numeric, 1), 0)::float8 AS \"stop_minutes!\",\n       coalesce((SELECT round((sum(greatest(extract(epoch FROM coalesce(channel_checked_at, opened_at) - created_at) - 30, 0)) / 60)::numeric, 1)\n                   FROM launches), 0)::float8 AS \"relaunch_gap_minutes!\",\n       coalesce((SELECT round(sum(minutes)::numeric, 1) FROM stalled), 0)::float8 AS \"no_seat_minutes!\",\n       (SELECT count(*) FROM launches) AS \"seat_launches!\",\n       (SELECT count(*) FROM launches WHERE by_hand) AS \"hand_starts!\",\n       (SELECT count(DISTINCT task) FROM launches WHERE is_worker AND task IS NOT NULL) AS \"task_count!\",\n       (SELECT count(*) FROM launches WHERE is_worker) AS \"worker_launches!\"\n  FROM bounds b\n  LEFT JOIN launch.runs r ON r.run_id = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "time_to_done_minutes!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "stop_minutes!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "relaunch_gap_minutes!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "no_seat_minutes!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "seat_launches!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "hand_starts!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "task_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "worker_launches!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "0d97b20c37d1c935d470fb0d4f49b7ef4c0e95b50031a42cc6baa7b3c214f5ed"
+}

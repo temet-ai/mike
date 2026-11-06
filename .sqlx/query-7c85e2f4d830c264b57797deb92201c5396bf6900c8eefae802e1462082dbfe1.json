@@ -1,0 +1,107 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.id AS turn_id, t.session_id, f.stop_request_id,\n       rs.completed_at AS \"stop_completed_at?\", t.closed_at AS \"closed_at!\",\n       COALESCE(t.final_assistant_text, '') AS \"final_text!\", f.text_spans, f.session_class\n  FROM memory.operator_turns t\n  JOIN memory.turn_facts f ON f.operator_turn_id = t.id AND f.ended_on = 'promise_or_wait'\n  LEFT JOIN requests.requests rs ON rs.id = f.stop_request_id\n WHERE t.session_id = ANY($1)\n   AND t.closed_at IS NOT NULL\n   AND NOT EXISTS (SELECT 1 FROM memory.dossier_entries d\n                    WHERE d.kind = 'promise' AND d.dedup_key = 'turn:' || t.id)\n ORDER BY t.session_id, t.closed_at, t.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "stop_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "stop_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "stop_completed_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "completed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "closed_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "closed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "final_text!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "text_spans",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "text_spans"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "session_class",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "session_class"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      null,
+      false,
+      false
+    ]
+  },
+  "hash": "7c85e2f4d830c264b57797deb92201c5396bf6900c8eefae802e1462082dbfe1"
+}

@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT jsonb_build_object('project_uuid', p.project_uuid,\n               'project_id', p.id, 'name', COALESCE(p.custom_name, p.display_name),\n               'project_path', p.project_path, 'locations',\n               COALESCE(jsonb_agg(jsonb_build_object('location_uuid', l.location_uuid,\n                 'machine_uuid', l.machine_uuid, 'machine_name', m.name,\n                 'root_path', l.root_path, 'last_seen', l.last_seen)\n                 ORDER BY m.name, l.root_path, l.location_uuid)\n                 FILTER (WHERE l.location_uuid IS NOT NULL), '[]'::jsonb)) AS \"project!\"\n             FROM projects.projects p\n             LEFT JOIN projects.locations l ON l.project_id = p.id\n             LEFT JOIN projects.machines m ON m.machine_uuid = l.machine_uuid\n             WHERE p.project_path <> '(no project)' AND p.merged_into_id IS NULL\n             GROUP BY p.id ORDER BY p.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "project!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "5f72227d8444a0d1fa1f2e27b9123ed9077fe7edd1d0d163890bfd5c68e33740"
+}

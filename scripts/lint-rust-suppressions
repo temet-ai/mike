@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Reject source-level attributes capable of weakening the structural lint
+# policy. `-F` cannot be used for these lints because third-party derive macros
+# internally emit broad allow(pedantic/restriction) attributes; scanning our
+# source keeps repository code strict without breaking generated code.
+set -uo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(dirname "$SCRIPT_DIR")"
+PATTERN='#\s*!?\s*\[[^]]*(allow|expect)\s*\([^]]*(clippy::(all|complexity|pedantic|restriction|cognitive_complexity|too_many_arguments|too_many_lines)|warnings)'
+
+hits="$(rg -n -U --glob '*.rs' "$PATTERN" "$REPO/crates" 2>&1)"
+status=$?
+case "$status" in
+  0)
+    echo "rust-suppressions: FAIL — structural lint suppressions are not permitted" >&2
+    printf '%s\n' "$hits" | sed "s#${REPO}/##" >&2
+    echo "Refactor the function or module; do not suppress or weaken the lint." >&2
+    exit 1
+    ;;
+  1)
+    echo "rust-suppressions: PASS — no structural lint suppressions"
+    exit 0
+    ;;
+  *)
+    echo "rust-suppressions: ERROR — source scan failed" >&2
+    printf '%s\n' "$hits" >&2
+    exit "$status"
+    ;;
+esac

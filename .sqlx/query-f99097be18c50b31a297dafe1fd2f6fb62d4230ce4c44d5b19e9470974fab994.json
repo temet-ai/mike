@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE steering.question_policies\n                    SET holdback_pct = $3, updated_at = now(), updated_via = $4\n                  WHERE steerer_id = $1 AND question = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int2",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f99097be18c50b31a297dafe1fd2f6fb62d4230ce4c44d5b19e9470974fab994"
+}

@@ -1,0 +1,2 @@
+exit 1
+DRIFT C6 JC09 docs/ARCHITECTURE.md:1 retired fragment still present: The judge input is the prompt head

@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT local_session_uuid FROM remote_control.channels\n          WHERE cse_id = 'cse_sweepTickAbc123'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "local_session_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "local_session_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "1d35568fb83e3876dc72557896cfd29f0f13c58e00aa1dd6ae44593f733ad890"
+}

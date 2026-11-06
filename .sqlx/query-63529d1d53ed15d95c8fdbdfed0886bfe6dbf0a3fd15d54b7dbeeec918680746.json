@@ -1,0 +1,160 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n                   enrolment_id,\n                   session_id,\n                   session_uuid,\n                   steerer_id,\n                   steerer_name,\n                   steerer_display_name,\n                   steerer_enabled,\n                   mode,\n                   authority,\n                   enrolled_at,\n                   enrolled_by,\n                   disenrolled_at\n               FROM mike.session_enrolments_v\n              WHERE session_uuid = $1\n              ORDER BY enrolled_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "enrolment_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mike.session_enrolments_v",
+            "name": "enrolment_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mike.session_enrolments_v",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "session_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "mike.session_enrolments_v",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "steerer_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mike.session_enrolments_v",
+            "name": "steerer_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "steerer_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_enrolments_v",
+            "name": "steerer_name"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "steerer_display_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_enrolments_v",
+            "name": "steerer_display_name"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "steerer_enabled",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "mike.session_enrolments_v",
+            "name": "steerer_enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "mode",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_enrolments_v",
+            "name": "mode"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "authority",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_enrolments_v",
+            "name": "authority"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "enrolled_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mike.session_enrolments_v",
+            "name": "enrolled_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "enrolled_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mike.session_enrolments_v",
+            "name": "enrolled_by"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "disenrolled_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mike.session_enrolments_v",
+            "name": "disenrolled_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "63529d1d53ed15d95c8fdbdfed0886bfe6dbf0a3fd15d54b7dbeeec918680746"
+}

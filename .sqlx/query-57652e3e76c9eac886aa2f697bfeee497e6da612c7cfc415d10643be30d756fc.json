@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT tot.code\n           FROM memory.operator_turns ot\n           JOIN memory.turn_outcomes tot ON tot.id = ot.outcome_id\n          WHERE ot.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "code",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_outcomes",
+            "name": "code"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "57652e3e76c9eac886aa2f697bfeee497e6da612c7cfc415d10643be30d756fc"
+}

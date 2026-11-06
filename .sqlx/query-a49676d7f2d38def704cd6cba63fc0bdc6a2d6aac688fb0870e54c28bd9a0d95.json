@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO responses.stream_blocks\n             (request_id, session_id, block_type_id, seq_ord,\n              content, signature, wire_tool_use_id,\n              content_sha256, byte_size)\n             SELECT $1, $2, sbt.id, $3, $4, NULL, NULL, $5, $6\n             FROM responses.stream_block_types sbt\n             WHERE sbt.code = $7\n             ON CONFLICT (request_id, seq_ord) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int4",
+        "Text",
+        "Text",
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a49676d7f2d38def704cd6cba63fc0bdc6a2d6aac688fb0870e54c28bd9a0d95"
+}

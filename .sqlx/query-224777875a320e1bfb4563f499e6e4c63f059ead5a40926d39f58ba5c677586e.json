@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT max(classified_at) FROM memory.operator_turns\n                  WHERE judge_model IS NOT NULL AND created_at >= now() - interval '30 days'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "max",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "224777875a320e1bfb4563f499e6e4c63f059ead5a40926d39f58ba5c677586e"
+}

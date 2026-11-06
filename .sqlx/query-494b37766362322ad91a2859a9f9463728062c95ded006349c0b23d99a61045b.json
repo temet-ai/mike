@@ -1,0 +1,181 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH q AS (\n    SELECT u.facet, u.vec::vector AS v FROM unnest($1::text[], $2::text[]) AS u(facet, vec)\n),\nqual AS (\n    SELECT l.subject_id AS turn_id, 'eval.labels:' || l.id AS ref, l.tier AS qualification,\n           1 AS rank, l.id AS ord\n      FROM eval.labels_as_of(CASE WHEN $5 THEN 'infinity'::timestamptz ELSE $4 END) l\n     WHERE l.subject_kind = 'turn' AND l.axis = 'reaction' AND l.label = 'corrected'\n       AND l.split = 'dev'\n       AND (l.tier IN ('gold', 'relayed') OR ($11 = 'internal' AND l.tier = 'seed'))\n    UNION ALL\n    SELECT v.operator_turn_id, 'memory.turn_verdicts:' || v.id, 'live_verdict', 2, v.id\n      FROM memory.turn_verdicts v\n     WHERE $11 IN ('steerer', 'internal') AND v.mode = 'live' AND v.projected\n       AND v.reaction = 'corrected' AND v.created_at <= $4\n),\nbest_qual AS (\n    SELECT DISTINCT ON (turn_id) turn_id, ref, qualification\n      FROM qual ORDER BY turn_id, rank, ord DESC\n),\npool AS (\n    SELECT i.id, 'corr'::text AS item_facet, i.text, i.source_ref, i.operator_turn_id, i.session_id,\n           i.project_id, i.request_id, i.effective_at, i.recorded_at, i.embedding,\n           bq.ref AS qualification_ref, bq.qualification, pf.operator_turn_id AS corrected_turn_id\n      FROM memory.semantic_items i\n      JOIN memory.turn_facts f ON f.operator_turn_id = i.operator_turn_id\n      JOIN memory.turn_facts pf\n        ON (CASE WHEN $5 THEN pf.next_genuine_request_id_at_close = i.request_id\n                 ELSE pf.next_genuine_turn_id = i.operator_turn_id END)\n      JOIN best_qual bq ON bq.turn_id = pf.operator_turn_id\n     WHERE i.kind = 'turn_prompt' AND i.embedder_key = $3\n       AND i.effective_at < $4\n       AND ($5 OR i.recorded_at <= $4)\n       AND (CASE WHEN $5 THEN f.prompt_kind_at_close ELSE f.prompt_kind END) = 'genuine'\n       AND f.session_class = 'operator'\n       AND i.operator_turn_id IS DISTINCT FROM $6\n       AND ($7 = 'operator' OR ($7 = 'project' AND i.project_id IS NOT DISTINCT FROM $8)\n            OR ($7 = 'session' AND i.session_id = $9))\n       AND pf.operator_turn_id IS DISTINCT FROM $6\n       AND NOT EXISTS (\n           SELECT 1 FROM eval.turn_splits s\n            WHERE s.split = 'holdout' AND s.operator_turn_id IN (i.operator_turn_id, pf.operator_turn_id))\n)\nSELECT p.id AS \"item_id!\", p.item_facet AS \"item_facet!\", p.text AS \"text!\",\n       p.source_ref AS \"source_ref!\", p.operator_turn_id, p.session_id, p.project_id,\n       p.request_id, p.effective_at AS \"effective_at!\", p.recorded_at AS \"recorded_at!\",\n       q.facet AS \"query_facet!\", (1 - (p.embedding <=> q.v))::float8 AS \"similarity!\",\n       p.qualification_ref, p.qualification, p.corrected_turn_id\n  FROM pool p CROSS JOIN q\n ORDER BY \"similarity!\" DESC, p.id\n LIMIT $10\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "item_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "item_facet!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "source_ref!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "source_ref"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "operator_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "effective_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "effective_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "recorded_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "recorded_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "query_facet!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "similarity!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 12,
+        "name": "qualification_ref",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 13,
+        "name": "qualification",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 14,
+        "name": "corrected_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "operator_turn_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        "Text",
+        "Timestamptz",
+        "Bool",
+        "Int8",
+        "Text",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      null,
+      null,
+      null,
+      null,
+      false
+    ]
+  },
+  "hash": "494b37766362322ad91a2859a9f9463728062c95ded006349c0b23d99a61045b"
+}

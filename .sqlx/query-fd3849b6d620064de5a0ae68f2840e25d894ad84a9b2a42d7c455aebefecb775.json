@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO projects.projects (project_path, display_name, first_seen, last_seen)\n         VALUES ($1, $1, now(), now()) ON CONFLICT (project_path) DO SELECT FOR KEY SHARE RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "fd3849b6d620064de5a0ae68f2840e25d894ad84a9b2a42d7c455aebefecb775"
+}

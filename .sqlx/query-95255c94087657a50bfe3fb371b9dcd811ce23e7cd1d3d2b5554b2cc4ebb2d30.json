@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT m.body, rm.cache_control\n           FROM requests.messages rm\n           JOIN messages.messages m ON m.id = rm.message_id\n          WHERE rm.request_id = $1\n          ORDER BY rm.ord ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "body",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "messages.messages",
+            "name": "body"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "cache_control",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "requests.messages",
+            "name": "cache_control"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "95255c94087657a50bfe3fb371b9dcd811ce23e7cd1d3d2b5554b2cc4ebb2d30"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE steering.interventions\n            SET trigger_request_id = $1\n          WHERE uuid = $2::text::uuid\n            AND trigger_request_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "529d97af54951cc0d3357c4aa35f8d654d85584af9cce2119e08faeb0a0b4505"
+}

@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT pk.code AS \"kind_code!\", COUNT(pkc.request_id)::bigint AS \"turn_count!\"\n           FROM prompt_kinds.kinds pk\n           LEFT JOIN prompt_kinds.classifications pkc\n                  ON pkc.kind_id = pk.id AND pkc.session_id = $1\n          GROUP BY pk.code\n          ORDER BY pk.code",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind_code!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "prompt_kinds.kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "turn_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "044d810cb6d2522c720f2af7ae38a162dd802945b8e9f219b45704525dba7954"
+}

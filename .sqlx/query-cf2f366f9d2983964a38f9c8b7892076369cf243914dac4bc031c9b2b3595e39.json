@@ -1,0 +1,45 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH target AS (\n    SELECT DISTINCT unnest($1::bigint[]) AS turn_id\n),\nlive AS (\n    SELECT DISTINCT ON (v.operator_turn_id)\n           v.operator_turn_id AS turn_id, v.id, v.bundle_id, v.reaction, v.delivery, v.confidence,\n           v.model, v.rubric_version, v.rationale, v.unmet_ask, v.evidence_quality\n      FROM memory.turn_verdicts v\n      JOIN target t ON t.turn_id = v.operator_turn_id\n      LEFT JOIN memory.turn_facts f ON f.operator_turn_id = v.operator_turn_id\n      JOIN memory.operator_turns ot ON ot.id = v.operator_turn_id\n      JOIN requests.requests r ON r.id = ot.start_request_id\n     WHERE v.mode = 'live'\n       AND v.bundle_id = $2\n       AND v.reaction IS NOT NULL\n       AND r.claude_code_agent_id IS NULL\n       AND (f.operator_turn_id IS NULL OR (\n           f.prompt_kind = 'genuine' AND f.session_class <> 'synthetic'\n           AND f.next_state IN ('resolved', 'none_session_settled')\n           AND v.next_genuine_request_id IS NOT DISTINCT FROM f.next_genuine_request_id))\n     ORDER BY v.operator_turn_id, v.id DESC\n),\ngold AS (\n    SELECT DISTINCT ON (l.subject_id, l.axis) l.subject_id AS turn_id, l.axis, l.label\n      FROM eval.labels_as_of('infinity'::timestamptz) l\n      JOIN target t ON t.turn_id = l.subject_id\n     WHERE l.subject_kind = 'turn'\n       AND l.tier = 'gold'\n       AND l.axis IN ('reaction', 'delivery')\n     ORDER BY l.subject_id, l.axis, l.created_at DESC, l.id DESC\n),\nend_gold AS (\n    SELECT DISTINCT ON (l.subject_id) l.subject_id AS turn_id, l.label\n      FROM eval.labels_as_of('infinity'::timestamptz) l\n      JOIN target t ON t.turn_id = l.subject_id\n     WHERE l.subject_kind = 'session_end' AND l.axis = 'session_end' AND l.tier = 'gold'\n     ORDER BY l.subject_id, l.created_at DESC, l.id DESC\n),\nend_live AS (\n    SELECT DISTINCT ON (v.end_turn_id) v.end_turn_id AS turn_id, v.end_label AS label\n      FROM session_judges.verdicts v\n      JOIN target t ON t.turn_id = v.end_turn_id\n     WHERE v.mode = 'live' AND v.bundle_id = $6 AND v.end_label IS NOT NULL\n     ORDER BY v.end_turn_id, v.judged_at DESC, v.id DESC\n),\nends AS (\n    SELECT t.turn_id\n      FROM target t\n      JOIN memory.turn_facts f ON f.operator_turn_id = t.turn_id AND f.next_state = 'none_session_settled'\n      JOIN memory.operator_turns ot ON ot.id = t.turn_id\n      JOIN requests.requests r ON r.id = ot.start_request_id\n      LEFT JOIN end_gold eg ON eg.turn_id = t.turn_id\n      LEFT JOIN end_live el ON el.turn_id = t.turn_id\n     WHERE COALESCE(eg.label, el.label) = 'closed_in_frustration'\n       AND f.prompt_kind = 'genuine' AND f.session_class <> 'synthetic'\n       AND r.claude_code_agent_id IS NULL\n),\ngold_axes AS (\n    SELECT g.turn_id,\n           max(g.label) FILTER (WHERE g.axis = 'reaction') AS reaction,\n           max(g.label) FILTER (WHERE g.axis = 'delivery') AS delivery\n      FROM gold g\n     GROUP BY g.turn_id\n),\ninputs AS (\n    SELECT t.turn_id,\n           ga.reaction AS gold_reaction,\n           ga.delivery AS gold_delivery,\n           lv.id AS live_id,\n           lv.bundle_id AS live_bundle_id,\n           lv.reaction AS live_reaction,\n           lv.delivery AS live_delivery,\n           lv.confidence,\n           lv.model,\n           lv.rubric_version,\n           lv.rationale,\n           lv.unmet_ask,\n           lv.evidence_quality,\n           (en.turn_id IS NOT NULL AND ga.reaction IS NULL) AS frustration_close\n      FROM target t\n      LEFT JOIN gold_axes ga ON ga.turn_id = t.turn_id\n      LEFT JOIN live lv ON lv.turn_id = t.turn_id\n      LEFT JOIN ends en ON en.turn_id = t.turn_id\n     WHERE ga.turn_id IS NOT NULL OR lv.id IS NOT NULL OR en.turn_id IS NOT NULL OR $3::boolean\n),\nsourced AS (\n    SELECT i.*,\n           COALESCE(i.gold_reaction, i.live_reaction) AS reaction,\n           COALESCE(i.gold_delivery, i.live_delivery) AS delivery,\n           CASE\n               WHEN i.frustration_close THEN 'frustration_close'\n               WHEN i.gold_reaction IS NOT NULL OR i.gold_delivery IS NOT NULL THEN 'operator'\n               WHEN i.live_id IS NOT NULL THEN 'judge'\n               ELSE 'no_verdict'\n           END AS source,\n           CASE\n               WHEN i.gold_reaction IS NOT NULL THEN i.gold_reaction\n               WHEN i.live_reaction IS NOT NULL AND i.confidence >= $5::real THEN i.live_reaction\n               WHEN i.live_reaction IS NOT NULL THEN 'unclear'\n           END AS effective_reaction\n      FROM inputs i\n),\ncomputed AS (\n    SELECT s.turn_id, s.reaction, s.delivery, s.source,\n           CASE WHEN s.source IN ('judge', 'frustration_close') THEN s.live_id END AS live_verdict_id,\n           CASE WHEN s.source IN ('judge', 'frustration_close') THEN s.live_bundle_id END AS bundle_id,\n           s.model, s.rubric_version, s.rationale, s.unmet_ask, s.evidence_quality,\n           CASE\n               WHEN s.frustration_close THEN 'abandoned'\n               WHEN s.effective_reaction = 'corrected' THEN 'corrected'\n               WHEN s.effective_reaction IN ('accepted', 'redirected') AND s.delivery = 'shipped' THEN 'shipped'\n               WHEN s.effective_reaction IN ('accepted', 'redirected') THEN 'accepted'\n               WHEN s.delivery = 'shipped' THEN 'shipped'\n               ELSE 'unknown'\n           END AS outcome_code\n      FROM sourced s\n),\nsnap AS (\n    INSERT INTO memory.operator_turn_legacy_labels\n        (turn_id, outcome_id, classified_at, judge_model, judge_rubric_version, rationale,\n         unmet_ask, evidence_quality, judge_failure_reason)\n    SELECT ot.id, ot.outcome_id, ot.classified_at, ot.judge_model, ot.judge_rubric_version,\n           ot.rationale, ot.unmet_ask, ot.evidence_quality, ot.judge_failure_reason\n      FROM memory.operator_turns ot\n      JOIN computed c ON c.turn_id = ot.id\n     WHERE ot.outcome_source IS NULL\n       AND ot.closed_at IS NOT NULL\n    ON CONFLICT (turn_id) DO NOTHING\n    RETURNING turn_id\n)\nUPDATE memory.operator_turns ot\n   SET outcome_id                 = tot.id,\n       reaction                   = c.reaction,\n       delivery                   = c.delivery,\n       live_verdict_id            = c.live_verdict_id,\n       outcome_source             = c.source,\n       outcome_bundle_id          = c.bundle_id,\n       outcome_projection_version = $4::smallint,\n       outcome_projected_at       = now(),\n       judge_model                = c.model,\n       judge_rubric_version       = c.rubric_version,\n       rationale                  = c.rationale,\n       unmet_ask                  = c.unmet_ask,\n       evidence_quality           = c.evidence_quality\n  FROM computed c\n  JOIN memory.turn_outcomes tot ON tot.code = c.outcome_code\n WHERE ot.id = c.turn_id\n   AND ot.closed_at IS NOT NULL\n   AND (ot.outcome_id, ot.reaction, ot.delivery, ot.outcome_source, ot.live_verdict_id,\n        ot.outcome_bundle_id, ot.outcome_projection_version)\n       IS DISTINCT FROM (tot.id, c.reaction, c.delivery, c.source, c.live_verdict_id,\n        c.bundle_id, $4::smallint)\nRETURNING ot.id AS \"id!\", tot.code AS \"code!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "code!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_outcomes",
+            "name": "code"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8",
+        "Bool",
+        "Int2",
+        "Float4",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "cf2f366f9d2983964a38f9c8b7892076369cf243914dac4bc031c9b2b3595e39"
+}

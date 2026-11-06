@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lesson_shape_findings\n            SET resolution = $2, resolved_at = now(), replacement_lesson_id = $3\n          WHERE lesson_id = $1 AND resolution IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0496d53509d3df672cc9b823a22f44c88740dc6595054dc8ea9ffb5f5bd8cec4"
+}

@@ -1,0 +1,16 @@
+---
+source: crates/mike/src/api/handlers/tests_03.rs
+assertion_line: 242
+expression: value
+---
+{
+  "last_24h": 3,
+  "totals_by_analyzer": {
+    "justifying_shortcuts_analyzer": 2,
+    "overselling_analyzer": 1
+  },
+  "totals_by_category": {
+    "justifying_shortcuts": 2,
+    "overselling": 1
+  }
+}

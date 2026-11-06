@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT owning_seat_id FROM runtime.threads WHERE namespace_id = $1 AND provider_thread_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "owning_seat_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.threads",
+            "name": "owning_seat_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "c007f409ff34edafa70172934b0489e4ad366546b15b807a8e081ea446c89b20"
+}

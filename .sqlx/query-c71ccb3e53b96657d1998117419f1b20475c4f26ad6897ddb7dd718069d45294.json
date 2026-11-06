@@ -1,0 +1,192 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH ins AS (\n                     INSERT INTO overrides.overrides\n                         (prompt_sha256, label, blocks, mode_id,\n                          agent_name, agent_definition_path, agent_id,\n                          system_prompt_id, lane)\n                     SELECT $1, $2, $3, m.id, $5, $6, $7, $8, $9\n                     FROM overrides.modes m\n                     WHERE m.code = $4\n                     RETURNING id, uuid, prompt_sha256, label, blocks,\n                               mode_id, lane, notes, agent_name, agent_definition_path,\n                               agent_id, version, created_at, updated_at\n                 )\n                 SELECT ins.id, ins.uuid, ins.prompt_sha256 AS \"prompt_sha256!\",\n                        ins.label, ins.blocks, m.code AS \"mode!\", ins.lane,\n                        ins.notes, ins.agent_name, ins.agent_definition_path,\n                        ins.agent_id AS \"agent_id?\",\n                        ins.version, ins.created_at, ins.updated_at\n                 FROM ins\n                 JOIN overrides.modes m ON m.id = ins.mode_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "prompt_sha256!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "prompt_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "label"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "blocks",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "blocks"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "mode!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.modes",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "lane",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "lane"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "notes",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "notes"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "agent_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "agent_name"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "agent_definition_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "agent_definition_path"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "agent_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "agent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "version",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "version"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Jsonb",
+        "Text",
+        "Text",
+        "Text",
+        "Int8",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "c71ccb3e53b96657d1998117419f1b20475c4f26ad6897ddb7dd718069d45294"
+}

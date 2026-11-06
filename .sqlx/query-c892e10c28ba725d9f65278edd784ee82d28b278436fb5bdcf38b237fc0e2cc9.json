@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH attempt AS (\n    SELECT source_id\n      FROM remote_control.injections\n     WHERE event_id = $1 AND source_kind = 'steerer' AND source_id IS NOT NULL\n)\nUPDATE steering.interventions i\n   SET pushed_at = CASE WHEN $2 THEN i.pushed_at ELSE NULL END\n  FROM attempt a\n WHERE i.uuid = a.source_id::uuid\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c892e10c28ba725d9f65278edd784ee82d28b278436fb5bdcf38b237fc0e2cc9"
+}

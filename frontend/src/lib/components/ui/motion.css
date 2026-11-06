@@ -1,0 +1,355 @@
+[data-motion~='press'] {
+	transition-property: transform;
+	transition-duration: var(--dur-1);
+	transition-timing-function: var(--ease-snap);
+}
+
+[data-motion~='press']:active:not([aria-haspopup]) {
+	transform: translateY(1px);
+}
+
+[data-motion~='select'] {
+	transition-property: color, background-color, border-color, opacity;
+	transition-duration: var(--dur-1);
+	transition-timing-function: var(--ease-io);
+}
+
+[data-motion~='select']::after {
+	transition-property: opacity, background-color, transform;
+	transition-duration: var(--dur-1);
+	transition-timing-function: var(--ease-io);
+}
+
+[data-motion~='hover'],
+[data-motion~='hover']::before,
+[data-motion~='hover']::after {
+	transition-property:
+		color, background-color, border-color, box-shadow, filter, opacity, transform, translate;
+	transition-duration: var(--dur-1);
+	transition-timing-function: var(--ease-snap);
+}
+
+[data-motion~='show'] {
+	transition-property: opacity, visibility, color, background-color, transform, translate;
+	transition-duration: var(--dur-1);
+	transition-timing-function: var(--ease-snap);
+}
+
+[data-motion~='disclose'] {
+	display: grid;
+	grid-template-rows: 0fr;
+	transition-property: grid-template-rows;
+	transition-duration: var(--dur-2);
+	transition-timing-function: var(--ease-snap);
+}
+
+[data-motion~='disclose'] > * {
+	min-height: 0;
+	overflow: hidden;
+}
+
+[data-motion~='disclose'][data-state='open'] {
+	grid-template-rows: 1fr;
+}
+
+@property --motion-cut {
+	syntax: '<length>';
+	inherits: false;
+	initial-value: 0px;
+}
+
+[data-motion~='disclose-cut'] {
+	transition-property: --motion-cut;
+	transition-duration: var(--dur-2);
+	transition-timing-function: var(--ease-io);
+}
+
+[data-motion~='disclose-marker'] {
+	transition-property: transform, color;
+	transition-duration: var(--dur-2);
+	transition-timing-function: var(--ease-snap);
+}
+
+[data-motion~='enter'] {
+	animation-name: funk-enter;
+	animation-duration: var(--dur-2);
+	animation-timing-function: var(--ease-snap);
+	animation-iteration-count: 1;
+	animation-fill-mode: both;
+}
+
+@keyframes funk-enter {
+	from {
+		opacity: 0;
+		transform: translateY(var(--space-2));
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+[data-motion~='arrive'] {
+	animation-name: funk-arrive;
+	animation-duration: var(--dur-3);
+	animation-timing-function: var(--ease-io);
+	animation-iteration-count: 1;
+	animation-fill-mode: both;
+}
+
+@keyframes funk-arrive {
+	from {
+		opacity: 0;
+		transform: translateY(var(--space-3));
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+[data-motion*='wait'] {
+	animation-timing-function: var(--ease-io);
+	animation-iteration-count: infinite;
+}
+
+[data-motion~='wait'] {
+	animation-name: funk-wait-sweep;
+	animation-duration: calc(var(--dur-3) * 3);
+}
+
+[data-motion~='wait-spin'] {
+	animation-name: funk-wait-spin;
+	animation-duration: calc(var(--dur-3) * 2);
+}
+
+[data-motion~='wait-march'] {
+	animation-name: funk-wait-march;
+	animation-duration: calc(var(--dur-3) * 3);
+}
+
+[data-motion~='wait-march']:nth-of-type(2) {
+	animation-delay: var(--dur-3);
+}
+
+[data-motion~='wait-march']:nth-of-type(3) {
+	animation-delay: calc(var(--dur-3) * 2);
+}
+
+[data-motion~='wait-dash'] {
+	animation-name: funk-wait-dash;
+	animation-duration: calc(var(--dur-3) * 3);
+	animation-timing-function: linear;
+}
+
+[data-motion~='wait-dash'][data-direction='reverse'] {
+	animation-direction: reverse;
+}
+
+@keyframes funk-wait-sweep {
+	from {
+		background-position: 200% 0;
+	}
+	to {
+		background-position: -200% 0;
+	}
+}
+
+@keyframes funk-wait-spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes funk-wait-dash {
+	from {
+		stroke-dashoffset: 0;
+	}
+	to {
+		stroke-dashoffset: var(--dash-to, -100px);
+	}
+}
+
+@keyframes funk-wait-march {
+	0% {
+		transform: translateX(calc(-1 * var(--space-1)));
+	}
+	50% {
+		transform: translateX(var(--space-1));
+	}
+	100% {
+		transform: translateX(calc(-1 * var(--space-1)));
+	}
+}
+
+:is(
+	[data-slot='dialog-overlay'],
+	[data-slot='sheet-overlay'],
+	[data-slot='dialog-content'],
+	[data-slot='sheet-content'],
+	[data-slot='popover-content'],
+	[data-slot='tooltip-content']
+) {
+	animation-duration: var(--dur-2);
+	animation-timing-function: var(--ease-snap);
+	animation-iteration-count: 1;
+	animation-fill-mode: both;
+}
+
+:is([data-slot='dialog-overlay'], [data-slot='sheet-overlay']) {
+	animation-timing-function: var(--ease-io);
+}
+
+:is([data-slot='dialog-overlay'], [data-slot='sheet-overlay'])[data-state='open'],
+[data-slot='tooltip-content']:is([data-state='instant-open'], [data-state='delayed-open']) {
+	animation-name: funk-surface-fade-in;
+}
+
+:is(
+	[data-slot='dialog-overlay'],
+	[data-slot='sheet-overlay'],
+	[data-slot='tooltip-content']
+)[data-state='closed'] {
+	animation-name: funk-surface-fade-out;
+}
+
+[data-slot='dialog-content'][data-state='open'] {
+	animation-name: funk-dialog-in;
+}
+
+[data-slot='dialog-content'][data-state='closed'] {
+	animation-name: funk-dialog-out;
+}
+
+[data-slot='sheet-content'][data-state='open'] {
+	animation-name: funk-sheet-in;
+}
+
+[data-slot='sheet-content'][data-state='closed'] {
+	animation-name: funk-sheet-out;
+}
+
+[data-slot='popover-content'][data-state='open'] {
+	animation-name: funk-popover-in;
+}
+
+[data-slot='popover-content'][data-state='closed'] {
+	animation-name: funk-popover-out;
+}
+
+:is(
+	[data-slot='dialog-overlay'],
+	[data-slot='sheet-overlay'],
+	[data-slot='dialog-content'],
+	[data-slot='sheet-content'],
+	[data-slot='popover-content']
+)[data-state='closed'],
+[data-slot='tooltip-content'] {
+	animation-duration: var(--dur-1);
+	animation-timing-function: var(--ease-io);
+}
+
+@keyframes funk-surface-fade-in {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes funk-surface-fade-out {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0;
+	}
+}
+
+@keyframes funk-dialog-in {
+	from {
+		opacity: 0;
+		transform: translateY(var(--space-2));
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes funk-dialog-out {
+	from {
+		opacity: 1;
+		transform: translateY(0);
+	}
+	to {
+		opacity: 0;
+		transform: translateY(var(--space-2));
+	}
+}
+
+@keyframes funk-sheet-in {
+	from {
+		transform: translateX(100%);
+	}
+	to {
+		transform: translateX(0);
+	}
+}
+
+@keyframes funk-sheet-out {
+	from {
+		transform: translateX(0);
+	}
+	to {
+		transform: translateX(100%);
+	}
+}
+
+@keyframes funk-popover-in {
+	from {
+		opacity: 0;
+		transform: scale(0.95);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1);
+	}
+}
+
+@keyframes funk-popover-out {
+	from {
+		opacity: 1;
+		transform: scale(1);
+	}
+	to {
+		opacity: 0;
+		transform: scale(0.95);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-delay: 0s !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		transition-delay: 0s !important;
+		scroll-behavior: auto !important;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-group(*),
+	::view-transition-old(*),
+	::view-transition-new(*) {
+		animation-duration: 0.01ms !important;
+		animation-delay: 0s !important;
+	}
+}

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT worker_status FROM remote_control.channels WHERE cse_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "worker_status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "remote_control.channels",
+            "name": "worker_status"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "38a9c29e6b9408e570609bbe0b606deb3f64b9ccbc60e2fc16d693f465672c12"
+}

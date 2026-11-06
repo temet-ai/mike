@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO tools.uses (wire_tool_use_id, request_id, session_id, ord, tool_name, file_path, created_at)\n         SELECT $1, $2, $3, count(*)::int, $4, $5, $6 FROM tools.uses WHERE request_id = $2\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8",
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0531177d064683639de19937f4d38f8bc623e97be23bbfaa986b9aefc7e51e73"
+}

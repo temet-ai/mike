@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH recent AS (\n                       SELECT cost_usd FROM session_judges.verdicts\n                        WHERE bundle_id = $1 AND mode = 'live' AND cost_usd IS NOT NULL\n                        ORDER BY id DESC LIMIT 200\n                   )\n                   SELECT avg(cost_usd)::float8 AS \"mean_cost\" FROM recent",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "mean_cost",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "fb7502be415a48c414756df2112a0365b18d5a690dc8b1235dd2b6b79503d968"
+}

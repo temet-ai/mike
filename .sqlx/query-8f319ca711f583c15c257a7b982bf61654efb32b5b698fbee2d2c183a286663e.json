@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT overview AS \"overview?\", overview_generated_at AS \"overview_generated_at?\"\n             FROM sessions.sessions WHERE session_uuid = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "overview?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "overview"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "overview_generated_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "overview_generated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "8f319ca711f583c15c257a7b982bf61654efb32b5b698fbee2d2c183a286663e"
+}

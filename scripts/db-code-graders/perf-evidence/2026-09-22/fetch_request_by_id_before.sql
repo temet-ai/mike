@@ -1,0 +1,56 @@
+SELECT r.id, s.session_uuid::text AS session_id,
+            m.code AS method, r.path, r.model, r.is_streaming, r.message_count, r.is_tool_loop,
+            st.code AS status,
+            r.request_headers,
+            r.params,
+            r.request_body,
+            r.filtered_request_body,
+            r.last_user_message, r.human_prompt,
+            tt.code AS turn_type, torg.code AS turn_origin, r.subagent_persona,
+            r.created_at, r.completed_at,
+            r.intercepted,
+            r.correction_request_id,
+            r.agent_instance_id,
+            r.claude_code_agent_id,
+            r.transformation_manifest,
+            rsp.prompt_sha256        AS rsp_prompt_sha256,
+            rsp.override_id          AS rsp_composition_id,
+            rsp.override_applied     AS rsp_composition_applied,
+            rsp.unknown_blocks       AS rsp_unknown_blocks,
+            rsp.filter_modified      AS rsp_filter_modified,
+            COALESCE(fru.rsp_firing_rule_ids, '{}'::bigint[]) AS rsp_firing_rule_ids,
+            COALESCE(sp.blocks, spl_sub.blocks, spl_main.blocks) AS sp_blocks,
+            p.project_path           AS project_path,
+            rr.upstream_request_id   AS rr_upstream_request_id,
+            rr.upstream_message_id   AS rr_upstream_message_id,
+            rr.response_status       AS rr_response_status,
+            rr.response_headers      AS rr_response_headers,
+            rr.response_body         AS rr_response_body,
+            rr.token_usage           AS rr_token_usage,
+            rsr.code                 AS rr_stop_reason,
+            rr.stop_details          AS rr_stop_details
+     FROM requests.requests r
+     JOIN requests.methods m ON m.id = r.method_id
+     JOIN requests.statuses st ON st.id = r.status_id
+     JOIN requests.turn_types tt ON tt.id = r.turn_type_id
+     JOIN requests.turn_origins torg ON torg.id = r.turn_origin_id
+     LEFT JOIN responses.responses rr
+            ON rr.request_id = r.id
+     LEFT JOIN responses.stop_reasons rsr ON rsr.id = rr.stop_reason_id
+     LEFT JOIN requests.system_prompts rsp
+            ON rsp.request_id = r.id
+     LEFT JOIN overrides.overrides pc ON pc.id = rsp.override_id
+     LEFT JOIN system_prompts.system_prompts sp ON sp.prompt_sha256 = rsp.prompt_sha256
+     LEFT JOIN system_prompts.session_prompts spl_sub
+            ON spl_sub.instance_id = r.agent_instance_id
+     LEFT JOIN system_prompts.session_prompts spl_main
+            ON spl_main.session_id = r.session_id AND spl_main.lane = 'main'
+     LEFT JOIN sessions.sessions s ON s.id = r.session_id
+     LEFT JOIN projects.projects p ON p.id = s.project_id
+     LEFT JOIN LATERAL (
+         SELECT ARRAY_AGG(fr.id ORDER BY j.ord) AS rsp_firing_rule_ids
+         FROM requests.system_prompt_firing_rules j
+         JOIN rules.rules fr ON fr.id = j.filter_rule_id
+         WHERE j.request_system_prompt_id = rsp.id
+     ) fru ON true
+     WHERE r.id = 411692;

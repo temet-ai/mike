@@ -1,0 +1,11 @@
+export const goto = async (_url: string | URL, _opts?: unknown) => {};
+export const invalidate = async (_url: string | URL | ((url: URL) => boolean)) => {};
+export const invalidateAll = async () => {};
+export const preloadCode = async (..._urls: string[]) => {};
+export const preloadData = async (_url: string) => {};
+export const pushState = (_url: string | URL, _state: object) => {};
+export const replaceState = (_url: string | URL, _state: object) => {};
+export const beforeNavigate = (_fn: (nav: unknown) => void) => {};
+export const afterNavigate = (_fn: (nav: unknown) => void) => {};
+export const onNavigate = (_fn: (nav: unknown) => void) => {};
+export const disableScrollHandling = () => {};

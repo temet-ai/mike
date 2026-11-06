@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id\n                   FROM memory.operator_turns\n                  WHERE closed_at   IS NOT NULL\n                    AND embedded_at IS NULL\n                    AND (opened_by IS NULL OR opened_by = 'operator')\n                  ORDER BY closed_at ASC\n                  LIMIT $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4905b66ac0889c0c3c45c65130de5d79576cfc755e4453dcf74c9887fee0e264"
+}

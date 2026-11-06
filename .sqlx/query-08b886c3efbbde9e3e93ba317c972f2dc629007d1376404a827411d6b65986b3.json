@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.ask_ledger_entries e\n    SET operator_turn_id = t.id\n   FROM memory.operator_turns t\n  WHERE t.start_request_id = e.request_id\n    AND e.operator_turn_id IS NULL\n    AND e.session_id = ANY($1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "08b886c3efbbde9e3e93ba317c972f2dc629007d1376404a827411d6b65986b3"
+}

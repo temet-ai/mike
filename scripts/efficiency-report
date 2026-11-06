@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+"""Write a local fleet efficiency report without model calls or setting changes."""
+import argparse
+import json
+import os
+from pathlib import Path
+
+from efficiency_report.collect import collect
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--project', action='append', required=True)
+    parser.add_argument('--limit', type=int, default=5, choices=range(1, 21))
+    parser.add_argument('--inspect', default=os.environ.get('MIKE_INSPECT_URL', 'http://127.0.0.1:9989'))
+    parser.add_argument('--output', type=Path, required=True)
+    args = parser.parse_args()
+    if args.output.exists():
+        parser.error('output already exists; choose a new evidence file')
+    report = collect(args.inspect, args.project, args.limit)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(report, indent=2)+'\n')
+    print(json.dumps(dict(output=str(args.output), runs=len(report['runs']), errors=report['errors'])))
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,101 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT tr.tool_use_id AS \"tu_id!\",\n       tr.request_id AS \"request_id!\",\n       tu.wire_tool_use_id AS \"wire_tool_use_id!\",\n       tr.is_error AS \"is_error!\",\n       tr.content_sha256 AS \"content_sha256!\",\n       tr.content_bytes AS \"content_bytes!\",\n       tr.content AS \"content!\"\n  FROM tools.results tr\n  JOIN tools.uses tu\n       ON tu.id = tr.tool_use_id\n      AND tu.id = ANY($1)\n WHERE tr.tool_use_id = ANY($1)\n   AND tr.session_id = $2\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tu_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "tool_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "wire_tool_use_id!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "wire_tool_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "is_error!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "is_error"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "content_sha256!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "content_bytes!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "content!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "b0e17a916ce04715c047365cd1856a8c92246f91219880fb44b0c5a3be8ae605"
+}

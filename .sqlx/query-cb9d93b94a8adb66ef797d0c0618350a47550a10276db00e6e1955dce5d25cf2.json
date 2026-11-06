@@ -1,0 +1,78 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH per_lesson_injections AS (\n                     SELECT lesson_id,\n                            count(*)                    AS injection_count,\n                            count(DISTINCT session_id)   AS distinct_session_count\n                       FROM memory.lesson_injections\n                      GROUP BY lesson_id\n                 ),\n                 per_lesson_verdicts AS (\n                     SELECT DISTINCT li.lesson_id, v.id AS verdict_id, v.outcome_id, v.quality_score\n                       FROM memory.lesson_injections li\n                       JOIN session_judges.verdicts v\n                         ON v.session_id = li.session_id\n                        AND v.judged_at  > li.injected_at\n                        AND v.mode = 'live'\n                 ),\n                 per_lesson_outcome_counts AS (\n                     SELECT pv.lesson_id, o.code AS outcome, count(*) AS outcome_count\n                       FROM per_lesson_verdicts pv\n                       JOIN session_judges.outcomes o ON o.id = pv.outcome_id\n                      GROUP BY pv.lesson_id, o.code\n                 ),\n                 per_lesson_quality AS (\n                     SELECT lesson_id, avg(quality_score)::float8 AS mean_quality_score\n                       FROM per_lesson_verdicts\n                      GROUP BY lesson_id\n                 )\n                 SELECT l.id                          AS \"lesson_id!\",\n                        l.text                         AS \"lesson_text!\",\n                        pli.injection_count            AS \"injection_count!\",\n                        pli.distinct_session_count     AS \"distinct_session_count!\",\n                        ploc.outcome                   AS \"outcome?\",\n                        ploc.outcome_count             AS \"outcome_count?\",\n                        plq.mean_quality_score         AS \"mean_quality_score?\"\n                   FROM memory.lessons l\n                   JOIN per_lesson_injections pli ON pli.lesson_id = l.id\n              LEFT JOIN per_lesson_outcome_counts ploc ON ploc.lesson_id = l.id\n              LEFT JOIN per_lesson_quality        plq  ON plq.lesson_id = l.id\n                  ORDER BY l.id, ploc.outcome",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lesson_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "lesson_text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "injection_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "distinct_session_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "outcome?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.outcomes",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "outcome_count?",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "mean_quality_score?",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      null,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "cb9d93b94a8adb66ef797d0c0618350a47550a10276db00e6e1955dce5d25cf2"
+}

@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.id\n                           FROM requests.requests r\n                           JOIN requests.turn_origins tor\n                             ON tor.id = r.turn_origin_id AND tor.code = 'primary_first'\n                           JOIN projects.projects p ON p.id = r.project_id\n                          ORDER BY r.created_at DESC\n                          LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "aa3c348cfc9386c50e340806a05edcc565519a60a7f359fc01173ab5908defa9"
+}

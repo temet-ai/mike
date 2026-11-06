@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO remote_control.channels (cse_id, local_session_uuid)\n         VALUES ($1, $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3698ebc6a48a97be9df576f1893078506a6c321b4809a56c0bd92e888dfc4482"
+}

@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO eval.rollups (for_day, sql_version, mode, labels_as_of, finished_at)\n                   VALUES ($1::timestamptz::date, 'adhoc:' || gen_random_uuid()::text, 'manual', $2, now())\n                   RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.rollups",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "25895f0644f0e54518c0652313c05a4a0bd681a2e7eee195cbf010ff6211f0a4"
+}

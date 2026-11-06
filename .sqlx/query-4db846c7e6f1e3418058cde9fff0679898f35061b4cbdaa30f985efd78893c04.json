@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT source,\n                          embedding_model AS model,\n                          embedded_at,\n                          chunk_count\n                     FROM memory.session_embeddings\n                    WHERE session_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "source",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.session_embeddings",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "model",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.session_embeddings",
+            "name": "embedding_model"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "embedded_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.session_embeddings",
+            "name": "embedded_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "chunk_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.session_embeddings",
+            "name": "chunk_count"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "4db846c7e6f1e3418058cde9fff0679898f35061b4cbdaa30f985efd78893c04"
+}

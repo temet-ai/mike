@@ -1,0 +1,94 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH arm_sessions AS (\n    SELECT a.arm, s.id AS session_id\n      FROM memory.lesson_delivery_arms a\n      JOIN sessions.sessions s ON s.session_uuid = a.session_uuid\n), turn_counts AS (\n    SELECT x.arm,\n           count(*) AS operator_turns,\n           count(*) FILTER (WHERE t.reaction IN ('accepted', 'corrected', 'redirected')) AS judged_turns,\n           count(*) FILTER (WHERE t.reaction = 'corrected') AS corrected_turns\n      FROM arm_sessions x\n     -- LATERAL with OFFSET 0: probe the per-session indexes for each arm session, whatever the planner thinks the arms table holds\n     CROSS JOIN LATERAL (\n            SELECT ot.reaction\n              FROM memory.operator_turns ot\n              JOIN memory.turn_facts f ON f.operator_turn_id = ot.id\n             WHERE ot.session_id = x.session_id\n               AND ot.created_at >= $1 AND ot.created_at < $2\n               AND f.prompt_kind = 'genuine' AND f.text_chars > 0\n            OFFSET 0) t\n     GROUP BY x.arm\n), delivered AS (\n    SELECT x.arm, count(*) AS lessons_delivered\n      FROM arm_sessions x\n     -- LATERAL with OFFSET 0: same per-session index probe as above\n     CROSS JOIN LATERAL (\n            SELECT i.id\n              FROM memory.lesson_injections i\n             WHERE i.session_id = x.session_id\n               AND i.injected_at >= $1 AND i.injected_at < $2\n            OFFSET 0) i\n     GROUP BY x.arm\n), usage AS (\n    SELECT x.arm,\n           count(DISTINCT x.session_id) AS sessions,\n           count(*) AS requests,\n           count(*) FILTER (WHERE rsp.input_tokens IS NOT NULL) AS usage_requests,\n           coalesce(sum(rsp.input_tokens), 0)::bigint AS input_tokens,\n           coalesce(sum(rsp.cache_read_input_tokens), 0)::bigint AS cache_read_tokens,\n           coalesce(sum(rsp.cache_creation_input_tokens), 0)::bigint AS cache_write_tokens\n      FROM arm_sessions x\n      JOIN requests.requests r ON r.session_id = x.session_id\n      LEFT JOIN responses.responses rsp ON rsp.request_id = r.id\n     WHERE r.created_at >= $1 AND r.created_at < $2\n     GROUP BY x.arm\n)\nSELECT arms.arm AS \"arm!\",\n       coalesce(u.sessions, 0) AS \"sessions!\",\n       coalesce(tc.operator_turns, 0) AS \"operator_turns!\",\n       coalesce(tc.judged_turns, 0) AS \"judged_turns!\",\n       coalesce(tc.corrected_turns, 0) AS \"corrected_turns!\",\n       coalesce(d.lessons_delivered, 0) AS \"lessons_delivered!\",\n       coalesce(u.requests, 0) AS \"requests!\",\n       coalesce(u.usage_requests, 0) AS \"usage_requests!\",\n       coalesce(u.input_tokens, 0) AS \"input_tokens!\",\n       coalesce(u.cache_read_tokens, 0) AS \"cache_read_tokens!\",\n       coalesce(u.cache_write_tokens, 0) AS \"cache_write_tokens!\"\n  FROM (VALUES ('mod'), ('control')) AS arms(arm)\n  LEFT JOIN turn_counts tc ON tc.arm = arms.arm\n  LEFT JOIN delivered d ON d.arm = arms.arm\n  LEFT JOIN usage u ON u.arm = arms.arm\n ORDER BY arms.arm DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "arm!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "sessions!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "operator_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "judged_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "corrected_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "lessons_delivered!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "requests!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "usage_requests!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "input_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "cache_read_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "cache_write_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "e140ec9e54cd7f1dcc72ff13ddaa5987d698249c7486300b2ff6532ff5fde92e"
+}

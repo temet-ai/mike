@@ -1,0 +1,1 @@
+SELECT job_name, machine_uuid, trigger, started_at, finished_at, duration_ms, result_kind, exit_code, result_detail, output_tail, consecutive_failures, retry_after FROM jobs.runs WHERE job_name = 'cargo_sweep' AND ('11111111-1111-1111-1111-111111111111'::uuid IS NULL OR machine_uuid = '11111111-1111-1111-1111-111111111111'::uuid) ORDER BY started_at DESC LIMIT 1

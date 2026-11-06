@@ -1,0 +1,6 @@
+# Pairs of sentences one fleet seat reads that fleet_text.py overlap may report.
+# One line per pair, copied from the "allow-line:" the check prints, then # and the reason.
+.claude/fleet/fleet-command.md:compare /pricing with content/plans.json.", "paths": <-> .claude/fleet/fleet-command.md:compare /pricing with content/plans.json; # the example definition's criterion and its acceptance question
+.claude/fleet/fleet-command.md:Hand off the served build and URL." <-> .claude/fleet/fleet-command.md:Hand off the served build and route." # two example task briefs
+brief:worker:ask (to a session id, task:<id>, owner:<path> or reference; <-> brief:worker:to a session id, task:<id>, owner:<path> or fleet. # the address forms of two different tools, ask and mail
+.claude/fleet/observer-contract.md:`.claude/fleet/outcome-checks.sh <run id>`. <-> .claude/fleet/observer-inspector-brief.md:Run `.claude/fleet/outcome-checks.sh <run id>` (or the copy  # the inspector brief is pasted into the observer's subagents, which read nothing else

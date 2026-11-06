@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT request_id AS \"request_id!\"\n               FROM requests.deltas\n              GROUP BY request_id\n             HAVING COUNT(DISTINCT predecessor_request_id) > 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.deltas",
+            "name": "request_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "120313f6f42cbf7372b5ae5115168cbfaeea94fe9b445671b4d2ed565a709e3b"
+}

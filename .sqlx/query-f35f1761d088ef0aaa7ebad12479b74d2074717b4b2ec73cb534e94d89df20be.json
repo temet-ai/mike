@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_sources s SET location_uuid = p.winner\n           FROM unnest($1::uuid[], $2::uuid[]) AS p(loser, winner)\n          WHERE s.location_uuid = p.loser\n            AND NOT EXISTS (SELECT 1 FROM memory.knowledge_sources w\n                             WHERE w.location_uuid = p.winner AND w.name = s.name)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f35f1761d088ef0aaa7ebad12479b74d2074717b4b2ec73cb534e94d89df20be"
+}

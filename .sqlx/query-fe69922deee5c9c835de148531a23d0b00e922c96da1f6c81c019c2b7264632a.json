@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*)::bigint AS \"count!\"\n                     FROM memory.operator_turns t\n                     JOIN memory.turn_facts f ON f.operator_turn_id = t.id\n                    WHERE t.closed_at IS NOT NULL AND f.prompt_kind = 'genuine'\n                      AND f.session_class = 'operator'\n                      AND NOT EXISTS (\n                          SELECT 1 FROM memory.semantic_items i\n                           WHERE i.operator_turn_id = t.id\n                             AND i.kind IN ('turn_prompt', 'turn_ending')\n                             AND i.embedder_key = $1)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "fe69922deee5c9c835de148531a23d0b00e922c96da1f6c81c019c2b7264632a"
+}

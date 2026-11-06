@@ -1,0 +1,149 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT o.first_shipped_on, o.window_start, o.window_end, o.loads,\n                          o.loaded_turns, o.judged_turns, o.corrected_turns,\n                          o.base_judged_turns, o.base_corrected_turns,\n                          o.retired_at AS \"retired_at!\", o.retired_reason AS \"reason!\"\n                     FROM memory.skill_live_outcomes o\n                    WHERE o.project_id = $1 AND o.folder = $2\n                      AND o.retired_at IS NOT NULL\n                      AND NOT EXISTS (\n                          SELECT 1 FROM memory.skill_drafts d\n                           WHERE d.project_id = o.project_id AND d.folder = o.folder\n                             AND d.created_at > o.retired_at AND d.status <> 'rejected')\n                    ORDER BY o.first_shipped_on DESC\n                    LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "first_shipped_on",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_live_outcomes",
+            "name": "first_shipped_on"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "window_start",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_live_outcomes",
+            "name": "window_start"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "window_end",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_live_outcomes",
+            "name": "window_end"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "loads",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_live_outcomes",
+            "name": "loads"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "loaded_turns",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_live_outcomes",
+            "name": "loaded_turns"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "judged_turns",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_live_outcomes",
+            "name": "judged_turns"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "corrected_turns",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_live_outcomes",
+            "name": "corrected_turns"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "base_judged_turns",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_live_outcomes",
+            "name": "base_judged_turns"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "base_corrected_turns",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_live_outcomes",
+            "name": "base_corrected_turns"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "retired_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_live_outcomes",
+            "name": "retired_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "reason!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_live_outcomes",
+            "name": "retired_reason"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "be5627e221811024e201f1435ec8eef22e2e4cee0497ec1f8ece42711e15be8b"
+}

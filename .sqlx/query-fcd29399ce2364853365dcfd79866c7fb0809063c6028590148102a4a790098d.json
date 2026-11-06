@@ -1,0 +1,172 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT i.id, i.uuid, i.steerer_id, i.operator_turn_id, v.code AS verdict,\n                  i.trigger_request_id, i.sent_request_id, i.delivered_request_id,\n                  i.created_at, i.sent_at, i.processed_at, i.expires_at, i.reverted_at\n             FROM steering.interventions i JOIN steering.verdicts v ON v.id = i.verdict_id\n            WHERE i.id = ANY($1) ORDER BY i.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "steerer_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "steerer_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "operator_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "verdict",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.verdicts",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "trigger_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "trigger_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "sent_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "sent_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "delivered_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "delivered_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "sent_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "sent_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "processed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "processed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "reverted_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "reverted_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "fcd29399ce2364853365dcfd79866c7fb0809063c6028590148102a4a790098d"
+}

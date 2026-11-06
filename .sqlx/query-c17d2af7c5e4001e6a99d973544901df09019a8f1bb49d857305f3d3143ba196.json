@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO runtime.threads\n       (session_id, namespace_id, provider_thread_id, provider_session_id, owning_seat_id,\n        native_parent_namespace_id, native_parent_thread_id, fork_namespace_id,\n        fork_thread_id, identity)\nSELECT session.id, $2::uuid, $3::text, $4::text, owner.id, $6::uuid, $7::text, $8::uuid, $9::text, $10::jsonb\n  FROM sessions.sessions session\n  JOIN sessions.sessions owner ON owner.session_uuid = $5::uuid\n WHERE session.session_uuid = $1::uuid\nON CONFLICT DO NOTHING\nRETURNING session_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.threads",
+            "name": "session_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Uuid",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c17d2af7c5e4001e6a99d973544901df09019a8f1bb49d857305f3d3143ba196"
+}

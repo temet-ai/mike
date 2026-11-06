@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# fleet-run-export <run id>... : write a fleet run's launch rows, decision and report notes,
+# tree-check receipts and fleet row to crates/mike/tests/fixtures/fleet-runs/<run>/ with
+# every free-text field dropped (no brief, body, output, message or title text).
+# Reads the capture database read-only through docker exec armitage-pg, time-bounded.
+# Needs docker and jq. Without arguments it exports the three measured runs.
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+out_root="${FLEET_RUN_EXPORT_DIR:-$root/crates/mike/tests/fixtures/fleet-runs}"
+default_runs="fleet-radar-retire-ratatui-db99de21 fleet-writing-room-0656d7b7 fleet-cms-ux-8d1a15dc"
+
+for tool in docker jq; do
+  command -v "$tool" >/dev/null 2>&1 || { echo "fleet-run-export: $tool is not installed" >&2; exit 2; }
+done
+
+psql_ro() {
+  PGOPTIONS='-c statement_timeout=30000 -c lock_timeout=2000 -c default_transaction_read_only=on' \
+    docker exec -i armitage-pg psql -U devuser -d claude_proxy -X -At -c "$1"
+}
+
+# A string survives only when it is an identifier-shaped token (id, sha, state, kind, task name).
+JQ_SCRUB='
+def ok: type == "string" and test("^[A-Za-z0-9_.:/#@+-]{1,64}$");
+def textkey: test("^(brief_text|body|output|message|stderr_text|text|proof)$");
+def scrub:
+  if type == "object" then with_entries(select(.key | textkey | not) | .value |= scrub)
+  elif type == "array" then map(scrub)
+  elif type == "string" then (if ok then . else null end)
+  else . end;
+'
+
+export_run() {
+  local run="$1" dir
+  case "$run" in
+    *[!A-Za-z0-9_-]*|"") echo "fleet-run-export: bad run id: $run" >&2; return 2 ;;
+  esac
+  dir="$out_root/$run"
+  mkdir -p "$dir"
+
+  psql_ro "select coalesce(jsonb_agg(to_jsonb(l) - 'brief_text' - 'stderr_text' - 'claude_args' - 'brief_path' - 'folder' - 'repo_root' - 'workspace_ref' - 'tab_ref' - 'surface_ref' - 'anchor_ref' - 'id' - 'template_id' - 'brief_note_uuid'
+      || jsonb_build_object('claude_args_count', jsonb_array_length(l.claude_args), 'brief_chars_present', l.brief_text is not null)
+      order by l.created_at, l.id), '[]'::jsonb) from launch.launches l where l.run_id = '$run'" \
+    | jq "$JQ_SCRUB"'
+        map(.identity |= (if . == null then null else {name: (.name // null), role: (.role // null)} end) | scrub)' \
+    > "$dir/launches.json"
+
+  psql_ro "select coalesce(jsonb_agg(jsonb_build_object(
+        'session_uuid', s.session_uuid, 'kind', n.kind, 'status', n.status, 'tags', n.tags,
+        'data', n.data, 'created_at', n.created_at, 'updated_at', n.updated_at) order by n.created_at, n.id), '[]'::jsonb)
+      from workspace.session_notes n
+      join sessions.sessions s on s.id = n.session_id
+      where n.kind in ('decision', 'report')
+        and s.session_uuid in (select session_uuid from launch.launches where run_id = '$run' and session_uuid is not null)" \
+    | jq "$JQ_SCRUB"'map(.tags |= map(select(ok)) | scrub)' \
+    > "$dir/notes.json"
+
+  psql_ro "select coalesce(jsonb_agg(jsonb_build_object(
+        'state', t.state, 'state_after', t.state_after, 'command', t.command,
+        'started_at', t.started_at, 'finished_at', t.finished_at, 'exit_code', t.exit_code,
+        'askers_count', coalesce(array_length(t.askers, 1), 0), 'told_count', coalesce(array_length(t.told, 1), 0))
+        order by t.started_at, t.id), '[]'::jsonb) from launch.tree_checks t where t.run_id = '$run'" \
+    | jq 'map(.command |= (if . == null then null else (split(" ") | .[0:3] | join(" ")) end))' \
+    > "$dir/receipts.json"
+
+  psql_ro "select coalesce(jsonb_build_object(
+        'slug', f.slug, 'run_id', f.run_id, 'state', f.state, 'created_at', f.created_at,
+        'ready_at', f.ready_at, 'started_at', f.started_at, 'finished_at', f.finished_at,
+        'missing_count', coalesce(jsonb_array_length(f.missing), 0),
+        'tasks', coalesce((select jsonb_agg(jsonb_build_object('id', k, 'after', v->'after', 'discipline', v->'discipline', 'criteria', v->'criteria'))
+                           from jsonb_each(f.definition->'tasks') as e(k, v)), '[]'::jsonb)), '{}'::jsonb)
+      from launch.fleets f where f.run_id = '$run'" \
+    | jq "$JQ_SCRUB"'scrub' \
+    > "$dir/fleet.json"
+
+  cat > "$dir/README.md" <<EOF
+# $run
+
+Exported by \`scripts/fleet-run-export $run\` on $(date -u +%Y-%m-%d) from the capture database
+(\`launch.launches\`, \`workspace.session_notes\` of kind decision and report, \`launch.tree_checks\`,
+\`launch.fleets\`), read-only and time-bounded.
+
+Every free-text field is dropped: no captured text of any kind. Strings
+that remain are identifier-shaped tokens (ids, shas, states, kinds, task names); any other string
+is null. \`launches.json\` carries \`claude_args_count\` in place of the argv. \`receipts.json\` keeps
+the first three words of each command.
+EOF
+  echo "fleet-run-export: $run -> $dir"
+}
+
+if [ "$#" -eq 0 ]; then set -- $default_runs; fi
+for r in "$@"; do export_run "$r"; done

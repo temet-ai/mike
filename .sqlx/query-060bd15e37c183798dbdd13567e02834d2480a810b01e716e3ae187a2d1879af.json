@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT config.append_change($1, $2, $3, $4, $5, false)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "append_change",
+        "type_info": "Void",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "060bd15e37c183798dbdd13567e02834d2480a810b01e716e3ae187a2d1879af"
+}

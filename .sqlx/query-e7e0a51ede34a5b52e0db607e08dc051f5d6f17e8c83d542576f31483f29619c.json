@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*)::bigint AS \"count!\"\n                     FROM steering.evaluations e\n                     JOIN steering.interventions i ON i.uuid = e.intervention_uuid\n                    WHERE e.steerer_id = $1 AND e.question = $2 AND e.session_id = $3\n                      AND e.arm = 'treated'\n                      AND e.verdict_json -> 'facts' -> 'observation' ->> 'last_change_use_id' = $4\n                      AND (i.delivered_request_id IS NOT NULL OR i.pushed_at IS NOT NULL\n                           OR i.wake_state = 'pending')",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "e7e0a51ede34a5b52e0db607e08dc051f5d6f17e8c83d542576f31483f29619c"
+}

@@ -1,0 +1,35 @@
+[package]
+name = "mike-mcp"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false  # private binary, never published; satisfies cargo-deny licenses.private
+
+# `publish = false` hides a package from cargo-dist by default; this crate
+# still ships prebuilt GitHub Release + Homebrew artifacts (see docs/RELEASING.md).
+[package.metadata.dist]
+dist = true
+
+[[bin]]
+name = "mike-mcp"
+path = "src/main.rs"
+
+[dependencies]
+rmcp = { version = "3.1", features = ["server", "transport-io", "macros"] }
+anyhow = { workspace = true }
+bytes = { workspace = true }
+futures-util = { version = "0.3", default-features = false }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[dev-dependencies]
+wiremock = "0.6"
+# Path-only dev-dep so the manifest-coverage test can consume the inspect
+# route manifest directly. Production code in this crate does NOT
+# depend on mike — the two binaries communicate over HTTP.
+mike = { path = "../mike" }

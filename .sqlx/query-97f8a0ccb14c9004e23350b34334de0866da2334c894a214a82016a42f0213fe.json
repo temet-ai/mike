@@ -1,0 +1,144 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT sub.id AS \"id!\", sub.session_id AS \"session_id!\",\n              sub.operator_turn_id AS \"operator_turn_id?\", sub.request_id AS \"request_id?\",\n              sub.kind AS \"kind!\", sub.kind_source AS \"kind_source!\",\n              sub.keyword_kind AS \"keyword_kind?\", sub.kind_updated_at AS \"kind_updated_at?\",\n              sub.content AS \"content!\", sub.created_at AS \"created_at!\",\n              sub.genuine AS \"genuine!\"\n   FROM (\n       SELECT e.id, e.session_id, e.operator_turn_id, e.request_id, e.kind, e.kind_source,\n              e.keyword_kind, e.kind_updated_at, e.content, e.created_at,\n              (k.code IS NULL OR k.code = 'operator') AS genuine\n         FROM memory.ask_ledger_entries e\n         LEFT JOIN prompt_kinds.classifications c ON c.request_id = e.request_id\n         LEFT JOIN prompt_kinds.kinds k ON k.id = c.kind_id\n        WHERE e.session_id = $1\n        ORDER BY e.created_at DESC\n        LIMIT $2\n   ) sub\n  ORDER BY sub.created_at ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "operator_turn_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "request_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "kind_source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "kind_source"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "keyword_kind?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "keyword_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "kind_updated_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "kind_updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "content!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "content"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.ask_ledger_entries",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "genuine!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "97f8a0ccb14c9004e23350b34334de0866da2334c894a214a82016a42f0213fe"
+}

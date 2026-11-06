@@ -1,0 +1,451 @@
+---
+title: Preparing mike + mike-mcp release candidates
+status: active
+created: 2026-07-23
+updated: 2026-11-06
+summary: The 0.1.0-alpha.N release route (tag-triggered public repo workflow, Homebrew tap and mise, glibc 2.35 floor), archive preparation and verification; qualification and same-byte publication remain separate gates.
+---
+
+# Preparing mike + mike-mcp release candidates
+
+[`RELEASE_READINESS.md`](RELEASE_READINESS.md) records the release-readiness
+assessment. The current staged work and acceptance criteria are tracked by
+[distribution issue #51](https://github.com/temet-ai/mike/issues/51), within
+[release plan #270](https://github.com/temet-ai/mike/issues/270).
+**A prepared candidate is not a qualified or published release.**
+
+`scripts/release.sh` prepares local archives. It never changes workspace versions,
+tracked Homebrew formulae, tags, branches, releases, or tap repositories.
+`--publish` fails immediately, before tool checks or builds. The separate
+[publication tools](RELEASE_PUBLICATION.md) require qualification evidence,
+permission preflight, exact-byte verification and explicit operator approval.
+They never rebuild a candidate and do not make an unqualified artifact releasable.
+
+## The route to a release
+
+mike ships by the route radar (gg) ships by:
+
+- **Version and tag.** `0.1.0-alpha.N`, tagged `v0.1.0-alpha.N`. Every release is a
+  public alpha.
+- **Source and builds.** The public repository `temet-ai/mike` holds the source and
+  builds the release archives on its free GitHub-hosted runners: Linux x86_64 on
+  `ubuntu-22.04` and Apple Silicon macOS on `macos-14`. The private repository
+  runs no release workflow.
+- **Channels.** Homebrew through the tap `temet-ai/homebrew-mike`
+  (`brew tap temet-ai/mike`, then `brew install mike mike-mcp`) and mise
+  (`github:temet-ai/mike`). There is no curl installer.
+- **Linux floor.** Linux archives run on glibc 2.35 (Ubuntu 22.04) and newer.
+  A binary built on this development host needs glibc 2.39 and is never a
+  Linux candidate. The floor is enforced by where the archive is built (the
+  `ubuntu-22.04` runner) and by `python3 scripts/release/glibc_floor.py
+  <candidate>/manifest.json`, which reads the `readelf --version-info` report
+  in the manifest and exits 1 when either binary references a `GLIBC_` version
+  above 2.35 or the report shows no versions. Run it on every Linux candidate
+  before acceptance.
+- **Not signed.** macOS archives are unsigned; Homebrew and mise are the
+  supported routes.
+
+Publication and the creation of the tap, repository and tag need the operator's
+explicit yes; nothing in this repository does them.
+
+## The tag-triggered alpha workflow
+
+`.github/workflows/release-alpha.yml` is radar's `release-alpha.yml` adapted to
+mike. Pushing a tag `v0.1.0-alpha.N` to the public repository runs it; a manual
+dispatch builds and packages without publishing.
+
+1. **validate** (`ubuntu-22.04`). The workspace version must be an alpha SemVer and,
+   on a tag, equal the tag without its `v`. It also runs
+   `scripts/release/test_homebrew*.py`. Bump `[workspace.package].version` and
+   `Cargo.lock` to `0.1.0-alpha.N` in a reviewed commit before tagging; the
+   workflow never edits a version.
+2. **build** (one job per target, `fail-fast: false`): `x86_64-unknown-linux-gnu` on
+   `ubuntu-22.04` and `aarch64-apple-darwin` on `macos-14`. Each job installs the
+   toolchain `scripts/release.sh` requires (the Rust version in
+   `rust-toolchain.toml`, Node from `.nvmrc`, the pnpm in
+   `frontend/package.json`), runs `cargo fetch --locked` and
+   `pnpm install --frozen-lockfile` (the only network step, since preparation
+   builds offline), then `scripts/release.sh <version> --target <target>`. Linux
+   then runs `scripts/release/glibc_floor.py` on the manifest, and both run
+   `scripts/release.sh --verify` on the candidate. The two archives, their
+   `.sha256` files and `manifest.json` (as `manifest-<target>.json`) are uploaded
+   as the job's artifact. The preparation log is kept outside the checkout,
+   because preparation requires a clean tree to its end.
+3. **publish** (tags only, `contents: write`). It needs the four archives, checks
+   each `.sha256`, writes one `checksums.txt`, creates the pre-release
+   `mike <version>` with the archives, `checksums.txt` and the two manifests,
+   then updates the tap.
+
+The tap step clones `temet-ai/homebrew-mike`, runs
+`scripts/release/homebrew_alpha.py <version> <repo> checksums.txt tap/Formula` and
+pushes `Formula/mike.rb` and `Formula/mike-mcp.rb` to the tap's default branch. The
+formulas pin Apple Silicon macOS and Linux x86_64 archives by the digests just
+published and share their install, caveats and test methods with the offline
+proposal in `homebrew_proposal.py`. Without the secret `HOMEBREW_TAP_TOKEN` the
+step warns and succeeds; write the formulas by hand with the same command from
+the release's `checksums.txt`.
+
+**Public repository configuration.** The secret `HOMEBREW_TAP_TOKEN` (a token that
+can push to `temet-ai/homebrew-mike`) and the existing tap repository. Actions must
+be enabled with the default `GITHUB_TOKEN` allowed to write contents on the tag
+workflow (the job asks for it itself). Tags matching `v*-alpha.*` should be
+protected from deletion. No other secret is read.
+
+**Scope.** Only the two targets `scripts/release.sh` can build natively. There is no
+Linux ARM or Intel macOS archive until the script supports them. The workflow
+does not run the acceptance matrix: a published archive is an alpha, not a
+qualified release, and the tap formulas are not the qualified `homebrew.py`
+route below. `release-alpha.yml` has had no real tag run; the first one is its test.
+
+Preparation uses one Cargo build job and disables incremental compilation to
+keep native local verification resource-bounded. Ambient Cargo resource overrides
+do not change this build contract.
+
+## What is prepared
+
+- `mike`: the proxy and inspect API, with the production SPA built first
+- `mike-mcp`: the separately installed MCP stdio bridge
+
+Both inherit `[workspace.package].version`. `Cargo.lock` must agree with that
+version for both packages. `proxy-forward` is excluded.
+
+The first target is native `x86_64-unknown-linux-gnu`. Native
+`aarch64-apple-darwin` uses the same preparation contract on Apple Silicon.
+Cross-compilation, Intel macOS, and Linux ARM are unsupported by this script.
+The macOS path's fixture tests do not qualify a real Mac archive or its install
+channel. Both scoped platforms need their own real artifact and clean-account
+observations.
+
+Mike archives also carry the tracked runtime files from `mods/` under
+`share/mike/mods/`, excluding mod tests. The manifest hashes each file and records
+its executable mode. Archive installs retain these files in the same immutable
+generation as the binary; Homebrew installs them under the formula's share
+folder. Both layouts are discovered by `mike claude-code mods` without a checkout.
+The forward proxy is the `mike forward` subcommand in the Mike binary.
+
+## Prerequisites
+
+Use a clean, reviewed Git commit, with no tracked edits or untracked source files.
+Make a version change in a separate reviewed commit before preparation; passing a
+different version to the script is an error and does not edit or reset anything.
+
+Provision these tools and dependencies before running the script:
+
+- Python 3.11 or newer, Bash, Git, and the native platform tools
+- The exact Rust/Cargo version in `rust-toolchain.toml`, already installed for
+  the host; no rustup target or toolchain installation occurs
+- Node matching `.nvmrc` and the exact pnpm version in
+  `frontend/package.json`'s `packageManager`
+- Cargo and pnpm dependency caches sufficient for a locked, offline build
+- `readelf` on Linux, or `otool` on macOS, for recording runtime requirements
+
+The manifest records actual tool versions. `.nvmrc` pins Node `26.11.1` exactly,
+and preparation rejects a major-only pin or a different installed version.
+Native system linkers/libraries still require a reviewed build baseline.
+
+No `.env` file is sourced. Inherited database URLs, `MIKE_*`, `VITE_*`, Rust
+flags, build-cache identity overrides, and release credentials are not forwarded
+to build tools. Active frontend `.env`, `.env.local`, `.env.production`, and
+`.env.production.local` files are rejected because the frontend build could
+load them itself. Use a dedicated clean checkout rather than moving private
+configuration around a live checkout.
+
+Cargo uses `--offline --locked`, `SQLX_OFFLINE=true`, and the committed `.sqlx`
+metadata. pnpm uses `install --offline --frozen-lockfile`. Missing tools or cache
+entries fail with an error; the script does not install tools or download a
+missing toolchain. End users should eventually receive these prebuilt binaries,
+not run this maintainer build procedure.
+
+## Prepare and inspect locally
+
+The script resolves its checkout from its own location; the caller can start in
+an unrelated directory. Preparation must have exclusive use of that checkout's
+frontend build directory. Do not edit source or run a competing frontend build
+while it runs.
+
+```bash
+./scripts/release.sh
+
+# Optional explicit version must already equal Cargo.toml and Cargo.lock.
+./scripts/release.sh 0.1.0
+
+# Optional target must match this machine and its Rust host.
+./scripts/release.sh --target x86_64-unknown-linux-gnu
+```
+
+Preparation performs these steps:
+
+1. Reject dirty source, mismatched versions, unsupported/cross targets, missing
+   prerequisites, and unsafe build inputs before building.
+2. Acquire `dist-out/.prepare.lock`. A second preparation fails instead of
+   racing the SPA or Cargo outputs. If a process is killed, first establish that
+   it has stopped before removing its stale lock.
+3. Remove the old ignored `frontend/build` directory, build the current SPA, and
+   require a nonempty `index.html` plus JavaScript assets. Reject symlinks and
+   obvious private-file extensions. This is not a comprehensive secret scan.
+4. Build both binaries with the `dist` profile in `dist-out/.build`, ignoring an
+   inherited `CARGO_TARGET_DIR`. Previous binary outputs are removed so a failed
+   or incomplete build cannot silently reuse them.
+5. Package each binary with `LICENSE` and `NOTICE.json`. The notice explicitly
+   marks third-party notice review as incomplete; it does not claim that the
+   project's MIT license covers every dependency or embedded font. The `mike`
+   archive also carries `mike-maintenance` and its deterministic standard-library
+   module bundle, `mike-maintenance.pyz`. Both are separately listed and hashed
+   in the archive inventory. This optional Bash/Python 3.11+ kit provides local
+   installation/recovery; neither native binary depends on it to run.
+6. Extract the archives with a strict file allowlist, regular-file/mode checks,
+   and member hashes. Run archived `--version` for both binaries, `mike --help`,
+   and `mike-mcp list-tools --json` from an unrelated temporary directory with a
+   new HOME and empty PATH. Also run each archived `--build-info` and require its
+   product/version, full source commit, clean-source flag, and UTC build timestamp
+   to match the selected commit and its `SOURCE_DATE_EPOCH`. A matching semantic
+   version alone cannot establish executable source identity.
+   Separately exercise the archived maintenance helper's help with isolated
+   Python and only its explicit interpreter/system-tool path. Its smoke output
+   hash is recorded without qualifying database recovery or maintenance journeys.
+7. Record runtime library/loader/symbol-version reports using `readelf` or
+   `otool`. These reports are evidence for review, not a compatibility verdict.
+8. Confirm source still matches the original clean commit, then finalize the
+   candidate under `dist-out/v<VERSION>/<TARGET>/<SOURCE_SHA>-<MANIFEST_ID>/`.
+
+Each candidate contains:
+
+- `mike-v<VERSION>-<TARGET>.tar.gz` and `.tar.gz.sha256`
+- `mike-mcp-v<VERSION>-<TARGET>.tar.gz` and `.tar.gz.sha256`
+- `manifest.json`
+
+Checksum files use relative basenames, so they can be verified after copying the
+whole candidate directory elsewhere. Archives normalize ownership, modes, order,
+and timestamps. Candidates are content-addressed and never overwritten; a repeat
+with identical bytes reuses the existing directory. This does not promise that
+recompiling the same source yields identical binaries: native toolchain and
+other build inputs can still change. Both binaries derive their embedded build
+time from the validated commit `SOURCE_DATE_EPOCH`, rather than the wall clock.
+Qualification and future publication must use the selected archive, without
+rebuilding it.
+
+The manifest includes the source commit, workspace and observed executable
+versions, tool versions, lockfile hashes, SPA source-asset inventory, archive and
+member hashes, the observed JSON build identity of each executable, runtime
+reports, and explicit passed/not-run checks. It always says `qualified: false`. Source-asset inventory does not prove the embedded UI
+works from the archived executable. The manifest is local evidence, not a signed
+attestation or proof that an untrusted archive is authentic.
+
+## Verify the same archived bytes
+
+Use the exact directory printed after `Candidate:`:
+
+```bash
+./scripts/release.sh --verify /path/to/selected/candidate
+```
+
+Verification needs Python and the native runtime, but does not invoke Cargo,
+Rust, Node, pnpm, a build database, or publication tools. It validates both
+archive/checksum pairs and the allowlisted archive members, then repeats the
+isolated CLI smoke checks. Any byte change, absolute-path checksum, unexpected
+member, version, source identity, clean-source flag, or source timestamp mismatch
+fails. It does not rebuild or edit the candidate.
+
+## Executable source identity
+
+`mike --build-info` and `mike-mcp --build-info` are standalone, read-only JSON
+commands. They print only schema version, product, semantic version, source SHA,
+source-dirty status, and build timestamp. They run before loading configuration or
+starting services and do not print environment values or filesystem paths.
+Additional arguments are rejected. Existing `--version` output is unchanged.
+
+Both build scripts watch the selected Git worktree's `HEAD` and index plus its
+existing loose/packed reference files. A detached linked worktree switching to a
+Python-only commit therefore invalidates the embedded source stamp. Git status
+failures are treated as dirty rather than silently claiming a clean build.
+`SOURCE_DATE_EPOCH` changes also invalidate the build stamp; malformed or
+out-of-range values fail instead of falling back to the current time. Ordinary
+non-release builds without that variable still use the wall clock.
+
+Preparation and same-byte verification execute the archived identity command and
+compare its complete response to the manifest's selected commit and timestamp.
+Unknown/cache-placeholder, dirty, stale, or mismatched identity is rejected for
+either binary. Older candidate archives without this command, timestamp, or
+recorded identity evidence cannot pass the current verifier and must be prepared
+again from reviewed source. This is an exact-source consistency check, not a
+signature, reproducibility guarantee, or proof of authenticity for untrusted
+binaries; run verification only on explicitly trusted candidate bytes.
+
+## Local archive installation and acceptance foundation
+
+For explicitly trusted prepared bytes, the extracted archive's
+`/absolute/extracted/mike-maintenance install --candidate /absolute/candidate
+--prefix /private/user/prefix` installs without a source checkout. Keep the
+adjacent `mike-maintenance.pyz` file with its launcher; retain the original
+manifest and both archive/checksum pairs in the selected candidate directory.
+The development `scripts/install-release` entrypoint uses the same implementation.
+It validates the copied manifest, both archive/checksum pairs, native platform
+and binary versions before changing the prefix. Bash and Python 3.11+ are optional
+installation/maintenance prerequisites, not native runtime dependencies.
+Checksums establish integrity, not source authenticity; validation executes the
+selected binaries and helper. There is no download, compilation, sudo, service
+restart, migration or shell-profile edit.
+
+Stable commands live under `PREFIX/bin`. An owned immutable generation contains
+both binaries and one atomic generation switch updates the pair. Repeating the
+same candidate is a no-op; previous generations remain. Unrelated/package-manager
+binaries, modified owned files, downgrades and changed same-version replacements
+are refused. Interruption recovery is tested only in disposable fixture prefixes.
+The hashed maintenance kit stays in that same generation and is invoked through
+`PREFIX/lib/mike-archive/current/mike-maintenance`; the launcher pins the physical
+generation before starting Python. No extra stable command is added to `PATH`.
+See [recovery and optional prerequisites](RECOVERY.md) for backup, verification,
+fresh-instance restore, update checks and data-preserving removal.
+
+`scripts/release-acceptance --candidate /absolute/candidate --output
+/new/outside-source/evidence` checks local integrity, disposable installation,
+installed CLI smoke and repeat installation with fresh HOME/cwd and an empty
+runtime PATH. Its private `result.json` and `summary.txt` bind observations to
+candidate hashes. This foundation deliberately leaves full AC01–AC27 journeys
+NOT_RUN: exit 2 means incomplete, exit 1 means helper failure. It is not a release
+qualification pass and does not replace native accounts, runtime/browser/MCP,
+storage, maintenance or real channel evidence.
+
+## Running the acceptance matrix
+
+Run the matrix against one candidate directory, the one `scripts/release.sh`
+printed after `Candidate:`. Do this in a fresh account, container or VM, with no
+inherited `.env`, provider credentials or production database access:
+
+```bash
+scripts/release-acceptance --candidate /absolute/path/to/candidate \
+  --output /absolute/path/to/new-evidence
+```
+
+The bare form above only checks the candidate and records the cases it cannot
+yet observe as `NOT_RUN`. The journeys are opt-in flags on the same command:
+`--trial-journey`, `--persistent-journey`, `--maintenance-journey`,
+`--browser-journey` (with `--browser-node` and `--browser-chromium`, both absolute
+paths), `--mode-journey`, `--mode-tui-journey` and `--fault-journey`, plus
+`--reliability-journey` (at least 900 seconds) with `--reliability-duration-seconds`. Journeys that
+need a database take `MIKE_TEST_ADMIN_URL` and `MIKE_RECOVERY_TEST_PGDATA`, both
+pointing at an owned PostgreSQL 19 test instance. Exit status 2 means the ledger is
+incomplete, which is the normal result of a partial run.
+
+The output directory must be new and sit outside the checkout and the candidate.
+The run writes its ledger there: `result.json` (every case with its observed
+value, exit status and evidence references) and `summary.txt` (the same result
+in words). Both are private; keep them out of the repository. The ledger lists
+all 33 cases, AC01–AC27, SG01–SG03, PUBLIC01, PUBLIC02 and FEEDBACK01. A case
+that has no observation stays `NOT_RUN`; the runner never reports a full pass.
+
+The matrix rows in [RELEASE_READINESS.md](RELEASE_READINESS.md#required-release-acceptance-matrix)
+say what each journey must show. A row is complete only when its ledger case
+holds a recorded verdict.
+
+## Where the matrix rows run
+
+The Linux mise journey installs the release archive into a fresh HOME through
+mise, then runs setup, capture, restart, upgrade and uninstall:
+
+```bash
+scripts/release-journey-mise --candidate /absolute/path/to/candidate \
+  --output /absolute/path/to/new-empty-dir
+```
+
+The output directory must be new, empty and outside both the checkout and the
+candidate. It needs Python 3.11 and `mise` on `PATH`, and it uses no network and
+no sudo. Exit 0 means every step passed; exit 1 means a step failed. It never
+qualifies an AC case. Its evidence is `result.json` (hash-bound checks) and
+`summary.txt` in the output directory.
+
+This journey has not run yet, so no evidence path is recorded here. The committed
+copy will live under `artifacts/2026-10-19/release-journey/mise-linux/`, named
+here once the run has produced it.
+
+The Linux journeys run with the helper above, each in a fresh HOME. The Apple
+Silicon Homebrew row does not run in the fleet: no fleet seat runs on a Mac. It
+is run by Dawid or by a Mac session after the deploy, through the intended
+Homebrew channel, and its verdict is recorded in the same way. Until that run
+has a recorded verdict, the Apple Silicon Homebrew row stays NOT RUN.
+
+Optional installed-browser helpers require `--persistent-journey --browser-journey
+--browser-node /absolute/node --browser-chromium /absolute/chromium` in addition
+to the candidate/output arguments. The explicit owned PostgreSQL 19 fixture
+(`MIKE_TEST_ADMIN_URL` and `MIKE_RECOVERY_TEST_PGDATA`) and the checkout's existing
+Playwright dependency must already be available. There are no tooling downloads,
+remote browser attachments, Vite servers, sandbox-disabling retries or automatic
+browser discovery. Do not run this option on a host that denies browser launch.
+
+Browser checks run **after** the baseline persistent journey (and optional
+maintenance roundtrip), with a separate fresh unseeded database, config, HOME,
+synthetic session and owned foreground server. They never add a second capture to
+the restart/maintenance fixture. Trial mode cannot supply the persisted session
+and response-body APIs needed by the UI, so `--trial-journey` alone is insufficient.
+The helper checks captured request/response DOM, deep-link reload, native
+WebSocket events and a live request-count update, selected connection addresses,
+local help navigation, four packaged document reloads, scripts and console errors.
+Owned-origin HTTP responses pass through without redirects; the only allowed
+browser POST is the bounded local SPA delta-fallback diagnostic. These are partial
+instrumented checks, not full browser security, real-provider or release acceptance.
+Reports stay unqualified and full cases stay NOT_RUN, including when offline
+mock/contract tests pass. The browser fixture's child processes and databases are
+cleaned up without adopting or stopping the PostgreSQL cluster.
+
+Run `scripts/test-release-installation` for interruption, ownership, integrity,
+cleanup and honest-acceptance fixture regressions. Run
+`scripts/test-release-recovery` for maintenance and checkout-free packaging
+fixtures, including help/validation/install after deleting the producing source
+tree, poisoned import paths, tampered support files and foreign ownership. No test
+installs into the operator's prefix or touches their data.
+
+## Local regression tests and remaining gates
+
+```bash
+scripts/test-release-preparation
+```
+
+This suite is also registered in `scripts/test-suite scripts`. It uses isolated
+Git fixtures, shell-script fixture binaries, and tool stubs, plus bounded
+standalone `rustc` compilation of the build scripts (no workspace build). It
+checks source purity, repeated preparation, version/pin/target failures, stale SPA/binary
+rejection, failed builds, private-input filtering, unsafe archive paths,
+checksums, locks, no-build verification, worktree HEAD/ref watches, deterministic
+UTC epochs, failed-status handling, stale executable identities, and refusal to
+publish. **Passing it is not a real Mike build, Linux ABI test, macOS test, or
+clean-account installation.**
+
+Before any release claim, record the required not-run evidence on the selected
+candidate, including:
+
+- Real native builds and runtime baselines, with conservative Linux library
+  requirements and actual execution on the supported distributions
+- Embedded UI startup/assets/API and complete first-run behavior from the
+  extracted binary, without the source checkout or developer dependencies
+- Private-material review of archives and embedded assets, complete dependency
+  license/notice inventory, and the separately required public-source review
+- Safe archive/download installation, repeat installation, ownership checks,
+  PATH guidance, upgrade/backup/restore, and incompatible-downgrade handling
+- Actual macOS signature/quarantine behavior through the intended channel;
+  a maintainer-machine run does not prove another user's execution policy
+- Destination/tap permission preflight before any external mutation, draft
+  upload/hash verification, same-byte retry, and immutable published tags/assets
+- Final clean-account installation from the actual published URLs or Homebrew
+  tap, with downloaded hashes matching the independently qualified archives
+
+These are the remaining AC01/AC08/AC23/AC25/AC26 obligations in issue #51. Local
+preparation and helper tests alone do not close that issue.
+
+## cargo-dist and Homebrew
+
+`dist-workspace.toml` keeps `ci = []` and both native targets: the release
+workflow of the public repository calls `scripts/release.sh`, not cargo-dist.
+Its cargo-dist pin and `[profile.dist]` remain, but preparation directly invokes
+Cargo; it neither requires nor invokes cargo-dist.
+
+`installers = []` avoids cargo-dist's multi-app Homebrew generation failure.
+The tap `temet-ai/homebrew-mike` carries `Formula/mike.rb` and
+`Formula/mike-mcp.rb`; the tracked `homebrew-formulae/` files are their staging
+copy and are not regenerated during preparation. The tag workflow above writes the
+tap's formulas with `homebrew_alpha.py`; the separate [same-byte publication guide](RELEASE_PUBLICATION.md)
+describes offline archive planning and deterministic Homebrew formula proposals,
+then separately gated read-only preflight and explicitly authorized publication.
+Formula proposals pin the selected archive hashes and remain unqualified until
+independent native review; no preparation command creates a tap, tag, draft or
+public release. Actual native Homebrew and published-channel observations remain
+NOT RUN until performed against the selected candidate.

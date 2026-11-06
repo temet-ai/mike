@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT delivery_attempts, dead_lettered_at FROM mailbox.messages WHERE message_uuid = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "delivery_attempts",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "delivery_attempts"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "dead_lettered_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "dead_lettered_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "b650b8bf43d47a591ae432e0cbb97d74abce896e585318f55d16fc66bf58b237"
+}

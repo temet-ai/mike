@@ -1,0 +1,19 @@
+[workspace]
+members = ["cargo:."]
+
+# Archives are built by scripts/release.sh, which the public repo's release workflow
+# runs on its free runners (Linux on ubuntu-22.04 for the glibc 2.35 floor).
+# `dist generate` with ci=[] does not emit a workflow. See docs/RELEASING.md.
+[dist]
+# The preferred dist version to use (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.32.0"
+# No cargo-dist CI backend.
+ci = []
+# Empty, not ["homebrew"]: dist's own Homebrew installer panics
+# ("couldn't find the release!?", tasks.rs:2114) on a two-app workspace like
+# this one (mike + mike-mcp as separate packages/formulae) — reproduced
+# locally with `dist plan`, confirmed by dropping to one app making it pass.
+# Formulae come from scripts/release/homebrew.py, which pins the verified archive bytes.
+installers = []
+# Each target builds natively on its own runner and qualifies independently.
+targets = ["x86_64-unknown-linux-gnu", "aarch64-apple-darwin"]

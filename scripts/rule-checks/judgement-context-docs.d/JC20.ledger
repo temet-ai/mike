@@ -1,0 +1,20 @@
+# JC20 ledger. The landed sha is the JC20 commit on feat/judgement-context.
+landed   JC20 2026-09-25 9bf38dbe
+table    memory.semantic_embedders
+table    memory.semantic_items
+table    memory.semantic_floors
+table    memory.pattern_candidates
+table    memory.pattern_assignments
+table    eval.embedding_drift
+toggle   semantic_context
+setting  semantic.allow_remote_embedding
+setting  semantic.sweep_interval_secs
+setting  semantic.retrieval_scope
+setting  semantic.drift_z
+tool     get_semantic_status full
+tool     get_semantic_neighbours full
+tool     get_semantic_item full
+tool     list_pattern_assignments full
+tool     list_pattern_candidates full
+tool     get_embedding_drift full
+cli      mike semantic backfill

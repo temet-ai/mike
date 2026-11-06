@@ -1,0 +1,125 @@
+name: Rust quality
+
+# PR routing stays path-filtered; main and explicit candidate/manual runs do not.
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/release-source-gates.yml'
+      - 'scripts/tests/test_source_gate_routing.py'
+      - 'crates/**'
+      - 'scripts/capture-db/Dockerfile.pg19'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'Makefile'
+      - '.sqlx/**'
+      - 'deny.toml'
+      - 'clippy.toml'
+      - 'rust-toolchain.toml'
+      - 'rustfmt.toml'
+      - '.cargo/config.toml'
+      - 'scripts/lint-rust'
+      - 'scripts/lint-rust-architecture'
+      - 'scripts/lint-rust-size'
+      - 'scripts/lint-rust-suppressions'
+      - 'scripts/test-rust-lint-policy'
+      - '.github/workflows/rust-quality.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rust-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Rust quality gates
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/claude_proxy_ci
+      MIKE_TEST_ADMIN_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+      PGPASSWORD: postgres
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Start PostgreSQL 19 with pgvector
+        run: |
+          docker build -t mike/postgres-pgvector:19rc1-0.8.7 -f scripts/capture-db/Dockerfile.pg19 scripts/capture-db
+          docker run --detach --name mike-ci-pg --publish 127.0.0.1:5432:5432 \
+            --env POSTGRES_PASSWORD=postgres --env POSTGRES_USER=postgres \
+            --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 5s --health-retries 30 \
+            mike/postgres-pgvector:19rc1-0.8.7
+          for attempt in $(seq 1 60); do
+            [ "$(docker inspect --format '{{.State.Health.Status}}' mike-ci-pg)" = healthy ] && exit 0
+            sleep 2
+          done
+          docker logs mike-ci-pg
+          exit 1
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.95.0"
+          components: rustfmt, clippy
+
+      # .cargo/config.toml sets `rustc-wrapper = "sccache"` as a build
+      # accelerator. CI must install sccache or every cargo step that invokes
+      # rustc (clippy, sqlx-cli build, nextest) dies with
+      # `could not execute process \`sccache ...\` (No such file or directory)`.
+      - name: Install sccache
+        uses: taiki-e/install-action@sccache
+
+      - name: Cache Rust artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@cargo-deny
+
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli --locked --no-default-features --features rustls,postgres
+
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
+      - name: Create CI database
+        run: docker exec mike-ci-pg psql -U postgres -c "CREATE DATABASE claude_proxy_ci;"
+
+      - name: Run migrations for sqlx prepare check
+        run: cargo sqlx migrate run --source crates/mike/src/store/persistence/migrations
+
+      - name: cargo fmt --check
+        run: cargo fmt --check
+
+      - name: Rust lint-policy self-test
+        run: ./scripts/test-rust-lint-policy
+
+      - name: Rust size and complexity lint
+        run: ./scripts/lint-rust
+
+      - name: cargo nextest (full — fast + DB tiers)
+        run: |
+          scripts/check-test-tiers --require-db
+          cargo nextest run --all --profile ci
+
+      - name: cargo sqlx prepare --check
+        run: cargo sqlx prepare --workspace --check -- --all-targets
+
+      - name: cargo deny check
+        run: cargo deny check

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO runtime.codex_intake_state (namespace_id)\n         SELECT id FROM runtime.namespaces WHERE id = $1 AND runtime_kind = 'codex'\n         ON CONFLICT (namespace_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "295c1b38c0c38ea1cd6abdea242408aa4dc3d09d4b763ef917ff2e0e67bf19b8"
+}

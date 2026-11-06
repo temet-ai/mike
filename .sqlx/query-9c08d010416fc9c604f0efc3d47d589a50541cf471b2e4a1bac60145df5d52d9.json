@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lesson_placement_failures (lesson_id, last_error)\n                 VALUES ($1, $2)\n                 ON CONFLICT (lesson_id) DO UPDATE\n                    SET attempts = memory.lesson_placement_failures.attempts + 1,\n                        last_error = EXCLUDED.last_error,\n                        last_failed_at = now()\n                 RETURNING attempts",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "attempts",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_placement_failures",
+            "name": "attempts"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9c08d010416fc9c604f0efc3d47d589a50541cf471b2e4a1bac60145df5d52d9"
+}

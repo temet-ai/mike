@@ -1,0 +1,45 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH items AS (\n    SELECT i.embedding, i.effective_at\n      FROM memory.semantic_items i\n      JOIN memory.turn_facts f ON f.operator_turn_id = i.operator_turn_id\n      JOIN memory.turn_facts pf ON pf.next_genuine_turn_id = i.operator_turn_id\n     WHERE i.kind = 'turn_prompt' AND i.embedder_key = $1\n       AND f.prompt_kind = 'genuine' AND f.session_class = 'operator'\n       AND (EXISTS (\n               SELECT 1 FROM eval.labels_as_of($2) l\n                WHERE l.subject_kind = 'turn' AND l.subject_id = pf.operator_turn_id\n                  AND l.axis = 'reaction' AND l.label = 'corrected' AND l.split = 'dev'\n                  AND l.tier IN ('gold', 'relayed', 'seed'))\n            OR EXISTS (\n               SELECT 1 FROM memory.turn_verdicts v\n                WHERE v.operator_turn_id = pf.operator_turn_id AND v.mode = 'live'\n                  AND v.projected AND v.reaction = 'corrected' AND v.created_at <= $2))\n       AND NOT EXISTS (\n           SELECT 1 FROM eval.turn_splits s\n            WHERE s.split = 'holdout' AND s.operator_turn_id IN (i.operator_turn_id, pf.operator_turn_id))\n)\nSELECT count(*) FILTER (WHERE effective_at >= $2 - interval '7 days')::bigint AS \"n_current!\",\n       (sum(embedding) FILTER (WHERE effective_at >= $2 - interval '7 days'))::text AS current_sum,\n       count(*) FILTER (WHERE effective_at < $2 - interval '7 days')::bigint AS \"n_baseline!\",\n       (sum(embedding) FILTER (WHERE effective_at < $2 - interval '7 days'))::text AS baseline_sum\n  FROM items\n WHERE effective_at >= $2 - interval '35 days' AND effective_at < $2\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "n_current!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "current_sum",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "n_baseline!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "baseline_sum",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "09c4efa483854e693fe6643d0748676a2d053dbeadc600b412e5919e0d4cc672"
+}

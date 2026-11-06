@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT c.lesson_id AS \"lesson_id!\"\n  FROM memory.carried_lessons c\n WHERE c.source_note_uuid = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lesson_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.carried_lessons",
+            "name": "lesson_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ffc64f23c070ffeaa417c406503fc54b55de44c490303d8c0f1db530c6ba7419"
+}

@@ -1,0 +1,92 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT i.id AS \"intervention_id!\", i.operator_turn_id, i.payload_text,\n                        i.missing_evidence, i.off_thread_topic, i.created_at\n                   FROM steering.interventions i\n                  WHERE i.session_id = $1\n                    AND i.steerer_id = $2\n                    AND i.created_at < $3\n                    AND i.trigger_request_id IS DISTINCT FROM $5\n                  ORDER BY i.created_at DESC, i.id DESC\n                  LIMIT $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "intervention_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "operator_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "payload_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "payload_text"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "missing_evidence",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "missing_evidence"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "off_thread_topic",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "off_thread_topic"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Timestamptz",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "780b686e9b3e91af2bd24a32b1f39d13727b499cdf8c15c7c0fb3a6810c066a8"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO requests.system_prompts (request_id, prompt_sha256, system_prompt_id)\n             SELECT $1, $2, sp.id FROM system_prompts.system_prompts sp\n              WHERE sp.prompt_sha256 = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bebeffda3b82fbca707ae4857c078b263c2db12ccfebceb3eeea08c198a315f4"
+}

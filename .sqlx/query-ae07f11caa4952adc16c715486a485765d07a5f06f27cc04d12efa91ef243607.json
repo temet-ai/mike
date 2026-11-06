@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.operator_turns (\n            session_id, project_id,\n            start_request_id, end_request_id,\n            user_prompt, opened_by\n         )\n         SELECT r.session_id, r.project_id, r.id, r.id, r.human_prompt, $2\n           FROM requests.requests r\n          WHERE r.id = $1\n            AND NOT EXISTS (\n                SELECT 1 FROM memory.operator_turns\n                WHERE session_id = r.session_id AND closed_at IS NULL\n            )\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ae07f11caa4952adc16c715486a485765d07a5f06f27cc04d12efa91ef243607"
+}

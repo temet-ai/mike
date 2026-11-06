@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE launch.fleets\n   SET definition = $2,\n       missing    = $3,\n       updated_at = now()\n WHERE fleet_uuid = $1\n   AND updated_at = $4\nRETURNING updated_at\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.fleets",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb",
+        "Jsonb",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f465a9d6251a3b3f54f2da7c981b280108ec3b2a4329bf411e50f936cf3c5191"
+}

@@ -1,0 +1,67 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO steering.question_policies (steerer_id, question, mode, updated_via)\n                   VALUES ($1, $2, $3, $4)\n                   ON CONFLICT (steerer_id, question) DO UPDATE\n                      SET mode = EXCLUDED.mode, updated_at = now(),\n                          updated_via = EXCLUDED.updated_via\n                   RETURNING question AS \"question!\", mode AS \"mode!\", updated_at AS \"updated_at!\",\n                             updated_via AS \"updated_via!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "question!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.question_policies",
+            "name": "question"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "mode!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.question_policies",
+            "name": "mode"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "updated_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.question_policies",
+            "name": "updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "updated_via!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.question_policies",
+            "name": "updated_via"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "88bfd56c5b4c84a5afd1bd1f5cff44588a60ac2cf07d1377bb83baba46aa0869"
+}

@@ -1,0 +1,39 @@
+[advisories]
+unmaintained = "workspace"
+
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "OpenSSL",
+    "Zlib",
+    "MPL-2.0",
+    # webpki-roots ships the Mozilla CA bundle under the permissive
+    # Community Data License Agreement. Data, not code; safe to allow.
+    "CDLA-Permissive-2.0",
+    # notify, the change record's file watcher, is dedicated to the public
+    # domain under CC0-1.0: no conditions on use or redistribution.
+    "CC0-1.0",
+]
+# Our own workspace binaries (mike, mike-mcp) carry no license
+# field because they are never published. `publish = false` in their
+# manifests marks them private; skip the unlicensed check for them.
+private = { ignore = true }
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# The only wildcard is the internal `mike` path dev-dependency in
+# mike-mcp (a path dep with no version reads as `*`). Path deps are local
+# and version-pinned by the workspace, so exempt them from the wildcard ban.
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

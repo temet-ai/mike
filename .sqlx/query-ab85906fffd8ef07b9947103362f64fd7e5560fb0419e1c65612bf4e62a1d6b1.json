@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lesson_proposal_recovery r SET recovery_state = 'obsolete',\n                 disposition_reason = 'No longer the current eligible human correction'\n             WHERE r.recovery_state = 'needs_reproposal' AND NOT EXISTS (\n                 SELECT 1 FROM memory.lesson_eligible_corrections_v v WHERE v.verdict_id = r.verdict_id\n             )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "ab85906fffd8ef07b9947103362f64fd7e5560fb0419e1c65612bf4e62a1d6b1"
+}

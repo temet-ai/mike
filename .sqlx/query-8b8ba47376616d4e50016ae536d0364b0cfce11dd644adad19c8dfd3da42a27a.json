@@ -1,0 +1,118 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH input AS (\n    SELECT DISTINCT ON (session_id, kind, subject) *\n      FROM unnest($1::bigint[], $2::text[], $3::text[], $4::timestamptz[], $5::text[])\n           AS i(session_id, kind, subject, since, message)\n     ORDER BY session_id, kind, subject\n)\nINSERT INTO agents.work_item_attention (session_id, kind, subject, since, message)\nSELECT session_id, kind, subject, since, message FROM input\nON CONFLICT (session_id, kind, subject) DO SELECT\nRETURNING session_id AS \"session_id!\", kind AS \"kind!\", subject AS \"subject!\",\n          id AS \"id!\", (old.id IS NULL) AS \"inserted!\",\n          (delivered_message_uuid IS NOT NULL) AS \"delivered!\",\n          delivery_attempts AS \"delivery_attempts!\",\n          last_delivery_attempt_at AS \"last_delivery_attempt_at?\",\n          disposition AS \"disposition!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.work_item_attention",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_item_attention",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "subject!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_item_attention",
+            "name": "subject"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.work_item_attention",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "inserted!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "delivered!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "delivery_attempts!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "agents.work_item_attention",
+            "name": "delivery_attempts"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "last_delivery_attempt_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "agents.work_item_attention",
+            "name": "last_delivery_attempt_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "disposition!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_item_attention",
+            "name": "disposition"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TextArray",
+        "TextArray",
+        "TimestamptzArray",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      null,
+      null,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "8b8ba47376616d4e50016ae536d0364b0cfce11dd644adad19c8dfd3da42a27a"
+}

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO work.thread_dependencies (thread_id, depends_on_thread_id)\n             SELECT me.id, other.id\n               FROM work.threads me\n               JOIN work.threads other ON other.project_id = me.project_id AND other.slug = ANY($3)\n              WHERE me.project_id = $1 AND me.slug = $2\n             ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ccc60410e5f3d8ac8e076032b114ed907f7e198169a4d631c0d4a955c3e5a008"
+}

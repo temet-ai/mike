@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT pattern FROM steering.steerers\n                  WHERE name = 'verifier' AND deleted_at IS NULL ORDER BY id LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "pattern",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "pattern"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "f9d85d5e4f5c2d3f34739d8cf3cb7146ef4c78567720280bc95657bab4cdd6ef"
+}

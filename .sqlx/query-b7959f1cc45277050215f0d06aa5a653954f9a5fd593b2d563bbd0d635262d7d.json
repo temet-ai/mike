@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO eval.labels\n                       (subject_kind, subject_id, operator_turn_id, session_id, session_uuid, axis,\n                        label, tier, method, split, source, note, provenance)\n                   SELECT 'evaluation', e.id, e.operator_turn_id, e.session_id, s.session_uuid,\n                          'steer_valid', $2, 'gold', 'operator_click', $5, 'spa', $3, $4\n                     FROM steering.evaluations e\n                     JOIN sessions.sessions s ON s.id = e.session_id\n                    WHERE e.uuid = $1\n                   RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b7959f1cc45277050215f0d06aa5a653954f9a5fd593b2d563bbd0d635262d7d"
+}

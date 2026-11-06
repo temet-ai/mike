@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM launch.introductions\n WHERE again_use_id = $1\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "53d4da4c28987447e9c9e2ffe6e4c75168d3e6a884cee0d91782d16ebd72868d"
+}

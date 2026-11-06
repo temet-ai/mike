@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lesson_delivery_arms\n                    (session_uuid, arm, last_delivery_at, deliveries, lessons_delivered, bytes_delivered)\n                 VALUES ($1::text::uuid, $2,\n                         CASE WHEN $3 > 0 THEN now() END,\n                         CASE WHEN $3 > 0 THEN 1 ELSE 0 END, $3, $4)\n                 ON CONFLICT (session_uuid) DO UPDATE SET\n                    last_delivery_at = CASE WHEN $3 > 0 THEN now()\n                                            ELSE memory.lesson_delivery_arms.last_delivery_at END,\n                    deliveries = memory.lesson_delivery_arms.deliveries\n                               + CASE WHEN $3 > 0 THEN 1 ELSE 0 END,\n                    lessons_delivered = memory.lesson_delivery_arms.lessons_delivered + $3,\n                    bytes_delivered = memory.lesson_delivery_arms.bytes_delivered + $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "54da8e3edfbd765aedb96766d8382d8e2a31681f100fe01e7c95d13d1824dbda"
+}

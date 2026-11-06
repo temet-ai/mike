@@ -1,0 +1,1 @@
+SELECT rsp.prompt_sha256, COUNT(*)::BIGINT FROM requests.requests r JOIN requests.system_prompts rsp ON rsp.request_id = r.id WHERE rsp.override_applied = TRUE AND rsp.prompt_sha256 IS NOT NULL AND r.created_at > NOW() - INTERVAL '24 hours' GROUP BY rsp.prompt_sha256

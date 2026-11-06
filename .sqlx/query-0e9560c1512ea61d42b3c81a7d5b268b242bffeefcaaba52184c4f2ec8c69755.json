@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE eval.rollups SET finished_at = now(), rows_written = $2 WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0e9560c1512ea61d42b3c81a7d5b268b242bffeefcaaba52184c4f2ec8c69755"
+}

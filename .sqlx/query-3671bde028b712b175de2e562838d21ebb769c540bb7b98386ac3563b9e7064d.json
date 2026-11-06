@@ -1,0 +1,172 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id AS \"id!\", role AS \"role!\", bundle_id AS \"bundle_id!\", window_since AS \"window_since!\",\n       window_until AS \"window_until!\", daily_call_cap AS \"daily_call_cap!\", status AS \"status!\",\n       estimated_calls AS \"estimated_calls!\", estimated_usd, created_by AS \"created_by!\",\n       created_at AS \"created_at!\", started_at, finished_at\n  FROM eval.rejudge_runs\n WHERE id = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.rejudge_runs",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "role!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rejudge_runs",
+            "name": "role"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "bundle_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.rejudge_runs",
+            "name": "bundle_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "window_since!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.rejudge_runs",
+            "name": "window_since"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "window_until!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.rejudge_runs",
+            "name": "window_until"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "daily_call_cap!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.rejudge_runs",
+            "name": "daily_call_cap"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "status!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rejudge_runs",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "estimated_calls!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.rejudge_runs",
+            "name": "estimated_calls"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "estimated_usd",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "eval.rejudge_runs",
+            "name": "estimated_usd"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "created_by!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rejudge_runs",
+            "name": "created_by"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.rejudge_runs",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "started_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.rejudge_runs",
+            "name": "started_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "finished_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.rejudge_runs",
+            "name": "finished_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "3671bde028b712b175de2e562838d21ebb769c540bb7b98386ac3563b9e7064d"
+}

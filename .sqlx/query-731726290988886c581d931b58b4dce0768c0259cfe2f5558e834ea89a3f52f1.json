@@ -1,0 +1,175 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH q AS (\n    SELECT u.facet, u.vec::vector AS v FROM unnest($1::text[], $2::text[]) AS u(facet, vec)\n),\npool AS (\n    SELECT i.id, 'directive'::text AS item_facet, i.text, i.source_ref, i.operator_turn_id,\n           i.session_id, i.project_id, i.request_id, i.effective_at, i.recorded_at, i.embedding,\n           NULL::text AS qualification_ref, NULL::text AS qualification,\n           NULL::bigint AS corrected_turn_id\n      FROM memory.semantic_items i\n     WHERE i.kind = 'directive' AND i.embedder_key = $3\n       AND i.effective_at < $4\n       AND ($5 OR i.recorded_at <= $4)\n       AND i.operator_turn_id IS DISTINCT FROM $6\n       AND ($7 = 'operator' OR ($7 = 'project' AND i.project_id IS NOT DISTINCT FROM $8)\n            OR ($7 = 'session' AND i.session_id = $9))\n)\nSELECT p.id AS \"item_id!\", p.item_facet AS \"item_facet!\", p.text AS \"text!\",\n       p.source_ref AS \"source_ref!\", p.operator_turn_id, p.session_id, p.project_id,\n       p.request_id, p.effective_at AS \"effective_at!\", p.recorded_at AS \"recorded_at!\",\n       q.facet AS \"query_facet!\", (1 - (p.embedding <=> q.v))::float8 AS \"similarity!\",\n       p.qualification_ref, p.qualification, p.corrected_turn_id\n  FROM pool p CROSS JOIN q\n ORDER BY \"similarity!\" DESC, p.id\n LIMIT $10\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "item_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "item_facet!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "source_ref!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "source_ref"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "operator_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "effective_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "effective_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "recorded_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "recorded_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "query_facet!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "similarity!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 12,
+        "name": "qualification_ref",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 13,
+        "name": "qualification",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 14,
+        "name": "corrected_turn_id",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        "Text",
+        "Timestamptz",
+        "Bool",
+        "Int8",
+        "Text",
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "731726290988886c581d931b58b4dce0768c0259cfe2f5558e834ea89a3f52f1"
+}

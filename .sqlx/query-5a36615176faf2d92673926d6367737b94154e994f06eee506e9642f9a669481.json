@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT tr.request_id AS \"request_id!\"\n                   FROM tools.uses tu\n                   JOIN tools.results tr ON tr.tool_use_id = tu.id\n                  WHERE tu.wire_tool_use_id = $1\n                  ORDER BY tr.request_id\n                  LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "request_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5a36615176faf2d92673926d6367737b94154e994f06eee506e9642f9a669481"
+}

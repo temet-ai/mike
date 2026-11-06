@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id FROM eval.bundles\n                  WHERE role = $1 AND subject_key = '' AND origin = 'resolver'\n                    AND superseded_at IS NULL AND components = $2\n                  ORDER BY id DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a088ba63a22e752ff2fa3a6bdfc3d32eeb6224e7498b113f131de4933a21efe2"
+}

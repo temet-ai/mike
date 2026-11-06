@@ -1,0 +1,1 @@
+SELECT l.run_id, l.seat, (l.closed_at IS NOT NULL AND (s.last_seen IS NULL OR s.last_seen <= l.closed_at + interval '5 seconds')) AS closed FROM launch.launches l LEFT JOIN sessions.sessions s ON s.session_uuid = l.session_uuid WHERE l.session_uuid = '2a62d305-cd85-452a-80e1-50273f7768cb'::uuid ORDER BY l.created_at DESC, l.id DESC LIMIT 1

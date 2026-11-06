@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT t.session_id AS \"session_id!\"\n                     FROM memory.operator_turns t\n                    WHERE t.id = ANY($1)\n                    ORDER BY t.session_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "session_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "2f005b9ff4d3d7cc5f9e46d35121ad89b77707aeefe62ac8fd53066b78a45196"
+}

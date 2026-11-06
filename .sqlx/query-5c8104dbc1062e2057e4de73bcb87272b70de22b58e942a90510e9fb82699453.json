@@ -1,0 +1,43 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO messages.messages (message_sha256, body, byte_size, role_id)\n             SELECT u.sha, u.body, u.byte_size, r.id\n             FROM UNNEST($1::text[], $2::jsonb[], $3::int[], $4::text[])\n                  AS u(sha, body, byte_size, role)\n             JOIN messages.roles r ON r.code = u.role\n             RETURNING id AS \"id!\", message_sha256 AS \"message_sha256!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "messages.messages",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "message_sha256!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "messages.messages",
+            "name": "message_sha256"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "JsonbArray",
+        "Int4Array",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "5c8104dbc1062e2057e4de73bcb87272b70de22b58e942a90510e9fb82699453"
+}

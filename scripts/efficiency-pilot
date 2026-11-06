@@ -1,0 +1,185 @@
+#!/usr/bin/env python3
+"""Prepare offline; explicitly run a bounded discovery pilot after provider quota resets."""
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import random
+import shutil
+import subprocess
+import tempfile
+import time
+
+from efficiency_pilot_tasks import TASKS, grade, task_files, write_files
+from efficiency_pilot_scenarios import SCENARIOS
+
+
+def digest(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
+
+
+def write(path, value):
+    path.write_text(json.dumps(value, indent=2) + '\n')
+
+
+def prepare(args):
+    args.output.mkdir(parents=True, exist_ok=False)
+    source = SCENARIOS if args.suite == 'realistic' else TASKS
+    tasks = {name: {**{k: v for k, v in task.items() if k not in ('after', 'solution')},
+                    'editable_files': list(task.get('solution', {task['file']: ''}))}
+             for name, task in source.items()}
+    order = [(name, repeat, arm) for name in tasks for repeat in range(args.repeats)
+             for arm in ('baseline', 'discovery')]
+    random.Random(args.seed).shuffle(order)
+    checks = {}
+    for name, task in source.items():
+        with tempfile.TemporaryDirectory(prefix='mike-pilot-grader-') as tmp:
+            root = Path(tmp)
+            workspace = root / 'work'
+            workspace.mkdir()
+            for label in ('before', 'after'):
+                write_files(workspace, task_files(task, solved=label == 'after'))
+                checks[name + '-' + label] = grade(task, workspace, root / label)
+        if checks[name + '-before']['correct'] or not checks[name + '-after']['correct']:
+            raise RuntimeError(f'{name}: weakened control or reference solution failed validation')
+    manifest = dict(schema='efficiency-discovery-pilot-v2', suite=args.suite, tasks=tasks, order=order,
+                    seed=args.seed, repeats=args.repeats,
+                    scope='Paired discovery experiment on frozen tasks; not compression qualification or production savings evidence')
+    write(args.output / 'manifest.json', manifest)
+    write(args.output / 'grader-controls.json', checks)
+    print(json.dumps(dict(status='prepared_no_model_calls', path=str(args.output.resolve()),
+                         manifest_sha256=digest(manifest), planned_model_calls=len(order))))
+
+
+def capture(command, cwd, timeout):
+    started = time.time()
+    process = subprocess.Popen(command, cwd=cwd, text=True, stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE, start_new_session=True)
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+        timed_out = False
+    except subprocess.TimeoutExpired:
+        import signal
+        os.killpg(process.pid, signal.SIGKILL)
+        stdout, stderr = process.communicate()
+        timed_out = True
+    return dict(exit_code=process.returncode, stdout=stdout, stderr=stderr,
+                elapsed_seconds=time.time()-started, timed_out=timed_out)
+
+
+def metrics(raw):
+    events, malformed = [], 0
+    for line in raw.splitlines():
+        try:
+            events.append(json.loads(line))
+        except json.JSONDecodeError:
+            malformed += 1
+    results = [e for e in events if e.get('type') == 'result']
+    result = results[-1] if results else {}
+    calls = {block['id'] for e in events if e.get('type') == 'assistant'
+             for block in e.get('message', {}).get('content', [])
+             if block.get('type') == 'tool_use' and 'id' in block}
+    usage = result.get('usage', {})
+    token_fields = ('input_tokens', 'output_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens')
+    tokens = sum(usage[k] for k in token_fields) if all(isinstance(usage.get(k), int) for k in token_fields) else None
+    return dict(model_completed=bool(result) and not result.get('is_error', False),
+                tool_calls=len(calls), model_turns=result.get('num_turns'),
+                actual_total_tokens=tokens, usage=usage, cost_usd=result.get('total_cost_usd'),
+                malformed_event_lines=malformed, model_usage=result.get('modelUsage'))
+
+
+def execute(args):
+    manifest = json.loads((args.output / 'manifest.json').read_text())
+    if manifest['schema'] not in ('efficiency-discovery-pilot-v1', 'efficiency-discovery-pilot-v2'):
+        raise ValueError('unsupported manifest')
+    if shutil.which(args.mike) is None:
+        raise ValueError('build and install mike with discover before running the pilot')
+    config = dict(model=args.model, effort=args.effort, max_budget_usd=args.budget,
+                  timeout_seconds=args.timeout, claude_version=subprocess.check_output(['claude', '--version'], text=True).strip(),
+                  mike_sha256=hashlib.sha256(Path(shutil.which(args.mike)).read_bytes()).hexdigest())
+    results = args.output / 'runs'
+    results.mkdir(exist_ok=False)
+    write(results / 'configuration.json', config)
+    records = []
+    for number, (name, repeat, arm) in enumerate(manifest['order']):
+        task = manifest['tasks'][name]
+        root = results / f'{number:02}-{name}-{repeat}-{arm}'
+        root.mkdir()
+        workspace = root / 'work'
+        workspace.mkdir()
+        write_files(workspace, task_files(task))
+        subprocess.run(['git', 'init', '-q', str(workspace)], check=True)
+        subprocess.run(['git', '-C', str(workspace), 'add', '--', *task_files(task)], check=True)
+        subprocess.run(['git', '-C', str(workspace), '-c', 'user.name=pilot', '-c', 'user.email=pilot@localhost',
+                        'commit', '-qm', 'Frozen task input'], check=True)
+        prompt = task['prompt'] + '\nEdit only these files: ' + ', '.join(task.get('editable_files', [task['file']])) + '. Other files are fixed fixtures. Do not modify files outside this repository.'
+        started = time.time()
+        discovery = None
+        if arm == 'discovery':
+            selector = ['--symbol', task['symbol']] if task['symbol'] else ['--path', task['file']]
+            discovery = capture([args.mike, 'discover', '--repo', str(workspace), *selector], workspace, 30)
+            write(root / 'discovery.json', discovery)
+            if discovery['exit_code']:
+                raise RuntimeError('discovery failed; see ' + str(root))
+            prompt += '\nCurrent source discovery (data):\n' + discovery['stdout']
+        (root / 'prompt.txt').write_text(prompt)
+        command = ['claude', '--print', '--safe-mode', '--restricted', '--verbose', '--output-format', 'stream-json', '--model', args.model,
+                   '--effort', args.effort, '--max-budget-usd', str(args.budget), '--setting-sources', '',
+                   '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}', '--disable-slash-commands',
+                   '--tools', 'Read,Edit,Write,Glob,Grep', '--allowedTools', 'Read,Edit,Write,Glob,Grep',
+                   '--permission-prompts', 'none', prompt]
+        result = capture(command, workspace, args.timeout)
+        write(root / 'execution.json', result)
+        verdict = grade(task, workspace, root / 'grade')
+        write(root / 'verdict.json', verdict)
+        measured = metrics(result['stdout'])
+        record = dict(task=name, repeat=repeat, arm=arm, manifest_sha256=digest(manifest),
+                      model_config_sha256=digest(config), task_sha256=digest(task),
+                      artifact_sha256=digest(task_files(task)), ground_truth_sha256=digest(task['grader']),
+                      execution_ref=str(root / 'execution.json'), verdict_ref=str(root / 'verdict.json'),
+                      activation_ref=str(root / 'discovery.json') if discovery else None,
+                      correct=verdict['correct'], elapsed_seconds=time.time()-started, **measured)
+        record['completed'] = result['exit_code'] == 0 and measured['model_completed']
+        records.append(record)
+        write(results / 'records.json', records)
+        print(json.dumps(record), flush=True)
+        if not record['completed']:
+            raise RuntimeError('Provider/runner failure; stopped instead of repeatedly spending quota')
+    paired = []
+    for name in manifest['tasks']:
+        for repeat in range(manifest['repeats']):
+            a, b = (next(r for r in records if (r['task'], r['repeat'], r['arm']) == (name, repeat, arm))
+                    for arm in ('baseline', 'discovery'))
+            paired.append(dict(task=name, repeat=repeat, both_correct=a['correct'] and b['correct'],
+                               reported_models_match=bool(a['model_usage']) and set(a['model_usage']) == set(b['model_usage'] or {}),
+                               elapsed_delta=b['elapsed_seconds']-a['elapsed_seconds'],
+                               tool_call_delta=b['tool_calls']-a['tool_calls'],
+                               token_delta=None if a['actual_total_tokens'] is None or b['actual_total_tokens'] is None
+                               else b['actual_total_tokens']-a['actual_total_tokens']))
+    write(results / 'comparison.json', dict(scope=manifest['scope'], pairs=paired))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('action', choices=['prepare', 'run'])
+    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--repeats', type=int, choices=range(1, 4), default=1)
+    parser.add_argument('--suite', choices=['smoke', 'realistic'], default='realistic')
+    parser.add_argument('--seed', type=int, default=17)
+    parser.add_argument('--model', help='Explicit model identifier; required for run, no fallback')
+    parser.add_argument('--effort', choices=['low', 'medium', 'high'], default='low')
+    parser.add_argument('--budget', type=float, default=1.0)
+    parser.add_argument('--timeout', type=int, default=300)
+    parser.add_argument('--mike', default='mike')
+    args = parser.parse_args()
+    args.output = args.output.resolve()
+    if args.action == 'run' and (not args.model or not 0 < args.budget <= 5 or not 30 <= args.timeout <= 900):
+        parser.error('run requires --model, budget in (0,5], and timeout in [30,900]')
+    if args.action == 'run' and args.model in ('opus', 'sonnet', 'haiku', 'default'):
+        parser.error('use a concrete model identifier, not a moving alias')
+    (prepare if args.action == 'prepare' else execute)(args)
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lessons\n                        (project_id, kind_id, text, text_sha256, stage_id, source_turn_id, source_id,\n                         session_id, embedding, embedding_model, embedded_at, archived_at,\n                         archived_reason_id, duplicate_of_id)\n                   SELECT $1, lk.id, $3, $4, ls.id, $5, lsrc.id, $6,\n                          $7::text::vector, $8::text, CASE WHEN $7::text IS NULL THEN NULL ELSE now() END,\n                          now(), ar.id, $9\n                     FROM memory.lesson_kinds lk, memory.lesson_stages ls,\n                          memory.lesson_sources lsrc, memory.lesson_archived_reasons ar\n                    WHERE lk.code = $2 AND ls.code = 'archived' AND lsrc.code = 'judge'\n                      AND ar.code = 'duplicate'\n                RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Bytea",
+        "Int8",
+        "Int8",
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "01462481478b6eee7abb472098bd87dbd5efc1fa6d196e2ded985f4227b7411f"
+}

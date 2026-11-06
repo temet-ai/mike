@@ -1,0 +1,71 @@
+                                                                                QUERY PLAN                                                                                 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ CTE Scan on call_row  (cost=29.14..29.16 rows=1 width=8) (actual time=0.390..0.397 rows=1 loops=1)
+   Buffers: shared hit=127
+   CTE ch
+     ->  Insert on channels c  (cost=8.17..8.19 rows=1 width=304) (actual time=0.199..0.200 rows=1 loops=1)
+           Conflict Resolution: UPDATE
+           Conflict Arbiter Indexes: channels_cse_id_key
+           Tuples Inserted: 0
+           Conflicting Tuples: 1
+           Buffers: shared hit=45
+           InitPlan 1
+             ->  Index Scan using sessions_session_uuid_key on sessions s  (cost=0.15..8.17 rows=1 width=8) (actual time=0.001..0.002 rows=0 loops=1)
+                   Index Cond: (session_uuid = '00000000-0000-4000-8000-0000000003e8'::uuid)
+                   Buffers: shared hit=2
+           ->  Result  (cost=0.00..0.03 rows=1 width=304) (actual time=0.032..0.032 rows=1 loops=1)
+                 Buffers: shared hit=12
+           SubPlan 2
+             ->  Index Scan using sessions_session_uuid_key on sessions s_1  (cost=0.15..8.17 rows=1 width=8) (actual time=0.002..0.002 rows=0 loops=1)
+                   Index Cond: (session_uuid = COALESCE(c.local_session_uuid, excluded.local_session_uuid))
+                   Buffers: shared hit=2
+   CTE call_row
+     ->  Insert on calls  (cost=0.15..8.21 rows=1 width=317) (actual time=0.389..0.391 rows=1 loops=1)
+           Buffers: shared hit=127
+           ->  Nested Loop  (cost=0.15..8.21 rows=1 width=317) (actual time=0.227..0.229 rows=1 loops=1)
+                 Buffers: shared hit=56
+                 ->  CTE Scan on ch  (cost=0.00..0.02 rows=1 width=8) (actual time=0.200..0.201 rows=1 loops=1)
+                       Buffers: shared hit=45
+                 ->  Index Scan using methods_code_key on methods rm  (cost=0.15..8.17 rows=1 width=8) (actual time=0.008..0.008 rows=1 loops=1)
+                       Index Cond: (code = 'PUT'::text)
+                       Buffers: shared hit=2
+   CTE transition
+     ->  Insert on worker_status_transitions  (cost=0.28..12.69 rows=1 width=84) (actual time=0.092..0.110 rows=1 loops=1)
+           Buffers: shared hit=56
+           ->  Nested Loop  (cost=0.28..12.69 rows=1 width=84) (actual time=0.026..0.044 rows=1 loops=1)
+                 Buffers: shared hit=16
+                 ->  Nested Loop  (cost=0.28..12.65 rows=1 width=68) (actual time=0.009..0.026 rows=1 loops=1)
+                       Join Filter: (channels_1.worker_status IS DISTINCT FROM ch_1.worker_status)
+                       Buffers: shared hit=7
+                       ->  CTE Scan on ch ch_1  (cost=0.00..0.02 rows=1 width=48) (actual time=0.000..0.000 rows=1 loops=1)
+                       ->  Append  (cost=0.28..12.61 rows=2 width=20) (actual time=0.007..0.023 rows=1 loops=1)
+                             Buffers: shared hit=7
+                             ->  Index Scan using channels_cse_id_key on channels channels_1  (cost=0.28..8.29 rows=1 width=9) (actual time=0.007..0.007 rows=1 loops=1)
+                                   Index Cond: (cse_id = 'cse_1000'::text)
+                                   Buffers: shared hit=3
+                             ->  Result  (cost=4.29..4.30 rows=1 width=32) (actual time=0.015..0.015 rows=0 loops=1)
+                                   One-Time Filter: (NOT (InitPlan 5).col1)
+                                   Buffers: shared hit=4
+                                   InitPlan 5
+                                     ->  Index Only Scan using channels_cse_id_key on channels  (cost=0.28..4.29 rows=1 width=0) (actual time=0.015..0.015 rows=1 loops=1)
+                                           Index Cond: (cse_id = 'cse_1000'::text)
+                                           Heap Fetches: 1
+                                           Buffers: shared hit=4
+                 ->  CTE Scan on call_row call_row_1  (cost=0.00..0.02 rows=1 width=8) (actual time=0.000..0.000 rows=1 loops=1)
+   CTE kept_payloads
+     ->  Insert on call_payloads  (cost=0.01..0.06 rows=1 width=128) (actual time=0.114..0.115 rows=1 loops=1)
+           Buffers: shared hit=61
+           ->  Nested Loop  (cost=0.01..0.06 rows=1 width=128) (actual time=0.030..0.031 rows=1 loops=1)
+                 Buffers: shared hit=9
+                 ->  CTE Scan on call_row c_1  (cost=0.00..0.02 rows=1 width=16) (actual time=0.000..0.001 rows=1 loops=1)
+                 ->  Function Scan on p  (cost=0.01..0.02 rows=1 width=104) (actual time=0.009..0.009 rows=1 loops=1)
+ Planning:
+   Buffers: shared hit=324
+ Planning Time: 0.990 ms
+ Trigger for constraint calls_channel_id_fkey on calls: time=0.158 calls=1
+ Trigger for constraint calls_method_id_fkey on calls: time=0.065 calls=1
+ Trigger for constraint worker_status_transitions_channel_id_fkey on worker_status_transitions: time=0.053 calls=1
+ Trigger for constraint worker_status_transitions_call_id_fkey on worker_status_transitions: time=0.052 calls=1
+ Trigger for constraint call_payloads_call_id_fkey on call_payloads: time=0.098 calls=1
+ Execution Time: 1.296 ms
+(68 rows)

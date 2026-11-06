@@ -1,0 +1,2 @@
+exit 1
+DRIFT C1 memory.turn_verdicts docs/SCHEMA.md no heading "### `memory.turn_verdicts`"

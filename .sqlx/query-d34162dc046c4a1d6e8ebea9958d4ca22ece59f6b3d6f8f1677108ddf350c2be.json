@@ -1,0 +1,43 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH cand AS (\n    SELECT * FROM unnest($1::text[], $2::text[], $3::jsonb[], $4::text[])\n             AS c(role, subject_key, components, content_sha256)),\ncur AS (\n    SELECT DISTINCT ON (b.role, b.subject_key) b.id, b.role, b.subject_key, b.components\n      FROM eval.bundles b\n     WHERE b.origin = 'resolver' AND b.superseded_at IS NULL\n     ORDER BY b.role, b.subject_key, b.id DESC),\nchanged AS (\n    SELECT c.* FROM cand c\n      LEFT JOIN cur ON cur.role = c.role AND cur.subject_key = c.subject_key\n     WHERE cur.id IS NULL OR cur.components IS DISTINCT FROM c.components),\nins AS (\n    INSERT INTO eval.bundles (role, subject_key, origin, status, components, content_sha256,\n                              build_sha, build_dirty, cause)\n    SELECT role, subject_key, 'resolver', 'live_ungated', components, content_sha256, $5::text, $6::boolean, $7::jsonb\n      FROM changed\n    RETURNING id, role, subject_key),\nsuperseded AS (\n    UPDATE eval.bundles b\n       SET superseded_at = now(), superseded_by_id = ins.id\n      FROM cur JOIN ins ON ins.role = cur.role AND ins.subject_key = cur.subject_key\n     WHERE b.id = cur.id\n    RETURNING b.id),\norphaned AS (\n    UPDATE eval.bundles b\n       SET superseded_at = now()\n      FROM cur\n     WHERE b.id = cur.id\n       AND NOT EXISTS (SELECT 1 FROM cand c WHERE c.role = cur.role AND c.subject_key = cur.subject_key)\n    RETURNING b.id)\nSELECT id AS \"id!\", role AS \"role!\", subject_key AS \"subject_key!\" FROM ins\nUNION ALL\nSELECT cur.id, cur.role, cur.subject_key\n  FROM cur JOIN cand c ON c.role = cur.role AND c.subject_key = cur.subject_key\n WHERE cur.components IS NOT DISTINCT FROM c.components\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "role!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "subject_key!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        "JsonbArray",
+        "TextArray",
+        "Text",
+        "Bool",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "d34162dc046c4a1d6e8ebea9958d4ca22ece59f6b3d6f8f1677108ddf350c2be"
+}

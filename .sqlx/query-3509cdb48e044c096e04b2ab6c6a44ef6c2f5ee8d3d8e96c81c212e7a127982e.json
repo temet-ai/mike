@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT max(r.created_at)\n           FROM requests.requests r\n           JOIN requests.turn_origins torg ON torg.id = r.turn_origin_id\n          WHERE r.session_id = $1\n            AND r.claude_code_agent_id IS NULL\n            AND torg.code IN ('primary', 'primary_first')",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "max",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "3509cdb48e044c096e04b2ab6c6a44ef6c2f5ee8d3d8e96c81c212e7a127982e"
+}

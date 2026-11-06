@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT coalesce(max((value #>> '{}')::bigint) FILTER (WHERE key = $1), 0) AS \"bundle_id!\",\n                          coalesce(max((value #>> '{}')::bigint) FILTER (WHERE key = $2), $3) AS \"window_days!\"\n                     FROM config.settings\n                    WHERE key IN ($1, $2)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "bundle_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "window_days!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "9e4dfad101f8323f4b47f91ad1e53fc7bf164dcbd9b68e2dafcefb9517849112"
+}

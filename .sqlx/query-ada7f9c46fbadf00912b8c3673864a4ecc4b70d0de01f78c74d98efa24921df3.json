@@ -1,0 +1,185 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n                       m.message_uuid      AS \"message_uuid!\",\n                       recip.session_uuid  AS \"to_session_uuid!\",\n                       sender.session_uuid AS \"from_session_uuid?\",\n                       m.body              AS \"body!\",\n                       m.queued_at         AS \"queued_at!\",\n                       m.claimed_at        AS \"claimed_at?\",\n                       m.sent_request_id   AS \"sent_request_id?\",\n                       m.sent_at           AS \"sent_at?\",\n                       m.consumed_at       AS \"consumed_at?\",\n                       m.dead_lettered_at  AS \"dead_lettered_at?\",\n                       m.channel_delivered_at AS \"channel_delivered_at?\",\n                       m.delivery_attempts AS \"delivery_attempts!\",\n                       th.thread_uuid       AS \"thread_uuid?\",\n                       parent.message_uuid  AS \"in_reply_to_uuid?\"\n                   FROM mailbox.messages m\n                   JOIN sessions.sessions recip  ON recip.id  = m.to_session_id\n                   JOIN sessions.sessions sender ON sender.id = m.from_session_id\n                   LEFT JOIN mailbox.threads th ON th.id = m.thread_id\n                   LEFT JOIN mailbox.messages parent ON parent.id = m.in_reply_to_id\n                  WHERE m.message_uuid = $1 AND sender.session_uuid = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "message_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "message_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "to_session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "from_session_uuid?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "body!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "body"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "queued_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "queued_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "claimed_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "claimed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "sent_request_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "sent_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "sent_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "sent_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "consumed_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "consumed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "dead_lettered_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "dead_lettered_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "channel_delivered_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "channel_delivered_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "delivery_attempts!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "delivery_attempts"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "thread_uuid?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "mailbox.threads",
+            "name": "thread_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "in_reply_to_uuid?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "message_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "ada7f9c46fbadf00912b8c3673864a4ecc4b70d0de01f78c74d98efa24921df3"
+}

@@ -1,0 +1,111 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT state.namespace_id AS \"namespace_id!\",\n       state.thread_id AS \"thread_id!\",\n       state.turn_id AS \"turn_id!\",\n       state.item_id AS \"item_id!\",\n       state.first_capture_sequence AS \"first_capture_sequence!\",\n       state.latest_capture_sequence AS \"latest_capture_sequence!\",\n       state.state_codec_version AS \"state_codec_version!\",\n       state.state_document::text AS \"state_document!\"\n  FROM runtime.codex_item_state state\n WHERE state.generation_id = $1 AND state.namespace_id = $2\n   AND state.thread_id = $3 AND state.turn_id = $4 AND state.item_id = $5\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "namespace_id!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_item_state",
+            "name": "namespace_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "thread_id!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_item_state",
+            "name": "thread_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "turn_id!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_item_state",
+            "name": "turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "item_id!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_item_state",
+            "name": "item_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "first_capture_sequence!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_item_state",
+            "name": "first_capture_sequence"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "latest_capture_sequence!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_item_state",
+            "name": "latest_capture_sequence"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "state_codec_version!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_item_state",
+            "name": "state_codec_version"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "state_document!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "94820583606bf23974b4916d0f443ac53200b54123d399f58fe860e31fdb7039"
+}

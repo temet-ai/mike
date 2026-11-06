@@ -1,0 +1,66 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH fa AS (\n    SELECT i.id, i.session_id, i.embedding\n      FROM memory.semantic_items i\n      JOIN memory.turn_facts f ON f.operator_turn_id = i.operator_turn_id\n     WHERE $8::text = 'prompt'\n       AND i.kind = 'turn_prompt' AND i.embedder_key = $1\n       AND f.prompt_kind = 'genuine' AND f.session_class = 'operator'\n       AND i.effective_at > now() - interval '60 days'\n    UNION ALL\n    SELECT i.id, i.session_id, i.embedding\n      FROM memory.semantic_items i\n      JOIN memory.turn_facts f ON f.operator_turn_id = i.operator_turn_id\n     WHERE $8::text = 'ending'\n       AND i.kind = 'turn_ending' AND i.embedder_key = $1\n       AND f.prompt_kind = 'genuine' AND f.session_class = 'operator'\n       AND i.effective_at > now() - interval '60 days'\n    UNION ALL\n    SELECT i.id, i.session_id, i.embedding\n      FROM memory.turn_facts pf\n      JOIN memory.semantic_items i ON i.operator_turn_id = pf.next_genuine_turn_id\n      JOIN memory.turn_facts f ON f.operator_turn_id = i.operator_turn_id\n     WHERE $8::text = 'corr'\n       AND pf.operator_turn_id IN (\n               SELECT l.subject_id FROM eval.labels_as_of('infinity'::timestamptz) l\n                WHERE l.subject_kind = 'turn' AND l.axis = 'reaction' AND l.label = 'corrected'\n                  AND l.split = 'dev' AND l.tier IN ('gold', 'relayed', 'seed')\n               UNION\n               SELECT v.operator_turn_id FROM memory.turn_verdicts v\n                WHERE v.mode = 'live' AND v.projected AND v.reaction = 'corrected')\n       AND i.kind = 'turn_prompt' AND i.embedder_key = $1\n       AND f.prompt_kind = 'genuine' AND f.session_class = 'operator'\n       AND NOT EXISTS (\n           SELECT 1 FROM eval.turn_splits s\n            WHERE s.split = 'holdout' AND s.operator_turn_id = i.operator_turn_id)\n       AND NOT EXISTS (\n           SELECT 1 FROM eval.turn_splits s\n            WHERE s.split = 'holdout' AND s.operator_turn_id = pf.operator_turn_id)\n    UNION ALL\n    SELECT i.id, i.session_id, i.embedding\n      FROM memory.semantic_items i\n     WHERE $8::text = 'directive'\n       AND i.kind = 'directive' AND i.embedder_key = $1\n    UNION ALL\n    SELECT l.id, l.session_id, l.embedding\n      FROM memory.lessons l\n     WHERE $8::text = 'lesson'\n       AND l.embedding IS NOT NULL AND l.embedding_model = $5 AND l.archived_at IS NULL\n),\nfb AS (\n    SELECT i.id, i.session_id, i.embedding\n      FROM memory.semantic_items i\n      JOIN memory.turn_facts f ON f.operator_turn_id = i.operator_turn_id\n     WHERE $9::text = 'prompt'\n       AND i.kind = 'turn_prompt' AND i.embedder_key = $1\n       AND f.prompt_kind = 'genuine' AND f.session_class = 'operator'\n       AND i.effective_at > now() - interval '60 days'\n    UNION ALL\n    SELECT i.id, i.session_id, i.embedding\n      FROM memory.semantic_items i\n      JOIN memory.turn_facts f ON f.operator_turn_id = i.operator_turn_id\n     WHERE $9::text = 'ending'\n       AND i.kind = 'turn_ending' AND i.embedder_key = $1\n       AND f.prompt_kind = 'genuine' AND f.session_class = 'operator'\n       AND i.effective_at > now() - interval '60 days'\n    UNION ALL\n    SELECT i.id, i.session_id, i.embedding\n      FROM memory.turn_facts pf\n      JOIN memory.semantic_items i ON i.operator_turn_id = pf.next_genuine_turn_id\n      JOIN memory.turn_facts f ON f.operator_turn_id = i.operator_turn_id\n     WHERE $9::text = 'corr'\n       AND pf.operator_turn_id IN (\n               SELECT l.subject_id FROM eval.labels_as_of('infinity'::timestamptz) l\n                WHERE l.subject_kind = 'turn' AND l.axis = 'reaction' AND l.label = 'corrected'\n                  AND l.split = 'dev' AND l.tier IN ('gold', 'relayed', 'seed')\n               UNION\n               SELECT v.operator_turn_id FROM memory.turn_verdicts v\n                WHERE v.mode = 'live' AND v.projected AND v.reaction = 'corrected')\n       AND i.kind = 'turn_prompt' AND i.embedder_key = $1\n       AND f.prompt_kind = 'genuine' AND f.session_class = 'operator'\n       AND NOT EXISTS (\n           SELECT 1 FROM eval.turn_splits s\n            WHERE s.split = 'holdout' AND s.operator_turn_id = i.operator_turn_id)\n       AND NOT EXISTS (\n           SELECT 1 FROM eval.turn_splits s\n            WHERE s.split = 'holdout' AND s.operator_turn_id = pf.operator_turn_id)\n    UNION ALL\n    SELECT i.id, i.session_id, i.embedding\n      FROM memory.semantic_items i\n     WHERE $9::text = 'directive'\n       AND i.kind = 'directive' AND i.embedder_key = $1\n    UNION ALL\n    SELECT l.id, l.session_id, l.embedding\n      FROM memory.lessons l\n     WHERE $9::text = 'lesson'\n       AND l.embedding IS NOT NULL AND l.embedding_model = $5 AND l.archived_at IS NULL\n),\nsa AS MATERIALIZED (\n    SELECT id, session_id, embedding::real[]::vector AS embedding\n      FROM (SELECT id, session_id, embedding FROM fa ORDER BY md5(id::text || $2), id LIMIT $3) picked\n),\nsb AS MATERIALIZED (\n    SELECT id, session_id, embedding::real[]::vector AS embedding\n      FROM (SELECT id, session_id, embedding FROM fb ORDER BY md5(id::text || $4), id LIMIT $3) picked\n),\npairs AS (\n    SELECT (1 - (sa.embedding <=> sb.embedding))::float8 AS s\n      FROM sa JOIN sb ON sa.session_id IS DISTINCT FROM sb.session_id AND sa.id <> sb.id\n     LIMIT $6\n)\nSELECT count(*)::bigint AS \"n_pairs!\",\n       percentile_cont(0.5) WITHIN GROUP (ORDER BY s) AS p50,\n       percentile_cont(0.95) WITHIN GROUP (ORDER BY s) AS p95,\n       percentile_cont(0.99) WITHIN GROUP (ORDER BY s) AS p99,\n       percentile_cont(0.999) WITHIN GROUP (ORDER BY s) AS p999,\n       percentile_cont($7) WITHIN GROUP (ORDER BY s) AS floor\n  FROM pairs\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "n_pairs!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "p50",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "p95",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "p99",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "p999",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "floor",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8",
+        "Text",
+        "Text",
+        "Int8",
+        "Float8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "c4fdadb316d444d7bafd0554af9e44310cd88d7bd7d219d77125bede1646e7c0"
+}

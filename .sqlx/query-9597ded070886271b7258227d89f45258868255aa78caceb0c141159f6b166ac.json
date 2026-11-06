@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.semantic_items\n                       (kind, session_id, operator_turn_id, project_id, request_id, source_ref, text,\n                        text_chars, embedding, embedder_key, vector_source, builder_version,\n                        effective_at)\n                   SELECT 'turn_prompt', t.session_id, t.id, t.project_id, t.start_request_id,\n                          'memory.operator_turns:' || t.id, c.chunk_text,\n                          char_length(c.chunk_text), c.chunk_embedding, $2, 'chunk_copy', $3,\n                          t.created_at\n                     FROM memory.operator_turns t\n                     JOIN memory.operator_turn_chunks c ON c.turn_id = t.id AND c.chunk_idx = 0\n                     JOIN memory.chunk_roles cr ON cr.id = c.chunk_role_id AND cr.code = 'prompt'\n                    WHERE t.id = ANY($1)\n                      AND c.embedding_model = $4\n                      AND c.embedded_at >= $5\n                      AND char_length(c.chunk_text) > 0\n                   ON CONFLICT (kind, source_ref, embedder_key, builder_version) DO NOTHING\n                   RETURNING operator_turn_id AS \"operator_turn_id!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "operator_turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "operator_turn_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Text",
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "9597ded070886271b7258227d89f45258868255aa78caceb0c141159f6b166ac"
+}

@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, request_body AS \"request_body!\"\n                     FROM requests.requests\n                    WHERE id >= $1\n                      AND request_body IS NOT NULL\n                      AND request_envelope IS NULL\n                    ORDER BY id ASC\n                    LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_body!",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "request_body"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "a1d2803ca092953a31666a838ddc53a8c6e1bdcca356075b3df14bc9146809b8"
+}

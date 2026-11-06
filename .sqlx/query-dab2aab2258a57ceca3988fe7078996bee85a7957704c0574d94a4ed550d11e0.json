@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO responses.responses (\n            request_id,\n            response_status, response_headers, response_body,\n            upstream_request_id, upstream_message_id,\n            token_usage, stop_reason_id, stop_details, completed_at,\n            stream_blocks_gapped\n         )\n         SELECT $1, $2, $3, $4, $5, $6, $7, sr.id, $9, $10, $11\n         FROM (SELECT $8::text AS code) AS v\n         LEFT JOIN responses.stop_reasons sr ON sr.code = v.code\n         WHERE NOT EXISTS (\n             SELECT 1 FROM responses.responses WHERE request_id = $1\n         )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int2",
+        "Jsonb",
+        "Bytea",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Text",
+        "Jsonb",
+        "Timestamptz",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "dab2aab2258a57ceca3988fe7078996bee85a7957704c0574d94a4ed550d11e0"
+}

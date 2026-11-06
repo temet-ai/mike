@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lesson_proposer_daily_budget (day, consumed)\n             VALUES ((NOW() AT TIME ZONE 'UTC')::date, 1)\n             ON CONFLICT (day) DO UPDATE\n                SET consumed = memory.lesson_proposer_daily_budget.consumed + 1\n              WHERE memory.lesson_proposer_daily_budget.consumed < $1\n             RETURNING consumed",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "consumed",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_proposer_daily_budget",
+            "name": "consumed"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "2570a4a7bd522727a26966e0d2d081c1408338e49dd28e5ccd67c716e1671844"
+}

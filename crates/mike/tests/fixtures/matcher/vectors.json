@@ -1,0 +1,125 @@
+[
+	{
+		"id": "text_substring__case_insensitive_match",
+		"kind": "text_substring",
+		"value": "System-Reminder",
+		"block": "blah system-reminder blah",
+		"expected_match": true,
+		"note": "Backend lowercases both sides; UI must mirror."
+	},
+	{
+		"id": "text_substring__case_insensitive_match_upper_needle",
+		"kind": "text_substring",
+		"value": "YOU",
+		"block": "you are",
+		"expected_match": true,
+		"note": "The manual-smoke case from the remediation plan."
+	},
+	{
+		"id": "text_substring__case_insensitive_non_match",
+		"kind": "text_substring",
+		"value": "kittens",
+		"block": "the quick brown fox",
+		"expected_match": false
+	},
+	{
+		"id": "text_substring__empty_value_never_matches",
+		"kind": "text_substring",
+		"value": "",
+		"block": "anything goes",
+		"expected_match": false,
+		"note": "Empty needle must never match — backend has an explicit guard."
+	},
+	{
+		"id": "text_substring__accented_chars_preserve_identity",
+		"kind": "text_substring",
+		"value": "café",
+		"block": "the CAFÉ is closed",
+		"expected_match": true,
+		"note": "to_lowercase() handles ASCII-adjacent Unicode the same on both sides."
+	},
+	{
+		"id": "xml_tag__open_close_match",
+		"kind": "xml_tag",
+		"value": "system-reminder",
+		"block": "<system-reminder>SessionStart hook success: OK</system-reminder>",
+		"expected_match": true
+	},
+	{
+		"id": "xml_tag__open_with_attr_match",
+		"kind": "xml_tag",
+		"value": "system-reminder",
+		"block": "<system-reminder id=\"hooks\">x</system-reminder>",
+		"expected_match": true
+	},
+	{
+		"id": "xml_tag__leading_trailing_whitespace_match",
+		"kind": "xml_tag",
+		"value": "system-reminder",
+		"block": "  \n<system-reminder>hi</system-reminder>\n  ",
+		"expected_match": true,
+		"note": "Backend uses text.trim(); UI must too."
+	},
+	{
+		"id": "xml_tag__open_only_no_close_no_match",
+		"kind": "xml_tag",
+		"value": "system-reminder",
+		"block": "<system-reminder>hello",
+		"expected_match": false,
+		"note": "Backend requires ends_with(</tag>). UI previously missed this."
+	},
+	{
+		"id": "xml_tag__close_only_no_match",
+		"kind": "xml_tag",
+		"value": "system-reminder",
+		"block": "hello</system-reminder>",
+		"expected_match": false
+	},
+	{
+		"id": "xml_tag__whole_block_wrap_required",
+		"kind": "xml_tag",
+		"value": "system-reminder",
+		"block": "prefix <system-reminder>x</system-reminder> suffix",
+		"expected_match": false,
+		"note": "Substring of XML inside prose does NOT match."
+	},
+	{
+		"id": "xml_tag__prefix_of_longer_tag_no_match",
+		"kind": "xml_tag",
+		"value": "system-reminder",
+		"block": "<system-reminderfoo>body</system-reminderfoo>",
+		"expected_match": false,
+		"note": "<system-reminderfoo> must not match tag `system-reminder` — open-tag boundary required."
+	},
+	{
+		"id": "xml_tag__nested_same_tag_match",
+		"kind": "xml_tag",
+		"value": "outer",
+		"block": "<outer><outer>inner</outer></outer>",
+		"expected_match": true,
+		"note": "Starts with <outer>, ends with </outer> — whole-block wrap holds."
+	},
+	{
+		"id": "xml_tag__empty_value_never_matches",
+		"kind": "xml_tag",
+		"value": "",
+		"block": "<>x</>",
+		"expected_match": false
+	},
+	{
+		"id": "xml_tag__close_with_mismatched_tag_no_match",
+		"kind": "xml_tag",
+		"value": "foo",
+		"block": "<foo>body</bar>",
+		"expected_match": false,
+		"note": "ends_with(</foo>) fails."
+	},
+	{
+		"id": "xml_tag__self_closing_no_match",
+		"kind": "xml_tag",
+		"value": "foo",
+		"block": "<foo />",
+		"expected_match": false,
+		"note": "Backend requires an explicit </foo>; self-closing does not satisfy that."
+	}
+]

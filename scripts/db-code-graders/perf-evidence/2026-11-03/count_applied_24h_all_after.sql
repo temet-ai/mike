@@ -1,0 +1,1 @@
+SELECT o.id, COUNT(*) FROM overrides.overrides o JOIN requests.system_prompts rsp ON rsp.system_prompt_id = o.system_prompt_id JOIN requests.requests r ON r.id = rsp.request_id WHERE rsp.override_applied AND r.created_at > NOW() - INTERVAL '24 hours' GROUP BY o.id

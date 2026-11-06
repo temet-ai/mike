@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE prompt_kinds.classifications c\n                    SET kind_id = k.id,\n                        rule = x.rule,\n                        repeat_key = x.repeat_key,\n                        classifier_version = x.version\n                   FROM jsonb_to_recordset($1::jsonb)\n                        AS x(request_id bigint, session_id bigint, kind text,\n                             rule text, repeat_key text, version text)\n                   JOIN prompt_kinds.kinds k ON k.code = x.kind\n                  WHERE c.request_id = x.request_id\n                    AND (c.kind_id, c.rule, c.repeat_key, c.classifier_version)\n                        IS DISTINCT FROM (k.id, x.rule, x.repeat_key, x.version)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "99b628afd6ee46d7aafc208aaa9d2e9c937bb4759048ef0d270894c97d7a3a21"
+}

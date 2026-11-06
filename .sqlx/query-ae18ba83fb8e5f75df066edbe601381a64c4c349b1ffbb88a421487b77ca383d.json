@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "-- Delayed fallback (see `proxy::remote_control::inject::spawn_push_ack_fallback`):\n-- a steerer push that was emitted but never acked within the grace window is\n-- released back to the request-time drain. Guarded on `pushed_at = $2` (the\n-- exact instant the reservation stamped) rather than merely \"still set\", so\n-- a second push of the same, by-then-cleared intervention is never\n-- clobbered by a stale timer from the first attempt.\nUPDATE steering.interventions\n   SET pushed_at = NULL\n WHERE uuid = $1 AND pushed_at = $2 AND acked_at IS NULL\nRETURNING id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ae18ba83fb8e5f75df066edbe601381a64c4c349b1ffbb88a421487b77ca383d"
+}

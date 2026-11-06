@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE launch.tree_checks\n   SET told = array_append(told, $2)\n WHERE id = $1\n   AND NOT ($2 = ANY (told))\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ba0d41f63e03ef28af42e8171512fec7af3d12ec432a2503219aa7f38b60b1c5"
+}

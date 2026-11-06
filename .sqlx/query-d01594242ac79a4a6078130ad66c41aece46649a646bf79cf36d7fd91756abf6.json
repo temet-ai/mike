@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT installed_on FROM _sqlx_migrations WHERE version = $1 AND success",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "installed_on",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "_sqlx_migrations",
+            "name": "installed_on"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d01594242ac79a4a6078130ad66c41aece46649a646bf79cf36d7fd91756abf6"
+}

@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE system_prompts.session_prompts\n                    SET request_id = $2,\n                        blocks = $3,\n                        content_sha256 = $4\n                  WHERE id = $1\n                    AND lane = 'main'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "096b68f3f0a0e539e67430297ad173fdec55663d8d785533a990b86f384c1ad9"
+}

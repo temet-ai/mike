@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.model AS \"model?\",\n                resp.upstream_message_id AS \"upstream_message_id?\",\n                sr.code           AS \"stop_reason?\",\n                resp.token_usage AS \"token_usage?\",\n                resp.message_extras AS \"message_extras?\"\n         FROM requests.requests r\n         LEFT JOIN responses.responses resp ON resp.request_id = r.id\n         LEFT JOIN responses.stop_reasons sr ON sr.id = resp.stop_reason_id\n         WHERE r.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "model?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "upstream_message_id?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "responses.responses",
+            "name": "upstream_message_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "stop_reason?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "responses.stop_reasons",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "token_usage?",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "responses.responses",
+            "name": "token_usage"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "message_extras?",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "responses.responses",
+            "name": "message_extras"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "231b2efb4603f6653da567eff3f8965767592c70ba238a843742e885d7e9cabd"
+}

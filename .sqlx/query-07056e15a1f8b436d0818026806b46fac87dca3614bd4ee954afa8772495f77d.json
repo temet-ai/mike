@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO tools.results (request_id, tool_use_id, ord, is_error, content, content_sha256, content_bytes, created_at, session_id)\n         VALUES ($1, $2, 0, false, '\"ok\"'::jsonb, repeat('0', 64), 4, $3, $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "07056e15a1f8b436d0818026806b46fac87dca3614bd4ee954afa8772495f77d"
+}

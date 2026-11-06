@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT jsonb_build_object('version', c.version, 'payload', c.payload,\n                 'written_version', r.version) AS \"lesson!\"\n             FROM memory.lesson_file_changes c\n             LEFT JOIN memory.lesson_file_receipts r ON r.lesson_uuid = c.lesson_uuid\n               AND r.location_uuid = $2\n             WHERE c.project_id = $1 ORDER BY c.lesson_uuid",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lesson!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "a036b90f5393b5d3b9a68cdcf17075ab60b4a728fb722b27310d4e39bb94f813"
+}

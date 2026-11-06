@@ -1,0 +1,59 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.at AS \"at!\", q.ok_calls AS \"ok_calls!\", q.refused AS \"refused!\",\n       q.verdict_rows AS \"verdict_rows!\", q.sessions_at_cap AS \"sessions_at_cap!\",\n       q.top_sessions AS \"top_sessions!\"\n  FROM unnest($1::timestamptz[]) AS s(at)\n CROSS JOIN LATERAL (\n    WITH calls AS (\n        SELECT count(*) FILTER (WHERE outcome = 'ok') AS ok_calls,\n               count(*) FILTER (WHERE outcome = 'refused') AS refused\n          FROM llm.calls\n         WHERE role = 'session_judge' AND created_at > s.at - interval '24 hours' AND created_at <= s.at\n    ),\n    verdict_rows AS (\n        SELECT count(*) AS n\n          FROM session_judges.verdicts\n         WHERE mode = 'live' AND judged_at > s.at - interval '24 hours' AND judged_at <= s.at\n    ),\n    capped AS (\n        SELECT count(*) AS n\n          FROM session_judges.attempts\n         WHERE window_started_at > s.at - interval '24 hours' AND window_attempts >= $2\n    ),\n    top_sessions AS (\n        SELECT session_id, count(*) AS calls\n          FROM llm.calls\n         WHERE role = 'session_judge' AND session_id IS NOT NULL\n           AND created_at > s.at - interval '24 hours' AND created_at <= s.at\n         GROUP BY session_id\n         ORDER BY calls DESC, session_id\n         LIMIT 10\n    )\n    SELECT c.ok_calls, c.refused, vr.n AS verdict_rows, cp.n AS sessions_at_cap,\n           COALESCE(jsonb_agg(jsonb_build_object('session_id', ts.session_id, 'calls', ts.calls)\n                              ORDER BY ts.calls DESC, ts.session_id)\n                    FILTER (WHERE ts.session_id IS NOT NULL), '[]'::jsonb) AS top_sessions\n      FROM calls c\n      CROSS JOIN verdict_rows vr\n      CROSS JOIN capped cp\n      LEFT JOIN top_sessions ts ON true\n     GROUP BY c.ok_calls, c.refused, vr.n, cp.n\n ) q\n ORDER BY s.at\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "ok_calls!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "refused!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "verdict_rows!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "sessions_at_cap!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "top_sessions!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TimestamptzArray",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "dee1d4d00bf4e7759d6829eca4e31a898b0a0f926d4929b123aab1a15fb3d9a4"
+}

@@ -1,0 +1,260 @@
+{
+  "slug": "radar-retire-ratatui",
+  "state": "done",
+  "tasks": [
+    {
+      "id": "R0",
+      "after": [],
+      "criteria": [
+        "C5"
+      ],
+      "discipline": "repair"
+    },
+    {
+      "id": "T1",
+      "after": [],
+      "criteria": [
+        "C1"
+      ],
+      "discipline": "core-hard"
+    },
+    {
+      "id": "T2",
+      "after": [],
+      "criteria": [
+        "C1",
+        "C2",
+        "C4"
+      ],
+      "discipline": "core-hard"
+    },
+    {
+      "id": "T3",
+      "after": [],
+      "criteria": [
+        "C1"
+      ],
+      "discipline": "core-hard"
+    },
+    {
+      "id": "T4",
+      "after": [],
+      "criteria": [
+        "C4"
+      ],
+      "discipline": "ink"
+    },
+    {
+      "id": "T5",
+      "after": [],
+      "criteria": [
+        "C4"
+      ],
+      "discipline": "ink-hard"
+    },
+    {
+      "id": "T6",
+      "after": [],
+      "criteria": [
+        "C4"
+      ],
+      "discipline": "ink-hard"
+    },
+    {
+      "id": "T7",
+      "after": [],
+      "criteria": [
+        "C4"
+      ],
+      "discipline": "testing"
+    },
+    {
+      "id": "T8",
+      "after": [],
+      "criteria": [
+        "C3"
+      ],
+      "discipline": "ink-hard"
+    },
+    {
+      "id": "T9",
+      "after": [
+        "T1",
+        "T3"
+      ],
+      "criteria": [
+        "C1"
+      ],
+      "discipline": "parts-hard"
+    },
+    {
+      "id": "T10",
+      "after": [
+        "T1",
+        "T3"
+      ],
+      "criteria": [
+        "C1",
+        "C4"
+      ],
+      "discipline": "parts-hard"
+    },
+    {
+      "id": "T11",
+      "after": [
+        "T1",
+        "T3"
+      ],
+      "criteria": [
+        "C1"
+      ],
+      "discipline": "parts-hard"
+    },
+    {
+      "id": "T12",
+      "after": [
+        "T1",
+        "T3"
+      ],
+      "criteria": [
+        "C1"
+      ],
+      "discipline": "parts"
+    },
+    {
+      "id": "T13",
+      "after": [
+        "T3"
+      ],
+      "criteria": [
+        "C1"
+      ],
+      "discipline": "parts"
+    },
+    {
+      "id": "T14",
+      "after": [
+        "T9",
+        "T10",
+        "T11"
+      ],
+      "criteria": [
+        "C2"
+      ],
+      "discipline": "core-hard"
+    },
+    {
+      "id": "T15",
+      "after": [],
+      "criteria": [
+        "C2"
+      ],
+      "discipline": "core-hard"
+    },
+    {
+      "id": "T16",
+      "after": [],
+      "criteria": [
+        "C3"
+      ],
+      "discipline": "ink-hard"
+    },
+    {
+      "id": "T17",
+      "after": [],
+      "criteria": [
+        "C1",
+        "C2",
+        "C5"
+      ],
+      "discipline": "core-hard"
+    },
+    {
+      "id": "T18",
+      "after": [],
+      "criteria": [
+        "C3"
+      ],
+      "discipline": "docs"
+    },
+    {
+      "id": "T19",
+      "after": [],
+      "criteria": [
+        "C4"
+      ],
+      "discipline": "sessions"
+    },
+    {
+      "id": "T20",
+      "after": [],
+      "criteria": [
+        "C4"
+      ],
+      "discipline": "ink-hard"
+    },
+    {
+      "id": "T21",
+      "after": [],
+      "criteria": [
+        "C3"
+      ],
+      "discipline": "ink-hard"
+    },
+    {
+      "id": "T22",
+      "after": [],
+      "criteria": [
+        "C2"
+      ],
+      "discipline": "core-hard"
+    },
+    {
+      "id": "T23",
+      "after": [],
+      "criteria": [
+        "C2"
+      ],
+      "discipline": "core-hard"
+    },
+    {
+      "id": "T24",
+      "after": [],
+      "criteria": [
+        "C4"
+      ],
+      "discipline": "core-hard"
+    },
+    {
+      "id": "T25",
+      "after": [],
+      "criteria": [
+        "C4"
+      ],
+      "discipline": "ink-hard"
+    },
+    {
+      "id": "T26",
+      "after": [],
+      "criteria": [
+        "C5"
+      ],
+      "discipline": "parts-hard"
+    },
+    {
+      "id": "T27",
+      "after": [],
+      "criteria": [
+        "C4",
+        "C5"
+      ],
+      "discipline": "ink-hard"
+    }
+  ],
+  "run_id": "fleet-radar-retire-ratatui-db99de21",
+  "ready_at": "2026-10-20T16:05:30.037381+00:00",
+  "created_at": "2026-10-20T15:46:12.472525+00:00",
+  "started_at": "2026-10-20T16:17:37.802032+00:00",
+  "finished_at": "2026-10-21T07:29:36.61664+00:00",
+  "missing_count": 0
+}

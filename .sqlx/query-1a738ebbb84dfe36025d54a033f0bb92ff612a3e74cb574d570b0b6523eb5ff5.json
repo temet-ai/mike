@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT d.source_uuid AS \"dropped!\", w.source_uuid AS \"kept!\"\n           FROM unnest($1::uuid[], $2::uuid[]) AS p(loser, winner)\n           JOIN memory.knowledge_sources d ON d.location_uuid = p.loser\n           JOIN memory.knowledge_sources w ON w.location_uuid = p.winner AND w.name = d.name",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "dropped!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_sources",
+            "name": "source_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kept!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_sources",
+            "name": "source_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "1a738ebbb84dfe36025d54a033f0bb92ff612a3e74cb574d570b0b6523eb5ff5"
+}

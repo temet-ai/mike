@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH promoted AS (\n                     UPDATE memory.lessons l\n                        SET stage_id             = long_term_s.id,\n                            consolidation_count  = consolidation_count + 1,\n                            last_consolidated_at = NOW()\n                       FROM memory.lesson_stages long_term_s,\n                            memory.lesson_stages daily_s\n                      WHERE long_term_s.code = 'long_term'\n                        AND daily_s.code = 'daily'\n                        AND l.project_id = $1\n                        AND l.stage_id = daily_s.id\n                        AND l.archived_at IS NULL\n                     RETURNING l.id, l.uuid, l.text, l.project_id, l.agent_id, l.session_id, l.source_turn_id\n                 ),\n                 audit AS (\n                     INSERT INTO memory.consolidation_actions (\n                         run_id, lesson_id, lesson_uuid, project_id, agent_id, session_id, session_uuid,\n                         source_turn_id, files_touched, lesson_text,\n                         action_kind_id, outcome_id, before_stage_id, after_stage_id,\n                         injection_count\n                     )\n                     SELECT $2::bigint, p.id, p.uuid, p.project_id, p.agent_id, p.session_id, sess.session_uuid,\n                            p.source_turn_id, ot.files_touched, p.text,\n                            ak.id, oc.id, daily_s.id, long_term_s.id,\n                            COALESCE(inj.injection_count, 0)\n                       FROM promoted p\n                       LEFT JOIN sessions.sessions sess ON sess.id = p.session_id\n                       LEFT JOIN memory.operator_turns ot ON ot.id = p.source_turn_id\n                       JOIN memory.lesson_stages daily_s ON daily_s.code = 'daily'\n                       JOIN memory.lesson_stages long_term_s ON long_term_s.code = 'long_term'\n                       JOIN memory.consolidation_action_kinds ak ON ak.code = 'promoted_to_long_term'\n                       JOIN memory.consolidation_outcomes oc ON oc.code = 'applied'\n                       LEFT JOIN (\n                           SELECT lesson_id, count(*)::integer AS injection_count\n                             FROM memory.lesson_injections\n                            GROUP BY lesson_id\n                       ) inj ON inj.lesson_id = p.id\n                     RETURNING id\n                 )\n                 SELECT count(*) AS \"count!\" FROM promoted",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "8d9c0b78086cc9f54af6dea80bad727f3c5edb18da40203f74e316908723235d"
+}

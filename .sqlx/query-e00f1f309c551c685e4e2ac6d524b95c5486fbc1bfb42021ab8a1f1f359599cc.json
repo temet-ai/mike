@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.system_prompts rsp\n                SET unknown_blocks = v.unknown_blocks\n               FROM unnest($1::bigint[], $2::jsonb[]) AS v(request_id, unknown_blocks)\n              WHERE rsp.request_id = v.request_id\n                AND rsp.prompt_sha256 IS NULL\n                AND rsp.system_prompt_id IS NULL\n                AND rsp.unknown_blocks IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "JsonbArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e00f1f309c551c685e4e2ac6d524b95c5486fbc1bfb42021ab8a1f1f359599cc"
+}

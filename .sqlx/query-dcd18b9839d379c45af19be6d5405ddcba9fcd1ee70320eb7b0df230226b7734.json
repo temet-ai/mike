@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT j.ord AS \"ord!\", fr.uuid AS \"rule_uuid!\"\n                 FROM requests.system_prompt_firing_rules j\n                 JOIN requests.system_prompts rsp\n                   ON rsp.id = j.request_system_prompt_id\n                 JOIN rules.rules fr ON fr.id = j.filter_rule_id\n                WHERE rsp.request_id = $1\n                ORDER BY j.ord ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ord!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "requests.system_prompt_firing_rules",
+            "name": "ord"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "rule_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "dcd18b9839d379c45af19be6d5405ddcba9fcd1ee70320eb7b0df230226b7734"
+}

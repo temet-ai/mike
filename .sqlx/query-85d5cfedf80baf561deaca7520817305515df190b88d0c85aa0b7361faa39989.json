@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE mailbox.messages\n                    SET sent_at           = now(),\n                        delivery_attempts = delivery_attempts + 1\n                  WHERE message_uuid = $1\n                    AND sent_request_id IS NULL\n                    AND sent_at IS NULL\n                    AND channel_delivered_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "85d5cfedf80baf561deaca7520817305515df190b88d0c85aa0b7361faa39989"
+}

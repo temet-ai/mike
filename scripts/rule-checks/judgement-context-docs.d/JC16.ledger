@@ -1,0 +1,11 @@
+# JC16 ledger. The landed sha is the JC16 commit on feat/judgement-context.
+landed   JC16 2026-09-25 6865592f
+table    steering.question_policies
+toggle   turn_guard
+setting  steerer.turn_guard.max_calls_per_day
+setting  steerer.turn_guard.max_label_calls_per_day
+setting  steerer.turn_guard.recall_sample_pct
+cli      mike guard report
+cli      mike guard replay-gates
+cli      mike guard replay
+cli      mike guard mode

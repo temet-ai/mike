@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT analyzer AS \"analyzer!\", COUNT(*)::bigint AS \"total!\"\n               FROM requests.diagnostics\n               WHERE created_at > NOW() - INTERVAL '24 hours'\n               GROUP BY analyzer",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "analyzer!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.diagnostics",
+            "name": "analyzer"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "total!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "3e2783ea38a0897fefdbe00beb49d5eff1b25e3c9af5d043c442783e06273478"
+}

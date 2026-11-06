@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(s.ttl_override, p.ttl_override) AS \"ttl?\"\n                 FROM sessions.sessions s\n                 LEFT JOIN projects.projects p ON p.id = s.project_id\n                 WHERE s.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ttl?",
+        "type_info": "Interval",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "c8cc960fff85b1dab47c5cb3ea58846f8f1497e3ae4c8ea06bc8cbf1fadb43d5"
+}

@@ -1,0 +1,136 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, created_at, candidate_run_id, baseline_run_id, noise_run_id,\n                        holdout_batch, verdict, floors, report, override_reason\n                   FROM eval.gates WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.gates",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.gates",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "candidate_run_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.gates",
+            "name": "candidate_run_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "baseline_run_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.gates",
+            "name": "baseline_run_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "noise_run_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.gates",
+            "name": "noise_run_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "holdout_batch",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.gates",
+            "name": "holdout_batch"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "verdict",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.gates",
+            "name": "verdict"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "floors",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "eval.gates",
+            "name": "floors"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "report",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "eval.gates",
+            "name": "report"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "override_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.gates",
+            "name": "override_reason"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "2d152216a7d3457629fca83ffbeaa6fd5dbbd13da94414ebf2a5f2bcc632f4e0"
+}

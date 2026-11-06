@@ -1,0 +1,7 @@
+# JC01 ledger. The landed sha is the JC01-D commit; JC01-A, -B, -C and -F landed earlier on the same branch.
+landed   JC01 2026-09-24 71ea97d1
+cli      dossier-parity
+cli      origin-backfill
+require  docs/ARCHITECTURE.md  is_session_own_lane
+require  docs/SCHEMA.md  opened_by
+require  docs/OPERATOR_TURN_ATTRIBUTION.md  agent id

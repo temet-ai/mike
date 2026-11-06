@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ask_entry_count, last_ask_entry_id\n                 FROM memory.acceptance_criteria_maps\n                WHERE session_id = $1\n                ORDER BY version DESC\n                LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ask_entry_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.acceptance_criteria_maps",
+            "name": "ask_entry_count"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "last_ask_entry_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.acceptance_criteria_maps",
+            "name": "last_ask_entry_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "04263889981dc6c1efca45a7467b0c9e3729228b3f3ee246dec86db768d3bdec"
+}

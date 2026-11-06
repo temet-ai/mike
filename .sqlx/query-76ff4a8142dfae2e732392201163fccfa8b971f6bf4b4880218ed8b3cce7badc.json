@@ -1,0 +1,324 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH wanted AS (\n    SELECT * FROM jsonb_to_recordset($1::jsonb) AS x(\n        axis text, label text, action text, tier text, method text, note text,\n        provenance jsonb, supersedes_id bigint)\n), cur AS (\n    SELECT DISTINCT ON (c.axis) c.id, c.axis\n      FROM eval.labels_current_v c\n     WHERE c.subject_kind = $2 AND c.subject_id = $3 AND c.tier = $9\n     ORDER BY c.axis, c.id DESC\n), ins AS (\n    INSERT INTO eval.labels AS l\n        (subject_kind, subject_id, operator_turn_id, session_id, session_uuid, axis, label,\n         action, tier, method, split, note, source, provenance, verdict_snapshot,\n         verdict_bundle_id, supersedes_id)\n    SELECT $2, $3, $3, $4, $5, w.axis, w.label, w.action, w.tier, w.method, $6, w.note, $7,\n           w.provenance, $8, ($8::jsonb ->> 'bundle_id')::bigint, COALESCE(w.supersedes_id, cur.id)\n      FROM wanted w LEFT JOIN cur ON cur.axis = w.axis\n    RETURNING l.id, l.subject_kind, l.subject_id, l.operator_turn_id, l.session_id, l.session_uuid,\n              l.axis, l.label, l.action, l.tier, l.method, l.split, l.tags, l.severity,\n              l.confidence, l.evidence, l.note, l.source, l.provenance, l.inclusion_prob,\n              l.verdict_snapshot, l.verdict_bundle_id, l.import_batch_id, l.supersedes_id,\n              l.created_at\n)\nSELECT l.id AS \"id!\",\n       l.subject_kind AS \"subject_kind!\",\n       l.subject_id AS \"subject_id!\",\n       l.operator_turn_id AS \"operator_turn_id!\",\n       l.session_id AS \"session_id!\",\n       l.session_uuid AS \"session_uuid!\",\n       l.axis AS \"axis!\",\n       l.label AS \"label!\",\n       l.action AS \"action!\",\n       l.tier AS \"tier!\",\n       l.method AS \"method!\",\n       l.split AS \"split!\",\n       l.tags AS \"tags!\",\n       l.severity AS \"severity?\",\n       l.confidence AS \"confidence?\",\n       l.evidence AS \"evidence?\",\n       l.note AS \"note?\",\n       l.source AS \"source!\",\n       l.provenance AS \"provenance!\",\n       l.inclusion_prob AS \"inclusion_prob?\",\n       l.verdict_snapshot AS \"verdict_snapshot?\",\n       l.verdict_bundle_id AS \"verdict_bundle_id?\",\n       l.import_batch_id AS \"import_batch_id?\",\n       l.supersedes_id AS \"supersedes_id?\",\n       l.created_at AS \"created_at!\"\n  FROM ins l\n ORDER BY l.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "subject_kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "subject_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "subject_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "subject_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "operator_turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "axis!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "axis"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "label!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "label"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "action!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "action"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "tier!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "tier"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "method!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "method"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "split!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "split"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "tags!",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "tags"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "severity?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "severity"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "confidence?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "confidence"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "evidence?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "evidence"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "note?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "note"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "provenance!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "provenance"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "inclusion_prob?",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "inclusion_prob"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "verdict_snapshot?",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "verdict_snapshot"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "verdict_bundle_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "verdict_bundle_id"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "import_batch_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "import_batch_id"
+          }
+        }
+      },
+      {
+        "ordinal": 23,
+        "name": "supersedes_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "supersedes_id"
+          }
+        }
+      },
+      {
+        "ordinal": 24,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.labels",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Jsonb",
+        "Text",
+        "Int8",
+        "Int8",
+        "Uuid",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "76ff4a8142dfae2e732392201163fccfa8b971f6bf4b4880218ed8b3cce7badc"
+}

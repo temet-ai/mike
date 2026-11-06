@@ -1,0 +1,109 @@
+{
+  "slug": "writing-room",
+  "state": "done",
+  "tasks": [
+    {
+      "id": "T1",
+      "after": [],
+      "criteria": [
+        "C1"
+      ],
+      "discipline": "backend"
+    },
+    {
+      "id": "T2",
+      "after": [],
+      "criteria": [
+        "C1",
+        "C3"
+      ],
+      "discipline": "backend-hard"
+    },
+    {
+      "id": "T3",
+      "after": [],
+      "criteria": [
+        "C2",
+        "C4"
+      ],
+      "discipline": "backend-hard"
+    },
+    {
+      "id": "T4",
+      "after": [],
+      "criteria": [
+        "C5"
+      ],
+      "discipline": "backend"
+    },
+    {
+      "id": "T5",
+      "after": [],
+      "criteria": [
+        "C2",
+        "C4"
+      ],
+      "discipline": "web-hard"
+    },
+    {
+      "id": "T6",
+      "after": [],
+      "criteria": [
+        "C3"
+      ],
+      "discipline": "web"
+    },
+    {
+      "id": "T7",
+      "after": [],
+      "criteria": [
+        "C1"
+      ],
+      "discipline": "web-hard"
+    },
+    {
+      "id": "T8",
+      "after": [
+        "T2",
+        "T3",
+        "T5"
+      ],
+      "criteria": [
+        "C2",
+        "C4",
+        "C5"
+      ],
+      "discipline": "docs"
+    },
+    {
+      "id": "T9",
+      "after": [],
+      "criteria": [
+        "C3"
+      ],
+      "discipline": "backend"
+    },
+    {
+      "id": "T10",
+      "after": [],
+      "criteria": [
+        "C6"
+      ],
+      "discipline": "backend-hard"
+    },
+    {
+      "id": "T11",
+      "after": [],
+      "criteria": [
+        "C4"
+      ],
+      "discipline": "backend"
+    }
+  ],
+  "run_id": "fleet-writing-room-0656d7b7",
+  "ready_at": "2026-10-21T10:42:12.831035+00:00",
+  "created_at": "2026-10-21T10:09:04.423155+00:00",
+  "started_at": "2026-10-21T10:47:43.626264+00:00",
+  "finished_at": "2026-10-21T17:51:37.079657+00:00",
+  "missing_count": 0
+}

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM eval.embedding_drift WHERE embedder_key = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f3dbaa7c67c4182ceab45eb49330f7644084d351cfcd4760b89c61a9973df40d"
+}

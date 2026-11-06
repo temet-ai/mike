@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT changed_at FROM config.change_log\n                  WHERE subject_kind = 'lesson_decision'\n                    AND subject_key = $1\n                    AND new_value ->> 'stage' = 'daily'\n                  ORDER BY id ASC\n                  LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "changed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "config.change_log",
+            "name": "changed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4c6db58719e7a3e1e6ac99a186511d5eb3508263864291c798ccf5e89e1726e7"
+}

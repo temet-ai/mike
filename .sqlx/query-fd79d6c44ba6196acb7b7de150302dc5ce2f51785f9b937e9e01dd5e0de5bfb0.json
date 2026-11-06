@@ -1,0 +1,280 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT d.id, d.project_id, p.project_uuid, p.project_path, d.folder,\n                          a.name AS \"agent_name?\", d.status, d.review, d.reviewed_at, d.edited_at,\n                          d.revision, d.lesson_watermark, d.lesson_ids, d.model, d.description,\n                          d.skill_md, d.authored_skill_md, d.reference_files,\n                          d.trigger_queries, d.eval, d.created_at, d.evaluated_at\n                     FROM memory.skill_drafts d\n                     JOIN projects.projects p ON p.id = d.project_id\n                     LEFT JOIN agents.agents a ON a.id = d.agent_id\n                    WHERE d.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "project_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "project_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "folder",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "folder"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "agent_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "review",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "review"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "reviewed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "reviewed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "edited_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "edited_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "revision",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "revision"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "lesson_watermark",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "lesson_watermark"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "lesson_ids",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "lesson_ids"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "model",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "skill_md",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "skill_md"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "authored_skill_md",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "authored_skill_md"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "reference_files",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "reference_files"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "trigger_queries",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "trigger_queries"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "eval",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "eval"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "evaluated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "evaluated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "fd79d6c44ba6196acb7b7de150302dc5ce2f51785f9b937e9e01dd5e0de5bfb0"
+}

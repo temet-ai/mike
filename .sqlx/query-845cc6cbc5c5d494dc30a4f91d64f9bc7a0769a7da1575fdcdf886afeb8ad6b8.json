@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.skill_drafts\n                    SET review = $2,\n                        reviewed_at = CASE WHEN $2::text IS NULL THEN NULL ELSE now() END\n                  WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "845cc6cbc5c5d494dc30a4f91d64f9bc7a0769a7da1575fdcdf886afeb8ad6b8"
+}

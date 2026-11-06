@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE mailbox.messages m\n              SET consumed_at = now()\n             FROM sessions.sessions recip\n            WHERE m.message_uuid = $2\n              AND recip.id = m.to_session_id\n              AND recip.session_uuid = $1\n              AND m.consumed_at IS NULL\n              AND m.sent_request_id IS NOT NULL\n        RETURNING m.consumed_at AS \"consumed_at!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "consumed_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "consumed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "1a9ff58cb49ae897b0a8ce7bb06ffc9e713ce0a44a9203ae93148b2bcb74e146"
+}

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO requests.requests (\n                    session_id, project_id, method_id, path, is_streaming, message_count,\n                    is_tool_loop, status_id, params, last_user_message, human_prompt,\n                    turn_type_id, turn_origin_id, created_at\n                 )\n                 SELECT $1, $2, rm.id, '/v1/messages', false, 1, false, rs.id,\n                        '{}'::jsonb, '', '', rtt.id, rto.id, $3\n                   FROM requests.methods rm, requests.statuses rs,\n                        requests.turn_types rtt, requests.turn_origins rto\n                  WHERE rm.code = 'POST' AND rs.code = 'complete'\n                    AND rtt.code = 'user_prompt' AND rto.code = 'primary_first'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c189569c0fd6bcaeed7696f9959780dc83bf18e25a3453ba9d206b89e0118f16"
+}

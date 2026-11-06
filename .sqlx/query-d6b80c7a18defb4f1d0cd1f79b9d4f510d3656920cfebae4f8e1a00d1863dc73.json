@@ -1,0 +1,100 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, verdict_id, operator_turn_id, reason,\n                          similar_corrections AS \"similar!\", model, created_at\n                     FROM memory.lesson_proposal_evidence\n                    WHERE lesson_id = $1\n                    ORDER BY created_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_proposal_evidence",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "verdict_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_proposal_evidence",
+            "name": "verdict_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "operator_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_proposal_evidence",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_proposal_evidence",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "similar!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_proposal_evidence",
+            "name": "similar_corrections"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "model",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_proposal_evidence",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_proposal_evidence",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "d6b80c7a18defb4f1d0cd1f79b9d4f510d3656920cfebae4f8e1a00d1863dc73"
+}

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.requests r\n         SET status_id    = st.id,\n             completed_at = $3\n        FROM requests.statuses st\n       WHERE st.code = $2\n         AND r.id    = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ec13f22e90d2a42f2c397565a4ff002fc0ce2e85c5bfedf90a72077e0b71a8af"
+}

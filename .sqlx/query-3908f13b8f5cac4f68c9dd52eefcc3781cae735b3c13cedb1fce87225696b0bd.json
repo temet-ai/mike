@@ -1,0 +1,95 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.session_id,\n                ro.code AS turn_origin,\n                tt.code AS turn_type,\n                r.claude_code_agent_id IS NOT NULL AS \"has_agent_id!\",\n                r.human_prompt,\n                r.last_user_message,\n                ak.code AS author\n           FROM requests.requests r\n           JOIN requests.turn_origins ro ON ro.id = r.turn_origin_id\n           JOIN requests.turn_types tt ON tt.id = r.turn_type_id\n           JOIN requests.author_kinds ak ON ak.id = r.author_kind_id\n          WHERE r.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "turn_origin",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.turn_origins",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "turn_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.turn_types",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "has_agent_id!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "human_prompt",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "human_prompt"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "last_user_message",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "last_user_message"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "author",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.author_kinds",
+            "name": "code"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "3908f13b8f5cac4f68c9dd52eefcc3781cae735b3c13cedb1fce87225696b0bd"
+}

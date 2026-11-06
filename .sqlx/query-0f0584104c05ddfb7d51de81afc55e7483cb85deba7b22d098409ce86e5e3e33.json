@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT sao.analyzer_name, sao.enabled\n                     FROM sessions.session_analyzer_overrides sao\n                     JOIN sessions.sessions s ON s.id = sao.session_id\n                    WHERE s.session_uuid = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "analyzer_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_analyzer_overrides",
+            "name": "analyzer_name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "enabled",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_analyzer_overrides",
+            "name": "enabled"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "0f0584104c05ddfb7d51de81afc55e7483cb85deba7b22d098409ce86e5e3e33"
+}

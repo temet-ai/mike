@@ -1,0 +1,123 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH v AS (\n    SELECT DISTINCT ON (e.operator_turn_id) e.operator_turn_id,\n           (e.status = 'resolved_correction') AS fired, i.pushed_at\n      FROM steering.evaluations e\n      LEFT JOIN steering.interventions i ON i.uuid = e.intervention_uuid\n     WHERE e.steerer_id = $1 AND e.dispatched_at >= $3 AND e.status <> 'dispatched'\n     ORDER BY e.operator_turn_id, e.dispatched_at DESC, e.id DESC\n),\nq AS (\n    SELECT DISTINCT ON (e.operator_turn_id) e.operator_turn_id,\n           (e.status = 'resolved_correction') AS fired,\n           COALESCE(e.label_evidence ->> 'answer' = 'yes', false) AS relevant_yes\n      FROM steering.evaluations e\n     WHERE e.steerer_id = $2 AND e.question = 'unobserved_done' AND e.dispatched_at >= $3\n       AND e.status <> 'dispatched'\n     ORDER BY e.operator_turn_id, e.dispatched_at DESC, e.id DESC\n),\npairs AS (\n    SELECT v.fired AS v_fired, q.fired AS q_fired, t.reaction, q.relevant_yes,\n           (v.pushed_at IS NULL OR f.next_genuine_at IS NULL OR v.pushed_at > f.next_genuine_at) AS unseen\n      FROM v\n      JOIN q ON q.operator_turn_id = v.operator_turn_id\n      JOIN memory.operator_turns t ON t.id = v.operator_turn_id\n      LEFT JOIN memory.turn_facts f ON f.operator_turn_id = v.operator_turn_id\n),\ncosts AS (\n    SELECT count(*) FILTER (WHERE steerer_id = $1)::bigint AS verifier_calls,\n           COALESCE(sum(cost_usd) FILTER (WHERE steerer_id = $1), 0)::float8 AS verifier_usd,\n           count(*) FILTER (WHERE steerer_id = $2)::bigint AS guard_calls,\n           COALESCE(sum(cost_usd) FILTER (WHERE steerer_id = $2), 0)::float8 AS guard_usd\n      FROM llm.calls\n     WHERE created_at >= $3 AND steerer_id IN ($1, $2)\n),\ntally AS (\n    SELECT count(*)::bigint AS turns,\n           count(*) FILTER (WHERE v_fired AND q_fired)::bigint AS both_fired,\n           count(*) FILTER (WHERE v_fired AND NOT q_fired)::bigint AS verifier_only,\n           count(*) FILTER (WHERE q_fired AND NOT v_fired)::bigint AS guard_only,\n           count(*) FILTER (WHERE NOT v_fired AND NOT q_fired)::bigint AS neither,\n           count(*) FILTER (WHERE v_fired AND unseen)::bigint AS verifier_counted,\n           count(*) FILTER (WHERE v_fired AND unseen AND reaction = 'corrected')::bigint AS verifier_corrected,\n           count(*) FILTER (WHERE q_fired AND reaction = 'corrected')::bigint AS guard_corrected,\n           count(*) FILTER (WHERE reaction = 'corrected' AND relevant_yes)::bigint AS relevant,\n           count(*) FILTER (WHERE reaction = 'corrected' AND relevant_yes AND v_fired)::bigint AS verifier_hits,\n           count(*) FILTER (WHERE reaction = 'corrected' AND relevant_yes AND q_fired)::bigint AS guard_hits\n      FROM pairs\n)\nSELECT tally.turns AS \"turns!\", tally.both_fired AS \"both_fired!\", tally.verifier_only AS \"verifier_only!\", tally.guard_only AS \"guard_only!\", tally.neither AS \"neither!\", tally.verifier_counted AS \"verifier_counted!\", tally.verifier_corrected AS \"verifier_corrected!\", tally.guard_corrected AS \"guard_corrected!\", tally.relevant AS \"relevant!\", tally.verifier_hits AS \"verifier_hits!\", tally.guard_hits AS \"guard_hits!\",\n       costs.verifier_calls AS \"verifier_calls!\", costs.verifier_usd AS \"verifier_usd!\", costs.guard_calls AS \"guard_calls!\", costs.guard_usd AS \"guard_usd!\"\n  FROM tally CROSS JOIN costs\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "both_fired!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "verifier_only!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "guard_only!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "neither!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "verifier_counted!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "verifier_corrected!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "guard_corrected!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "relevant!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "verifier_hits!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "guard_hits!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "verifier_calls!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 12,
+        "name": "verifier_usd!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 13,
+        "name": "guard_calls!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 14,
+        "name": "guard_usd!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "f13b045cae1547870abe0a9546a1d2cf30fb897f4c36a2638cd054290f51224c"
+}

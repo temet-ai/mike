@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO eval.rollups (for_day, sql_version, mode, labels_as_of)\n                   VALUES ($1, $2, 'manual', NOW())\n                   ON CONFLICT (for_day, sql_version) DO UPDATE SET mode = eval.rollups.mode\n                   RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.rollups",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Date",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b7cdaf87bfb4b8896d2a4e4b52a6636bc249f28d00d642e2052800a3aaea8684"
+}

@@ -1,0 +1,171 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT e.uuid, e.steerer_id, s.name AS steerer_name, s.prompt AS steerer_rule, e.session_id,\n                          e.operator_turn_id, e.question, i.payload_text, i.trigger_request_id,\n                          i.delivered_request_id, r.operator_turn_id AS reply_turn_id,\n                          (i.reverted_at IS NOT NULL) AS \"reverted!\",\n                          i.revert_reason\n                     FROM steering.evaluations e\n                     JOIN steering.interventions i ON i.uuid = e.intervention_uuid\n                     JOIN steering.verdicts v ON v.id = i.verdict_id AND v.code = 'fired'\n                     JOIN steering.steerers s ON s.id = e.steerer_id\n                     LEFT JOIN requests.requests r ON r.id = i.delivered_request_id\n                     LEFT JOIN memory.operator_turns rt ON rt.id = r.operator_turn_id\n                    WHERE e.intervention_uuid IS NOT NULL\n                      AND (e.outcome_label IS NULL\n                           OR (e.label_source = 'session_reply'\n                               AND e.label_evidence->>'labeller_version' IS DISTINCT FROM $3\n                               AND e.dispatched_at >= $4))\n                      AND e.status <> 'dispatched'\n                      AND e.dispatched_at >= $2\n                      AND ((i.delivered_request_id IS NOT NULL AND r.completed_at IS NOT NULL\n                            AND (rt.closed_at IS NOT NULL\n                                 OR r.completed_at < now() - make_interval(secs => $5)))\n                           OR (i.delivered_request_id IS NULL\n                               AND (i.reverted_at IS NOT NULL OR i.expires_at < now())))\n                    ORDER BY e.dispatched_at, e.id\n                    LIMIT $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "steerer_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "steerer_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "steerer_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "steerer_rule",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "prompt"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "operator_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "question",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "question"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "payload_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "payload_text"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "trigger_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "trigger_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "delivered_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "delivered_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "reply_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "reverted!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 12,
+        "name": "revert_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "revert_reason"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Text",
+        "Timestamptz",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      null,
+      true
+    ]
+  },
+  "hash": "b18705c905df8091c4e5dbc679d76d59c84e0a4480157c578b38f02da287b049"
+}

@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO requests.deltas (\n            request_id, predecessor_request_id,\n            session_id,\n            change_kind_id, ord,\n            message_id,\n            removed_reason_id,\n            sent_patch_start, sent_patch_end, sent_patch_bytes\n         )\n         SELECT $1, $2,\n                $6,\n                dck.id,\n                d.ord,\n                m.id,\n                drr.id,\n                d.patch_start, d.patch_end, d.patch_bytes\n           FROM UNNEST($3::text[], $4::int[], $5::text[], $7::int[], $8::int[], $9::bytea[])\n                AS d(kind, ord, reason, patch_start, patch_end, patch_bytes)\n           JOIN requests.delta_change_kinds         dck ON dck.code = d.kind\n           LEFT JOIN requests.delta_removed_reasons drr ON drr.code = d.reason\n           -- Resolve message_id from the bridge: added rows use the current\n           -- request ($1); removed rows use the predecessor ($2).\n           JOIN requests.messages rm\n                  ON rm.request_id = CASE WHEN d.kind = 'added' THEN $1::bigint ELSE $2::bigint END\n                 AND rm.ord        = d.ord\n           -- m.id is rm.message_id's own row; the JOIN pins message_id to\n           -- a live messages.messages row (role/byte_size/body no longer\n           -- read here — the fetch side sources them from this JOIN).\n           JOIN messages.messages m ON m.id = rm.message_id",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "TextArray",
+        "Int4Array",
+        "TextArray",
+        "Int8",
+        "Int4Array",
+        "Int4Array",
+        "ByteaArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8f2f4ae1728766ed0d5056bc9a64844a1ba1a1cd960a043073d22a7ce17f96a6"
+}

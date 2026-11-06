@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO rules.rules\n            (uuid, kind_id, value, action_id, enabled, source_id)\n         SELECT $1, rk.id, $2, ra.id, true, rs.id\n         FROM rules.kinds rk, rules.actions ra, rules.sources rs\n         WHERE rk.code = 'text_substring' AND ra.code = 'drop' AND rs.code = 'toml'\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6c00498c5c55f5246716efc3e54e56780de42de8d5f27f3e157ac76205930c94"
+}

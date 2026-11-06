@@ -1,0 +1,77 @@
+[package]
+name = "proxy-forward"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false  # private binary, never published; satisfies cargo-deny licenses.private
+
+# The sidecar ships to users inside the `mike` binary (`mike forward`); this
+# crate's own `proxy-forward` binary is for the dev stack and is not packaged
+# separately.
+[package.metadata.dist]
+dist = false
+
+[[bin]]
+name = "proxy-forward"
+path = "src/main.rs"
+
+[lib]
+name = "proxy_forward"
+path = "src/lib.rs"
+
+[dependencies]
+# Async runtime, TCP listener, copy_bidirectional, timers.
+tokio = { workspace = true }
+# CancellationToken for graceful shutdown.
+tokio-util = { version = "0.7.18", features = ["rt"] }
+# TLS core: server ServerConfig + custom ResolvesServerCert; client config
+# for the direct leg. Pinned to the same version mike resolves.
+rustls = { version = "0.23.41", default-features = false, features = ["ring", "std", "logging"] }
+# Async TlsAcceptor (client-side termination); re-exports rustls.
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "logging"] }
+# Trust-root types shared with rustls; `std` for the `PemObject` file/reader
+# parsing helpers (`from_pem_file`/`from_pem_slice`), replacing the
+# unmaintained rustls-pemfile (RUSTSEC-2025-0134).
+rustls-pki-types = { version = "1.14", features = ["std"] }
+# HTTP/1+2 server & client message handling at the MITM seam.
+hyper = { version = "1.9", features = ["server", "client", "http1", "http2"] }
+# `auto` server connection builder (h1/h2), legacy::Client for both
+# upstream legs, TCP connector, tokio executor.
+hyper-util = { version = "0.1.20", features = ["server", "server-auto", "client", "client-legacy", "http1", "http2", "tokio"] }
+# HTTPS connector for the direct-to-Anthropic leg, native roots + ALPN.
+hyper-rustls = { version = "0.27", default-features = false, features = ["native-tokio", "http1", "http2", "ring", "logging"] }
+# Request/response/body plumbing.
+http = "1.4"
+http-body-util = "0.1.3"
+bytes = { workspace = true }
+# CA + per-host leaf minting.
+rcgen = { workspace = true }
+# OS trust roots for the direct-Anthropic client leg.
+rustls-native-certs = { workspace = true }
+# Resolve the CA data dir.
+directories = { workspace = true }
+# Parse 2s/1s durations from env.
+humantime = { workspace = true }
+# Per-host leaf cert cache keyed by SNI.
+dashmap = { workspace = true }
+# Typed library errors (no anyhow in lib code).
+thiserror = { workspace = true }
+# anyhow only at the main.rs boundary.
+anyhow = { workspace = true }
+# Parse the health-probe JSON body to read its top-level `status` field.
+serde_json = { workspace = true }
+# Structured stderr logging.
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[dev-dependencies]
+# Local TLS/plain upstream stubs for the proxy-category integration tests.
+# No wiremock: it is HTTP-only and cannot do the raw-TLS/CONNECT dance.
+rcgen = { workspace = true }
+# Tests return anyhow::Result and use `?` rather than unwrap/expect, per
+# the workspace clippy denies (clippy::unwrap_used / expect_used).
+anyhow = { workspace = true }
+# Collision-free per-test temp dirs: a hand-rolled nanosecond-timestamp
+# name can collide when nextest launches several test processes in the
+# same clock tick, pointing two tests at the same CA directory.
+tempfile = { workspace = true }

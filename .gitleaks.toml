@@ -1,0 +1,18 @@
+# gitleaks for mike (scripts/export-public runs it on the public tree): the default
+# rules, less the fakes the tests and evidence need. Add each one literally, never a
+# broad pattern; this file ships in the public tree.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "the RFC 6455 sample nonce and a prose phrase (these match on the secret itself)"
+regexes = [
+  '''dGhlIHNhbXBsZSBub25jZQ==''',
+  '''duplicate/mixed''',
+]
+
+[[allowlists]]
+description = "embedding model hashes in recorded query evidence"
+paths = [
+  '''scripts/db-code-graders/perf-evidence/.*\.sql''',
+]

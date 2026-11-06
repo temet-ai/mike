@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE steering.interventions i\n                    SET wake_state = u.state, wake_resolved_at = now(),\n                        expires_at = CASE WHEN u.expire THEN now() ELSE i.expires_at END,\n                        pushed_at = CASE WHEN u.state = 'pushed' THEN now() ELSE i.pushed_at END\n                   FROM unnest($1::bigint[], $2::text[], $3::bool[]) AS u(id, state, expire)\n                  WHERE i.id = u.id AND i.wake_state = 'delivering'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TextArray",
+        "BoolArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ac6b89af9ea70c1410a923342dcf79fa83050daa55ecbc8cb614294ed228b044"
+}

@@ -1,0 +1,51 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH seats AS (\n    SELECT DISTINCT ON (s.id) l.seat, s.id AS sid, l.created_at AS launched_at,\n           CASE WHEN l.seat LIKE 'coordinator%' THEN 'coordinator'\n                WHEN l.seat LIKE 'observer%' THEN 'observer'\n                WHEN l.seat LIKE 'acceptance%' THEN 'acceptance'\n                WHEN l.seat LIKE 'template-%' THEN 'template'\n                WHEN l.seat = 'reference' THEN 'reference'\n                ELSE 'worker' END AS kind\n      FROM launch.launches l\n      JOIN sessions.sessions s ON s.session_uuid = l.session_uuid\n     WHERE l.run_id = $1 AND l.seat IS NOT NULL AND l.seat <> 'status'\n     ORDER BY s.id, l.created_at, l.id\n),\nsince AS (SELECT min(launched_at) AS at FROM seats),\nreports AS (\n    SELECT n.id, n.note_uuid, n.created_at AS queued_at, n.session_id AS worker\n      FROM since\n      JOIN workspace.session_notes n ON n.created_at >= since.at AND n.kind = 'report'\n      JOIN seats w ON w.sid = n.session_id AND w.kind = 'worker'\n),\nseat_answers AS (\n    SELECT r.id, min(m.queued_at) AS answered_at\n      FROM reports r\n      JOIN mailbox.messages m ON m.to_session_id = r.worker AND m.queued_at > r.queued_at\n      JOIN seats a ON a.sid = m.from_session_id AND a.kind = 'acceptance'\n     GROUP BY r.id\n),\njudge_answers AS (\n    SELECT r.id, min(e.occurred_at) AS answered_at\n      FROM reports r\n      JOIN launch.fleet_events e\n        ON e.run_id = $1\n       AND e.kind = 'verdict_recorded'\n       AND e.payload->>'note_uuid' = r.note_uuid::text\n     GROUP BY r.id\n),\nanswers AS (\n    SELECT id, min(answered_at) AS answered_at\n      FROM (SELECT id, answered_at FROM seat_answers\n            UNION ALL\n            SELECT id, answered_at FROM judge_answers) every_answer\n     GROUP BY id\n)\nSELECT count(*) AS \"reports!\",\n       count(a.answered_at) AS \"answered!\",\n       round((percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM a.answered_at - r.queued_at)) / 60)::numeric, 1)::float8 AS median_minutes,\n       round((max(extract(epoch FROM a.answered_at - r.queued_at)) / 60)::numeric, 1)::float8 AS longest_minutes,\n       coalesce(round((sum(greatest(extract(epoch FROM a.answered_at - r.queued_at) - 600, 0)) / 60)::numeric, 1), 0)::float8 AS \"late_minutes!\"\n  FROM reports r LEFT JOIN answers a ON a.id = r.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "reports!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "answered!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "median_minutes",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "longest_minutes",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "late_minutes!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "6b8595911be28eb1ff9fa206d6e00bac9e1d4e035946b3e0150172517129f0b8"
+}

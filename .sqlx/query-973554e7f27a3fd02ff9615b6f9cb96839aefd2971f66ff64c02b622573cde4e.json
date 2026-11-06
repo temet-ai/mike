@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO eval.run_items (run_id, operator_turn_id, reaction_label_id,\n                        delivery_label_id, turn_verdict_id, outcome, stratum, inclusion_prob,\n                        reaction_correct, delivery_correct)\n                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)\n                 ON CONFLICT (run_id, operator_turn_id) DO UPDATE\n                    SET turn_verdict_id = EXCLUDED.turn_verdict_id, outcome = EXCLUDED.outcome,\n                        reaction_correct = EXCLUDED.reaction_correct,\n                        delivery_correct = EXCLUDED.delivery_correct",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Text",
+        "Text",
+        "Float8",
+        "Bool",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "973554e7f27a3fd02ff9615b6f9cb96839aefd2971f66ff64c02b622573cde4e"
+}

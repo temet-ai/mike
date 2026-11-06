@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.operator_turns\n            SET end_request_id         = $2\n          WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3c43ef13c7ac40c542ad50349861b2e91cf15ab778d3e84e2e8ece4ee296b029"
+}

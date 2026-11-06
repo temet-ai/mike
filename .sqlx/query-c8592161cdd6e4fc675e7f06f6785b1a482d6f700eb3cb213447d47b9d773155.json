@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT channel_id AS \"channel_id!\" FROM remote_control.calls\n             WHERE channel_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "channel_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "channel_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c8592161cdd6e4fc675e7f06f6785b1a482d6f700eb3cb213447d47b9d773155"
+}

@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO tools.results\n                    (request_id, tool_use_id, ord, is_error, content, content_sha256, content_bytes,\n                     session_id)\n                 VALUES ($1, $2, 0, true, '\"err\"'::jsonb, $3, 3, $4)\n                 ON CONFLICT (tool_use_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f5a104caeda62a7278b151a48a26350d55e63bd94624d259eae319b330230833"
+}

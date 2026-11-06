@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT what\n  FROM launch.told\n WHERE run_id = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "what",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.told",
+            "name": "what"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "193c32834ccf6ae6ccc584882ac69a2c2cb40dd4cad991b3b1d2a327ca9ffda7"
+}

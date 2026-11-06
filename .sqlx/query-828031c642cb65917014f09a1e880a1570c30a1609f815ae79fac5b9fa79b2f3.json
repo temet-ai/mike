@@ -1,0 +1,74 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT axis, label, subject_kinds, sort_order, description\n                   FROM eval.axis_labels ORDER BY axis, sort_order, label",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "axis",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.axis_labels",
+            "name": "axis"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.axis_labels",
+            "name": "label"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "subject_kinds",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "eval.axis_labels",
+            "name": "subject_kinds"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "sort_order",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.axis_labels",
+            "name": "sort_order"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.axis_labels",
+            "name": "description"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "828031c642cb65917014f09a1e880a1570c30a1609f815ae79fac5b9fa79b2f3"
+}

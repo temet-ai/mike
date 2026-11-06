@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE steering.interventions i\n   SET acked_at = COALESCE(i.acked_at, $3)\n  FROM remote_control.injections inj\n  JOIN remote_control.channels c ON c.id = inj.channel_id\n WHERE inj.event_id = ANY($2::uuid[])\n   AND c.cse_id = $1\n   AND inj.source_kind = 'steerer'\n   AND inj.source_id IS NOT NULL\n   AND i.uuid = inj.source_id::uuid\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "UuidArray",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4e5d46fd24d45c68d029d413bf260bbee62ef6154a58e60e7b0fc781f165ab23"
+}

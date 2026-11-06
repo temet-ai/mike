@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# spill-query — grep/jq projection over harness spill / persisted-output files.
+#
+# Kills the "overflow spilled → next call Reads the whole spill back into
+# context" pattern (tool-call-efficiency report §3, proposal G3): a 57.8 KB
+# spill fully re-Read, a 66.4 KB Workflow-result Read when a 2 KB preview
+# already answered the question, three 37.1 KB harness spills full-Read.
+# Default behavior projects instead of dumping: a pattern/--jq narrows the
+# file, and even an unfiltered read is capped (~8 KB) with an honest note —
+# never a silent full-file dump.
+#
+# Usage:
+#   spill-query <file> [PATTERN] [--context N] [--max-bytes N]
+#   spill-query <file> --jq EXPR    [--max-bytes N]     # JSON spill files
+#
+# Examples:
+#   spill-query artifacts/2026-07-02/tool-call-efficiency/report.md 'session_tool_use_stats'
+#   spill-query artifacts/2026-07-02/tool-call-efficiency/report.md 'G[0-9]' --context 2
+#   spill-query result.json --jq '.tool_uses[] | select(.is_error) | .id'
+#   spill-query big.log                       # unfiltered, capped at 8 KB with a note
+#
+# Exit codes:
+#   0  success (pattern/jq matched, or unfiltered print succeeded)
+#   1  no match (grep/jq semantics — nothing found)
+#   2  usage error
+set -euo pipefail
+
+usage() {
+  sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//' >&2
+  exit "${1:-2}"
+}
+
+err() { printf 'spill-query: %s\n' "$1" >&2; }
+
+file=""
+pattern=""
+jq_expr=""
+context=0
+max_bytes=8192
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --jq)        [[ $# -ge 2 ]] || { err "--jq needs a value"; exit 2; };        jq_expr="$2"; shift 2 ;;
+    --context)   [[ $# -ge 2 ]] || { err "--context needs a value"; exit 2; };   context="$2"; shift 2 ;;
+    --max-bytes) [[ $# -ge 2 ]] || { err "--max-bytes needs a value"; exit 2; }; max_bytes="$2"; shift 2 ;;
+    -h|--help)   usage 0 ;;
+    -*)          err "unknown option: $1"; exit 2 ;;
+    *)
+      if [[ -z "$file" ]]; then file="$1"
+      elif [[ -z "$pattern" ]]; then pattern="$1"
+      else err "unexpected extra argument: $1"; exit 2; fi
+      shift ;;
+  esac
+done
+
+[[ -n "$file" ]] || usage
+[[ -f "$file" ]] || { err "no such file: $file"; exit 2; }
+[[ "$context" =~ ^[0-9]+$ ]] || { err "--context must be a non-negative integer"; exit 2; }
+[[ "$max_bytes" =~ ^[0-9]+$ ]] || { err "--max-bytes must be a positive integer"; exit 2; }
+if [[ -n "$jq_expr" && -n "$pattern" ]]; then
+  err "PATTERN and --jq are mutually exclusive"
+  exit 2
+fi
+
+emit_capped() {
+  # Reads stdin, writes at most max_bytes to stdout, and — only if truncation
+  # actually happened — an honest note to stderr naming the real vs shown size.
+  local tmp
+  tmp=$(mktemp)
+  cat > "$tmp"
+  local total
+  total=$(wc -c < "$tmp" | tr -d ' ')
+  if (( total > max_bytes )); then
+    head -c "$max_bytes" "$tmp"
+    printf '\n[spill-query] matched %d bytes, showing %d (use --max-bytes to raise the cap)\n' "$total" "$max_bytes" >&2
+  else
+    cat "$tmp"
+  fi
+  rm -f "$tmp"
+}
+
+if [[ -n "$jq_expr" ]]; then
+  command -v jq >/dev/null 2>&1 || { err "--jq requires jq on PATH"; exit 2; }
+  set +e
+  out=$(jq -r "$jq_expr" "$file" 2>&1)
+  rc=$?
+  set -e
+  if [[ $rc -ne 0 ]]; then
+    err "jq failed: $out"
+    exit 1
+  fi
+  printf '%s\n' "$out" | emit_capped
+  exit 0
+fi
+
+if [[ -n "$pattern" ]]; then
+  set +e
+  grep -nE -C "$context" -- "$pattern" "$file" | emit_capped
+  rc=${PIPESTATUS[0]}
+  set -e
+  [[ $rc -eq 0 ]] || { err "no match for pattern: $pattern"; exit 1; }
+  exit 0
+fi
+
+# No pattern, no --jq: unfiltered but still capped read.
+emit_capped < "$file"

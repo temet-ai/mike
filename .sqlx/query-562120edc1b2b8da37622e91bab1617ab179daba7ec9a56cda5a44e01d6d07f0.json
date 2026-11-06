@@ -1,0 +1,83 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.id AS \"rule_id!\", k.code AS \"kind!\", r.value AS \"label!\",\n                          r.trigger_token AS \"tag\", r.enabled AS \"enabled!\",\n                          COUNT(DISTINCT sp.request_id) AS \"fired_turns!\"\n                     FROM requests.system_prompt_firing_rules f\n                     JOIN requests.system_prompts sp ON sp.id = f.request_system_prompt_id\n                     JOIN requests.requests req ON req.id = sp.request_id\n                     JOIN sessions.sessions s ON s.id = req.session_id\n                     JOIN rules.rules r ON r.id = f.filter_rule_id\n                     JOIN rules.kinds k ON k.id = r.kind_id\n                    WHERE s.session_uuid = $1\n                    GROUP BY r.id, k.code, r.value, r.trigger_token, r.enabled\n                    ORDER BY r.id ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "rule_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "rules.kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "label!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "value"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "tag",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "trigger_token"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "enabled!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "fired_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      null
+    ]
+  },
+  "hash": "562120edc1b2b8da37622e91bab1617ab179daba7ec9a56cda5a44e01d6d07f0"
+}

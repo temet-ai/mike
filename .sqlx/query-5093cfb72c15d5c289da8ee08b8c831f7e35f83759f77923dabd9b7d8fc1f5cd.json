@@ -1,0 +1,349 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT a.id AS \"id!\", a.run_id AS \"run_id!\", rk.code AS \"run_kind!\",\n       a.lesson_id, a.lesson_uuid::text AS \"lesson_uuid!\", a.project_id, p.project_path,\n       a.session_id, a.session_uuid::text AS \"session_uuid?\", a.source_turn_id,\n       a.files_touched, a.agent_id, a.lesson_text AS \"lesson_text!\",\n       ak.code AS \"action_kind!\", oc.code AS \"outcome!\", a.error,\n       bs.code AS \"before_stage?\", as_.code AS \"after_stage?\", db.code AS \"decided_by?\",\n       a.distance, a.threshold, a.embedding_model,\n       a.counterpart_lesson_id, a.counterpart_uuid::text AS \"counterpart_uuid?\", a.counterpart_text,\n       a.runners_up AS \"runners_up!: sqlx::types::Json<Vec<super::RunnerUp>>\",\n       a.rank_detail AS \"rank_detail?: sqlx::types::Json<serde_json::Value>\",\n       a.injection_count, a.created_at AS \"created_at!\"\n  FROM memory.consolidation_actions a\n  JOIN memory.consolidation_runs r ON r.id = a.run_id\n  JOIN memory.consolidation_run_kinds rk ON rk.id = r.run_kind_id\n  LEFT JOIN projects.projects p ON p.id = a.project_id\n  JOIN memory.consolidation_action_kinds ak ON ak.id = a.action_kind_id\n  JOIN memory.consolidation_outcomes oc ON oc.id = a.outcome_id\n  LEFT JOIN memory.lesson_stages bs ON bs.id = a.before_stage_id\n  LEFT JOIN memory.lesson_stages as_ ON as_.id = a.after_stage_id\n  LEFT JOIN memory.consolidation_decided_by db ON db.id = a.decided_by_id\n WHERE a.run_id = $1\n ORDER BY a.id ASC\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "run_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "run_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "run_kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_run_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "lesson_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "lesson_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "lesson_uuid!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "project_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "session_uuid?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "source_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "source_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "files_touched",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "files_touched"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "agent_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "agent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "lesson_text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "lesson_text"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "action_kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_action_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "outcome!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_outcomes",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "error",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "error"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "before_stage?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_stages",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "after_stage?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_stages",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "decided_by?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_decided_by",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "distance",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "distance"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "threshold",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "threshold"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "embedding_model",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "embedding_model"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "counterpart_lesson_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "counterpart_lesson_id"
+          }
+        }
+      },
+      {
+        "ordinal": 23,
+        "name": "counterpart_uuid?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 24,
+        "name": "counterpart_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "counterpart_text"
+          }
+        }
+      },
+      {
+        "ordinal": 25,
+        "name": "runners_up!: sqlx::types::Json<Vec<super::RunnerUp>>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "runners_up"
+          }
+        }
+      },
+      {
+        "ordinal": 26,
+        "name": "rank_detail?: sqlx::types::Json<serde_json::Value>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "rank_detail"
+          }
+        }
+      },
+      {
+        "ordinal": 27,
+        "name": "injection_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "injection_count"
+          }
+        }
+      },
+      {
+        "ordinal": 28,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.consolidation_actions",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      null,
+      true,
+      false,
+      true,
+      null,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      null,
+      true,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "5093cfb72c15d5c289da8ee08b8c831f7e35f83759f77923dabd9b7d8fc1f5cd"
+}

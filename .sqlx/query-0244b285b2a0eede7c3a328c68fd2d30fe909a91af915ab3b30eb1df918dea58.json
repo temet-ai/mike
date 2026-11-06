@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT tu.wire_tool_use_id AS \"tool_use_id!\", tr.is_error AS \"is_error!\", tr.content_sha256 AS \"content_sha256!\",\n       tr.content_bytes AS \"content_bytes!\", tr.content AS \"content!\"\n  FROM tools.results tr\n  JOIN tools.uses    tu ON tu.id = tr.tool_use_id\n WHERE tu.request_id = $1\n ORDER BY tr.created_at ASC, tr.ord ASC\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tool_use_id!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "wire_tool_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "is_error!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "is_error"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "content_sha256!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "content_bytes!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "content!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "0244b285b2a0eede7c3a328c68fd2d30fe909a91af915ab3b30eb1df918dea58"
+}

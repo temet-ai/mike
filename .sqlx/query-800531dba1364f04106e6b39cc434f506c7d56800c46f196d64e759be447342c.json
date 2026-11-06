@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE config.feature_toggles SET operator_set = false WHERE key = 'reminders'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "800531dba1364f04106e6b39cc434f506c7d56800c46f196d64e759be447342c"
+}

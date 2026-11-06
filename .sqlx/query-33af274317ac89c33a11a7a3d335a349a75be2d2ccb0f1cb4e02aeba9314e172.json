@@ -1,0 +1,424 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT operator_turn_id, session_id, builder_version, built_at, max_request_id,\n       prompt_kind, prompt_rule, prompt_kind_at_close, prompt_rule_at_close,\n       next_state, next_genuine_request_id, next_genuine_turn_id, next_genuine_at,\n       next_state_at_close, next_genuine_request_id_at_close,\n       skipped_before_next, reply_window_segment_ids, reclassified_at,\n       text_chars, text_cut_at, last_text_origin, text_spans,\n       stop_request_id, stop_reason, aborted, interrupted, close_cause,\n       checks_run, checks_count, checks_failed,\n       ended_on, ended_on_version, session_class, session_class_rule\n  FROM memory.turn_facts\n WHERE session_id = ANY($1)\n ORDER BY session_id, operator_turn_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "operator_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "builder_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "builder_version"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "built_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "built_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "max_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "max_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "prompt_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "prompt_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "prompt_rule",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "prompt_rule"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "prompt_kind_at_close",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "prompt_kind_at_close"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "prompt_rule_at_close",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "prompt_rule_at_close"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "next_state",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "next_state"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "next_genuine_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "next_genuine_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "next_genuine_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "next_genuine_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "next_genuine_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "next_genuine_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "next_state_at_close",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "next_state_at_close"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "next_genuine_request_id_at_close",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "next_genuine_request_id_at_close"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "skipped_before_next",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "skipped_before_next"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "reply_window_segment_ids",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "reply_window_segment_ids"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "reclassified_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "reclassified_at"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "text_chars",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "text_chars"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "text_cut_at",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "text_cut_at"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "last_text_origin",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "last_text_origin"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "text_spans",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "text_spans"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "stop_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "stop_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 23,
+        "name": "stop_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "stop_reason"
+          }
+        }
+      },
+      {
+        "ordinal": 24,
+        "name": "aborted",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "aborted"
+          }
+        }
+      },
+      {
+        "ordinal": 25,
+        "name": "interrupted",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "interrupted"
+          }
+        }
+      },
+      {
+        "ordinal": 26,
+        "name": "close_cause",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "close_cause"
+          }
+        }
+      },
+      {
+        "ordinal": 27,
+        "name": "checks_run",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "checks_run"
+          }
+        }
+      },
+      {
+        "ordinal": 28,
+        "name": "checks_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "checks_count"
+          }
+        }
+      },
+      {
+        "ordinal": 29,
+        "name": "checks_failed",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "checks_failed"
+          }
+        }
+      },
+      {
+        "ordinal": 30,
+        "name": "ended_on",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "ended_on"
+          }
+        }
+      },
+      {
+        "ordinal": 31,
+        "name": "ended_on_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "ended_on_version"
+          }
+        }
+      },
+      {
+        "ordinal": 32,
+        "name": "session_class",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "session_class"
+          }
+        }
+      },
+      {
+        "ordinal": 33,
+        "name": "session_class_rule",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "session_class_rule"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "33af274317ac89c33a11a7a3d335a349a75be2d2ccb0f1cb4e02aeba9314e172"
+}

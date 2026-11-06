@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO mailbox.messages (message_uuid, to_session_id, from_session_id, body)\n           SELECT l.brief_note_uuid, s.id, NULL,\n                  'Your task brief from mike (launch ' || l.id || '). It is also stored as your '\n                  || 'session note ' || l.brief_note_uuid || ' (kind \"brief\"). Read it in full, '\n                  || 'then follow it. This message counts as read once it reaches you, so there '\n                  || 'is nothing to acknowledge.'\n                  || E'\\n\\n' || l.brief_text\n             FROM launch.launches l\n             JOIN sessions.sessions s ON s.session_uuid = l.session_uuid\n            WHERE l.session_uuid = $1\n              AND l.brief_mode = 'note'\n              AND l.brief_note_uuid IS NOT NULL\n              AND l.brief_text IS NOT NULL\n            ORDER BY l.id\n           ON CONFLICT (message_uuid) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "501216d9378889eb61c588cf29bac101dced6658cbe5205ff711b754599981a3"
+}

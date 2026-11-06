@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE config.settings SET value = $2, updated_at = now() WHERE key = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "23df6cc54a12884869c83aa3202068b3f9bc307d398aad9c17266ed8cf583cd6"
+}

@@ -1,0 +1,304 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, created_at, finished_at, purpose, status, bundle_id, rubric_version,\n                        input_builder_version, slices, model, split, tiers, holdout_batch,\n                        labels_as_of, label_count, label_ids_hash, repeat_of_run_id, max_usd,\n                        cost_usd, items_judged, items_refused, items_failed, report, argv\n                   FROM eval.runs WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "finished_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "finished_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "purpose",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "purpose"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "bundle_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "bundle_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "rubric_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "rubric_version"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "input_builder_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "input_builder_version"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "slices",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "slices"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "model",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "split",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "split"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "tiers",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "tiers"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "holdout_batch",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "holdout_batch"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "labels_as_of",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "labels_as_of"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "label_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "label_count"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "label_ids_hash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "label_ids_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "repeat_of_run_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "repeat_of_run_id"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "max_usd",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "max_usd"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "cost_usd",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "cost_usd"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "items_judged",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "items_judged"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "items_refused",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "items_refused"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "items_failed",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "items_failed"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "report",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "report"
+          }
+        }
+      },
+      {
+        "ordinal": 23,
+        "name": "argv",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "argv"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "88284d5b5300f8a3f9a200510072b9ac7bd32ebf7b31a64969a58deba872af67"
+}

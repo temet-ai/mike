@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO requests.system_prompt_firing_rules\n            (request_system_prompt_id, filter_rule_id, ord)\n         VALUES ($1, $2, 1), ($1, $3, 0)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "84e217c88b47feafd00271cd7a922e1078b460a9aedcae2a7d7392e8a4181ea0"
+}

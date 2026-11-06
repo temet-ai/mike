@@ -1,0 +1,89 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT d.id, d.revision, d.lesson_watermark, d.status, d.review, d.created_at\n                     FROM memory.skill_drafts d\n                    WHERE d.project_id = $1 AND d.folder = $2\n                    ORDER BY d.lesson_watermark DESC, d.revision DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "revision",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "revision"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "lesson_watermark",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "lesson_watermark"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "review",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "review"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "e3011d08a2bf27cb2cc99d9f5a04273af1f61c332000e3714d153b402dc93a8c"
+}

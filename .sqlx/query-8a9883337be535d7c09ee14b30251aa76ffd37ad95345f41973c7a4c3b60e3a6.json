@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO prompt_kinds.classifications\n                        (request_id, session_id, kind_id, rule, repeat_key, classifier_version)\n                 SELECT x.request_id, x.session_id, k.id, x.rule, x.repeat_key, x.version\n                   FROM jsonb_to_recordset($1::jsonb)\n                        AS x(request_id bigint, session_id bigint, kind text,\n                             rule text, repeat_key text, version text)\n                   JOIN prompt_kinds.kinds k ON k.code = x.kind\n                 ON CONFLICT (request_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8a9883337be535d7c09ee14b30251aa76ffd37ad95345f41973c7a4c3b60e3a6"
+}

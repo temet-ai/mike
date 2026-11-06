@@ -1,0 +1,62 @@
+"""Frozen multi-file tasks. Graders are copied outside the model's work directory."""
+SCENARIOS = {
+    'python-config': {
+        'family': 'configuration', 'file': 'app/settings.py', 'symbol': 'load_settings',
+        'prompt': 'Repair configuration loading: an explicit retry count of zero disables retries, false disables tracing, and omitted values inherit defaults. The client must observe the corrected settings. Preserve public interfaces.',
+        'files': {
+            'README.md': 'The client reads app/settings.py. Defaults are data/defaults.json. Tools under scripts/ are unrelated.\n',
+            'app/__init__.py': '',
+            'app/settings.py': 'import json\nfrom pathlib import Path\n\ndef load_settings(overrides):\n    defaults = json.loads(Path("data/defaults.json").read_text())\n    return {key: overrides.get(key) or value for key, value in defaults.items()}\n',
+            'app/client.py': 'from app.settings import load_settings\n\ndef connect(options):\n    cfg = load_settings(options)\n    return cfg["retries"] + 1, cfg["trace"]\n',
+            'data/defaults.json': '{"retries": 3, "trace": true}\n',
+            'scripts/settings.py': 'def load_settings():\n    return {"colour": "blue"}\n',
+        },
+        'solution': {'app/settings.py': 'import json\nfrom pathlib import Path\n\ndef load_settings(overrides):\n    defaults = json.loads(Path("data/defaults.json").read_text())\n    return {key: overrides[key] if key in overrides else value for key, value in defaults.items()}\n'},
+        'grader': 'from app.client import connect\nassert connect({}) == (4, True)\nassert connect({"retries": 0, "trace": False}) == (1, False)\nassert connect({"retries": 2}) == (3, True)\nassert connect({"trace": False}) == (4, False)\n',
+        'command': ['python3', '-B', 'verify.py'],
+    },
+    'typescript-pagination': {
+        'family': 'test-output', 'file': 'src/pagination.ts', 'symbol': 'pageWindow',
+        'prompt': 'Fix the public list handler using the failed case in logs/check.txt. Requests use zero-based page numbers. Keep validation of invalid pages and the response shape. Do not change the fixture data or route interface.',
+        'files': {
+            'README.md': 'The public route is src/list.ts. Internal administration uses src/admin.ts.\n',
+            'src/pagination.ts': 'export function pageWindow(page: number, size: number): [number, number] {\n  if (!Number.isInteger(page) || page < 0 || size < 1) throw new Error("invalid page");\n  return [(page + 1) * size, (page + 2) * size];\n}\n',
+            'src/list.ts': 'import { pageWindow } from "./pagination.ts";\nexport function list(items: string[], page: number, size: number) {\n  const [start, end] = pageWindow(page, size);\n  return { items: items.slice(start, end), total: items.length };\n}\n',
+            'src/admin.ts': 'export function pageWindow(page: number, size: number) { return [page * size, (page + 1) * size]; }\n',
+            'logs/check.txt': 'public list page 0, size 2: expected ["a", "b"], received ["c", "d"]. Total is correct.\n',
+            'fixtures/items.json': '["a", "b", "c", "d", "e"]\n',
+        },
+        'solution': {'src/pagination.ts': 'export function pageWindow(page: number, size: number): [number, number] {\n  if (!Number.isInteger(page) || page < 0 || size < 1) throw new Error("invalid page");\n  return [page * size, (page + 1) * size];\n}\n'},
+        'grader': 'import assert from "node:assert/strict";\nimport { readFileSync } from "node:fs";\nimport { list } from "./src/list.ts";\nconst items = JSON.parse(readFileSync("fixtures/items.json", "utf8"));\nassert.deepEqual(list(items, 0, 2), {items:["a","b"],total:5});\nassert.deepEqual(list(items, 2, 2), {items:["e"],total:5});\nassert.deepEqual(list(items, 3, 2), {items:[],total:5});\nassert.throws(() => list(items,-1,2));\nassert.throws(() => list(items,0.5,2));\n',
+        'command': ['node', 'verify.ts'],
+    },
+    'rust-config': {
+        'family': 'configuration', 'file': 'src/config.rs', 'symbol': 'parse_timeout',
+        'prompt': 'Fix loading of the timeout setting. config/default.conf defines the fallback. Explicit timeout_ms=0 disables the timeout and must reach the client unchanged. Invalid numeric values and omitted keys use the fallback. Preserve the public functions.',
+        'files': {
+            'README.md': 'src/client.rs owns the public request settings. src/legacy.rs is unused compatibility code.\n',
+            'src/config.rs': 'pub fn parse_timeout(text: &str, fallback: u32) -> u32 {\n    text.lines().find_map(|line| line.strip_prefix("timeout_ms=")).and_then(|v| v.parse::<u32>().ok()).filter(|v| *v > 0).unwrap_or(fallback)\n}\n',
+            'src/client.rs': 'pub fn timeout(text: &str) -> u32 {\n    let default = crate::config::parse_timeout(include_str!("../config/default.conf"), 100);\n    crate::config::parse_timeout(text, default)\n}\n',
+            'src/legacy.rs': 'pub fn parse_timeout() -> u32 { 999 }\n',
+            'config/default.conf': 'timeout_ms=250\n',
+        },
+        'solution': {'src/config.rs': 'pub fn parse_timeout(text: &str, fallback: u32) -> u32 {\n    text.lines().find_map(|line| line.strip_prefix("timeout_ms=")).and_then(|v| v.parse::<u32>().ok()).unwrap_or(fallback)\n}\n'},
+        'grader': '#[path="src/config.rs"] mod config;\n#[path="src/client.rs"] mod client;\n#[test] fn config_reaches_client() { assert_eq!(client::timeout("timeout_ms=0"),0); assert_eq!(client::timeout("timeout_ms=9"),9); assert_eq!(client::timeout("timeout_ms=bad"),250); assert_eq!(client::timeout("other=3"),250); }\n',
+        'command': ['rustc', '--test', 'verify.rs', '-o', 'verify'],
+    },
+    'documentation-runbook': {
+        'family': 'documentation', 'file': 'docs/VERIFY.md', 'symbol': None,
+        'prompt': 'Correct docs/VERIFY.md using the current project contract and scripts/verify. Keep the # Verification heading. State the exact command, working directory, network requirement and exit-code meaning. Remove obsolete instructions; leave the executable and project contract unchanged.',
+        'files': {
+            'README.md': 'Current verification contract is project.json; archived docs are historical.\n',
+            'project.json': '{"language":"python","verify":"python3 scripts/verify","cwd":"repository root","network":"offline"}\n',
+            'scripts/verify': 'import unittest\nresult = unittest.TextTestRunner().run(unittest.defaultTestLoader.discover("tests"))\nraise SystemExit(0 if result.wasSuccessful() else 1)\n',
+            'tests/test_settings.py': 'import unittest\nclass Smoke(unittest.TestCase):\n    def test_zero(self): self.assertEqual(0, 0)\n',
+            'docs/VERIFY.md': '# Verification\nFrom any directory run cargo test, online. Ignore the exit status if the final line says done.\n',
+            'docs/archive.md': 'Old Rust prototype: cargo test, online.\n',
+        },
+        'solution': {'docs/VERIFY.md': '# Verification\nFrom the repository root, run offline:\n\n```sh\npython3 scripts/verify\n```\n\nExit code 0 means tests passed; nonzero means failure.\n'},
+        'grader': 'from pathlib import Path\nimport subprocess\ns = Path("docs/VERIFY.md").read_text().lower()\nassert s.startswith("# verification\\n")\nassert "python3 scripts/verify" in s and "repository root" in s and "offline" in s\nassert "exit code 0" in s and "nonzero" in s and "failure" in s\nassert "cargo" not in s and "final line" not in s\nassert subprocess.run(["python3", "scripts/verify"]).returncode == 0\n',
+        'command': ['python3', '-B', 'verify.py'],
+    },
+}

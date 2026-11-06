@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lesson_relations\n                    (from_lesson_id, to_lesson_id, kind_id, method_id, status_id,\n                     candidate_distance, evidence_json,\n                     proposer_model, proposer_rationale,\n                     adjudicator_model, adjudicator_agrees, adjudicator_rationale,\n                     detector_version, decided_at, decided_by)\n                 SELECT $1::bigint, $2::bigint, rk.id, rm.id, rs.id,\n                        $6::float8, $7::jsonb, $8::text, $9::text, $10::text, $11::boolean, $12::text,\n                        $13::text,\n                        CASE WHEN $14::text IS NOT NULL THEN NOW() ELSE NULL END, $14::text\n                   FROM memory.lesson_relation_kinds rk,\n                        memory.lesson_relation_methods rm,\n                        memory.lesson_relation_statuses rs\n                  WHERE rk.code = $3 AND rm.code = $4 AND rs.code = $5\n              RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_relations",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Float8",
+        "Jsonb",
+        "Text",
+        "Text",
+        "Text",
+        "Bool",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e76dc992f2357b69ad9a4d02ecb901226d1e461a8e1ac6e28be600546271ed2a"
+}

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Archive-only acceptance runner; no builds or release publication.
+set -euo pipefail
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+exec python3 -I -c 'import runpy, sys; from pathlib import Path; p = Path(sys.argv.pop(1)); sys.path.insert(0, str(p.parent)); runpy.run_path(str(p), run_name="__main__")' "${SCRIPT_DIR}/release/acceptance.py" "$@"

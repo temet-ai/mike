@@ -1,0 +1,217 @@
+[
+ {
+  "name": "empty_text_is_none",
+  "text": "",
+  "expected": "none"
+ },
+ {
+  "name": "whitespace_only_is_none",
+  "text": "  \n\t ",
+  "expected": "none"
+ },
+ {
+  "name": "ill_report_back_in_last_400_is_promise_or_wait",
+  "text": "Build started. I'll report back when the suite is done.",
+  "expected": "promise_or_wait"
+ },
+ {
+  "name": "waiting_for_is_promise_or_wait",
+  "text": "Pushed the branch and waiting for CI to come back.",
+  "expected": "promise_or_wait"
+ },
+ {
+  "name": "once_the_build_finishes_is_promise_or_wait",
+  "text": "All wired up; once the build finishes I can look at it.",
+  "expected": "promise_or_wait"
+ },
+ {
+  "name": "when_it_lands_is_promise_or_wait",
+  "text": "The change is queued; when it lands the badge updates.",
+  "expected": "promise_or_wait"
+ },
+ {
+  "name": "next_wake_is_promise_or_wait",
+  "text": "Nothing more to do until the next wake.",
+  "expected": "promise_or_wait"
+ },
+ {
+  "name": "still_running_is_promise_or_wait",
+  "text": "The migration is still running against the copy.",
+  "expected": "promise_or_wait"
+ },
+ {
+  "name": "in_the_background_is_promise_or_wait",
+  "text": "The sweep keeps going in the background for now.",
+  "expected": "promise_or_wait"
+ },
+ {
+  "name": "standing_by_is_promise_or_wait",
+  "text": "Ready and standing by.",
+  "expected": "promise_or_wait"
+ },
+ {
+  "name": "will_be_back_is_promise_or_wait",
+  "text": "The worker will be back shortly with numbers.",
+  "expected": "promise_or_wait"
+ },
+ {
+  "name": "wait_phrase_401_characters_from_end_is_not_promise",
+  "text": "I'll report back xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx plain closing text here",
+  "expected": "other"
+ },
+ {
+  "name": "next_step_let_me_in_last_250_is_promise_or_wait",
+  "text": "Findings above are consistent.\n\nLet me check the other file.",
+  "expected": "promise_or_wait"
+ },
+ {
+  "name": "next_step_at_start_of_text_is_promise_or_wait",
+  "text": "Let me look at that.",
+  "expected": "promise_or_wait"
+ },
+ {
+  "name": "next_step_after_full_stop_is_promise_or_wait",
+  "text": "The first file is fine. Now let me open the second.",
+  "expected": "promise_or_wait"
+ },
+ {
+  "name": "trailing_colon_fragment_is_promise_or_wait",
+  "text": "The failing cases are:",
+  "expected": "promise_or_wait"
+ },
+ {
+  "name": "trailing_unicode_ellipsis_is_promise_or_wait",
+  "text": "Trying another approach…",
+  "expected": "promise_or_wait"
+ },
+ {
+  "name": "trailing_three_dots_is_promise_or_wait",
+  "text": "Trying another approach...",
+  "expected": "promise_or_wait"
+ },
+ {
+  "name": "want_me_to_is_handback",
+  "text": "Two options exist. Want me to apply the smaller one.",
+  "expected": "handback"
+ },
+ {
+  "name": "shall_i_is_handback",
+  "text": "The diff is ready. Shall I commit it.",
+  "expected": "handback"
+ },
+ {
+  "name": "would_you_like_me_to_is_handback",
+  "text": "That is the plan. Would you like me to start.",
+  "expected": "handback"
+ },
+ {
+  "name": "let_me_know_if_you_want_is_handback",
+  "text": "I can extend it. Let me know if you want that.",
+  "expected": "handback"
+ },
+ {
+  "name": "say_the_word_is_handback",
+  "text": "Everything is prepared. Say the word.",
+  "expected": "handback"
+ },
+ {
+  "name": "your_call_is_handback",
+  "text": "Both work equally well. Your call.",
+  "expected": "handback"
+ },
+ {
+  "name": "needs_your_approval_is_handback",
+  "text": "The change needs your approval before merge.",
+  "expected": "handback"
+ },
+ {
+  "name": "ok_to_push_is_handback",
+  "text": "Tests are clean. OK to push.",
+  "expected": "handback"
+ },
+ {
+  "name": "which_option_would_you_is_handback",
+  "text": "Which option would you prefer for the API.",
+  "expected": "handback"
+ },
+ {
+  "name": "handback_phrase_501_characters_from_end_is_not_handback",
+  "text": "want me to xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx closing remark with nothing special here",
+  "expected": "other"
+ },
+ {
+  "name": "last_line_ending_in_question_mark_is_question",
+  "text": "The cache key looks wrong.\nWhat changed in the header?",
+  "expected": "question"
+ },
+ {
+  "name": "question_mark_before_final_line_is_not_question",
+  "text": "Is this right?\nIt matches the spec.",
+  "expected": "other"
+ },
+ {
+  "name": "last_line_split_on_unicode_line_separator",
+  "text": "First line Is this the end?",
+  "expected": "question"
+ },
+ {
+  "name": "handback_wins_over_question",
+  "text": "Shall I go ahead?",
+  "expected": "handback"
+ },
+ {
+  "name": "question_wins_over_promise",
+  "text": "I'll report back soon. Anything else?",
+  "expected": "question"
+ },
+ {
+  "name": "promise_wins_over_report",
+  "text": "All done. I'll report back tomorrow.",
+  "expected": "promise_or_wait"
+ },
+ {
+  "name": "done_word_in_last_600_is_report",
+  "text": "The refactor is complete and the tests are green.",
+  "expected": "report"
+ },
+ {
+  "name": "done_as_substring_of_word_is_not_report",
+  "text": "The abandoned branch was removed.",
+  "expected": "other"
+ },
+ {
+  "name": "plain_text_is_other",
+  "text": "The file lists three entries.",
+  "expected": "other"
+ },
+ {
+  "name": "unicode_tail_is_other",
+  "text": "Zażółć gęślą jaźń",
+  "expected": "other"
+ },
+ {
+  "name": "trailing_whitespace_is_stripped_before_fragment",
+  "text": "The failing cases are:\n\n  ",
+  "expected": "promise_or_wait"
+ },
+ {
+  "name": "done_word_outside_last_600_is_other",
+  "text": "done xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx no vocabulary at close",
+  "expected": "other"
+ },
+ {
+  "name": "fixed_after_multibyte_is_report",
+  "text": "Zażółć gęślą jaźń. Fixed.",
+  "expected": "report"
+ },
+ {
+  "name": "ready_case_insensitive_is_report",
+  "text": "READY.",
+  "expected": "report"
+ },
+ {
+  "name": "done_with_underscore_neighbour_is_other",
+  "text": "the flag is_done_now stays",
+  "expected": "other"
+ }
+]

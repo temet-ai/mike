@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT thread.identity AS \"identity!: Json<RuntimeThreadBinding>\"\n                 FROM runtime.threads thread\n                 JOIN sessions.sessions session ON session.id = thread.session_id\n                WHERE session.session_uuid = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "identity!: Json<RuntimeThreadBinding>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "runtime.threads",
+            "name": "identity"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4f1288051a2659ea9844f5b1380a2717d27ccd0ccdfeef998a1cfa155afc84a8"
+}

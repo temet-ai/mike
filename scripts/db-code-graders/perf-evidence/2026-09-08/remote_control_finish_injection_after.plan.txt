@@ -1,0 +1,21 @@
+Update on messages m  (cost=8.59..16.64 rows=0 width=0) (actual time=0.313..0.316 rows=0 loops=1)
+  Buffers: shared hit=74
+  CTE attempt
+    ->  Update on injections  (cost=0.29..8.30 rows=1 width=22) (actual time=0.177..0.179 rows=1 loops=1)
+          Buffers: shared hit=35
+          ->  Index Scan using injections_pkey on injections  (cost=0.29..8.30 rows=1 width=22) (actual time=0.025..0.027 rows=1 loops=1)
+                Index Cond: (event_id = '7b7d0e2e-5f56-0da5-40da-b7c4406f2db6'::uuid)
+                Buffers: shared hit=5
+  ->  Nested Loop  (cost=0.29..8.33 rows=1 width=74) (actual time=0.207..0.209 rows=1 loops=1)
+        Buffers: shared hit=38
+        ->  CTE Scan on attempt a  (cost=0.00..0.02 rows=1 width=56) (actual time=0.190..0.192 rows=1 loops=1)
+              Buffers: shared hit=35
+        ->  Index Scan using messages_message_uuid_key on messages m  (cost=0.29..8.30 rows=1 width=42) (actual time=0.014..0.014 rows=1 loops=1)
+              Index Cond: (message_uuid = a.message_uuid)
+              Filter: ((consumed_at IS NULL) AND (dead_lettered_at IS NULL) AND (sent_request_id IS NULL))
+              Buffers: shared hit=3
+Planning:
+  Buffers: shared hit=454
+Planning Time: 1.010 ms
+Trigger trg_mailbox_messages_row_changed on messages: time=1.038 calls=1
+Execution Time: 1.529 ms

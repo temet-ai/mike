@@ -1,0 +1,299 @@
+#!/usr/bin/env node
+// component-index — which app component implements each pattern the style guide shows.
+//
+// The guide draws a Button, a Badge, a Switch; it never names the Svelte file that renders
+// one. This writes docs/frontend/style-guide/components.md: every guide pattern, the
+// component to import for it, that component's props, and its Storybook story. A pattern
+// with no component says so, so a session knows to build the primitive rather than
+// hand-roll the control on a page.
+//
+// Usage: scripts/component-index            write the file
+//        scripts/component-index --check    exit 1 when the file on disk is out of date
+//        scripts/component-index <word>     print the entries matching a word
+
+import {
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  readdirSync,
+  statSync,
+} from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
+const components = path.join(repoRoot, "frontend/src/lib/components");
+const outFile = path.join(repoRoot, "docs/frontend/style-guide/components.md");
+
+const PATTERNS = [
+  [
+    "Core",
+    "Button",
+    "ui/button/button.svelte",
+    "import { Button } from '$lib/components/ui/button'",
+  ],
+  ["Core", "IconButton", "ui/button/button.svelte", 'Button with size="icon"'],
+  [
+    "Core",
+    "Tabs",
+    "ui/tabs/tabs.svelte",
+    "import * as Tabs from '$lib/components/ui/tabs'",
+  ],
+  [
+    "Core",
+    "Frame",
+    null,
+    "the global class `edge` in app.css; add `edge-4` for four corners, and put the content in a child element",
+  ],
+  ["Forms", "Input", "ui/field/field.svelte", null],
+  ["Forms", "Radio", "ui/radio-group/radio-group.svelte", null],
+  ["Forms", "Slider", "ui/slider/slider.svelte", null],
+  ["Forms", "Search field", "shared/SearchField.svelte", null],
+  [
+    "Forms",
+    "Select",
+    "ui/select/select.svelte",
+    "import { Select } from '$lib/components/ui/select'",
+  ],
+  [
+    "Forms",
+    "Checkbox",
+    "ui/checkbox/checkbox.svelte",
+    "import { Checkbox } from '$lib/components/ui/checkbox'",
+  ],
+  [
+    "Forms",
+    "Switch",
+    "ui/switch/switch.svelte",
+    "import { Switch } from '$lib/components/ui/switch'",
+  ],
+  ["Feedback", "Badge", "shared/Badge.svelte", null],
+  ["Feedback", "StatusIndicator", "shared/StatusPill.svelte", null],
+  ["Feedback", "Tooltip", "shared/Tooltip.svelte", null],
+  ["Feedback", "Toast", null, null],
+  ["Feedback", "Load error", "shared/LoadErrorBanner.svelte", null],
+  ["Feedback", "Empty list", "shared/EmptyStateOnboarding.svelte", null],
+  [
+    "Feedback",
+    "Empty after filtering",
+    "shared/FilteredEmptyState.svelte",
+    null,
+  ],
+  ["Data", "Readout", "shared/InstrumentReadout.svelte", null],
+  ["Surfaces", "Panel", "detail/SectionCard.svelte", null],
+  [
+    "Surfaces",
+    "Dialog",
+    "ui/dialog/dialog.svelte",
+    "import * as Dialog from '$lib/components/ui/dialog'",
+  ],
+  [
+    "Surfaces",
+    "Sheet",
+    "ui/sheet/sheet.svelte",
+    "import * as Sheet from '$lib/components/ui/sheet'",
+  ],
+  [
+    "Surfaces",
+    "Popover",
+    "ui/popover/popover.svelte",
+    "import * as Popover from '$lib/components/ui/popover'",
+  ],
+  [
+    "Layout",
+    "Section stack",
+    null,
+    "the global classes `band-hd` and `band-body` in app.css",
+  ],
+  ["Layout", "Page title and lede", "shared/PageIntro.svelte", null],
+  ["Layout", "Overview band of counts", "shared/OverviewBand.svelte", null],
+  [
+    "Layout",
+    "Project group of sessions",
+    "sessions/ProjectSessionGroup.svelte",
+    null,
+  ],
+  ["Layout", "Session table head", "sessions/SessionTableHead.svelte", null],
+  ["Layout", "Session row", "sessions/SessionRow.svelte", null],
+  ["Layout", "Status strip", "home/PulseStrip.svelte", null],
+  ["Layout", "Task cards", "home/HomeLaunchpad.svelte", null],
+  ["Layout", "Live sessions band", "home/NowBand.svelte", null],
+  ["Layout", "Destination group", "home/DestinationGroup.svelte", null],
+  ["Layout", "Destination card", "home/DestinationCard.svelte", null],
+  ["Feedback", "Copy button", "shared/CopyIconButton.svelte", null],
+  ["Feedback", "Pin toggle", "shared/PinToggle.svelte", null],
+  ["Feedback", "Disclosure marker", "shared/DisclosureMarker.svelte", null],
+  ["Layout", "Settings page", "settings/SettingsPage.svelte", null],
+  ["Layout", "Settings group", "settings/SettingsSection.svelte", null],
+  ["Layout", "One setting", "settings/SettingRow.svelte", null],
+  ["Layout", "Help marker", "shared/HelpHint.svelte", null],
+];
+
+function propsOf(file) {
+  const text = readFileSync(file, "utf8");
+  const block =
+    text.match(/interface Props\s*\{([\s\S]*?)\n\t\}/) ??
+    text.match(/type \w*Props\s*=[^{]*\{([\s\S]*?)\n\t\}/);
+  if (!block) return [];
+  return block[1]
+    .split("\n")
+    .map((line) => line.trim().replace(/;$/, ""))
+    .filter((line) => /^[a-zA-Z_]\w*\??:/.test(line));
+}
+
+function storyTitle(file) {
+  const story = file.replace(/\.svelte$/, ".stories.svelte");
+  if (!existsSync(story)) return null;
+  const found = readFileSync(story, "utf8").match(/title:\s*'([^']+)'/);
+  return found ? found[1] : null;
+}
+
+function handRolled(marker) {
+  const hits = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir)) {
+      const abs = path.join(dir, entry);
+      if (statSync(abs).isDirectory()) walk(abs);
+      else if (
+        entry.endsWith(".svelte") &&
+        !entry.endsWith(".stories.svelte")
+      ) {
+        if (readFileSync(abs, "utf8").includes(marker)) hits.push(abs);
+      }
+    }
+  };
+  walk(path.join(repoRoot, "frontend/src"));
+  return hits.length;
+}
+
+function build() {
+  const out = [
+    "---",
+    "title: Style guide patterns and the components that implement them",
+    "status: active",
+    "created: 2026-09-29",
+    "updated: 2026-09-29",
+    "summary: Generated by scripts/component-index. For each pattern the FUNK guide shows, the Svelte component to import, its props and its story. Do not edit by hand.",
+    "---",
+    "",
+    "# Style guide patterns and their components",
+    "",
+    "A page is built by importing these. A page does not restyle a button, a heading, an",
+    "error banner or a form control in its own `<style>` block.",
+    "",
+    "Storybook renders every one of these from the real component. `scripts/story-shot <word>`",
+    "lists the stories that match, and with `--shot` saves a picture of each that the Read tool",
+    "opens. It needs Storybook running: the stack keeps it up as `mike-stack-storybook` (`systemctl --user start mike-stack-storybook`; without systemd: `cd frontend && pnpm run storybook`).",
+    "",
+    "The whole guide, drawn with these components, is the story **Foundations/Style Guide**:",
+    "`scripts/story-shot --shot foundations style guide`. The Home and Sessions page patterns are",
+    "in **Foundations/Style Guide Pages**.",
+    "",
+  ];
+  let group = "";
+  const missing = [];
+  for (const [section, pattern, file, note] of PATTERNS) {
+    if (section !== group) {
+      out.push(`## ${section}`, "");
+      group = section;
+    }
+    if (file === null) {
+      if (note) out.push(`### ${pattern}`, "", `Use ${note}.`, "");
+      else {
+        missing.push(pattern);
+        out.push(
+          `### ${pattern}`,
+          "",
+          "**No component yet.** Build the primitive under `frontend/src/lib/components/ui/`",
+          "before using this control on a page.",
+          "",
+        );
+      }
+      continue;
+    }
+    const abs = path.join(components, file);
+    if (!existsSync(abs)) {
+      console.error(`MISSING COMPONENT: ${file} (listed for ${pattern})`);
+      process.exit(2);
+    }
+    out.push(
+      `### ${pattern}`,
+      "",
+      `\`frontend/src/lib/components/${file}\``,
+      "",
+    );
+    if (note)
+      out.push(
+        note.startsWith("import") ? "```ts\n" + note + "\n```" : note,
+        "",
+      );
+    const props = propsOf(abs);
+    if (props.length > 0)
+      out.push("Props:", "", ...props.map((prop) => `- \`${prop}\``), "");
+    const story = storyTitle(abs);
+    if (story) {
+      const words = story.toLowerCase().replace(/\//g, " ");
+      out.push(
+        `Story: ${story}`,
+        "",
+        `See it: \`scripts/story-shot --shot ${words}\``,
+        "",
+      );
+    }
+  }
+  out.push("## Foundations in Storybook", "");
+  out.push(
+    "Tokens and rules drawn with the app's own stylesheet. See any of them with",
+    "`scripts/story-shot --shot foundations <word>`.",
+    "",
+  );
+  const foundations = path.join(components, "__foundations__");
+  for (const entry of readdirSync(foundations).sort()) {
+    if (!entry.endsWith(".stories.svelte")) continue;
+    const title = readFileSync(path.join(foundations, entry), "utf8").match(
+      /title:\s*'([^']+)'/,
+    );
+    if (title) out.push(`- ${title[1]}`);
+  }
+  out.push("");
+  out.push("## Patterns with no component", "");
+  const switches = handRolled('role="switch"') - 1;
+  out.push(
+    `${missing.join(", ")}.` +
+      (switches > 0 ? ` ${switches} file still writes its own switch.` : ""),
+    "",
+  );
+  return out.join("\n");
+}
+
+const text = build();
+const argument = process.argv[2];
+if (argument === "--check") {
+  const onDisk = existsSync(outFile) ? readFileSync(outFile, "utf8") : "";
+  if (onDisk === text) {
+    console.log("CLEAN: components.md matches the components on disk.");
+    process.exit(0);
+  }
+  console.error(
+    "STALE: docs/frontend/style-guide/components.md is out of date.",
+  );
+  console.error("Run scripts/component-index and commit the result.");
+  process.exit(1);
+}
+if (argument) {
+  const wanted = argument.toLowerCase();
+  const entries = text
+    .split(/\n(?=### )/)
+    .filter((entry) => entry.toLowerCase().includes(wanted));
+  console.log(
+    entries.length > 0
+      ? entries.join("\n")
+      : `No pattern matches "${argument}".`,
+  );
+  process.exit(0);
+}
+writeFileSync(outFile, text);
+console.log(`Wrote ${path.relative(repoRoot, outFile)}`);

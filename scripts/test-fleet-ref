@@ -1,0 +1,252 @@
+#!/usr/bin/env bash
+# scripts/fleet-ref test suite: prepare builds the fixture, the origin and the hidden answers;
+# run --drill defines the fleet through a stub of the inspect API and reports what is missing
+# and how many seats would start; record prints the four numbers. No npm, no proxy, no network.
+#
+# Usage: scripts/test-fleet-ref     Exit: 0 = no FAIL (a case without its prerequisite is NOT RUN).
+set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REF="$ROOT/scripts/fleet-ref"
+pass=0; fail=0; notrun=0
+ok() { echo "PASS: $1"; pass=$((pass+1)); }
+bad() { echo "FAIL: $1"; [[ -n "${2:-}" ]] && echo "  $2"; fail=$((fail+1)); }
+skip() { echo "NOT RUN: $1 ($2)"; notrun=$((notrun+1)); }
+check() { if [[ "$3" == *"$2"* ]]; then ok "$1"; else bad "$1" "wanted '$2'; got: ${3:0:300}"; fi; }
+
+for need in git python3 curl tar; do
+  command -v "$need" >/dev/null 2>&1 || { skip "every case" "$need is missing"; echo "fleet-ref: $pass passed, $fail failed, $notrun not run"; exit 0; }
+done
+
+SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/test-fleet-ref.XXXXXX")" || exit 1
+STUB_PID=""
+cleanup() { [[ -n "$STUB_PID" ]] && kill "$STUB_PID" 2>/dev/null; rm -rf "$SCRATCH"; }
+trap cleanup EXIT
+
+export FLEET_REF_NO_INSTALL=1
+
+out="$("$REF" prepare node --dir "$SCRATCH/p1" 2>&1)"; rc=$?
+[[ $rc -eq 0 ]] && ok "prepare exits 0" || bad "prepare exits 0" "$out"
+W="$SCRATCH/p1/work"
+[[ -f "$W/scripts/check" && -f "$W/package.json" && -f "$W/.claude/fleet/project.md" && -f "$W/.claude/fleet/operations.json" ]] && ok "the working copy holds the package, check script and fleet files" || bad "the working copy holds the package, check script and fleet files"
+[[ ! -e "$W/.answers" ]] && ok "the known answers are not in the working copy" || bad "the known answers are not in the working copy"
+[[ "$(cd "$(git -C "$W" remote get-url origin)" && pwd -P)" == "$(cd "$SCRATCH/p1/origin.git" && pwd -P)" ]] && ok "origin is the bare repository beside it" || bad "origin is the bare repository beside it"
+if git -C "$SCRATCH/p1/origin.git" rev-parse --verify -q answers >/dev/null; then bad "the origin has no answers branch"; else ok "the origin has no answers branch"; fi
+[[ -f "$SCRATCH/p1/answers/T1/src/slug.ts" ]] && git -C "$SCRATCH/p1/answers" rev-parse --verify -q answers >/dev/null && ok "the answers are a branch of a separate repository" || bad "the answers are a branch of a separate repository"
+check "no install was asked for" "modules=none" "$out"
+# mike refuses to start a fleet whose checkout has changes, and npm install writes a lock file
+# the fixture does not carry: the working copy must stay clean after an install (2026-10-21,
+# the first gated deploy's before-run failed on an untracked package-lock.json).
+touch "$W/package-lock.json"; mkdir -p "$W/node_modules"; touch "$W/node_modules/x"
+[[ -z "$(git -C "$W" status --porcelain --untracked-files=normal)" ]] && ok "an install leaves the working copy clean for mike's start" || bad "an install leaves the working copy clean for mike's start" "$(git -C "$W" status --porcelain --untracked-files=normal)"
+
+# mike runs the check and the gate in clean checkouts with no node_modules (the first gated
+# deploy's before-run was refused with exit 127, tsc missing): the check installs its own.
+# A stub npm records what the check asks of it.
+mkdir -p "$SCRATCH/bin"
+printf '%s\n' '#!/usr/bin/env bash' 'echo "npm $*" >>"${NPM_CALLS:?}"' 'exit 0' >"$SCRATCH/bin/npm"
+chmod +x "$SCRATCH/bin/npm"
+export NPM_CALLS="$SCRATCH/npm-calls.log"
+: >"$NPM_CALLS"
+(cd "$W" && PATH="$SCRATCH/bin:$PATH" scripts/check >/dev/null 2>&1); rc=$?
+[[ $rc -eq 0 ]] && grep -q "^npm install" "$NPM_CALLS" && ok "the check installs its modules when they are missing" || bad "the check installs its modules when they are missing" "exit $rc; calls: $(tr '\n' ';' <"$NPM_CALLS")"
+mkdir -p "$W/node_modules/.bin"; printf '#!/bin/sh\nexit 0\n' >"$W/node_modules/.bin/tsc"; chmod +x "$W/node_modules/.bin/tsc"
+: >"$NPM_CALLS"
+(cd "$W" && PATH="$SCRATCH/bin:$PATH" scripts/check >/dev/null 2>&1)
+! grep -q "^npm install" "$NPM_CALLS" && grep -q "^npm run" "$NPM_CALLS" && ok "the check does not install when its modules are present" || bad "the check does not install when its modules are present" "calls: $(tr '\n' ';' <"$NPM_CALLS")"
+rm -rf "$W/node_modules"; unset NPM_CALLS
+[[ ! -e "$W/test/red-baseline.test.ts" ]] && ok "the plain variant carries no red-baseline test" || bad "the plain variant carries no red-baseline test"
+# The check for real, once, with the fixture's own install: the third gated deploy's
+# before-run was refused because the fixture's typecheck had never run anywhere (tsconfig
+# asked for the node type library and the package did not declare @types/node). Needs npm
+# and the registry; without them the case is NOT RUN, never a silent pass.
+if command -v npm >/dev/null 2>&1; then
+  R="$SCRATCH/real-check"; mkdir -p "$R"; cp -R "$W/." "$R/"
+  if (cd "$R" && npm install --no-audit --no-fund --silent >"$SCRATCH/real-install.log" 2>&1); then
+    if (cd "$R" && scripts/check >"$SCRATCH/real-check.log" 2>&1); then ok "the fixture's own check passes with a real install"; else bad "the fixture's own check passes with a real install" "$(tail -5 "$SCRATCH/real-check.log")"; fi
+  else
+    skip "the fixture's own check passes with a real install" "npm install did not finish: $(tail -1 "$SCRATCH/real-install.log")"
+  fi
+else
+  skip "the fixture's own check passes with a real install" "npm is missing"
+fi
+
+out="$("$REF" prepare node --variant red-baseline --dir "$SCRATCH/p2" 2>&1)"
+check "the red-baseline variant is named" "variant=red-baseline" "$out"
+[[ ! -d "$SCRATCH/p2/work/node_modules" ]] && ok "the red-baseline variant has no node_modules" || bad "the red-baseline variant has no node_modules"
+[[ -f "$SCRATCH/p2/work/test/red-baseline.test.ts" ]] && git -C "$SCRATCH/p2/work" ls-files --error-unmatch test/red-baseline.test.ts >/dev/null 2>&1 && ok "the red-baseline variant commits a failing test into the starting state" || bad "the red-baseline variant commits a failing test into the starting state"
+
+# answers: the known answers pass the package's own tests (Node runs the TypeScript itself)
+if command -v node >/dev/null 2>&1; then
+  A="$SCRATCH/answers-run"; mkdir -p "$A"
+  cp -R "$SCRATCH/p1/work/src" "$SCRATCH/p1/work/test" "$A/"
+  cp -R "$SCRATCH/p1/answers/T1/." "$SCRATCH/p1/answers/T2/." "$SCRATCH/p1/answers/T3/." "$SCRATCH/p1/answers/T4/." "$SCRATCH/p1/answers/T5/." "$A/"
+  echo '{"type":"module"}' >"$A/package.json"
+  if (cd "$A" && node --test >"$SCRATCH/answers.log" 2>&1); then ok "the known answers pass node --test"; else bad "the known answers pass node --test" "$(tail -5 "$SCRATCH/answers.log")"; fi
+else
+  skip "the known answers pass node --test" "node is missing"
+fi
+
+# a stub of the inspect API
+cat >"$SCRATCH/stub.py" <<'PY'
+import json, sys
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+workers = int(sys.argv[2])
+missing = json.loads(sys.argv[3])
+
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
+
+    def send(self, status, body):
+        data = json.dumps(body).encode()
+        self.send_response(status)
+        self.send_header("content-type", "application/json")
+        self.send_header("content-length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_POST(self):
+        length = int(self.headers.get("content-length", 0))
+        body = json.loads(self.rfile.read(length) or b"{}")
+        if self.path == "/api/fleets":
+            tasks = body["definition"]["tasks"]
+            open(sys.argv[4], "w").write(json.dumps(body))
+            self.send(201, {"slug": body["slug"], "state": "draft", "missing": missing,
+                            "at_ready": {"starts": {"workers": list(tasks)[:workers - 1], "waiting": list(tasks)[workers - 1:workers]}}})
+        else:
+            self.send(404, {"error": "no"})
+
+    def do_GET(self):
+        if self.path.endswith("/record"):
+            self.send(200, {"record": {"numbers": {"time_to_done_minutes": 12, "fault_minutes": {"total": 3},
+                                                   "tokens_per_accepted_task": 900, "manual_interventions": 0}}})
+        elif self.path.startswith("/api/fleets/x/results?"):
+            self.send(200, {"run_id": "fleet-x-0123abcd", "paths": [], "validity_provenance": "stub",
+                            "results": [{"seat": "ts-T1", "command": "node --test", "still_valid": True, "use_id": 41,
+                                         "started_at": "2026-11-01T09:00:00Z", "finished_at": "2026-11-01T09:00:40Z",
+                                         "is_error": False, "output_tail": "ok"}]})
+        else:
+            self.send(404, {"error": "no"})
+
+HTTPServer(("127.0.0.1", int(sys.argv[1])), Handler).serve_forever()
+PY
+port="$(python3 -I -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])')"
+python3 -I "$SCRATCH/stub.py" "$port" 5 '[]' "$SCRATCH/posted.json" &
+STUB_PID=$!
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+  curl -s -m 1 -o /dev/null "http://127.0.0.1:$port/x" && break
+  sleep 0.2
+done
+export MIKE_INSPECT_ADDR="127.0.0.1:$port"
+
+out="$("$REF" run node --drill --dir "$SCRATCH/p3" 2>&1)"; rc=$?
+[[ $rc -eq 0 ]] && ok "run --drill exits 0 with five starts" || bad "run --drill exits 0 with five starts" "rc=$rc $out"
+check "drill reports missing empty" "missing: empty" "$out"
+check "drill reports five starts" "starts: 5" "$out"
+check "drill does not start the fleet" "defined, not started" "$out"
+if [[ -f "$SCRATCH/posted.json" ]]; then
+  posted="$(python3 -I -c '
+import json, sys
+b = json.load(open(sys.argv[1]))
+d = b["definition"]
+print(len(d["tasks"]), b["project_path"] == d["repo"], "__REPO__" in json.dumps(d), d["tasks"]["T3"]["after"])
+' "$SCRATCH/posted.json")"
+  check "five tasks, repo filled in, T3 after T1" "5 True False ['T1']" "$posted"
+else
+  bad "the definition was posted"
+fi
+
+# the receipt hook: a seat about to run a command another seat ran at this tree is told so
+# before the command runs; needs the mike binary (MIKE_BIN, or mike on PATH, or target/debug/mike)
+MIKE_BIN="${MIKE_BIN:-$(command -v mike 2>/dev/null || true)}"
+[[ -z "$MIKE_BIN" && -x "$ROOT/target/debug/mike" ]] && MIKE_BIN="$ROOT/target/debug/mike"
+if [[ -n "$MIKE_BIN" && -x "$MIKE_BIN" ]]; then
+  event='{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"node --test"}}'
+  out="$(printf '%s' "$event" | MIKE_RUN_ID=fleet-x-0123abcd "$MIKE_BIN" fleet receipt-hook 2>&1)"; rc=$?
+  [[ $rc -eq 0 ]] && ok "the receipt hook exits 0" || bad "the receipt hook exits 0" "rc=$rc $out"
+  check "the receipt hook names the earlier run of the command" '[mike receipt] `node --test` finished' "$out"
+  check "the receipt hook says where the output is" "use_id 41" "$out"
+  out="$(printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls"}}' | MIKE_RUN_ID=fleet-x-0123abcd "$MIKE_BIN" fleet receipt-hook 2>&1)"
+  [[ "$out" == "{}" ]] && ok "a command with no receipt gets an empty answer" || bad "a command with no receipt gets an empty answer" "$out"
+  out="$(printf '%s' "$event" | MIKE_RUN_ID=fleet-x-0123abcd MIKE_FLEET_RECEIPTS=0 "$MIKE_BIN" fleet receipt-hook 2>&1)"
+  [[ -z "$out" ]] && ok "the receipt hook switched off says nothing" || bad "the receipt hook switched off says nothing" "$out"
+else
+  skip "the receipt hook cases" "no mike binary (set MIKE_BIN)"
+fi
+
+out="$("$REF" record fleet-x 2>&1)"
+check "record prints time to done" "time_to_done_minutes: 12" "$out"
+check "record prints the fault breakdown" 'fault_minutes: {"total": 3}' "$out"
+check "record prints tokens per accepted task" "tokens_per_accepted_task: 900" "$out"
+check "record prints manual interventions" "manual_interventions: 0" "$out"
+
+kill "$STUB_PID" 2>/dev/null; wait "$STUB_PID" 2>/dev/null
+python3 -I "$SCRATCH/stub.py" "$port" 4 '[{"item":"x","problem":"y"}]' "$SCRATCH/posted2.json" &
+STUB_PID=$!
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+  curl -s -m 1 -o /dev/null "http://127.0.0.1:$port/x" && break
+  sleep 0.2
+done
+out="$("$REF" run node --drill --dir "$SCRATCH/p4" 2>&1)"; rc=$?
+[[ $rc -ne 0 ]] && ok "a drill with a missing item or four starts fails" || bad "a drill with a missing item or four starts fails" "$out"
+check "the missing item is shown" '"problem": "y"' "$out"
+
+# the pinned-worktree reference (rust): a small repository stands in for mike
+R="$SCRATCH/rust-root"
+mkdir -p "$R/scripts/fleet-refs"
+G=(-c user.name=t -c user.email=t@localhost -c commit.gpgsign=false)
+git init -q -b main "$R" && printf 'base\n' >"$R/a.txt" && printf 'base\n' >"$R/b.txt" &&
+  printf '.claude/worktrees/\ntarget/\n' >"$R/.gitignore" &&
+  git -C "$R" "${G[@]}" add -A && git -C "$R" "${G[@]}" commit -q -m base &&
+  printf 'one\n' >"$R/a.txt" && git -C "$R" "${G[@]}" commit -q -am one && c1="$(git -C "$R" rev-parse HEAD)" &&
+  printf 'two\n' >"$R/b.txt" && git -C "$R" "${G[@]}" commit -q -am two && c2="$(git -C "$R" rev-parse HEAD)"
+cat >"$R/scripts/fleet-refs/rust.json" <<JSON
+{"name":"fleet-ref-rust",
+ "repository":{"kind":"pinned-worktree","pin":"$c2","slot":".claude/worktrees/fleet-ref"},
+ "answers":{"T1":{"commit":"$c1"},"T2":{"commit":"$c2"}},
+ "definition":{"repo":"__REPO__","branch":"__BRANCH__","tasks":{"T1":{"name":"one"},"T2":{"name":"two"}}}}
+JSON
+export FLEET_REF_ROOT="$R"
+out="$("$REF" prepare rust 2>&1)"; rc=$?
+[[ $rc -eq 0 ]] && ok "prepare rust exits 0" || bad "prepare rust exits 0" "$out"
+SLOT="$R/.claude/worktrees/fleet-ref"
+check "prepare rust names the slot as the work directory" "work=$SLOT" "$out"
+check "prepare rust names a fleet-ref branch" "branch=fleet-ref/" "$out"
+[[ "$(cat "$SLOT/a.txt")" == base && "$(cat "$SLOT/b.txt")" == base ]] && ok "the answers are reverted in the slot" || bad "the answers are reverted in the slot"
+[[ "$(git -C "$SLOT" rev-parse --abbrev-ref HEAD)" == fleet-ref/* ]] && ok "the slot is on the run's branch" || bad "the slot is on the run's branch"
+mkdir -p "$SLOT/target" && echo built >"$SLOT/target/artifact" && echo stray >"$SLOT/stray.txt"
+trees_before="$(git -C "$R" worktree list | wc -l | tr -d ' ')"
+out2="$("$REF" prepare rust 2>&1)"; rc=$?
+[[ $rc -eq 0 ]] && ok "a second prepare rust reuses the slot" || bad "a second prepare rust reuses the slot" "$out2"
+[[ "$(git -C "$R" worktree list | wc -l | tr -d ' ')" == "$trees_before" ]] && ok "no second worktree was added" || bad "no second worktree was added"
+[[ -f "$SLOT/target/artifact" && ! -e "$SLOT/stray.txt" ]] && ok "the reused slot keeps target/ and loses stray files" || bad "the reused slot keeps target/ and loses stray files"
+[[ "$(printf '%s\n' "$out2" | sed -n 's/^branch=//p')" != "$(printf '%s\n' "$out" | sed -n 's/^branch=//p')" ]] && ok "each prepare starts its own branch" || bad "each prepare starts its own branch"
+
+kill "$STUB_PID" 2>/dev/null; wait "$STUB_PID" 2>/dev/null
+python3 -I "$SCRATCH/stub.py" "$port" 2 '[]' "$SCRATCH/posted3.json" &
+STUB_PID=$!
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+  curl -s -m 1 -o /dev/null "http://127.0.0.1:$port/x" && break
+  sleep 0.2
+done
+out="$("$REF" run rust --drill 2>&1)"; rc=$?
+[[ $rc -eq 0 ]] && ok "run rust --drill exits 0" || bad "run rust --drill exits 0" "rc=$rc $out"
+check "rust drill reports missing empty" "missing: empty" "$out"
+check "rust drill counts the tasks, not a constant" "starts: 2" "$out"
+if [[ -f "$SCRATCH/posted3.json" ]]; then
+  posted="$(python3 -I -c '
+import json, sys
+b = json.load(open(sys.argv[1]))
+d = b["definition"]
+print(d["repo"] == b["project_path"], d["branch"].startswith("fleet-ref/"), "__" in json.dumps(d))
+' "$SCRATCH/posted3.json")"
+  check "rust definition has the slot and the branch filled in" "True True False" "$posted"
+else
+  bad "the rust definition was posted"
+fi
+unset FLEET_REF_ROOT
+
+echo
+echo "fleet-ref: $pass passed, $fail failed, $notrun not run"
+(( fail == 0 ))

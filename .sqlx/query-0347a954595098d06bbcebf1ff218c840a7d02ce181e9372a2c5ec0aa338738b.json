@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH skill_topics AS (\n                       SELECT l.project_id, l.topic, count(*) AS lessons\n                         FROM memory.lessons l\n                         JOIN memory.lesson_stages ls\n                           ON ls.id = l.stage_id AND ls.code IN ('daily', 'long_term')\n                         JOIN memory.lesson_placements lp\n                           ON lp.id = l.placement_id AND lp.code = 'skill'\n                        WHERE l.archived_at IS NULL\n                          AND l.topic IS NOT NULL\n                          AND l.topic NOT LIKE 'shared:%'\n                          AND l.topic NOT LIKE 'verifier:%'\n                          AND l.project_id IS NOT NULL\n                        GROUP BY l.project_id, l.topic),\n                   shipped AS (\n                       SELECT DISTINCT d.project_id, d.topic\n                         FROM memory.skill_drafts d\n                        WHERE d.status = 'accepted' AND d.topic IS NOT NULL)\n                   SELECT t.project_id AS \"project_id!\", t.topic AS \"topic!\",\n                          t.lessons AS \"lessons!\", (s.topic IS NOT NULL) AS \"shipped!\"\n                     FROM skill_topics t\n                     LEFT JOIN shipped s ON s.project_id = t.project_id AND s.topic = t.topic\n                    ORDER BY t.project_id, t.topic",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "topic!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "topic"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "lessons!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "shipped!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true,
+      true,
+      null,
+      null
+    ]
+  },
+  "hash": "0347a954595098d06bbcebf1ff218c840a7d02ce181e9372a2c5ec0aa338738b"
+}

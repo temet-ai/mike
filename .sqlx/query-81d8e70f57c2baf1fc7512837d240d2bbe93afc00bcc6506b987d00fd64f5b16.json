@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM memory.semantic_floors WHERE embedder_key = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "81d8e70f57c2baf1fc7512837d240d2bbe93afc00bcc6506b987d00fd64f5b16"
+}

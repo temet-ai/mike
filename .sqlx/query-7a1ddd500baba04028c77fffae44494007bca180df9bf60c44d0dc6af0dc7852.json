@@ -1,0 +1,145 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH activity AS (\n    SELECT claude_code_agent_id AS agent_id,\n           max(created_at) AS last_request_at,\n           count(*) AS request_count\n      FROM requests.requests\n     WHERE session_id = $1 AND claude_code_agent_id IS NOT NULL\n     GROUP BY 1\n), edits AS (\n    SELECT r.claude_code_agent_id AS agent_id, max(u.created_at) AS last_edit_at\n      FROM tools.uses u\n      JOIN requests.requests r ON r.id = u.request_id\n     WHERE u.session_id = $1\n       AND u.tool_name IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit')\n       AND r.claude_code_agent_id IS NOT NULL\n     GROUP BY 1\n)\nSELECT w.kind, w.task_id, w.description, w.owner_agent_id, w.state, w.launched_at,\n       w.finished_at, w.exit_code, w.summary, a.last_request_at,\n       COALESCE(a.request_count, 0) AS \"request_count!\", e.last_edit_at\n  FROM agents.work_items w\n  LEFT JOIN activity a ON a.agent_id = w.task_id\n  LEFT JOIN edits e ON e.agent_id = w.task_id\n WHERE w.session_id = $1\n ORDER BY w.launched_at\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "task_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "task_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "owner_agent_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "owner_agent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "state",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "state"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "launched_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "launched_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "finished_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "finished_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "exit_code",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "exit_code"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "summary",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "summary"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "last_request_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "request_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "last_edit_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "7a1ddd500baba04028c77fffae44494007bca180df9bf60c44d0dc6af0dc7852"
+}

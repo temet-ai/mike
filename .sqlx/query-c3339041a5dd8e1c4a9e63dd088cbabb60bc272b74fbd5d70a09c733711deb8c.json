@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.source_path IS NULL OR EXISTS (\n                SELECT 1 FROM work.thread_log l\n                 WHERE l.thread_id = t.id AND NOT jsonb_exists(COALESCE(l.data, '{}'::jsonb), 'imported_from')) AS \"touched!\"\n           FROM work.threads t WHERE t.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "touched!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "c3339041a5dd8e1c4a9e63dd088cbabb60bc272b74fbd5d70a09c733711deb8c"
+}

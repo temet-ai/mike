@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT distance FROM eval.embedding_drift\n                  WHERE stream = $1 AND embedder_key = $2 AND drift_version = $3 AND day < $4\n                    AND status = 'scored'\n                  ORDER BY day DESC\n                  LIMIT $5",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "distance",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "eval.embedding_drift",
+            "name": "distance"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Date",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "4ce5e583a5e259df249303a9952f2645da6c0a4a988ef38d3ab458f851646fd6"
+}

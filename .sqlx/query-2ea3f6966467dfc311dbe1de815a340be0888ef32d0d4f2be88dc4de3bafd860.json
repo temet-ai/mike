@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO overrides.revisions\n                    (override_id, version, label, blocks, mode_id, notes)\n                 SELECT $1, $2, $3, $4, m.id, $6\n                 FROM overrides.modes m\n                 WHERE m.code = $5",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Jsonb",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2ea3f6966467dfc311dbe1de815a340be0888ef32d0d4f2be88dc4de3bafd860"
+}

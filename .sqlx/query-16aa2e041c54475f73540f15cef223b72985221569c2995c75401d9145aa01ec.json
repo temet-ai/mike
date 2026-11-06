@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH due AS (\n                       SELECT id FROM steering.interventions\n                        WHERE wake_state = 'pending' AND deliver_after <= now()\n                        ORDER BY deliver_after\n                        LIMIT $1\n                        FOR UPDATE SKIP LOCKED\n                   )\n                   UPDATE steering.interventions i\n                      SET wake_state = 'delivering', wake_claimed_at = now(),\n                          wake_attempts = i.wake_attempts + 1\n                     FROM due\n                    WHERE i.id = due.id\n                   RETURNING i.id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "16aa2e041c54475f73540f15cef223b72985221569c2995c75401d9145aa01ec"
+}

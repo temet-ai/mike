@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH s AS (\n    SELECT session_id FROM unnest($1::bigint[]) AS u(session_id)\n),\nown AS (\n    SELECT DISTINCT ON (s.session_id) s.session_id, l.run_id, l.created_at\n      FROM s\n      JOIN sessions.sessions ss ON ss.id = s.session_id\n      JOIN launch.launches l ON l.session_uuid = ss.session_uuid\n     ORDER BY s.session_id, l.created_at, l.id\n),\nby_run AS (\n    SELECT DISTINCT ON (o.session_id) o.session_id, l2.session_uuid AS coordinator\n      FROM own o\n      JOIN launch.launches l2 ON l2.run_id = o.run_id AND l2.seat LIKE 'coordinator%'\n     WHERE o.run_id IS NOT NULL AND l2.session_uuid IS NOT NULL\n     ORDER BY o.session_id, l2.created_at, l2.id\n),\nby_mail AS (\n    SELECT DISTINCT ON (o.session_id) o.session_id, fs.session_uuid AS coordinator\n      FROM own o\n      JOIN mailbox.messages m ON m.to_session_id = o.session_id\n                             AND m.from_session_id IS NOT NULL\n                             AND m.queued_at >= o.created_at\n      JOIN sessions.sessions fs ON fs.id = m.from_session_id\n     ORDER BY o.session_id, m.queued_at, m.id\n)\nSELECT s.session_id AS \"session_id!\", coalesce(r.coordinator, m.coordinator) AS \"coordinator?\"\n  FROM s\n  LEFT JOIN by_run r ON r.session_id = s.session_id\n  LEFT JOIN by_mail m ON m.session_id = s.session_id\n ORDER BY s.session_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "coordinator?",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "1827d82cc9127e2cae49b21f5108efaee9b7035919e56458bc9e297fa9631e00"
+}

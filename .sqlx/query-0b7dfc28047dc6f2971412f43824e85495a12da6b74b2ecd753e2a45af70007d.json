@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH latest AS (\n    SELECT new_value\n      FROM config.change_log\n     WHERE subject_kind = 'build'\n     ORDER BY id DESC\n     LIMIT 1\n), prev_settings AS (\n    SELECT o.key, o.value\n      FROM latest l, jsonb_each(l.new_value->'defaults'->'settings') o\n), prev_toggles AS (\n    SELECT o.key, o.value\n      FROM latest l, jsonb_each(l.new_value->'defaults'->'toggles') o\n), changed_keys AS (\n    SELECT COALESCE(jsonb_agg(k.kind || ':' || k.key ORDER BY k.kind, k.key), '[]'::jsonb) AS keys,\n           EXISTS (SELECT 1 FROM latest) AS has_previous\n      FROM (\n            SELECT 'setting' AS kind, COALESCE(n.key, o.key) AS key\n              FROM jsonb_each($1::jsonb->'defaults'->'settings') n\n              FULL JOIN prev_settings o USING (key)\n             WHERE n.value IS DISTINCT FROM o.value\n            UNION ALL\n            SELECT 'toggle' AS kind, COALESCE(n.key, o.key) AS key\n              FROM jsonb_each($1::jsonb->'defaults'->'toggles') n\n              FULL JOIN prev_toggles o USING (key)\n             WHERE n.value IS DISTINCT FROM o.value\n      ) k\n)\nINSERT INTO config.change_log\n    (subject_kind, subject_key, op, old_value, new_value, redacted, via,\n     build_sha, application_name, detail)\nSELECT 'build', 'mike', 'observe', lt.new_value, $1::jsonb, false, 'startup',\n       $2, current_setting('application_name', true),\n       CASE WHEN c.has_previous THEN jsonb_build_object('defaults_changed', c.keys)\n            ELSE '{}'::jsonb END\n  FROM changed_keys c\n  LEFT JOIN latest lt ON true\n WHERE lt.new_value IS DISTINCT FROM $1::jsonb\nRETURNING id AS \"id!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "config.change_log",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0b7dfc28047dc6f2971412f43824e85495a12da6b74b2ecd753e2a45af70007d"
+}

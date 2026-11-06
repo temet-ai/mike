@@ -1,0 +1,114 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH windowed AS MATERIALIZED (\n                    SELECT sp.request_id, sp.session_id, sp.created_at, r.model,\n                           sp.cc_release AS release, sp.cc_build AS build\n                    FROM system_prompts.session_prompts sp\n                    LEFT JOIN requests.requests r ON r.id = sp.request_id\n                    WHERE sp.lane = $1\n                      AND COALESCE(sp.subagent_persona, '') = COALESCE($2::text, '')\n                ),\n                releases AS (\n                    SELECT release,\n                           COUNT(DISTINCT build)::bigint AS builds,\n                           COUNT(*)::bigint AS observation_count,\n                           MIN(created_at) AS first_seen,\n                           MAX(created_at) AS last_seen\n                    FROM windowed\n                    GROUP BY release\n                ),\n                per_model AS (\n                    SELECT release, model,\n                           COUNT(*)::bigint AS observation_count,\n                           MIN(created_at) AS first_seen,\n                           MAX(created_at) AS last_seen\n                    FROM windowed\n                    GROUP BY release, model\n                ),\n                latest_per_model AS (\n                    SELECT DISTINCT ON (release, model)\n                           release, model, request_id, session_id\n                    FROM windowed\n                    ORDER BY release, model, created_at DESC\n                )\n                SELECT\n                    r.release,\n                    r.builds AS \"builds!\",\n                    r.observation_count AS \"release_observation_count!\",\n                    r.first_seen AS \"release_first_seen!\",\n                    r.last_seen AS \"release_last_seen!\",\n                    pm.model,\n                    pm.observation_count AS \"model_observation_count!\",\n                    pm.first_seen AS \"model_first_seen!\",\n                    pm.last_seen AS \"model_last_seen!\",\n                    lpm.request_id AS \"latest_request_id!\",\n                    lpm.session_id AS \"latest_session_id!\"\n                FROM releases r\n                JOIN per_model pm ON pm.release IS NOT DISTINCT FROM r.release\n                JOIN latest_per_model lpm\n                    ON lpm.release IS NOT DISTINCT FROM pm.release\n                   AND lpm.model IS NOT DISTINCT FROM pm.model\n                ORDER BY r.last_seen DESC, pm.observation_count DESC, pm.model",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "release",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "system_prompts.session_prompts",
+            "name": "cc_release"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "builds!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "release_observation_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "release_first_seen!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "release_last_seen!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "model",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "model_observation_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "model_first_seen!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "model_last_seen!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "latest_request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "system_prompts.session_prompts",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "latest_session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "system_prompts.session_prompts",
+            "name": "session_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      null,
+      null,
+      null,
+      null,
+      true,
+      null,
+      null,
+      null,
+      false,
+      false
+    ]
+  },
+  "hash": "1431d94684ccaa73c3b488e275115422dbc9c9324c0022f80ab43542468b22a9"
+}

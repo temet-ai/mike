@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE projects.projects SET merged_into_id = $2, merged_at = now()\n         WHERE id = $1 OR merged_into_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "69580a04f2bd173e8025ee45a9bb3117164405e35966d4c301c39b04b58541b1"
+}

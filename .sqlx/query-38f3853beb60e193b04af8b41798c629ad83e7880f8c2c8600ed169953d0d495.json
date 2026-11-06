@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions.sessions s SET location_uuid = p.winner\n           FROM unnest($1::uuid[], $2::uuid[]) AS p(loser, winner)\n          WHERE s.location_uuid = p.loser",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "38f3853beb60e193b04af8b41798c629ad83e7880f8c2c8600ed169953d0d495"
+}

@@ -1,0 +1,82 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH qual AS (\n    SELECT l.subject_id AS turn_id, 'eval.labels:' || l.id AS ref, l.tier AS qualification,\n           1 AS rank, l.id AS ord\n      FROM eval.labels_as_of('infinity'::timestamptz) l\n     WHERE l.subject_kind = 'turn' AND l.axis = 'reaction' AND l.label = 'corrected'\n       AND l.split = 'dev' AND l.tier IN ('gold', 'relayed', 'seed')\n    UNION ALL\n    SELECT v.operator_turn_id, 'memory.turn_verdicts:' || v.id, 'live_verdict', 2, v.id\n      FROM memory.turn_verdicts v\n     WHERE v.mode = 'live' AND v.projected AND v.reaction = 'corrected'\n),\nbest_qual AS (\n    SELECT DISTINCT ON (turn_id) turn_id, ref, qualification FROM qual ORDER BY turn_id, rank, ord DESC\n)\nSELECT i.id AS item_id, pf.operator_turn_id AS corrected_turn_id, s.session_uuid::text AS \"session_uuid!\",\n       i.request_id, bq.qualification AS \"qualification!\", bq.ref AS \"qualification_ref!\", i.embedding::text AS \"embedding!\"\n  FROM memory.semantic_items i\n  JOIN sessions.sessions s ON s.id = i.session_id\n  JOIN memory.turn_facts f ON f.operator_turn_id = i.operator_turn_id\n  JOIN memory.turn_facts pf ON pf.next_genuine_turn_id = i.operator_turn_id\n  JOIN best_qual bq ON bq.turn_id = pf.operator_turn_id\n WHERE i.kind = 'turn_prompt' AND i.embedder_key = $1\n   AND f.prompt_kind = 'genuine' AND f.session_class = 'operator'\n   AND NOT EXISTS (\n       SELECT 1 FROM eval.turn_splits sp\n        WHERE sp.split = 'holdout' AND sp.operator_turn_id IN (i.operator_turn_id, pf.operator_turn_id))\n   AND NOT EXISTS (\n       SELECT 1 FROM memory.pattern_assignments a\n        WHERE a.correction_item_id = i.id AND a.tagger_version = $2 AND a.embedder_key = $1)\n ORDER BY i.id\n LIMIT $3\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "item_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "corrected_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_facts",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "session_uuid!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "qualification!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "qualification_ref!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "embedding!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      true,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "6d99e539e35602e0965053bfc52089148e47924dec43e7ae9504fefa2e7cf05e"
+}

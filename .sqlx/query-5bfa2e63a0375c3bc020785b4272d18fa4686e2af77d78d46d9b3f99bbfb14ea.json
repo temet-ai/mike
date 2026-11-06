@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.id AS \"request_id!\"\n           FROM requests.requests r\n           WHERE r.session_id = $1\n           ORDER BY r.created_at ASC, r.id ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5bfa2e63a0375c3bc020785b4272d18fa4686e2af77d78d46d9b3f99bbfb14ea"
+}

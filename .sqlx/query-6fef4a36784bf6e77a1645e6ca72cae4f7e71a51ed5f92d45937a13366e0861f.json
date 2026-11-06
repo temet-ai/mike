@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM memory.lesson_file_conflicts k\n             USING memory.lesson_file_receipts r,\n                   jsonb_to_recordset($2) AS x(lesson_uuid uuid)\n             WHERE k.location_uuid = $1 AND k.lesson_uuid = x.lesson_uuid\n               AND r.location_uuid = k.location_uuid AND r.lesson_uuid = k.lesson_uuid\n               AND r.version >= k.server_version",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6fef4a36784bf6e77a1645e6ca72cae4f7e71a51ed5f92d45937a13366e0861f"
+}

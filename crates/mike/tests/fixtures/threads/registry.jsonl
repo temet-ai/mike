@@ -1,0 +1,4 @@
+{"thread": "branch-consolidation", "repo": "/tmp/mike-thread-fixture/repo", "created": "2026-07-28", "status": "done", "branch": "main"}
+{"thread": "missing-from-disk", "repo": "/tmp/mike-thread-fixture/repo", "created": "2026-08-24", "status": "review", "branch": "feat/x", "worktree": "/tmp/mike-thread-fixture/repo/platform/x"}
+not json at all
+{"repo": "/tmp/mike-thread-fixture/repo"}

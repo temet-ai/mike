@@ -1,0 +1,104 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT e.id AS entry_id, e.session_id, e.operator_turn_id,\n                          s.project_id AS \"project_id?\",\n                          split_part(e.source_ref, ':', 2)::bigint AS \"request_id!\",\n                          COALESCE(r.human_prompt, '') AS \"prompt!\", e.data, e.effective_at\n                     FROM memory.dossier_entries e\n                     JOIN sessions.sessions s ON s.id = e.session_id\n                     JOIN requests.requests r ON r.id = split_part(e.source_ref, ':', 2)::bigint\n                    WHERE e.kind = 'directive'\n                      AND e.source IN ('capture', 'operator')\n                      AND e.source_ref LIKE 'requests.requests:%'\n                      AND NOT EXISTS (\n                          SELECT 1 FROM memory.semantic_items i\n                           WHERE i.kind = 'directive'\n                             AND i.source_ref = 'memory.dossier_entries:' || e.id\n                             AND i.embedder_key = $1 AND i.builder_version = $2)\n                    ORDER BY e.id\n                    LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "entry_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.dossier_entries",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.dossier_entries",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "operator_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.dossier_entries",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "project_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "prompt!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "data",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.dossier_entries",
+            "name": "data"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "effective_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.dossier_entries",
+            "name": "effective_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      null,
+      null,
+      false,
+      false
+    ]
+  },
+  "hash": "dcda84419d2cddeb29619c703add363871a8457fc5cd7feb0b9e54e7e98add01"
+}

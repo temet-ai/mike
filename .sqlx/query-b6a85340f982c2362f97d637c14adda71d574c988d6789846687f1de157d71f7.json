@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT to_regclass('pg_stat_statements_info')::text",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "to_regclass",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "b6a85340f982c2362f97d637c14adda71d574c988d6789846687f1de157d71f7"
+}

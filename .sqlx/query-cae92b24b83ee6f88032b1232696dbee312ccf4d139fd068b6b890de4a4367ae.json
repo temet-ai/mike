@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE projects.projects\n                 SET ttl_override = $2::interval,\n                     ttl_override_set_at = CASE WHEN $2::interval IS NULL THEN NULL ELSE NOW() END,\n                     last_seen = NOW()\n                 WHERE project_path = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Interval"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cae92b24b83ee6f88032b1232696dbee312ccf4d139fd068b6b890de4a4367ae"
+}

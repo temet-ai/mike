@@ -1,0 +1,40 @@
+# Dev image for isolated session containers (docker-compose.dev.yml).
+#
+# Bakes the full toolchain the edge preflight + build need, so the container
+# entrypoint can run `session-up <profile>` and then build/serve without an
+# online install step:
+#   - rust (matches rust-toolchain), with sccache (wired as rustc-wrapper in
+#     .cargo/config.toml — builds FAIL without it) and lld
+#   - sqlx-cli (cargo sqlx prepare / migrate)
+#   - node + pnpm (frontend profile + the TS type generator)
+#   - postgres client (psql/pg_dump/pg_restore — the data clone + refresh path)
+#
+# The repo itself is bind-mounted at runtime (see compose), not COPYed, so the
+# image is toolchain-only and shared across every session/worktree.
+FROM rust:1.95-bookworm
+
+ARG SQLX_VERSION=0.8
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        lld clang postgresql-client curl ca-certificates git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Node 22 + pnpm (frontend profile + Rust→TS generation).
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/* \
+    && corepack enable && corepack prepare pnpm@latest --activate
+
+# Build accelerators + sqlx-cli. sccache is mandatory: .cargo/config.toml sets
+# it as [build] rustc-wrapper on all platforms, so its absence breaks every
+# cargo invocation.
+RUN cargo install sccache --locked \
+    && cargo install sqlx-cli --no-default-features --features postgres,rustls --version ^${SQLX_VERSION} --locked
+
+# The toolchain is present in-image, so the entrypoint's preflight self-heal is
+# a no-op — skip its brew path (brew is macOS-only and absent here).
+ENV MIKE_SKIP_TOOLCHAIN_BOOTSTRAP=1 \
+    CARGO_TARGET_DIR=/root/.cargo-target-shared
+
+WORKDIR /work

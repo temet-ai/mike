@@ -1,0 +1,5 @@
+{
+  "tagline": "Records what a mod can see of a session to a file, for research",
+  "family": "mike",
+  "offers": { "acts": ["records prompts, model steps and tool calls"] }
+}

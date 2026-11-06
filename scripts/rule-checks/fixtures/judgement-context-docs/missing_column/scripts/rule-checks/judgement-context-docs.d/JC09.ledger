@@ -1,0 +1,7 @@
+landed   JC09 2026-10-14 abc1234
+table    memory.turn_verdicts
+toggle   judge_shadow_sweep
+setting  judge_worker.shadow_sample_pct
+tool     get_turn_verdicts core
+cli      eval gate
+require  docs/FEATURES.md  judge_shadow_sweep

@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO work.threads\n             (project_id, slug, title, goal, status, branch, worktree, last_session_uuid,\n              source_path, parse_error)\n         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)\n         ON CONFLICT (project_id, slug) DO UPDATE SET\n            title = EXCLUDED.title, goal = EXCLUDED.goal, status = EXCLUDED.status,\n            branch = EXCLUDED.branch, worktree = EXCLUDED.worktree,\n            last_session_uuid = EXCLUDED.last_session_uuid,\n            source_path = EXCLUDED.source_path, parse_error = EXCLUDED.parse_error,\n            parsed_at = now(), updated_at = now()\n         RETURNING id, (old.id IS NULL) AS \"inserted!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "inserted!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "73de2d4f9e6cd956aaed28dcaedb373f06893f5fa513f8914d07ca563b6dcac6"
+}

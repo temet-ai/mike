@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Explicit real PostgreSQL integration; excluded from default fast discovery.
+# Requires an owned, disposable PostgreSQL 19 TCP-only cluster, not a live DB.
+# MIKE_TEST_ADMIN_URL: postgres://postgres@127.0.0.1:PORT/postgres?sslmode=disable
+# MIKE_RECOVERY_TEST_PGDATA: that cluster's owned private data directory.
+# Optional MIKE_RECOVERY_TEST_TOOL_DIR / MIKE_RECOVERY_TEST_LIBRARY_PATH select
+# test-only relocated official PG19 clients. Runtime tool lookup is unchanged.
+set -euo pipefail
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+exec python3 -I -B "${SCRIPT_DIR}/release/integration_recovery_database.py" "$@"

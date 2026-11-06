@@ -1,0 +1,268 @@
+#!/usr/bin/env bash
+# fidelity-check — executable form of the inspection-fidelity.md mandatory self-check.
+#
+# Wraps the EXACT command from .claude/rules/agent-behavior-and-data.md §Self-check:
+#   git diff --stat | head -30
+#   git diff -- '*.svelte' '*.ts' '*.tsx' '*.rs' '*.sql' | grep -nE '<canonical regex>'
+#
+# Usage:
+#   fidelity-check [REV_RANGE] [--full-diff] [-- path...]
+#
+#   REV_RANGE      Anything `git diff` accepts (e.g. main..HEAD, HEAD~3, a1b2c3d).
+#                  Default: HEAD (working tree, staged + unstaged, vs HEAD).
+#   --full-diff    Scan removed and context lines too, not just added ones.
+#                  Audit mode: it surfaces pre-existing violations sitting next
+#                  to your change, and it reports every banned pattern your
+#                  change DELETES as a hit (issue #148) — read the +/- prefix
+#                  on each hit before acting on it.
+#   --added-only   Accepted and ignored; added-only is the default (issue #148).
+#   -- path...     Restrict the check to the given paths (intersected with the
+#                  canonical file-type globs; a path naming a matching file is
+#                  passed through as-is).
+#
+# Scans ADDED lines only by default: the rule bans content a change INTRODUCES,
+# and a removed line introduces nothing, so scanning removals reported a cleanup
+# as the violation it was cleaning up. The commit-time hooks do not run
+# this check; it is run by hand (make fidelity).
+#
+# Output: the diff stat (first 30 lines), the scan mode, then either the
+# forbidden-pattern hits or CLEAN. Hit line numbers index the diff itself, in
+# either mode.
+#
+# Exit codes (honest — never masked):
+#   0  CLEAN
+#   1  forbidden-pattern hits found
+#   2  usage error
+#   *  underlying git/grep failure propagated verbatim
+set -uo pipefail
+
+# Canonical regex — MUST match .claude/rules/agent-behavior-and-data.md §Self-check
+# character-for-character. The rule file is the source of truth; fix drift there
+# first, then here.
+REGEX='(\b(line-clamp|truncate|text-ellipsis)\b|\.slice\(0,|\.substring\(0,|\.substr\(0,|…|\[truncated\]|\b(head_n|clip)\(|_preview\b|_summary\b)'
+
+# Exempt tokens, per inspection-fidelity.md: MCP tool identifiers legitimately
+# end in _summary/_preview (e.g. mcp__mike__get_request_summary, paired with a
+# full-body sibling tool per the Layer 2 rule) — those are tool names, not
+# slices; turns_summary is the mike-mcp module (crates/mike-mcp/src/tools/
+# turns_summary.rs) holding exactly those per-turn *_summary tools, named for
+# what it routes — and fetch_session_summary (store/persistence/rehydrate.rs) is a
+# registered full-fidelity fn: a whole-row fetch, no slicing (mike#41).
+# tool_calls_summary (steerer/fleet.rs's EvalInputs) is the judge-prompt
+# digest built by summarise_tool_calls — a deliberate LLM-context sizing cap
+# (MAX_CALLS=30, MAX_CHARS=4_000), not an inspection-surface truncation: it
+# feeds a model prompt, never a stored row or an MCP/REST response, and #158
+# established its full, unbounded companion (session_action_list) exists
+# precisely so the capped digest never has to be the only view. Extend the
+# alternation only with a per-symbol justification here and in the rule.
+# grep -nE has no lookbehind (BSD grep, no -P), so the exemption is a
+# post-filter: strip every exempt token from a matched line, then re-test the
+# stripped line against REGEX. If nothing still matches, the hit was
+# exempt-token-only and gets dropped; any remaining match (a bare
+# body_summary field, a real .slice(0, ...), etc.) still fails the check —
+# occurrence-scoped, so an exempt token and a real violation on ONE line still
+# fails. No trailing \b: BSD/macOS sed -E (unlike BSD grep -E) does not
+# support \b — it silently no-ops instead of erroring, so the anchor must come
+# from the character class boundary alone. That is safe here: exempt tokens
+# are delimiter-bounded in real code, never followed by a word character.
+# A `#[path = "..."]` attribute and a `mod name;` declaration both name a
+# FILE — and a harness lists both, one after the other. `e2e/persistence_session_summary.rs`
+# is a test module about the session-summary surface, not a truncation of
+# anything, and a test harness that lists its modules by path hits this on every
+# file whose name contains one of the banned words. The whole attribute is
+# exempted rather than the individual name, so the exemption cannot be claimed by
+# ordinary code: only the path string of a module declaration is stripped, and
+# occurrence-scoping still fails a line that carries a real violation beside it.
+# Added 2026-09-05 with the file splits (rust-lint-debt): a `_summary::` /
+# `_preview::` PATH SEGMENT names a module file (store/request_summary.rs,
+# rehydrate/session_summary.rs, steerer/verifier/tool_call_summary.rs), the
+# same reasoning as the `mod name;` exemption — a path is not a slice;
+# get_request_summary and list_outcome_summary are the bare names of two
+# registered MCP tools (mike-mcp list-tools), the un-prefixed form of the
+# mcp__ exemption above, as they appear in the manifest coverage test;
+# row_to_request_summary converts one fetched row into RequestSummaryView —
+# a whole-row projection with no slicing, the request-side sibling of
+# fetch_session_summary (mike#41).
+# post_turn_summary (remote_control.channels) stores the client PUT /worker
+# external_metadata.post_turn_summary JSONB verbatim, full-fidelity, never a
+# truncated slice — same category as fetch_session_summary.
+EXEMPT_TOKEN_REGEX='(mcp__[a-z0-9_-]+_(summary|preview)|fetch_session_summary|tool_calls_summary|turns_summary|[A-Za-z0-9_]*_(summary|preview)::|get_request_summary|list_outcome_summary|row_to_request_summary|post_turn_summary|#\[path[[:space:]]*=[[:space:]]*"[^"]+"|(^|[^A-Za-z0-9_])(pub[[:space:]]+)?mod[[:space:]]+[A-Za-z0-9_]+[[:space:]]*;)'
+
+TYPE_GLOBS=('*.svelte' '*.ts' '*.tsx' '*.rs' '*.sql')
+
+usage() {
+    sed -n '2,37p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+full_diff=0
+saw_added_only=0
+rev_range=""
+user_paths=()
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --full-diff)
+            full_diff=1
+            shift
+            ;;
+        --added-only)
+            saw_added_only=1
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        --)
+            shift
+            user_paths=("$@")
+            break
+            ;;
+        -*)
+            echo "fidelity-check: unknown option: $1" >&2
+            usage >&2
+            exit 2
+            ;;
+        *)
+            if [[ -n "$rev_range" ]]; then
+                echo "fidelity-check: only one REV_RANGE allowed (got '$rev_range' and '$1')" >&2
+                exit 2
+            fi
+            rev_range="$1"
+            shift
+            ;;
+    esac
+done
+
+if [[ "$full_diff" -eq 1 && "$saw_added_only" -eq 1 ]]; then
+    echo "fidelity-check: --full-diff and --added-only ask for opposite scans" >&2
+    exit 2
+fi
+
+# Rule 5: resolve the repo root ourselves — must work from any cwd.
+# Anchor on the script's own location (scripts/ inside the repo), not the
+# caller's cwd, so invocation from outside the repo still works.
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" || exit $?
+repo_root="$(git -C "$script_dir" rev-parse --show-toplevel)" || exit $?
+cd "$repo_root" || exit 1
+
+[[ -z "$rev_range" ]] && rev_range="HEAD"
+
+# Build the pathspec: the canonical type globs, optionally intersected with
+# user-supplied paths (git pathspecs OR together, so intersection is built by
+# scoping each type glob under each user path).
+pathspec=()
+if [[ ${#user_paths[@]} -eq 0 ]]; then
+    pathspec=("${TYPE_GLOBS[@]}")
+else
+    for p in "${user_paths[@]}"; do
+        p="${p%/}"
+        case "$p" in
+            *.svelte|*.ts|*.tsx|*.rs|*.sql)
+                pathspec+=("$p")
+                ;;
+            *)
+                for g in "${TYPE_GLOBS[@]}"; do
+                    pathspec+=(":(glob)$p/**/$g")
+                done
+                ;;
+        esac
+    done
+fi
+
+# --- diff stat (head -30, per the canonical command) ---
+# The canonical command's stat carries NO type globs (it stats the whole diff);
+# only user-supplied paths scope it.
+if [[ ${#user_paths[@]} -eq 0 ]]; then
+    stat_out="$(git diff --stat "$rev_range")" || exit $?
+else
+    stat_out="$(git diff --stat "$rev_range" -- "${user_paths[@]}")" || exit $?
+fi
+if [[ -n "$stat_out" ]]; then
+    printf '%s\n' "$stat_out" | head -30
+fi
+
+# --- forbidden-pattern grep over the content diff ---
+# Temp files (not command substitution) so the diff bytes reach grep unmodified
+# — $() strips NUL bytes, which would silently alter what gets scanned.
+diff_file="$(mktemp)" || exit $?
+added_file="$(mktemp)" || exit $?
+trap 'rm -f "$diff_file" "$added_file"' EXIT
+
+git diff "$rev_range" -- "${pathspec[@]}" >"$diff_file" || exit $?
+
+# Blank git's own metadata lines (file headers, index lines, hunk headers)
+# before scanning: they carry PATHS, not code, so a file legitimately named
+# e.g. `persistence_session_summary.rs` would otherwise fail the `_summary`
+# ban every time it is touched. Blanked rather than deleted so reported line
+# numbers still index the real diff. The delimiter must not be `|` — that is
+# the alternation operator here, and reusing it silently truncates the
+# expression, blanks every line, and turns the gate into a vacuous CLEAN.
+if ! sed -E 's#^(diff --git |index |--- a/|[+]{3} b/|@@ ).*##' "$diff_file" >"${diff_file}.scan"; then
+    echo "fidelity-check: metadata filter failed; refusing to scan a partial diff" >&2
+    exit 2
+fi
+mv "${diff_file}.scan" "$diff_file"
+
+# Added-only (the default) blanks every non-added line rather than deleting it,
+# the same way the metadata filter above does — dropping them would renumber the
+# stream, and a hit is only actionable if its line number still indexes the diff
+# the reader is looking at. `+++ b/` headers were already blanked above, so no
+# file header survives into the scan.
+scan_file="$diff_file"
+mode_label="added lines only"
+if [[ "$full_diff" -eq 1 ]]; then
+    mode_label="full diff — added, removed and context lines"
+else
+    if ! sed -E 's#^[^+].*##' "$diff_file" >"$added_file"; then
+        echo "fidelity-check: added-line filter failed; refusing to scan a partial diff" >&2
+        exit 2
+    fi
+    scan_file="$added_file"
+fi
+
+echo "--- forbidden patterns ($mode_label) ---"
+raw_hits="$(grep -nE "$REGEX" "$scan_file")"
+grep_status=$?
+case "$grep_status" in
+    0|1)
+        ;;
+    *)
+        echo "fidelity-check: grep failed (exit $grep_status)" >&2
+        exit "$grep_status"
+        ;;
+esac
+
+# Moved lines are not additions (same rule as the G5 gate, keep in sync): in
+# added-only mode a hit whose line, leading whitespace ignored, is also REMOVED
+# somewhere in the same diff was already in the tree — a file split re-added
+# it — so it introduces nothing. Full-diff mode keeps every hit; it is the
+# audit read and reports moves on both sides.
+removed_file="$(mktemp)" || exit $?
+trap 'rm -f "$diff_file" "$added_file" "$removed_file"' EXIT
+sed -nE 's/^-[[:space:]]*//p' "$diff_file" | sort -u >"$removed_file"
+
+hits=""
+if [[ -n "$raw_hits" ]]; then
+    while IFS= read -r matched_line; do
+        content="${matched_line#*:}"
+        if [[ "$full_diff" -eq 0 ]]; then
+            trimmed="$(printf '%s' "$content" | sed -E 's/^\+[[:space:]]*//')"
+            if [[ -n "$trimmed" ]] && grep -qxF -- "$trimmed" "$removed_file"; then
+                continue
+            fi
+        fi
+        stripped="$(printf '%s' "$content" | sed -E "s/$EXEMPT_TOKEN_REGEX//g")"
+        if printf '%s' "$stripped" | grep -qE "$REGEX"; then
+            hits+="$matched_line"$'\n'
+        fi
+    done <<<"$raw_hits"
+fi
+
+if [[ -n "$hits" ]]; then
+    printf '%s' "$hits"
+    exit 1
+else
+    echo CLEAN
+    exit 0
+fi

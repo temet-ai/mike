@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO workspace.session_registrations\n             (session_id, project_id, cwd, lease_expires_at)\n         VALUES ($1, $2, '/tmp/healthy', now() + interval '15 minutes')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c030660e53d4ca816171ad027e1f79403cee91dab69ebe201b8450e5342cc4d6"
+}

@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH loc AS (\n    SELECT l.location_uuid, l.machine_uuid, m.name AS machine_name, l.root_path, l.last_seen\n      FROM projects.locations l\n      JOIN projects.machines m ON m.machine_uuid = l.machine_uuid\n     WHERE l.project_id = $1\n),\nsrc AS (\n    SELECT s.location_uuid,\n           jsonb_agg(jsonb_build_object(\n               'source_uuid', s.source_uuid,\n               'name', s.name,\n               'root_path', s.root_path,\n               'generation', s.generation,\n               'last_scan_at', s.last_scan_at,\n               'last_heartbeat_at', s.last_heartbeat_at,\n               'last_failure_at', s.last_failure_at,\n               'last_failure', s.last_failure,\n               'last_failure_generation', s.last_failure_generation\n           ) ORDER BY s.name, s.source_uuid) AS sources\n      FROM memory.knowledge_sources s\n      JOIN loc ON loc.location_uuid = s.location_uuid\n     GROUP BY s.location_uuid\n),\ntotal AS (\n    SELECT count(*) AS n\n      FROM memory.lesson_file_changes\n     WHERE project_id = $1\n),\ndelivered AS (\n    SELECT r.location_uuid, count(*) AS n\n      FROM loc\n      JOIN memory.lesson_file_receipts r ON r.location_uuid = loc.location_uuid\n      JOIN memory.lesson_file_changes c ON c.lesson_uuid = r.lesson_uuid AND c.project_id = $1\n     WHERE r.version >= c.version\n     GROUP BY r.location_uuid\n),\nconflicted AS (\n    SELECT k.location_uuid, count(*) AS n\n      FROM memory.lesson_file_conflicts k\n      JOIN loc ON loc.location_uuid = k.location_uuid\n      JOIN memory.lesson_file_changes c ON c.lesson_uuid = k.lesson_uuid AND c.project_id = $1\n     GROUP BY k.location_uuid\n),\nper_location AS (\n    SELECT loc.machine_name, loc.root_path, loc.location_uuid,\n           jsonb_build_object(\n               'location', jsonb_build_object(\n                   'location_uuid', loc.location_uuid,\n                   'machine_uuid', loc.machine_uuid,\n                   'machine_name', loc.machine_name,\n                   'root_path', loc.root_path,\n                   'last_seen', loc.last_seen),\n               'sources', COALESCE(src.sources, '[]'::jsonb),\n               'lessons', jsonb_build_object(\n                   'pending', total.n - COALESCE(delivered.n, 0),\n                   'conflicted', COALESCE(conflicted.n, 0))\n           ) AS entry\n      FROM loc\n      LEFT JOIN src ON src.location_uuid = loc.location_uuid\n      CROSS JOIN total\n      LEFT JOIN delivered ON delivered.location_uuid = loc.location_uuid\n      LEFT JOIN conflicted ON conflicted.location_uuid = loc.location_uuid\n),\nall_locations AS (\n    SELECT jsonb_agg(entry ORDER BY machine_name, root_path, location_uuid) AS entries\n      FROM per_location\n)\nSELECT jsonb_build_object(\n           'project_uuid', p.project_uuid,\n           'project_path', p.project_path,\n           'as_of', now(),\n           'locations', COALESCE(a.entries, '[]'::jsonb)\n       ) AS \"health!\"\n  FROM projects.projects p\n CROSS JOIN all_locations a\n WHERE p.id = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "health!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "75d1f8b1af4ddb243af245b9c86e6f6c78d1b0a63a808f17dd0c7b62a914abba"
+}

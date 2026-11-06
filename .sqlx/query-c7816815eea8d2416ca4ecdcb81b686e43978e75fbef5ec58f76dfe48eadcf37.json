@@ -1,0 +1,184 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.id AS lesson_id, pl.code AS placement, k.code AS kind, st.code AS stage,\n                          l.text, l.topic, l.placement_covered_by AS covered_by,\n                          l.placement_reason AS reason, a.name AS \"agent_name?\",\n                          t.user_prompt AS \"user_prompt?\", l.created_at, l.placed_at,\n                          r.decision AS \"decision?\", r.decided_at AS \"decided_at?\"\n                     FROM memory.lessons l\n                     JOIN projects.projects p ON p.id = l.project_id\n                     JOIN memory.lesson_placements pl ON pl.id = l.placement_id\n                     JOIN memory.lesson_kinds k ON k.id = l.kind_id\n                     JOIN memory.lesson_stages st ON st.id = l.stage_id\n                     LEFT JOIN agents.agents a ON a.id = l.agent_id\n                     LEFT JOIN memory.operator_turns t ON t.id = l.source_turn_id\n                     LEFT JOIN memory.lesson_placement_reviews r ON r.lesson_id = l.id\n                    WHERE p.project_uuid = $1 AND pl.code IN ('rule', 'agent')\n                      AND l.archived_at IS NULL\n                    ORDER BY l.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lesson_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "placement",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_placements",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "stage",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_stages",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "topic",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "topic"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "covered_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "placement_covered_by"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "placement_reason"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "agent_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "user_prompt?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "user_prompt"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "placed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "placed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "decision?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_placement_reviews",
+            "name": "decision"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "decided_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_placement_reviews",
+            "name": "decided_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "c7816815eea8d2416ca4ecdcb81b686e43978e75fbef5ec58f76dfe48eadcf37"
+}

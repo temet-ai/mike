@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.pattern_candidates\n                       (cluster_version, embedder_key, floor_id, window_start, window_end,\n                        member_item_ids, member_count, session_count, medoid_item_id)\n                   SELECT u.version, u.key, u.floor_id, u.ws, u.we, u.members::bigint[],\n                          cardinality(u.members::bigint[]), u.sessions, u.medoid\n                     FROM unnest($1::text[], $2::text[], $3::bigint[], $4::timestamptz[],\n                                 $5::timestamptz[], $6::text[], $7::int[], $8::bigint[])\n                          AS u(version, key, floor_id, ws, we, members, sessions, medoid)\n                   RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.pattern_candidates",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        "Int8Array",
+        "TimestamptzArray",
+        "TimestamptzArray",
+        "TextArray",
+        "Int4Array",
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "225021cd2cb88e1efff68e22a492361b6d56efaca6a3c6c43e0b6666cde55f05"
+}

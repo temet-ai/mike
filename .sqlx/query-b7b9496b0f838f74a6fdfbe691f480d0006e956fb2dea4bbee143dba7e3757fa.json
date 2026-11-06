@@ -1,0 +1,56 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH RECURSIVE peer_edges AS (\n                       SELECT m.to_session_id AS peer_id\n                         FROM mailbox.messages m\n                        WHERE m.from_session_id = $1 AND m.to_session_id <> $1\n                       UNION ALL\n                       SELECT m.from_session_id AS peer_id\n                         FROM mailbox.messages m\n                        WHERE m.to_session_id = $1\n                          AND m.from_session_id IS NOT NULL\n                          AND m.from_session_id <> $1\n                   ),\n                   edge_totals AS (\n                       SELECT COUNT(*) AS message_count,\n                              COUNT(DISTINCT peer_id) AS peer_count\n                         FROM peer_edges\n                   ),\n                   seed AS (\n                       SELECT id, project_id FROM sessions.sessions WHERE id = $1\n                   ),\n                   project_edges AS (\n                       SELECT m.from_session_id AS a, m.to_session_id AS b\n                         FROM mailbox.messages m\n                         JOIN sessions.sessions sf ON sf.id = m.from_session_id\n                         JOIN sessions.sessions st ON st.id = m.to_session_id\n                         CROSS JOIN seed\n                        WHERE m.from_session_id IS NOT NULL\n                          AND m.from_session_id <> m.to_session_id\n                          AND sf.project_id = seed.project_id\n                          AND st.project_id = seed.project_id\n                   ),\n                   component(session_id) AS (\n                       SELECT id FROM seed\n                       UNION\n                       SELECT CASE WHEN pe.a = c.session_id THEN pe.b ELSE pe.a END\n                         FROM project_edges pe\n                         JOIN component c ON c.session_id IN (pe.a, pe.b)\n                   ),\n                   component_totals AS (\n                       SELECT COUNT(*) AS fleet_size,\n                              MIN(s.last_seen) AS oldest_last_seen\n                         FROM component c\n                         JOIN sessions.sessions s ON s.id = c.session_id\n                   )\n                   SELECT\n                       p.project_path        AS \"project_path?\",\n                       et.message_count       AS \"message_count!\",\n                       et.peer_count          AS \"peer_count!\",\n                       ct.fleet_size          AS \"fleet_size!\",\n                       ct.oldest_last_seen    AS \"oldest_last_seen?\"\n                   FROM sessions.sessions s\n                   LEFT JOIN projects.projects p ON p.id = s.project_id\n                   CROSS JOIN edge_totals et\n                   CROSS JOIN component_totals ct\n                  WHERE s.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "project_path?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "message_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "peer_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "fleet_size!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "oldest_last_seen?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "b7b9496b0f838f74a6fdfbe691f480d0006e956fb2dea4bbee143dba7e3757fa"
+}

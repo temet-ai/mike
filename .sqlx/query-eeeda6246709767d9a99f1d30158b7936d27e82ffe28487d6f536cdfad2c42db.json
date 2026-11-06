@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT jsonb_build_object('candidate', candidate, 'proposed', proposed,\n                'similar', \"similar\", 'model', model, 'cost_usd', cost_usd,\n                'generation_id', generation_id) AS \"saved!: sqlx::types::Json<SavedProposal>\"\n             FROM memory.lesson_proposal_jobs\n             WHERE status = 'awaiting_embedding' AND next_attempt_at <= NOW()\n             ORDER BY updated_at, verdict_id LIMIT $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "saved!: sqlx::types::Json<SavedProposal>",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "eeeda6246709767d9a99f1d30158b7936d27e82ffe28487d6f536cdfad2c42db"
+}

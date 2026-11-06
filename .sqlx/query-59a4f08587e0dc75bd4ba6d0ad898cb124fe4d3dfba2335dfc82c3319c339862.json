@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO projects.projects\n                    (project_path, display_name, first_seen, last_seen, pinned, pin_created_at)\n                 VALUES ($1, $2, NOW(), NOW(), TRUE, NOW())\n                 ON CONFLICT (project_path) DO UPDATE\n                 SET pinned = TRUE,\n                     pin_created_at = COALESCE(projects.projects.pin_created_at, NOW()),\n                     last_seen = NOW()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "59a4f08587e0dc75bd4ba6d0ad898cb124fe4d3dfba2335dfc82c3319c339862"
+}

@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH claimed AS (\n                       INSERT INTO llm.worker_leases AS lease (role, machine_uuid, heartbeat_at)\n                       VALUES ($1, $2, now())\n                       ON CONFLICT (role) DO UPDATE\n                          SET machine_uuid = EXCLUDED.machine_uuid,\n                              heartbeat_at = now()\n                        WHERE lease.machine_uuid = EXCLUDED.machine_uuid\n                           OR lease.heartbeat_at < now() - make_interval(secs => $3::float8)\n                    RETURNING 1\n                   )\n                   SELECT EXISTS (SELECT 1 FROM claimed) AS \"held!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "held!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "d6cc5dacfde08411f861950385f92319b1e817c8742ccf748d7679128e0bb27b"
+}

@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT request_body, filtered_request_body, request_envelope\n         FROM requests.requests\n         WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "request_body"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "filtered_request_body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "filtered_request_body"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "request_envelope",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "request_envelope"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "41ac3b0db70abfbd6324775a090eb1932a1c5d769daeabcff27a8d632aaacb31"
+}

@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE eval.bundles\n                    SET promoted_at = COALESCE(promoted_at, $2::timestamptz, now())\n                  WHERE id = $1\n                RETURNING role",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "role",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "role"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "bad2551c7c08307a7588ff03f7a07e030a757bd845e4d11f5675936ab2ecec8f"
+}

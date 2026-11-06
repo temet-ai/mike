@@ -1,0 +1,66 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH matched AS (\n                       SELECT r.id,\n                              s.session_uuid::text AS session_id,\n                              r.created_at,\n                              r.model,\n                              rr.token_usage\n                         FROM overrides.overrides o\n                         JOIN requests.system_prompts rsp ON rsp.system_prompt_id = o.system_prompt_id\n                         JOIN requests.requests r ON r.id = rsp.request_id\n                         JOIN sessions.sessions s ON s.id = r.session_id\n                         LEFT JOIN responses.responses rr ON rr.request_id = r.id\n                        WHERE o.id = $1\n                   ),\n                   totals AS (\n                       SELECT COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '1 hour') AS count_1h,\n                              COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '24 hours') AS count_24h,\n                              COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days') AS count_7d,\n                              COUNT(*) AS count_total,\n                              SUM((token_usage->>'input_tokens')::bigint)::bigint AS total_input_tokens,\n                              SUM((token_usage->>'output_tokens')::bigint)::bigint AS total_output_tokens\n                         FROM matched\n                   ),\n                   recent AS (\n                       SELECT COALESCE(jsonb_agg(to_jsonb(top) ORDER BY top.created_at DESC), '[]'::jsonb) AS samples\n                         FROM (\n                              SELECT id AS request_id,\n                                     session_id,\n                                     created_at,\n                                     model,\n                                     (token_usage->>'input_tokens')::bigint AS input_tokens,\n                                     (token_usage->>'output_tokens')::bigint AS output_tokens,\n                                     (token_usage->>'cache_read_input_tokens')::bigint AS cache_read_tokens,\n                                     (token_usage->>'cache_creation_input_tokens')::bigint AS cache_write_tokens\n                                FROM matched\n                               ORDER BY created_at DESC\n                               LIMIT $2\n                         ) top\n                   )\n                   SELECT t.count_1h AS \"count_1h!\",\n                          t.count_24h AS \"count_24h!\",\n                          t.count_7d AS \"count_7d!\",\n                          t.count_total AS \"count_total!\",\n                          t.total_input_tokens,\n                          t.total_output_tokens,\n                          recent.samples AS \"samples!: sqlx::types::Json<Vec<CompositionUsageSample>>\"\n                     FROM totals t\n                    CROSS JOIN recent",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count_1h!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "count_24h!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "count_7d!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "count_total!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "total_input_tokens",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "total_output_tokens",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "samples!: sqlx::types::Json<Vec<CompositionUsageSample>>",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "c0091ca8de0912c326b849aa82cc0c1615ced4b5de2b42391bff39bc451b9229"
+}

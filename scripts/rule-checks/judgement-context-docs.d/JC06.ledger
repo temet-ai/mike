@@ -1,0 +1,4 @@
+# JC06 ledger. The landed sha is the JC06 commit on feat/judgement-context.
+landed   JC06 2026-09-24 72c58b8e
+table    eval.bundles
+tool     list_eval_bundles full

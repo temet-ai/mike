@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT b.seq_ord, b.content, b.byte_size,\n                b.content_sha256, bt.code AS block_type,\n                b.signature, b.wire_tool_use_id, b.arrived_at\n         FROM responses.stream_blocks b\n         JOIN responses.stream_block_types bt ON bt.id = b.block_type_id\n         WHERE b.request_id = $1\n         ORDER BY b.seq_ord ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "seq_ord",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "responses.stream_blocks",
+            "name": "seq_ord"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "content",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "responses.stream_blocks",
+            "name": "content"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "byte_size",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "responses.stream_blocks",
+            "name": "byte_size"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "content_sha256",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "responses.stream_blocks",
+            "name": "content_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "block_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "responses.stream_block_types",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "signature",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "responses.stream_blocks",
+            "name": "signature"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "wire_tool_use_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "responses.stream_blocks",
+            "name": "wire_tool_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "arrived_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "responses.stream_blocks",
+            "name": "arrived_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "01c90d2e7a9c2c3d3eb88b16ed679aa4e4d1623841775b7173f969840c480368"
+}

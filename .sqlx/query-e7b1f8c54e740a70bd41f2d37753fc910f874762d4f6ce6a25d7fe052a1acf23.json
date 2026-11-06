@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lessons l\n                    SET stage_id           = archived_s.id,\n                        archived_at        = NOW(),\n                        archived_reason_id = operator_r.id\n                   FROM memory.lesson_stages archived_s,\n                        memory.lesson_archived_reasons operator_r\n                  WHERE archived_s.code = 'archived'\n                    AND operator_r.code = 'operator'\n                    AND l.id = $1\n                    AND l.archived_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e7b1f8c54e740a70bd41f2d37753fc910f874762d4f6ce6a25d7fe052a1acf23"
+}

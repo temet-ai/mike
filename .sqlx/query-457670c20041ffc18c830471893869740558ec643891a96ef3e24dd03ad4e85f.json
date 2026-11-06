@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE launch.templates\n   SET superseded_by = $2\n WHERE id = $1\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "457670c20041ffc18c830471893869740558ec643891a96ef3e24dd03ad4e85f"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.operator_turns\n                SET end_request_id = GREATEST(end_request_id, $2)\n              WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e84569d935ccd201f0153b8d71decb5d0780762cbdde952d0b8ae93f56cefe7e"
+}

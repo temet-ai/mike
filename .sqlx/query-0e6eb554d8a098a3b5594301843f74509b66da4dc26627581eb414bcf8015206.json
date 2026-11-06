@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n                     fr.id AS \"id!\",\n                     MAX(recent.created_at) AS last_fired_at,\n                     COUNT(*) FILTER (WHERE recent.created_at >= NOW() - INTERVAL '1 day')::BIGINT AS \"fires_24h!\",\n                     COUNT(recent.created_at)::BIGINT AS \"fires_7d!\"\n                 FROM rules.rules fr\n                 LEFT JOIN (\n                     SELECT j.filter_rule_id, r.created_at\n                     FROM requests.requests r\n                     JOIN requests.system_prompts rsp ON rsp.request_id = r.id\n                     JOIN requests.system_prompt_firing_rules j ON j.request_system_prompt_id = rsp.id\n                     WHERE r.created_at >= NOW() - INTERVAL '7 days'\n                 ) recent ON recent.filter_rule_id = fr.id\n                 GROUP BY fr.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "last_fired_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "fires_24h!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "fires_7d!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "0e6eb554d8a098a3b5594301843f74509b66da4dc26627581eb414bcf8015206"
+}

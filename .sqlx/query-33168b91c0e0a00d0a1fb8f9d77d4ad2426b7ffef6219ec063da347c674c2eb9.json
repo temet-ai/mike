@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM memory.skill_retirements r\n                  USING projects.projects p\n                  WHERE p.id = r.project_id AND p.project_uuid = $1 AND r.folder = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "33168b91c0e0a00d0a1fb8f9d77d4ad2426b7ffef6219ec063da347c674c2eb9"
+}

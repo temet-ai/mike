@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT to_jsonb(r) AS \"record!: serde_json::Value\"\n  FROM launch.run_records r\n WHERE r.fleet_uuid = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "record!: serde_json::Value",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "2a4d899b1d540e89c3926e5f912d78bc89e55bc4ade336f500f69e5cbad612b0"
+}

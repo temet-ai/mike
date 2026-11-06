@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH hit AS (\n                     SELECT id, project_path, array_position($2::text[], project_path) AS rank\n                       FROM projects.projects\n                      WHERE project_path = ANY($2::text[])\n                 )\n                 SELECT id AS \"id!\", project_path AS \"project_path!\", rank AS \"rank?\",\n                        NULL::timestamptz AS \"last_seen?\"\n                   FROM hit\n                 UNION ALL\n                 SELECT id, project_path, NULL::int, last_seen\n                   FROM projects.projects\n                  WHERE ($3::boolean OR ($4::boolean AND NOT EXISTS (SELECT 1 FROM hit)))\n                    AND project_path LIKE '%' || $1::text",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "project_path!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "rank?",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "last_seen?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray",
+        "Bool",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "193af1e110b2734972cb8edcae9122cbc9b9972d96b400335576c4767707ea9b"
+}

@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.slug, c.criteria_text\n               FROM sessions.sessions s\n               JOIN work.thread_sessions ts ON ts.session_uuid = s.session_uuid\n               JOIN work.threads t ON t.id = ts.thread_id\n               LEFT JOIN work.thread_acceptance_criteria c ON c.thread_id = t.id\n              WHERE s.id = $1\n              ORDER BY ts.last_seen_at DESC, t.id DESC\n              LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "slug",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "slug"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "criteria_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_acceptance_criteria",
+            "name": "criteria_text"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "555a4cdfc816f856a3fffba73b8facff2532713f38a2c43b890968de69f7c82c"
+}

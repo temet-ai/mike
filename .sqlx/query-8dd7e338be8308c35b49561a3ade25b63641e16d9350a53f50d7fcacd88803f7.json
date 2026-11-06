@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE mailbox.threads SET resolved_at = now()\n                    WHERE thread_uuid = $1 AND resolved_at IS NULL\n                RETURNING resolved_at AS \"resolved_at!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "resolved_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.threads",
+            "name": "resolved_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "8dd7e338be8308c35b49561a3ade25b63641e16d9350a53f50d7fcacd88803f7"
+}

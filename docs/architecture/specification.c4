@@ -1,0 +1,176 @@
+// The vocabulary every other file in this project uses. Changing this file re-parses the
+// whole project, so kinds, tags and relationship kinds live here and nowhere else.
+
+specification {
+
+  // --- who and what sits outside mike -------------------------------------------------
+
+  element actor {
+    notation 'Person'
+    style {
+      shape person
+      color amber
+    }
+  }
+
+  element external {
+    notation 'System mike talks to but does not own'
+    style {
+      color gray
+    }
+  }
+
+  // --- mike itself, from the outside in -------------------------------------------------
+
+  element system {
+    notation 'Software system'
+  }
+
+  element container {
+    notation 'Process: a binary or service that runs on its own'
+    style {
+      color primary
+    }
+  }
+
+  element webapp {
+    notation 'Browser application'
+    style {
+      shape browser
+      color primary
+    }
+  }
+
+  element database {
+    notation 'Database'
+    style {
+      shape storage
+      color indigo
+    }
+  }
+
+  element schema {
+    notation 'Postgres schema'
+    style {
+      shape storage
+      color indigo
+      size sm
+    }
+  }
+
+  // --- inside the mike server process ---------------------------------------------------
+
+  element listener {
+    notation 'TCP listener'
+    style {
+      color sky
+      size sm
+    }
+  }
+
+  element component {
+    notation 'Module inside a process'
+    style {
+      shape component
+      color secondary
+    }
+  }
+
+  element stage {
+    notation 'Request pipeline stage'
+    style {
+      color green
+      size sm
+    }
+  }
+
+  element worker {
+    notation 'Background worker'
+    style {
+      color slate
+      size sm
+    }
+  }
+
+  element memory {
+    notation 'State held in the process'
+    style {
+      shape cylinder
+      color slate
+      size sm
+    }
+  }
+
+  element bus {
+    notation 'In-process event channel'
+    style {
+      shape queue
+      color slate
+      size sm
+    }
+  }
+
+  // --- relationship kinds -----------------------------------------------------------------
+
+  relationship sql {
+    technology 'SQL'
+    color indigo
+  }
+
+  relationship event {
+    notation 'Event, delivered without the sender waiting'
+    line dotted
+    color slate
+  }
+
+  relationship egress {
+    notation 'Content leaves the machine'
+    color red
+  }
+
+  relationship then {
+    notation 'Runs next, in a fixed order'
+    line dashed
+    color green
+  }
+
+  // --- tags ---------------------------------------------------------------------------------
+
+  // On the path a request takes between the client and Anthropic.
+  tag hot-path
+  // Feature toggle or gate whose code default is off.
+  tag default-off
+  // Feature toggle whose code default is on.
+  tag default-on
+  // Can change the bytes Anthropic receives.
+  tag mutates-request
+  // Can change the reply the client receives.
+  tag mutates-response
+  // Sends captured content to a third party when enabled.
+  tag sends-content-out
+  // Not built yet. Used by the files under plans/.
+  tag planned
+
+  // --- deployment ---------------------------------------------------------------------------
+
+  deploymentNode host {
+    notation 'Machine'
+    style {
+      color gray
+    }
+  }
+
+  deploymentNode supervisor {
+    notation 'What starts and restarts the processes'
+    style {
+      color slate
+    }
+  }
+
+  deploymentNode unit {
+    notation 'systemd user unit or Docker container'
+    style {
+      color slate
+    }
+  }
+}

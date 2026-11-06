@@ -1,0 +1,11 @@
+# Its own package, separate from the frontend pnpm workspace, so the SPA's
+# dependency tree and lockfile do not carry the diagram tooling.
+packages:
+  - '.'
+
+# pnpm refuses to run a dependency's install script unless it is named here, and
+# an unanswered one makes `pnpm install` exit 1. esbuild's postinstall puts its
+# native binary in place; likec4 bundles the diagram site with it.
+allowBuilds:
+  '@openrouter/sdk': set this to true or false
+  esbuild: true

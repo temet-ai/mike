@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE eval.bundles\n    SET status = $2,\n        gate_run_id = COALESCE($3, gate_run_id),\n        override_reason = COALESCE($4, override_reason),\n        promoted_at = CASE WHEN $2 = 'live' THEN now()\n                           WHEN $2 = 'live_ungated' THEN COALESCE(promoted_at, now())\n                           ELSE promoted_at END\n  WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f045066e92583da3e73e3bf326fb56eafc2cd3787ebdc6ca387eace2b4964b23"
+}

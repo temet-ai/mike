@@ -1,0 +1,63 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT tu.tool_name AS \"tool_name!\",\n                        md5(tu.input::text) AS \"input_digest!\",\n                        COUNT(*)::bigint AS \"use_count!\",\n                        COALESCE(AVG(tr.content_bytes), 0)::float8 AS \"avg_result_bytes!\",\n                        (ARRAY_AGG(tu.request_id ORDER BY tu.request_id))[1:6] AS \"sample_request_ids!\",\n                        LEFT(MIN(tu.input::text), 120) AS \"input_excerpt?\"\n                   FROM tools.uses tu\n                   LEFT JOIN tools.results tr ON tr.tool_use_id = tu.id\n                  WHERE tu.session_id = $1\n                    AND tu.input IS NOT NULL\n                  GROUP BY tu.tool_name, md5(tu.input::text)\n                 HAVING COUNT(*) > 1\n                  ORDER BY 3 DESC, 4 DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tool_name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "tool_name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "input_digest!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "use_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "avg_result_bytes!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "sample_request_ids!",
+        "type_info": "Int8Array",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "input_excerpt?",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "0f0fbbc0f88836f968742fd1c5e75ade84496f35eb7ecb566886189fe910bab1"
+}

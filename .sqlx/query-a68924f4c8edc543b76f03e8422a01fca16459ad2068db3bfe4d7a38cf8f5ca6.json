@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO system_prompts.session_prompts\n                    (session_id, request_id, lane, subagent_persona, blocks, content_sha256)\n                 SELECT $1, $2, 'subagent', $3, $4, $5\n                 WHERE NOT EXISTS (\n                     SELECT 1 FROM system_prompts.session_prompts WHERE request_id = $2\n                 )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a68924f4c8edc543b76f03e8422a01fca16459ad2068db3bfe4d7a38cf8f5ca6"
+}

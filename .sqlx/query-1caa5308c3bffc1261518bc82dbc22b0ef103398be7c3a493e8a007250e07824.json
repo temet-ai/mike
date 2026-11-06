@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.dossier_entries\n        (session_id, operator_turn_id, kind, data, source, source_ref, dedup_key,\n         extractor_version, effective_at)\n SELECT x.session_id, x.operator_turn_id, x.kind, x.data, 'capture', x.source_ref, x.dedup_key,\n        x.extractor_version, x.effective_at\n   FROM jsonb_to_recordset($1::jsonb) AS x(\n        session_id bigint, operator_turn_id bigint, kind text, data jsonb,\n        source_ref text, dedup_key text, extractor_version text, effective_at timestamptz)\n ON CONFLICT (kind, dedup_key) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1caa5308c3bffc1261518bc82dbc22b0ef103398be7c3a493e8a007250e07824"
+}

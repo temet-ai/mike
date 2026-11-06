@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT session_agent_id, preserved_event_ids, request_body\n             FROM remote_control.calls\n            WHERE id = $1 AND is_compaction AND 'evt-2' = ANY(preserved_event_ids)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_agent_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "session_agent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "preserved_event_ids",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "preserved_event_ids"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "request_body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "request_body"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "9f5847e5efb7d7acefe0dd7d40744d25d1370ab73b528bd0d3152021b2e0b948"
+}

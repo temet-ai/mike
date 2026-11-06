@@ -1,0 +1,72 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH k AS (\n    SELECT * FROM unnest($1::bigint[], $2::timestamptz[]) AS k(session_id, after)\n)\nSELECT res.id AS \"result_id!\",\n       carrier.session_id AS \"session_id!\",\n       r.claude_code_agent_id AS \"agent_id?\",\n       res.created_at AS \"at!\",\n       g.lines AS \"text!\"\n  FROM k\n  JOIN requests.requests carrier\n    ON carrier.session_id = k.session_id AND carrier.created_at > k.after\n  JOIN tools.results res ON res.request_id = carrier.id\n  JOIN tools.uses u ON u.id = res.tool_use_id\n  JOIN requests.requests r ON r.id = u.request_id\n CROSS JOIN LATERAL (\n      SELECT CASE jsonb_typeof(res.content)\n                 WHEN 'string' THEN res.content #>> '{}'\n                 ELSE string_agg(e.item->>'text', E'\\n' ORDER BY e.n)\n                          FILTER (WHERE jsonb_typeof(e.item->'text') = 'string')\n             END AS text\n        FROM jsonb_array_elements(\n                 CASE jsonb_typeof(res.content) WHEN 'array' THEN res.content\n                                                ELSE '[]'::jsonb END\n             ) WITH ORDINALITY AS e(item, n)\n ) body\n CROSS JOIN LATERAL (\n      SELECT coalesce(string_agg(t.line, E'\\n' ORDER BY t.n), '') AS lines\n        FROM regexp_split_to_table(coalesce(body.text, ''), E'\\n')\n             WITH ORDINALITY AS t(line, n)\n       WHERE t.line LIKE '% -> %' OR t.line ~ '^\\s*\\['\n ) g\n WHERE u.tool_name = 'Bash'\n   AND (u.input->>'command' LIKE '%git push%' OR u.input->>'command' LIKE '%git commit%')\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "result_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "agent_id?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "claude_code_agent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "text!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TimestamptzArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      null
+    ]
+  },
+  "hash": "ec82264fab2207a6e7ee40f173bcfcc79e3f6e23fa5efa8ac835756587a2ed09"
+}

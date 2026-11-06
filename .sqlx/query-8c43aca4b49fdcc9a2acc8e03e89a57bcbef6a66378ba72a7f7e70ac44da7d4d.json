@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT m.consumed_at AS \"consumed_at?\"\n             FROM mailbox.messages m\n             JOIN sessions.sessions recip ON recip.id = m.to_session_id\n            WHERE m.message_uuid = $2 AND recip.session_uuid = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "consumed_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "consumed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "8c43aca4b49fdcc9a2acc8e03e89a57bcbef6a66378ba72a7f7e70ac44da7d4d"
+}

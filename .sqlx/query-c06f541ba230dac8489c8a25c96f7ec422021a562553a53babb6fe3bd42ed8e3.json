@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"channels!\", count(local_session_uuid) AS \"linked!\"\n                     FROM remote_control.channels\n                    WHERE first_seen_at >= now() - interval '24 hours'\n                      AND first_seen_at < now() - interval '15 minutes'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "channels!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "linked!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "c06f541ba230dac8489c8a25c96f7ec422021a562553a53babb6fe3bd42ed8e3"
+}

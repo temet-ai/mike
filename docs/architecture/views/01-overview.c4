@@ -1,0 +1,24 @@
+// The two outermost pictures: mike among the things around it, and the processes it is made of.
+
+views {
+
+  global style plannedWork
+
+  view index {
+    title 'mike in context'
+    description 'Who uses mike and what it talks to. Red lines carry content off this machine.'
+    include *
+    autoLayout TopBottom
+  }
+
+  view processes of mike {
+    title 'The processes mike is made of'
+    description '''
+      Seven things run: the server, the MCP bridge each session starts, the
+      HTTPS_PROXY sidecar, the web UI, the prompt assistant, the command line and
+      the database. Only the database keeps anything.
+    '''
+    include *
+    autoLayout TopBottom
+  }
+}

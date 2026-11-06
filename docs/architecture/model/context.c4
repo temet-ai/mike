@@ -1,0 +1,196 @@
+// The outside of mike: who uses it, what it talks to, and the processes it is made of.
+// What is inside the server process is in server.c4; the database is in data.c4.
+
+model {
+
+  operator = actor 'Operator' {
+    description 'The person who runs Claude Code sessions through mike and reads what they did.'
+  }
+
+  claudeCode = external 'Claude Code session' {
+    technology 'Claude Code CLI'
+    description '''
+      Any Anthropic API client; in practice a Claude Code session in a terminal.
+      A fleet is many of these at once. Each one points `ANTHROPIC_BASE_URL` at mike
+      and starts its own `mike-mcp`.
+    '''
+  }
+
+  anthropic = external 'Anthropic API' {
+    technology 'HTTPS, SSE'
+    description '''
+      `api.anthropic.com`. mike holds no credentials of its own: it forwards whatever
+      the client sent.
+    '''
+  }
+
+  openrouter = external 'OpenRouter' {
+    technology 'HTTPS, structured output'
+    description '''
+      Third-party model gateway used by the steerers, the judges, the correction
+      classifier and the lesson proposer. Every caller is off by default, because each
+      one sends captured session content off the machine.
+    '''
+  }
+
+  claudeCli = external 'Claude Code CLI' {
+    technology 'claude -p, JSON output, local login'
+    description '''
+      The `claude` binary on the same machine, run in print mode under the Claude Code
+      login already there, with a cleaned environment so the call never returns through
+      mike\'s own proxy. Serves a worker role when `llm.provider` is claude or the role\'s
+      model is `claude/<model>`. The prompt goes to Anthropic, so each call sends
+      captured content off the machine.
+    '''
+    link https://github.com/temet-ai/mike/tree/main/crates/mike/src/llm/claude 'crates/mike/src/llm/claude'
+  }
+
+  codexCli = external 'Codex CLI' {
+    technology 'codex exec, JSON events, local login'
+    description '''
+      The `codex` binary on the same machine, run read-only and ephemeral under the
+      ChatGPT login already there. Serves a worker role when `llm.provider` is codex or
+      the role\'s model is `codex/<model>`. The prompt goes to OpenAI, so each call sends
+      captured content off the machine.
+    '''
+    link https://github.com/temet-ai/mike/tree/main/crates/mike/src/llm/codex 'crates/mike/src/llm/codex'
+  }
+
+  infinity = external 'Infinity embedding server' {
+    technology 'HTTP, nomic-embed-text-v1.5, 768 dimensions'
+    description '''
+      Runs on the same machine at `127.0.0.1:7997` and is shared with other projects.
+      mike has no embedding model in its own process.
+    '''
+    link https://github.com/temet-ai/mike/blob/main/scripts/start-infinity.sh 'scripts/start-infinity.sh'
+  }
+
+  terminal = external 'Terminal backend' {
+    technology 'herdr; tmux and xdg-terminal adapters'
+    description '''
+      Opens the terminal surface a launched session runs in. The operator picks one
+      backend for the whole host. Only herdr reports whether its agent is working.
+    '''
+  }
+
+  mike = system 'mike' {
+    description '''
+      Sits between Claude Code and the Anthropic API. It captures every request and
+      reply, stores them in Postgres, shows them in a browser and to other sessions
+      over MCP, and can change traffic in both directions when the operator turns
+      that on.
+    '''
+    link https://github.com/temet-ai/mike/blob/main/docs/ARCHITECTURE.md 'docs/ARCHITECTURE.md'
+
+    server = container 'mike server' {
+      technology 'Rust, tokio, axum'
+      description '''
+        `mike serve`: one process, three TCP listeners and one shared `AppState`.
+        Forwards traffic, captures it, serves the inspect API, and runs the
+        background workers.
+      '''
+      link https://github.com/temet-ai/mike/tree/main/crates/mike 'crates/mike'
+      link https://github.com/temet-ai/mike/blob/main/docs/STARTUP_FLOW.md 'docs/STARTUP_FLOW.md'
+    }
+
+    mcp = container 'mike-mcp' {
+      technology 'Rust, rmcp, stdio'
+      description '''
+        The MCP bridge. Claude Code starts one per session over stdio. It shares no
+        state with the server: every tool is an HTTP call to the inspect API. It is
+        also a Claude Code channel, so mail can reach a session without a request.
+      '''
+      link https://github.com/temet-ai/mike/tree/main/crates/mike-mcp 'crates/mike-mcp'
+      link https://github.com/temet-ai/mike/blob/main/docs/MCP_BRIDGE.md 'docs/MCP_BRIDGE.md'
+    }
+
+    forward = container 'proxy-forward' {
+      technology 'Rust, HTTPS CONNECT, per-domain TLS'
+      description '''
+        An `HTTPS_PROXY` sidecar on `:9987` for clients that cannot be pointed at a
+        base URL. It sends `/v1` and `/v2` HTTP traffic through the server so it is
+        captured; WebSocket upgrades go straight to Anthropic and are not captured.
+      '''
+      link https://github.com/temet-ai/mike/tree/main/crates/proxy-forward 'crates/proxy-forward'
+      link https://github.com/temet-ai/mike/blob/main/docs/FORWARD_PROXY_WEBSOCKET_UPGRADE.md 'docs/FORWARD_PROXY_WEBSOCKET_UPGRADE.md'
+    }
+
+    spa = webapp 'Web UI' {
+      technology 'SvelteKit, Svelte 5, TypeScript'
+      description '''
+        The operator\'s view of sessions, requests, steering, memory, fleets and
+        settings on `:9990`. The server serves the built app from its own binary;
+        during frontend work `vite dev` takes the port and serves it from source.
+      '''
+      link https://github.com/temet-ai/mike/tree/main/frontend 'frontend'
+    }
+
+    assistant = container 'prompt-assistant' {
+      technology 'Node, TypeScript, Claude Agent SDK'
+      description '''
+        Helps the operator reword the system prompt mike captures and rewrites.
+        Listens on `127.0.0.1:9985`, runs its agent with no built-in tools, and reads
+        and writes only through the inspect API.
+      '''
+      link https://github.com/temet-ai/mike/tree/main/services/prompt-assistant 'services/prompt-assistant'
+    }
+
+    cli = container 'mike command line' {
+      technology 'Rust, same binary as the server'
+      description '''
+        The other things the `mike` binary does, each in its own short-lived process:
+        `mike spawn` launches sessions, `mike fleet` reads a fleet, a bare `mike` on a
+        terminal opens the terminal UI, and the maintenance commands print config or
+        run backfills. Only `mike serve` applies migrations.
+      '''
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/launch/cli 'crates/mike/src/launch/cli'
+      link https://github.com/temet-ai/mike/blob/main/docs/LAUNCH_DOMAIN.md 'docs/LAUNCH_DOMAIN.md'
+    }
+
+    db = database 'Capture database' {
+      technology 'Postgres 19, pgvector'
+      description '''
+        The only persistent part. Every captured request, reply, tool call, operator
+        turn, lesson, rule and setting lives here, split across domain schemas.
+        Restart the server and all finished traffic is still there.
+      '''
+      link https://github.com/temet-ai/mike/blob/main/docs/SCHEMA.md 'docs/SCHEMA.md'
+    }
+  }
+
+  // --- people ---------------------------------------------------------------------------------
+
+  operator -> claudeCode 'types prompts into'
+  operator -> mike.spa 'reads sessions, changes settings' {
+    technology 'Browser'
+  }
+  operator -> mike.cli 'runs' {
+    technology 'Shell'
+  }
+
+  // --- Claude Code to mike ----------------------------------------------------------------
+
+  claudeCode -> mike.mcp 'calls tools, receives mail' {
+    technology 'stdio JSON-RPC'
+  }
+  claudeCode -> mike.forward 'sends traffic when routed through HTTPS_PROXY' {
+    technology 'HTTPS CONNECT'
+  }
+
+  // --- between mike's processes ------------------------------------------------------------
+
+  mike.forward -[egress]-> anthropic 'tunnels WebSocket upgrades and other hosts, uncaptured' {
+    technology 'HTTPS'
+  }
+
+  mike.spa -> mike.assistant 'asks for prompt edits' {
+    technology 'HTTP /api/assistant, proxied by vite dev'
+  }
+
+  mike.assistant -[egress]-> anthropic 'runs its agent' {
+    technology 'Claude Agent SDK'
+  }
+
+  mike.cli -> terminal 'opens a surface and starts claude in it'
+  terminal -> claudeCode 'runs'
+}

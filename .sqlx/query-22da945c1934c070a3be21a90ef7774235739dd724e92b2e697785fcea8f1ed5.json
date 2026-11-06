@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT rm.ord, rm.message_id, m.message_sha256 AS \"message_sha256!\"\n           FROM requests.messages rm\n           JOIN messages.messages m ON m.id = rm.message_id\n          WHERE rm.request_id = $1\n          ORDER BY rm.ord ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ord",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "requests.messages",
+            "name": "ord"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "message_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.messages",
+            "name": "message_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "message_sha256!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "messages.messages",
+            "name": "message_sha256"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "22da945c1934c070a3be21a90ef7774235739dd724e92b2e697785fcea8f1ed5"
+}

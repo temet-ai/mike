@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE remote_control.calls\n              SET request_body = '\\x7b7d'::bytea, request_body_size = 200\n            WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f601224c42ac04fefd6ba509e96854f9e972c376cc3f78ccae94978871b9e9a2"
+}

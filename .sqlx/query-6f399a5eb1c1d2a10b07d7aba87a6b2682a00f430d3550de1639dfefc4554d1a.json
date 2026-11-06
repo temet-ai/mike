@@ -1,0 +1,98 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.id, l.text, (l.embedding <=> $2::text::vector)::float4 AS \"distance!\",\n                          src.code AS \"source!\", l.created_at, l.source_turn_id, l.session_id\n                     FROM memory.lessons l\n                     JOIN memory.lesson_sources src ON src.id = l.source_id\n                    WHERE l.project_id = $1\n                      AND l.archived_at IS NULL\n                      AND l.embedding IS NOT NULL\n                      AND (l.embedding <=> $2::text::vector) <= $3\n                      AND NOT EXISTS (\n                          SELECT 1\n                            FROM memory.lesson_relations r\n                            JOIN memory.lesson_relation_kinds rk ON rk.id = r.kind_id AND rk.code = 'supersedes'\n                            JOIN memory.lesson_relation_statuses rs ON rs.id = r.status_id AND rs.code = 'confirmed'\n                           WHERE r.to_lesson_id = l.id)\n                    ORDER BY l.embedding <=> $2::text::vector\n                    LIMIT $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "distance!",
+        "type_info": "Float4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_sources",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "source_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "source_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "session_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Float8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "6f399a5eb1c1d2a10b07d7aba87a6b2682a00f430d3550de1639dfefc4554d1a"
+}

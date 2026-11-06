@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT session_uuid::text AS \"session_id!\",\n                  MIN(created_at) AS \"first_seen_at!\",\n                  MAX(created_at) FILTER (\n                      WHERE turn_origin IN ('primary', 'primary_first', 'subagent', 'workflow_subagent')\n                  ) AS last_work_at,\n                  MAX(created_at) FILTER (WHERE turn_origin LIKE '%\\_sidecar') AS last_sidecar_at\n           FROM requests.requests_v\n           WHERE created_at > $1 AND session_uuid IS NOT NULL\n           GROUP BY session_uuid\n           HAVING bool_or(turn_origin LIKE '%\\_sidecar')",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "first_seen_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "last_work_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "last_sidecar_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "cd4b1ff34f08c431448a05ef1857d8e34d79c374c8884293ebc5e3c835333dd4"
+}

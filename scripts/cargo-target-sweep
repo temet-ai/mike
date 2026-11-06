@@ -1,0 +1,242 @@
+#!/usr/bin/env bash
+# cargo-target-sweep — keep Rust build directories under a size cap.
+#
+# Cargo never deletes anything from a build directory. Every dependency version
+# ever built and every incremental session stays, so a checkout's target/ grows
+# past 150GB and a machine with a few projects and fleet clones fills its disk
+# (2026-10-07: 925 of 930GB used on omit, the test Postgres crashed mid-write).
+#
+# Usage: cargo-target-sweep [--cap GB] [--age DAYS] [--remove-idle DAYS] [--dry-run] [DIR ...]
+#
+#   DIR        Build directories to sweep. Default: $CARGO_TARGET_DIR, else this
+#              checkout's target/. A DIR may be a target dir or a cargo build-dir.
+#   --cap GB   Size each DIR should end under (default $CARGO_SWEEP_MAXSIZE_GB or 40:
+#              this machine has about ten build folders, and at 80 each they may
+#              hold more than either of its disks; 2026-10-22).
+#   --age DAYS Superseded builds older than this are removed (default 3).
+#   --remove-idle DAYS
+#              Delete a whole DIR when nothing in it was written for DAYS days.
+#              For per-worktree cargo build-dirs (~/.cargo/build/<project>/<hash>),
+#              whose worktree is gone or idle; never for a checkout's own target/.
+#   --dry-run  Report sizes and what would go, delete nothing.
+#
+# For each DIR:
+#   1. always, superseded builds: in deps/, .fingerprint/, build/ and incremental/, an
+#      entry named <crate>-<hash> (cargo's 16 hex characters; in incremental/,
+#      rustc's base-36 crate id) that is older than --age days while a newer
+#      entry for the same crate sits beside it. The newest build of every crate
+#      is always kept, so dependencies still in use stay warm; old dependency
+#      versions and feature sets go. Modification time, not access time: data
+#      disks here are mounted noatime.
+#   2. when still over --cap, superseded builds of any age: the same rule as 1
+#      without the age limit, so a project that rebuilds many times a day (radar:
+#      4,610 test binaries in three days, 2026-10-20) still comes under its cap.
+#   Rules 1 and 2 delete in a profile (debug/, release/, …) only while holding
+#   that profile's cargo locks (.cargo-lock, .cargo-build-lock), taken without
+#   waiting: a profile a build holds is skipped, and no build starts in it until
+#   the deletion is done. "Newest per crate" is not enough on its own: a crate
+#   built several ways at once (tests, clippy, release, feature mixes) has an
+#   entry per way, and an in-flight clippy run lost its fingerprints to a sweep
+#   that kept only the newest (radar, 2026-10-20 11:37).
+#   3. when still over --cap, every incremental directory. Only in a directory whose builds take turns
+#      with sweeps through scripts/lib/target-dir-guard.sh (scripts/cx does),
+#      because deleting state a build is using fails that build.
+# Anything still over cap is reported, never forced. The only cost of a sweep
+# is a slower next build.
+#
+# Exit 0 always for a sweep that ran or had nothing to do; 2 for usage errors.
+set -u
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "$script_dir/.." && pwd)"
+# shellcheck disable=SC1091
+source "$script_dir/lib/target-dir-guard.sh"
+
+cap_gb="${CARGO_SWEEP_MAXSIZE_GB:-40}"
+age_days="${CARGO_SWEEP_AGE_DAYS:-3}"
+dry_run=0
+idle_days=""
+dirs=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --cap)     cap_gb="${2:?--cap needs a value}"; shift 2 ;;
+    --age)     age_days="${2:?--age needs a value}"; shift 2 ;;
+    --dry-run) dry_run=1; shift ;;
+    --remove-idle) idle_days="${2:?--remove-idle needs a number of days}"; shift 2 ;;
+    -h|--help) sed -n '2,34p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -*)        echo "cargo-target-sweep: unknown option $1" >&2; exit 2 ;;
+    *)         dirs+=("$1"); shift ;;
+  esac
+done
+[[ ${#dirs[@]} -gt 0 ]] || dirs=("${CARGO_TARGET_DIR:-$repo_root/target}")
+
+count_file="$(mktemp)"
+trap 'rm -f "$count_file"' EXIT
+
+ts() { date '+%Y-%m-%d %H:%M:%S'; }
+size_kb() { du -sk "$1" 2>/dev/null | awk '{print $1}'; }
+human() { awk -v k="${1:-0}" 'BEGIN{ if (k>=1048576) printf "%.1fG", k/1048576; else if (k>=1024) printf "%.1fM", k/1024; else printf "%dK", k }'; }
+
+superseded_in() {
+  local sub="$1"
+  [[ -d "$sub" ]] || return 0
+  local old
+  old="$(mktemp)"
+  if (( age_days > 0 )); then
+    find "$sub" -mindepth 1 -maxdepth 1 -mtime +"$age_days" -print 2>/dev/null | sed 's#.*/##' > "$old"
+  else
+    ls "$sub" 2>/dev/null > "$old"
+  fi
+  if [[ ! -s "$old" ]]; then
+    rm -f "$old"
+    return 0
+  fi
+  ls -t "$sub" 2>/dev/null | awk -v dir="$sub" -v oldfile="$old" '
+    BEGIN { while ((getline line < oldfile) > 0) stale[line] = 1; close(oldfile) }
+    {
+      key = $0
+      if (match(key, /-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/)) {
+        key = substr(key, 1, RSTART - 1) "|" substr(key, RSTART + RLENGTH)
+      } else if (match(key, /-[0-9a-z]*$/) && RLENGTH >= 11 && RLENGTH <= 14) {
+        # rustc names an incremental directory <crate>-<StableCrateId in base 36>,
+        # 11 to 13 characters, not with cargo'"'"'s 16 hex characters: until
+        # 2026-10-22 no incremental directory ever matched, and radar held
+        # 2,399 of them (157GB) after a sweep.
+        key = substr(key, 1, RSTART - 1) "|"
+      } else {
+        next
+      }
+      if (key in newest) { if ($0 in stale) print dir "/" $0 }
+      else newest[key] = 1
+    }'
+  rm -f "$old"
+}
+
+profiles_of() {
+  find "$1" -mindepth 1 -maxdepth 2 -type d \( -name deps -o -name .fingerprint \) -print 2>/dev/null | sed 's#/[^/]*$##' | sort -u
+}
+
+stale_in_profile() {
+  superseded_in "$1/deps"
+  superseded_in "$1/.fingerprint"
+  superseded_in "$1/build"
+  superseded_in "$1/incremental"
+}
+
+stale_paths() {
+  local profile
+  while IFS= read -r profile; do
+    [[ -n "$profile" ]] || continue
+    stale_in_profile "$profile"
+  done <<< "$(profiles_of "$1")"
+}
+
+remove_with_cargo_locks() {
+  perl -MFcntl=:flock -MFile::Path=remove_tree -e '
+    my $profile = shift;
+    my @held;
+    for my $name (".cargo-lock", ".cargo-build-lock", ".cargo-artifact-lock") {
+      my $file = "$profile/$name";
+      next unless -e $file;
+      open(my $handle, "<", $file) or next;
+      unless (flock($handle, LOCK_EX | LOCK_NB)) { 1 while <STDIN>; print 0; exit 75 }
+      push @held, $handle;
+    }
+    my $count = 0;
+    while (my $path = <STDIN>) { chomp $path; next unless length $path; remove_tree($path); $count++ }
+    print $count;
+  ' "$1"
+}
+
+busy_profiles=0
+remove_stale() {
+  local dir="$1" profile n total=0
+  busy_profiles=0
+  while IFS= read -r profile; do
+    [[ -n "$profile" ]] || continue
+    n="$(stale_in_profile "$profile" | remove_with_cargo_locks "$profile")"
+    [[ $? -eq 75 ]] && busy_profiles=$((busy_profiles + 1))
+    total=$((total + ${n:-0}))
+  done <<< "$(profiles_of "$dir")"
+  printf '%d' "$total"
+}
+
+incremental_dirs() {
+  find "$1" -mindepth 2 -maxdepth 2 -name incremental -type d -print 2>/dev/null
+}
+
+remove_all() {
+  local p n=0
+  while IFS= read -r p; do
+    [[ -n "$p" ]] || continue
+    n=$((n + 1))
+    (( dry_run )) || rm -rf -- "$p"
+  done
+  printf '%d' "$n"
+}
+
+sweep_dir() {
+  local dir="$1" guarded="$2"
+  local cap_kb=$((cap_gb * 1048576))
+  local before after removed wiped="" recent=""
+  before="$(size_kb "$dir")"
+  local busy=0
+  if (( dry_run )); then
+    removed="$(stale_paths "$dir" | remove_all)"
+  else
+    remove_stale "$dir" > "$count_file"
+    removed="$(cat "$count_file")"
+    busy=$busy_profiles
+  fi
+  after="$(size_kb "$dir")"
+  if (( ${after:-0} > cap_kb )) && (( ! dry_run )); then
+    age_days=0 remove_stale "$dir" > "$count_file"
+    recent="$(cat "$count_file")"
+    (( busy_profiles > busy )) && busy=$busy_profiles
+    removed=$((removed + recent))
+    after="$(size_kb "$dir")"
+  fi
+  if (( ${after:-0} > cap_kb )) && (( guarded )); then
+    wiped="$(incremental_dirs "$dir" | remove_all)"
+    after="$(size_kb "$dir")"
+  fi
+  local verb="swept"
+  (( dry_run )) && verb="would sweep"
+  local detail="$(human "$before") -> $(human "$after"), ${removed} superseded build(s)${recent:+ (${recent} newer than ${age_days}d, removed to reach the cap)}${wiped:+, ${wiped} incremental dir(s)}"
+  (( busy > 0 )) && detail="${detail}; ${busy} profile(s) skipped because a cargo build holds them"
+  if (( ${after:-0} > cap_kb )) && (( ! dry_run )); then
+    echo "$(ts) [cargo-sweep] $dir: OVER CAP ${cap_gb}G after sweep, nothing older left to remove: $detail"
+  elif (( removed == 0 )) && [[ -z "$wiped" ]]; then
+    echo "$(ts) [cargo-sweep] $dir: nothing to remove, $(human "$after") of ${cap_gb}G"
+  else
+    echo "$(ts) [cargo-sweep] $dir: $verb: $detail"
+  fi
+}
+
+for dir in "${dirs[@]}"; do
+  if [[ ! -d "$dir" ]]; then
+    echo "$(ts) [cargo-sweep] $dir: not a directory, skipped"
+    continue
+  fi
+  if [[ -n "$idle_days" ]] && [[ -z "$(find "$dir" -mtime -"$idle_days" -print 2>/dev/null | head -1)" ]]; then
+    if (( dry_run )); then
+      echo "$(ts) [cargo-sweep] $dir: would remove, nothing written in ${idle_days}d ($(human "$(size_kb "$dir")"))"
+    else
+      echo "$(ts) [cargo-sweep] $dir: removed, nothing written in ${idle_days}d ($(human "$(size_kb "$dir")"))"
+      rm -rf -- "$dir"
+    fi
+    continue
+  fi
+  guarded=0
+  if [[ -d "$dir/.guard" ]] && (( ! dry_run )); then
+    if CARGO_TARGET_DIR="$dir" guard_sweep_enter; then
+      guarded=1
+    else
+      echo "$(ts) [cargo-sweep] $dir: builds still running or another sweep holds the slot; removing only stale items"
+    fi
+  fi
+  sweep_dir "$dir" "$guarded"
+  (( guarded )) && CARGO_TARGET_DIR="$dir" guard_sweep_leave
+done
+exit 0

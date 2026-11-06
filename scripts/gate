@@ -1,0 +1,186 @@
+#!/usr/bin/env bash
+# gate — run a Makefile gate and report a verdict that survives a pipe.
+#
+# WHY THIS EXISTS
+#   `make check | tail -60` reports TAIL's exit status, not make's. tail
+#   essentially always succeeds, so a piped gate run reports success on a
+#   FAILING gate — and `tail -N` usually also truncates away the summary
+#   line that would have shown the failure count, so both halves of the
+#   signal disappear at once.
+#
+#   That is not a hypothetical. It fired twice in one hour on 2026-08-07
+#   (issue #136): once as `make check 2>&1 | tail -60` returning 0 over a
+#   real `exit 2` with a genuine test failure, and once as
+#   `cargo clippy … | tail -12; echo "EXIT:${PIPESTATUS[0]}"` printing an
+#   empty PIPESTATUS because the echo ran in a separate shell invocation.
+#   Two different idioms, same class of failure, neither careless — piping
+#   a long gate to tail is the obvious way to make its output readable,
+#   and CLAUDE.md's requirement to capture gate output in your turn is
+#   exactly what makes reaching for a pipe the natural move.
+#
+#   So: this serves the readable-output need WITHOUT a pipe. Full output
+#   goes to a log, a tail of it is printed, and the LAST line is an
+#   unambiguous verdict derived from the captured exit status — never from
+#   the visible text. Because the verdict is last, it survives `| tail`
+#   even when the exit code does not.
+#
+# USAGE
+#   scripts/gate [options] [make-target]
+#
+#   make-target       Makefile target to run. Default: check.
+#                     e.g. scripts/gate test-all · scripts/gate lint
+#
+#   --json            Emit a structured verdict as the LAST line of stdout:
+#                       {verdict, exit_code, target, failures, total, log}
+#                     instead of the human GATE: line.
+#   --tail N          Lines of captured output to print before the verdict
+#                     (default 40). --tail 0 prints none.
+#   --raw             Stream output live as well as capturing it. Slower to
+#                     read, but useful when watching a long run.
+#   -h, --help        This text.
+#
+# EXIT CODE
+#   The gate's own. `scripts/gate` exits non-zero iff the gate failed, so
+#   `scripts/gate && echo ok` is safe. If you pipe it, read the GATE: line
+#   rather than `$?` — that is the whole point of the verdict being last.
+#
+# SEE ALSO
+#   scripts/sb-test --json — the frontend gate's equivalent structured
+#   verdict; this is the Rust-side counterpart and matches its shape.
+
+set -uo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+
+usage() { sed -n '2,/^$/p; /^# USAGE/,/^# SEE ALSO/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+
+TARGET="check"
+TAIL_LINES=40
+JSON=0
+RAW=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    --json)    JSON=1; shift ;;
+    --raw)     RAW=1; shift ;;
+    --tail)    TAIL_LINES="${2:?--tail needs a COUNT}"; shift 2 ;;
+    --)        shift; break ;;
+    -*)        echo "gate: unknown option '$1' (try --help)" >&2; exit 2 ;;
+    *)         TARGET="$1"; shift ;;
+  esac
+done
+
+LOG_DIR="${TMPDIR:-/tmp}/mike-gate"
+mkdir -p "${LOG_DIR}"
+LOG="${LOG_DIR}/${TARGET//\//-}.log"
+
+cd "${PROJECT_ROOT}" || exit 2
+
+# The one line that matters. No pipe between make and the exit status:
+# output is redirected to a file, so $? is make's own. `tee` would
+# reintroduce the very bug this script exists to prevent, so --raw uses a
+# process substitution instead, which leaves $? untouched.
+# make runs in the background and the shell waits on it, so a TERM, INT or HUP
+# sent to this script is handled at once: make is stopped and the last line is
+# an explicit FAIL, never the last green line of whatever phase was running
+# (mike#247).
+tree_fingerprint() {
+  {
+    git rev-parse HEAD 2>/dev/null
+    git diff HEAD --binary 2>/dev/null
+    git ls-files -o --exclude-standard -z 2>/dev/null | xargs -0 -r git hash-object -- 2>/dev/null
+  } | git hash-object --stdin 2>/dev/null
+}
+changed_paths() {
+  { git diff HEAD --name-only; git ls-files -o --exclude-standard; } 2>/dev/null | sort -u
+}
+TREE_BEFORE=$(tree_fingerprint)
+PATHS_BEFORE=$(changed_paths)
+
+MAKE_PID=""
+on_signal() {
+  [[ -n "${MAKE_PID}" ]] && kill -TERM "${MAKE_PID}" 2>/dev/null
+  if (( JSON )); then
+    printf '{"verdict": "fail", "exit_code": %d, "target": "%s", "aborted_by": "SIG%s", "log": "%s"}\n' \
+      "$2" "${TARGET}" "$1" "${LOG}"
+  else
+    echo
+    echo "GATE: FAIL (make ${TARGET}, aborted by SIG$1 before it finished, exit $2) — partial log: ${LOG}"
+  fi
+  exit "$2"
+}
+trap 'on_signal TERM 143' TERM
+trap 'on_signal INT 130' INT
+trap 'on_signal HUP 129' HUP
+
+if (( RAW )); then
+  make -k "${TARGET}" > >(tee "${LOG}") 2>&1 &
+else
+  make -k "${TARGET}" > "${LOG}" 2>&1 &
+fi
+MAKE_PID=$!
+wait "${MAKE_PID}"
+EXIT=$?
+MAKE_PID=""
+
+# A gate in a shared checkout reads files other sessions may be writing; when
+# the tree it finished on is not the tree it started on, its verdict describes
+# no single tree (mike#248). The exit status is kept; the verdict says so.
+TREE_AFTER=$(tree_fingerprint)
+MOVED=0
+MOVED_PATHS=""
+if [[ -n "${TREE_BEFORE}" && "${TREE_BEFORE}" != "${TREE_AFTER}" ]]; then
+  MOVED=1
+  MOVED_PATHS=$(comm -3 <(printf '%s\n' "${PATHS_BEFORE}") <(changed_paths) | sed 's/^\t//' | head -20)
+  [[ -z "${MOVED_PATHS}" ]] && MOVED_PATHS="(a file already changed before the run was edited again)"
+fi
+PROVISIONAL=""
+(( MOVED )) && PROVISIONAL=", PROVISIONAL: the tree changed while the gate ran, rerun on a still tree or a clean checkout"
+
+# Failure counts are for the human summary only. The verdict itself comes
+# from EXIT — a gate that fails without a parseable count is still a fail.
+FAILURE_RE='^ *(FAIL|TIMEOUT|ABORT|SIG[A-Z0-9]+) \['
+FAILURE_LINES=$(grep -E "${FAILURE_RE}" "${LOG}" 2>/dev/null | sed 's/^ *//' | sort -u || true)
+FAILURES=$(printf '%s\n' "${FAILURE_LINES}" | grep -c . || true)
+FAILURES=${FAILURES:-0}
+SUMMARY=$(grep -E 'Summary \[.*tests run' "${LOG}" 2>/dev/null | tail -1 || true)
+TOTAL=$(printf '%s' "${SUMMARY}" | grep -oE '[0-9]+ tests run' | grep -oE '^[0-9]+' || true)
+TOTAL=${TOTAL:-0}
+
+if (( ! RAW )) && (( TAIL_LINES > 0 )); then
+  tail -n "${TAIL_LINES}" "${LOG}"
+fi
+
+if (( JSON )); then
+  python3 - "${LOG}" "${EXIT}" "${TARGET}" "${FAILURES}" "${TOTAL}" "${MOVED}" "${MOVED_PATHS}" <<'PY'
+import json, sys
+log, exit_code, target, failures, total, moved, moved_paths = sys.argv[1:8]
+print(json.dumps({
+    "verdict": "pass" if int(exit_code) == 0 else "fail",
+    "exit_code": int(exit_code),
+    "target": target,
+    "failures": int(failures),
+    "total": int(total),
+    "provisional": moved == "1",
+    "moved_paths": [p for p in moved_paths.splitlines() if p] if moved == "1" else [],
+    "log": log,
+}))
+PY
+else
+  echo
+  if (( MOVED )); then
+    echo "The tree changed while the gate ran:"
+    printf '  %s\n' ${MOVED_PATHS}
+  fi
+  if (( EXIT == 0 )); then
+    [[ -n "${SUMMARY}" ]] && echo "${SUMMARY}"
+    echo "GATE: PASS (make ${TARGET}, exit 0${PROVISIONAL}) — full log: ${LOG}"
+  else
+    [[ -n "${SUMMARY}" ]] && echo "${SUMMARY}"
+    printf '%s\n' "${FAILURE_LINES}" | head -20
+    echo "GATE: FAIL (make ${TARGET}, exit ${EXIT}, ${FAILURES} test failure(s)${PROVISIONAL}) — full log: ${LOG}"
+  fi
+fi
+
+exit "${EXIT}"

@@ -1,0 +1,174 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT e.id, e.project_id, e.checkout, e.at, e.kind, e.session_id, e.run_id, e.task,\n       e.paths, e.subject, e.detail, e.before_sha, e.after_sha\n  FROM workspace.change_events e\n WHERE e.checkout = $1\n   AND (cardinality($2::text[]) = 0 OR e.kind = ANY($2))\n ORDER BY e.id DESC\n LIMIT $3\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_events",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_events",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "checkout",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_events",
+            "name": "checkout"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_events",
+            "name": "at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_events",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_events",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "run_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_events",
+            "name": "run_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "task",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_events",
+            "name": "task"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "paths",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_events",
+            "name": "paths"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "subject",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_events",
+            "name": "subject"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "detail",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_events",
+            "name": "detail"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "before_sha",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_events",
+            "name": "before_sha"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "after_sha",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_events",
+            "name": "after_sha"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "TextArray",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "2d16169800b7d34ae557e96fbadbb0ea8e7c0b9d5f3a5051376d3338f3111f2f"
+}

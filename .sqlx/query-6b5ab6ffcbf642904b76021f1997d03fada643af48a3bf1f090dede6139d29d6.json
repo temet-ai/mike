@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH recipient_channel AS (\n    SELECT c.id AS channel_id\n      FROM remote_control.channels c\n      JOIN sessions.sessions s ON s.session_uuid = c.local_session_uuid\n     WHERE c.cse_id = $1 AND s.session_uuid = $2\n)\nINSERT INTO remote_control.injections(event_id, channel_id, message_uuid, source_kind, source_id, frame)\nSELECT $4, channel_id, NULL, $3, NULL, $5 FROM recipient_channel\nRETURNING event_id AS \"event_id!\", created_at AS \"created_at!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "event_id!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "remote_control.injections",
+            "name": "event_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "remote_control.injections",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Text",
+        "Uuid",
+        "Bytea"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "6b5ab6ffcbf642904b76021f1997d03fada643af48a3bf1f090dede6139d29d6"
+}

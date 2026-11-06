@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE mailbox.messages\n                    SET sent_at           = COALESCE(sent_at, now()),\n                        consumed_at       = now(),\n                        delivery_attempts = delivery_attempts + 1\n                  WHERE message_uuid = $1\n                    AND claimed_at IS NOT NULL\n                    AND consumed_at IS NULL\n                    AND dead_lettered_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c262f7b383051c06d791ef8e346998ec4860cb3b2764aa16183f851bfaf6373c"
+}

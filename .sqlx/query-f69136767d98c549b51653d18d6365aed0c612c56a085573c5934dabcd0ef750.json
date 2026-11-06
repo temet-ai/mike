@@ -1,0 +1,128 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH injections AS MATERIALIZED (\n    SELECT i.lesson_id, r.operator_turn_id, r.created_at AS captured_at\n    FROM memory.lesson_injections i\n    JOIN requests.requests r ON r.id = i.request_id\n    JOIN memory.lessons l ON l.id = i.lesson_id\n    LEFT JOIN projects.projects p ON p.id = l.project_id\n    WHERE i.injected_at >= $2 AND i.injected_at < $3\n      AND ($1::text IS NULL OR p.project_path = $1)\n), counts AS (\n    SELECT lesson_id, count(*) AS recorded_injections FROM injections GROUP BY lesson_id\n), turns AS MATERIALIZED (\n    SELECT i.lesson_id, t.id AS turn_id, min(i.captured_at) AS exposed_at,\n           t.reaction, t.delivery, f.checks_failed\n    FROM injections i JOIN memory.operator_turns t ON t.id = i.operator_turn_id\n    JOIN memory.turn_facts f ON f.operator_turn_id = t.id\n    WHERE f.prompt_kind = 'genuine' AND f.text_chars > 0\n    GROUP BY i.lesson_id, t.id, t.reaction, t.delivery, f.checks_failed\n), outcomes AS (\n    SELECT lesson_id, count(*) AS exposed_turns,\n           count(*) FILTER (WHERE reaction IN ('accepted','corrected','redirected')) AS judged_turns,\n           count(*) FILTER (WHERE reaction = 'corrected') AS corrected_turns,\n           count(*) FILTER (WHERE reaction = 'accepted') AS accepted_turns,\n           count(*) FILTER (WHERE delivery IN ('shipped','delivered')) AS delivered_turns,\n           sum(checks_failed)::bigint AS failed_checks\n    FROM turns GROUP BY lesson_id\n), boundaries AS (\n    SELECT turn_id, min(exposed_at) AS exposed_at FROM turns GROUP BY turn_id\n), captured AS MATERIALIZED (\n    SELECT r.id AS request_id, r.operator_turn_id, r.created_at,\n           rsp.input_tokens, rsp.output_tokens, rsp.cache_read_input_tokens, rsp.cache_creation_input_tokens\n    FROM boundaries b JOIN requests.requests r ON r.operator_turn_id = b.turn_id\n    LEFT JOIN responses.responses rsp ON rsp.request_id = r.id\n    WHERE r.created_at >= b.exposed_at AND r.created_at < $3\n), tool_counts AS MATERIALIZED (\n    SELECT c.request_id, count(*) AS tool_calls\n    FROM captured c JOIN tools.uses u ON u.request_id = c.request_id GROUP BY c.request_id\n), usage AS (\n    SELECT t.lesson_id, sum(c.input_tokens)::bigint AS input_tokens,\n           sum(c.output_tokens)::bigint AS output_tokens,\n           sum(c.cache_read_input_tokens)::bigint AS cache_read_tokens,\n           sum(c.cache_creation_input_tokens)::bigint AS cache_write_tokens, count(*) AS requests,\n           count(*) FILTER (WHERE c.input_tokens IS NOT NULL AND c.output_tokens IS NOT NULL) AS usage_requests,\n           sum(coalesce(tc.tool_calls,0))::bigint AS tool_calls\n    FROM turns t JOIN captured c ON c.operator_turn_id = t.turn_id AND c.created_at >= t.exposed_at\n    LEFT JOIN tool_counts tc ON tc.request_id = c.request_id GROUP BY t.lesson_id\n)\nSELECT c.lesson_id AS \"lesson_id!\", c.recorded_injections AS \"recorded_injections!\",\n       coalesce(o.exposed_turns,0) AS \"exposed_turns!\",\n       coalesce(o.judged_turns,0) AS \"judged_turns!\",\n       coalesce(o.corrected_turns,0) AS \"corrected_turns!\",\n       coalesce(o.accepted_turns,0) AS \"accepted_turns!\",\n       coalesce(o.delivered_turns,0) AS \"delivered_turns!\",\n       u.input_tokens, u.output_tokens, u.cache_read_tokens, u.cache_write_tokens, coalesce(u.usage_requests,0) AS \"usage_requests!\",\n       coalesce(u.requests,0) AS \"requests!\", coalesce(u.tool_calls,0) AS \"tool_calls!\",\n       coalesce(o.failed_checks,0) AS \"whole_turn_failed_checks!\"\nFROM counts c LEFT JOIN outcomes o USING (lesson_id)\nLEFT JOIN usage u USING (lesson_id)\nORDER BY c.lesson_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lesson_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_injections",
+            "name": "lesson_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "recorded_injections!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "exposed_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "judged_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "corrected_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "accepted_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "delivered_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "input_tokens",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "output_tokens",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "cache_read_tokens",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "cache_write_tokens",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "usage_requests!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 12,
+        "name": "requests!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 13,
+        "name": "tool_calls!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 14,
+        "name": "whole_turn_failed_checks!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "f69136767d98c549b51653d18d6365aed0c612c56a085573c5934dabcd0ef750"
+}

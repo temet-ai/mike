@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO eval.turn_splits (operator_turn_id, split, split_reason)\n         VALUES ($1, eval.holdout_split($1, $2), 'hash')\n         ON CONFLICT (operator_turn_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4801f8b8c91ccd3fc7c360a3690e187401d44cc2eb8a8da58793e43237c94527"
+}

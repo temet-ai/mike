@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.operator_turn_chunks\n            (turn_id, chunk_idx, chunk_role_id, chunk_text, chunk_embedding, embedding_model)\n         SELECT $1, v.chunk_idx, v.chunk_role_id, v.chunk_text, v.chunk_embedding::vector, $2\n           FROM unnest($3::int4[], $4::int8[], $5::text[], $6::text[])\n                AS v(chunk_idx, chunk_role_id, chunk_text, chunk_embedding)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int4Array",
+        "Int8Array",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ccc94bf11b67c8921943a215974ac19b5f907456f874593df1e345d1ebe6f33f"
+}

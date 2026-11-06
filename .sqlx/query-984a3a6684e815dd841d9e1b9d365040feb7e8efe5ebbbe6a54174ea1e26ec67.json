@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE mailbox.messages m\n   SET sent_at = NULL,\n       claimed_at = NULL,\n       next_retry_at = NULL,\n       delivery_attempts = m.delivery_attempts + 1\n  FROM remote_control.injections i\n WHERE i.event_id = $1\n   AND i.message_uuid = m.message_uuid\n   AND i.acked_at IS NULL\n   AND m.consumed_at IS NULL\n   AND m.dead_lettered_at IS NULL\n   AND m.sent_request_id IS NULL\n   AND m.delivery_attempts < $2\n   AND NOT EXISTS (\n       SELECT 1 FROM remote_control.injections later\n        WHERE later.message_uuid = m.message_uuid\n          AND later.created_at > i.created_at\n   )\nRETURNING m.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "984a3a6684e815dd841d9e1b9d365040feb7e8efe5ebbbe6a54174ea1e26ec67"
+}

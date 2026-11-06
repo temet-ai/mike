@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO projects.machines(machine_uuid, name) VALUES ($1, $2)\n         ON CONFLICT(machine_uuid) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a75e0363b3fdc61e689245172dacce8af15ccda088a861fbb35578a021589f7d"
+}

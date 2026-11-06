@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.requests r\n                        SET turn_origin_id = o.id\n                       FROM UNNEST($1::bigint[], $2::text[]) AS u(request_id, code)\n                       JOIN requests.turn_origins o ON o.code = u.code\n                      WHERE r.id = u.request_id",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4b80b65f3499894fafd47c891698f25596e9ff635b558e279f10f033acb14dec"
+}

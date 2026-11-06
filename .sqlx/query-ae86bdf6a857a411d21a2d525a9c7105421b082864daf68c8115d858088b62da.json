@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE agents.work_items\n            SET state = 'running', finished_at = NULL, finished_request_id = NULL,\n                exit_code = NULL, summary = NULL\n          WHERE session_id = $1 AND task_id = $2 AND kind = 'agent' AND state <> 'running'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ae86bdf6a857a411d21a2d525a9c7105421b082864daf68c8115d858088b62da"
+}

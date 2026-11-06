@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workspace.change_events\n   SET session_id = $2,\n       kind = $3,\n       detail = detail || $4::jsonb\n WHERE id = $1\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "445200d5304d5208497ae12018f11af93d018087cc57920bbbb83692423dce46"
+}

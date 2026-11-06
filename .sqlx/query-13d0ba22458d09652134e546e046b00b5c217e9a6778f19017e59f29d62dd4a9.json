@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lesson_proposal_jobs SET updated_at = NOW(),\n                retry_count = least(retry_count + 1, 16),\n                next_attempt_at = NOW() + make_interval(secs => least(3600, 15 * power(2, least(retry_count + 1, 12))::integer))\n             WHERE verdict_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "13d0ba22458d09652134e546e046b00b5c217e9a6778f19017e59f29d62dd4a9"
+}

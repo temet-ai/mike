@@ -1,0 +1,19 @@
+[Unit]
+Description=mike proxy-forward MITM sidecar (:9987, Remote Control failover)
+Documentation=file://@PROJECT_ROOT@/docs/FORWARD_PROXY_WEBSOCKET_UPGRADE.md
+After=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=10
+
+[Service]
+Type=simple
+WorkingDirectory=@PROJECT_ROOT@
+ExecStart=@PROJECT_ROOT@/.deploy/proxy-forward.deployed serve --bind 127.0.0.1:9987
+UnsetEnvironment=CLAUDE_CODE_SESSION_ID
+Restart=always
+RestartSec=3
+StandardOutput=append:@PROJECT_ROOT@/.deploy/proxy-forward.log
+StandardError=append:@PROJECT_ROOT@/.deploy/proxy-forward.log
+
+[Install]
+WantedBy=default.target

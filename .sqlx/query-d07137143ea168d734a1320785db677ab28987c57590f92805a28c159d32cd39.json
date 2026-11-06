@@ -1,0 +1,81 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT i.steerer_id AS \"steerer_id!\", s.name AS \"steerer_name!\",\n                          i.payload_text, i.created_at AS \"created_at!\",\n                          CASE WHEN e.labelled_at <= $3 THEN e.outcome_label END\n                              AS \"outcome_label?\",\n                          CASE WHEN e.labelled_at <= $3 THEN e.label_evidence->>'reaction' END\n                              AS \"reaction?\"\n                     FROM steering.interventions i\n                     JOIN steering.verdicts v ON v.id = i.verdict_id AND v.code = 'fired'\n                     JOIN steering.steerers s ON s.id = i.steerer_id\n                     LEFT JOIN steering.evaluations e ON e.intervention_uuid = i.uuid\n                    WHERE i.session_id = $1\n                      AND i.created_at >= $2\n                      AND i.created_at <= $3\n                      AND (i.reverted_at IS NULL OR i.reverted_at > $3)\n                      AND (i.wake_state IS NULL\n                           OR i.wake_state IN ('pending', 'delivering', 'pushed', 'appended'))\n                      AND (i.delivered_request_id IS NOT NULL\n                           OR i.pushed_at IS NOT NULL\n                           OR i.expires_at > $3)\n                    ORDER BY i.created_at DESC\n                    LIMIT $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "steerer_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "steerer_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "steerer_name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "payload_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "payload_text"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "outcome_label?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "reaction?",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "d07137143ea168d734a1320785db677ab28987c57590f92805a28c159d32cd39"
+}

@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT request_body, request_body_size, payload_count, payload_kept_count,\n                  payload_type_counts AS \"counts: serde_json::Value\"\n             FROM remote_control.calls WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "request_body"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_body_size",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "request_body_size"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "payload_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "payload_count"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "payload_kept_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "payload_kept_count"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "counts: serde_json::Value",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "payload_type_counts"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "e99fae1a6a88e5278791c75f22d6f440e98a22e9b235d221d7b171a3d7dde828"
+}

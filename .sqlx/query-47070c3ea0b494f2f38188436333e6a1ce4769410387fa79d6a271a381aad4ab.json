@@ -1,0 +1,400 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.id, r.rollup_id, ro.for_day, r.family, r.metric, r.population, r.scope_kind, r.project_id,\n       r.window_start, r.window_end, r.window_days, r.role, r.bundle_id, r.bundle_label, r.axis,\n       r.class, r.label_tier, r.label_split, r.label_source, r.dimension, r.dimension_value,\n       r.steerer_id, r.question, r.mode, r.k, r.n, r.value, r.ci_low, r.ci_high, r.weighted,\n       r.n_effective, r.detail\n  FROM eval.rates r\n  JOIN eval.rollups ro ON ro.id = r.rollup_id\n WHERE r.rollup_id = $1\n ORDER BY r.family, r.role, r.axis, r.class, r.label_tier, r.label_split, r.label_source,\n          r.bundle_label NULLS FIRST, r.window_days NULLS FIRST, r.dimension_value, r.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "rollup_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "rollup_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "for_day",
+        "type_info": "Date",
+        "origin": {
+          "Table": {
+            "table": "eval.rollups",
+            "name": "for_day"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "family",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "family"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "metric",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "metric"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "population",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "population"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "scope_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "scope_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "window_start",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "window_start"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "window_end",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "window_end"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "window_days",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "window_days"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "role",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "role"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "bundle_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "bundle_id"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "bundle_label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "bundle_label"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "axis",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "axis"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "class",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "class"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "label_tier",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "label_tier"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "label_split",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "label_split"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "label_source",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "label_source"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "dimension",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "dimension"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "dimension_value",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "dimension_value"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "steerer_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "steerer_id"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "question",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "question"
+          }
+        }
+      },
+      {
+        "ordinal": 23,
+        "name": "mode",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "mode"
+          }
+        }
+      },
+      {
+        "ordinal": 24,
+        "name": "k",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "k"
+          }
+        }
+      },
+      {
+        "ordinal": 25,
+        "name": "n",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "n"
+          }
+        }
+      },
+      {
+        "ordinal": 26,
+        "name": "value",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "value"
+          }
+        }
+      },
+      {
+        "ordinal": 27,
+        "name": "ci_low",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "ci_low"
+          }
+        }
+      },
+      {
+        "ordinal": 28,
+        "name": "ci_high",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "ci_high"
+          }
+        }
+      },
+      {
+        "ordinal": 29,
+        "name": "weighted",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "weighted"
+          }
+        }
+      },
+      {
+        "ordinal": 30,
+        "name": "n_effective",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "n_effective"
+          }
+        }
+      },
+      {
+        "ordinal": 31,
+        "name": "detail",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "eval.rates",
+            "name": "detail"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "47070c3ea0b494f2f38188436333e6a1ce4769410387fa79d6a271a381aad4ab"
+}

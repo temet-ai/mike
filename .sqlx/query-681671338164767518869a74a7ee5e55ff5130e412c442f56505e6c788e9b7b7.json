@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workspace.session_registrations r\n                    SET lease_expires_at = $2\n                   FROM sessions.sessions s\n                  WHERE s.id = r.session_id\n                    AND s.session_uuid = $1\n                    AND r.released_at IS NULL\n              RETURNING r.session_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "session_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "681671338164767518869a74a7ee5e55ff5130e412c442f56505e6c788e9b7b7"
+}

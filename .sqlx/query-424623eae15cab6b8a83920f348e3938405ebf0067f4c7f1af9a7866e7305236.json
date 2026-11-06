@@ -1,0 +1,63 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH ends AS (\n    SELECT DISTINCT ON (t.session_id) t.session_id, t.id AS end_turn_id, t.closed_at, f.next_state\n      FROM memory.operator_turns t\n      JOIN memory.turn_facts f ON f.operator_turn_id = t.id\n      JOIN requests.requests r ON r.id = t.start_request_id\n     WHERE f.prompt_kind = 'genuine' AND r.claude_code_agent_id IS NULL\n       AND t.closed_at >= $2 AND t.closed_at < $3\n     ORDER BY t.session_id, t.start_request_id DESC\n)\nSELECT s.id AS session_db_id, s.session_uuid::text AS \"session_uuid!\", e.end_turn_id AS \"end_turn_id!\", e.closed_at AS \"closed_at?\"\n  FROM ends e\n  JOIN sessions.sessions s ON s.id = e.session_id\n  LEFT JOIN session_judges.attempts att\n         ON att.session_id = s.id AND att.judge_model = $5 AND att.rubric_version = 3\n WHERE e.next_state = 'none_session_settled'\n   AND NOT EXISTS (\n       SELECT 1 FROM session_judges.verdicts v\n        WHERE v.mode = 'live' AND v.end_turn_id = e.end_turn_id AND v.bundle_id = $1)\n   AND (att.session_id IS NULL OR att.consecutive_failures < 5)\n ORDER BY e.closed_at\n LIMIT $4\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_db_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_uuid!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "end_turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "closed_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "closed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Timestamptz",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      false,
+      true
+    ]
+  },
+  "hash": "424623eae15cab6b8a83920f348e3938405ebf0067f4c7f1af9a7866e7305236"
+}

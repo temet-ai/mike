@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH wire AS (\n             SELECT u.ord, u.name, u.sha, u.body, u.byte_size\n               FROM UNNEST($2::int[], $3::text[], $4::text[], $5::bytea[], $6::int[])\n                    AS u(ord, name, sha, body, byte_size)\n              WHERE NOT EXISTS (SELECT 1 FROM requests.tools rt WHERE rt.request_id = $1)\n         ),\n         distinct_wire AS (\n             SELECT DISTINCT ON (sha) sha, name, body, byte_size\n               FROM wire\n              ORDER BY sha, ord\n         ),\n         recent_request AS (\n             SELECT r.id\n               FROM requests.requests r\n              WHERE r.session_id = $7\n                AND r.id <> $1\n                AND EXISTS (SELECT 1 FROM requests.tools rt WHERE rt.request_id = r.id)\n              ORDER BY r.created_at DESC, r.id DESC\n              LIMIT 3\n         ),\n         recent_definition AS (\n             SELECT DISTINCT ON (d.definition_sha256) d.definition_sha256 AS sha, d.id\n               FROM tools.definitions d\n              WHERE d.id IN (\n                        SELECT rt.definition_id\n                          FROM recent_request rr\n                          JOIN requests.tools rt ON rt.request_id = rr.id\n                    )\n                AND d.definition_sha256 IN (SELECT sha FROM distinct_wire)\n              ORDER BY d.definition_sha256, d.id\n         ),\n         unmatched AS (\n             SELECT dw.sha, dw.name, dw.body, dw.byte_size\n               FROM distinct_wire dw\n              WHERE NOT EXISTS (SELECT 1 FROM recent_definition k WHERE k.sha = dw.sha)\n         ),\n         stored_definition AS (\n             SELECT DISTINCT ON (d.definition_sha256) d.definition_sha256 AS sha, d.id\n               FROM tools.definitions d\n              WHERE EXISTS (SELECT 1 FROM unmatched)\n                AND d.definition_sha256 IN (SELECT sha FROM unmatched)\n              ORDER BY d.definition_sha256, d.id\n         ),\n         created AS (\n             INSERT INTO tools.definitions (definition_sha256, tool_name, body, byte_size)\n             SELECT um.sha, um.name, um.body, um.byte_size\n               FROM unmatched um\n              WHERE NOT EXISTS (SELECT 1 FROM stored_definition s WHERE s.sha = um.sha)\n             RETURNING id, definition_sha256 AS sha\n         ),\n         definition AS (\n             SELECT sha, id FROM recent_definition\n             UNION ALL\n             SELECT sha, id FROM stored_definition\n             UNION ALL\n             SELECT sha, id FROM created\n         )\n         INSERT INTO requests.tools (request_id, ord, tool_name, definition_id)\n         SELECT $1, wire.ord, wire.name, definition.id\n           FROM wire\n           JOIN definition ON definition.sha = wire.sha",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int4Array",
+        "TextArray",
+        "TextArray",
+        "ByteaArray",
+        "Int4Array",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "44e318394ae2c13ccea3035f7f1afbd500fad14cea73e2a761ca4934acd75d1b"
+}

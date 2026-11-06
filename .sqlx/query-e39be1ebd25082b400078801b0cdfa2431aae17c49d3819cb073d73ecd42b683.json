@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT d.body\n           FROM requests.tools rt\n           JOIN tools.definitions d ON d.id = rt.definition_id\n          WHERE rt.request_id = $1\n          ORDER BY rt.ord ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "tools.definitions",
+            "name": "body"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e39be1ebd25082b400078801b0cdfa2431aae17c49d3819cb073d73ecd42b683"
+}

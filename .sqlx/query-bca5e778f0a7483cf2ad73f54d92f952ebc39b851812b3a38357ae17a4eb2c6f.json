@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT g.generation AS \"generation!\",\n                          (SELECT count(*) FROM memory.lessons l\n                            WHERE l.expires_at IS NOT NULL AND l.expires_at <= NOW()) AS \"expired!\"\n                     FROM memory.change_generations g\n                    WHERE g.name = 'lessons'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "generation!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.change_generations",
+            "name": "generation"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "expired!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "bca5e778f0a7483cf2ad73f54d92f952ebc39b851812b3a38357ae17a4eb2c6f"
+}

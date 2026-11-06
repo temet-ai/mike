@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.requests r\n    SET turn_origin_id = new_origin.id,\n        author_kind_id = new_author.id\n   FROM jsonb_to_recordset($1::jsonb) AS x(id bigint, new_origin text, new_author text)\n   JOIN requests.turn_origins new_origin ON new_origin.code = x.new_origin\n   JOIN requests.author_kinds new_author ON new_author.code = x.new_author\n  WHERE r.id = x.id\n    AND r.created_at >= $2 AND r.created_at < $3\n    AND (r.turn_origin_id, r.author_kind_id) IS DISTINCT FROM (new_origin.id, new_author.id)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Jsonb",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8f3561cb05f5bba3bbd07f7f158c88c7ccc7b143da89a478076e344b91d594b9"
+}

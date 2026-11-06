@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH parsed AS (\n             SELECT id,\n                    regexp_split_to_array(\n                        trim(both '/' FROM regexp_replace(project_path, '/+', '/', 'g')),\n                        '/'\n                    ) AS segs\n               FROM projects.projects\n              WHERE id = $1\n         ),\n         derived AS (\n             SELECT id,\n                    CASE\n                        WHEN array_length(segs, 1) > 2\n                            THEN array_to_string(segs[3:array_length(segs, 1)], '/')\n                        ELSE array_to_string(segs, '/')\n                    END AS derived_display_name\n               FROM parsed\n         )\n         UPDATE projects.projects p\n            SET display_name = derived.derived_display_name\n           FROM derived\n          WHERE p.id = derived.id\n            AND p.display_name IS DISTINCT FROM derived.derived_display_name",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6011ae453022ff4506794ebb4c021a06aa49a5e9f4b863e2c75f76eb9beac978"
+}

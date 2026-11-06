@@ -1,0 +1,208 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id AS \"id!\", role AS \"role!\", subject_key AS \"subject_key!\", origin AS \"origin!\",\n       status AS \"status!\", components AS \"components!\", content_sha256 AS \"content_sha256!\",\n       build_sha AS \"build_sha!\", build_dirty AS \"build_dirty!\", cause AS \"cause!\",\n       created_at AS \"created_at!\", superseded_at, superseded_by_id,\n       gate_run_id, promoted_at, override_reason\n  FROM eval.bundles\n WHERE id = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "role!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "role"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "subject_key!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "subject_key"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "origin!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "origin"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "status!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "components!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "components"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "content_sha256!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "content_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "build_sha!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "build_sha"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "build_dirty!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "build_dirty"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "cause!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "cause"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "superseded_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "superseded_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "superseded_by_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "superseded_by_id"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "gate_run_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "gate_run_id"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "promoted_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "promoted_at"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "override_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "override_reason"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "d033f71367cefd4f84e9122b8a3bfaaef951f747e4cc4cfd715c6ac2c63c2f9a"
+}

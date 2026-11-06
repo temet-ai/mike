@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH closed AS (\n    UPDATE launch.launches\n       SET closed_at = COALESCE(closed_at, now()),\n           close_reason = COALESCE(close_reason, $3),\n           close_process_exited = CASE\n               WHEN close_process_exited IS TRUE OR $4::boolean IS TRUE THEN TRUE\n               WHEN close_process_exited IS FALSE OR $4::boolean IS FALSE THEN FALSE\n               ELSE NULL\n           END\n     WHERE id = $1\n       AND run_id = $2\n       AND opened\n    RETURNING id, session_uuid, close_process_exited\n), released AS (\n    UPDATE workspace.session_registrations AS registration\n       SET released_at = now()\n      FROM closed\n      JOIN sessions.sessions AS session\n        ON session.session_uuid = closed.session_uuid\n     WHERE registration.session_id = session.id\n       AND registration.released_at IS NULL\n       AND closed.close_process_exited IS TRUE\n    RETURNING registration.session_id\n)\nSELECT id AS \"id!\" FROM closed\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "81f6e5749a3fa95052a26a1170d89bf7bb78c214aac42b51d6b5d65f89cab419"
+}

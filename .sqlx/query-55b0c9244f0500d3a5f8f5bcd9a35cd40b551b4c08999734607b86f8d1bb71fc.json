@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE steering.steerers\n                    SET deleted_at = NOW(),\n                        enabled    = false,\n                        updated_at = NOW()\n                  WHERE id = $1\n                    AND deleted_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "55b0c9244f0500d3a5f8f5bcd9a35cd40b551b4c08999734607b86f8d1bb71fc"
+}

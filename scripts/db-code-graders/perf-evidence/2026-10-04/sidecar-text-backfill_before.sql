@@ -1,0 +1,1 @@
+UPDATE memory.operator_turns t SET final_assistant_text = final_assistant_text WHERE t.id IN (SELECT DISTINCT r.operator_turn_id FROM requests.requests r JOIN requests.turn_origins o ON o.id = r.turn_origin_id AND o.code LIKE '%sidecar' WHERE r.operator_turn_id IS NOT NULL AND r.created_at > now() - interval '14 days');

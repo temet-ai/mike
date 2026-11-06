@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM launch.run_records WHERE fleet_uuid = $1\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f4589ecb89a51e0c4d25a9bbe6275cb2459d9181ad811668e37ce24f887c2890"
+}

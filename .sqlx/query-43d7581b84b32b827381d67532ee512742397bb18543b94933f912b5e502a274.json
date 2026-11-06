@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                WITH ranked AS (\n                    SELECT r.id,\n                           row_number() OVER (\n                               PARTITION BY r.session_id ORDER BY r.id\n                           ) AS rn\n                      FROM requests.requests r\n                      JOIN requests.turn_origins o ON o.id = r.turn_origin_id\n                     WHERE o.code = 'primary_first'\n                )\n                UPDATE requests.requests r\n                   SET turn_origin_id = p.id\n                  FROM ranked, requests.turn_origins p\n                 WHERE ranked.rn > 1\n                   AND r.id = ranked.id\n                   AND p.code = 'primary'\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "43d7581b84b32b827381d67532ee512742397bb18543b94933f912b5e502a274"
+}

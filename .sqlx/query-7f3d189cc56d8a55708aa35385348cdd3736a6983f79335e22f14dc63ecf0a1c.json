@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE eval.import_batches\n                    SET manifest = manifest || jsonb_build_object('dropped_split_conflicts', $2::jsonb)\n                  WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7f3d189cc56d8a55708aa35385348cdd3736a6983f79335e22f14dc63ecf0a1c"
+}

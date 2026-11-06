@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE eval.bundles\n                    SET status = 'retired', superseded_at = now(), superseded_by_id = $2\n                  WHERE id = $1 AND status IN ('live', 'live_ungated') AND id <> $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "973e03f80faa4b2f108c38372f1ebc241061289719f48ee68d914ae99ca243b3"
+}

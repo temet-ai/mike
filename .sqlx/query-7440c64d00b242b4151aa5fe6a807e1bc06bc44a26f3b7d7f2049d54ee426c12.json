@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT request_id AS \"request_id!\",\n                          created_at AS \"created_at!\",\n                          convert_from(substring(request_body\n                                                 from greatest(1, pos - 120) for 400),\n                                       'UTF8') AS excerpt\n                     FROM (\n                         SELECT r.id AS request_id,\n                                r.created_at,\n                                r.request_body,\n                                position(convert_to($2, 'UTF8') in r.request_body) AS pos\n                           FROM requests.requests r\n                          WHERE r.session_id = $1\n                            AND r.created_at >= $3\n                            AND r.request_body IS NOT NULL\n                            AND position(convert_to($2, 'UTF8') in r.request_body) > 0\n                          LIMIT $4\n                     ) hits\n                    ORDER BY created_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "excerpt",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "7440c64d00b242b4151aa5fe6a807e1bc06bc44a26f3b7d7f2049d54ee426c12"
+}

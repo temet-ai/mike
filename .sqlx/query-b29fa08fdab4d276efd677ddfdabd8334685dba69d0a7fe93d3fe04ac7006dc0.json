@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT CASE WHEN l.last_seen > c.last_seen THEN c.location_uuid ELSE l.location_uuid END AS \"loser!\",\n                CASE WHEN l.last_seen > c.last_seen THEN l.location_uuid ELSE c.location_uuid END AS \"winner!\"\n           FROM projects.locations l\n           JOIN projects.locations c ON c.root_path = l.root_path AND c.machine_uuid = $2\n          WHERE l.machine_uuid = $1\n            FOR UPDATE OF l, c",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "loser!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "winner!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "b29fa08fdab4d276efd677ddfdabd8334685dba69d0a7fe93d3fe04ac7006dc0"
+}

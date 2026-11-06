@@ -1,0 +1,43 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO tools.definitions (definition_sha256, tool_name, body, byte_size)\n             SELECT u.sha, u.name, u.body, u.byte_size\n             FROM UNNEST($1::text[], $2::text[], $3::bytea[], $4::int[])\n                  AS u(sha, name, body, byte_size)\n             RETURNING id AS \"id!\", definition_sha256 AS \"definition_sha256!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.definitions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "definition_sha256!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.definitions",
+            "name": "definition_sha256"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        "ByteaArray",
+        "Int4Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "53b523af7821898c23bee126e2e122f8da374d7f4aa61cfea1bc600aee7680a7"
+}

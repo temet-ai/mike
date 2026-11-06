@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO eval.gates (candidate_run_id, baseline_run_id, noise_run_id,\n                       holdout_batch, verdict, floors, report, override_reason)\n                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)\n                   RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.gates",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9ffcad5f7d72565f76c485c7b05d33beffb5c4f00b62ae659126134ad4d7daf2"
+}

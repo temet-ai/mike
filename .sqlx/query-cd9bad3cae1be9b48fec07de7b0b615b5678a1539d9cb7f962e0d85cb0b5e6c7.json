@@ -1,0 +1,316 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.id AS \"id!\",\n       l.subject_kind AS \"subject_kind!\",\n       l.subject_id AS \"subject_id!\",\n       l.operator_turn_id AS \"operator_turn_id!\",\n       l.session_id AS \"session_id!\",\n       l.session_uuid AS \"session_uuid!\",\n       l.axis AS \"axis!\",\n       l.label AS \"label!\",\n       l.action AS \"action!\",\n       l.tier AS \"tier!\",\n       l.method AS \"method!\",\n       l.split AS \"split!\",\n       l.tags AS \"tags!\",\n       l.severity AS \"severity?\",\n       l.confidence AS \"confidence?\",\n       l.evidence AS \"evidence?\",\n       l.note AS \"note?\",\n       l.source AS \"source!\",\n       l.provenance AS \"provenance!\",\n       l.inclusion_prob AS \"inclusion_prob?\",\n       l.verdict_snapshot AS \"verdict_snapshot?\",\n       l.verdict_bundle_id AS \"verdict_bundle_id?\",\n       l.import_batch_id AS \"import_batch_id?\",\n       l.supersedes_id AS \"supersedes_id?\",\n       l.created_at AS \"created_at!\"\n  FROM eval.labels_current_v l\n WHERE l.id = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "subject_kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "subject_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "subject_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "subject_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "operator_turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "axis!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "axis"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "label!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "label"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "action!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "action"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "tier!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "tier"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "method!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "method"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "split!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "split"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "tags!",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "tags"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "severity?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "severity"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "confidence?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "confidence"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "evidence?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "evidence"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "note?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "note"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "provenance!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "provenance"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "inclusion_prob?",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "inclusion_prob"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "verdict_snapshot?",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "verdict_snapshot"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "verdict_bundle_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "verdict_bundle_id"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "import_batch_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "import_batch_id"
+          }
+        }
+      },
+      {
+        "ordinal": 23,
+        "name": "supersedes_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "supersedes_id"
+          }
+        }
+      },
+      {
+        "ordinal": 24,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.labels_current_v",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "cd9bad3cae1be9b48fec07de7b0b615b5678a1539d9cb7f962e0d85cb0b5e6c7"
+}

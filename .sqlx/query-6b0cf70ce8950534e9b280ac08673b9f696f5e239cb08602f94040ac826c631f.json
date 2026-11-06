@@ -1,0 +1,150 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE eval.alarms\n                      SET acknowledged_at = now(), ack_note = $2\n                    WHERE id = $1 AND (acknowledged_at IS NULL OR $3)\n                    RETURNING id AS \"id!\", kind AS \"kind!\", subject AS \"subject!\",\n                              first_seen_at AS \"first_seen_at!\", last_seen_at AS \"last_seen_at!\",\n                              cleared_at AS \"cleared_at?\", evaluations AS \"evaluations!\",\n                              quiet_evaluations AS \"quiet_evaluations!\", detail AS \"detail!\",\n                              acknowledged_at AS \"acknowledged_at?\", ack_note AS \"ack_note?\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "subject!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "subject"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "first_seen_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "first_seen_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "last_seen_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "last_seen_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "cleared_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "cleared_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "evaluations!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "evaluations"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "quiet_evaluations!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "quiet_evaluations"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "detail!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "detail"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "acknowledged_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "acknowledged_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "ack_note?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "ack_note"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "6b0cf70ce8950534e9b280ac08673b9f696f5e239cb08602f94040ac826c631f"
+}

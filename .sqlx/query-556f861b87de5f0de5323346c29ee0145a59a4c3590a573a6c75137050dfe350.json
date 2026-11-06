@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.skill_drafts\n                    SET authored_skill_md = coalesce(authored_skill_md, skill_md),\n                        skill_md = $2,\n                        edited_at = now()\n                  WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "556f861b87de5f0de5323346c29ee0145a59a4c3590a573a6c75137050dfe350"
+}

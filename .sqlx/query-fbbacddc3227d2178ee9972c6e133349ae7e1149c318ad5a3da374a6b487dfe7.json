@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO agents.work_items\n            (session_id, wire_tool_use_id, kind, task_id, output_path, owner_agent_id,\n             description, launched_request_id, launched_at)\n         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n         ON CONFLICT (wire_tool_use_id) DO UPDATE\n            SET launched_at = LEAST(agents.work_items.launched_at, EXCLUDED.launched_at)\n          WHERE agents.work_items.launched_at > EXCLUDED.launched_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fbbacddc3227d2178ee9972c6e133349ae7e1149c318ad5a3da374a6b487dfe7"
+}

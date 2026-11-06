@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+# mike runs this in a clean checkout of the repository, which carries no node_modules:
+# the check installs what it needs before it runs.
+[ -x node_modules/.bin/tsc ] || npm install --no-audit --no-fund --silent
+npm run --silent typecheck
+npm test --silent

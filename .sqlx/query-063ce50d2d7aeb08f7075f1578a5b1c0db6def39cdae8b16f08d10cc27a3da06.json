@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO steering.threshold_pass_runs\n                        (rollup_id, outcome, threshold_mode, rows_written, applied, n_by_source, detail)\n                 VALUES ($1, $2, $3, $4, $5, $6, $7)\n                 ON CONFLICT (rollup_id) DO UPDATE\n                    SET last_ran_at = now(),\n                        attempts = steering.threshold_pass_runs.attempts + 1,\n                        outcome = EXCLUDED.outcome,\n                        threshold_mode = EXCLUDED.threshold_mode,\n                        rows_written = EXCLUDED.rows_written,\n                        applied = EXCLUDED.applied,\n                        n_by_source = EXCLUDED.n_by_source,\n                        detail = EXCLUDED.detail",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Int4",
+        "Int4",
+        "Jsonb",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "063ce50d2d7aeb08f7075f1578a5b1c0db6def39cdae8b16f08d10cc27a3da06"
+}

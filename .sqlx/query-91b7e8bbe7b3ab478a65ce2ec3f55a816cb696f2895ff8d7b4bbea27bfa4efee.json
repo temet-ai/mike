@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"fired!\", count(i.delivered_request_id) AS \"delivered!\"\n                     FROM steering.interventions i\n                     JOIN steering.steerers s2 ON s2.id = i.steerer_id AND s2.kind = 'verifier'\n                     JOIN sessions.sessions s ON s.id = i.session_id\n                    WHERE s.session_uuid = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "fired!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "delivered!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "91b7e8bbe7b3ab478a65ce2ec3f55a816cb696f2895ff8d7b4bbea27bfa4efee"
+}

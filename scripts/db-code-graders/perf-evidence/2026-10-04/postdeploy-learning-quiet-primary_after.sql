@@ -1,0 +1,1 @@
+SELECT EXISTS (SELECT 1 FROM requests.requests r JOIN requests.turn_origins o ON o.id = r.turn_origin_id WHERE r.created_at >= NOW() - interval '5 minutes' AND o.code IN ('primary','primary_first')) AS active

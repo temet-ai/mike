@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT ON (i.kind) i.kind, i.embedding::text AS \"vec!\"\n                     FROM memory.semantic_items i\n                    WHERE i.operator_turn_id = $1 AND i.embedder_key = $2\n                      AND i.kind IN ('turn_prompt', 'turn_ending')\n                    ORDER BY i.kind, i.builder_version DESC, i.id DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "vec!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "d0f2c67e3e954abca99888846d9b1ce22f69ee5fd9bac75c2be43f1d7eb5df59"
+}

@@ -1,0 +1,1304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mike in Motion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap">
+<style>
+:root {
+	color-scheme: dark;
+	--bg: #0e1116;
+	--s1: #14181e;
+	--s2: #191f26;
+	--s3: #1f2630;
+	--line: #333d4b;
+	--line-strong: #57657a;
+	--t1: #dae1ea;
+	--t2: #b6c1cf;
+	--t3: #8b95a4;
+	--cyan: #22d9ff;
+	--magenta: #ff2e88;
+	--green: #2ee56b;
+	--red: #ff4d4d;
+	--blue: #4d8dff;
+	--yellow: #ffc933;
+	--violet: #b48cff;
+	--anthropic: #d97757;
+	--mike: #5fe0a0;
+	--chip-cyan: #142830;
+	--chip-magenta: #2a1420;
+	--chip-green: #14291c;
+	--chip-red: #2a1517;
+	--chip-blue: #16202f;
+	--chip-yellow: #2a2414;
+	--edge: 11px;
+	--mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+	--display: 'Syne', 'Avenir Next', 'Segoe UI', sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { background: var(--bg); }
+body {
+	color: var(--t1);
+	font: 400 14px/1.55 var(--mono);
+	padding-inline: 16px;
+	padding-block: 28px 56px;
+}
+.wrap { max-width: 1320px; margin: 0 auto; display: grid; gap: 22px; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+/* header */
+.top { display: grid; gap: 10px; }
+.eyebrow {
+	font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+	color: var(--cyan); display: flex; gap: 12px; flex-wrap: wrap;
+}
+.eyebrow span + span::before { content: '/'; margin-right: 12px; color: var(--line-strong); }
+h1 {
+	font-family: var(--display); font-weight: 800; font-size: clamp(34px, 6vw, 58px);
+	line-height: 1; margin: 0; letter-spacing: -0.01em; text-wrap: balance;
+}
+h1 em { font-style: normal; color: var(--mike); }
+.lede { color: var(--t2); max-width: 72ch; margin: 0; }
+
+/* scene tabs */
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.tab {
+	background: var(--s1); border: 1px solid var(--line); cursor: pointer;
+	padding: 9px 14px 9px 12px; display: grid; gap: 1px; text-align: left; min-width: 150px;
+	clip-path: polygon(var(--edge) 0, 100% 0, 100% calc(100% - var(--edge)), calc(100% - var(--edge)) 100%, 0 100%, 0 var(--edge));
+}
+.tab b { font-family: var(--display); font-size: 16px; font-weight: 700; }
+.tab small { color: var(--t3); font-size: 11px; }
+.tab:hover { border-color: var(--line-strong); }
+.tab[aria-selected='true'] { border-color: var(--cyan); background: var(--chip-cyan); }
+.tab[aria-selected='true'] b { color: var(--cyan); }
+
+/* scene */
+.scene { display: grid; gap: 14px; }
+.scene-head { display: grid; gap: 6px; }
+.scene-head h2 { font-family: var(--display); font-size: 26px; margin: 0; font-weight: 700; text-wrap: balance; }
+.scene-head p { margin: 0; color: var(--t2); max-width: 80ch; }
+.scene-head code, .side code, .note code, p code { color: var(--t1); background: var(--s3); padding: 0 4px; font-size: 0.92em; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 14px; align-items: start; }
+@media (max-width: 980px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+.panel {
+	background: var(--s1); border: 1px solid var(--line);
+	clip-path: polygon(var(--edge) 0, 100% 0, 100% calc(100% - var(--edge)), calc(100% - var(--edge)) 100%, 0 100%, 0 var(--edge));
+}
+.stage { display: grid; gap: 0; min-width: 0; }
+.svgbox { overflow-x: auto; padding: 10px; }
+.svgbox svg { display: block; width: 100%; min-width: 760px; height: auto; }
+.legend {
+	display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 10px 14px; border-top: 1px solid var(--line);
+	font-size: 11px; color: var(--t3);
+}
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+
+/* side panel */
+.side { display: grid; gap: 0; }
+.ctrl { display: flex; gap: 6px; align-items: center; padding: 10px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.btn {
+	background: var(--s2); border: 1px solid var(--line); padding: 6px 10px; cursor: pointer; font-size: 12px;
+}
+.btn:hover { border-color: var(--line-strong); }
+.btn.primary { border-color: var(--cyan); color: var(--cyan); min-width: 74px; }
+.count { margin-left: auto; color: var(--t3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.steps { list-style: none; margin: 0; padding: 6px; display: grid; gap: 2px; max-height: 620px; overflow-y: auto; }
+.steps li > button {
+	width: 100%; background: none; border: 0; text-align: left; cursor: pointer; padding: 7px 8px;
+	display: grid; grid-template-columns: 26px 1fr; gap: 6px; align-items: baseline; color: var(--t2);
+}
+.steps li > button:hover { background: var(--s2); }
+.steps .n { color: var(--t3); font-size: 11px; font-variant-numeric: tabular-nums; }
+.steps li.done > button { color: var(--t3); }
+.steps li.cur > button { color: var(--t1); background: var(--s2); }
+.steps li.cur .n { color: var(--cyan); }
+.steps li p { display: none; margin: 0; padding: 4px 10px 12px 40px; color: var(--t2); font-size: 12.5px; }
+.steps li.cur p { display: block; }
+
+/* svg bits */
+.wire { fill: none; stroke: var(--line-strong); stroke-width: 1.4; stroke-dasharray: 3 5; opacity: 0.6; }
+.wire.lit { stroke: var(--c); stroke-dasharray: none; opacity: 0.55; }
+.wire.live { stroke: var(--c); stroke-dasharray: 7 6; opacity: 1; stroke-width: 2; animation: march 0.5s linear infinite; }
+.wire.live.rev { animation-direction: reverse; }
+@keyframes march { to { stroke-dashoffset: -13; } }
+.life { stroke: var(--line); stroke-dasharray: 2 5; stroke-width: 1; fill: none; }
+.node .box { fill: var(--fill); stroke: var(--ln); stroke-width: 1.2; transition: stroke 0.25s, fill 0.25s; }
+.node .l { fill: var(--fg); font: 600 13px var(--mono); }
+.node .s { fill: var(--t3); font: 400 10.5px var(--mono); }
+.node.on .box { stroke: var(--fg); stroke-width: 1.8; filter: drop-shadow(0 0 7px var(--glow)); }
+.node.dim { opacity: 0.45; }
+.node.fire .box { stroke: var(--magenta); fill: var(--chip-magenta); stroke-width: 2; filter: drop-shadow(0 0 8px rgb(255 46 136 / 55%)); }
+.node.skip .box { stroke: var(--yellow); stroke-dasharray: 4 3; }
+.plabel { font: 600 11px var(--mono); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
+.wtext { font: 500 10.5px var(--mono); fill: var(--t3); opacity: 0; transition: opacity 0.3s; paint-order: stroke; stroke: var(--bg); stroke-width: 4px; }
+.wtext.show { opacity: 1; fill: var(--t2); }
+.lanehead .l { font-size: 12.5px; }
+#svg-stages .node .l { font-size: 12px; }
+.tick { font: 400 10px var(--mono); fill: var(--t3); }
+
+/* scene 2 */
+.presets { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px; border-bottom: 1px solid var(--line); }
+.preset[aria-pressed='true'] { border-color: var(--magenta); color: var(--magenta); background: var(--chip-magenta); }
+.nowcard { padding: 12px 14px; display: grid; gap: 6px; border-bottom: 1px solid var(--line); min-height: 150px; }
+.nowcard .k { font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t3); }
+.nowcard .name { font-family: var(--display); font-size: 20px; font-weight: 700; }
+.nowcard .gate { font-size: 12px; color: var(--t2); }
+.nowcard .fx { font-size: 12.5px; color: var(--t1); }
+.pill { display: inline-block; font-size: 10.5px; padding: 1px 7px; border: 1px solid var(--line-strong); color: var(--t2); margin-right: 6px; }
+.pill.on { border-color: var(--magenta); color: var(--magenta); background: var(--chip-magenta); }
+.pill.off { color: var(--t3); }
+.pill.skip { border-color: var(--yellow); color: var(--yellow); background: var(--chip-yellow); }
+.pill.ok { border-color: var(--green); color: var(--green); background: var(--chip-green); }
+.verdict { padding: 12px 14px; display: grid; gap: 8px; font-size: 12.5px; }
+.verdict .big { font-family: var(--display); font-size: 17px; font-weight: 700; }
+.verdict ul { margin: 0; padding-left: 18px; color: var(--t2); display: grid; gap: 4px; }
+.hint { font-size: 11.5px; color: var(--t3); padding: 10px 14px; border-top: 1px solid var(--line); }
+.bodies { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-top: 1px solid var(--line); }
+@media (max-width: 700px) { .bodies { grid-template-columns: 1fr; } }
+.body { padding: 10px 14px 14px; min-width: 0; }
+.body + .body { border-left: 1px solid var(--line); }
+@media (max-width: 700px) { .body + .body { border-left: 0; border-top: 1px solid var(--line); } }
+.body h3 { margin: 0 0 2px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.body .sub { font-size: 11px; color: var(--t3); margin-bottom: 8px; }
+.body ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; font-size: 11.5px; }
+.body li { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; padding: 2px 6px; }
+.body li .key { color: var(--t3); }
+.body li .val { color: var(--t2); overflow-wrap: anywhere; }
+.body li.mod { background: var(--chip-magenta); }
+.body li.mod .val { color: var(--t1); }
+.body li.add { background: var(--chip-magenta); }
+.body li.add .key { color: var(--magenta); }
+.body li.add .val { color: var(--t1); }
+.body li.fwd { background: var(--chip-cyan); }
+.body li.fwd .key { color: var(--cyan); }
+.body li .old { text-decoration: line-through; color: var(--t3); margin-right: 6px; }
+.body li.flash { animation: flash 0.9s ease-out; }
+@keyframes flash { from { background: rgb(255 46 136 / 45%); } }
+
+/* scene 3 */
+.scen { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px; border-bottom: 1px solid var(--line); }
+.scen .btn[aria-pressed='true'] { border-color: var(--cyan); color: var(--cyan); background: var(--chip-cyan); }
+.streams { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); }
+@media (max-width: 700px) { .streams { grid-template-columns: 1fr; } }
+.stream { padding: 10px 14px 14px; min-height: 96px; min-width: 0; }
+.stream + .stream { border-left: 1px solid var(--line); }
+@media (max-width: 700px) { .stream + .stream { border-left: 0; border-top: 1px solid var(--line); } }
+.stream h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t3); }
+.stream .txt { font-size: 13px; color: var(--t1); white-space: pre-wrap; overflow-wrap: anywhere; }
+.stream .txt.gone { color: var(--red); text-decoration: line-through; }
+.stream .txt .ww { background: var(--chip-red); color: var(--red); outline: 1px solid rgb(255 77 77 / 45%); }
+.stream .txt .tool { color: var(--magenta); }
+.stream .meta { margin-top: 8px; font-size: 11px; color: var(--t3); }
+.stream .meta.bad { color: var(--red); }
+.caret::after { content: '▍'; color: var(--cyan); margin-left: 1px; }
+
+/* scene 5 */
+.boot { display: grid; gap: 0; min-width: 0; }
+.term { background: var(--bg); margin: 10px; border: 1px solid var(--line); padding: 12px 14px; min-height: 250px; max-height: 330px; overflow-y: auto; font-size: 12px; }
+.term .ln { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 6px; }
+.term .ln .p { color: var(--line-strong); }
+.term .fn { color: var(--mike); }
+.term .c { color: var(--t3); }
+.term .w { color: var(--yellow); }
+.term .x { color: var(--red); }
+.term .ln.new { animation: flash-t 0.8s ease-out; }
+@keyframes flash-t { from { background: var(--chip-green); } }
+.row2 { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 14px; padding: 0 10px 10px; }
+@media (max-width: 760px) { .row2 { grid-template-columns: minmax(0, 1fr); } }
+.blk h3 { margin: 4px 0 8px; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t3); font-weight: 600; }
+.ports { display: grid; gap: 6px; }
+.port { display: grid; grid-template-columns: 12px 1fr; gap: 10px; align-items: center; padding: 8px 10px; background: var(--s2); border: 1px solid var(--line); font-size: 12px; }
+.port i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.port small { display: block; color: var(--t3); font-size: 10.5px; }
+.port.on { border-color: rgb(46 229 107 / 45%); }
+.port.on i { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.port.down i { background: var(--red); }
+.workers { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.wk { padding: 7px 9px; background: var(--s2); border: 1px solid var(--line); font-size: 11.5px; display: grid; gap: 2px; opacity: 0.35; transition: opacity 0.3s, border-color 0.3s; }
+.wk small { color: var(--t3); font-size: 10px; }
+.wk .st { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--t3); }
+.wk.seen { opacity: 1; }
+.wk.seen.on { border-color: rgb(46 229 107 / 45%); }
+.wk.seen.on .st { color: var(--green); }
+.wk.seen.off .st { color: var(--t3); }
+.wk .egress { color: var(--yellow); }
+.wk.gone { opacity: 0.35; }
+.shut { padding: 0 10px 14px; }
+.bar { position: relative; height: 34px; background: var(--s2); border: 1px solid var(--line); margin-top: 22px; }
+.bar .fill { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, var(--chip-yellow), rgb(255 201 51 / 35%)); }
+.bar .mk { position: absolute; top: -22px; bottom: -4px; border-left: 1px dashed var(--line-strong); font-size: 10px; color: var(--t3); padding-left: 4px; white-space: nowrap; }
+.bar .mk.hard { border-left-color: var(--red); color: var(--red); right: 0; left: auto; border-left: 0; border-right: 1px dashed var(--red); padding: 0 4px 0 0; text-align: right; }
+.bar .mk.exit { top: 0; padding-top: 8px; border-left: 2px solid var(--green); color: var(--green); display: none; }
+.scale { display: flex; justify-content: space-between; font-size: 10px; color: var(--t3); margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+.note { color: var(--t3); font-size: 12px; max-width: 110ch; margin: 0; }
+.note a { color: var(--cyan); }
+footer { border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 6px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+	<header class="top">
+		<div class="eyebrow"><span>mike</span><span>Claude proxy</span><span>How it works</span></div>
+		<h1>Mike in <em>Motion</em></h1>
+		<p class="lede">Five animated walkthroughs of what happens to a Claude Code turn inside mike: the map of every port, the thirteen stages that can rewrite a request, the two ways an answer can be replaced, the two capture phases per request, and boot to shutdown. Each scene plays on its own. Pause it, or click any step to jump there.</p>
+	</header>
+
+	<nav class="tabs" role="tablist" aria-label="Scenes">
+		<button class="tab" role="tab" id="tab-map" data-scene="map"><b>The map</b><small>ports and packets</small></button>
+		<button class="tab" role="tab" id="tab-stages" data-scene="stages"><b>Thirteen stages</b><small>what can rewrite a request</small></button>
+		<button class="tab" role="tab" id="tab-replace" data-scene="replace"><b>Answer replaced</b><small>weasel intercept, proxy tools</small></button>
+		<button class="tab" role="tab" id="tab-writes" data-scene="writes"><b>Two phases</b><small>capture, step by step</small></button>
+		<button class="tab" role="tab" id="tab-boot" data-scene="boot"><b>Boot and shutdown</b><small>mike serve, start to exit</small></button>
+	</nav>
+
+	<!-- ─── Scene 1 ─────────────────────────────────── -->
+	<section class="scene" id="scene-map" role="tabpanel" aria-labelledby="tab-map" hidden>
+		<div class="scene-head">
+			<h2>One turn, every port it touches</h2>
+			<p>Claude Code points <code>ANTHROPIC_BASE_URL</code> at <code>:9988</code>. From there a turn goes to Anthropic and back, lands in Postgres, and reaches the web UI and the MCP bridge.</p>
+		</div>
+		<div class="grid">
+			<div class="panel stage">
+				<div class="svgbox"><svg id="svg-map" viewBox="0 0 1000 600" role="img" aria-label="Topology of mike: Claude Code, proxy, Anthropic, Postgres, inspect API, web UI, mike-mcp and the forward sidecar"></svg></div>
+				<div class="legend">
+					<span><i style="background:var(--cyan)"></i>request</span>
+					<span><i style="background:var(--green)"></i>response</span>
+					<span><i style="background:var(--blue)"></i>capture write</span>
+					<span><i style="background:var(--magenta)"></i>mutation</span>
+					<span><i style="background:var(--yellow)"></i>event</span>
+					<span><i style="background:var(--violet)"></i>MCP tool call</span>
+				</div>
+			</div>
+			<div class="panel side" data-player="map"></div>
+		</div>
+	</section>
+
+	<!-- ─── Scene 2 ─────────────────────────────────── -->
+	<section class="scene" id="scene-stages" role="tabpanel" aria-labelledby="tab-stages" hidden>
+		<div class="scene-head">
+			<h2>Thirteen stages, plus the queue drain and composer</h2>
+			<p><code>pipeline::STAGE_ORDER</code> runs in this order unless the request is mutation-exempt, with a primary-lane queue drain in the middle and the composer after. This simplified primary-turn example lets you enable candidate rewrites; real stages also check rules, triggers, lane and delivery eligibility. The logical inbound capture stays separate.</p>
+		</div>
+		<div class="grid">
+			<div class="panel stage">
+				<div class="svgbox"><svg id="svg-stages" viewBox="0 0 1000 350" role="img" aria-label="The request pipeline: accept, thirteen mutation stages, composer, upstream"></svg></div>
+				<div class="bodies">
+					<div class="body">
+						<h3 style="color:var(--blue)">Captured · stored_body</h3>
+						<div class="sub">Logical inbound body. Compacted storage may reconstruct it; consult body fidelity flags.</div>
+						<ol id="body-stored"></ol>
+					</div>
+					<div class="body">
+						<h3 style="color:var(--magenta)">Forwarded upstream</h3>
+						<div class="sub">Whatever the last stage to fire produced.</div>
+						<ol id="body-fwd"></ol>
+					</div>
+				</div>
+			</div>
+			<div class="panel side">
+				<div class="ctrl">
+					<button class="btn primary" id="s2-play">Pause</button>
+					<button class="btn" id="s2-run">Run again</button>
+					<span class="count" id="s2-armed">0 armed</span>
+				</div>
+				<div class="presets" role="group" aria-label="Presets">
+					<button class="btn preset" data-preset="none">No rewrites</button>
+					<button class="btn preset" data-preset="example">Example session</button>
+					<button class="btn preset" data-preset="all">Everything armed</button>
+				</div>
+				<div class="nowcard" aria-live="polite">
+					<div class="k">Packet is at</div>
+					<div class="name" id="s2-name">accept</div>
+					<div class="gate" id="s2-gate"></div>
+					<div class="fx" id="s2-fx"></div>
+				</div>
+				<div class="verdict" id="s2-verdict"></div>
+				<div class="hint">The example body is illustrative. Each stage's gate and default come from the stage table in <code>REQUEST_FLOW.md</code>.</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- ─── Scene 3 ─────────────────────────────────── -->
+	<section class="scene" id="scene-replace" role="tabpanel" aria-labelledby="tab-replace" hidden>
+		<div class="scene-head">
+			<h2>When mike replaces the model's answer</h2>
+			<p><code>forward_streaming</code> buffers the SSE stream whenever <code>weasel_armed || tool_loop_armed</code>. Pick a scenario to see which path the stream takes, and what Claude Code ends up seeing.</p>
+		</div>
+		<div class="grid">
+			<div class="panel stage">
+				<div class="scen" role="group" aria-label="Scenario">
+					<button class="btn" data-scen="plain">Not armed (default)</button>
+					<button class="btn" data-scen="clean">Armed, clean</button>
+					<button class="btn" data-scen="weasel">Forbidden word hit</button>
+					<button class="btn" data-scen="tool">Proxy tool call</button>
+					<button class="btn" data-scen="overflow">Buffer overflow</button>
+				</div>
+				<div class="svgbox"><svg id="svg-replace" viewBox="0 0 1000 450" role="img" aria-label="Response path: plain tee or buffered forwarder with Clean, Hit and ProxyToolCall signals"></svg></div>
+				<div class="streams">
+					<div class="stream"><h3>Held in the proxy buffer</h3><div class="txt" id="s3-buf"></div><div class="meta" id="s3-bufm"></div></div>
+					<div class="stream"><h3>What Claude Code sees</h3><div class="txt" id="s3-cli"></div><div class="meta" id="s3-clim"></div></div>
+				</div>
+			</div>
+			<div class="panel side" data-player="replace"></div>
+		</div>
+	</section>
+
+	<!-- ─── Scene 4 ─────────────────────────────────── -->
+	<section class="scene" id="scene-writes" role="tabpanel" aria-labelledby="tab-writes" hidden>
+		<div class="scene-head">
+			<h2>Two capture phases per request</h2>
+			<p>With persistence available, a stub insert is attempted before forwarding. Canonical stream blocks and tool calls arrive between that initial phase and the terminal snapshot. These are capture phases, not a count of SQL writes; database failures can leave capture gaps.</p>
+		</div>
+		<div class="grid">
+			<div class="panel stage">
+				<div class="svgbox"><svg id="svg-writes" viewBox="0 0 1000 640" role="img" aria-label="Sequence diagram of the two-phase capture write"></svg></div>
+				<div class="legend">
+					<span><i style="background:var(--cyan)"></i>request</span>
+					<span><i style="background:var(--green)"></i>response</span>
+					<span><i style="background:var(--blue)"></i>capture write</span>
+					<span><i style="background:var(--yellow)"></i>event</span>
+				</div>
+			</div>
+			<div class="panel side" data-player="writes"></div>
+		</div>
+	</section>
+
+	<!-- ─── Scene 5 ─────────────────────────────────── -->
+	<section class="scene" id="scene-boot" role="tabpanel" aria-labelledby="tab-boot" hidden>
+		<div class="scene-head">
+			<h2>From <code>mike serve</code> to exit</h2>
+			<p>Everything <code>serve::run</code> does before the ports listen, the eighteen worker entry points and their work gates, and the deadlines that bound a shutdown.</p>
+		</div>
+		<div class="grid">
+			<div class="panel boot">
+				<div class="term" id="s5-term" aria-live="polite"></div>
+				<div class="row2">
+					<div class="blk">
+						<h3>Listeners</h3>
+						<div class="ports">
+							<div class="port" data-port="9988"><i></i><div>:9988 proxy<small>/v1 and /v2, always bound</small></div></div>
+							<div class="port" data-port="9989"><i></i><div>:9989 inspect<small>/api and /api/ws, always bound</small></div></div>
+							<div class="port" data-port="9990"><i></i><div>:9990 SPA<small>only when spa_enabled</small></div></div>
+						</div>
+					</div>
+					<div class="blk">
+						<h3>Workers · default work gates</h3>
+						<div class="workers" id="s5-workers"></div>
+					</div>
+				</div>
+				<div class="shut">
+					<div class="blk"><h3>Shutdown deadlines, from the cancel signal</h3></div>
+					<div class="bar" id="s5-bar">
+						<div class="fill"></div>
+						<div class="mk" style="left:5%" title="Graceful shutdown starts 3 seconds after cancellation">+3s</div>
+						<div class="mk" style="left:16.67%" title="Serving join deadline: 10 seconds after cancellation">10s</div>
+						<div class="mk" style="left:66.67%" title="Each observability or tracker wait is capped at 30 seconds">30s waits</div>
+						<div class="mk hard">60s hard exit</div>
+						<div class="mk exit" style="left:7%">returned</div>
+					</div>
+					<div class="scale"><span>0s</span><span>10s</span><span>20s</span><span>30s</span><span>40s</span><span>50s</span><span>60s</span></div>
+				</div>
+			</div>
+			<div class="panel side" data-player="boot"></div>
+		</div>
+	</section>
+
+	<footer>
+		<p class="note">Built from <code>docs/REQUEST_FLOW.md</code> and <code>docs/STARTUP_FLOW.md</code>, both last verified 2026-09-26 against the source. Symbol names are real. The prompts, file names and answers inside the scenes are made-up examples.</p>
+	</footer>
+</div>
+
+<script>
+(() => {
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+const C = { req: '#22d9ff', res: '#2ee56b', db: '#4d8dff', mut: '#ff2e88', evt: '#ffc933', bad: '#ff4d4d', mcp: '#b48cff', mute: '#8b95a4' };
+const KINDS = {
+	outside: { fg: '#c9d1dc', fill: '#1b1f25', ln: '#4d5664', glow: 'rgb(201 209 220 / 35%)' },
+	mike: { fg: '#5fe0a0', fill: '#152a20', ln: '#2b7a52', glow: 'rgb(95 224 160 / 45%)' },
+	vendor: { fg: '#d97757', fill: '#1b1f25', ln: 'rgb(217 119 87 / 50%)', glow: 'rgb(217 119 87 / 45%)' },
+	store: { fg: '#4d8dff', fill: '#16202f', ln: 'rgb(77 141 255 / 45%)', glow: 'rgb(77 141 255 / 45%)' },
+	tool: { fg: '#b48cff', fill: '#221b33', ln: '#5f4a8c', glow: 'rgb(180 140 255 / 45%)' },
+	terminal: { fg: '#dae1ea', fill: '#191f26', ln: '#57657a', glow: 'rgb(218 225 234 / 30%)' },
+	stage: { fg: '#b6c1cf', fill: '#191f26', ln: '#333d4b', glow: 'rgb(255 46 136 / 40%)' },
+	armed: { fg: '#ff2e88', fill: '#191f26', ln: 'rgb(255 46 136 / 45%)', glow: 'rgb(255 46 136 / 45%)' }
+};
+
+function el(tag, attrs, parent) {
+	const e = document.createElementNS(NS, tag);
+	for (const k in attrs || {}) e.setAttribute(k, attrs[k]);
+	if (parent) parent.appendChild(e);
+	return e;
+}
+function h(tag, cls, html) {
+	const e = document.createElement(tag);
+	if (cls) e.className = cls;
+	if (html != null) e.innerHTML = html;
+	return e;
+}
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+function chamfer(x, y, w, hh, c = 10) {
+	return `M${x + c},${y} H${x + w} V${y + hh - c} L${x + w - c},${y + hh} H${x} V${y + c} Z`;
+}
+function styleKind(g, kind) {
+	const k = KINDS[kind] || KINDS.outside;
+	g.style.setProperty('--fg', k.fg);
+	g.style.setProperty('--fill', k.fill);
+	g.style.setProperty('--ln', k.ln);
+	g.style.setProperty('--glow', k.glow);
+}
+
+/* ─── Diagram: nodes + wires + packets ───────────────────────── */
+function Diagram(svg, spec) {
+	const vb = svg.viewBox.baseVal;
+	const D = { svg, spec, nodes: {}, paths: {}, texts: {}, subs: {}, vbw: vb.width };
+	(spec.decor || []).forEach((d) => el(d.tag, d.attrs, svg));
+	if (spec.arrows) {
+		const m = el('marker', { id: svg.id + '-arr', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, el('defs', {}, svg));
+		el('path', { d: 'M0,0 L10,5 L0,10 z', fill: 'context-stroke' }, m);
+	}
+	const gw = el('g', { class: 'wires' }, svg);
+	const gt = el('g', { class: 'wtexts' }, svg);
+	const gn = el('g', { class: 'nodes' }, svg);
+	D.packets = el('g', { class: 'packets' }, svg);
+
+	const anchor = (s) => {
+		if (Array.isArray(s)) return s;
+		const [id, side, off = '0'] = s.split(':');
+		const n = spec.nodes[id];
+		const o = Number(off);
+		const cx = n.x + n.w / 2, cy = n.y + n.h / 2;
+		return { t: [cx + o, n.y], b: [cx + o, n.y + n.h], l: [n.x, cy + o], r: [n.x + n.w, cy + o], c: [cx, cy] }[side];
+	};
+	for (const [id, n] of Object.entries(spec.nodes)) {
+		const g = el('g', { class: 'node' + (n.cls ? ' ' + n.cls : ''), 'data-id': id }, gn);
+		styleKind(g, n.kind);
+		el('path', { class: 'box', d: chamfer(n.x, n.y, n.w, n.h, n.c ?? 10) }, g);
+		const lines = n.lines || [n.label];
+		const cx = n.x + n.w / 2;
+		const center = n.align === 'center';
+		const tx = center ? cx : n.x + 14;
+		const anchorAttr = center ? 'middle' : 'start';
+		let ty = n.y + (n.top ?? 25);
+		lines.forEach((ln, i) => {
+			const t = el('text', { class: 'l', x: tx, y: ty + i * 15, 'text-anchor': anchorAttr }, g);
+			t.textContent = ln;
+		});
+		ty += (lines.length - 1) * 15;
+		(n.sub ? [].concat(n.sub) : []).forEach((s, i) => {
+			const t = el('text', { class: 's', x: tx, y: ty + 17 + i * 14, 'text-anchor': anchorAttr }, g);
+			t.textContent = s;
+			if (i === 0) D.subs[id] = t;
+		});
+		D.nodes[id] = g;
+	}
+	for (const [id, p] of Object.entries(spec.paths || {})) {
+		const pts = p.pts.map(anchor);
+		const d = 'M' + pts.map((q) => q.join(',')).join(' L');
+		D.paths[id] = el('path', { class: 'wire', d }, gw);
+		if (spec.arrows) D.paths[id].setAttribute('marker-end', `url(#${svg.id}-arr)`);
+		if (p.text) {
+			const [a, b] = p.tpos ? [pts[p.tpos], pts[p.tpos + 1]] : [pts[0], pts[pts.length - 1]];
+			const t = el('text', { class: 'wtext', x: (a[0] + b[0]) / 2, y: Math.min(a[1], b[1]) - 7, 'text-anchor': 'middle' }, gt);
+			t.textContent = p.text;
+			D.texts[id] = t;
+		}
+	}
+	(spec.lives || []).forEach((l) => el('path', { class: 'life', d: l }, gw));
+	return D;
+}
+
+function light(D, id, color) {
+	const p = D.paths[id];
+	if (!p) return;
+	p.style.setProperty('--c', color);
+	p.classList.add('lit');
+	if (D.texts[id]) D.texts[id].classList.add('show');
+}
+function clearLit(D) {
+	Object.values(D.paths).forEach((p) => p.classList.remove('lit', 'live', 'rev'));
+	Object.values(D.texts).forEach((t) => t.classList.remove('show'));
+	D.packets.replaceChildren();
+}
+function travel(D, id, o, alive) {
+	return new Promise((res) => {
+		const p = D.paths[id];
+		const len = p.getTotalLength();
+		const color = o.color;
+		p.style.setProperty('--c', color);
+		p.classList.add('live');
+		p.classList.toggle('rev', !!o.reverse);
+		if (D.texts[id]) D.texts[id].classList.add('show');
+		const g = el('g', { class: 'packet' }, D.packets);
+		el('circle', { r: 11, fill: color, opacity: 0.2 }, g);
+		el('circle', { r: 5, fill: color }, g);
+		let t = null;
+		if (o.label) {
+			t = el('text', { class: 'plabel', x: 10, y: -10, fill: color }, g);
+			t.textContent = o.label;
+		}
+		const dur = o.dur || Math.max(700, Math.min(1700, len * 4));
+		const t0 = performance.now();
+		const ease = o.linear ? (x) => x : (x) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2);
+		const frame = (now) => {
+			if (!alive()) { g.remove(); p.classList.remove('live', 'rev'); return res(false); }
+			const k = Math.min(1, (now - t0) / dur);
+			const e = ease(k);
+			const pt = p.getPointAtLength((o.reverse ? 1 - e : e) * len);
+			g.setAttribute('transform', `translate(${pt.x.toFixed(1)},${pt.y.toFixed(1)})`);
+			if (t) {
+				const right = pt.x > D.vbw * 0.7;
+				t.setAttribute('text-anchor', right ? 'end' : 'start');
+				t.setAttribute('x', right ? -10 : 10);
+			}
+			if (k < 1) requestAnimationFrame(frame);
+			else {
+				setTimeout(() => {
+					g.remove();
+					p.classList.remove('live', 'rev');
+					if (!o.transient) p.classList.add('lit');
+					res(true);
+				}, o.linger ?? 220);
+			}
+		};
+		requestAnimationFrame(frame);
+	});
+}
+
+/* ─── Player: step list, controls, autoplay ──────────────────── */
+class Player {
+	constructor({ side, D, steps, onReset, hold = 1700 }) {
+		this.side = side; this.D = D; this.onReset = onReset; this.hold = hold;
+		this.run = 0; this.i = -1; this.playing = true; this.active = false;
+		side.replaceChildren();
+		const ctrl = h('div', 'ctrl');
+		this.bPrev = h('button', 'btn', '‹ Prev');
+		this.bPlay = h('button', 'btn primary', 'Pause');
+		this.bNext = h('button', 'btn', 'Next ›');
+		this.count = h('span', 'count');
+		ctrl.append(this.bPrev, this.bPlay, this.bNext, this.count);
+		this.list = h('ol', 'steps');
+		side.append(ctrl, this.list);
+		this.bPrev.onclick = () => { this.playing = false; this.syncBtn(); this.go(Math.max(0, this.i - 1)); };
+		this.bNext.onclick = () => { this.playing = false; this.syncBtn(); this.go((this.i + 1) % this.steps.length); };
+		this.bPlay.onclick = () => {
+			this.playing = !this.playing; this.syncBtn();
+			if (this.playing && this.idle) this.go((this.i + 1) % this.steps.length, true);
+		};
+		this.setSteps(steps);
+	}
+	syncBtn() { this.bPlay.textContent = this.playing ? 'Pause' : 'Play'; }
+	setSteps(steps) {
+		this.steps = steps;
+		this.list.replaceChildren();
+		steps.forEach((s, k) => {
+			const li = h('li');
+			const b = h('button', null, `<span class="n">${String(k + 1).padStart(2, '0')}</span><span class="t">${esc(s.title)}</span>`);
+			b.onclick = () => { this.playing = false; this.syncBtn(); this.go(k); };
+			li.append(b, h('p', null, s.text));
+			this.list.append(li);
+		});
+		this.i = -1;
+	}
+	alive(run) { return () => run === this.run && this.active; }
+	applyInstant(k) {
+		const s = this.steps[k];
+		(s.flows || []).forEach((f) => { if (!f.transient) light(this.D, f.path, f.color); });
+		if (s.enter) s.enter({ instant: true, alive: () => true });
+	}
+	focus(s) {
+		if (!this.D) return;
+		const f = new Set(s.focus || []);
+		for (const [id, g] of Object.entries(this.D.nodes)) {
+			g.classList.toggle('on', f.has(id));
+			if (this.D.spec.nodes[id].optional) g.classList.toggle('dim', !f.has(id));
+		}
+	}
+	render() {
+		[...this.list.children].forEach((li, k) => {
+			li.classList.toggle('cur', k === this.i);
+			li.classList.toggle('done', k < this.i);
+		});
+		const cur = this.list.children[this.i];
+		if (cur && this.active) {
+			const box = this.list;
+			const top = cur.offsetTop - box.offsetTop;
+			if (top < box.scrollTop || top > box.scrollTop + box.clientHeight - 80) box.scrollTop = top - 8;
+		}
+		this.count.textContent = `${this.i + 1} / ${this.steps.length}`;
+	}
+	async go(i, sequential = false) {
+		const run = ++this.run;
+		const alive = this.alive(run);
+		const seq = sequential && i === this.i + 1;
+		this.i = i; this.idle = false;
+		if (!seq) {
+			if (this.D) clearLit(this.D);
+			if (this.onReset) this.onReset();
+			for (let k = 0; k < i; k++) this.applyInstant(k);
+		}
+		this.render();
+		const s = this.steps[i];
+		this.focus(s);
+		if (s.enter) s.enter({ instant: false, alive });
+		await Promise.all((s.flows || []).map(async (f) => {
+			await wait(f.delay || 0);
+			if (alive()) await travel(this.D, f.path, f, alive);
+		}));
+		if (!alive()) return;
+		await wait(s.hold ?? this.hold);
+		if (!alive()) return;
+		this.idle = true;
+		if (this.playing) this.go((i + 1) % this.steps.length, true);
+	}
+	start() { this.active = true; this.go(this.i < 0 ? 0 : this.i); }
+	stop() { this.active = false; this.run++; }
+}
+
+/* typing helper */
+function typeInto(node, html, { instant, alive, cps = 55, caret = true }) {
+	if (instant) { node.innerHTML = html; node.classList.remove('caret'); return; }
+	const tmp = document.createElement('div');
+	tmp.innerHTML = html;
+	const full = tmp.textContent;
+	let n = 0;
+	node.classList.toggle('caret', caret);
+	const tick = () => {
+		if (!alive()) return;
+		n = Math.min(full.length, n + 2);
+		node.innerHTML = n >= full.length ? html : esc(full.slice(0, n));
+		if (n < full.length) setTimeout(tick, 1000 / cps * 2);
+		else node.classList.remove('caret');
+	};
+	tick();
+}
+
+/* ═══ Scene 1 · the map ═══════════════════════════════════════ */
+const mapD = Diagram(document.getElementById('svg-map'), {
+	nodes: {
+		claude: { x: 30, y: 250, w: 180, h: 76, kind: 'outside', label: 'Claude Code', sub: 'ANTHROPIC_BASE_URL' },
+		fwd: { x: 330, y: 60, w: 200, h: 76, kind: 'mike', label: 'proxy-forward', sub: ':9987 · HTTPS MITM', optional: true, cls: 'dim' },
+		proxy: { x: 330, y: 230, w: 200, h: 116, kind: 'mike', label: 'mike proxy', sub: [':9988 · /v1 and /v2', '13 mutation stages', 'SSE tee + parser'] },
+		anthropic: { x: 790, y: 250, w: 180, h: 76, kind: 'vendor', label: 'Anthropic API', sub: 'api.anthropic.com' },
+		pg: { x: 330, y: 440, w: 200, h: 76, kind: 'store', label: 'Postgres', sub: 'capture + normalized bodies' },
+		inspect: { x: 590, y: 440, w: 180, h: 76, kind: 'mike', label: 'Inspect API', sub: ':9989 · /api, /api/ws' },
+		spa: { x: 810, y: 440, w: 160, h: 76, kind: 'terminal', label: 'Web UI', sub: ':9990 · SvelteKit' },
+		mcp: { x: 30, y: 440, w: 180, h: 76, kind: 'tool', label: 'mike-mcp', sub: 'stdio in, HTTP out' }
+	},
+	paths: {
+		c2p: { pts: ['claude:r:-12', 'proxy:l:-22'] },
+		p2c: { pts: ['proxy:l:+14', 'claude:r:+12'] },
+		p2a: { pts: ['proxy:r:-22', 'anthropic:l:-12'] },
+		a2p: { pts: ['anthropic:l:+12', 'proxy:r:+14'] },
+		p2db: { pts: ['proxy:b:-40', 'pg:t:-40'] },
+		p2db2: { pts: ['proxy:b:+40', 'pg:t:+40'] },
+		pg2i: { pts: ['pg:r', 'inspect:l'] },
+		i2spa: { pts: ['inspect:r', 'spa:l'] },
+		c2m: { pts: ['claude:b', 'mcp:t'] },
+		m2i: { pts: ['mcp:b', [120, 570], [680, 570], 'inspect:b'] },
+		c2f: { pts: ['claude:t', [120, 98], 'fwd:l'] },
+		f2p: { pts: ['fwd:b', 'proxy:t'] },
+		f2a: { pts: ['fwd:r', [880, 98], 'anthropic:t'] }
+	}
+});
+const mapSteps = [
+	{ title: 'A turn leaves Claude Code', focus: ['claude', 'proxy'],
+		flows: [{ path: 'c2p', color: C.req, label: 'POST /v1/messages' }],
+		text: 'Claude Code runs with <code>ANTHROPIC_BASE_URL=http://localhost:9988</code>, so every model call lands on mike\'s proxy bind instead of going straight to Anthropic.' },
+	{ title: 'Stages may rewrite the forwarded copy', focus: ['proxy'],
+		enter: ({ instant }) => { if (!instant) { mapD.nodes.proxy.classList.add('fire'); setTimeout(() => mapD.nodes.proxy.classList.remove('fire'), 1500); } },
+		hold: 2000,
+		text: '<code>engine::accept</code> keeps the untouched inbound bytes as <code>stored_body</code> first. Thirteen registered stages, a primary-lane queue drain and the composer can affect the forwarded body. Gates include settings, authored rules, triggers and lane eligibility; mutation-exempt requests skip them.' },
+	{ title: 'A stub row, before anything is sent', focus: ['proxy', 'pg'],
+		flows: [{ path: 'p2db', color: C.db, label: 'phase 1 stub' }],
+		text: 'With persistence, the Phase-1 stub insert establishes the durable <code>RequestId</code> for later writes. The insert is attempted <em>before</em> forwarding; a database failure can leave a capture gap.' },
+	{ title: 'Forwarded to Anthropic', focus: ['proxy', 'anthropic'],
+		flows: [{ path: 'p2a', color: C.req, label: 'forwarded body' }],
+		text: '<code>engine::forward_to_upstream</code> builds the URL, filters headers and sends. Header masking applies only to the captured copy, never to what is forwarded.' },
+	{ title: 'The answer streams back', focus: ['anthropic', 'proxy', 'claude'],
+		flows: [{ path: 'a2p', color: C.res, label: 'SSE' }, { path: 'p2c', color: C.res, label: 'tee', delay: 900 }],
+		text: 'The stream is tee\'d. One copy goes to Claude Code as chunks arrive, the other to the SSE parser, which updates the in-flight capture.' },
+	{ title: 'Terminal snapshot', focus: ['proxy', 'pg'],
+		flows: [{ path: 'p2db2', color: C.db, label: 'snapshot_terminal' }],
+		text: 'The terminal snapshot persists completion data and diagnostics. Streamed responses are assembled from <code>responses.stream_blocks</code>; compacted request bodies may be reconstructed. Body APIs expose provenance and fidelity; there is no separate blob store.' },
+	{ title: 'The web UI hears about it', focus: ['pg', 'inspect', 'spa'],
+		flows: [{ path: 'pg2i', color: C.evt, label: 'NOTIFY row_changed' }, { path: 'i2spa', color: C.evt, label: '/api/ws', delay: 900 }],
+		text: 'Postgres <code>NOTIFY proxy.row_changed</code> reaches the LISTEN task, which re-broadcasts on <code>event_tx</code> to every <code>/api/ws</code> subscriber. Views also fetch or poll their own data.' },
+	{ title: 'Claude asks mike about its own session', focus: ['claude', 'mcp', 'inspect', 'pg'],
+		flows: [
+			{ path: 'c2m', color: C.mcp, label: 'list_requests' },
+			{ path: 'm2i', color: C.mcp, label: 'GET /api/requests', delay: 800 },
+			{ path: 'pg2i', color: C.db, label: 'SELECT', reverse: true, delay: 2400, transient: true },
+			{ path: 'pg2i', color: C.res, label: 'rows', delay: 3300, transient: true },
+			{ path: 'm2i', color: C.res, label: 'JSON', reverse: true, delay: 4200, transient: true },
+			{ path: 'c2m', color: C.res, label: 'tool result', reverse: true, delay: 5600, transient: true }
+		],
+		text: 'Claude Code launches <code>mike-mcp</code> over stdio, and the bridge talks plain HTTP to the inspect API. Reads expose capture provenance and fidelity; callers narrow returned JSON with <code>select</code>. Reconstructed sent bodies can report unsupported changes and fallback warnings.' },
+	{ title: 'Optional: the forward sidecar', focus: ['claude', 'fwd', 'proxy', 'anthropic'],
+		flows: [
+			{ path: 'c2f', color: C.req, label: 'HTTPS' },
+			{ path: 'f2p', color: C.req, label: 'routed leg', delay: 1100 },
+			{ path: 'f2a', color: C.mute, label: 'failover', delay: 2300 }
+		],
+		hold: 2600,
+		text: '<code>proxy-forward</code> on <code>:9987</code> is an HTTPS MITM sidecar. Ordinary non-WebSocket <code>/v1/*</code> and <code>/v2/*</code> HTTP requests use the capturing <code>:9988</code> leg. WebSocket upgrades go direct and remain uncaptured; unhealthy-capture failover also goes straight to <code>api.anthropic.com</code>.' }
+];
+
+/* ═══ Scene 2 · thirteen stages ═══════════════════════════════ */
+const STAGES = [
+	{ id: 'accept', fixed: true, name: 'accept', gate: 'always', fx: '<code>stored_body</code> = the original inbound bytes, captured before any stage runs.' },
+	{ id: 'filter', name: 'filter', gate: 'operator-authored rules in FilterConfig · default: no rules', json: true,
+		fx: 'Rewrites matched blocks, then re-serialises the whole body with serde_json.', op: { mod: 'system[1]', val: '"<env>…" → rule stripped the env block' } },
+	{ id: 'reminder_on_token', name: 'reminder_on_token', gate: 'reminder_on_token toggle · default off', json: true,
+		fx: 'Injects a reminder when its trigger token appears.', op: { add: '<system-reminder> token-triggered note' } },
+	{ id: 'lazy_sections', name: 'lazy_sections', gate: 'lazy sections defined in FilterConfig · default none', json: true,
+		fx: 'Swaps a defined section for a lazy stub.', op: { mod: 'system[2]', val: '"# CLAUDE.md …" section → lazy stub' } },
+	{ id: 'recall_injector', name: 'recall_injector', gate: 'recall_injector toggle · default off', json: true,
+		fx: 'Injects lessons matching a mem:recall tag in assistant history when persistence and results are available.', op: { add: '<system-reminder> recalled lessons' } },
+	{ id: 'lessons', name: 'lessons', gate: 'reminders.inject_lessons · primary turns, not a tool loop', json: true,
+		fx: 'Injects lessons on primary turns.', op: { add: 'lessons for this project' } },
+	{ id: 'self_identity', name: 'self_identity', gate: 'self_identity_reminder toggle · primary turns', json: true,
+		fx: 'Reminds the session who it is.', op: { add: 'self-identity reminder' } },
+	{ id: 'workspace_briefing', name: 'workspace_briefing', gate: 'workspace_briefing toggle · primary, not a tool loop', json: true,
+		fx: 'Adds a briefing on the workspace.', op: { add: 'workspace briefing' } },
+	{ id: 'agent_lessons', name: 'agent_lessons', gate: 'agent_lessons toggle · subagent turns only', json: true, skipPrimary: true,
+		fx: 'Subagent turns only. This example is a primary turn, so it passes through even when armed.' },
+	{ id: 'reminders', name: 'reminders', gate: 'reminders toggle · default off', json: true,
+		fx: 'Appends queued reminders.', op: { add: 'reminders' } },
+	{ id: 'steerer', name: 'steerer', sub2: 'queue drain', gate: 'primary lane · per-source InjectionGate checks', json: true,
+		fx: 'Appends eligible queued reminders. Only steerer-origin entries need the steerer toggle; authored mailbox messages have a separate gate. Same-request judging can await a bounded LLM call before this drain.', op: { add: '<system-reminder> steerer: "re-run it twice"' } },
+	{ id: 'read_dedup', name: 'read_dedup', gate: 'compression_dedup.enabled · default off', fwdOnly: true,
+		fx: 'rewrite_forwarded_only: a repeated Read result becomes a stub in the forwarded body. The stored copy keeps the client\'s bytes.', op: { mod: 'messages[4]', val: 'tool_result → dedup stub (file already read)', fwd: true } },
+	{ id: 'file_read_compression', name: 'file_read_compression', gate: 'file_read_compression toggle · default off', shadow: true,
+		fx: 'Shadow mode even when on: computes a reduction and logs it, never rewrites the forwarded body.' },
+	{ id: 'proxy_tools', name: 'proxy_tools', gate: 'proxy_tools toggle · default off', fwdOnly: true,
+		fx: 'Declares mike_* tools into the forwarded request only. It also arms the buffered forwarder on the way back.', op: { mod: 'tools', val: '[Bash, Read, Edit, …, mike_session_roster]', fwd: true } },
+	{ id: 'composer', name: 'composer', gate: 'composition_enabled · primary_first only · default off', inplace: true, skipPrimary: true,
+		fx: 'Skipped in this later primary-turn example. On eligible primary_first requests, template mode substitutes system[2].text in place. Bytes outside the string survive; changed text still changes the cache prefix.', op: { mod: 'system[2]', val: '"<composed template>" (in place)' } },
+	{ id: 'upstream', fixed: true, name: 'upstream', gate: 'capture admission → Phase-1 stub → send', fx: 'The forwarded body goes to Anthropic.' }
+];
+const BASE = [
+	['model', '"claude-…"'],
+	['system[0]', '"You are Claude Code…"'],
+	['system[1]', '"<env> platform: linux …"'],
+	['system[2]', '"# CLAUDE.md (project rules)"'],
+	['messages[0]', 'user: "the retry test is flaky"'],
+	['messages[1]', 'assistant: Read retry_test.rs'],
+	['messages[2]', 'user: tool_result (412 lines)'],
+	['messages[3]', 'assistant: Read retry_test.rs; <mem:recall topic="retry"/>'],
+	['messages[4]', 'user: tool_result (412 lines)'],
+	['messages[5]', 'user: "run it again"'],
+	['tools', '[Bash, Read, Edit, …]']
+];
+const s2svg = document.getElementById('svg-stages');
+const s2nodes = {}, s2paths = {};
+const CW = 110, CH = 70, GAP = 10, X0 = 25, Y1 = 40, Y2 = 230;
+function splitName(n) {
+	if (n.length <= 13) return [n];
+	const parts = n.split('_');
+	let best = [n], score = 1e9;
+	for (let k = 1; k < parts.length; k++) {
+		const a = parts.slice(0, k).join('_') + '_', b = parts.slice(k).join('_');
+		const sc = Math.max(a.length, b.length);
+		if (sc < score) { score = sc; best = [a, b]; }
+	}
+	return best;
+}
+STAGES.forEach((s, i) => {
+	const row2 = i >= 8;
+	const col = row2 ? 15 - i : i;
+	const x = X0 + col * (CW + GAP), y = row2 ? Y2 : Y1;
+	s.cx = x + CW / 2; s.cy = y + CH / 2;
+	const kind = s.id === 'accept' ? 'mike' : s.id === 'upstream' ? 'vendor' : 'stage';
+	s2nodes[s.id] = { x, y, w: CW, h: CH, kind, align: 'center', lines: splitName(s.name), sub: s.fixed ? (s.id === 'accept' ? 'keeps inbound' : '→ Anthropic') : 'off', top: 24, c: 8 };
+	if (s.id === 'steerer') s2nodes[s.id].lines = ['steerer', '+ queue drain'];
+});
+for (let i = 0; i < STAGES.length - 1; i++) {
+	const a = STAGES[i], b = STAGES[i + 1];
+	s2paths['s' + i] = { pts: [[a.cx, a.cy], [b.cx, b.cy]] };
+}
+const s2D = Diagram(s2svg, {
+	nodes: s2nodes, paths: s2paths,
+	decor: [
+		{ tag: 'text', attrs: { class: 'tick', x: 25, y: 26 } },
+		{ tag: 'text', attrs: { class: 'tick', x: 25, y: 330 } }
+	]
+});
+s2svg.querySelectorAll('.tick')[0].textContent = 'stages_before_steerer() →';
+s2svg.querySelectorAll('.tick')[1].textContent = '← stages_after_steerer(), then the composer';
+s2svg.querySelectorAll('.wire').forEach((w) => w.classList.add('lit'));
+s2svg.querySelectorAll('.wire').forEach((w) => w.style.setProperty('--c', '#333d4b'));
+
+const S2 = { armed: new Set(), run: 0, playing: true, active: false };
+const PRESETS = {
+	none: [],
+	example: ['recall_injector', 'reminders', 'steerer', 'read_dedup'],
+	all: STAGES.filter((s) => !s.fixed).map((s) => s.id)
+};
+function s2paint() {
+	STAGES.forEach((s) => {
+		if (s.fixed) return;
+		const g = s2D.nodes[s.id];
+		const on = S2.armed.has(s.id);
+		styleKind(g, on ? 'armed' : 'stage');
+		s2D.subs[s.id].textContent = on ? 'armed' : 'idle here';
+		s2D.subs[s.id].style.fill = on ? '#ff2e88' : '';
+		g.style.cursor = 'pointer';
+	});
+	document.getElementById('s2-armed').textContent = `${S2.armed.size} armed`;
+	document.querySelectorAll('.preset').forEach((b) => {
+		const want = PRESETS[b.dataset.preset];
+		b.setAttribute('aria-pressed', String(want.length === S2.armed.size && want.every((x) => S2.armed.has(x))));
+	});
+}
+function renderBody(ol, rows) {
+	ol.replaceChildren();
+	rows.forEach((r) => {
+		const li = h('li', r.cls || '');
+		const val = r.old ? `<span class="old">${esc(r.old)}</span>${esc(r.v)}` : esc(r.v);
+		li.innerHTML = `<span class="key">${esc(r.k)}</span><span class="val">${val}</span>`;
+		if (r.flash) li.classList.add('flash');
+		ol.append(li);
+	});
+}
+function freshRows() { return BASE.map(([k, v]) => ({ k, v })); }
+renderBody(document.getElementById('body-stored'), freshRows());
+function setNow(s, state) {
+	document.getElementById('s2-name').textContent = s.name;
+	const pill = state === 'on' ? '<span class="pill on">fired</span>' : state === 'skip' ? '<span class="pill skip">skipped</span>' : state === 'off' ? '<span class="pill off">off · passes through</span>' : state === 'shadow' ? '<span class="pill on">armed · shadow only</span>' : '';
+	document.getElementById('s2-gate').innerHTML = pill + esc(s.gate);
+	document.getElementById('s2-fx').innerHTML = s.fx;
+}
+function verdict(fired) {
+	const v = document.getElementById('s2-verdict');
+	if (!fired.length) {
+		v.innerHTML = '<div class="big" style="color:var(--green)">Byte-identical to the inbound request</div><ul><li>Nothing armed, so nothing rewrote the body.</li><li>Real behavior also depends on configured rules and queued messages.</li></ul>';
+		return;
+	}
+	const json = fired.filter((s) => s.json);
+	const notes = [];
+	notes.push(`Rewritten by ${fired.length} stage${fired.length > 1 ? 's' : ''}: ${fired.map((s) => s.name).join(', ')}.`);
+	if (json.length) notes.push('Rewritten through a serde_json round-trip, so field order, whitespace and escape spelling outside the matched block are not preserved. Filter edits to a thinking block also drop its signature.');
+	if (fired.some((s) => s.inplace) && !json.length) notes.push('The composer is the one byte-order-safe rewrite: it changes only the system[2].text string.');
+	if (fired.some((s) => s.fwdOnly)) notes.push('read_dedup and proxy_tools change only the forwarded copy.');
+	notes.push('verify_global_cache_scope_tripwire logs an error! if a fired stage breaks the global cache-scope prefix.');
+	notes.push('The logical inbound capture is unchanged. Compacted bodies may be reconstructed; inspect and MCP expose provenance and fidelity.');
+	v.innerHTML = `<div class="big" style="color:var(--magenta)">Forwarded body differs from the capture</div><ul>${notes.map((n) => `<li>${n}</li>`).join('')}</ul>`;
+}
+async function s2run() {
+	const run = ++S2.run;
+	const alive = () => run === S2.run && S2.active;
+	const rows = freshRows();
+	const fwdOl = document.getElementById('body-fwd');
+	renderBody(fwdOl, rows);
+	document.getElementById('s2-verdict').innerHTML = '<div class="big" style="color:var(--t3)">Running…</div>';
+	s2D.packets.replaceChildren();
+	s2svg.querySelectorAll('.wire').forEach((w) => w.style.setProperty('--c', '#333d4b'));
+	Object.values(s2D.nodes).forEach((g) => g.classList.remove('on', 'fire', 'skip'));
+	s2D.nodes.accept.classList.add('on');
+	setNow(STAGES[0], '');
+	await wait(900);
+	const fired = [];
+	for (let i = 0; i < STAGES.length - 1; i++) {
+		if (!alive()) return;
+		const ok = await travel(s2D, 's' + i, { color: C.req, dur: 380, linear: true, linger: 0, transient: true }, alive);
+		if (!ok) return;
+		const s = STAGES[i + 1];
+		const g = s2D.nodes[s.id];
+		Object.values(s2D.nodes).forEach((n) => n.classList.remove('on'));
+		if (s.fixed) { g.classList.add('on'); setNow(s, ''); continue; }
+		if (!S2.armed.has(s.id)) { setNow(s, 'off'); await wait(140); continue; }
+		if (s.skipPrimary) { g.classList.add('skip'); setNow(s, 'skip'); await wait(1300); continue; }
+		if (s.shadow) { g.classList.add('fire'); setNow(s, 'shadow'); await wait(1300); g.classList.remove('fire'); continue; }
+		g.classList.add('fire');
+		setNow(s, 'on');
+		fired.push(s);
+		rows.forEach((r) => (r.flash = false));
+		const op = s.op;
+		if (op.add) {
+			const idx = rows.findIndex((r) => r.k === 'tools');
+			rows.splice(idx, 0, { k: '+ ' + s.name, v: op.add, cls: 'add', flash: true });
+		} else if (op.mod) {
+			const r = rows.find((x) => x.k === op.mod);
+			r.old = r.old || r.v; r.v = op.val; r.cls = op.fwd ? 'fwd' : 'mod'; r.flash = true;
+		}
+		renderBody(fwdOl, rows);
+		await wait(1250);
+		g.classList.remove('fire');
+	}
+	if (!alive()) return;
+	verdict(fired);
+	await wait(4200);
+	if (alive() && S2.playing) s2run();
+}
+STAGES.forEach((s) => {
+	if (s.fixed) return;
+	const g = s2D.nodes[s.id];
+	g.setAttribute('tabindex', '0');
+	g.setAttribute('role', 'button');
+	g.setAttribute('aria-label', `Arm or disarm ${s.name}`);
+	const toggle = () => { S2.armed.has(s.id) ? S2.armed.delete(s.id) : S2.armed.add(s.id); s2paint(); if (S2.active) s2run(); };
+	g.addEventListener('click', toggle);
+	g.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+});
+document.querySelectorAll('.preset').forEach((b) => (b.onclick = () => {
+	S2.armed = new Set(PRESETS[b.dataset.preset]); s2paint(); if (S2.active) s2run();
+}));
+document.getElementById('s2-play').onclick = (e) => {
+	S2.playing = !S2.playing;
+	e.target.textContent = S2.playing ? 'Pause' : 'Play';
+	if (S2.playing && S2.active) s2run();
+};
+document.getElementById('s2-run').onclick = () => { if (S2.active) s2run(); };
+S2.armed = new Set(PRESETS.example);
+s2paint();
+const stagesCtl = { start() { S2.active = true; s2run(); }, stop() { S2.active = false; S2.run++; } };
+
+/* ═══ Scene 3 · answer replaced ═══════════════════════════════ */
+const rpD = Diagram(document.getElementById('svg-replace'), {
+	nodes: {
+		up: { x: 30, y: 40, w: 170, h: 70, kind: 'vendor', label: 'Anthropic', sub: 'SSE stream' },
+		fs: { x: 260, y: 40, w: 220, h: 70, kind: 'mike', label: 'forward_streaming', sub: 'weasel || tool_loop armed?' },
+		tee: { x: 540, y: 40, w: 170, h: 70, kind: 'mike', label: 'plain tee', sub: 'client + parser' },
+		client: { x: 810, y: 178, w: 160, h: 100, kind: 'outside', label: 'Claude Code', sub: 'renders the stream' },
+		scan: { x: 30, y: 190, w: 170, h: 76, kind: 'mike', label: 'scanners', sub: ['DeltaScanner', 'ToolCallScanner'] },
+		buf: { x: 260, y: 190, w: 220, h: 76, kind: 'mike', label: 'buffer', sub: ['Vec<Bytes>', 'max_buffer_bytes guard'] },
+		sig: { x: 540, y: 190, w: 170, h: 76, kind: 'mike', label: 'InterceptSignal', sub: ['Clean · Hit', 'ProxyToolCall'] },
+		fu: { x: 260, y: 340, w: 220, h: 76, kind: 'mike', label: 'follow-up request', sub: ['fresh RequestId + stub', 'mark_intercepted'] },
+		up2: { x: 30, y: 340, w: 170, h: 76, kind: 'vendor', label: 'Anthropic', sub: 'asked again' }
+	},
+	paths: {
+		up2fs: { pts: ['up:r', 'fs:l'] },
+		fs2tee: { pts: ['fs:r', 'tee:l'] },
+		tee2c: { pts: ['tee:r', [890, 75], 'client:t'] },
+		fs2buf: { pts: ['fs:b', 'buf:t'] },
+		buf2scan: { pts: ['buf:l', 'scan:r'] },
+		scan2sig: { pts: ['scan:t', [115, 160], [625, 160], 'sig:t'] },
+		buf2sig: { pts: ['buf:r', 'sig:l'] },
+		sig2c: { pts: ['sig:r', 'client:l'] },
+		sig2fu: { pts: ['sig:b', [625, 378], 'fu:r'] },
+		fu2up2: { pts: ['fu:l', 'up2:r'] },
+		up22c: { pts: ['up2:b', [115, 432], [890, 432], 'client:b'] },
+		ovf: { pts: ['buf:b:+80', [450, 300], [760, 300], [760, 258], 'client:l:+30'] }
+	}
+});
+const ANS = 'Fixed the race in retry_test.rs. The suite should work now.';
+const ANS_HL = 'Fixed the race in retry_test.rs. The suite <span class="ww">should work</span> now.';
+const ANS_CLEAN = 'Fixed the race in retry_test.rs. Ran it 3 times: 3 passed, 0 failed.';
+const ANS2 = 'Ran cargo test retry_ three times: 3 passed, 0 failed. The race was a shared tmp dir.';
+const TOOLCALL = '<span class="tool">tool_use: mike_session_roster {}</span>';
+const ANS_TOOL = 'Two other sessions are working in this repo right now; neither touches retry_test.rs.';
+const $b = document.getElementById('s3-buf'), $bm = document.getElementById('s3-bufm');
+const $c = document.getElementById('s3-cli'), $cm = document.getElementById('s3-clim');
+function s3reset() { $b.innerHTML = ''; $b.className = 'txt'; $bm.textContent = ''; $bm.className = 'meta'; $c.innerHTML = ''; $c.className = 'txt'; $cm.textContent = ''; $cm.className = 'meta'; }
+const armedStep = (why) => ({ title: 'Upstream streams, and the proxy holds it', focus: ['up', 'fs'],
+	flows: [{ path: 'up2fs', color: C.res, label: 'SSE' }],
+	enter: () => { $bm.textContent = ''; $cm.textContent = 'waiting: nothing sent yet'; },
+	text: why });
+const bufferStep = (html, meta) => ({ title: 'Buffered and scanned', focus: ['fs', 'buf', 'scan'],
+	flows: [{ path: 'fs2buf', color: C.res, label: 'chunks' }, { path: 'buf2scan', color: C.req, label: 'each chunk', delay: 700 }],
+	enter: (o) => { typeInto($b, html, o); $bm.textContent = meta; },
+	hold: 2200,
+	text: '<code>buffer_upstream_with_overflow_guard</code> keeps every chunk in a <code>Vec&lt;Bytes&gt;</code> and feeds each one to the parser, where the scanners watch the text as it arrives.' });
+const SCEN = {
+	plain: [
+		{ title: 'Upstream streams the answer', focus: ['up', 'fs'],
+			flows: [{ path: 'up2fs', color: C.res, label: 'SSE' }],
+			enter: () => { $bm.textContent = 'not used: nothing is held'; },
+			text: '<code>forward_streaming</code> checks one predicate, <code>weasel_armed || tool_loop_armed</code>. On a default install both are false.' },
+		{ title: 'Plain tee to the client', focus: ['fs', 'tee', 'client'],
+			flows: [{ path: 'fs2tee', color: C.res, label: 'tee' }, { path: 'tee2c', color: C.res, label: 'stream', delay: 700 }],
+			enter: (o) => { typeInto($c, esc(ANS), o); $cm.textContent = 'live, chunk by chunk'; },
+			hold: 2600,
+			text: 'Chunks go straight to Claude Code as they arrive, and a copy feeds <code>run_parser</code> and <code>spawn_store_updater</code> for capture. Nothing is held back.' }
+	],
+	clean: [
+		armedStep('Weasel intercept is armed: the <code>weasel_intercept</code> toggle is on at <code>/settings</code> <em>and</em> the forbidden-words list is not empty (here: <code>["should work"]</code>). So the stream is buffered instead of tee\'d.'),
+		bufferStep(esc(ANS_CLEAN), 'forbidden words: ["should work"]'),
+		{ title: 'Signal: Clean', focus: ['scan', 'sig'],
+			flows: [{ path: 'scan2sig', color: C.res, label: 'Clean' }],
+			text: 'At stream end the scanner sends one <code>InterceptSignal</code> over a oneshot. No forbidden word appeared, so the signal is <code>Clean</code>.' },
+		{ title: 'Flush the buffer', focus: ['buf', 'sig', 'client'],
+			flows: [{ path: 'buf2sig', color: C.res, label: 'flush' }, { path: 'sig2c', color: C.res, label: 'original answer', delay: 700 }],
+			enter: (o) => { typeInto($c, esc(ANS_CLEAN), { ...o, cps: 400 }); $cm.textContent = 'the original answer, delivered after the stream ended'; },
+			hold: 2600,
+			text: '<code>support::flush</code> sends the whole buffer to the client. Claude Code sees the original answer; it just arrives later.' }
+	],
+	weasel: [
+		armedStep('Weasel intercept is armed: the toggle is on at <code>/settings</code> and the forbidden-words list is <code>["should work"]</code>. So the stream is buffered instead of tee\'d.'),
+		bufferStep(ANS_HL, 'forbidden words: ["should work"]'),
+		{ title: 'Signal: Hit', focus: ['scan', 'sig'],
+			flows: [{ path: 'scan2sig', color: C.bad, label: 'Hit("should work")' }],
+			text: '<code>DeltaScanner</code> found a forbidden word. The signal is <code>InterceptSignal::Hit(word)</code>.' },
+		{ title: 'The answer is thrown away', focus: ['buf', 'sig'],
+			flows: [{ path: 'buf2sig', color: C.bad, label: 'discard' }],
+			enter: () => { $b.classList.add('gone'); $bm.textContent = 'discarded: never reaches Claude Code'; $bm.className = 'meta bad'; },
+			hold: 2200,
+			text: '<code>correction::run_weasel_correction</code> does not edit the answer; it discards it. Claude Code never sees what Anthropic returned for this request.' },
+		{ title: 'A correction request', focus: ['sig', 'fu'],
+			flows: [{ path: 'sig2fu', color: C.mut, label: 'correction body' }],
+			text: 'The new body is the original request, plus the discarded text, plus the configured <code>correction_prompt</code>. It gets a fresh <code>RequestId</code> and its own stub. The original row is marked <code>intercepted = true</code> with a <code>correction_request_id</code>.' },
+		{ title: 'The second answer is what Claude Code sees', focus: ['fu', 'up2', 'client'],
+			flows: [{ path: 'fu2up2', color: C.req, label: 'follow-up' }, { path: 'up22c', color: C.res, label: 'second answer', delay: 1000 }],
+			enter: (o) => { typeInto($c, esc(ANS2), o); $cm.textContent = 'the second upstream answer'; },
+			hold: 3000,
+			text: '<code>spawn_response_tee</code> streams the second answer to Claude Code and to its own parser and store updater, so it is captured as its own request.' }
+	],
+	tool: [
+		armedStep('<code>proxy_tools</code> is on, so the stage declared the <code>mike_*</code> tools into the forwarded request and the stream is buffered.'),
+		bufferStep(TOOLCALL, 'the model called a tool Claude Code does not have'),
+		{ title: 'Signal: ProxyToolCall', focus: ['scan', 'sig'],
+			flows: [{ path: 'scan2sig', color: C.mut, label: 'ProxyToolCall' }],
+			text: '<code>ToolCallScanner</code> spots a call to a <code>mike_*</code> tool. Only the proxy can answer it.' },
+		{ title: 'mike answers the tool itself', focus: ['sig', 'fu'],
+			flows: [{ path: 'sig2fu', color: C.mut, label: 'answer_tool_call' }],
+			enter: (o) => { typeInto($b, TOOLCALL + '\n<span class="tool">tool_result: 2 other live sessions</span>', { ...o, cps: 300 }); $bm.textContent = 'answered inside the proxy'; },
+			text: '<code>proxy_tools::answer::answer_tool_call</code> answers from <code>AppState</code>; <code>mike_session_roster</code> is the only tool in the catalogue today. <code>build_followup_body</code> carries the assistant prelude plus the tool result.' },
+		{ title: 'Re-ask, and stream the second answer', focus: ['fu', 'up2', 'client'],
+			flows: [{ path: 'fu2up2', color: C.req, label: 'follow-up' }, { path: 'up22c', color: C.res, label: 'second answer', delay: 1000 }],
+			enter: (o) => { typeInto($c, esc(ANS_TOOL), o); $cm.textContent = 'the tool call itself never reached Claude Code'; },
+			hold: 3000,
+			text: 'It leaves the same way as the correction path: <code>mark_intercepted</code>, then <code>spawn_response_tee</code> streams the second answer.' }
+	],
+	overflow: [
+		armedStep('Weasel intercept is armed, so the stream is buffered. This time the response is very large.'),
+		{ title: 'The buffer passes max_buffer_bytes', focus: ['fs', 'buf'],
+			flows: [{ path: 'fs2buf', color: C.res, label: 'chunks' }],
+			enter: (o) => { typeInto($b, '████████████████████████████', { ...o, caret: false }); $bm.textContent = 'over max_buffer_bytes'; $bm.className = 'meta bad'; },
+			text: 'The overflow guard trips once the held bytes exceed <code>max_buffer_bytes</code>.' },
+		{ title: 'Flush and pass through', focus: ['buf', 'client'],
+			flows: [{ path: 'ovf', color: C.res, label: 'flush + pass through' }],
+			enter: (o) => { typeInto($c, esc('…a very long answer, streaming straight through…'), o); $cm.textContent = 'no interception possible for this response'; },
+			hold: 3000,
+			text: 'What was buffered is flushed at once and the rest of the stream passes straight through. This response can no longer be intercepted.' }
+	]
+};
+let replacePlayer;
+function setScen(key) {
+	document.querySelectorAll('[data-scen]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.scen === key)));
+	replacePlayer.setSteps(SCEN[key]);
+	if (replacePlayer.active) { replacePlayer.run++; replacePlayer.go(0); }
+}
+document.querySelectorAll('[data-scen]').forEach((b) => (b.onclick = () => { replacePlayer.playing = true; replacePlayer.syncBtn(); setScen(b.dataset.scen); }));
+
+/* ═══ Scene 4 · two capture phases ════════════════════════════ */
+const LX = { client: 90, proxy: 300, up: 510, pg: 720, ui: 910 };
+const lane = (id, label, kind, sub) => ({ x: LX[id] - 75, y: 16, w: 150, h: 50, kind, label, sub, align: 'center', top: 27, c: 8, cls: 'lanehead' });
+const arr = (a, b, y) => ({ pts: [[LX[a] + (LX[b] > LX[a] ? 6 : -6), y], [LX[b] + (LX[b] > LX[a] ? -6 : 6), y]] });
+const wrD = Diagram(document.getElementById('svg-writes'), {
+	nodes: {
+		client: lane('client', 'Claude Code', 'outside'),
+		proxy: lane('proxy', 'mike proxy', 'mike'),
+		up: lane('up', 'Anthropic', 'vendor'),
+		pg: lane('pg', 'Postgres', 'store'),
+		ui: lane('ui', 'Web UI', 'terminal')
+	},
+	arrows: true,
+	lives: Object.values(LX).map((x) => `M${x},66 V625`),
+	paths: {
+		e1: { ...arr('client', 'proxy', 100), text: 'POST /v1/messages' },
+		e2: { pts: [[306, 140], [352, 140], [352, 162], [306, 162]], text: 'stored_body = inbound', tpos: 0 },
+		e3: { ...arr('proxy', 'pg', 205), text: 'Phase 1 · insert_request_initial → RequestId' },
+		e4: { ...arr('proxy', 'up', 250), text: 'forward' },
+		e5: { ...arr('up', 'proxy', 295), text: 'SSE chunks' },
+		e6: { ...arr('proxy', 'client', 330), text: 'tee' },
+		e7: { ...arr('proxy', 'pg', 370), text: 'stream_blocks · FK → stub' },
+		e8: { ...arr('proxy', 'pg', 415), text: 'ToolUseEnd → write_tool_use_row' },
+		e9: { ...arr('up', 'proxy', 460), text: 'message_stop' },
+		e10: { ...arr('proxy', 'pg', 505), text: 'Phase 2 · snapshot_terminal' },
+		e11: { pts: [[726, 545], [772, 545], [772, 567], [726, 567]], text: 'create_instances_for_dispatches', tpos: 0 },
+		e12: { ...arr('pg', 'ui', 605), text: 'NOTIFY → /api/ws' }
+	}
+});
+const f = (path, color) => [{ path, color }];
+const writeSteps = [
+	{ title: 'Request arrives', focus: ['client', 'proxy'], flows: f('e1', C.req),
+		text: 'A captured request needs a canonical session-id header. Without one, it is forwarded with no capture row at all and counted in <code>uncaptured_requests_total</code>.' },
+	{ title: 'Original bytes kept', focus: ['proxy'], flows: f('e2', C.db),
+		text: '<code>engine::accept</code> keeps the untouched inbound body before any stage runs. The logical inbound capture stays separate from mutations; compacted persisted bodies can later be reconstructed.' },
+	{ title: 'Phase 1: stub insert', focus: ['proxy', 'pg'], flows: f('e3', C.db),
+		text: '<code>capture::insert_stub_and_mint_id</code> runs at the end of the request pipeline, <em>before</em> the upstream call. With persistence it establishes the durable <code>RequestId</code> idempotently. Without persistence or after a failed insert, the request can retain a process-local ID and continue with a capture gap.' },
+	{ title: 'Forward upstream', focus: ['proxy', 'up'], flows: f('e4', C.req),
+		text: 'Only now does <code>engine::forward_to_upstream</code> send, and it records upstream latency.' },
+	{ title: 'SSE chunks arrive', focus: ['up', 'proxy'], flows: f('e5', C.res),
+		text: 'The parser task accumulates events and updates the in-memory <code>InterceptedRequest</code>.' },
+	{ title: 'Tee to the client', focus: ['proxy', 'client'], flows: f('e6', C.res),
+		text: 'On the plain path the client gets each chunk as it arrives. The weasel and proxy-tool paths hold it; see “Answer replaced”.' },
+	{ title: 'Canonical stream blocks', focus: ['proxy', 'pg'], flows: f('e7', C.db),
+		text: 'Canonical <code>responses.stream_blocks</code> writes land between the two phases, referencing the durable request. These coalesced blocks are used to assemble response JSON.' },
+	{ title: 'Tool calls, as they finish', focus: ['proxy', 'pg'], flows: f('e8', C.db),
+		text: 'Since the write-as-you-go refactor, <code>write_tool_use_row</code> fires per <code>ToolUseEnd</code> event in <code>spawn_store_updater</code>, before the terminal snapshot.' },
+	{ title: 'Stream ends', focus: ['up', 'proxy'], flows: f('e9', C.res),
+		text: 'The parser sees the terminal event. A non-streaming response reaches the same point through <code>complete_non_streaming</code>.' },
+	{ title: 'Phase 2: terminal snapshot', focus: ['proxy', 'pg'], flows: f('e10', C.db),
+		text: '<code>snapshot_terminal</code> in <code>store/terminal_snapshot.rs</code> persists terminal response/diagnostics and lifecycle/projection updates. It is a phase containing several database operations, not one SQL write.' },
+	{ title: 'Agent instances (primary turns)', focus: ['pg'], flows: f('e11', C.db),
+		text: 'On an orchestrator\'s primary turn, <code>create_instances_for_dispatches</code> creates <code>agent_instances</code> rows and back-fills unbound sub-agent requests. It soft-fails, so it never breaks the hot path.' },
+	{ title: 'The UI is told', focus: ['pg', 'ui'], flows: f('e12', C.evt), hold: 2600,
+		text: '<code>NOTIFY proxy.row_changed</code> → <code>db_listener</code> → <code>ProxyEvent::RowChanged</code> on <code>event_tx</code> → every <code>/api/ws</code> subscriber.' }
+];
+
+/* ═══ Scene 5 · boot and shutdown ═════════════════════════════ */
+const WORKERS = [
+	['lesson_worker', 'lesson_worker + persistence', 1], ['resync', 'db_resync + both DB URLs', 1],
+	['embed_backfill', 'persistence; embeddings off by default', 1], ['semantic', 'persistence; semantic_context for work', 1],
+	['assembled_body_backfill', 'persistence', 1], ['judge_worker', 'judge_worker + persistence', 0, 1],
+	['dossier_builder', 'persistence; dossier_builder for work', 0], ['steerer_fleet', 'steerer + client', 0, 1],
+	['quiescence', 'steerer + persistence', 0, 1], ['session_judge', 'session_judge + persistence', 0, 1],
+	['mailbox_reaper', 'persistence', 1], ['work_registry', 'persistence; deliver-mode for wakes', 1],
+	['eval_metrics', 'persistence; eval.rollup.enabled', 1], ['cross_session', 'persistence; extra actions gated', 1],
+	['channel_link_sweep', 'channel_link_sweep + persistence', 1], ['remote_control_repush', 'persistence + eligible open stream', 1],
+	['workspace_reaper', 'persistence', 1], ['retention_sweep', 'retention_sweep + persistence', 1]
+];
+const $w = document.getElementById('s5-workers');
+WORKERS.forEach(([n, g, on, eg]) => {
+	const d = h('div', 'wk ' + (on ? 'on' : 'off'), `${esc(n)}<small>gate: ${esc(g)}${eg ? ' · <span class="egress">calls OpenRouter</span>' : ''}</small><span class="st">${on ? 'on / gated' : 'off'}</span>`);
+	$w.append(d);
+});
+const $t = document.getElementById('s5-term');
+const $bar = document.getElementById('s5-bar');
+function log(lines, o) {
+	lines.forEach((ln, k) => {
+		const add = () => {
+			const d = h('div', 'ln' + (o.instant ? '' : ' new'), `<span class="p">›</span><span>${ln}</span>`);
+			$t.append(d);
+			$t.scrollTop = $t.scrollHeight;
+		};
+		if (o.instant) add(); else setTimeout(() => o.alive() && add(), k * 380);
+	});
+}
+const ports = (on) => document.querySelectorAll('.port').forEach((p) => p.classList.toggle('on', on));
+function s5reset() {
+	$t.replaceChildren();
+	ports(false);
+	document.querySelectorAll('.port').forEach((p) => p.classList.remove('down'));
+	document.querySelectorAll('.wk').forEach((w) => w.classList.remove('seen', 'gone'));
+	$bar.querySelector('.fill').style.transition = 'none';
+	$bar.querySelector('.fill').style.width = '0';
+	$bar.querySelector('.exit').style.display = 'none';
+}
+const fn = (s) => `<span class="fn">${s}</span>`;
+const cm = (s) => `<span class="c">${s}</span>`;
+const bootSteps = [
+	{ title: '.env before anything', hold: 1300,
+		enter: (o) => log([`${fn('load_dotenv_preserving_db_url()')} ${cm('first statement in main(), ahead of clap')}`], o),
+		text: '<code>main()</code> loads <code>.env</code> before <code>Cli::parse()</code>, preserving an already-set database URL.' },
+	{ title: 'Dispatch the subcommand', hold: 1900,
+		enter: (o) => log([`${fn('Cli::parse()')} ${cm('→ serve')}`, cm('bare mike: TTY → ratatui TUI · no TTY → serve headless'), cm('spawn · claude · print-config · migrate-check → short-circuit')], o),
+		text: 'A bare <code>mike</code> is not always a server: <code>bare_dispatch_target</code> opens the TUI on a TTY and serves headless otherwise. <code>mike serve</code> always serves.' },
+	{ title: 'Config and tracing', hold: 1900,
+		enter: (o) => log([`${fn('config::load')} ${cm('defaults &lt; MIKE_* env &lt; CLI flags')}`, `${fn('init_tracing_and_log_startup')} ${cm('json | pretty · optional OTel · optional daily file')}`], o),
+		text: 'Boot config is a figment chain. The runtime source of truth for toggles is <code>/settings</code>, not a file.' },
+	{ title: 'AppState::new', hold: 1500,
+		enter: (o) => log([`${fn('AppState::new')} ${cm('pg pool · store · channels · TaskTracker · CancellationToken')}`], o),
+		text: 'The big one: it initializes persistence when configured and builds the in-memory store, channels, task tracker and shutdown token.' },
+	{ title: 'Startup sequence', hold: 3000,
+		enter: (o) => log([
+			`${fn('warn_on_non_loopback_binds')} ${cm('addresses are 127.x: no warning')}`,
+			`${fn('run_crash_recovery')} ${cm('close stale Pending rows from a prior crash')}`,
+			`${fn('record_build_identity')} ${cm('record changed build + code defaults')}`,
+			`${fn('spawn_bundle_retry')} ${cm('retry publications when a publisher is present')}`,
+			`${fn('run_startup_session_sweep')} <span class="w">skipped: sweep_at_startup = false</span>`,
+			`${fn('run_mailbox_reload')} ${cm('pending mailbox messages → reminder queue')}`,
+			`${fn('run_composable_session_warmup')} ${cm('warm composable_session_index')}`,
+			`${fn('emit_startup_banner')} ${cm('byte budgets · pool dims · row counts')}`
+		], o),
+		text: 'Recovery is attempted before listeners bind; failures are logged and boot continues. Build identity and bundle-publication retry precede the sweep, mailbox reload and warmup.' },
+	{ title: 'LISTEN for row changes', hold: 1400,
+		enter: (o) => log([`${fn('db_listener::spawn_listener')} ${cm('LISTEN proxy.row_changed → event_tx')}`], o),
+		text: 'This task is what later turns a capture write into a live <code>/api/ws</code> event.' },
+	{ title: 'Eighteen worker entry points', hold: 3200,
+		enter: (o) => {
+			log([`${fn('spawn_background_workers_unless_smoke_run')} ${cm('18 calls; spawn-time or per-tick work gates')}`], o);
+			const ws = [...document.querySelectorAll('.wk')];
+			ws.forEach((w, k) => (o.instant ? w.classList.add('seen') : setTimeout(() => o.alive() && w.classList.add('seen'), 200 + k * 170)));
+		},
+		text: 'Some gates prevent spawning; others disable work inside a running task. These are code defaults, before persisted overrides, and depend on available services. OpenRouter paths are opt-in; embeddings and database destinations are separately configurable.' },
+	{ title: 'Observability tasks', hold: 1600,
+		enter: (o) => log([`${fn('spawn_observability_tasks')} ${cm('pruner · store + pool gauges · 5s memory ticker · RSS cap manager')}`], o),
+		text: 'The cap manager sheds load in priority order when RSS crosses the high-watermark. It only observes when <code>rss_ceiling_bytes = 0</code>.' },
+	{ title: 'Bind the listeners', hold: 2400,
+		enter: (o) => {
+			log([`${fn('listeners::bind_and_log')} ${cm(':9988 proxy · :9989 inspect · :9990 SPA')}`], o);
+			const ps = [...document.querySelectorAll('.port')];
+			ps.forEach((p, k) => (o.instant ? p.classList.add('on') : setTimeout(() => o.alive() && p.classList.add('on'), 300 + k * 350)));
+		},
+		text: 'A failure to bind <code>:9988</code> or <code>:9989</code> aborts startup. <code>:9990</code> binds only when <code>spa_enabled</code> is true; <code>scripts/start-proxy.sh</code> sets it to 0 so <code>vite dev</code> can own the port. <code>spa_router</code> serves the whole <code>/api/*</code> surface too.' },
+	{ title: 'Signal handler and backstop', hold: 1900,
+		enter: (o) => log([`${fn('install_signal_handler')} ${cm('SIGINT · SIGTERM · SIGHUP → cancel token')}`, `${fn('spawn_hard_deadline_backstop')} ${cm('SHUTDOWN_HARD_DEADLINE_SECS = 60')}`], o),
+		text: 'SIGHUP counts too: a closed controlling terminal shuts mike down cleanly.' },
+	{ title: 'Serving', hold: 2200,
+		enter: (o) => log([`<span class="fn">serving</span> ${cm('axum::serve × 2 + SPA future, joined with try_join!')}`], o),
+		text: 'The proxy and inspect binds each run a real <code>axum::serve</code>. The SPA slot is always in the join, as a no-op future when disabled.' },
+	{ title: 'SIGTERM: the drain race', hold: 3600,
+		enter: (o) => {
+			log([`<span class="x">SIGTERM</span> ${cm('→ cancel token')}`, `${fn('race_serve_against_drain_deadline')} ${cm('+3s shutdown starts · 10s GRACEFUL_DRAIN_SECS')}`, `${fn('wait_for_observability_tasks')} ${cm('≤ 30s each · task_tracker.wait ≤ 30s')}`], o);
+			const fill = $bar.querySelector('.fill');
+			const ex = $bar.querySelector('.exit');
+			if (o.instant) { fill.style.transition = 'none'; fill.style.width = '7%'; ex.style.display = 'block'; }
+			else {
+				fill.style.transition = 'none'; fill.style.width = '0';
+				requestAnimationFrame(() => { fill.style.transition = 'width 2.4s linear'; fill.style.width = '7%'; });
+				setTimeout(() => o.alive() && (ex.style.display = 'block'), 2500);
+			}
+			const ps = [...document.querySelectorAll('.port')];
+			ps.forEach((p) => (o.instant ? (p.classList.remove('on'), p.classList.add('down')) : setTimeout(() => { if (o.alive()) { p.classList.remove('on'); p.classList.add('down'); } }, 1500)));
+		},
+		text: 'Each bind waits 3s after cancellation before axum begins graceful shutdown. The serving join has a 10s deadline measured from cancellation. Task waits are capped at 30s each, with a 60s process hard backstop. The displayed return time is illustrative.' },
+	{ title: 'Exit', hold: 2600,
+		enter: (o) => {
+			log([`${fn('flush_otel')} ${cm('no-op unless otel_endpoint was set')}`, `<span class="fn">exit 0</span> ${cm('hard backstop aborted')}`], o);
+			document.querySelectorAll('.wk').forEach((w) => w.classList.add('gone'));
+		},
+		text: 'The OTel provider is flushed last. The next run starts at step 1 with crash recovery, in case this exit was not clean.' }
+];
+
+/* ═══ Wiring: tabs + players ══════════════════════════════════ */
+const sideOf = (k) => document.querySelector(`[data-player="${k}"]`);
+const mapPlayer = new Player({ side: sideOf('map'), D: mapD, steps: mapSteps });
+replacePlayer = new Player({ side: sideOf('replace'), D: rpD, steps: SCEN.weasel, onReset: s3reset });
+setScen('weasel');
+const writesPlayer = new Player({ side: sideOf('writes'), D: wrD, steps: writeSteps, hold: 1300 });
+const bootPlayer = new Player({ side: sideOf('boot'), D: null, steps: bootSteps, onReset: s5reset });
+const CTRL = { map: mapPlayer, stages: stagesCtl, replace: replacePlayer, writes: writesPlayer, boot: bootPlayer };
+const ORDER = ['map', 'stages', 'replace', 'writes', 'boot'];
+let current = null;
+function show(key) {
+	if (!CTRL[key]) key = 'map';
+	if (current === key) return;
+	if (current) CTRL[current].stop();
+	current = key;
+	ORDER.forEach((k) => {
+		document.getElementById('scene-' + k).hidden = k !== key;
+		const t = document.getElementById('tab-' + k);
+		t.setAttribute('aria-selected', String(k === key));
+		t.tabIndex = k === key ? 0 : -1;
+	});
+	CTRL[key].start();
+}
+document.querySelectorAll('.tab').forEach((t) => {
+	t.onclick = () => { show(t.dataset.scene); try { history.replaceState(null, '', '#' + t.dataset.scene); } catch (e) { /* sandboxed */ } };
+	t.onkeydown = (e) => {
+		const i = ORDER.indexOf(t.dataset.scene);
+		const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+		if (!d) return;
+		const n = ORDER[(i + d + ORDER.length) % ORDER.length];
+		document.getElementById('tab-' + n).focus();
+		document.getElementById('tab-' + n).click();
+	};
+});
+show((location.hash || '').slice(1));
+})();
+</script>
+</body>
+</html>

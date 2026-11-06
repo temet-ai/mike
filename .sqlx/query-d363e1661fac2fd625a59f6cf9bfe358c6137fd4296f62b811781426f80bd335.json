@@ -1,0 +1,108 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH seats AS (\n    SELECT DISTINCT ON (s.id) l.seat, s.id AS sid, l.created_at AS launched_at,\n           CASE WHEN l.seat LIKE 'coordinator%' THEN 'coordinator'\n                WHEN l.seat LIKE 'observer%' THEN 'observer'\n                WHEN l.seat LIKE 'acceptance%' THEN 'acceptance'\n                WHEN l.seat LIKE 'template-%' THEN 'template'\n                WHEN l.seat = 'reference' THEN 'reference'\n                ELSE 'worker' END AS kind\n      FROM launch.launches l\n      JOIN sessions.sessions s ON s.session_uuid = l.session_uuid\n     WHERE l.run_id = $1 AND l.seat IS NOT NULL AND l.seat <> 'status'\n     ORDER BY s.id, l.created_at, l.id\n),\nmain_requests AS (\n    SELECT s.seat, q.id, q.created_at,\n           lag(q.created_at) OVER (PARTITION BY q.session_id ORDER BY q.created_at, q.id) AS prev\n      FROM seats s\n      JOIN requests.requests q ON q.session_id = s.sid AND q.created_at >= s.launched_at\n      JOIN requests.turn_origins o ON o.id = q.turn_origin_id\n     WHERE q.claude_code_agent_id IS NULL AND o.code IN ('primary', 'primary_first')\n),\nactivity AS (\n    SELECT seat, count(*) AS requests,\n           coalesce(sum(extract(epoch FROM created_at - prev)) FILTER (WHERE created_at - prev < interval '3 minutes'), 0) / 60 AS working_minutes,\n           coalesce(sum(extract(epoch FROM created_at - prev)) FILTER (WHERE created_at - prev >= interval '3 minutes'), 0) / 60 AS waiting_minutes\n      FROM main_requests GROUP BY seat\n),\nfirst_request AS (\n    SELECT DISTINCT ON (seat) seat, id FROM main_requests ORDER BY seat, created_at, id\n),\noffered AS (\n    SELECT f.seat, array_agg(DISTINCT t.tool_name ORDER BY t.tool_name) AS names\n      FROM first_request f JOIN requests.tools t ON t.request_id = f.id\n     GROUP BY f.seat\n),\ncalls AS (\n    SELECT s.seat, u.tool_name, u.created_at,\n           u.input->>'command' AS cmd\n      FROM seats s\n      JOIN tools.uses u ON u.session_id = s.sid AND u.created_at >= s.launched_at\n),\nfirsts AS (\n    SELECT seat, min(created_at) AS first_call,\n           min(created_at) FILTER (WHERE tool_name = 'mcp__mike__fleet_commit'\n               OR (tool_name = 'Bash' AND cmd ~ 'git\\s+(-C\\s+\\S+\\s+)?commit')) AS first_commit\n      FROM calls GROUP BY seat\n),\ntotals AS (\n    SELECT c.seat, count(*) AS tool_calls,\n           count(*) FILTER (WHERE c.tool_name = 'Bash' AND c.cmd ~ $3\n               AND c.cmd !~ $4 AND c.cmd !~ '(cargo|make |scripts/cx|scripts/gate|nextest|pnpm|npm |pytest|sb-test)') AS git_reads,\n           count(*) FILTER (WHERE c.tool_name = 'Bash' AND c.cmd ~ $2 AND c.cmd !~ 'git commit') AS cargo_commands,\n           count(*) FILTER (WHERE f.first_commit IS NOT NULL AND c.created_at <= f.first_commit) AS calls_to_first_commit,\n           array_agg(DISTINCT c.tool_name ORDER BY c.tool_name) AS used\n      FROM calls c JOIN firsts f ON f.seat = c.seat\n     GROUP BY c.seat\n)\nSELECT s.seat AS \"seat!\", s.kind AS \"kind!\",\n       coalesce(a.requests, 0) AS \"requests!\",\n       round(coalesce(a.working_minutes, 0), 1)::float8 AS \"working_minutes!\",\n       round(coalesce(a.waiting_minutes, 0), 1)::float8 AS \"waiting_minutes!\",\n       coalesce(t.tool_calls, 0) AS \"tool_calls!\",\n       coalesce(t.git_reads, 0) AS \"git_reads!\",\n       coalesce(t.cargo_commands, 0) AS \"cargo_commands!\",\n       CASE WHEN f.first_commit IS NULL THEN NULL\n            ELSE round(extract(epoch FROM f.first_commit - f.first_call) / 60, 1)::float8 END AS minutes_to_first_commit,\n       CASE WHEN f.first_commit IS NULL THEN NULL ELSE t.calls_to_first_commit END AS calls_to_first_commit,\n       coalesce(o.names, '{}'::text[]) AS \"offered!\",\n       coalesce(t.used, '{}'::text[]) AS \"used!\"\n  FROM seats s\n  LEFT JOIN activity a ON a.seat = s.seat\n  LEFT JOIN firsts f ON f.seat = s.seat\n  LEFT JOIN totals t ON t.seat = s.seat\n  LEFT JOIN offered o ON o.seat = s.seat\n ORDER BY s.kind, s.seat\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "seat!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "seat"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "requests!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "working_minutes!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "waiting_minutes!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "tool_calls!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "git_reads!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "cargo_commands!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "minutes_to_first_commit",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "calls_to_first_commit",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "offered!",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "used!",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "d363e1661fac2fd625a59f6cf9bfe358c6137fd4296f62b811781426f80bd335"
+}

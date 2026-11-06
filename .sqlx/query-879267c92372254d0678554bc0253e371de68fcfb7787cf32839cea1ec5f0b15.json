@@ -1,0 +1,45 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH hours AS (\n    SELECT unnest($1::timestamptz[]) AS h),\nbounds AS (\n    SELECT min(h) - interval '21 days' AS lo, max(h) AS hi FROM hours),\nt AS (\n    SELECT o.closed_at, o.classified_at, o.judge_model IS NOT NULL AS by_judge\n      FROM memory.operator_turns o\n      JOIN bounds ON o.closed_at >= bounds.lo AND o.closed_at < bounds.hi\n     WHERE o.judge_failure_reason IS DISTINCT FROM 'permanent'\n)\nSELECT hr.h AS \"h!\",\n       count(t.closed_at) FILTER (WHERE t.closed_at < hr.h - interval '6 hours'\n                                    AND (t.classified_at IS NULL OR t.classified_at > hr.h)) AS \"stale_6h!\",\n       count(t.closed_at) FILTER (WHERE t.closed_at < hr.h - interval '30 minutes'\n                                    AND (t.classified_at IS NULL OR t.classified_at > hr.h)) AS \"waiting_30m!\",\n       count(t.closed_at) FILTER (WHERE t.by_judge AND t.classified_at >= hr.h - make_interval(hours => $2::int)\n                                    AND t.classified_at < hr.h) AS \"verdicts!\"\n  FROM hours hr\n  LEFT JOIN t ON t.closed_at < hr.h AND t.closed_at >= hr.h - interval '21 days'\n GROUP BY hr.h\n ORDER BY hr.h\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "h!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "stale_6h!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "waiting_30m!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "verdicts!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TimestamptzArray",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "879267c92372254d0678554bc0253e371de68fcfb7787cf32839cea1ec5f0b15"
+}

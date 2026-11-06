@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lesson_relations r\n                      SET status_id  = target_s.id,\n                          decided_at = NOW(),\n                          decided_by = $2\n                     FROM memory.lesson_relation_statuses target_s,\n                          memory.lesson_relation_statuses current_s\n                    WHERE target_s.code = $3\n                      AND r.id = $1\n                      AND r.status_id = current_s.id\n                      AND current_s.code IN ('proposed', 'contested')\n                RETURNING r.id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_relations",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "69670aaee655fdc076f852102aa945857c9d71908d04e9eebb007a88b077de6b"
+}

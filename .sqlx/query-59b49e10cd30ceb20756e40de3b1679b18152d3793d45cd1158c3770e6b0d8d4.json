@@ -1,0 +1,138 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT d.id AS \"id!\", d.tool_use_id AS \"tool_use_id!\", u.request_id AS \"request_id!\",\n                  u.created_at AS \"created_at!\", u.wire_tool_use_id AS \"wire_tool_use_id!\", u.ord AS \"ord!\",\n                  ag.name AS \"agent_name!\", u.input->>'description' AS \"description?\",\n                  i.id AS \"instance_id?\",\n                  CASE WHEN octet_length(i.subagent_persona) <= 128\n                       THEN i.subagent_persona END AS \"persona?\",\n                  d.worker_producer_id AS \"worker_producer_id?\"\n             FROM agents.dispatches d JOIN tools.uses u ON u.id = d.tool_use_id\n             JOIN agents.agents ag ON ag.id = d.agent_id\n             LEFT JOIN agents.instances i ON i.dispatch_id = d.id\n            WHERE d.id = ANY($1) ORDER BY d.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.dispatches",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "tool_use_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.dispatches",
+            "name": "tool_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "wire_tool_use_id!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "wire_tool_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "ord!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "ord"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "agent_name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "description?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "instance_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.instances",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "persona?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "worker_producer_id?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.dispatches",
+            "name": "worker_producer_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null,
+      false,
+      null,
+      true
+    ]
+  },
+  "hash": "59b49e10cd30ceb20756e40de3b1679b18152d3793d45cd1158c3770e6b0d8d4"
+}

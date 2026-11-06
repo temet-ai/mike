@@ -1,0 +1,5 @@
+# JC05 ledger. The landed sha is the JC05 commit on feat/judgement-context.
+landed   JC05 2026-09-24 be97acc6
+table    config.change_log
+tool     list_config_changes full
+tool     get_config_snapshot full

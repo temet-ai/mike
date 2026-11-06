@@ -1,0 +1,7 @@
+# Structural limits are deliberately strict. These values are enforced by
+# scripts/lint-rust at deny level. The companion suppression scanner rejects
+# source attributes that would try to weaken them without breaking attributes
+# emitted internally by third-party derive macros.
+cognitive-complexity-threshold = 15
+too-many-arguments-threshold = 6
+too-many-lines-threshold = 100

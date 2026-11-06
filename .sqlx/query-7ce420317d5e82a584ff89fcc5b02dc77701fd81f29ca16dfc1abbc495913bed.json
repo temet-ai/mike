@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO mailbox.messages (message_uuid, to_session_id, from_session_id, body)\n                   SELECT gen_random_uuid(), m.from_session_id, NULL,\n                          '[mike mail] Not delivered: your message ' || m.message_uuid::text\n                          || ' to session ' || recip.session_uuid::text\n                          || CASE WHEN m.sent_at IS NULL AND m.sent_request_id IS NULL AND m.channel_delivered_at IS NULL\n                                  THEN ' was never delivered: that session made no request in time. mike delivers it when that session next makes a request.'\n                                  ELSE ' was delivered but never acknowledged before its delivery attempts ran out. mike will not deliver it again: resend it or ask that session.'\n                             END\n                     FROM mailbox.messages m\n                     JOIN sessions.sessions recip ON recip.id = m.to_session_id\n                    WHERE m.message_uuid = $1\n                      AND m.from_session_id IS NOT NULL\n                      AND m.consumed_at IS NULL\n                      AND NOT EXISTS (\n                          SELECT 1 FROM mailbox.messages n\n                           WHERE n.to_session_id = m.from_session_id\n                             AND n.body LIKE $2)\n                RETURNING message_uuid AS \"message_uuid!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "message_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "message_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7ce420317d5e82a584ff89fcc5b02dc77701fd81f29ca16dfc1abbc495913bed"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "mods",
+  "version": "0.2.0",
+  "author": { "name": "Dawid du Toit" },
+  "description": "/mods lists the mods this session loaded: what each does, what it adds and the folder it loads from",
+  "types": "./types/index.d.ts"
+}

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE system_prompts.session_prompts\n                 SET altered = true\n                 WHERE session_id = $1\n                   AND lane = 'main'\n                   AND altered = false",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1328114e0204fcc6fe0662d82cb2fe62e4a58182193ed8a6d95ea33bb11e7257"
+}

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE steering.interventions i\n                      SET wake_state = 'operator_rejected', wake_resolved_at = now(),\n                          expires_at = now()\n                     FROM steering.evaluations e\n                    WHERE e.uuid = $1 AND e.intervention_uuid = i.uuid\n                      AND i.wake_state = 'pending'\n                   RETURNING i.id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6df68b2e690a9e3d4fd7c07e5a5ae60051f16faf7119719c9e2f193c5df89492"
+}

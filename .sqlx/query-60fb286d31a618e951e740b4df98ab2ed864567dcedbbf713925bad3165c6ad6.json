@@ -1,0 +1,78 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH run_sessions AS (\n    SELECT DISTINCT session_uuid\n      FROM launch.launches\n     WHERE run_id = $1 AND session_uuid IS NOT NULL\n), latest_launches AS (\n    SELECT DISTINCT ON (l.session_uuid)\n           l.session_uuid, l.run_id, l.closed_at, l.seat\n      FROM launch.launches l\n      JOIN run_sessions s USING (session_uuid)\n     ORDER BY l.session_uuid, l.created_at DESC, l.id DESC\n)\nSELECT f.id, sender.session_uuid AS sender, recipient.session_uuid AS recipient,\n       target.seat, f.attempted_at\n  FROM mailbox.failed_sends f\n  JOIN sessions.sessions sender ON sender.id = f.attempted_by_session_id\n  JOIN latest_launches author ON author.session_uuid = sender.session_uuid\n  JOIN sessions.sessions recipient ON recipient.session_uuid = sessions.try_uuid(f.attempted_to)\n  JOIN latest_launches target ON target.session_uuid = recipient.session_uuid\n WHERE f.reason = 'recipient_ended'\n   AND f.attempted_at >= $2 AND f.attempted_at <= $3\n   AND author.run_id = $1 AND target.run_id = $1\n   AND target.closed_at <= f.attempted_at\n   AND NOT EXISTS (\n       SELECT 1 FROM launch.told t\n        WHERE t.run_id = $1 AND t.what = 'closed-mail:' || f.id::text\n   )\n ORDER BY f.attempted_at DESC, f.id DESC\n LIMIT 200\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mailbox.failed_sends",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "sender",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "recipient",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "seat",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "seat"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "attempted_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.failed_sends",
+            "name": "attempted_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "60fb286d31a618e951e740b4df98ab2ed864567dcedbbf713925bad3165c6ad6"
+}

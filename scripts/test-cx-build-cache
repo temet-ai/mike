@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# test-cx-build-cache — checks the MIKE_BUILD_CACHE=mbx opt-in of scripts/cx.
+#
+# It asks cx for the command line it would run (CX_PRINT_COMMAND=1) and never
+# runs a build. With the variable unset the line is cargo's, as before; with it
+# set the line is mbx's, sccache is off, and the two shared build directories
+# are refused.
+#
+# USAGE
+#   scripts/test-cx-build-cache        # one line per case, then a verdict
+#
+# EXIT CODE
+#   0 when every case passes. The last line is CX-BUILD-CACHE: PASS or FAIL.
+set -uo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cx="$script_dir/cx"
+root="$(git -C "$script_dir" rev-parse --show-toplevel)"
+
+T="$(mktemp -d)"
+trap 'rm -rf "$T"' EXIT
+fake="$T/mbx"
+printf '#!/bin/sh\nexit 0\n' > "$fake"
+chmod +x "$fake"
+
+fail=0
+chk() {
+  if [[ "$1" == pass ]]; then printf '  PASS  %s\n' "$2"
+  else printf '  FAIL  %s\n' "$2"; fail=1; fi
+}
+
+plain() {
+  env -u MIKE_BUILD_CACHE -u MBX_BIN -u MBX_CACHE_DIR -u CARGO_TARGET_DIR -u RUSTC_WRAPPER \
+    -u CARGO_BUILD_RUSTC_WRAPPER -u CX_SCCACHE CX_PRINT_COMMAND=1 "$@"
+}
+
+out="$(plain "$cx" check -p mike --lib 2>&1)"
+first="$(printf '%s\n' "$out" | head -1)"
+tail3="$(printf '%s\n' "$out" | tail -4 | tr '\n' ' ')"
+[[ "$first" == cargo && "$tail3" == "check -p mike --lib " ]] \
+  && chk pass "unset: the command is cargo with the arguments untouched" \
+  || chk fail "unset: the command is cargo with the arguments untouched ($first / $tail3)"
+
+out="$(plain CX_SCCACHE=1 "$cx" check 2>&1)"
+if command -v sccache >/dev/null 2>&1; then
+  grep -q 'build.rustc-wrapper' <<<"$out" \
+    && chk pass "unset: CX_SCCACHE=1 still injects sccache as before" \
+    || chk fail "unset: CX_SCCACHE=1 still injects sccache as before"
+else
+  chk pass "unset: CX_SCCACHE=1 case skipped, sccache is not installed"
+fi
+
+out="$(plain MIKE_BUILD_CACHE=mbx MBX_BIN="$fake" CARGO_TARGET_DIR="$root/target/mbx-a" "$cx" check -p mike --lib 2>&1)"
+first="$(printf '%s\n' "$out" | head -1)"
+[[ "$first" == "$fake" ]] \
+  && chk pass "set: the command is MBX_BIN" \
+  || chk fail "set: the command is MBX_BIN ($first)"
+[[ "$(printf '%s\n' "$out" | tail -n +2 | tr '\n' ' ')" == "check -p mike --lib " ]] \
+  && chk pass "set: the cargo subcommand follows mbx with nothing added" \
+  || chk fail "set: the cargo subcommand follows mbx with nothing added"
+grep -qE 'sccache|rustc-wrapper|^cargo$' <<<"$out" \
+  && chk fail "set: sccache and cargo are off" \
+  || chk pass "set: sccache and cargo are off"
+
+out="$(plain MIKE_BUILD_CACHE=mbx MBX_BIN="$fake" CX_SCCACHE=1 RUSTC_WRAPPER=sccache CARGO_TARGET_DIR=target/mbx-a "$cx" check 2>&1)"
+grep -qE 'sccache|rustc-wrapper' <<<"$out" \
+  && chk fail "set: CX_SCCACHE=1 and RUSTC_WRAPPER do not turn sccache on" \
+  || chk pass "set: CX_SCCACHE=1 and RUSTC_WRAPPER do not turn sccache on"
+
+for d in "" target target/ "$root/target" target/fleet-check "$root/target/fleet-check/"; do
+  if [[ -z "$d" ]]; then
+    out="$(plain MIKE_BUILD_CACHE=mbx MBX_BIN="$fake" "$cx" check 2>&1)"
+  else
+    out="$(plain MIKE_BUILD_CACHE=mbx MBX_BIN="$fake" CARGO_TARGET_DIR="$d" "$cx" check 2>&1)"
+  fi
+  rc=$?
+  [[ $rc -ne 0 && "$out" != "$fake"* ]] \
+    && chk pass "set: build directory '${d:-<unnamed>}' is refused" \
+    || chk fail "set: build directory '${d:-<unnamed>}' is refused (rc $rc)"
+done
+
+out="$(plain MIKE_BUILD_CACHE=mbx MBX_BIN="$T/none" CARGO_TARGET_DIR=target/mbx-a "$cx" check 2>&1)"
+rc=$?
+[[ $rc -ne 0 && "$out" == *"found no mbx"* ]] \
+  && chk pass "set: a missing mbx is a clear error" \
+  || chk fail "set: a missing mbx is a clear error (rc $rc)"
+
+out="$(plain MIKE_BUILD_CACHE=mbx MBX_BIN="$fake" CARGO_TARGET_DIR=target/mbx-a bash -c "
+  CX_PRINT_COMMAND=1 '$cx' check >/dev/null; echo done" 2>&1)"
+[[ "$out" == done ]] && chk pass "set: a relative build directory is accepted" \
+  || chk fail "set: a relative build directory is accepted ($out)"
+
+out="$(env -u MBX_LEARNED_INCREMENTAL -u MBX_CACHE_DIR bash -c "
+  source '$root/scripts/lib/preflight-toolchain.sh'
+  MBX_BIN='$fake' prepare_mbx_build_cache '$root' target/mbx-a && echo \"li=\$MBX_LEARNED_INCREMENTAL\"" 2>&1)"
+[[ "$out" == "li=0" ]] && chk pass "set: learned incremental reuse is off, so crate mike is stored" \
+  || chk fail "set: learned incremental reuse is off ($out)"
+
+if [[ $fail -eq 0 ]]; then echo "CX-BUILD-CACHE: PASS"; exit 0; fi
+echo "CX-BUILD-CACHE: FAIL"
+exit 1

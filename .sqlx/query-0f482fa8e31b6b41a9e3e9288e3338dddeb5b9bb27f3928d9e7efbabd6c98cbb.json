@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH items AS (\n    SELECT i.embedding, i.effective_at\n      FROM memory.semantic_items i\n      JOIN memory.turn_facts f ON f.operator_turn_id = i.operator_turn_id\n     WHERE i.kind = $3 AND i.embedder_key = $1\n       AND f.prompt_kind = 'genuine' AND f.session_class = 'operator'\n)\nSELECT count(*) FILTER (WHERE effective_at >= $2::timestamptz - interval '7 days')::bigint AS \"n_current!\",\n       (sum(embedding) FILTER (WHERE effective_at >= $2::timestamptz - interval '7 days'))::text AS current_sum,\n       count(*) FILTER (WHERE effective_at < $2::timestamptz - interval '7 days')::bigint AS \"n_baseline!\",\n       (sum(embedding) FILTER (WHERE effective_at < $2::timestamptz - interval '7 days'))::text AS baseline_sum\n  FROM items\n WHERE effective_at >= $2::timestamptz - interval '35 days' AND effective_at < $2::timestamptz\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "n_current!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "current_sum",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "n_baseline!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "baseline_sum",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "0f482fa8e31b6b41a9e3e9288e3338dddeb5b9bb27f3928d9e7efbabd6c98cbb"
+}

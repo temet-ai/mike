@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH busiest AS (\n                       SELECT l.project_id\n                         FROM memory.lessons l\n                         JOIN memory.lesson_stages ls\n                           ON ls.id = l.stage_id AND ls.code IN ('daily', 'long_term')\n                        WHERE l.archived_at IS NULL\n                          AND l.topic IS NULL\n                          AND l.project_id IS NOT NULL\n                        GROUP BY l.project_id\n                        ORDER BY count(*) DESC, l.project_id\n                        LIMIT 1)\n                   SELECT l.id, l.project_id AS \"project_id!\", l.text\n                     FROM memory.lessons l\n                     JOIN busiest b ON b.project_id = l.project_id\n                     JOIN memory.lesson_stages ls\n                       ON ls.id = l.stage_id AND ls.code IN ('daily', 'long_term')\n                    WHERE l.archived_at IS NULL\n                      AND l.topic IS NULL\n                    ORDER BY l.id\n                    LIMIT $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "text"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "89d9a09e6b8e9f80cdc9de65989cf2ac8c8b35cd8097d69ba16b56bc21d903c9"
+}

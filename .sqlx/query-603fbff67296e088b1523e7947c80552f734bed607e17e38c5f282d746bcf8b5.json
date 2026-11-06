@@ -1,0 +1,56 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH builds AS (\n    SELECT u.id, u.session_id, p.project_path,\n           u.created_at AS started_at, min(r.created_at) AS ended_at,\n           (q.agent_instance_id IS NULL AND q.subagent_persona IS NULL) AS main_session,\n           s.session_uuid\n      FROM tools.uses u\n      JOIN requests.requests q ON q.id = u.request_id\n      JOIN projects.projects p ON p.id = q.project_id\n      JOIN sessions.sessions s ON s.id = u.session_id\n      JOIN tools.results r ON r.tool_use_id = u.id\n     WHERE u.tool_name = 'Bash'\n       AND u.created_at >= $2::timestamptz - interval '1 hour' AND u.created_at < $3\n       AND (u.input ->> 'command') ~ '(nextest|(cargo|cx) (build|check|clippy|test|rustc)|make (test|lint|check|build|install)|scripts/gate)'\n       AND coalesce((u.input ->> 'run_in_background')::bool, false) = false\n     GROUP BY u.id, p.project_path, q.agent_instance_id, q.subagent_persona, s.session_uuid\n    HAVING min(r.created_at) - u.created_at <= interval '1 hour'\n), mine AS (\n    SELECT * FROM builds b\n     WHERE b.started_at >= $2\n       AND ($1::text IS NULL OR b.project_path ILIKE '%' || $1 || '%')\n       AND ($6::text IS NULL OR b.project_path = $6)\n       AND ($4::bool OR b.main_session)\n       AND ($5::uuid IS NULL OR b.session_uuid = $5)\n), overlapped AS (\n    SELECT m.id, extract(epoch FROM m.ended_at - m.started_at)::float8 AS seconds,\n           count(o.id) AS others\n      FROM mine m\n      LEFT JOIN builds o\n        ON o.session_id <> m.session_id AND o.started_at < m.ended_at AND o.ended_at > m.started_at\n     GROUP BY m.id, m.started_at, m.ended_at\n)\nSELECT CASE WHEN others = 0 THEN 'none' WHEN others <= 2 THEN '1 to 2'\n            WHEN others <= 5 THEN '3 to 5' ELSE '6 or more' END AS \"running_at_once!\",\n       min(others)::bigint AS \"sort_key!\",\n       count(*)::bigint AS \"calls!\",\n       sum(seconds)::float8 AS \"seconds!\",\n       percentile_cont(0.5) WITHIN GROUP (ORDER BY seconds)::float8 AS \"p50_seconds!\"\n  FROM overlapped\n GROUP BY 1\n ORDER BY 2\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "running_at_once!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "sort_key!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "calls!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "seconds!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "p50_seconds!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Timestamptz",
+        "Bool",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "603fbff67296e088b1523e7947c80552f734bed607e17e38c5f282d746bcf8b5"
+}

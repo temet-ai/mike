@@ -1,0 +1,2 @@
+exit 0
+REVIEW C1 memory.extra_table docs/SCHEMA.md no heading "### `memory.extra_table`"

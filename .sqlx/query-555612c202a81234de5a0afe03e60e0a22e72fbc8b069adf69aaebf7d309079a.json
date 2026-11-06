@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions.sessions\n                    SET overview = $2,\n                        overview_generated_at = $3\n                  WHERE session_uuid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "555612c202a81234de5a0afe03e60e0a22e72fbc8b069adf69aaebf7d309079a"
+}

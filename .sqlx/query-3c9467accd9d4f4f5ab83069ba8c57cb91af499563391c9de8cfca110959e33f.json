@@ -1,0 +1,160 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT m.id, m.thread_id, f.session_uuid AS \"from_session?\", t.session_uuid AS \"to_session?\",\n                  m.in_reply_to_id, m.sent_request_id, m.queued_at, m.claimed_at,\n                  m.sent_at, m.channel_delivered_at, m.consumed_at, m.dead_lettered_at\n             FROM mailbox.messages m LEFT JOIN sessions.sessions f ON f.id = m.from_session_id\n             LEFT JOIN sessions.sessions t ON t.id = m.to_session_id\n            WHERE m.id = ANY($1) ORDER BY m.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "thread_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "thread_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "from_session?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "to_session?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "in_reply_to_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "in_reply_to_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "sent_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "sent_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "queued_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "queued_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "claimed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "claimed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "sent_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "sent_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "channel_delivered_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "channel_delivered_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "consumed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "consumed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "dead_lettered_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "dead_lettered_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "3c9467accd9d4f4f5ab83069ba8c57cb91af499563391c9de8cfca110959e33f"
+}

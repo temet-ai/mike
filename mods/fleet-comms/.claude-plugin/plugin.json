@@ -1,0 +1,7 @@
+{
+  "name": "fleet-comms",
+  "version": "0.4.0",
+  "author": { "name": "Dawid du Toit" },
+  "description": "The fleet inside Claude Code: /fleet-comms opens a pane with the fleet's status as mike's fleet panel draws it (tasks, seats with context bars, acceptance, what needs you) and its messages, read from mike; a band above the prompt carries the latest message and NEEDS YOU; in a seat with a goal in the fleet definition it arms the built-in /goal after the first turn.",
+  "types": "./types/index.d.ts"
+}

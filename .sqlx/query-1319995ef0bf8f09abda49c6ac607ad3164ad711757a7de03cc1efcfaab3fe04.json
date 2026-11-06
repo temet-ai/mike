@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT again_use_id\n  FROM launch.introductions\n WHERE again_use_id = ANY($1::bigint[])\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "again_use_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.introductions",
+            "name": "again_use_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "1319995ef0bf8f09abda49c6ac607ad3164ad711757a7de03cc1efcfaab3fe04"
+}

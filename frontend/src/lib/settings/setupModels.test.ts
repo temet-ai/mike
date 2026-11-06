@@ -1,0 +1,45 @@
+import { describe, expect, it } from 'vitest';
+import { normalizeRef, providerOf, runningJobs, usedBy, MODEL_JOBS } from './setupModels';
+import type { FeatureDto, SettingMeta } from '$lib/api/settings';
+
+const on = (key: string): FeatureDto => ({
+	key,
+	enabled: true,
+	scope: 'session',
+	applies: 'new_sessions'
+});
+
+describe('setup models', () => {
+	it('reads the provider from the model reference', () => {
+		expect(providerOf('claude/sonnet')).toBe('claude');
+		expect(providerOf('codex/gpt-6-sol')).toBe('codex');
+		expect(providerOf('anthropic/claude-sonnet-5')).toBe('openrouter');
+	});
+
+	it('adds the provider prefix once', () => {
+		expect(normalizeRef('claude', 'sonnet')).toBe('claude/sonnet');
+		expect(normalizeRef('claude', 'claude/sonnet')).toBe('claude/sonnet');
+		expect(normalizeRef('openrouter', 'google/gemini')).toBe('openrouter/google/gemini');
+		expect(normalizeRef('openrouter', 'codex/gpt-6-sol')).toBe('codex/gpt-6-sol');
+		expect(normalizeRef('codex', '')).toBe('');
+	});
+
+	it('lists only the jobs whose switch is on', () => {
+		const jobs = runningJobs([on('steerer'), on('judge_worker')], []);
+		expect(jobs.map((j) => j.name)).toEqual(['Steerers', 'Turn judge']);
+	});
+
+	it('adds the lesson relations jobs when that setting is on', () => {
+		const setting = { key: 'lesson_relations.enabled', value: true } as SettingMeta;
+		expect(runningJobs([], [setting]).map((j) => j.key)).toEqual([
+			'lesson_relations.proposer_model',
+			'lesson_relations.adjudicator_model'
+		]);
+	});
+
+	it('says which jobs use a tier', () => {
+		const first = MODEL_JOBS.filter((job) => ['Steerers', 'Turn judge'].includes(job.name));
+		expect(usedBy(first, 'strong')).toBe('Steerers');
+		expect(usedBy(first, 'fast')).toBe('no job you switched on');
+	});
+});

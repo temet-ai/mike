@@ -1,0 +1,23 @@
+# JC08 ledger. The landed sha is the JC08 commit on feat/judgement-context.
+landed   JC08 2026-09-24 c784da30
+table    eval.rollups
+table    eval.rates
+table    eval.alarms
+table    eval.class_map
+setting  eval.rollup.enabled
+setting  eval.rollup.hour_utc
+setting  eval.alarm.label_mix.min_turns
+setting  eval.alarm.label_mix.min_tvd
+setting  eval.alarm.label_mix.min_chi2
+setting  eval.alarm.unjudged_backlog.min_turns
+setting  eval.alarm.judge_stalled.min_waiting
+setting  eval.alarm.judge_stalled.hours
+setting  eval.alarm.budget_refusals.min_share
+setting  eval.alarm.budget_refusals.min_refused
+setting  eval.alarm.change_without_gate.grace_hours
+tool     get_eval_rates full
+tool     list_eval_alarms full
+cli      mike eval rollup
+cli      mike eval rates
+cli      mike eval alarms list
+cli      mike eval alarms backtest

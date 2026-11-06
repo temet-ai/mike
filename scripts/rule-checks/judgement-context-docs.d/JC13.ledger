@@ -1,0 +1,12 @@
+# JC13 ledger. J13-1 landed as d4d5f137; the landed sha is JC13 rest.
+landed   JC13 2026-09-25 d23984e0
+table    eval.session_end_run_items
+setting  session_judge.live_bundle_id
+setting  session_judge.max_attempts_per_day
+setting  session_judge.v3_lookback_hours
+setting  session_judge.rejudge_daily_call_cap
+setting  eval.alarm.judge_call_loop.min_calls
+setting  eval.alarm.judge_call_loop.max_calls_per_row
+tool     get_session_verdicts full
+tool     list_eval_session_end_items full
+cli      mike eval session-end-defaults

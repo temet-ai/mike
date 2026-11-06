@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, steerer_id, question, mode, holdback_pct, holdback_salt, updated_at,\n                        updated_via\n                   FROM steering.question_policies WHERE steerer_id = $1 ORDER BY question",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.question_policies",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "steerer_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.question_policies",
+            "name": "steerer_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "question",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.question_policies",
+            "name": "question"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "mode",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.question_policies",
+            "name": "mode"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "holdback_pct",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "steering.question_policies",
+            "name": "holdback_pct"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "holdback_salt",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "steering.question_policies",
+            "name": "holdback_salt"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.question_policies",
+            "name": "updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "updated_via",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.question_policies",
+            "name": "updated_via"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "3b563602f3c1fe069649c6a818043ba8db083b3c339a32b32b273da8867b5a0c"
+}

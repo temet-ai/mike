@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH wanted AS (\n    SELECT c.lesson_id, l.text\n      FROM memory.carried_lessons c\n      JOIN memory.lessons l ON l.id = c.lesson_id AND l.archived_at IS NULL\n      JOIN memory.lesson_stages ls ON ls.id = l.stage_id AND ls.code IN ('daily', 'long_term')\n     WHERE c.project_id = mailbox.fleet_project_id($1)\n       AND c.discipline = ANY($2::text[])\n),\ngiven AS (\n    INSERT INTO memory.carried_lesson_runs (lesson_id, run_id)\n    SELECT lesson_id, $3 FROM wanted\n    ON CONFLICT (lesson_id, run_id) DO NOTHING\n    RETURNING lesson_id\n),\ncounted AS (\n    UPDATE memory.carried_lessons c\n       SET runs_given = c.runs_given + 1\n      FROM given\n     WHERE c.lesson_id = given.lesson_id\n    RETURNING c.lesson_id\n)\nSELECT w.text AS \"text!\" FROM wanted w ORDER BY w.lesson_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "text"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "TextArray",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "cc045d70cf8d22e0f05b7a0790ce7f17268df1195f509d0d7b2403aae495fd13"
+}

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Packaging contracts and standalone Rust probes; not real Mike qualification.
+set -euo pipefail
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+python3 "${SCRIPT_DIR}/release/test_prepare.py"
+python3 "${SCRIPT_DIR}/release/test_rust_paths.py"
+python3 -m unittest discover -s "${SCRIPT_DIR}/release" -p 'test_source_identity.py' -v
+python3 -m unittest discover -s "${SCRIPT_DIR}/release" -p 'test_migration_inventory.py' -v
+python3 "${SCRIPT_DIR}/release/test_build_identity.py"
+python3 -m unittest discover -s "${SCRIPT_DIR}/release" -p 'test_source_inputs.py' -v

@@ -1,0 +1,72 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT tu.tool_name AS \"tool_name!\",\n                        tu.request_id AS \"request_id!\",\n                        tu.wire_tool_use_id AS \"tool_id!\",\n                        tr.content_bytes AS \"content_bytes!\",\n                        LEFT(tu.input::text, 120) AS \"input_excerpt?\"\n                   FROM tools.results tr\n                   JOIN tools.uses tu ON tu.id = tr.tool_use_id\n                  WHERE tr.session_id = $1\n                  ORDER BY tr.content_bytes DESC\n                  LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tool_name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "tool_name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "tool_id!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "wire_tool_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "content_bytes!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "input_excerpt?",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "103863c8699572ba741b9b2c6b7a7093f335fb496901e5d167ed5e98762e960c"
+}

@@ -1,0 +1,11 @@
+SELECT i.expires_at, (sub.id IS NOT NULL) AS superseded
+  FROM steering.interventions i
+  LEFT JOIN LATERAL (
+      SELECT r.id
+        FROM requests.requests r
+       WHERE r.session_id = i.session_id
+         AND r.id > i.trigger_request_id
+         AND r.human_prompt <> ''
+       LIMIT 1
+  ) sub ON true
+ WHERE i.uuid = 'c5ac06e0-88b9-4335-9793-464d05043b9c';

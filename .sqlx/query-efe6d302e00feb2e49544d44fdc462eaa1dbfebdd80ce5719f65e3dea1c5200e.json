@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (\n                    SELECT 1 FROM overrides.overrides ov\n                    JOIN overrides.sources src ON src.id = ov.source_id AND src.code = 'manual'\n                    WHERE ov.lane = $1 AND ov.agent_name IS NOT DISTINCT FROM $2\n                ) AS \"registered!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "registered!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "efe6d302e00feb2e49544d44fdc462eaa1dbfebdd80ce5719f65e3dea1c5200e"
+}

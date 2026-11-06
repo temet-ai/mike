@@ -1,0 +1,77 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT ON (l.subject_id)\n       l.subject_id AS \"end_turn_id!\", t.session_id AS \"session_id!\", l.id AS \"label_id!\",\n       l.label AS \"label!\", l.tier AS \"tier!\", t.closed_at,\n       s.session_uuid::text AS \"session_uuid!\"\n  FROM eval.labels_as_of($1) l\n  JOIN memory.operator_turns t ON t.id = l.subject_id\n  JOIN sessions.sessions s ON s.id = t.session_id\n WHERE l.subject_kind = 'session_end'\n   AND l.axis = 'session_end'\n   AND l.split = $2\n   AND l.tier = ANY($3::text[])\n ORDER BY l.subject_id,\n          CASE l.tier WHEN 'gold' THEN 1 WHEN 'relayed' THEN 2 WHEN 'seed' THEN 3 ELSE 4 END,\n          l.created_at DESC, l.id DESC\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "end_turn_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "label_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "label!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "tier!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "closed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "closed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "session_uuid!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Text",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      null,
+      null,
+      null,
+      true,
+      null
+    ]
+  },
+  "hash": "f3771058025553a61f7dec0a58f58c99da423e0c9a44ef321a5e9ba7b2c73b1a"
+}

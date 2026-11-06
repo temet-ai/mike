@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM requests.requests r\n             USING sessions.sessions s\n             WHERE r.session_id = s.id AND s.session_uuid = $1::text::uuid",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a34a0d59f9b544d3ebdf0493106c5e567a2aa435e5f801e6d245e8d1d3d24f0c"
+}

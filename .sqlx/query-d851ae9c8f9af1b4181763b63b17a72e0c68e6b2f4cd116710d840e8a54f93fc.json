@@ -1,0 +1,54 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.id AS request_id,\n                  r.created_at AS recalled_at,\n                  COALESCE(st.stage->'resolved_parameters'->'topics', '[]'::jsonb) AS \"topics!: serde_json::Value\",\n                  (st.stage->'resolved_parameters'->>'lesson_count')::bigint AS lesson_count\n             FROM requests.requests r,\n                  jsonb_array_elements(r.transformation_manifest->'stages') AS st(stage)\n            WHERE r.session_id = $1\n              AND st.stage->>'stage' = 'recall_injector'\n              AND st.stage->>'outcome' = 'applied'\n            ORDER BY r.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "recalled_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "topics!: serde_json::Value",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "lesson_count",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "d851ae9c8f9af1b4181763b63b17a72e0c68e6b2f4cd116710d840e8a54f93fc"
+}

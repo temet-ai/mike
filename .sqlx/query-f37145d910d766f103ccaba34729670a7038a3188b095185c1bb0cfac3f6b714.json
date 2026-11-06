@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.ask_ledger_entries (session_id, operator_turn_id, kind, content, created_at)\n             VALUES ($1, NULL, $2, $3, $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f37145d910d766f103ccaba34729670a7038a3188b095185c1bb0cfac3f6b714"
+}

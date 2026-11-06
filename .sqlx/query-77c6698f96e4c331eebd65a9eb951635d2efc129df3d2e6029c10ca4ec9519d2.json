@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.id,\n                          s.session_uuid AS \"session_id!\",\n                          k.code AS \"kind!\",\n                          st.code AS \"stage!\",\n                          l.text\n                     FROM memory.lessons l\n                     JOIN sessions.sessions s ON s.id = l.session_id\n                     JOIN memory.lesson_kinds k ON k.id = l.kind_id\n                     JOIN memory.lesson_stages st ON st.id = l.stage_id\n                    WHERE s.session_uuid = ANY($1)\n                      AND l.archived_at IS NULL\n                      AND (l.expires_at IS NULL OR l.expires_at > now())\n                    ORDER BY l.created_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "stage!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_stages",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "text"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "77c6698f96e4c331eebd65a9eb951635d2efc129df3d2e6029c10ca4ec9519d2"
+}

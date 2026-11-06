@@ -1,0 +1,13 @@
+{
+	"$schema": "https://likec4.dev/schemas/config.json",
+	"name": "mike",
+	"title": "mike architecture",
+	"exclude": ["**/node_modules/**", "**/out/**"],
+	"styles": {
+		"defaults": {
+			"relationship": {
+				"line": "solid"
+			}
+		}
+	}
+}

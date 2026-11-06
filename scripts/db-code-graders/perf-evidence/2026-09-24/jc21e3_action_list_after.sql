@@ -1,0 +1,5 @@
+SELECT tu.tool_name, tu.file_path, CASE WHEN tu.tool_name = 'Bash' THEN tu.input ->> 'command' END AS command, (tr.tool_use_id IS NOT NULL) AS has_result, tr.is_error AS result_is_error, tu.operation
+  FROM tools.uses tu JOIN requests.requests r ON r.id = tu.request_id LEFT JOIN responses.stream_blocks sb ON sb.request_id = tu.request_id AND sb.wire_tool_use_id = tu.wire_tool_use_id
+  LEFT JOIN tools.results tr ON tr.tool_use_id = tu.id AND tr.created_at <= '2026-09-23 06:32:11.523098+00'
+ WHERE tu.session_id = 1152749 AND COALESCE(sb.arrived_at, r.completed_at) <= '2026-09-23 06:32:11.523098+00'
+ ORDER BY tu.created_at ASC, tu.ord ASC;

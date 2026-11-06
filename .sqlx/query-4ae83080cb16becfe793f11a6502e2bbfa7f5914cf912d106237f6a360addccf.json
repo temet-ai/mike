@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(DISTINCT r.bundle_id) AS \"count!\"\n                     FROM eval.gates g\n                     JOIN eval.runs r ON r.id = g.candidate_run_id\n                    WHERE g.holdout_batch = $1\n                      AND g.floors ->> 'rule' = 'promotion'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "4ae83080cb16becfe793f11a6502e2bbfa7f5914cf912d106237f6a360addccf"
+}

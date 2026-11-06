@@ -1,0 +1,126 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT ON (v.operator_turn_id)\n                          v.id AS verdict_id, v.operator_turn_id AS turn_id,\n                          v.reaction AS \"reaction!\", v.delivery, v.legacy_label,\n                          v.confidence, v.rationale, v.created_at, v.bundle_id\n                     FROM memory.turn_verdicts v\n                     JOIN memory.operator_turns t ON t.id = v.operator_turn_id\n                    WHERE v.session_id = $1\n                      AND v.mode = 'live'\n                      AND v.reaction IS NOT NULL\n                      AND t.closed_at <= $2\n                      AND (v.created_at <= $2 OR $3)\n                    ORDER BY v.operator_turn_id, v.created_at DESC, v.id DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "verdict_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "reaction!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "reaction"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "delivery",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "delivery"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "legacy_label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "legacy_label"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "confidence",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "confidence"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "rationale",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "rationale"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "bundle_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "bundle_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "1d4a138ea533810a0194dfd8d839363c654fa4b6611c6bf29d28af16be21683a"
+}

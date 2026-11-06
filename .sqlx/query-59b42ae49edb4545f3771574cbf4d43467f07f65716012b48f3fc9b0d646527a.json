@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT operator_turn_id FROM eval.turn_splits\n                  WHERE operator_turn_id = ANY($1) AND split = 'holdout'\n                  ORDER BY operator_turn_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "operator_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.turn_splits",
+            "name": "operator_turn_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "59b42ae49edb4545f3771574cbf4d43467f07f65716012b48f3fc9b0d646527a"
+}

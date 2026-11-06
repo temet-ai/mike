@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM memory.knowledge_sources WHERE source_uuid = ANY($1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1d465375549ccafc3af24dba4715ce9b0c68e0ea74e64d4fec3b0dfd870c8ce5"
+}

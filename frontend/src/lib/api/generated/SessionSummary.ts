@@ -1,0 +1,22 @@
+export type SessionSummary = {
+	id: string;
+	first_seen: string;
+	last_seen: string;
+	request_count: number;
+	models: Array<string>;
+	last_status: string;
+	project: string | null;
+	git_repo: string | null;
+	pinned: boolean;
+	ttl_override: string | null;
+	busy: boolean;
+	title: string | null;
+	avg_latency_ms: number | null;
+	originating_operator_prompt: string | null;
+	session_outcome: string | null;
+	session_quality_score: number | null;
+	session_judged_at: string | null;
+	narrative_overview: string | null;
+	narrative_overview_generated_at: string | null;
+	pending_inbox_count: number;
+};

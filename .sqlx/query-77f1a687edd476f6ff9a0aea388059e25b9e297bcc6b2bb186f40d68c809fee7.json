@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.project_embeddings\n    (project_id, embedding, embedding_model, session_count, embedded_at)\nSELECT s.project_id,\n       l2_normalize(avg(se.embedding)),\n       max(se.embedding_model),\n       count(*)::int,\n       now()\n  FROM memory.session_embeddings se\n  JOIN sessions.sessions s ON s.session_uuid = se.session_id\n  LEFT JOIN memory.project_embeddings pe ON pe.project_id = s.project_id\n GROUP BY s.project_id\nHAVING max(se.embedded_at) > COALESCE(max(pe.embedded_at), '-infinity'::timestamptz)\nON CONFLICT (project_id) DO UPDATE\n   SET embedding        = EXCLUDED.embedding,\n       embedding_model  = EXCLUDED.embedding_model,\n       session_count    = EXCLUDED.session_count,\n       embedded_at      = EXCLUDED.embedded_at\nRETURNING project_id AS \"project_id!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.project_embeddings",
+            "name": "project_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "77f1a687edd476f6ff9a0aea388059e25b9e297bcc6b2bb186f40d68c809fee7"
+}

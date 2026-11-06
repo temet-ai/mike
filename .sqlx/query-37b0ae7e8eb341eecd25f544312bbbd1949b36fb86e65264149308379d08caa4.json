@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT request_body, request_body_sha256, request_body_size, response_body\n             FROM remote_control.calls WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "request_body"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_body_sha256",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "request_body_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "request_body_size",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "request_body_size"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "response_body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "response_body"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "37b0ae7e8eb341eecd25f544312bbbd1949b36fb86e65264149308379d08caa4"
+}

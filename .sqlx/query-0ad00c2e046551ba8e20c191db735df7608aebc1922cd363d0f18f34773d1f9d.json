@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.pattern_candidates\n                    SET status = 'named', decided_at = now(), named_pattern = $2, decision_note = $3\n                  WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0ad00c2e046551ba8e20c191db735df7608aebc1922cd363d0f18f34773d1f9d"
+}

@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH ins AS (\n    INSERT INTO steering.guard_thresholds\n        (steerer_id, question, scope, project_id, rollup_id, rollup_finished_at, window_start, window_end,\n         label_basis, question_mode, threshold_mode, n_labelled, precision_bar, threshold_floor,\n         threshold_ceiling, static_threshold, candidate_threshold, applied_threshold, decision, detail)\n    SELECT * FROM unnest($1::bigint[], $2::text[], $3::text[], $4::bigint[], $5::bigint[],\n                         $6::timestamptz[], $7::timestamptz[], $8::timestamptz[], $9::text[], $10::text[],\n                         $11::text[], $12::int[], $13::float8[], $14::real[], $15::real[], $16::real[],\n                         $17::real[], $18::real[], $19::text[], $20::jsonb[])\n    RETURNING id, steerer_id, question, scope, project_id, applied_threshold, decision, detail, rollup_id\n)\nINSERT INTO config.change_log (subject_kind, subject_key, op, old_value, new_value, via, detail)\nSELECT 'guard_threshold',\n       steerer_id || ':' || question || ':' || scope || ':' || coalesce(project_id::text, 'global'),\n       'update',\n       jsonb_build_object('threshold', (detail ->> 'previous_threshold')::real),\n       jsonb_build_object('threshold', applied_threshold),\n       'calibration',\n       jsonb_build_object('threshold_row_id', id, 'rollup_id', rollup_id)\n  FROM ins WHERE decision = 'applied'\nRETURNING id AS \"id!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "config.change_log",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TextArray",
+        "TextArray",
+        "Int8Array",
+        "Int8Array",
+        "TimestamptzArray",
+        "TimestamptzArray",
+        "TimestamptzArray",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "Int4Array",
+        "Float8Array",
+        "Float4Array",
+        "Float4Array",
+        "Float4Array",
+        "Float4Array",
+        "Float4Array",
+        "TextArray",
+        "JsonbArray"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "118101bf9ad9a477b9b5d68666f39c331dd32c7af99b8af15590f93bbcd960fc"
+}

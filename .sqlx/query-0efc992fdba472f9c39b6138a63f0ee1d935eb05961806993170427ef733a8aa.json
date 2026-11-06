@@ -1,0 +1,101 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT d.revision, d.lesson_watermark, d.status, d.description, d.skill_md,\n                          d.reference_files, d.eval\n                     FROM memory.skill_drafts d\n                    WHERE d.project_id = $1 AND d.folder = $2\n                    ORDER BY d.lesson_watermark DESC, d.revision DESC\n                    LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "revision",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "revision"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "lesson_watermark",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "lesson_watermark"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "skill_md",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "skill_md"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "reference_files",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "reference_files"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "eval",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "eval"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "0efc992fdba472f9c39b6138a63f0ee1d935eb05961806993170427ef733a8aa"
+}

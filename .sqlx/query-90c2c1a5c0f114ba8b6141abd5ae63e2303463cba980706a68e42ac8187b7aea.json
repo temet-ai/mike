@@ -1,0 +1,131 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH window_rows AS (\n    SELECT e.uuid, e.session_id, e.operator_turn_id, e.outcome_label, e.label_source, e.label_evidence,\n           e.verdict_json, e.trigger_request_id\n      FROM steering.evaluations e\n     WHERE e.steerer_id = $1\n       AND e.question = $2\n       AND e.mode = 'shadow'\n       AND e.status = 'resolved_correction'\n       AND e.dispatched_at >= $3\n),\nclassed AS (\n    SELECT w.outcome_label, w.label_source, w.verdict_json, w.label_evidence,\n           COALESCE(tf.session_class, 'unknown') AS session_class,\n           (r.claude_code_agent_id IS NOT NULL OR r.agent_instance_id IS NOT NULL) AS non_actor,\n           (w.label_evidence ->> 'next_genuine_after_secs')::bigint AS next_after\n      FROM window_rows w\n      LEFT JOIN requests.requests r ON r.id = w.trigger_request_id\n      LEFT JOIN memory.turn_facts tf ON tf.operator_turn_id = w.operator_turn_id\n)\nSELECT count(*)::bigint AS \"would_fire!\",\n       count(*) FILTER (WHERE outcome_label = 'right' AND NOT non_actor)::bigint AS \"labelled_right!\",\n       count(*) FILTER (WHERE outcome_label = 'wrong' OR non_actor)::bigint AS \"labelled_wrong!\",\n       count(*) FILTER (WHERE outcome_label = 'indeterminate' AND NOT non_actor)::bigint AS \"labelled_indeterminate!\",\n       count(*) FILTER (WHERE label_source = 'next_message')::bigint AS \"source_next_message!\",\n       count(*) FILTER (WHERE label_source = 'session_end')::bigint AS \"source_session_end!\",\n       count(*) FILTER (WHERE label_source = 'operator')::bigint AS \"source_operator!\",\n       count(*) FILTER (WHERE label_source = 'replay')::bigint AS \"source_replay!\",\n       count(*) FILTER (WHERE (verdict_json -> 'quorum' -> $2 ->> 'votes_total')::int > 1)::bigint AS \"with_quorum!\",\n       count(*) FILTER (WHERE session_class = 'operator')::bigint AS \"operator_fires!\",\n       count(*) FILTER (WHERE session_class = 'template')::bigint AS \"template_fires!\",\n       count(*) FILTER (WHERE session_class NOT IN ('operator', 'template'))::bigint AS \"other_fires!\",\n       count(*) FILTER (WHERE non_actor)::bigint AS \"non_actor_fires!\",\n       count(*) FILTER (WHERE next_after IS NOT NULL)::bigint AS \"timing_n!\",\n       count(*) FILTER (WHERE next_after <= $4)::bigint AS \"within_grace!\",\n       count(*) FILTER (WHERE next_after <= $4 + 60)::bigint AS \"within_grace_60!\"\n  FROM classed\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "would_fire!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "labelled_right!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "labelled_wrong!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "labelled_indeterminate!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "source_next_message!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "source_session_end!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "source_operator!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "source_replay!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "with_quorum!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "operator_fires!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "template_fires!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "other_fires!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 12,
+        "name": "non_actor_fires!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 13,
+        "name": "timing_n!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 14,
+        "name": "within_grace!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 15,
+        "name": "within_grace_60!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "90c2c1a5c0f114ba8b6141abd5ae63e2303463cba980706a68e42ac8187b7aea"
+}

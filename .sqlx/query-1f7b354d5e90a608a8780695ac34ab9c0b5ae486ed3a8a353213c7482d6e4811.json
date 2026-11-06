@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.pattern_candidates\n                    SET status = 'dismissed', decided_at = now(), decision_note = $2\n                  WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1f7b354d5e90a608a8780695ac34ab9c0b5ae486ed3a8a353213c7482d6e4811"
+}

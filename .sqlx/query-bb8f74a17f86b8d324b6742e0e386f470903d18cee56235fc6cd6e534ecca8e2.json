@@ -1,0 +1,43 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH f AS (\n                       INSERT INTO memory.skill_draft_eval_failures (draft_id, last_error)\n                       VALUES ($1, $2)\n                       ON CONFLICT (draft_id) DO UPDATE\n                          SET attempts = memory.skill_draft_eval_failures.attempts + 1,\n                              last_error = EXCLUDED.last_error,\n                              last_failed_at = now()\n                       RETURNING attempts)\n                   UPDATE memory.skill_drafts d\n                      SET status = CASE WHEN f.attempts >= $3 THEN 'rejected' ELSE d.status END,\n                          eval = CASE WHEN f.attempts >= $3\n                                      THEN jsonb_build_object('evaluator_version', $4::integer, 'error', $2::text, 'attempts', f.attempts)\n                                      ELSE d.eval END,\n                          evaluated_at = CASE WHEN f.attempts >= $3 THEN now() ELSE d.evaluated_at END,\n                          eval_progress = CASE WHEN f.attempts >= $3 THEN NULL ELSE d.eval_progress END\n                     FROM f\n                    WHERE d.id = $1 AND d.status = 'evaluating'\n                RETURNING f.attempts AS \"attempts!\", d.status AS \"status!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "attempts!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_draft_eval_failures",
+            "name": "attempts"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "status!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "status"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "bb8f74a17f86b8d324b6742e0e386f470903d18cee56235fc6cd6e534ecca8e2"
+}

@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mike Live Turn</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap">
+<style>
+:root {
+	color-scheme: dark;
+	--bg: #0e1116; --s1: #14181e; --s2: #191f26; --s3: #1f2630;
+	--line: #333d4b; --line-strong: #57657a;
+	--t1: #dae1ea; --t2: #b6c1cf; --t3: #8b95a4;
+	--cyan: #22d9ff; --magenta: #ff2e88; --green: #2ee56b; --red: #ff4d4d; --blue: #4d8dff; --yellow: #ffc933; --violet: #b48cff;
+	--mike: #5fe0a0; --anthropic: #d97757;
+	--chip-cyan: #142830; --chip-magenta: #2a1420; --chip-green: #14291c; --chip-red: #2a1517; --chip-blue: #16202f; --chip-yellow: #2a2414; --chip-violet: #221b33;
+	--edge: 11px;
+	--mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+	--display: 'Syne', 'Avenir Next', 'Segoe UI', sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { background: var(--bg); }
+body { margin: 0; color: var(--t1); font: 400 13.5px/1.5 var(--mono); padding-inline: 16px; padding-block: 22px 48px; }
+.wrap { max-width: 1480px; margin: 0 auto; display: grid; gap: 14px; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+code { background: var(--s3); padding: 0 4px; font-size: 0.92em; color: var(--t1); }
+.cut { clip-path: polygon(var(--edge) 0, 100% 0, 100% calc(100% - var(--edge)), calc(100% - var(--edge)) 100%, 0 100%, 0 var(--edge)); }
+
+header { display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: end; justify-content: space-between; }
+.eyebrow { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--cyan); }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(30px, 5vw, 48px); margin: 2px 0 0; line-height: 1; }
+h1 em { font-style: normal; color: var(--mike); }
+.lede { color: var(--t2); margin: 6px 0 0; max-width: 78ch; }
+
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn { background: var(--s2); border: 1px solid var(--line); padding: 7px 12px; cursor: pointer; font-size: 12.5px; }
+.btn:hover:not(:disabled) { border-color: var(--line-strong); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.primary { border-color: var(--cyan); color: var(--cyan); background: var(--chip-cyan); }
+.seg { display: inline-flex; border: 1px solid var(--line); }
+.seg button { background: var(--s2); border: 0; padding: 6px 10px; cursor: pointer; font-size: 12px; color: var(--t3); }
+.seg button[aria-pressed='true'] { color: var(--t1); background: var(--s3); }
+
+/* features */
+.features { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.features .lbl { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--t3); margin-right: 4px; }
+.feat { display: inline-flex; gap: 8px; align-items: center; background: var(--s1); border: 1px solid var(--line); padding: 5px 10px 5px 8px; cursor: pointer; font-size: 12px; color: var(--t2); }
+.feat i { width: 26px; height: 14px; border: 1px solid var(--line-strong); position: relative; flex: none; }
+.feat i::after { content: ''; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px; background: var(--t3); transition: left 0.15s, background 0.15s; }
+.feat[aria-pressed='true'] { color: var(--t1); border-color: rgb(255 46 136 / 45%); }
+.feat[aria-pressed='true'] i { border-color: var(--magenta); }
+.feat[aria-pressed='true'] i::after { left: 14px; background: var(--magenta); }
+.feat small { color: var(--t3); }
+.feat:disabled { cursor: default; opacity: 0.6; }
+
+/* main grid */
+.main { display: grid; grid-template-columns: minmax(340px, 440px) minmax(0, 1fr); gap: 14px; align-items: stretch; }
+@media (max-width: 1060px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+/* terminal */
+.term { background: #0a0c10; border: 1px solid var(--line); display: grid; grid-template-rows: auto 1fr auto; min-height: 560px; max-height: 660px; }
+.term-top { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 11.5px; color: var(--t3); }
+.term-top .dots { display: flex; gap: 5px; }
+.term-top .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+.term-top .path { margin-left: 6px; }
+.term-top .env { margin-left: auto; color: var(--cyan); }
+.out { overflow-y: auto; padding: 12px 14px; font-size: 12.5px; display: grid; gap: 6px; align-content: start; }
+.out .l { white-space: pre-wrap; overflow-wrap: anywhere; }
+.out .you { color: var(--t1); background: var(--s2); border-left: 2px solid var(--line-strong); padding: 6px 10px; }
+.out .you::before { content: '> '; color: var(--t3); }
+.out .think { color: var(--t3); }
+.out .think b { color: var(--anthropic); font-weight: 600; }
+.out .tool { color: var(--t1); }
+.out .tool::before { content: '⏺ '; color: var(--green); }
+.out .tool.agent::before { color: var(--violet); }
+.out .tool.mcp::before { color: var(--cyan); }
+.out .nest { color: var(--t3); padding-left: 18px; }
+.out .nest::before { content: '⎿  '; }
+.out .ans { color: var(--t1); }
+.out .ans::before { content: '⏺ '; color: var(--t1); }
+.out .note { color: var(--t3); font-size: 11.5px; border: 1px dashed var(--line); padding: 6px 10px; }
+.out .gone { color: var(--red); text-decoration: line-through; }
+.caret::after { content: '▍'; color: var(--cyan); }
+.prompt { border-top: 1px solid var(--line); padding: 10px 12px; display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }
+.prompt .pc { color: var(--t3); }
+.prompt input { background: transparent; border: 0; outline: 0; padding: 4px 0; font-size: 13px; color: var(--t1); min-width: 0; }
+.prompt input::placeholder { color: var(--t3); }
+.prompt input:focus-visible { outline: 0; }
+.prompt:focus-within { box-shadow: inset 0 -2px 0 var(--cyan); }
+.prompt .hint { font-size: 11px; color: var(--t3); }
+
+/* stage */
+.stage { background: var(--s1); border: 1px solid var(--line); display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+.narr { padding: 12px 16px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; min-height: 92px; align-content: start; }
+.narr .n { font-size: 11px; color: var(--cyan); font-variant-numeric: tabular-nums; padding-top: 3px; }
+.narr .t { font-family: var(--display); font-size: 18px; font-weight: 700; text-wrap: balance; }
+.narr .x { grid-column: 2; color: var(--t2); font-size: 12.5px; max-width: 110ch; }
+.svgbox { overflow-x: auto; padding: 6px; }
+.svgbox svg { display: block; width: 100%; min-width: 820px; height: auto; }
+
+/* svg */
+.wire { fill: none; stroke: var(--line-strong); stroke-width: 1.3; stroke-dasharray: 3 5; opacity: 0.55; }
+.wire.lit { stroke: var(--c); stroke-dasharray: none; opacity: 0.5; }
+.wire.live { stroke: var(--c); stroke-dasharray: 7 6; opacity: 1; stroke-width: 2; animation: march 0.5s linear infinite; }
+.wire.live.rev { animation-direction: reverse; }
+@keyframes march { to { stroke-dashoffset: -13; } }
+.node .box { fill: var(--fill); stroke: var(--ln); stroke-width: 1.2; transition: stroke 0.25s; }
+.node .l { fill: var(--fg); font: 600 13px var(--mono); }
+.node .s { fill: var(--t3); font: 400 10.5px var(--mono); }
+.node.on .box { stroke: var(--fg); stroke-width: 2; filter: drop-shadow(0 0 7px var(--glow)); }
+.node.idle { opacity: 0.55; }
+.plabel { font: 600 11px var(--mono); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
+.proc { fill: none; stroke: var(--mike); stroke-opacity: 0.35; stroke-dasharray: 6 5; }
+.proclbl { font: 500 10.5px var(--mono); fill: var(--mike); letter-spacing: 1.5px; }
+.chip rect { fill: var(--s2); stroke: var(--line); }
+.chip text { font: 500 10.5px var(--mono); fill: var(--t3); }
+.chip .st { font-size: 9.5px; letter-spacing: 1px; }
+.chip.armed text.nm { fill: var(--t1); }
+.chip.armed .st { fill: var(--magenta); }
+.chip.always .st { fill: var(--mike); }
+.chip.fire rect { stroke: var(--magenta); fill: var(--chip-magenta); filter: drop-shadow(0 0 6px rgb(255 46 136 / 55%)); }
+.chip.pass rect { stroke: var(--cyan); }
+.badge { font: 600 10px var(--mono); }
+
+/* lower panels */
+.lower { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr) minmax(260px, 0.7fr); gap: 14px; }
+@media (max-width: 1060px) { .lower { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--s1); border: 1px solid var(--line); min-width: 0; }
+.panel h2 { margin: 0; padding: 10px 14px; font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--t3); border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; }
+.log { list-style: none; margin: 0; padding: 6px 0; max-height: 280px; overflow-y: auto; font-size: 12px; }
+.log li { display: grid; grid-template-columns: 58px 112px minmax(0, 1fr); gap: 8px; padding: 3px 14px; }
+.log li.new { animation: flash 1s ease-out; }
+@keyframes flash { from { background: var(--s3); } }
+.log .ts { color: var(--t3); font-variant-numeric: tabular-nums; }
+.log .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log .msg { color: var(--t2); overflow-wrap: anywhere; }
+.db { list-style: none; margin: 0; padding: 6px 0; font-size: 12px; }
+.db li { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 4px 14px; }
+.db .tb { color: var(--t2); }
+.db .ct { font-variant-numeric: tabular-nums; color: var(--t3); min-width: 3ch; text-align: right; }
+.db li.bump { animation: bump 1.2s ease-out; }
+.db li.bump .ct, .db li.has .ct { color: var(--blue); }
+@keyframes bump { from { background: var(--chip-blue); } }
+.body { padding: 8px 14px 12px; font-size: 11.5px; display: grid; gap: 3px; max-height: 280px; overflow-y: auto; }
+.body .row { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; }
+.body .k { color: var(--t3); }
+.body .v { color: var(--t2); overflow-wrap: anywhere; }
+.body .row.add { background: var(--chip-magenta); }
+.body .row.add .k { color: var(--magenta); }
+.body .row.add .v { color: var(--t1); }
+.body .sub { color: var(--t3); font-size: 11px; margin-bottom: 4px; }
+footer p { color: var(--t3); font-size: 12px; margin: 0; max-width: 120ch; }
+</style>
+</head>
+<body>
+<div class="wrap">
+	<header>
+		<div>
+			<div class="eyebrow">mike · interactive demo</div>
+			<h1>One turn, <em>live</em></h1>
+			<p class="lede">Type into the terminal and press Enter, or press <b>Play demo</b>. This local simulation follows a message through mike to Anthropic and back. Its scripted scenario includes a peer session, a subagent, mike-mcp and an optional verifier. Switch features on or off before a turn to see what changes.</p>
+		</div>
+		<div class="bar">
+			<button class="btn primary" id="play">Play demo</button>
+			<button class="btn" id="pause" disabled>Pause</button>
+			<button class="btn" id="step" disabled>Step</button>
+			<span class="seg" role="group" aria-label="Speed">
+				<button data-speed="0.6">0.5×</button><button data-speed="1" aria-pressed="true">1×</button><button data-speed="1.8">2×</button>
+			</span>
+			<button class="btn" id="reset">Reset</button>
+		</div>
+	</header>
+
+	<div class="features" role="group" aria-label="Features">
+		<span class="lbl" title="Locked after the first turn; press Reset to change">Armed for this demo</span>
+		<button class="feat" data-f="peer" aria-pressed="true"><i></i>Peer message <small>mailbox</small></button>
+		<button class="feat" data-f="recall" aria-pressed="true"><i></i>Lessons <small>session lessons, agent_lessons</small></button>
+		<button class="feat" data-f="subagent" aria-pressed="true"><i></i>Subagent <small>Agent tool</small></button>
+		<button class="feat" data-f="mcp" aria-pressed="true"><i></i>mike-mcp call</button>
+		<button class="feat" data-f="verifier" aria-pressed="true"><i></i>Steerer fleet <small>verifier, OpenRouter</small></button>
+		<button class="feat" data-f="weasel" aria-pressed="false"><i></i>Weasel intercept <small>["should pass"]</small></button>
+	</div>
+
+	<div class="main">
+		<section class="term cut" aria-label="Claude Code terminal">
+			<div class="term-top"><span class="dots"><i></i><i></i><i></i></span><span class="path">~/code/retry-svc · claude</span><span class="env">ANTHROPIC_BASE_URL=:9988</span></div>
+			<div class="out" id="out" aria-live="polite"></div>
+			<form class="prompt" id="form" autocomplete="off">
+				<span class="pc">&gt;</span>
+				<input id="inp" type="text" placeholder="Type a message for Claude, then Enter" aria-label="Message to Claude Code">
+				<span class="hint" id="hint">⏎ send</span>
+			</form>
+		</section>
+
+		<section class="stage cut" aria-label="What mike does">
+			<div class="narr" aria-live="polite">
+				<div class="n" id="nn">—</div><div class="t" id="nt">Waiting for you</div>
+				<div class="x" id="nx">Nothing has left the terminal yet. mike is listening on <code>:9988</code>.</div>
+			</div>
+			<div class="svgbox"><svg id="svg" viewBox="0 0 1000 620" role="img" aria-label="Live diagram of mike: Claude Code, subagent, peer session, mike-mcp, the mike process with proxy, reminder queue, steerer fleet, workers and inspect API, Anthropic, OpenRouter, Postgres and the web UI"></svg></div>
+		</section>
+	</div>
+
+	<div class="lower">
+		<section class="panel cut" aria-label="Activity">
+			<h2><span>Activity</span><span id="clock">+0.0s</span></h2>
+			<ul class="log" id="log"></ul>
+		</section>
+		<section class="panel cut" aria-label="Forwarded body">
+			<h2><span>What Anthropic receives</span><span id="bodytag">—</span></h2>
+			<div class="body" id="body"><div class="sub">The request body appears here once a turn starts.</div></div>
+		</section>
+		<section class="panel cut" aria-label="Rows written">
+			<h2><span>Illustrated row inserts</span></h2>
+			<ul class="db" id="db"></ul>
+		</section>
+	</div>
+
+	<footer><p>A scripted local simulation: it sends no prompts or model requests. Replies, lessons, tool results and row counts are illustrative; optional web fonts may load externally. The scenario assumes working persistence, configured lesson injection and an enrolled verifier whose gates pass. It shows request-time mailbox fallback with no active MCP channel or Remote Control push. Mailbox delivery prefers an active MCP channel, then Remote Control, then queued fallback; other reminder sources have separate policies. Automatic mutation features default off; ordinary subagent/MCP calls and explicitly authored mailbox messages are not feature toggles. See <code>docs/REQUEST_FLOW.md</code> and <code>docs/ARCHITECTURE.md</code> for the gates and capture limitations.</p></footer>
+</div>
+
+<script>
+(() => {
+'use strict';
+const NS = 'http://www.w3.org/2000/svg';
+const C = { req: '#22d9ff', res: '#2ee56b', db: '#4d8dff', mut: '#ff2e88', evt: '#ffc933', bad: '#ff4d4d', agent: '#b48cff', mute: '#8b95a4' };
+const KINDS = {
+	outside: { fg: '#c9d1dc', fill: '#1b1f25', ln: '#4d5664', glow: 'rgb(201 209 220 / 35%)' },
+	you: { fg: '#dae1ea', fill: '#191f26', ln: '#57657a', glow: 'rgb(34 217 255 / 45%)' },
+	mike: { fg: '#5fe0a0', fill: '#152a20', ln: '#2b7a52', glow: 'rgb(95 224 160 / 45%)' },
+	vendor: { fg: '#d97757', fill: '#1b1f25', ln: '#7a4a3a', glow: 'rgb(217 119 87 / 45%)' },
+	store: { fg: '#4d8dff', fill: '#16202f', ln: '#2f4f86', glow: 'rgb(77 141 255 / 45%)' },
+	agent: { fg: '#b48cff', fill: '#221b33', ln: '#5f4a8c', glow: 'rgb(180 140 255 / 45%)' },
+	queue: { fg: '#ff2e88', fill: '#1d1419', ln: '#6a2a47', glow: 'rgb(255 46 136 / 45%)' },
+	fleet: { fg: '#ffc933', fill: '#221e13', ln: '#6b5a22', glow: 'rgb(255 201 51 / 45%)' }
+};
+const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs || {}) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const h = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const chamfer = (x, y, w, hh, c = 9) => `M${x + c},${y} H${x + w} V${y + hh - c} L${x + w - c},${y + hh} H${x} V${y + c} Z`;
+
+/* ─── diagram ───────────────────────────────────────────────── */
+const svg = document.getElementById('svg');
+const NODES = {
+	peer: { x: 20, y: 30, w: 175, h: 66, kind: 'outside', label: 'Peer session', sub: ['api-refactor', 'another Claude Code'] },
+	cc: { x: 20, y: 200, w: 175, h: 96, kind: 'you', label: 'Claude Code', sub: ['your terminal', 'main agent'] },
+	sub: { x: 20, y: 340, w: 175, h: 70, kind: 'agent', label: 'Subagent', sub: ['rust-developer', 'spawned by Agent tool'] },
+	mcp: { x: 20, y: 470, w: 175, h: 64, kind: 'agent', label: 'mike-mcp', sub: 'stdio in, HTTP out' },
+	queue: { x: 262, y: 56, w: 222, h: 76, kind: 'queue', label: 'reminder queue', sub: ['steerer + mailbox', 'drained on primary turns'] },
+	proxy: { x: 262, y: 176, w: 222, h: 244, kind: 'mike', label: 'proxy :9988', sub: '' },
+	fleet: { x: 518, y: 56, w: 210, h: 76, kind: 'fleet', label: 'steerer fleet', sub: ['verifier', 'off the hot path'] },
+	workers: { x: 518, y: 300, w: 210, h: 70, kind: 'mike', label: 'workers', sub: ['harvester · lesson_worker', 'judges'] },
+	inspect: { x: 518, y: 410, w: 210, h: 64, kind: 'mike', label: 'inspect API :9989', sub: '/api · /api/ws' },
+	anth: { x: 800, y: 200, w: 180, h: 96, kind: 'vendor', label: 'Anthropic API', sub: ['api.anthropic.com', 'the model'] },
+	or: { x: 800, y: 56, w: 180, h: 76, kind: 'vendor', label: 'OpenRouter', sub: ['off-machine', 'needs an API key'] },
+	ui: { x: 800, y: 410, w: 180, h: 64, kind: 'outside', label: 'Web UI :9990', sub: 'updates live' },
+	pg: { x: 300, y: 540, w: 190, h: 62, kind: 'store', label: 'Postgres', sub: 'capture · lessons · mailbox' }
+};
+const PATHS = {
+	cc2px: [[195, 226], [262, 226]],
+	px2cc: [[262, 252], [195, 252]],
+	sub2px: [[195, 364], [262, 364]],
+	px2sub: [[262, 388], [195, 388]],
+	cc2sub: [[92, 296], [92, 340]],
+	sub2cc: [[124, 340], [124, 296]],
+	cc2mcp: [[20, 270], [8, 270], [8, 502], [20, 502]],
+	mcp2in: [[195, 512], [612, 512], [612, 474]],
+	peer2q: [[195, 70], [262, 70]],
+	q2px: [[373, 132], [373, 176]],
+	px2anth: [[484, 226], [800, 226]],
+	anth2px: [[800, 268], [484, 268]],
+	px2fleet: [[484, 196], [500, 196], [500, 110], [518, 110]],
+	fleet2or: [[728, 84], [800, 84]],
+	or2fleet: [[800, 108], [728, 108]],
+	fleet2q: [[518, 78], [484, 78]],
+	px2wk: [[484, 336], [518, 336]],
+	wk2pg: [[560, 370], [560, 392], [506, 392], [506, 571], [490, 571]],
+	px2pg: [[330, 420], [330, 540]],
+	pg2px: [[420, 540], [420, 420]],
+	pg2in: [[490, 590], [680, 590], [680, 474]],
+	in2ui: [[728, 442], [800, 442]]
+};
+el('rect', { x: 246, y: 22, width: 498, height: 470, class: 'proc', rx: 0 }, svg);
+el('text', { x: 256, y: 40, class: 'proclbl' }, svg).textContent = 'MIKE · ONE PROCESS, SHARED AppState';
+const gW = el('g', {}, svg), gN = el('g', {}, svg), gC = el('g', {}, svg), gP = el('g', {}, svg);
+const P = {}, N = {};
+for (const [id, pts] of Object.entries(PATHS)) P[id] = el('path', { d: 'M' + pts.map((p) => p.join(',')).join(' L'), class: 'wire' }, gW);
+for (const [id, n] of Object.entries(NODES)) {
+	const g = el('g', { class: 'node' + (['peer', 'sub', 'mcp', 'fleet', 'or'].includes(id) ? ' idle' : '') }, gN);
+	const k = KINDS[n.kind];
+	g.style.setProperty('--fg', k.fg); g.style.setProperty('--fill', k.fill); g.style.setProperty('--ln', k.ln); g.style.setProperty('--glow', k.glow);
+	el('path', { class: 'box', d: chamfer(n.x, n.y, n.w, n.h) }, g);
+	el('text', { class: 'l', x: n.x + 12, y: n.y + 22 }, g).textContent = n.label;
+	[].concat(n.sub || []).filter(Boolean).forEach((s, i) => (el('text', { class: 's', x: n.x + 12, y: n.y + 39 + i * 14 }, g).textContent = s));
+	N[id] = g;
+}
+// stage chips inside the proxy
+const CHIPS = [
+	['accept', 'accept · keep bytes', 'always'],
+	['filter', 'filter rules', 'off'],
+	['recall', 'lessons', 'recall'],
+	['agent', 'agent_lessons', 'recall'],
+	['drain', 'steerer + mailbox drain', 'always'],
+	['tools', 'read_dedup · proxy_tools', 'off'],
+	['composer', 'composer', 'off'],
+	['stub', 'phase-1 stub → forward', 'always'],
+	['sse', 'SSE: tee or buffer', 'always']
+];
+const CH = {};
+CHIPS.forEach(([id, name], i) => {
+	const y = 206 + i * 23;
+	const g = el('g', { class: 'chip' }, gC);
+	el('rect', { x: 274, y, width: 198, height: 19 }, g);
+	el('text', { class: 'nm', x: 282, y: y + 13.5 }, g).textContent = name;
+	const st = el('text', { class: 'st', x: 464, y: y + 13.5, 'text-anchor': 'end' }, g);
+	CH[id] = { g, st };
+});
+function paintChips() {
+	CHIPS.forEach(([id, , mode]) => {
+		const on = mode === 'always' || (mode !== 'off' && F[mode]);
+		const c = CH[id];
+		c.g.classList.toggle('armed', on && mode !== 'always');
+		c.g.classList.toggle('always', mode === 'always');
+		c.st.textContent = mode === 'always' ? 'RUNS' : on ? 'ARMED' : 'OFF';
+		if (id === 'drain') c.st.textContent = 'RUNS';
+		if (id === 'sse') c.st.textContent = F.weasel ? 'BUFFER' : 'TEE';
+		if (id === 'sse') c.g.classList.toggle('armed', F.weasel);
+	});
+}
+
+/* ─── engine ────────────────────────────────────────────────── */
+let speed = 1, run = 0, paused = false, stepOnce = false, busy = false, t0 = 0, simT = 0;
+const alive = (r) => () => r === run;
+async function tick(ms, r) {
+	let left = ms;
+	while (left > 0) {
+		if (r !== run) return false;
+		if (paused && !stepOnce) { await new Promise((res) => setTimeout(res, 60)); continue; }
+		const d = Math.min(40, left);
+		await new Promise((res) => setTimeout(res, d / speed));
+		left -= d; simT += d;
+	}
+	return r === run;
+}
+function travel(pid, o, r) {
+	return new Promise((res) => {
+		const p = P[pid]; const len = p.getTotalLength();
+		p.style.setProperty('--c', o.color); p.classList.add('live'); p.classList.toggle('rev', !!o.reverse);
+		const g = el('g', {}, gP);
+		el('circle', { r: 11, fill: o.color, opacity: 0.2 }, g); el('circle', { r: 5, fill: o.color }, g);
+		let t = null;
+		if (o.label) { t = el('text', { class: 'plabel', x: 10, y: -10, fill: o.color }, g); t.textContent = o.label; }
+		const dur = o.dur || Math.max(650, Math.min(1500, len * 3.4));
+		let el0 = 0, last = performance.now();
+		const frame = (now) => {
+			if (r !== run) { g.remove(); p.classList.remove('live', 'rev'); return res(false); }
+			const dt = now - last; last = now;
+			if (!paused || stepOnce) el0 += dt * speed;
+			const k = Math.min(1, el0 / dur);
+			const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+			const pt = p.getPointAtLength((o.reverse ? 1 - e : e) * len);
+			g.setAttribute('transform', `translate(${pt.x.toFixed(1)},${pt.y.toFixed(1)})`);
+			if (t) { const right = pt.x > 700; t.setAttribute('text-anchor', right ? 'end' : 'start'); t.setAttribute('x', right ? -10 : 10); }
+			if (k < 1) requestAnimationFrame(frame);
+			else { g.remove(); p.classList.remove('live', 'rev'); p.classList.add('lit'); res(true); }
+		};
+		requestAnimationFrame(frame);
+	});
+}
+function focus(ids) {
+	for (const [id, g] of Object.entries(N)) g.classList.toggle('on', ids.includes(id));
+	ids.forEach((id) => N[id] && N[id].classList.remove('idle'));
+}
+function chip(id, state) {
+	Object.values(CH).forEach((c) => c.g.classList.remove('fire', 'pass'));
+	if (id) CH[id].g.classList.add(state === 'fire' ? 'fire' : 'pass');
+}
+function clearLit() { Object.values(P).forEach((p) => p.classList.remove('lit')); }
+
+/* ─── panels ────────────────────────────────────────────────── */
+const $out = document.getElementById('out'), $inp = document.getElementById('inp'), $hint = document.getElementById('hint');
+const $log = document.getElementById('log'), $db = document.getElementById('db'), $body = document.getElementById('body'), $bodytag = document.getElementById('bodytag');
+const $nn = document.getElementById('nn'), $nt = document.getElementById('nt'), $nx = document.getElementById('nx'), $clock = document.getElementById('clock');
+const WHO = {
+	you: ['you', '#dae1ea'], cc: ['Claude Code', '#c9d1dc'], proxy: ['mike proxy', '#5fe0a0'], anth: ['Anthropic', '#d97757'],
+	pg: ['Postgres', '#4d8dff'], peer: ['peer session', '#c9d1dc'], sub: ['subagent', '#b48cff'], mcp: ['mike-mcp', '#b48cff'],
+	fleet: ['steerer fleet', '#ffc933'], or: ['OpenRouter', '#d97757'], wk: ['workers', '#5fe0a0'], ui: ['web UI', '#dae1ea'], inspect: ['inspect API', '#5fe0a0']
+};
+function log(who, msg) {
+	const [name, col] = WHO[who];
+	const li = h('li', 'new', `<span class="ts">+${(simT / 1000).toFixed(1)}s</span><span class="who" style="color:${col}">${esc(name)}</span><span class="msg">${msg}</span>`);
+	$log.append(li);
+	$log.scrollTop = $log.scrollHeight;
+	$clock.textContent = `+${(simT / 1000).toFixed(1)}s`;
+}
+const TABLES = ['requests.requests', 'tools.uses', 'agents.dispatches', 'agents.instances', 'mailbox.messages', 'memory.lessons', 'steering.interventions', 'llm.calls'];
+const counts = {};
+function dbInit() {
+	$db.replaceChildren();
+	TABLES.forEach((t) => { counts[t] = 0; const li = h('li', '', `<span class="tb">${t}</span><span class="ct">0</span>`); li.dataset.t = t; $db.append(li); });
+}
+function dbBump(t, n = 1) {
+	counts[t] += n;
+	const li = $db.querySelector(`[data-t="${t}"]`);
+	li.querySelector('.ct').textContent = counts[t];
+	li.classList.remove('bump'); void li.offsetWidth; li.classList.add('bump', 'has');
+}
+function termLine(cls, html) { const d = h('div', 'l ' + cls, html); $out.append(d); $out.scrollTop = $out.scrollHeight; return d; }
+async function typeLine(cls, text, r, cps = 70) {
+	const d = termLine(cls + ' caret', '');
+	for (let i = 1; i <= text.length; i += 2) {
+		if (!(await tick(1000 / cps * 2, r))) return d;
+		d.textContent = text.slice(0, i + 1);
+		$out.scrollTop = $out.scrollHeight;
+	}
+	d.classList.remove('caret');
+	return d;
+}
+let thinking = null;
+function think(on, label = 'Thinking…') {
+	if (thinking) { thinking.remove(); thinking = null; }
+	if (on) thinking = termLine('think', `<b>✻</b> ${esc(label)}`);
+}
+let bodyRows = [];
+function bodyReset(prompt, turn) {
+	bodyRows = [['system', 'Claude Code system blocks (shape varies)'], ['messages', turn === 1 ? '(new session)' : `${turn * 4 - 2} earlier messages`], ['messages[-1]', `user: "${prompt}"`], ['tools', '[Bash, Read, Edit, Agent, mcp__mike__*, …]']].map(([k, v]) => ({ k, v }));
+	renderBody('as sent by Claude Code');
+}
+function bodyAdd(k, v, tag) { bodyRows.splice(bodyRows.length - 1, 0, { k, v, add: true }); renderBody(tag); }
+function renderBody(tag) {
+	$bodytag.textContent = tag;
+	$body.innerHTML = '<div class="sub">Capture begins with Claude Code\'s bytes. Pink rows show request-time additions; persisted body views may be reconstructed.</div>' +
+		bodyRows.map((r) => `<div class="row${r.add ? ' add' : ''}"><span class="k">${esc(r.k)}</span><span class="v">${esc(r.v)}</span></div>`).join('');
+}
+function narr(n, title, text) { $nn.textContent = n; $nt.textContent = title; $nx.innerHTML = text; }
+
+/* ─── features ──────────────────────────────────────────────── */
+const F = { peer: true, recall: true, subagent: true, mcp: true, verifier: true, weasel: false };
+document.querySelectorAll('.feat').forEach((b) => (b.onclick = () => {
+	if (busy) return;
+	F[b.dataset.f] = !F[b.dataset.f];
+	b.setAttribute('aria-pressed', String(F[b.dataset.f]));
+	paintChips();
+}));
+function lockFeatures(lock) { document.querySelectorAll('.feat').forEach((b) => (b.disabled = lock)); }
+
+/* ─── the script ────────────────────────────────────────────── */
+let turn = 0, nudgeQueued = false, peerDelivered = false;
+async function beat(r, n, title, text, fn) {
+	if (r !== run) return false;
+	narr(n, title, text);
+	await fn();
+	if (r !== run) return false;
+	if (!(await tick(700, r))) return false;
+	// Step runs one beat to its end; paused holds here until Resume or the next Step.
+	stepOnce = false;
+	while (paused && !stepOnce && r === run) await new Promise((res) => setTimeout(res, 60));
+	return r === run;
+}
+const go = (pid, color, label, extra) => travel(pid, { color, label, ...(extra || {}) }, run);
+const both = (...ps) => Promise.all(ps);
+
+async function turnOne(prompt, r) {
+	let k = 0; const B = () => String(++k).padStart(2, '0');
+	if (F.peer && !peerDelivered) {
+		if (!await beat(r, B(), 'A peer session leaves you a message', 'Another Claude Code session in this repo calls <code>send_session_message</code> through its own mike-mcp. mike stores it in <code>mailbox.messages</code> and queues it for your session\'s next eligible turn.', async () => {
+			focus(['peer', 'queue']);
+			await go('peer2q', C.agent, 'send_session_message');
+			dbBump('mailbox.messages');
+			log('peer', 'mailbox → your session: <i>"I\'m changing RetryPolicy in config.rs. Please don\'t edit it."</i>');
+		})) return;
+	}
+	if (!await beat(r, B(), 'Claude Code calls the API', 'Because <code>ANTHROPIC_BASE_URL</code> points at <code>:9988</code>, the request lands on mike instead of going straight to Anthropic.', async () => {
+		focus(['cc', 'proxy']);
+		think(true);
+		bodyReset(prompt, 1);
+		await go('cc2px', C.req, 'POST /v1/messages');
+		log('cc', `POST /v1/messages · primary_first turn · "${esc(prompt.slice(0, 60))}"`);
+	})) return;
+	if (!await beat(r, B(), 'The original bytes are kept first', '<code>engine::accept</code> keeps the untouched inbound body as <code>stored_body</code> before any stage runs. The original and sent views remain distinct. Storage compaction can reconstruct the original view later, and the API reports its provenance.', async () => {
+		chip('accept'); focus(['proxy']);
+		log('proxy', 'stored_body = inbound bytes (captured before any stage)');
+	})) return;
+	if (!await beat(r, B(), F.recall ? 'Session lessons from earlier work are added' : 'Lesson injection is off, so nothing is added', F.recall ? 'The <code>lessons</code> stage uses the lesson cache when <code>reminders.inject_lessons</code> is enabled on an eligible main-lane request. Topic recall is a different stage: <code>recall_injector</code> requires a <code>&lt;mem:recall&gt;</code> tag in earlier assistant text.' : 'With <code>reminders.inject_lessons</code> off, this stage passes the body through unchanged.', async () => {
+		chip('recall', F.recall ? 'fire' : 'pass'); focus(['proxy', 'pg']);
+		if (!F.recall) { log('proxy', 'lessons: off, passes through'); return; }
+		await go('pg2px', C.db, 'cached lessons');
+		bodyAdd('+ lessons', '<system-reminder> retry tests share /tmp; give each test its own tempdir()', 'rewritten by mike');
+		log('proxy', '+ &lt;system-reminder&gt; 1 cached session lesson injected');
+	})) return;
+	if (!await beat(r, B(), F.peer ? 'The mailbox message is delivered' : 'The queue is empty', F.peer ? 'The shared drain runs on eligible primary requests independently of the autonomous steerer toggle. With no live channel in this scenario, it claims the queued message and appends it to your last user message as a <code>&lt;system-reminder&gt;</code>.' : 'The drain runs on eligible primary requests. Nothing is queued, so nothing is added.', async () => {
+		chip('drain', F.peer ? 'fire' : 'pass'); focus(['queue', 'proxy']);
+		if (!F.peer) { log('proxy', 'steerer + mailbox drain: queue empty'); return; }
+		await go('q2px', C.mut, 'mailbox message');
+		peerDelivered = true;
+		bodyAdd('+ mailbox', '<system-reminder> from api-refactor: changing RetryPolicy in config.rs, don\'t edit it', 'rewritten by mike');
+		log('proxy', '+ &lt;system-reminder&gt; mailbox message from api-refactor');
+	})) return;
+	if (!await beat(r, B(), 'Stub row, then forward', 'With working persistence, Phase 1 writes the request parent into <code>requests.requests</code> before forwarding. Content-block and tool-use capture can then reference it. This scenario omits persistence failure and capture-shedding branches.', async () => {
+		chip('stub'); focus(['proxy', 'pg', 'anth']);
+		await go('px2pg', C.db, 'phase-1 stub');
+		dbBump('requests.requests');
+		await go('px2anth', C.req, 'forwarded body');
+		log('proxy', 'forward_to_upstream → api.anthropic.com');
+	})) return;
+	if (F.subagent) {
+		if (!await beat(r, B(), 'The model delegates to a subagent', 'The answer streams back through mike to Claude Code. It is a <code>tool_use</code> of the <code>Agent</code> tool. mike records the dispatch in <code>agents.dispatches</code> and the tool call in <code>tools.uses</code>.', async () => {
+			chip('sse'); focus(['anth', 'proxy', 'cc']);
+			await go('anth2px', C.res, 'tool_use: Agent');
+			await go('px2cc', C.res, F.weasel ? 'buffer → flush' : 'SSE tee');
+			think(false);
+			termLine('tool agent', 'Agent(rust-developer): <span style="color:var(--t3)">find why retry_test flakes</span>');
+			dbBump('tools.uses'); dbBump('agents.dispatches');
+			log('anth', 'tool_use Agent · persona rust-developer');
+		})) return;
+		if (!await beat(r, B(), 'The subagent\'s calls go through mike too', 'Claude Code runs the subagent locally, and its model calls use the same base URL. mike classifies their lineage as <code>subagent</code>; an instance can be linked immediately or backfilled after the orchestrator snapshot. Enabled <code>agent_lessons</code> adds matching persona lessons.', async () => {
+			focus(['cc', 'sub', 'proxy']);
+			await go('cc2sub', C.agent, 'Agent tool');
+			await go('sub2px', C.req, 'POST (subagent)');
+			chip('agent', F.recall ? 'fire' : 'pass');
+			dbBump('agents.instances'); dbBump('requests.requests');
+			log('sub', 'POST /v1/messages · turn_origin = subagent · persona rust-developer');
+			if (F.recall) log('proxy', '+ agent_lessons: 1 rust-developer lesson');
+			await go('px2anth', C.req, 'forwarded');
+			await go('anth2px', C.res, 'tool_use: Bash');
+			await go('px2sub', C.res, F.weasel ? 'buffer → flush' : 'tee');
+			termLine('nest', 'Bash(cargo test retry_ -- --test-threads=8)');
+			dbBump('tools.uses');
+		})) return;
+		if (!await beat(r, B(), 'The subagent finishes and reports back', 'It runs the tests locally, sends the result through mike, and gets its final answer. Claude Code hands that answer to the main agent as the Agent tool\'s result.', async () => {
+			focus(['sub', 'proxy', 'anth', 'cc']);
+			await go('sub2px', C.req, 'tool_result');
+			dbBump('requests.requests');
+			await go('px2anth', C.req, 'forwarded');
+			await go('anth2px', C.res, 'final answer');
+			await go('px2sub', C.res, F.weasel ? 'buffer → flush' : 'tee');
+			termLine('nest', 'Two tests share /tmp/retry and race on it. Fix: tempdir() per test.');
+			await go('sub2cc', C.agent, 'Agent result');
+			log('sub', 'done: shared /tmp dir race in retry_test.rs');
+		})) return;
+	}
+	if (F.mcp) {
+		if (!await beat(r, B(), 'The main agent asks mike who else is working here', 'The model calls a mike-mcp tool. Claude Code runs it over stdio, and mike-mcp asks the inspect API, which reads Postgres. No request goes to Anthropic for the tool itself.', async () => {
+			focus(['cc', 'proxy', 'anth', 'mcp', 'inspect', 'pg']);
+			think(true);
+			if (F.subagent) {
+				await go('cc2px', C.req, 'Agent result');
+				dbBump('requests.requests');
+				await go('px2anth', C.req, 'forwarded');
+			}
+			await go('anth2px', C.res, 'tool_use: mcp');
+			await go('px2cc', C.res, 'tee');
+			think(false);
+			termLine('tool mcp', 'mike - get_workspace_roster <span style="color:var(--t3)">(MCP)</span>');
+			dbBump('tools.uses');
+			await go('cc2mcp', C.agent, 'get_workspace_roster');
+			await go('mcp2in', C.agent, 'GET /api/…');
+			await go('pg2in', C.db, 'rows', { reverse: false, dur: 800 });
+			await go('mcp2in', C.res, 'JSON', { reverse: true });
+			await go('cc2mcp', C.res, 'result', { reverse: true });
+			termLine('nest', '2 live sessions: you (retry-svc), api-refactor (config.rs)');
+			log('mcp', 'get_workspace_roster → 2 live sessions');
+		})) return;
+	}
+	if (!await beat(r, B(), 'The main agent edits and runs a focused check', 'This scripted exchange supplies the evidence used below: an Edit of <code>retry_test.rs</code> and a focused test command. It does not run the full suite. Clean tool responses are buffered then flushed when weasel scanning is armed.', async () => {
+		focus(['cc', 'proxy', 'anth']);
+		if (F.subagent || F.mcp) {
+			await go('cc2px', C.req, 'tool_result'); dbBump('requests.requests');
+			await go('px2anth', C.req, 'forwarded');
+		}
+		await go('anth2px', C.res, 'tool_use: Edit');
+		await go('px2cc', C.res, F.weasel ? 'buffer → flush' : 'tee');
+		termLine('tool', 'Edit(retry_test.rs): use tempdir() per test'); dbBump('tools.uses');
+		await go('cc2px', C.req, 'Edit result'); dbBump('requests.requests');
+		await go('px2anth', C.req, 'forwarded');
+		await go('anth2px', C.res, 'tool_use: Bash');
+		await go('px2cc', C.res, F.weasel ? 'buffer → flush' : 'tee');
+		termLine('tool', 'Bash(cargo test retry_)');
+		termLine('nest', 'test result: ok. 3 passed; 0 failed'); dbBump('tools.uses');
+	})) return;
+	// final answer
+	const claim = 'All required verification is done; the full suite should pass now.';
+	const lessonTag = '<mem:update topic="retry-tests">Give each retry test its own tempdir().</mem:update>';
+	const draft = `Fixed retry_test.rs: each test now gets its own tempdir().${F.peer ? ' I left config.rs alone because api-refactor is changing RetryPolicy.' : ''} ${claim} ${lessonTag}`;
+	const replaced = `Fixed retry_test.rs: each test now gets its own tempdir().${F.peer ? ' I left config.rs alone because api-refactor is changing RetryPolicy.' : ''} I ran cargo test retry_: 3 passed. I haven't run the full suite. ${lessonTag}`;
+	let finalText = draft;
+	if (!await beat(r, B(), 'The main agent writes its answer', F.weasel ? 'Weasel intercept is armed, so mike buffers and scans the stream before delivery. If its byte cap is exceeded, it flushes and passes through instead; this small example stays below the cap.' : 'The final answer streams through the tee: live to your terminal, and into the parser that fills in the capture.', async () => {
+		focus(['cc', 'proxy', 'anth']);
+		think(true);
+		await go('cc2px', C.req, 'tool_result');
+		dbBump('requests.requests');
+		await go('px2anth', C.req, 'forwarded');
+		chip('sse', F.weasel ? 'fire' : 'pass');
+		await go('anth2px', C.res, F.weasel ? 'SSE → buffer' : 'SSE');
+		if (!F.weasel) {
+			think(false);
+			const p = go('px2cc', C.res, 'tee');
+			await typeLine('ans', draft, r, 90);
+			await p;
+		}
+	})) return;
+	if (F.weasel) {
+		if (!await beat(r, B(), 'Forbidden phrase: the answer is thrown away', 'The scanner found <code>"should pass"</code>. mike discards the buffer, sends a correction request with a fresh RequestId, and marks the original row <code>intercepted = true</code>. In this successful, below-cap correction path, your terminal sees only the follow-up answer.', async () => {
+			focus(['proxy', 'anth']);
+			log('proxy', 'InterceptSignal::Hit("should pass") · buffer discarded');
+			await go('px2pg', C.db, 'intercepted = true');
+			await go('px2anth', C.mut, 'correction request');
+			dbBump('requests.requests');
+			await go('anth2px', C.res, 'second answer');
+			think(false);
+			const p = go('px2cc', C.res, 'second answer');
+			await typeLine('ans', replaced, r, 90);
+			await p;
+			finalText = replaced;
+		})) return;
+	}
+	if (!await beat(r, B(), 'Snapshot, then the web UI updates', 'Terminal snapshot writes status and an assembled response from captured blocks. Postgres <code>NOTIFY</code> becomes a <code>RowChanged</code> WebSocket event; the UI refetches relevant data through REST. Other UI surfaces can still poll.', async () => {
+		focus(['proxy', 'pg', 'inspect', 'ui']);
+		await go('px2pg', C.db, 'snapshot_terminal');
+		await go('pg2in', C.evt, 'NOTIFY');
+		await go('in2ui', C.evt, '/api/ws');
+		log('ui', 'new turn visible at localhost:9990');
+	})) return;
+	if (!await beat(r, B(), 'Off the hot path: the harvester records a lesson', 'The displayed answer includes a <code>&lt;mem:update&gt;</code> tag. The response updater calls the enabled harvester, which parses it and can write a deduplicated lesson to <code>memory.lessons</code>. No LLM call; this beat groups background work rather than asserting its exact order relative to snapshot.', async () => {
+		focus(['proxy', 'workers', 'pg']);
+		await go('px2wk', C.evt, 'turn complete');
+		await go('wk2pg', C.db, 'lesson');
+		dbBump('memory.lessons');
+		log('wk', 'harvester: 1 lesson (retry tests need per-test tempdirs)');
+	})) return;
+	if (F.verifier) {
+		const unbacked = finalText.includes(claim);
+		if (!await beat(r, B(), 'The steerer fleet checks the claim', 'After response and diagnostic completion, this enrolled verifier passes its invocation/arming gates and asks OpenRouter for one verdict. Only a confident candidate fire proceeds to two confirmation samples for 2-of-3 quorum. These are model judgements, not proof that a claim is true.', async () => {
+			focus(['proxy', 'fleet', 'or']);
+			await go('px2fleet', C.evt, 'ResponseComplete');
+			log('fleet', `gate: ${unbacked ? 'completion claim matched' : 'claim is hedged, gate still passes'}`);
+			await go('fleet2or', C.evt, unbacked ? 'verdict + 2 checks' : 'verdict');
+			dbBump('llm.calls', unbacked ? 3 : 1);
+			await go('or2fleet', unbacked ? C.bad : C.res, unbacked ? '2 of 3: unbacked' : 'no candidate fire');
+			log('or', unbacked ? 'scripted verdict: broad suite assurance lacks a full-suite run' : 'verdict: claims match the tool calls');
+		})) return;
+		if (unbacked) {
+			if (!await beat(r, B(), 'A nudge is queued for your next turn', 'The verifier fires: it writes a <code>steering.interventions</code> row and enqueues a <code>[verification]</code> reminder. This scenario has no live channel, so delivery falls back to the next eligible request. With an active Remote Control stream it could be pushed earlier.', async () => {
+				focus(['fleet', 'queue']);
+				await go('fleet2q', C.mut, '[verification] nudge');
+				dbBump('steering.interventions');
+				nudgeQueued = true;
+				log('fleet', 'queued: [verification] missing evidence: the full suite never ran');
+			})) return;
+		} else {
+			if (!await beat(r, B(), 'No nudge', 'The answer only claims what the tool calls show, so the verifier does not fire.', async () => { focus(['fleet']); })) return;
+		}
+	}
+	narr('✓', 'Your turn', nudgeQueued ? 'Type a follow-up, like <i>"great, ship it"</i>. The queued verification nudge will ride along with it.' : 'Type a follow-up to run a second turn, or press Reset.');
+}
+
+async function turnTwo(prompt, r) {
+	let k = 0; const B = () => 'T2·' + String(++k).padStart(2, '0');
+	if (!await beat(r, B(), 'Your follow-up goes out', 'Same path as before: stored bytes first, then the stages.', async () => {
+		focus(['cc', 'proxy']); think(true); bodyReset(prompt, 2);
+		await go('cc2px', C.req, 'POST /v1/messages');
+		chip('accept');
+		log('cc', `POST /v1/messages · primary turn · "${esc(prompt.slice(0, 60))}"`);
+	})) return;
+	if (!await beat(r, B(), nudgeQueued ? 'The queued nudge is delivered' : 'The queue is empty', nudgeQueued ? 'The drain claims the verifier\'s reminder and appends it to your message. The model now knows the full suite never ran.' : 'Nothing was queued, so the body goes out as you wrote it.', async () => {
+		chip('drain', nudgeQueued ? 'fire' : 'pass'); focus(['queue', 'proxy']);
+		if (!nudgeQueued) return;
+		await go('q2px', C.mut, '[verification]');
+		bodyAdd('+ steerer', '<system-reminder>[verification] missing evidence: the full suite never ran', 'rewritten by mike');
+		log('proxy', '+ &lt;system-reminder&gt; [verification] nudge');
+	})) return;
+	const nudged = nudgeQueued;
+	nudgeQueued = false;
+	if (!await beat(r, B(), nudged ? 'The model runs the full suite' : 'The model acknowledges', nudged ? 'Prompted by the nudge, the model runs the evidence it was missing before claiming it is done.' : 'This alternate scripted response adds no further verification. The simulator performs no commit or external action.', async () => {
+		focus(['proxy', 'anth', 'cc']);
+		await go('px2pg', C.db, 'phase-1 stub'); dbBump('requests.requests');
+		await go('px2anth', C.req, 'forwarded');
+		await go('anth2px', C.res, nudged ? 'tool_use: Bash' : 'SSE');
+		think(false);
+		if (nudged) {
+			await go('px2cc', C.res, 'tee');
+			termLine('tool', 'Bash(cargo test)');
+			termLine('nest', 'test result: ok. 212 passed; 0 failed');
+			dbBump('tools.uses');
+			await go('cc2px', C.req, 'tool_result'); dbBump('requests.requests');
+			await go('px2anth', C.req, 'forwarded');
+			await go('anth2px', C.res, 'SSE');
+			const p = go('px2cc', C.res, 'tee');
+			await typeLine('ans', 'Full suite: 212 passed, 0 failed. Ready for the requested next step.', r, 90);
+			await p;
+		} else {
+			const p = go('px2cc', C.res, 'tee');
+			await typeLine('ans', 'The focused retry check passed. The full suite has not been run.', r, 90);
+			await p;
+		}
+	})) return;
+	if (!await beat(r, B(), 'Captured, and live in the web UI', 'This scenario has working capture for both turns and any optional subagent calls. Body APIs expose original/sent views and reconstruction metadata; not every stored response is a raw SSE archive.', async () => {
+		focus(['proxy', 'pg', 'inspect', 'ui']);
+		await go('px2pg', C.db, 'snapshot_terminal');
+		await go('pg2in', C.evt, 'NOTIFY');
+		await go('in2ui', C.evt, '/api/ws');
+	})) return;
+	narr('✓', 'End of the scripted demo', 'Press Reset to start over, or change the armed features and play it again. Try disabling the optional scenario paths. With no authored rules, queued messages or recognized hook tokens, request-body mutation is inactive; captures and default background helpers still run.');
+}
+
+/* ─── wiring ────────────────────────────────────────────────── */
+function setBusy(b) {
+	busy = b;
+	$inp.disabled = b;
+	$hint.textContent = b ? 'working…' : '⏎ send';
+	document.getElementById('pause').disabled = !b;
+	document.getElementById('step').disabled = !b;
+	document.getElementById('play').disabled = b || turn >= 2;
+	lockFeatures(b || turn > 0);
+	if (!b) $inp.focus({ preventScroll: true });
+}
+async function send(prompt) {
+	if (busy || !prompt.trim()) return;
+	const r = run;
+	turn++;
+	setBusy(true);
+	clearLit();
+	termLine('you', esc(prompt));
+	log('you', `typed: "${esc(prompt.slice(0, 80))}"`);
+	if (turn === 1) await turnOne(prompt, r);
+	else if (turn === 2) await turnTwo(prompt, r);
+	else {
+		termLine('note', 'The scripted demo covers two turns. Press Reset to start again.');
+		narr('—', 'End of the scripted demo', 'Press Reset to start over.');
+	}
+	if (r === run) { focus([]); chip(null); setBusy(false); }
+}
+document.getElementById('form').onsubmit = (e) => {
+	e.preventDefault();
+	const v = $inp.value; $inp.value = '';
+	send(v);
+};
+const EXAMPLE1 = 'fix the flaky retry test and make sure everything passes';
+const EXAMPLE2 = 'great, ship it';
+document.getElementById('play').onclick = async () => {
+	if (busy) return;
+	const r = run;
+	const text = turn === 0 ? EXAMPLE1 : EXAMPLE2;
+	$inp.disabled = true;
+	document.getElementById('play').disabled = true;
+	for (let i = 1; i <= text.length; i++) {
+		if (r !== run) return;
+		$inp.value = text.slice(0, i);
+		await new Promise((res) => setTimeout(res, 45 / speed));
+	}
+	await new Promise((res) => setTimeout(res, 350));
+	if (r !== run) return;
+	$inp.value = '';
+	await send(text);
+	if (r === run && turn === 1) { await new Promise((res) => setTimeout(res, 1600 / speed)); if (r === run && !busy && turn === 1) document.getElementById('play').click(); }
+};
+document.getElementById('pause').onclick = (e) => { paused = !paused; e.target.textContent = paused ? 'Resume' : 'Pause'; };
+document.getElementById('step').onclick = () => { paused = true; stepOnce = true; document.getElementById('pause').textContent = 'Resume'; };
+document.querySelectorAll('[data-speed]').forEach((b) => (b.onclick = () => {
+	speed = Number(b.dataset.speed);
+	document.querySelectorAll('[data-speed]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+}));
+function reset() {
+	run++; turn = 0; nudgeQueued = false; peerDelivered = false; paused = false; stepOnce = false; simT = 0;
+	document.getElementById('pause').textContent = 'Pause';
+	gP.replaceChildren(); clearLit(); focus([]); chip(null);
+	Object.entries(N).forEach(([id, g]) => g.classList.toggle('idle', ['peer', 'sub', 'mcp', 'fleet', 'or'].includes(id)));
+	$out.replaceChildren(); $log.replaceChildren(); dbInit();
+	thinking = null;
+	termLine('note', 'Claude Code is running with ANTHROPIC_BASE_URL=http://localhost:9988. Type a request below and press Enter, or press Play demo.');
+	$body.innerHTML = '<div class="sub">The request body appears here once a turn starts.</div>'; $bodytag.textContent = '—';
+	$clock.textContent = '+0.0s';
+	narr('—', 'Waiting for you', 'Nothing has left the terminal yet. mike is listening on <code>:9988</code>.');
+	paintChips();
+	setBusy(false);
+}
+document.getElementById('reset').onclick = reset;
+reset();
+})();
+</script>
+</body>
+</html>

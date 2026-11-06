@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE mailbox.messages m\n                    SET channel_delivered_at = NULL\n                   FROM sessions.sessions recip\n                  WHERE recip.id = m.to_session_id\n                    AND recip.session_uuid = $1\n                    AND m.message_uuid = ANY($2)\n                    AND m.channel_delivered_at IS NOT NULL\n                    AND m.consumed_at IS NULL\n                    AND m.dead_lettered_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e7ab66dcae47e22229bdb350d5394e963f8fe1053c5777cc7e8468c37d904c08"
+}

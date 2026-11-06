@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH seats AS (\n    SELECT DISTINCT ON (s.id) l.seat, s.id AS sid, l.created_at AS launched_at,\n           CASE WHEN l.seat LIKE 'coordinator%' THEN 'coordinator'\n                WHEN l.seat LIKE 'observer%' THEN 'observer'\n                WHEN l.seat LIKE 'acceptance%' THEN 'acceptance'\n                WHEN l.seat LIKE 'template-%' THEN 'template'\n                WHEN l.seat = 'reference' THEN 'reference'\n                ELSE 'worker' END AS kind\n      FROM launch.launches l\n      JOIN sessions.sessions s ON s.session_uuid = l.session_uuid\n     WHERE l.run_id = $1 AND l.seat IS NOT NULL AND l.seat <> 'status'\n     ORDER BY s.id, l.created_at, l.id\n),\nbash AS MATERIALIZED (\n    SELECT s.seat, u.input->>'command' AS cmd\n      FROM seats s\n      JOIN tools.uses u ON u.session_id = s.sid AND u.created_at >= s.launched_at AND u.tool_name = 'Bash'\n),\nruns AS (\n    SELECT b.seat, b.cmd AS command\n      FROM bash b\n     WHERE b.cmd ~ $2 AND b.cmd !~ 'git commit'\n),\nper_command AS (\n    SELECT trim(command) AS command, count(*) AS runs, count(DISTINCT seat) AS seats\n      FROM runs WHERE command IS NOT NULL GROUP BY 1\n)\nSELECT coalesce(sum(runs), 0)::bigint AS \"commands!\",\n       coalesce(sum(runs - 1) FILTER (WHERE seats > 1), 0)::bigint AS \"repeats!\"\n  FROM per_command\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "commands!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "repeats!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "4b6b7238c96df0cb56e3f3d988bbde55fbc7310c3daed378ad04d930b02d66c9"
+}

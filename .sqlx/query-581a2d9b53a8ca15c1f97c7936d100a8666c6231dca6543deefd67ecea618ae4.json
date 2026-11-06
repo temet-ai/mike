@@ -1,0 +1,230 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH arms AS (\n    SELECT e.id, e.uuid, e.session_id, e.operator_turn_id, e.question, e.arm, e.holdback_draw,\n           e.arm_anchor_turn_id, e.due_at, e.reach_at_due, e.dispatched_at, e.intervention_uuid,\n           e.outcome_label, e.label_source\n      FROM steering.evaluations e\n     WHERE e.steerer_id = $1\n       AND e.arm IS NOT NULL\n       AND e.dispatched_at <= $2\n),\ncarrier AS (\n    SELECT DISTINCT ON (a.id) a.id, r.id AS carrier_request_id, r.operator_turn_id AS carrier_turn_id\n      FROM arms a\n      JOIN requests.requests r ON r.session_id = a.session_id\n                              AND r.created_at > a.dispatched_at\n                              AND r.created_at <= $2\n      JOIN requests.turn_origins o ON o.id = r.turn_origin_id AND o.code IN ('primary', 'primary_first')\n     ORDER BY a.id, r.created_at, r.id\n),\nscored AS (\n    SELECT a.id, a.uuid, a.session_id, a.operator_turn_id, a.question, a.arm, a.holdback_draw,\n           a.arm_anchor_turn_id, a.due_at, a.reach_at_due, a.dispatched_at, a.intervention_uuid,\n           a.outcome_label, a.label_source, c.carrier_request_id,\n           CASE WHEN a.reach_at_due = 'reachable' THEN a.operator_turn_id ELSE c.carrier_turn_id END\n               AS scored_turn_id\n      FROM arms a\n      LEFT JOIN carrier c ON c.id = a.id\n),\nreactions AS (\n    SELECT DISTINCT ON (v.operator_turn_id) v.operator_turn_id, v.reaction\n      FROM memory.turn_verdicts v\n      JOIN scored s ON s.scored_turn_id = v.operator_turn_id\n     WHERE v.mode = 'live' AND v.created_at <= $2\n     ORDER BY v.operator_turn_id, v.created_at DESC, v.id DESC\n),\narm_sessions AS (\n    SELECT DISTINCT session_id FROM arms\n),\nlast_turns AS (\n    SELECT t.session_id, max(t.id) AS last_turn_id\n      FROM memory.operator_turns t\n      JOIN arm_sessions s ON s.session_id = t.session_id\n     WHERE t.created_at <= $2\n     GROUP BY t.session_id\n)\nSELECT s.id AS \"id!\", s.uuid AS \"uuid!\", s.session_id AS \"session_id!\",\n       s.operator_turn_id AS \"operator_turn_id!\", s.question AS \"question?\", s.arm AS \"arm?\",\n       s.holdback_draw AS \"holdback_draw?\", s.arm_anchor_turn_id AS \"arm_anchor_turn_id?\",\n       s.due_at AS \"due_at?\", s.reach_at_due AS \"reach_at_due?\", s.dispatched_at AS \"dispatched_at!\",\n       s.outcome_label AS \"outcome_label?\", s.label_source AS \"label_source?\",\n       s.carrier_request_id AS \"carrier_request_id?\", s.scored_turn_id AS \"scored_turn_id?\",\n       rx.reaction AS \"scored_reaction?\",\n       COALESCE(s.scored_turn_id IS NOT NULL AND s.scored_turn_id = lt.last_turn_id, false) AS \"scored_is_last!\",\n       (i.delivered_request_id IS NOT NULL OR i.pushed_at IS NOT NULL) AS \"delivered!\",\n       i.wake_state AS \"wake_state?\"\n  FROM scored s\n  LEFT JOIN reactions rx ON rx.operator_turn_id = s.scored_turn_id\n  LEFT JOIN last_turns lt ON lt.session_id = s.session_id\n  LEFT JOIN steering.interventions i ON i.uuid = s.intervention_uuid\n ORDER BY s.session_id, s.dispatched_at, s.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "operator_turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "question?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "question"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "arm?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "arm"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "holdback_draw?",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "holdback_draw"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "arm_anchor_turn_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "arm_anchor_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "due_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "due_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "reach_at_due?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "reach_at_due"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "dispatched_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "dispatched_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "outcome_label?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "outcome_label"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "label_source?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.evaluations",
+            "name": "label_source"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "carrier_request_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "scored_turn_id?",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 15,
+        "name": "scored_reaction?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "reaction"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "scored_is_last!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 17,
+        "name": "delivered!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 18,
+        "name": "wake_state?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.interventions",
+            "name": "wake_state"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false,
+      null,
+      true,
+      null,
+      null,
+      true
+    ]
+  },
+  "hash": "581a2d9b53a8ca15c1f97c7936d100a8666c6231dca6543deefd67ecea618ae4"
+}

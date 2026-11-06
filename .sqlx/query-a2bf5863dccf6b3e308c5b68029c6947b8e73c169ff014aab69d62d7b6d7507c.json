@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(SUM(cost_usd), 0.0)::float8 AS \"total!\"\n  FROM llm.daily_spend\n WHERE day >= $1 AND day <= $2\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "total!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Date",
+        "Date"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "a2bf5863dccf6b3e308c5b68029c6947b8e73c169ff014aab69d62d7b6d7507c"
+}

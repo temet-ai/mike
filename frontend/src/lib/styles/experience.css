@@ -1,0 +1,138 @@
+@layer base {
+	html {
+		color-scheme: dark;
+		scrollbar-gutter: stable;
+		scroll-padding-block-start: calc(var(--control-h-lg) + var(--space-4));
+		interpolate-size: allow-keywords;
+		view-transition-name: none;
+	}
+
+	::selection {
+		background: var(--data-teal-bg);
+		color: var(--data-teal-fg);
+	}
+
+	:where(h1, h2, h3) {
+		text-wrap: balance;
+	}
+
+	:where(button, a, input, select, textarea, summary, [role='tab']) {
+		touch-action: manipulation;
+	}
+
+	:where(input, textarea) {
+		caret-color: var(--signal-active);
+	}
+
+	:where(button, input, select, textarea):disabled {
+		cursor: not-allowed;
+	}
+}
+
+:where(a[href], button, input, select, textarea, summary, [tabindex]):focus-visible {
+	outline: 2px solid var(--focus);
+	outline-offset: var(--space-1);
+}
+
+:where([data-augmented-ui], .edge):focus-visible {
+	outline-offset: -2px;
+}
+
+.route-content {
+	view-transition-name: route-page;
+}
+
+::view-transition-group(route-page) {
+	animation-duration: var(--dur-2);
+	animation-timing-function: var(--ease-snap);
+}
+::view-transition-old(route-page) {
+	animation: funk-route-leave var(--dur-1) var(--ease-io) both;
+}
+::view-transition-new(route-page) {
+	animation: funk-route-enter var(--dur-2) var(--ease-snap) both;
+}
+::view-transition {
+	pointer-events: none;
+}
+@keyframes funk-route-leave {
+	to {
+		opacity: 0;
+		translate: 0 calc(-1 * var(--space-2));
+	}
+}
+@keyframes funk-route-enter {
+	from {
+		opacity: 0;
+		translate: 0 var(--space-3);
+	}
+}
+
+@supports selector(details::details-content) {
+	.funk-disclosure::details-content {
+		block-size: 0;
+		opacity: 0;
+		overflow: clip;
+		transition:
+			block-size var(--dur-2) var(--ease-snap),
+			opacity var(--dur-2) var(--ease-io),
+			content-visibility var(--dur-2) allow-discrete;
+	}
+	.funk-disclosure[open]::details-content {
+		block-size: auto;
+		opacity: 1;
+	}
+}
+
+:where(
+	[data-slot='dialog-content'],
+	[data-slot='sheet-content'],
+	[data-slot='popover-content'],
+	[data-slot='select-content'],
+	[data-slot='dropdown-menu-content'],
+	[role='listbox']
+) {
+	overscroll-behavior: contain;
+	scrollbar-width: thin;
+	scrollbar-color: var(--border-strong) transparent;
+}
+
+@media (max-width: 47.999rem) {
+	.app {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.app > .nav-slot {
+		display: none;
+	}
+
+	.shell {
+		grid-template-rows: auto 1fr;
+	}
+}
+
+@media (pointer: coarse) {
+	:where(
+		[data-button-root],
+		[data-slot='tabs-list'],
+		[data-slot='tabs-trigger'],
+		[data-slot='select-trigger'],
+		[data-slot='input']
+	) {
+		min-height: calc(var(--control-h-lg) + var(--space-1));
+	}
+
+	:where([data-button-root]:has(> svg:only-child)) {
+		min-width: calc(var(--control-h-lg) + var(--space-1));
+	}
+}
+
+@media (forced-colors: active) {
+	:where(a[href], button, input, select, textarea, summary, [tabindex]):focus-visible {
+		outline-color: Highlight;
+	}
+
+	:where([data-augmented-ui], .edge):is(button, a, [role='tab']) {
+		border: 1px solid ButtonText;
+	}
+}

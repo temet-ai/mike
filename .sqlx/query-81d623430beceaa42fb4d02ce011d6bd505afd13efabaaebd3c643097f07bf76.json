@@ -1,0 +1,56 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n     s.session_uuid::text AS \"session_id!\",\n     COALESCE(newest.live_status, s.last_status) AS \"last_status?\",\n     newest.id            AS \"newest_request_id?\",\n     newest.rn            AS \"newest_request_number?\",\n     COALESCE(first_op.user_prompt, first_text.human_prompt) AS \"originating_operator_prompt?\"\n FROM sessions.sessions s\n LEFT JOIN LATERAL (\n     SELECT r.id,\n            ROW_NUMBER() OVER (\n                PARTITION BY r.session_id\n                ORDER BY r.created_at ASC, r.id ASC\n            ) AS rn,\n            -- Mirrors recover_stale_pending_rows' status-to-string mapping —\n            -- keep the two in sync.\n            CASE st.code\n                WHEN 'pending'   THEN 'Pending'\n                WHEN 'streaming' THEN 'Streaming'\n                WHEN 'complete'  THEN 'Complete'\n                WHEN 'error'     THEN 'Error: ' || COALESCE(re.message, '')\n            END AS live_status\n     FROM requests.requests r\n     JOIN requests.statuses st ON st.id = r.status_id\n     LEFT JOIN requests.errors re ON re.request_id = r.id\n     WHERE r.session_id = $1\n     ORDER BY r.created_at DESC, r.id DESC\n     LIMIT 1\n ) newest ON TRUE\n LEFT JOIN LATERAL (\n     -- Drive from classifications scoped to (session_id, kind_id='operator')\n     -- so the planner can use idx_pk_classifications_session_kind and stop\n     -- early on the first matching request_id ASC. The kind_id is resolved\n     -- via an uncorrelated subquery (runs once, not per outer row).\n     SELECT COALESCE(ot.user_prompt, sr.human_prompt) AS user_prompt\n       FROM (\n           SELECT pk_cls.request_id\n             FROM prompt_kinds.classifications pk_cls\n            WHERE pk_cls.session_id = $1\n              AND pk_cls.kind_id = (SELECT id FROM prompt_kinds.kinds WHERE code = 'operator')\n            ORDER BY pk_cls.request_id ASC\n            LIMIT 1\n       ) first_cls\n       JOIN memory.operator_turns ot ON ot.start_request_id = first_cls.request_id\n       LEFT JOIN requests.requests sr ON sr.id = first_cls.request_id\n ) first_op ON TRUE\n LEFT JOIN LATERAL (\n     -- Fallback title for a session branch 1 cannot reach: a dispatched\n     -- subagent, a spawned peer, or a hook-driven session gets no operator\n     -- prompt to classify. Uses the session's own earliest human-authored\n     -- prompt, excluding sidecar and probe origins.\n     --\n     -- `first_op.user_prompt IS NULL` is a required performance guard, not\n     -- cosmetic — it keeps this scan off every session branch 1 already\n     -- answered. Ordering on (created_at, id) matches\n     -- idx_requests_session_created_id so the scan stops at the first\n     -- match instead of reading the whole session and sorting.\n     --\n     -- The `NOT EXISTS` fires the fallback only for a row the classifier\n     -- never touched. Without it, a turn classified as something other\n     -- than 'operator' would still fall through to its own human_prompt,\n     -- when the contract requires NULL here instead.\n     SELECT r_any.human_prompt\n       FROM requests.requests r_any\n      WHERE first_op.user_prompt IS NULL\n        AND r_any.session_id = $1\n        AND r_any.human_prompt IS NOT NULL\n        AND r_any.human_prompt <> ''\n        AND NOT EXISTS (\n            SELECT 1 FROM prompt_kinds.classifications pk_any\n             WHERE pk_any.request_id = r_any.id\n        )\n        AND r_any.turn_origin_id IN (\n            SELECT id FROM requests.turn_origins\n             WHERE code IN (\n                 'primary', 'primary_first', 'subagent', 'workflow_subagent'\n             )\n        )\n      ORDER BY r_any.created_at ASC, r_any.id ASC\n      LIMIT 1\n ) first_text ON TRUE\n WHERE s.id = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "last_status?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "newest_request_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "newest_request_number?",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "originating_operator_prompt?",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "81d623430beceaa42fb4d02ce011d6bd505afd13efabaaebd3c643097f07bf76"
+}

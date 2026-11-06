@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions.sessions\n     SET last_seen = GREATEST(last_seen, NOW()),\n         last_status = 'Error: stream aborted'\n     WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "21a928c7aa1d32e4783f47bdca3b6bb49f706d1b0fbf9d571bd7be930cc33785"
+}

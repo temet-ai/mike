@@ -1,0 +1,1 @@
+SELECT max(started_at) AS last_scheduled_start FROM jobs.runs WHERE job_name = 'cargo_sweep' AND trigger = 'schedule' AND ('11111111-1111-1111-1111-111111111111'::uuid IS NULL OR machine_uuid = '11111111-1111-1111-1111-111111111111'::uuid)

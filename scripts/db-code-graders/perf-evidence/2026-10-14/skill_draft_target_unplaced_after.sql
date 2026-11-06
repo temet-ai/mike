@@ -1,0 +1,51 @@
+WITH topics AS (
+    SELECT l.project_id, l.topic,
+           CASE WHEN count(DISTINCT l.agent_id) = 1
+                     AND bool_and(l.agent_id IS NOT NULL)
+                THEN min(l.agent_id) END AS agent_id,
+           max(l.id) AS watermark, count(*) AS lesson_count
+      FROM memory.lessons l
+      JOIN memory.lesson_stages ls
+        ON ls.id = l.stage_id AND ls.code IN ('daily', 'long_term')
+      LEFT JOIN memory.lesson_placements lp ON lp.id = l.placement_id
+     WHERE l.archived_at IS NULL
+       AND (l.placement_id IS NULL OR lp.code = 'skill')
+       AND l.topic IS NOT NULL
+       AND l.topic NOT LIKE 'shared:%'
+       AND l.topic NOT LIKE 'verifier:%'
+       AND l.project_id IS NOT NULL
+     GROUP BY l.project_id, l.topic
+    HAVING count(*) >= 2),
+named AS (
+    SELECT t.project_id, p.project_path, t.topic, t.agent_id,
+           a.name AS agent_name, t.watermark, t.lesson_count,
+           CASE WHEN a.name IS NULL THEN t.topic
+                ELSE t.topic || '-' || a.name END AS folder
+      FROM topics t
+      JOIN projects.projects p ON p.id = t.project_id
+      LEFT JOIN agents.agents a ON a.id = t.agent_id
+     WHERE p.project_path <> '(no project)'),
+drafted AS (
+    SELECT d.project_id, d.folder, d.lesson_watermark,
+           count(*) AS revisions,
+           bool_or(d.status <> 'rejected') AS held
+      FROM memory.skill_drafts d
+     GROUP BY d.project_id, d.folder, d.lesson_watermark)
+SELECT n.project_id, n.project_path, n.topic, n.agent_id, n.agent_name,
+       n.folder, n.watermark
+  FROM named n
+ WHERE NOT EXISTS (
+       SELECT 1 FROM drafted dr
+        WHERE dr.project_id = n.project_id
+          AND dr.folder = n.folder
+          AND dr.lesson_watermark >= n.watermark
+          AND (dr.held OR dr.revisions >= 3))
+   AND NOT EXISTS (
+       SELECT 1 FROM memory.skill_draft_failures f
+        WHERE f.project_id = n.project_id
+          AND f.folder = n.folder
+          AND f.lesson_watermark >= n.watermark
+          AND (f.attempts >= 3
+               OR f.last_failed_at > now() - interval '1 hour' * (2 ^ f.attempts)))
+ ORDER BY n.lesson_count DESC, n.watermark DESC
+ LIMIT 1

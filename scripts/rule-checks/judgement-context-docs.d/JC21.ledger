@@ -1,0 +1,8 @@
+# JC21 ledger. The landed sha is the merge that carried JC21's code onto feat/judgement-context (6451d6fe).
+landed   JC21 2026-09-24 6451d6fe
+setting  steerer.verifier.input_budget
+cli      verifier-replay
+retire   docs/ARCHITECTURE.md  and the full assistant response text sourced from
+require  docs/ARCHITECTURE.md  steerer.verifier.input_budget
+require  docs/SECURITY.md  mike verifier-replay
+require  .claude/fleet/mike-machinery.md  Verifier input

@@ -1,0 +1,197 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT ON (pair) id, embedder_key, pair, quantile, floor, n_pairs,\n                        p50, p95, p99, p999, sample, builder_version, status, promoted_from_id,\n                        computed_at\n                   FROM memory.semantic_floors\n                  WHERE embedder_key = $1 AND status = 'in_force' AND quantile = $2\n                  ORDER BY pair, id DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_floors",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "embedder_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_floors",
+            "name": "embedder_key"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "pair",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_floors",
+            "name": "pair"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "quantile",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_floors",
+            "name": "quantile"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "floor",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_floors",
+            "name": "floor"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "n_pairs",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_floors",
+            "name": "n_pairs"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "p50",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_floors",
+            "name": "p50"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "p95",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_floors",
+            "name": "p95"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "p99",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_floors",
+            "name": "p99"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "p999",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_floors",
+            "name": "p999"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "sample",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_floors",
+            "name": "sample"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "builder_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_floors",
+            "name": "builder_version"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_floors",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "promoted_from_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_floors",
+            "name": "promoted_from_id"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "computed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_floors",
+            "name": "computed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "8e18536509719bf612dd83959debade97640a4f4ddfc4225f47de33fe09df74c"
+}

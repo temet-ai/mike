@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO projects.projects\n                    (project_path, display_name, first_seen, last_seen, pinned, pin_created_at)\n                 VALUES ($1, $2, NOW(), NOW(), TRUE, NOW())\n                 ON CONFLICT (project_path) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0f1780731571b29ed1afc318c928108f223d63eca31c67248368bfa679e8c5cd"
+}

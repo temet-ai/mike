@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO messages.messages\n            (message_sha256, body, byte_size, role_id)\n         VALUES ($1, '{}'::jsonb, 0,\n             (SELECT id FROM messages.roles WHERE code = 'user' LIMIT 1))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e5a482bec81a692d9e6f71cdf910c881c44a6d38d1066749d0ec135c70b5d5af"
+}

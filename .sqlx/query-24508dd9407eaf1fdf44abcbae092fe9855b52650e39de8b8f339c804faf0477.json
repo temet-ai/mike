@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH incoming AS (\n                     SELECT n, p, d\n                       FROM UNNEST($1::TEXT[], $2::TEXT[], $3::TEXT[]) AS t(n, p, d)\n                 ),\n                 file_backed AS (\n                     SELECT id FROM agents.sources WHERE code = 'file_backed' LIMIT 1\n                 ),\n                 upserted AS (\n                     INSERT INTO agents.agents (name, definition_path, description, source_id)\n                     SELECT i.n, i.p, i.d, fb.id\n                       FROM incoming i, file_backed fb\n                     ON CONFLICT (LOWER(name)) DO UPDATE\n                        SET source_id       = (SELECT fb2.id FROM agents.sources fb2\n                                               WHERE fb2.code = 'file_backed' LIMIT 1),\n                            definition_path = COALESCE(agents.agents.definition_path, EXCLUDED.definition_path),\n                            description     = CASE\n                                WHEN agents.agents.description IS NULL\n                                    THEN EXCLUDED.description\n                                WHEN agents.agents.description ~ '^[>|][-+]?$'\n                                    THEN EXCLUDED.description\n                                ELSE agents.agents.description\n                            END,\n                            updated_at      = NOW()\n                      WHERE agents.agents.source_id IS DISTINCT FROM (\n                                SELECT fb3.id FROM agents.sources fb3\n                                 WHERE fb3.code = 'file_backed' LIMIT 1)\n                         OR agents.agents.definition_path IS DISTINCT FROM\n                                COALESCE(agents.agents.definition_path, EXCLUDED.definition_path)\n                         OR agents.agents.description IS DISTINCT FROM CASE\n                                WHEN agents.agents.description IS NULL\n                                    THEN EXCLUDED.description\n                                WHEN agents.agents.description ~ '^[>|][-+]?$'\n                                    THEN EXCLUDED.description\n                                ELSE agents.agents.description\n                            END\n                     RETURNING name\n                 )\n                 SELECT COUNT(*)::BIGINT FROM upserted",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "24508dd9407eaf1fdf44abcbae092fe9855b52650e39de8b8f339c804faf0477"
+}

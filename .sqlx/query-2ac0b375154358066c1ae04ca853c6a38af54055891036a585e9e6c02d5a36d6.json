@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO eval.labels\n        (subject_kind, subject_id, operator_turn_id, session_id, session_uuid, axis, label, tier,\n         method, split, tags, severity, confidence, evidence, source, provenance, inclusion_prob,\n         import_batch_id)\n SELECT x.subject_kind, x.subject_id, x.operator_turn_id, x.session_id, x.session_uuid::uuid, x.axis,\n        x.label, x.tier, x.method, 'holdout', x.tags, x.severity, x.confidence, x.evidence, x.source,\n        x.provenance, x.inclusion_prob, $2\n   FROM jsonb_to_recordset($1::jsonb) AS x(\n        subject_kind text, subject_id bigint, operator_turn_id bigint, session_id bigint,\n        session_uuid text, axis text, label text, tier text, method text, tags text[],\n        severity text, confidence text, evidence text, source text, provenance jsonb,\n        inclusion_prob double precision)\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Jsonb",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2ac0b375154358066c1ae04ca853c6a38af54055891036a585e9e6c02d5a36d6"
+}

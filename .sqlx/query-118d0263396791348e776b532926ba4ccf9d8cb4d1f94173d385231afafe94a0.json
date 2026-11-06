@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT root_path FROM projects.locations WHERE project_id = $1 ORDER BY root_path",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "root_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "root_path"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "118d0263396791348e776b532926ba4ccf9d8cb4d1f94173d385231afafe94a0"
+}

@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# read-anchored — print the region(s) of a file around an anchor pattern,
+# with cat -n style line numbers so a follow-up Edit can anchor on real text
+# instead of a line number that shifts after every prior Edit.
+#
+# Kills the locate->Read->Edit loop (tool-call-efficiency report §5): ~44
+# calls over tools.rs/client.rs because every Edit shifted line numbers;
+# offset-guessing re-reads around one CI job block (6 Reads + 2 greps).
+#
+# Usage:
+#   read-anchored <file> <anchor-regex> [--context N] [--all]
+#
+# Examples:
+#   read-anchored CLAUDE.md 'Quick Reference'
+#   read-anchored crates/mike/src/proxy/handler.rs 'fn stored_body' --context 10
+#   read-anchored .gitlab-ci.yml '^db-init-prod:' --all --context 5
+#
+# By default prints only the FIRST match's region; --all prints every match's
+# region, separated by a '--' marker (grep -A/-B/-C style).
+#
+# Exit codes:
+#   0  at least one match printed
+#   1  no match for anchor-regex
+#   2  usage error
+set -euo pipefail
+
+usage() {
+  sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//' >&2
+  exit "${1:-2}"
+}
+
+err() { printf 'read-anchored: %s\n' "$1" >&2; }
+
+file=""
+anchor=""
+context=5
+all=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --context) [[ $# -ge 2 ]] || { err "--context needs a value"; exit 2; }; context="$2"; shift 2 ;;
+    --all)     all=1; shift ;;
+    -h|--help) usage 0 ;;
+    -*)        err "unknown option: $1"; exit 2 ;;
+    *)
+      if [[ -z "$file" ]]; then file="$1"
+      elif [[ -z "$anchor" ]]; then anchor="$1"
+      else err "unexpected extra argument: $1"; exit 2; fi
+      shift ;;
+  esac
+done
+
+[[ -n "$file" && -n "$anchor" ]] || usage
+[[ -f "$file" ]] || { err "no such file: $file"; exit 2; }
+[[ "$context" =~ ^[0-9]+$ ]] || { err "--context must be a non-negative integer"; exit 2; }
+
+total_lines=$(wc -l < "$file" | tr -d ' ')
+
+# Collect matching line numbers.
+mapfile -t matches < <(grep -nE -- "$anchor" "$file" | cut -d: -f1)
+if [[ ${#matches[@]} -eq 0 ]]; then
+  err "no match for anchor: $anchor (in $file)"
+  exit 1
+fi
+
+if [[ $all -eq 0 ]]; then
+  matches=("${matches[0]}")
+fi
+
+print_region() {
+  local center="$1" start end
+  start=$(( center - context )); (( start < 1 )) && start=1
+  end=$(( center + context )); (( end > total_lines )) && end=$total_lines
+  nl -ba -w6 -s$'\t' "$file" | sed -n "${start},${end}p"
+}
+
+first=1
+for m in "${matches[@]}"; do
+  if [[ $first -eq 0 ]]; then
+    printf -- '--\n'
+  fi
+  first=0
+  print_region "$m"
+done

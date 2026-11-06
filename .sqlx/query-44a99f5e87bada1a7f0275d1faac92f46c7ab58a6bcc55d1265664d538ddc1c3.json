@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT rd.analyzer AS \"analyzer!\", COUNT(*)::bigint AS \"hit_count!\"\n           FROM requests.diagnostics rd\n           JOIN requests.requests r ON r.id = rd.request_id\n           JOIN sessions.sessions s ON s.id = r.session_id\n          WHERE s.session_uuid = $1\n          GROUP BY rd.analyzer",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "analyzer!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.diagnostics",
+            "name": "analyzer"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "hit_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "44a99f5e87bada1a7f0275d1faac92f46c7ab58a6bcc55d1265664d538ddc1c3"
+}

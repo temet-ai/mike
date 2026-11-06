@@ -1,0 +1,61 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT p.id AS item_id,\n                          array_agg(DISTINCT a.pattern ORDER BY a.pattern) AS \"patterns!\",\n                          a.origin_session_uuid::text AS origin_session_uuid, a.request_id,\n                          p.embedding::text AS \"embedding!\"\n                     FROM memory.semantic_items a\n                     JOIN memory.semantic_items p ON p.kind = 'turn_prompt'\n                      AND p.embedder_key = a.embedder_key AND p.request_id = a.request_id\n                    WHERE a.kind = 'anchor' AND a.embedder_key = $1 AND a.pattern IS NOT NULL\n                    GROUP BY p.id, a.origin_session_uuid, a.request_id, p.embedding\n                    ORDER BY p.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "item_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "patterns!",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "origin_session_uuid",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "embedding!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      true,
+      null
+    ]
+  },
+  "hash": "47555bec91433aeb32e3fcd3e0ed7f33462f0ca98869883971f91d7bd79126cd"
+}

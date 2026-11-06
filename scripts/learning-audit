@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+"""Audit the preceding seven days; deterministic, read-only, no model calls."""
+import argparse
+import datetime as dt
+import fcntl
+from pathlib import Path
+from learning_audit.report import run
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--weekly', action='store_true', help='Use the latest Monday 00:00 UTC as the exclusive boundary')
+parser.add_argument('--end', help='Exclusive timezone-aware ISO timestamp; defaults to now')
+parser.add_argument('--output', default=str(Path(__file__).resolve().parents[1] / 'artifacts/learning-audit'))
+parser.add_argument('--sync', action='store_true', help='Publish reports through existing Mike project knowledge ingestion')
+args = parser.parse_args()
+if args.weekly:
+    if args.end:
+        parser.error('--weekly and --end are mutually exclusive')
+    now = dt.datetime.now(dt.timezone.utc)
+    args.end = (now - dt.timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+lock_path = Path.home() / '.local/state/mike-learning-audit.lock'
+lock_path.parent.mkdir(parents=True, exist_ok=True)
+with lock_path.open('w') as lock:
+    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    run(args)

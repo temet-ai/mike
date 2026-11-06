@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE work.threads SET\n            title    = COALESCE(btrim($2), title),\n            status   = COALESCE($3, status),\n            goal     = CASE WHEN $4::text IS NULL THEN goal WHEN btrim($4) = '' THEN NULL ELSE btrim($4) END,\n            branch   = CASE WHEN $5::text IS NULL THEN branch WHEN btrim($5) = '' THEN NULL ELSE btrim($5) END,\n            worktree = CASE WHEN $6::text IS NULL THEN worktree WHEN btrim($6) = '' THEN NULL ELSE btrim($6) END,\n            updated_at = now()\n          WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4a9b76a5d0432a1c2f8f5ba656bdadc1c42f50eb64a06e9a629b7f1d708bdc9e"
+}

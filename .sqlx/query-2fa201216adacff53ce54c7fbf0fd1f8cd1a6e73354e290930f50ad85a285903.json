@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH node_set AS (\n    SELECT se.session_id, se.embedding\n      FROM memory.session_embeddings se\n      JOIN sessions.sessions s ON s.session_uuid = se.session_id\n     WHERE s.project_id = $1\n     ORDER BY s.last_seen DESC\n     LIMIT $2\n),\nranked AS (\n    SELECT a.session_id AS from_id,\n           b.session_id AS to_id,\n           (1.0 - (a.embedding <=> b.embedding))::float8 AS similarity,\n           ROW_NUMBER() OVER (\n               PARTITION BY a.session_id\n               ORDER BY a.embedding <=> b.embedding ASC\n           ) AS rn\n      FROM node_set a\n      JOIN node_set b ON b.session_id <> a.session_id\n     WHERE (1.0 - (a.embedding <=> b.embedding)) >= $3\n)\nSELECT LEAST(from_id, to_id)    AS \"from_session_id!\",\n       GREATEST(from_id, to_id) AS \"to_session_id!\",\n       MAX(similarity)          AS \"similarity!\"\n  FROM ranked\n WHERE rn <= $4\n GROUP BY LEAST(from_id, to_id), GREATEST(from_id, to_id)\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "from_session_id!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "to_session_id!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "similarity!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Float8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "2fa201216adacff53ce54c7fbf0fd1f8cd1a6e73354e290930f50ad85a285903"
+}

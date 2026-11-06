@@ -1,0 +1,62 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH k AS (\n    SELECT * FROM unnest($1::bigint[], $2::timestamptz[]) AS k(session_id, after)\n)\nSELECT r.session_id AS \"session_id!\",\n       r.claude_code_agent_id AS \"agent_id?\",\n       max(r.created_at) AS \"last_request_at!\",\n       max(r.created_at) FILTER (\n           WHERE r.claude_code_agent_id IS NULL\n             AND torg.code IN ('primary', 'primary_first')\n       ) AS \"main_last_request_at?\",\n       max(u.created_at) AS \"last_edit_at?\"\n  FROM k\n  JOIN requests.requests r\n    ON r.session_id = k.session_id AND r.created_at > k.after\n  LEFT JOIN requests.turn_origins torg ON torg.id = r.turn_origin_id\n  LEFT JOIN tools.uses u\n    ON u.request_id = r.id\n   AND r.claude_code_agent_id IS NOT NULL\n   AND u.tool_name IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit')\n GROUP BY r.session_id, r.claude_code_agent_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "agent_id?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "claude_code_agent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "last_request_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "main_last_request_at?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "last_edit_at?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TimestamptzArray"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "01234f3490fc4ab5123a01ee67b14169a29c554ae622d8e364d3574f7691931a"
+}

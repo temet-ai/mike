@@ -1,0 +1,4 @@
+# JC03 ledger. The landed sha is the JC03 commit on feat/judgement-context.
+landed   JC03 2026-09-24 c81f8fa4
+table    memory.dossier_entries
+setting  dossier.entries.enabled

@@ -1,0 +1,11 @@
+{
+  "tagline": "mike in the terminal: your sessions, unread mail and what others changed",
+  "family": "mike",
+  "offers": {
+    "commands": ["/seats", "/recall"],
+    "panes": ["mike sessions"],
+    "buttons": [{ "label": "Sessions", "command": "/seats" }],
+    "status": ["unread mail", "changes by others"],
+    "acts": ["notes others' changes each prompt", "adds fitting lessons to a prompt when mike has the setting on","tells mike which mods this session loaded"]
+  }
+}

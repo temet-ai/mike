@@ -1,0 +1,114 @@
+# Rust build artifacts
+/target/
+/.target-private/
+**/*.rs.bk
+
+# scripts/release.sh output — packaged tarballs + checksums, regenerated per release.
+/dist-out/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.bak*
+# Exception: the tracked template (global ignore may block *.env.*)
+!.env.example
+# Postgres env file for the compose stack — user-edited secrets.
+# `.env.postgres.example` (below) is committed; the real file is not.
+.env.postgres
+!.env.postgres.example
+
+# Frontend
+frontend/node_modules/
+frontend/build/
+frontend/.svelte-kit/
+
+# wake-channel MCP server
+scripts/wake-channel/node_modules/
+
+# prompt-assistant service (services/prompt-assistant/) — its own package,
+# separate from the frontend pnpm workspace.
+services/prompt-assistant/node_modules/
+services/prompt-assistant/dist/
+
+# Test artifacts
+*.profraw
+
+# Claude Code agent state — per-developer, not part of the repo.
+# Note: `.claude/rules/` is tracked (shared team rules like testing.md).
+.claude/agent-memory/
+.claude/worktrees/
+.claude/.DS_Store
+.claude/settings.local.json
+.claude/hooks/*.log
+# Hook runtime state: per-session recordings, not source (#201, #202, #203).
+.claude/hooks/*.jsonl
+.claude/hooks/.tree-snapshots/
+frontend/.claude/
+
+# Python bytecode (skill scripts)
+**/__pycache__/
+
+# Cargo — only `.cargo/config.toml` is tracked (it enforces repo-wide
+# clippy flags like `-D clippy::unwrap_used`). Everything else is local.
+.cargo/*
+!.cargo/config.toml
+
+# Playwright MCP cache
+.playwright-mcp/
+
+# Safe-cutover deploy scratch (rollback binary, PID file, proxy log) —
+# written by scripts/deploy-proxy.sh, never committed.
+/.deploy/
+
+# Working artifacts — internal planning docs, phase history, review reports,
+# research spikes, evidence and raw captures. They live in the sibling
+# repository ../night-watch-notes since 2026-09-17; `artifacts` here is a local
+# symlink to it (scripts/link-artifacts creates it). Never commit it here.
+/artifacts
+
+# Stray typo'd worktree dir (real worktrees live under .claude/worktrees/).
+/.claire/
+
+# Ad-hoc scratch SQL dropped at repo root.
+/Query.sql
+/Query_*.sql
+
+/**.png
+**/.fastembed_cache/
+/.fastembed_cache/**
+
+# Offline replay fixtures (contain real captured conversation content)
+scripts/offline/fixtures/
+/.claude/**.lock
+**.log
+
+# Per-session env written by scripts/session-up.sh (session-local scratch)
+.session-env
+
+# copilot-bridge: a fully independent tool/repo (its own .git), deliberately
+# excluded from mike's repository so it can never be committed as part of it.
+/tools/
+
+# Regenerated at every session start by .claude/hooks/session-ast-context.sh —
+# the on-demand full structure map the budgeted inline hooks point at.
+.claude/hooks/generated/structure-map.txt
+
+# written by scripts/capture-db/move-to-nvme.sh: selects the capture DB volume
+scripts/capture-db/.env
+
+# Architecture model tooling (scripts/arch): the pinned LikeC4 install, and the pictures
+# and site it renders from docs/architecture. Both are rebuilt from the model.
+scripts/likec4/node_modules/
+docs/architecture/out/
+docs/architecture/dist/

@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT c.path, c.seen_at\n  FROM launch.tree_changes c\n WHERE c.run_id = $1\n   AND c.seen_at > $2\n ORDER BY c.seen_at, c.id\n LIMIT 5000\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.tree_changes",
+            "name": "path"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "seen_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.tree_changes",
+            "name": "seen_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "acf95dc2c80c91ca32847ed3b4e2aa7006f809cdc8a7fd1ec895fba779bd3e62"
+}

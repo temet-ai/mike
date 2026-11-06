@@ -1,0 +1,1 @@
+SELECT d.revision, d.lesson_watermark, d.description, d.skill_md, d.reference_files, d.eval FROM memory.skill_drafts d WHERE d.project_id = 993478 AND d.folder = 'ui-design' AND d.status = 'accepted' ORDER BY d.lesson_watermark DESC, d.revision DESC LIMIT 1

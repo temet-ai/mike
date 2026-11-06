@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DROP TABLE IF EXISTS _sqlx_migrations",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "232bd9690c4461e00ea5787850d7ec63096bada5738fefa1678f17669d7706e7"
+}

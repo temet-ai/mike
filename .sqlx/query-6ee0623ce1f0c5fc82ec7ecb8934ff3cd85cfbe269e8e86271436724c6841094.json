@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM memory.skill_installs si\n                    WHERE si.machine_uuid = $1\n                      AND NOT EXISTS (\n                          SELECT 1\n                            FROM jsonb_to_recordset($2::jsonb) AS r(project_uuid uuid, folder text)\n                            JOIN projects.projects p ON p.project_uuid = r.project_uuid\n                           WHERE p.id = si.project_id AND r.folder = si.folder)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6ee0623ce1f0c5fc82ec7ecb8934ff3cd85cfbe269e8e86271436724c6841094"
+}

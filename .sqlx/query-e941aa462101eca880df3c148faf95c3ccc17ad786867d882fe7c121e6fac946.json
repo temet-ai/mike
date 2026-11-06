@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lessons\n                (project_id, kind_id, text, text_sha256, topic, stage_id, source_turn_id,\n                 source_id, agent_id, agent_instance_id, session_id, request_id,\n                 created_at, expires_at, embedding, embedding_model, embedded_at)\n           SELECT o.project_id, o.kind_id, r.text, decode(r.sha, 'hex'), o.topic,\n                  o.stage_id, o.source_turn_id, o.source_id, o.agent_id,\n                  o.agent_instance_id, o.session_id, o.request_id,\n                  o.created_at, o.expires_at,\n                  r.embedding::vector, r.model,\n                  CASE WHEN r.embedding IS NULL THEN NULL ELSE now() END\n             FROM memory.lessons o\n            CROSS JOIN jsonb_to_recordset($2::jsonb)\n                  AS r(text text, sha text, embedding text, model text)\n            WHERE o.id = $1\n        RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e941aa462101eca880df3c148faf95c3ccc17ad786867d882fe7c121e6fac946"
+}

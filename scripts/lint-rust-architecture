@@ -1,0 +1,274 @@
+#!/usr/bin/env python3
+"""Fast, build-free Rust dependency-boundary checks.
+
+The scanner tokenizes enough Rust syntax to ignore comments and string/character
+literals.  It deliberately has no source-level waiver mechanism: boundary
+exceptions are architectural decisions and must be made in the fixed adapter
+list below, where they are visible in review.
+"""
+
+from __future__ import annotations
+
+import os
+from bisect import bisect_right
+from pathlib import Path
+import sys
+from typing import NamedTuple
+
+
+class Token(NamedTuple):
+    text: str
+    line: int
+
+
+AXUM_ADAPTER_FILES = frozenset(
+    {
+        "crates/mike/src/app.rs",  # top-level router composition
+        "crates/mike/src/error.rs",  # shared HTTP error mapping
+        "crates/mike/src/main.rs",  # binary HTTP server boundary
+        "crates/mike/src/serve.rs",  # listener and Axum server composition
+        "crates/mike/src/serve/listeners.rs",  # listener construction adapter
+        "crates/mike/src/serve/shutdown.rs",  # Axum serve/shutdown adapter
+        "crates/mike/src/spa.rs",  # embedded SPA HTTP adapter
+        "crates/mike/src/sse/tee.rs",  # upstream stream to Axum body bridge
+        "crates/mike/src/stack/mod.rs",  # cfg(test) health server used by stop safety tests
+        "crates/mike/src/extract/request/fields.rs",  # inbound HTTP request extraction
+        "crates/mike/src/extract/request/fields_tests.rs",  # inbound HTTP request extraction
+        "crates/mike/src/extract/signals.rs",  # inbound HTTP request signals
+        "crates/mike/src/extract/signals_tests.rs",  # inbound HTTP request signals
+        "crates/mike/src/extract/signals_agent_id_tests.rs",  # inbound HTTP request signals
+    }
+)
+
+
+def raw_string_end(source: str, start: int) -> tuple[int, str] | None:
+    """Return the content start and raw-string terminator at ``start``."""
+    index = start
+    if source.startswith(("br", "cr", "rb"), index):
+        index += 2
+    elif source.startswith("r", index):
+        index += 1
+    else:
+        return None
+
+    hashes_start = index
+    while index < len(source) and source[index] == "#":
+        index += 1
+    if index >= len(source) or source[index] != '"':
+        return None
+    return index + 1, '"' + source[hashes_start:index]
+
+
+def tokenize(source: str) -> list[Token]:
+    tokens: list[Token] = []
+    line_starts = [0]
+    line_starts.extend(index + 1 for index, char in enumerate(source) if char == "\n")
+
+    def line_at(offset: int) -> int:
+        return bisect_right(line_starts, offset)
+
+    index = 0
+    length = len(source)
+
+    while index < length:
+        char = source[index]
+        following = source[index + 1] if index + 1 < length else ""
+
+        if char == "\n":
+            index += 1
+            continue
+        if char.isspace():
+            index += 1
+            continue
+        if char == "/" and following == "/":
+            newline = source.find("\n", index + 2)
+            index = length if newline == -1 else newline
+            continue
+        if char == "/" and following == "*":
+            depth = 1
+            index += 2
+            while index < length and depth:
+                if source.startswith("/*", index):
+                    depth += 1
+                    index += 2
+                elif source.startswith("*/", index):
+                    depth -= 1
+                    index += 2
+                else:
+                    index += 1
+            continue
+
+        raw = raw_string_end(source, index)
+        if raw is not None and (index == 0 or not source[index - 1].isalnum()):
+            content_start, terminator = raw
+            end = source.find(terminator, content_start)
+            if end == -1:
+                break
+            index = end + len(terminator)
+            continue
+
+        if char == '"':
+            index += 1
+            while index < length:
+                if source[index] == "\\":
+                    index += 2
+                    continue
+                if source[index] == '"':
+                    index += 1
+                    break
+                index += 1
+            continue
+        if char == "'" and index + 2 < length:
+            # A closing quote distinguishes a char literal from a lifetime.
+            char_end = index + 2
+            if source[index + 1] == "\\":
+                char_end = index + 3
+                while char_end < length and source[char_end].isalnum():
+                    char_end += 1
+            if char_end < length and source[char_end] == "'":
+                index = char_end + 1
+                continue
+
+        if char.isalpha() or char == "_":
+            end = index + 1
+            while end < length and (source[end].isalnum() or source[end] == "_"):
+                end += 1
+            tokens.append(Token(source[index:end], line_at(index)))
+            index = end
+            continue
+        if char == ":" and following == ":":
+            tokens.append(Token("::", line_at(index)))
+            index += 2
+            continue
+
+        tokens.append(Token(char, line_at(index)))
+        index += 1
+
+    return tokens
+
+
+def use_statement(tokens: list[Token], start: int) -> tuple[list[Token], int]:
+    statement: list[Token] = []
+    index = start
+    while index < len(tokens):
+        statement.append(tokens[index])
+        index += 1
+        if statement[-1].text == ";":
+            break
+    return statement, index
+
+
+def store_api_line(tokens: list[Token]) -> int | None:
+    for index, token in enumerate(tokens):
+        if token.text == "crate" and [part.text for part in tokens[index + 1 : index + 3]] == ["::", "api"]:
+            return token.line
+
+        if token.text != "use":
+            continue
+        statement, _ = use_statement(tokens, index)
+        text = [part.text for part in statement]
+        if "api" not in text:
+            continue
+        # Cover grouped imports (`use crate::{api::X, ...}`) and relative
+        # imports from nested store modules (`use super::super::api::X`).
+        if any(root in text for root in ("crate", "self", "super")):
+            return statement[0].line
+    return None
+
+
+def axum_line(tokens: list[Token]) -> int | None:
+    for index, token in enumerate(tokens):
+        if token.text not in {"axum", "axum_extra"}:
+            continue
+        previous = tokens[index - 1].text if index else ""
+        following = tokens[index + 1].text if index + 1 < len(tokens) else ""
+        if previous in {"use", "crate", "::", "{", ","} or following in {"::", ";", "as", ",", "}"}:
+            return token.line
+    return None
+
+
+def is_axum_adapter(relative: str) -> bool:
+    if relative in AXUM_ADAPTER_FILES:
+        return True
+    parts = Path(relative).parts
+    try:
+        source_index = parts.index("src")
+    except ValueError:
+        return False
+    return len(parts) > source_index + 1 and parts[source_index + 1] in {"api", "proxy"}
+
+
+def source_line(source: str, line: int) -> str:
+    lines = source.splitlines()
+    if 0 < line <= len(lines):
+        return lines[line - 1].strip()
+    return ""
+
+
+def main() -> int:
+    script = Path(__file__).resolve()
+    repo = script.parent.parent
+    crates = repo / "crates"
+    if not crates.is_dir():
+        print(f"rust-architecture: ERROR — missing crates directory: {crates}", file=sys.stderr)
+        return 2
+
+    violations: list[tuple[str, int, str, str]] = []
+    try:
+        files = sorted(crates.glob("*/src/**/*.rs"))
+        for path in files:
+            relative = path.relative_to(repo).as_posix()
+            source = path.read_text(encoding="utf-8")
+            tokens = tokenize(source)
+
+            if "/src/store/" in f"/{relative}":
+                line = store_api_line(tokens)
+                if line is not None:
+                    violations.append(
+                        (
+                            relative,
+                            line,
+                            "store-api",
+                            source_line(source, line),
+                        )
+                    )
+
+            if not is_axum_adapter(relative):
+                line = axum_line(tokens)
+                if line is not None:
+                    violations.append(
+                        (
+                            relative,
+                            line,
+                            "axum-boundary",
+                            source_line(source, line),
+                        )
+                    )
+    except (OSError, UnicodeError) as error:
+        print(f"rust-architecture: ERROR — source scan failed: {error}", file=sys.stderr)
+        return 2
+
+    if violations:
+        print(
+            f"rust-architecture: FAIL — {len(violations)} dependency-boundary violation(s)",
+            file=sys.stderr,
+        )
+        for relative, line, rule, excerpt in violations:
+            print(f"  {relative}:{line}: [{rule}] {excerpt}", file=sys.stderr)
+        print(
+            "Store code must return domain/read-model types, never API DTOs. "
+            "Axum belongs only in explicit HTTP adapters.",
+            file=sys.stderr,
+        )
+        print(
+            "There are no source-level exemptions; move the dependency to the correct boundary.",
+            file=sys.stderr,
+        )
+        return 1
+
+    print("rust-architecture: PASS — dependency boundaries are intact")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT max(started_at) AS \"last_scheduled_start\"\n                         FROM jobs.runs\n                        WHERE job_name = $1\n                          AND trigger = 'schedule'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "last_scheduled_start",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "a9402fd33693ccd2744ee7b6a241ffbf5ab71d76a02f8fa99ff10ee5b127b2a0"
+}

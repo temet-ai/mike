@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE agents.work_items\n   SET state = $1,\n       finished_at = $2,\n       finished_request_id = $3,\n       notified_agent_id = COALESCE($4, notified_agent_id),\n       exit_code = $5,\n       summary = COALESCE($6, summary)\n WHERE session_id = $7\n   AND (finished_at IS NULL OR finished_at <= $2)\n   AND owner_agent_id IS NOT DISTINCT FROM $4\n   AND (wire_tool_use_id = $8\n        OR (task_id = $9 AND kind = 'agent'))\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Int8",
+        "Text",
+        "Int4",
+        "Text",
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5356224d697167db9d98bf9ee2e0fbd7e0bdbd95a6d88f55e728f38159737284"
+}

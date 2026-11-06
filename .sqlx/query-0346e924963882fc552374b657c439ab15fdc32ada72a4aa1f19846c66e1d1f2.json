@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT rt.request_id\n                       FROM requests.tools rt\n                      WHERE rt.definition_id IS NULL\n                        AND rt.request_id >= $1\n                      ORDER BY rt.request_id ASC\n                      LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.tools",
+            "name": "request_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0346e924963882fc552374b657c439ab15fdc32ada72a4aa1f19846c66e1d1f2"
+}

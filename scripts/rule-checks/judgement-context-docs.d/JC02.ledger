@@ -1,0 +1,14 @@
+# JC02 ledger. The landed sha is the JC02 remainder commit; b87964ed carried its schema doc fix.
+landed   JC02 2026-09-24 335756f6
+table    memory.turn_facts
+toggle   dossier_builder
+setting  dossier.flush_interval_ms
+setting  dossier.batch_sessions
+setting  dossier.backstop_interval_secs
+setting  dossier.backstop_lookback_hours
+setting  dossier.session_settle_minutes
+cli      dossier-backfill
+require  docs/ARCHITECTURE.md  ### Turn facts
+require  docs/ARCHITECTURE.md  dossier/worker.rs
+require  docs/FEATURES.md  Dossier builder
+require  docs/CONFIGURATION.md  dossier.session_settle_minutes

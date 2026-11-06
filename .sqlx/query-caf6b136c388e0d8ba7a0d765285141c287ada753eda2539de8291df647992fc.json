@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT i.subagent_persona AS persona,\n                  a.name AS agent_name,\n                  i.first_request_id,\n                  i.started_at\n             FROM agents.instances i\n        LEFT JOIN agents.agents a ON a.id = i.agent_id\n            WHERE i.session_id = $1\n            ORDER BY i.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "persona",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.instances",
+            "name": "subagent_persona"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "agent_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "first_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.instances",
+            "name": "first_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "started_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "agents.instances",
+            "name": "started_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "caf6b136c388e0d8ba7a0d765285141c287ada753eda2539de8291df647992fc"
+}

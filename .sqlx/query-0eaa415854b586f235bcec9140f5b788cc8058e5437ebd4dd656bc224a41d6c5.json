@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM memory.pattern_assignments WHERE embedder_key = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0eaa415854b586f235bcec9140f5b788cc8058e5437ebd4dd656bc224a41d6c5"
+}

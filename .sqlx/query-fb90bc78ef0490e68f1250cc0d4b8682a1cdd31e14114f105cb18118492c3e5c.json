@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH per_entry AS (\n    SELECT DISTINCT ON (e.id) e.id AS entry_id, r.id AS request_id\n      FROM memory.ask_ledger_entries e\n      JOIN requests.requests r ON r.session_id = e.session_id\n      JOIN requests.turn_origins o ON o.id = r.turn_origin_id\n                                 AND o.code IN ('primary', 'primary_first')\n      JOIN requests.turn_types tt ON tt.id = r.turn_type_id AND tt.code = 'user_prompt'\n     WHERE e.request_id IS NULL\n       AND e.session_id = ANY($1)\n       AND r.created_at BETWEEN e.created_at - interval '10 minutes'\n                            AND e.created_at + interval '5 seconds'\n       AND btrim(r.human_prompt) = e.content\n       AND NOT EXISTS (SELECT 1 FROM memory.ask_ledger_entries x WHERE x.request_id = r.id)\n     ORDER BY e.id, r.created_at DESC\n), matched AS (\n    SELECT DISTINCT ON (request_id) entry_id, request_id\n      FROM per_entry\n     ORDER BY request_id, entry_id\n)\nUPDATE memory.ask_ledger_entries e\n   SET request_id = m.request_id\n  FROM matched m\n WHERE e.id = m.entry_id AND e.request_id IS NULL\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fb90bc78ef0490e68f1250cc0d4b8682a1cdd31e14114f105cb18118492c3e5c"
+}

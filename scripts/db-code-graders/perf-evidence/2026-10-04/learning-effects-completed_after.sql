@@ -1,0 +1,1 @@
+SELECT max(for_day) FROM eval.rollups WHERE sql_version = 'action-effect-v2' AND finished_at IS NOT NULL

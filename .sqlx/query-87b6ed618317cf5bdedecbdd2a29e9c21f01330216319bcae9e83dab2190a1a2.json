@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE agents.work_item_attention a\n              SET delivered_message_uuid = $1,\n                  disposition = 'delivered',\n                  disposition_reason = 'mailed',\n                  disposition_at = now()\n            WHERE a.id = $2\n              AND EXISTS (SELECT 1 FROM mailbox.messages m WHERE m.message_uuid = $1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "87b6ed618317cf5bdedecbdd2a29e9c21f01330216319bcae9e83dab2190a1a2"
+}

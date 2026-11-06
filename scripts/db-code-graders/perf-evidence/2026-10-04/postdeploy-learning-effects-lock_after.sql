@@ -1,0 +1,1 @@
+SELECT id FROM eval.rollups WHERE id = 196 FOR UPDATE

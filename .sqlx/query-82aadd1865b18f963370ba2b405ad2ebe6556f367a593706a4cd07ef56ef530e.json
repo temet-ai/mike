@@ -1,0 +1,121 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH agg AS (\n    SELECT day, role, steerer_id,\n           COALESCE(SUM(cost_usd), 0.0)::float8 AS cost_usd,\n           COALESCE(SUM(call_count), 0)::bigint AS call_count,\n           COALESCE(SUM(prompt_tokens), 0)::bigint AS prompt_tokens,\n           COALESCE(SUM(completion_tokens), 0)::bigint AS completion_tokens,\n           COALESCE(SUM(reasoning_tokens), 0)::bigint AS reasoning_tokens,\n           COALESCE(SUM(failed_count), 0)::bigint AS failed_count,\n           COALESCE(SUM(call_count) FILTER (WHERE model LIKE 'codex/%' OR model LIKE 'claude/%'), 0)::bigint AS subscription_call_count\n      FROM llm.daily_spend\n     WHERE day >= $1 AND day <= $2\n     GROUP BY day, role, steerer_id\n)\nSELECT to_char(a.day, 'YYYY-MM-DD') AS \"day!\", a.role AS \"role!\",\n       a.steerer_id AS steerer_id, st.name AS \"steerer_name?\",\n       st.display_name AS \"steerer_display_name?\",\n       a.cost_usd AS \"cost_usd!\", a.call_count AS \"call_count!\",\n       a.prompt_tokens AS \"prompt_tokens!\", a.completion_tokens AS \"completion_tokens!\",\n       a.reasoning_tokens AS \"reasoning_tokens!\", a.failed_count AS \"failed_count!\",\n       a.subscription_call_count AS \"subscription_call_count!\"\n  FROM agg a\n  LEFT JOIN steering.steerers st ON st.id = a.steerer_id\n ORDER BY a.day, a.role, a.steerer_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "day!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "role!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "llm.daily_spend",
+            "name": "role"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "steerer_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "llm.daily_spend",
+            "name": "steerer_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "steerer_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "steerer_display_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "display_name"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "cost_usd!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "call_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "prompt_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "completion_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "reasoning_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "failed_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "subscription_call_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Date",
+        "Date"
+      ]
+    },
+    "nullable": [
+      null,
+      false,
+      true,
+      false,
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "82aadd1865b18f963370ba2b405ad2ebe6556f367a593706a4cd07ef56ef530e"
+}

@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO tools.results\n                (request_id, tool_use_id, ord, is_error, content, content_sha256, content_bytes,\n                 session_id)\n             VALUES ($1, $2, 0, true, $3, $4, 9, $5) RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Jsonb",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "1982ebda2e6bdcdac03d1242548534054e9a2b4c33d7e5e2cdb176a9f8104483"
+}

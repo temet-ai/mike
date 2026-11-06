@@ -1,0 +1,204 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT c.id, c.status, c.cluster_version, c.embedder_key, c.floor_id,\n                                  c.window_start, c.window_end, c.member_item_ids, c.member_count,\n                                  c.session_count, c.medoid_item_id, c.created_at, c.decided_at,\n                                  c.decision_note, c.named_pattern, count(*) OVER () AS \"total!\"\n                             FROM memory.pattern_candidates c\n                            ORDER BY c.created_at DESC, c.id DESC\n                            LIMIT $1 OFFSET $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.pattern_candidates",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.pattern_candidates",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "cluster_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.pattern_candidates",
+            "name": "cluster_version"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "embedder_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.pattern_candidates",
+            "name": "embedder_key"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "floor_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.pattern_candidates",
+            "name": "floor_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "window_start",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.pattern_candidates",
+            "name": "window_start"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "window_end",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.pattern_candidates",
+            "name": "window_end"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "member_item_ids",
+        "type_info": "Int8Array",
+        "origin": {
+          "Table": {
+            "table": "memory.pattern_candidates",
+            "name": "member_item_ids"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "member_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.pattern_candidates",
+            "name": "member_count"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "session_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.pattern_candidates",
+            "name": "session_count"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "medoid_item_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.pattern_candidates",
+            "name": "medoid_item_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.pattern_candidates",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "decided_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.pattern_candidates",
+            "name": "decided_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "decision_note",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.pattern_candidates",
+            "name": "decision_note"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "named_pattern",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.pattern_candidates",
+            "name": "named_pattern"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "total!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "1bb3acc7d82aca4252b69e2ea32dcaa724c3353e49c61e7bbd7e08d8813e7f93"
+}

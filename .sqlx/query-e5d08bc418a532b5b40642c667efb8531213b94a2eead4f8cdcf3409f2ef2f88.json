@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.requests\n                    SET agent_instance_id = $2\n                  WHERE id = $1\n                    AND agent_instance_id IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e5d08bc418a532b5b40642c667efb8531213b94a2eead4f8cdcf3409f2ef2f88"
+}

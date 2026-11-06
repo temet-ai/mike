@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE session_judges.attempts\n                    SET last_digest_sha256 = $4\n                  WHERE session_id = $1 AND judge_model = $2 AND rubric_version = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int4",
+        "Bytea"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4f6e06e8c7eb929fd302c65043ea99b7175ca4ce6a7f90161782c4a3c6c58acd"
+}

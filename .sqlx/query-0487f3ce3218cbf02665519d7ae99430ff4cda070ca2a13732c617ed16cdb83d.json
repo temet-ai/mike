@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH next AS (\n             UPDATE runtime.codex_intake_state\n                SET last_capture_sequence = last_capture_sequence + 1\n              WHERE namespace_id = $2\n          RETURNING last_capture_sequence\n         )\n         INSERT INTO runtime.codex_receipt_context\n                (event_id, namespace_id, capture_sequence, context_version, connection_epoch,\n                 frame_ordinal, transport_gap, context_document)\n         SELECT $1, $2, next.last_capture_sequence, $3, $4, $5, $6, $7::text::json\n           FROM next\n     RETURNING capture_sequence AS \"capture_sequence!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "capture_sequence!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_receipt_context",
+            "name": "capture_sequence"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Uuid",
+        "Int4",
+        "Uuid",
+        "Int8",
+        "Bool",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0487f3ce3218cbf02665519d7ae99430ff4cda070ca2a13732c617ed16cdb83d"
+}

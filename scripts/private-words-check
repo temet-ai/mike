@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# scripts/private-words-check --staged | --message FILE | --tree DIR
+#
+# Refuses private words. The list is one extended regex per line (blank lines and
+# `#` lines ignored), matched without case, and lives outside the repository:
+# $MIKE_PRIVATE_WORDS, else ~/.config/mike-dev/private-words.txt.
+#   --staged        added lines and file names in the index (pre-commit hook)
+#   --message FILE  a commit message (commit-msg hook)
+#   --tree DIR      every file name and line under DIR (the public export)
+# Exit 0 clean, 1 a hit (the matching lines are printed so they can be fixed),
+# 2 usage or no list under --tree.
+# With no list, the two hook modes warn and pass so a fresh clone can still commit;
+# --tree refuses.
+set -euo pipefail
+
+mode=${1:-}
+list=${MIKE_PRIVATE_WORDS:-$HOME/.config/mike-dev/private-words.txt}
+patterns=$(mktemp)
+trap 'rm -f "$patterns"' EXIT
+if [ -s "$list" ]; then
+    grep -v -E '^[[:space:]]*(#|$)' "$list" > "$patterns" || true
+fi
+if [ ! -s "$patterns" ]; then
+    if [ "$mode" = "--tree" ]; then
+        echo "private-words-check: no private word list at $list" >&2
+        exit 2
+    fi
+    echo "private-words-check: no private word list at $list; nothing checked" >&2
+    exit 0
+fi
+
+hits=""
+case "$mode" in
+    --staged)
+        names=$(git diff --cached --name-only --diff-filter=ACMR | grep -i -E -f "$patterns" || true)
+        added=$(git diff --cached -U0 --no-color --diff-filter=ACMR | grep -E '^\+[^+]|^\+$' | grep -i -E -f "$patterns" || true)
+        hits=$names$added
+        ;;
+    --message)
+        [ $# -eq 2 ] || { echo "usage: $0 --message FILE" >&2; exit 2; }
+        hits=$(grep -v '^#' "$2" | grep -n -i -E -f "$patterns" || true)
+        ;;
+    --tree)
+        [ $# -eq 2 ] || { echo "usage: $0 --tree DIR" >&2; exit 2; }
+        hits=$( (cd "$2" && find . -type f | grep -i -E -f "$patterns" || true
+                 grep -r -n -I -i -E -f "$patterns" "$2" || true) | head -20)
+        ;;
+    *)
+        echo "usage: $0 --staged | --message FILE | --tree DIR" >&2
+        exit 2
+        ;;
+esac
+
+if [ -n "$hits" ]; then
+    echo "private-words-check: REFUSED, a private word is present:" >&2
+    printf '%s\n' "$hits" | head -20 >&2
+    echo "Replace it (docs/RELEASE_CONTENT_REVIEW.md lists the replacement names); the list is $list" >&2
+    exit 1
+fi

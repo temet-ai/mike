@@ -1,0 +1,15 @@
+export type SessionFlowComponent =
+	| 'requests'
+	| 'dispatches'
+	| 'tools'
+	| 'results'
+	| 'messages'
+	| 'worker_status'
+	| 'manifest_stages'
+	| 'lesson_injections'
+	| 'verifier_evaluations'
+	| 'judgments'
+	| 'llm_calls'
+	| 'embeddings'
+	| 'consolidation'
+	| 'interventions';

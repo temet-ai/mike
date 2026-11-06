@@ -1,0 +1,218 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH proj AS (\n                       SELECT id FROM projects.projects WHERE project_uuid = $1),\n                   folders AS (\n                       SELECT d.folder FROM memory.skill_drafts d JOIN proj ON proj.id = d.project_id\n                       UNION SELECT i.folder FROM memory.skill_installs i JOIN proj ON proj.id = i.project_id\n                       UNION SELECT r.folder FROM memory.skill_retirements r JOIN proj ON proj.id = r.project_id\n                       UNION SELECT o.folder FROM memory.skill_live_outcomes o JOIN proj ON proj.id = o.project_id),\n                   latest AS (\n                       SELECT DISTINCT ON (d.folder) d.folder, d.id, d.status, d.review, d.revision,\n                              d.lesson_watermark, cardinality(d.lesson_ids) AS lesson_count,\n                              d.description, d.created_at, d.evaluated_at, d.edited_at,\n                              (d.eval -> 'trigger' ->> 'score')::float8 AS trigger_score,\n                              (d.eval -> 'recheck' ->> 'score')::float8 AS patched_trigger_score,\n                              CASE WHEN d.eval ? 'review' THEN jsonb_build_object(\n                                  'decision', d.eval #>> '{review,decision}',\n                                  'reason', d.eval #>> '{review,reason}',\n                                  'overlap', d.eval #>> '{review,overlap}',\n                                  'belongs_in', d.eval #>> '{review,belongs_in}') END AS reviewer,\n                              d.eval -> 'verdict' -> 'reasons' AS verdict_reasons\n                         FROM memory.skill_drafts d JOIN proj ON proj.id = d.project_id\n                        ORDER BY d.folder, d.lesson_watermark DESC, d.revision DESC),\n                   approved AS (\n                       SELECT DISTINCT ON (d.folder) d.folder, d.id\n                         FROM memory.skill_drafts d JOIN proj ON proj.id = d.project_id\n                        WHERE d.review = 'approved'\n                        ORDER BY d.folder, d.lesson_watermark DESC, d.revision DESC),\n                   installs AS (\n                       SELECT i.folder, min(i.first_written) AS first_written,\n                              bool_or(i.retired_at IS NULL) AS live,\n                              jsonb_agg(jsonb_build_object(\n                                  'machine_name', i.machine_name, 'path', i.skill_path,\n                                  'draft_id', i.draft_id, 'first_written', i.first_written,\n                                  'retired_at', i.retired_at, 'retired_reason', i.retired_reason,\n                                  'reported_at', i.reported_at)\n                                  ORDER BY i.machine_name, i.skill_path) AS installs\n                         FROM memory.skill_installs i JOIN proj ON proj.id = i.project_id\n                        GROUP BY i.folder),\n                   live_use AS (\n                       SELECT DISTINCT ON (o.folder) o.folder, jsonb_build_object(\n                                  'first_shipped_on', o.first_shipped_on,\n                                  'window_start', o.window_start, 'window_end', o.window_end,\n                                  'loads', o.loads, 'load_sessions', o.load_sessions,\n                                  'loaded_turns', o.loaded_turns, 'judged_turns', o.judged_turns,\n                                  'corrected_turns', o.corrected_turns,\n                                  'base_judged_turns', o.base_judged_turns,\n                                  'base_corrected_turns', o.base_corrected_turns,\n                                  'retired_at', o.retired_at, 'retired_reason', o.retired_reason,\n                                  'measured_at', o.measured_at) AS numbers\n                         FROM memory.skill_live_outcomes o JOIN proj ON proj.id = o.project_id\n                        ORDER BY o.folder, o.first_shipped_on DESC)\n                   SELECT f.folder AS \"folder!\", l.id AS \"draft_id?\", l.status AS \"status?\",\n                          l.review AS \"review?\", l.revision AS \"revision?\",\n                          l.lesson_watermark AS \"lesson_watermark?\",\n                          l.lesson_count AS \"lesson_count?\", l.description AS \"description?\",\n                          l.created_at AS \"drafted_at?\", l.evaluated_at AS \"evaluated_at?\",\n                          l.edited_at AS \"edited_at?\", l.trigger_score AS \"trigger_score?\",\n                          l.patched_trigger_score AS \"patched_trigger_score?\",\n                          l.reviewer AS \"reviewer?\",\n                          l.verdict_reasons AS \"verdict_reasons?\",\n                          a.id AS \"approved_draft_id?\", i.first_written AS \"first_written?\",\n                          coalesce(i.live, false) AS \"live!\",\n                          coalesce(i.installs, '[]'::jsonb) AS \"installs!\",\n                          r.retired_at AS \"retired_by_user_at?\",\n                          lu.numbers AS \"live_use?\"\n                     FROM folders f\n                    CROSS JOIN proj\n                     LEFT JOIN latest l ON l.folder = f.folder\n                     LEFT JOIN approved a ON a.folder = f.folder\n                     LEFT JOIN installs i ON i.folder = f.folder\n                     LEFT JOIN live_use lu ON lu.folder = f.folder\n                     LEFT JOIN memory.skill_retirements r\n                       ON r.project_id = proj.id AND r.folder = f.folder\n                    ORDER BY f.folder",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "folder!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "draft_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "status?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "review?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "review"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "revision?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "revision"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "lesson_watermark?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "lesson_watermark"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "lesson_count?",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "description?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "drafted_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "evaluated_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "evaluated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "edited_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "edited_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "trigger_score?",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 12,
+        "name": "patched_trigger_score?",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 13,
+        "name": "reviewer?",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 14,
+        "name": "verdict_reasons?",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 15,
+        "name": "approved_draft_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "first_written?",
+        "type_info": "Date",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 17,
+        "name": "live!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 18,
+        "name": "installs!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 19,
+        "name": "retired_by_user_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_retirements",
+            "name": "retired_at"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "live_use?",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      null,
+      null,
+      null,
+      false,
+      true
+    ]
+  },
+  "hash": "8a2a24445b6ba50abf58582f8e920fa2a932349ad6d95759669f8235529a8e43"
+}

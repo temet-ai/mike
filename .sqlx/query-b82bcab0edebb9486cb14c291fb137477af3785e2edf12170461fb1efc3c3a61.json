@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH counts AS (\n    SELECT count(*) FILTER (WHERE i.outcome = 'judged') AS judged,\n           count(*) FILTER (WHERE i.outcome = 'refused') AS refused,\n           count(*) FILTER (WHERE i.outcome = 'failed') AS failed,\n           coalesce(sum(v.cost_usd), 0) AS cost\n      FROM eval.session_end_run_items i\n      LEFT JOIN session_judges.verdicts v ON v.id = i.verdict_id AND v.mode = 'eval'\n     WHERE i.run_id = $1\n)\nUPDATE eval.runs r\n   SET status = $2,\n       items_judged = counts.judged::int,\n       items_refused = counts.refused::int,\n       items_failed = counts.failed::int,\n       cost_usd = counts.cost,\n       report = coalesce($3, r.report),\n       finished_at = CASE WHEN $2 IN ('complete', 'failed', 'cancelled') THEN now() ELSE r.finished_at END\n  FROM counts\n WHERE r.id = $1\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b82bcab0edebb9486cb14c291fb137477af3785e2edf12170461fb1efc3c3a61"
+}

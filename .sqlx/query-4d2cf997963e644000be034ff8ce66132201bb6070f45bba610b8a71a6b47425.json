@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT overview AS \"overview?\",\n                          overview_generated_at AS \"overview_generated_at?\"\n                     FROM sessions.sessions\n                    WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "overview?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "overview"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "overview_generated_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "overview_generated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "4d2cf997963e644000be034ff8ce66132201bb6070f45bba610b8a71a6b47425"
+}

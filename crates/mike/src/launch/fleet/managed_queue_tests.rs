@@ -1,0 +1,144 @@
+use std::time::Duration;
+
+use super::{
+    Depth, Enlisted, Lane, admit, depth as depth_of, enlist, expected_wait, leave, name_obligation,
+    patience_from, supersede, withdraw,
+};
+use crate::launch::fleet::owned_execution::registry;
+
+#[tokio::test]
+async fn only_the_asker_withdraws_a_receipt_and_its_owner_is_cancelled() -> anyhow::Result<()> {
+    let run = format!("queue-withdraw-{}", uuid::Uuid::new_v4());
+    let registration = registry()
+        .fence(&run)
+        .await
+        .register(&run)
+        .map_err(anyhow::Error::msg)?;
+    let owner = registration.owner();
+    let receipt = 9_000_001;
+    let queued = Enlisted {
+        repo: &run,
+        lane: Lane::Gate,
+        ledger: &run,
+        seat: "seat-a",
+        state: "c1",
+    };
+    enlist(receipt, &queued, owner.clone());
+    assert_eq!(depth_of(&run, Lane::Gate).waiting, 1);
+    assert!(withdraw(receipt, "seat-b").is_err_and(|why| why.contains("only its asker")));
+    assert!(!owner.token().is_cancelled());
+    let said = withdraw(receipt, "seat-a").map_err(anyhow::Error::msg)?;
+    assert!(said.contains("was queued and is withdrawn"), "{said}");
+    assert!(owner.token().is_cancelled());
+    assert_eq!(depth_of(&run, Lane::Gate).waiting, 0);
+    leave(Some(receipt));
+    assert!(withdraw(receipt, "seat-a").is_err());
+    registration.receipt_recorded();
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_newer_request_for_the_same_obligation_supersedes_the_queued_older_one()
+-> anyhow::Result<()> {
+    let run = format!("queue-supersede-{}", uuid::Uuid::new_v4());
+    let fence = registry().fence(&run).await;
+    let old = fence.register("a").map_err(anyhow::Error::msg)?;
+    let other = fence.register("b").map_err(anyhow::Error::msg)?;
+    drop(fence);
+    let (old_ledger, new_ledger, other_ledger) = (
+        format!("{run}#ruling:n:old"),
+        format!("{run}#ruling:n:new"),
+        format!("{run}#ruling:m:x"),
+    );
+    for ledger in [&old_ledger, &new_ledger] {
+        name_obligation(ledger, format!("{run}#obligation:o-1"));
+    }
+    name_obligation(&other_ledger, format!("{run}#obligation:o-2"));
+    enlist(
+        9_000_011,
+        &Enlisted {
+            repo: &run,
+            lane: Lane::Check,
+            ledger: &old_ledger,
+            seat: "s",
+            state: "c1",
+        },
+        old.owner(),
+    );
+    enlist(
+        9_000_012,
+        &Enlisted {
+            repo: &run,
+            lane: Lane::Check,
+            ledger: &other_ledger,
+            seat: "s",
+            state: "c1",
+        },
+        other.owner(),
+    );
+    assert_eq!(supersede(&new_ledger, "c2"), vec![9_000_011]);
+    assert!(old.owner().token().is_cancelled());
+    assert!(!other.owner().token().is_cancelled());
+    assert!(supersede(&old_ledger, "c1").is_empty());
+    leave(Some(9_000_011));
+    leave(Some(9_000_012));
+    old.receipt_recorded();
+    other.receipt_recorded();
+    Ok(())
+}
+
+fn depth(waiting: usize, executing: usize, slots: usize) -> Depth {
+    Depth {
+        waiting,
+        executing,
+        slots,
+    }
+}
+
+#[test]
+fn a_free_slot_means_no_wait() {
+    let measured = Duration::from_secs(600);
+    assert_eq!(expected_wait(depth(0, 1, 2), measured), Duration::ZERO);
+    assert_eq!(expected_wait(depth(0, 0, 1), measured), Duration::ZERO);
+}
+
+#[test]
+fn each_full_round_ahead_costs_one_measured_run() {
+    let measured = Duration::from_secs(600);
+    assert_eq!(expected_wait(depth(2, 1, 1), measured), measured * 3);
+    assert_eq!(expected_wait(depth(2, 2, 2), measured), measured * 2);
+}
+
+#[test]
+fn a_waiter_whose_expected_wait_exceeds_its_patience_is_refused_with_the_numbers() {
+    let measured = Some(Duration::from_secs(1800));
+    let why = admit(depth(3, 1, 1), measured, Duration::from_secs(1800))
+        .err()
+        .unwrap_or_default();
+    assert!(why.contains("queue is 4 deep"), "{why}");
+    assert!(why.contains("expected wait 7200s"), "{why}");
+    assert!(why.contains("patience 1800s"), "{why}");
+    assert!(admit(depth(0, 1, 1), measured, Duration::from_secs(1800)).is_ok());
+}
+
+#[test]
+fn with_nothing_measured_no_waiter_is_refused() {
+    assert!(admit(depth(40, 1, 1), None, Duration::from_secs(1)).is_ok());
+}
+
+#[test]
+fn default_patience_follows_the_measured_run_within_bounds() {
+    assert_eq!(patience_from(None), Duration::from_secs(1800));
+    assert_eq!(
+        patience_from(Some(Duration::from_secs(1500))),
+        Duration::from_secs(4500)
+    );
+    assert_eq!(
+        patience_from(Some(Duration::from_secs(30))),
+        Duration::from_secs(600)
+    );
+    assert_eq!(
+        patience_from(Some(Duration::from_secs(5000))),
+        Duration::from_secs(7200)
+    );
+}

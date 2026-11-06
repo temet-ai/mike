@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT location_uuid IS NULL AND project_resolution <> 'operator' AS \"unbound!\"\n             FROM sessions.sessions WHERE session_uuid = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "unbound!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "1a6899ac3abd859a1ec77191afff32f7070a1ab598cb244f894d7ac69d5b718b"
+}

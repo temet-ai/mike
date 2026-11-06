@@ -1,0 +1,227 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.id AS \"id!\", l.project_id, p.project_path AS \"project_path?\", lk.code AS \"kind!\", l.text AS \"text!\",\n       lsrc.code AS \"source!\", ls.code AS \"stage!\", l.source_turn_id, l.created_at AS \"created_at!\",\n       COALESCE(ec.evidence_count, 0) AS \"evidence_count!\",\n       s.session_uuid AS \"session_uuid?\", s.title AS \"session_title?\", ot.closed_at AS \"turn_closed_at?\",\n       ot.user_prompt AS \"user_prompt?\", ot.final_assistant_text AS \"final_assistant_text?\",\n       r.human_prompt AS \"correcting_message?\",\n       cl.runs_given AS \"carry_runs_given?\", cl.later_findings AS \"carry_later_findings?\"\n  FROM memory.lessons l\n  LEFT JOIN projects.projects p ON p.id = l.project_id\n  JOIN memory.lesson_kinds lk ON lk.id = l.kind_id\n  JOIN memory.lesson_stages ls ON ls.id = l.stage_id\n  JOIN memory.lesson_sources lsrc ON lsrc.id = l.source_id\n  LEFT JOIN (\n      SELECT lesson_id, count(*) AS evidence_count\n        FROM memory.lesson_proposal_evidence\n       WHERE lesson_id IS NOT NULL\n       GROUP BY lesson_id\n  ) ec ON ec.lesson_id = l.id\n  LEFT JOIN memory.carried_lessons cl ON cl.lesson_id = l.id\n  LEFT JOIN memory.operator_turns ot ON ot.id = l.source_turn_id\n  LEFT JOIN sessions.sessions s ON s.id = ot.session_id\n  LEFT JOIN memory.turn_facts tf ON tf.operator_turn_id = ot.id\n  LEFT JOIN requests.requests r ON r.id = tf.next_genuine_request_id\n WHERE lsrc.code IN ('judge', 'directive', 'carry')\n   AND l.id = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "project_path?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_sources",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "stage!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_stages",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "source_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "source_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "evidence_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "session_uuid?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "session_title?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "turn_closed_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "closed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "user_prompt?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "user_prompt"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "final_assistant_text?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "final_assistant_text"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "correcting_message?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "human_prompt"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "carry_runs_given?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.carried_lessons",
+            "name": "runs_given"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "carry_later_findings?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.carried_lessons",
+            "name": "later_findings"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      null,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "ed2c79813461f8ce5917c62c272a90f118b1ebf8d135f99ae42019eb59d2d261"
+}

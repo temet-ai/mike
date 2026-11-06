@@ -1,0 +1,60 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT c.id, c.project_uuid, c.project_path, m.rank AS \"rank!\"\n               FROM projects.projects c\n               JOIN (SELECT COALESCE(p.merged_into_id, p.id) AS id,\n                            MIN(CASE WHEN p.project_uuid = $1 THEN 0\n                                     WHEN l.root_path = $2 THEN 1\n                                     ELSE 2 END) AS rank\n                       FROM projects.projects p\n                       LEFT JOIN projects.locations l ON l.project_id = p.id\n                      WHERE p.project_uuid = $1 OR p.project_path = $2 OR l.root_path = $2\n                      GROUP BY 1) m ON m.id = c.id\n              WHERE c.merged_into_id IS NULL\n              ORDER BY m.rank, c.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "project_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "rank!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "dc449658bd55387bf53f1e6c48cc2e57eb9377572906ef9f3f01e1cc8a070dcd"
+}

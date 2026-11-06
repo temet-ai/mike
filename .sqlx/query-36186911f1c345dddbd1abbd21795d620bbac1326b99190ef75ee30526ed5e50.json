@@ -1,0 +1,39 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH victims AS (\n                       SELECT r.id, octet_length(r.request_body) AS bytes\n                         FROM requests.requests r\n                         JOIN sessions.sessions s ON s.id = r.session_id\n                        WHERE r.id >= $1\n                          AND r.request_body IS NOT NULL\n                          AND r.request_envelope IS NOT NULL\n                          AND s.last_seen < now() - make_interval(days => $2)\n                          AND EXISTS (\n                              SELECT 1\n                                FROM requests.requests later\n                               WHERE later.session_id = r.session_id\n                                 AND later.id > r.id\n                          )\n                        ORDER BY r.id ASC\n                        LIMIT $3\n                   ),\n                   cleared AS (\n                       UPDATE requests.requests r\n                          SET request_body = NULL\n                         FROM victims v\n                        WHERE r.id = v.id\n                       RETURNING r.id\n                   )\n                   SELECT count(*)                          AS \"cleared!\",\n                          COALESCE(sum(v.bytes), 0)::bigint AS \"reclaimed_bytes!\",\n                          max(v.id)                         AS \"watermark\"\n                     FROM victims v\n                     JOIN cleared c ON c.id = v.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "cleared!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "reclaimed_bytes!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "watermark",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "36186911f1c345dddbd1abbd21795d620bbac1326b99190ef75ee30526ed5e50"
+}

@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"count!\" FROM jsonb_to_recordset($1) AS x(target_uuid uuid)\n         JOIN memory.lessons l ON l.uuid = x.target_uuid AND l.project_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Jsonb",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "ed6a34339fa802e914d5540d8dd2a3d45450e2d8d47f0a6d4c0e215dec7eccaa"
+}

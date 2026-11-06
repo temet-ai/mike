@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH closed AS (\n                       SELECT t.id, tot.code\n                         FROM memory.operator_turns t\n                         JOIN memory.turn_outcomes  tot ON tot.id = t.outcome_id\n                        WHERE t.session_id = $1 AND t.closed_at IS NOT NULL\n                   ), recent AS (\n                       SELECT code FROM closed ORDER BY id DESC LIMIT $2\n                   )\n                   SELECT\n                       (SELECT COUNT(*) FROM closed)::bigint AS \"closed_turn_count!\",\n                       COALESCE(\n                           (SELECT array_agg(code) FROM recent),\n                           ARRAY[]::text[]\n                       ) AS \"recent_outcomes_newest_first!: Vec<String>\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "closed_turn_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "recent_outcomes_newest_first!: Vec<String>",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "eada63a52994d8128aa0c63cefb669f81bfc1b7939b6bbd9175e719adbca2231"
+}

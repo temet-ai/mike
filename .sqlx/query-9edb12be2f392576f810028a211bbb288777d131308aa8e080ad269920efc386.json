@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH stamped AS (\n    UPDATE memory.operator_turns t\n       SET outcome_id = tot.id, classified_at = NOW(), judge_model = $7::text,\n           judge_rubric_version = $4::text, judge_failure_reason = NULL,\n           judge_attempt_count = 0, judge_next_attempt_at = NULL,\n           rationale = $12::text, unmet_ask = $13::text, evidence_quality = $14::text,\n           outcome_bundle_id = $3::bigint\n      FROM memory.turn_outcomes tot, memory.turn_outcomes unk\n     WHERE tot.code = $25::text AND t.id = $1::bigint\n       AND unk.code = 'unknown' AND t.outcome_id = unk.id\n RETURNING t.id)\nINSERT INTO memory.turn_verdicts (\n    operator_turn_id, session_id, mode, bundle_id, rubric_version,\n    input_builder_version, slices, model, source, reaction, delivery, legacy_label, confidence,\n    rationale, unmet_ask, evidence_quality, projected, next_genuine_request_id, as_of,\n    input_text, generation_id, cost_usd, failure_tags, severity, prompt_tokens,\n    completion_tokens, latency_ms)\nSELECT t.id, t.session_id, $2::text, $3::bigint, $4::text, $5::text, $6::text[], $7::text, 'llm',\n       $8::text, $9::text, $10::text, $11::real, $12::text, $13::text, $14::text,\n       EXISTS (SELECT 1 FROM stamped), $15::bigint, COALESCE(t.closed_at, $16::timestamptz),\n       $17::text, $18::text, $19::float8, $20::text[], $21::text, $22::int, $23::int, $24::int\n  FROM memory.operator_turns t\n WHERE t.id = $1::bigint\nRETURNING id AS \"id!\", projected AS \"projected!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "projected!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "projected"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8",
+        "Text",
+        "Text",
+        "TextArray",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Float4",
+        "Text",
+        "Text",
+        "Text",
+        "Int8",
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Float8",
+        "TextArray",
+        "Text",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "9edb12be2f392576f810028a211bbb288777d131308aa8e080ad269920efc386"
+}

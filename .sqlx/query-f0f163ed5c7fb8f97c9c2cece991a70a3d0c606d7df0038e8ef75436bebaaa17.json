@@ -1,0 +1,137 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT v.verdict_id AS \"verdict_id!\", v.operator_turn_id AS \"operator_turn_id!\",\n                          v.session_id AS \"session_id!\", v.project_id AS \"project_id!\",\n                          v.confidence AS \"confidence!\", v.rationale AS \"rationale!\",\n                          v.unmet_ask AS \"unmet_ask!\", v.user_prompt, v.final_assistant_text,\n                          v.correcting_message\n                     FROM memory.lesson_eligible_corrections_v v\n                    WHERE v.created_at >= $1\n                      AND NOT EXISTS (\n                          SELECT 1 FROM memory.lesson_proposal_evidence e\n                          LEFT JOIN memory.lesson_proposal_recovery recovery\n                            ON recovery.verdict_id = e.verdict_id AND recovery.recovery_state = 'needs_reproposal'\n                          WHERE e.verdict_id = v.verdict_id AND recovery.verdict_id IS NULL\n                      )\n                      AND NOT EXISTS (\n                          SELECT 1 FROM memory.lesson_proposal_jobs j WHERE j.verdict_id = v.verdict_id\n                      )\n                    ORDER BY v.created_at ASC, v.verdict_id ASC\n                    LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "verdict_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_eligible_corrections_v",
+            "name": "verdict_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "operator_turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_eligible_corrections_v",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_eligible_corrections_v",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_eligible_corrections_v",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "confidence!",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_eligible_corrections_v",
+            "name": "confidence"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "rationale!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_eligible_corrections_v",
+            "name": "rationale"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "unmet_ask!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_eligible_corrections_v",
+            "name": "unmet_ask"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "user_prompt",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_eligible_corrections_v",
+            "name": "user_prompt"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "final_assistant_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_eligible_corrections_v",
+            "name": "final_assistant_text"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "correcting_message",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_eligible_corrections_v",
+            "name": "correcting_message"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "f0f163ed5c7fb8f97c9c2cece991a70a3d0c606d7df0038e8ef75436bebaaa17"
+}

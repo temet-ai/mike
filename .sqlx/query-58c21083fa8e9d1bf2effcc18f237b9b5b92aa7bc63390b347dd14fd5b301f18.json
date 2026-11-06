@@ -1,0 +1,45 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH recent AS (\n                       SELECT r.id, r.session_id, r.created_at, r.request_body\n                         FROM requests.requests r\n                        WHERE r.project_id = $1\n                          AND r.request_body_size BETWEEN $5 AND $6\n                        ORDER BY r.created_at DESC\n                        LIMIT $2),\n                   carrying AS (\n                       SELECT DISTINCT ON (c.session_id) c.id, c.created_at, c.request_body\n                         FROM recent c\n                        WHERE position($3::bytea IN c.request_body) > 0\n                        ORDER BY c.session_id, c.created_at DESC)\n                   SELECT k.id AS \"id!\", k.request_body AS \"body!\"\n                     FROM carrying k\n                    ORDER BY k.created_at DESC\n                    LIMIT $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "body!",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "request_body"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Bytea",
+        "Int8",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "58c21083fa8e9d1bf2effcc18f237b9b5b92aa7bc63390b347dd14fd5b301f18"
+}

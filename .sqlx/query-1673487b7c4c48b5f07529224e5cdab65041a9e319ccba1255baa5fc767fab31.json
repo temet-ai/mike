@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions.sessions s\n             SET last_status = latest.status\n             FROM (\n                 SELECT DISTINCT ON (r.session_id)\n                        r.session_id,\n                        CASE st.code\n                            WHEN 'pending'   THEN 'Pending'\n                            WHEN 'streaming' THEN 'Streaming'\n                            WHEN 'complete'  THEN 'Complete'\n                            WHEN 'error'     THEN 'Error: ' || COALESCE(re.message, '')\n                        END AS status\n                 FROM requests.requests r\n                 JOIN sessions.sessions sf ON sf.id = r.session_id\n                     AND sf.last_status IN ('Pending', 'Streaming')\n                 JOIN requests.statuses st ON st.id = r.status_id\n                 LEFT JOIN requests.errors re ON re.request_id = r.id\n                 ORDER BY r.session_id, r.created_at DESC, r.id DESC\n             ) latest\n             WHERE s.id = latest.session_id\n               AND s.last_status IS DISTINCT FROM latest.status",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "1673487b7c4c48b5f07529224e5cdab65041a9e319ccba1255baa5fc767fab31"
+}

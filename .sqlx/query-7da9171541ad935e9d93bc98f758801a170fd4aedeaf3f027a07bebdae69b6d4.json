@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO session_judges.attempts\n             (session_id, judge_model, rubric_version, last_attempt_at,\n              attempt_count, consecutive_failures, window_started_at, window_attempts)\n         VALUES ($1, $2, $3, $4, 1, CASE WHEN $5::boolean THEN 1 ELSE 0 END, $4, 1)\n         ON CONFLICT (session_id, judge_model, rubric_version)\n         DO UPDATE SET last_attempt_at = GREATEST(attempts.last_attempt_at,\n                                                  EXCLUDED.last_attempt_at),\n                       attempt_count = attempts.attempt_count + 1,\n                       consecutive_failures = CASE\n                           WHEN $5 THEN attempts.consecutive_failures + 1\n                           ELSE 0\n                       END,\n                       window_started_at = CASE\n                           WHEN attempts.window_started_at IS NULL\n                             OR attempts.window_started_at < EXCLUDED.last_attempt_at - interval '24 hours'\n                           THEN EXCLUDED.last_attempt_at\n                           ELSE attempts.window_started_at\n                       END,\n                       window_attempts = CASE\n                           WHEN attempts.window_started_at IS NULL\n                             OR attempts.window_started_at < EXCLUDED.last_attempt_at - interval '24 hours'\n                           THEN 1\n                           ELSE attempts.window_attempts + 1\n                       END\n         RETURNING window_attempts",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "window_attempts",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "session_judges.attempts",
+            "name": "window_attempts"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int4",
+        "Timestamptz",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7da9171541ad935e9d93bc98f758801a170fd4aedeaf3f027a07bebdae69b6d4"
+}

@@ -1,0 +1,61 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.id AS steerer_id, s.name,\n                          GREATEST(s.updated_at, $1) AS \"window_start!\",\n                          count(e.id) FILTER (WHERE e.outcome_label = 'right') AS \"right!\",\n                          count(e.id) FILTER (WHERE e.outcome_label = 'wrong') AS \"wrong!\"\n                     FROM steering.steerers s\n                     LEFT JOIN steering.evaluations e\n                            ON e.steerer_id = s.id\n                           AND e.intervention_uuid IS NOT NULL\n                           AND e.label_source IN ('session_reply', 'operator')\n                           AND e.dispatched_at >= GREATEST(s.updated_at, $1)\n                    WHERE s.enabled AND s.deleted_at IS NULL AND s.kind <> 'turn_guard'\n                    GROUP BY s.id, s.name, s.updated_at\n                    ORDER BY s.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "steerer_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "window_start!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "right!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "wrong!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "c3b54a084f9f04cf46ecd15642fcf41403328cef7c2526a84fa5c1820af194b2"
+}

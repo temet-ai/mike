@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE llm.worker_leases SET machine_uuid = $2 WHERE machine_uuid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3b8ea737b010974650065a188771dfd5a81477c144fefe9d0fcbb0836bb17a83"
+}

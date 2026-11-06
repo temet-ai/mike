@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT g.id AS \"id!\"\n   FROM eval.gates g\n   JOIN eval.runs r ON r.id = g.candidate_run_id\n  WHERE r.bundle_id = $1 AND g.verdict = 'pass' AND g.holdout_batch IS NOT NULL\n  ORDER BY g.created_at DESC, g.id DESC\n  LIMIT 1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.gates",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "8e9336491599a00d9bdc0538ad86baf1715bae8e5e6c07438000808aadecdfd4"
+}

@@ -1,0 +1,148 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, kind, subject, first_seen_at, last_seen_at, cleared_at, evaluations,\n                        quiet_evaluations, detail, acknowledged_at, ack_note\n                   FROM eval.alarms WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "subject",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "subject"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "first_seen_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "first_seen_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "last_seen_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "last_seen_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "cleared_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "cleared_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "evaluations",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "evaluations"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "quiet_evaluations",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "quiet_evaluations"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "detail",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "detail"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "acknowledged_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "acknowledged_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "ack_note",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.alarms",
+            "name": "ack_note"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "b18e25fd0c3f62aa4a7ddad5ad93842454e38736d6126ed06ef49d83e360d569"
+}

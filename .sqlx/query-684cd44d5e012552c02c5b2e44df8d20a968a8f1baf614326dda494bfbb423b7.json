@@ -1,0 +1,110 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT u.id AS use_id,\n       l.seat,\n       l.session_uuid,\n       u.input->>'command' AS command,\n       rs.completed_at AS started_at,\n       r.created_at AS finished_at,\n       r.is_error,\n       r.content\n  FROM launch.launches l\n  JOIN sessions.sessions s    ON s.session_uuid = l.session_uuid\n  JOIN tools.uses u           ON u.session_id = s.id AND u.tool_name = 'Bash'\n  JOIN responses.responses rs ON rs.request_id = u.request_id\n  LEFT JOIN tools.results r   ON r.tool_use_id = u.id\n WHERE l.run_id = $1\n   AND l.seat IS NOT NULL\n   AND u.created_at >= $3\n   AND ($2::text IS NULL OR (u.input->>'command') ILIKE '%' || $2 || '%')\n ORDER BY u.id DESC\n LIMIT $4\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "use_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "seat",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "seat"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "session_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "command",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "started_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "responses.responses",
+            "name": "completed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "finished_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "is_error",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "is_error"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "content",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      null,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "684cd44d5e012552c02c5b2e44df8d20a968a8f1baf614326dda494bfbb423b7"
+}

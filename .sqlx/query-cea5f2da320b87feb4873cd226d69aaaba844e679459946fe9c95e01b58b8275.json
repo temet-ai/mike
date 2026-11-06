@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO mailbox.messages\n                       (message_uuid, to_session_id, from_session_id, body)\n                   SELECT $1, s.id, $3, $4\n                     FROM sessions.sessions s\n                    WHERE s.session_uuid = $2\n                   RETURNING queued_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "queued_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "queued_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "cea5f2da320b87feb4873cd226d69aaaba844e679459946fe9c95e01b58b8275"
+}

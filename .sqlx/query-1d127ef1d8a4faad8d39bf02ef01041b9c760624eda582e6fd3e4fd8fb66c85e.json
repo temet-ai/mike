@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO eval.runs (purpose, bundle_id, rubric_version, input_builder_version,\n                       model, split, tiers, holdout_batch, labels_as_of, label_count, label_ids_hash,\n                       repeat_of_run_id, max_usd, argv)\n                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)\n                   RETURNING id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.runs",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "TextArray",
+        "Text",
+        "Timestamptz",
+        "Int4",
+        "Text",
+        "Int8",
+        "Float8",
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "1d127ef1d8a4faad8d39bf02ef01041b9c760624eda582e6fd3e4fd8fb66c85e"
+}

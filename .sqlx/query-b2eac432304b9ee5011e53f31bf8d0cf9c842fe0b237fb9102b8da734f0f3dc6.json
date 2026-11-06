@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO runtime.codex_projection_generations\n             (generation_id, namespace_id, projector_version, state_codec_version, state)\n             VALUES ($1, $2, $3, $4, 'building') ON CONFLICT (generation_id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b2eac432304b9ee5011e53f31bf8d0cf9c842fe0b237fb9102b8da734f0f3dc6"
+}

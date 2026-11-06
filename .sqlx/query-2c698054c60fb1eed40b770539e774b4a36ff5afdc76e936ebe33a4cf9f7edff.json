@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lesson_injections\n                    (lesson_id, request_id, session_id, lane_id, persona)\n                 SELECT u.lesson_id, $1::bigint, s.id, lane.id, $4::text\n                   FROM UNNEST($2::bigint[]) AS u(lesson_id)\n                   JOIN memory.lesson_injection_lanes lane ON lane.code = $3\n              LEFT JOIN sessions.sessions s ON s.session_uuid = $5::text::uuid",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8Array",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2c698054c60fb1eed40b770539e774b4a36ff5afdc76e936ebe33a4cf9f7edff"
+}

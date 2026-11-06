@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT machine_uuid = $2\n                              AND heartbeat_at >= now() - make_interval(secs => $3::float8)\n                              AS \"held!\"\n                         FROM llm.worker_leases WHERE role = $1 FOR SHARE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "held!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "9d8af1b7626a54e6fee1161a53674828bca0da9a47021b0b6a02c441901977df"
+}

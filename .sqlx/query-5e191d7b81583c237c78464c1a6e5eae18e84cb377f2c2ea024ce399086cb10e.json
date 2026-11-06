@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.directive_proposals\n                    SET status = 'rejected', decided_at = now(), decision_note = $2\n                  WHERE id = $1 AND status = 'open'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5e191d7b81583c237c78464c1a6e5eae18e84cb377f2c2ea024ce399086cb10e"
+}

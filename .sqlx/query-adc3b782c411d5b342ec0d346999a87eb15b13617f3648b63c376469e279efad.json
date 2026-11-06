@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_sources SET last_failure = $2, last_failure_at = now(),\n                 last_failure_generation = generation, last_heartbeat_at = now()\n             WHERE source_uuid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "adc3b782c411d5b342ec0d346999a87eb15b13617f3648b63c376469e279efad"
+}

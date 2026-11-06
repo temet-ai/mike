@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lesson_proposal_recovery SET recovery_state = 'reproposed' WHERE verdict_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d736aa22f65e0ccda13b30a9150e500fca48ff1550c936cf93b87f625a088b66"
+}

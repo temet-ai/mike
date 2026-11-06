@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH ins AS (\n    INSERT INTO memory.turn_verdicts (\n        operator_turn_id, session_id, mode, bundle_id, rubric_version,\n        input_builder_version, slices, model, source, reaction, delivery, legacy_label, confidence,\n        rationale, unmet_ask, evidence_quality, projected, next_genuine_request_id, as_of,\n        input_text, generation_id, cost_usd, failure_tags, severity, prompt_tokens,\n        completion_tokens, latency_ms)\n    SELECT t.id, t.session_id, $2::text, $3::bigint, $4::text, $5::text, $6::text[], $7::text, 'llm',\n           $8::text, $9::text, $10::text, $11::real, $12::text, $13::text, $14::text,\n           $25::boolean, $15::bigint, $16::timestamptz, $17::text, $18::text,\n           $19::float8, $20::text[], $21::text, $22::int, $23::int, $24::int\n      FROM memory.operator_turns t\n     WHERE t.id = $1::bigint\n    RETURNING id, operator_turn_id, mode, reaction, next_genuine_request_id),\ndequeued AS (\n    UPDATE memory.operator_turns t\n       SET judge_queued_at = NULL\n      FROM ins\n      JOIN memory.turn_facts f ON f.operator_turn_id = ins.operator_turn_id\n     WHERE t.id = ins.operator_turn_id\n       AND t.judge_queued_at IS NOT NULL\n       AND ins.mode = 'live'\n       AND ins.reaction IS NOT NULL\n       AND ins.next_genuine_request_id IS NOT DISTINCT FROM f.next_genuine_request_id)\nSELECT id AS \"id!\" FROM ins\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8",
+        "Text",
+        "Text",
+        "TextArray",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Float4",
+        "Text",
+        "Text",
+        "Text",
+        "Int8",
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Float8",
+        "TextArray",
+        "Text",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "180144194068ad7a04f4944232d2b0374e14a669a031fcacf3f93641dac53d68"
+}

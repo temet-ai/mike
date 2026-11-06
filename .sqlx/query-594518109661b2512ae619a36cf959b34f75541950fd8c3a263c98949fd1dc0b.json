@@ -1,0 +1,89 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT (current_setting('server_version_num')::int / 10000) AS \"server_major!\",\n                r.rolsuper AS \"superuser!\",\n                pg_is_in_recovery() AS \"recovery!\",\n                pg_has_role(d.datdba, 'USAGE') AS \"owns_database!\",\n                has_database_privilege(current_database(), 'CREATE') AS \"creates_schema!\",\n                (has_schema_privilege('public', 'CREATE') AND has_schema_privilege('public', 'USAGE')) AS \"creates_in_public!\",\n                (current_schema() = 'public') AS \"public_is_current!\",\n                (to_regclass('public._sqlx_migrations') IS NOT NULL) AS \"has_ledger!\",\n                (count(c.oid) > 0) AS \"has_tables!\",\n                COALESCE(bool_and(pg_has_role(c.relowner, 'USAGE')), true) AS \"owns_tables!\"\n         FROM pg_database d\n         JOIN pg_roles r ON r.rolname = current_user\n         LEFT JOIN pg_namespace n ON n.nspname NOT IN ('pg_catalog', 'information_schema')\n                                  AND n.nspname NOT LIKE 'pg_toast%'\n                                  AND n.nspname NOT LIKE 'pg_temp%'\n         LEFT JOIN pg_class c ON c.relnamespace = n.oid AND c.relkind IN ('r', 'p', 'S', 'v', 'm')\n         LEFT JOIN pg_depend e ON e.classid = 'pg_class'::regclass AND e.objid = c.oid AND e.deptype = 'e'\n         WHERE d.datname = current_database() AND e.objid IS NULL\n         GROUP BY r.rolsuper, d.datdba",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "server_major!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "superuser!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "pg_roles",
+            "name": "rolsuper"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "recovery!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "owns_database!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "creates_schema!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "creates_in_public!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "public_is_current!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "has_ledger!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "has_tables!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "owns_tables!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      true,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "594518109661b2512ae619a36cf959b34f75541950fd8c3a263c98949fd1dc0b"
+}

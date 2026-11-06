@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT ON (l.root_path) l.root_path,\n                    COALESCE(p.merged_into_id, p.id) AS \"project_id!\"\n             FROM projects.locations l JOIN projects.projects p ON p.id = l.project_id\n             WHERE l.machine_uuid = $1 ORDER BY l.root_path, l.last_seen DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "root_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "root_path"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "cf583bd40f02b1cdb972ae6dbd3400daac745a5cdb7db26a54e1288a84bf0708"
+}

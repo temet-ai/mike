@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM memory.operator_turn_chunks WHERE turn_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a828870eca057d69a881f46e5a924fd7cdd37ffc7628593b573f23a97aaa00dd"
+}

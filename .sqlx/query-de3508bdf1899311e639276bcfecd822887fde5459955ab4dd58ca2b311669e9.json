@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*) AS \"count!\"\n             FROM workspace.session_notes n\n             JOIN sessions.sessions s ON s.id = n.session_id\n        LEFT JOIN sessions.session_goals sg ON sg.session_id = s.id\n            WHERE s.project_id = $1\n              AND ($2::text IS NULL OR lower(sg.role) = lower($2))\n              AND ($3::text IS NULL OR lower(sg.display_name) = lower($3))\n              AND ($4::text IS NULL OR n.kind = $4)\n              AND ($5::text IS NULL OR n.status = $5)\n              AND ($6::text IS NULL OR n.tags @> ARRAY[$6]::text[])\n              AND ($7::uuid IS NULL OR s.session_uuid = $7)\n              AND ($8::text IS NULL\n                   OR n.title ILIKE '%' || $8 || '%'\n                   OR n.body  ILIKE '%' || $8 || '%')",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "de3508bdf1899311e639276bcfecd822887fde5459955ab4dd58ca2b311669e9"
+}

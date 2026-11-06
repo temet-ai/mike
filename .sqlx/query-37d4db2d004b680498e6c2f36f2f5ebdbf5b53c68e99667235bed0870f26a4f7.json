@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT l.project_id AS \"project_id!\"\n                     FROM memory.lessons l\n                     JOIN memory.lesson_stages ls ON ls.id = l.stage_id AND ls.code = 'raw'\n                    WHERE l.embedded_at IS NULL\n                      AND l.project_id IS NOT NULL\n                      AND l.source_id NOT IN (SELECT id FROM memory.lesson_sources WHERE code = 'carry')\n                      AND NOT EXISTS (\n                          SELECT 1 FROM memory.lesson_shape_findings f\n                           WHERE f.lesson_id = l.id AND f.resolution IS NULL\n                      )\n                      AND l.created_at < $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "project_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "37d4db2d004b680498e6c2f36f2f5ebdbf5b53c68e99667235bed0870f26a4f7"
+}

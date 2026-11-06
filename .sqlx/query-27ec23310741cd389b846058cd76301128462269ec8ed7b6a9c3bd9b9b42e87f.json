@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.id AS \"id!\"\n  FROM memory.operator_turns t\n  JOIN memory.turn_facts f ON f.operator_turn_id = t.id\n  JOIN requests.requests r ON r.id = t.start_request_id\n WHERE t.closed_at >= $1 AND t.closed_at < $2\n   AND (f.prompt_kind <> 'genuine' OR f.session_class = 'synthetic'\n        OR r.claude_code_agent_id IS NOT NULL)\n   AND (t.outcome_source IS NULL OR t.outcome_projection_version IS DISTINCT FROM $5::smallint)\n   AND t.id > $3\n ORDER BY t.id\n LIMIT $4\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz",
+        "Int8",
+        "Int8",
+        "Int2"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "27ec23310741cd389b846058cd76301128462269ec8ed7b6a9c3bd9b9b42e87f"
+}

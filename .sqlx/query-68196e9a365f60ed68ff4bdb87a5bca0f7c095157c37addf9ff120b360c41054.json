@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH RECURSIVE chain AS (\n                    SELECT $1::bigint AS id, 0 AS depth\n                    UNION ALL\n                    SELECT r.from_lesson_id, c.depth + 1\n                      FROM chain c\n                      JOIN memory.lesson_relations r ON r.to_lesson_id = c.id\n                      JOIN memory.lesson_relation_kinds rk ON rk.id = r.kind_id AND rk.code = 'supersedes'\n                      JOIN memory.lesson_relation_statuses rs ON rs.id = r.status_id AND rs.code = 'confirmed'\n                     WHERE c.depth < 12\n                 )\n                 SELECT DISTINCT c.id AS \"id!\"\n                   FROM chain c\n                   JOIN memory.lessons l ON l.id = c.id\n                  WHERE c.id <> $1 AND l.archived_at IS NULL\n                  ORDER BY c.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "68196e9a365f60ed68ff4bdb87a5bca0f7c095157c37addf9ff120b360c41054"
+}

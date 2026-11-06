@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT c.lesson_id AS \"lesson_id!\"\n  FROM memory.carried_lessons c\n  JOIN memory.lessons l ON l.id = c.lesson_id AND l.archived_at IS NULL\n WHERE c.project_id = $1\n   AND c.tag = $2\n   AND c.discipline = $3\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lesson_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.carried_lessons",
+            "name": "lesson_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ac6f3a6d6fd334089f20a85de4e19aa548ff20d489feee764c925d8126551b9c"
+}

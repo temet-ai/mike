@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT p.project_path AS \"project_path!\"\n                   FROM tools.uses tu\n                   JOIN requests.requests rq ON rq.id = tu.request_id\n                   JOIN projects.projects p  ON p.id  = rq.project_id\n                  WHERE p.project_path IS NOT NULL\n                  ORDER BY p.project_path ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "project_path!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ba9324f4ccd67b481297f73232ce926f2a427f123938c487cd2b01d558105ad1"
+}

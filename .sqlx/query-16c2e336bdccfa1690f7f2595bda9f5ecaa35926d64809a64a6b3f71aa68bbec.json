@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.ask_ledger_entries a\n            SET kind = CASE ot.reaction\n                           WHEN 'corrected' THEN 'correction'\n                           WHEN 'redirected' THEN 'redirect'\n                           ELSE 'clarification'\n                       END,\n                kind_source = CASE WHEN ot.outcome_source = 'operator' THEN 'operator' ELSE 'judge' END,\n                kind_updated_at = now()\n           FROM memory.operator_turns ot\n           JOIN memory.turn_facts f ON f.operator_turn_id = ot.id\n           JOIN memory.operator_turns nt ON nt.start_request_id = f.next_genuine_request_id\n          WHERE ot.id = $1\n            AND a.operator_turn_id = nt.id\n            AND ot.reaction IN ('corrected', 'redirected', 'accepted', 'unclear')\n            AND a.kind <> 'initial'\n            AND a.kind_source <> 'operator'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "16c2e336bdccfa1690f7f2595bda9f5ecaa35926d64809a64a6b3f71aa68bbec"
+}

@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO work.thread_log\n             (thread_id, ord, entry_date, session_uuid, commit_sha, summary, kind, body, data)\n         SELECT $1, u.ord, u.entry_date, u.session_uuid, u.commit_sha, u.summary, u.kind, u.body, u.data\n           FROM unnest($2::int[], $3::date[], $4::uuid[], $5::text[], $6::text[], $7::text[], $8::text[], $9::jsonb[])\n                AS u(ord, entry_date, session_uuid, commit_sha, summary, kind, body, data)\n         ON CONFLICT (thread_id, ord) DO UPDATE SET\n            entry_date = EXCLUDED.entry_date, session_uuid = EXCLUDED.session_uuid,\n            commit_sha = EXCLUDED.commit_sha, summary = EXCLUDED.summary, kind = EXCLUDED.kind,\n            body = EXCLUDED.body, data = EXCLUDED.data",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int4Array",
+        "DateArray",
+        "UuidArray",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "JsonbArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a446d8decbe2c9ccc9829874b3dee7de91ca315d256ca2b2f689d14c27772820"
+}

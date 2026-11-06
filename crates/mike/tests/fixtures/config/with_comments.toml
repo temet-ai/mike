@@ -1,0 +1,9 @@
+# Top-of-file banner — must survive the TOML write-through.
+
+# listen addr for the /v1/* bind
+proxy_listen_addr = "127.0.0.1:9988"
+# upstream URL
+upstream_url = "https://api.anthropic.com"
+
+# listen addr for the /api/* + /api/ws bind
+inspect_listen_addr = "127.0.0.1:9989"

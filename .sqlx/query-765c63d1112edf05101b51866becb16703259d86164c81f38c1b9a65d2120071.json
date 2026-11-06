@@ -1,0 +1,150 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH candidates AS (\n                       SELECT p.id, p.project_path,\n                              array_position($1::text[], p.project_path) AS rank\n                         FROM projects.projects p\n                        WHERE p.project_path = ANY($1::text[])\n                   ),\n                   ranked AS (\n                       SELECT l.id, l.project_id, c.project_path, lk.code AS kind, l.text,\n                              l.agent_id, ls.code AS stage, l.source_turn_id, l.created_at,\n                              l.expires_at, l.topic,\n                              row_number() OVER (\n                                  PARTITION BY l.topic ORDER BY c.rank, l.created_at DESC\n                              ) AS position\n                         FROM candidates c\n                         JOIN memory.lessons l ON l.project_id = c.id\n                         JOIN memory.lesson_kinds lk ON lk.id = l.kind_id\n                         JOIN memory.lesson_stages ls ON ls.id = l.stage_id\n                        WHERE l.topic = ANY($2::text[])\n                          AND l.archived_at IS NULL\n                          AND (l.expires_at IS NULL OR l.expires_at > NOW())\n                   )\n                   SELECT id AS \"id!\", project_id AS \"project_id?\", project_path AS \"project_path?\",\n                          kind AS \"kind!\", text AS \"text!\", agent_id AS \"agent_id?\",\n                          stage AS \"stage!\", source_turn_id AS \"source_turn_id?\",\n                          created_at AS \"created_at!\", expires_at AS \"expires_at?\",\n                          topic AS \"topic?\"\n                     FROM ranked\n                    WHERE position <= $3\n                    ORDER BY topic, position",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "project_path?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "agent_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "agent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "stage!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_stages",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "source_turn_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "source_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "expires_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "topic?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "topic"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "765c63d1112edf05101b51866becb16703259d86164c81f38c1b9a65d2120071"
+}

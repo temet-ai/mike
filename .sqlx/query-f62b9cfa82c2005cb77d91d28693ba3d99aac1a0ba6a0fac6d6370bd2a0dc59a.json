@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO system_prompts.session_prompts\n                        (session_id, request_id, lane, blocks, content_sha256)\n                     SELECT $1, $2, 'main', $3, $4\n                     WHERE NOT EXISTS (\n                         SELECT 1 FROM system_prompts.session_prompts\n                         WHERE session_id = $1 AND lane = 'main'\n                     )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f62b9cfa82c2005cb77d91d28693ba3d99aac1a0ba6a0fac6d6370bd2a0dc59a"
+}

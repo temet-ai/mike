@@ -1,0 +1,33 @@
+The digest below replaces the labellers' record: the operator's messages are the USER PROMPT lines, and the facts lines give each turn's ending, stop reason and checks.
+The operator's next session is not included; judge from this session.
+Return end_label in lower case: done, closed_in_frustration, cut_off_neutral, fleet_seat or unclear. Return end_evidence, end_confidence, failure, failure_tags and severity as the rubric's evidence, confidence, failure, failure_tags and severity.
+
+# Session-end labelling rubric (fleet-mirror follow-up, 2026-09-23)
+
+Each record is the operator's LAST typed turn in a session: no further message from the operator followed in that session. The question: **why did the session end here?**
+
+The operator's own correction frames this. A session that ends is usually done: the operator got what they needed. Some sessions are closed in frustration. Mike's label `abandoned` lumps these together, and that is exactly the mistake to avoid. **Default to DONE.** Claim frustration only on evidence.
+
+## Labels (pick exactly one)
+
+| label | use when |
+|---|---|
+| `DONE` | The session reached a natural end. The final turn answered the question, delivered or landed the work, or reached a point where nothing more was needed, and nothing shows dissatisfaction. A one-question session that got its answer is DONE. So is a final "thanks" or "ok", and so is a final status report on finished work. |
+| `CLOSED_IN_FRUSTRATION` | The evidence says the operator gave up on this session. The final prompt, or the earlier ones, correct the assistant or show frustration: repeated asks, "you have wasted hours", "stop", sarcasm, swearing, "just do X", an earlier turn marked CORRECTED. AND the final turn did not resolve it: still wrong, stalled on a promise, looping on checks, asking again, drifting, or aborted. Other evidence: the final turn was aborted and the session closed; or the operator's next session in the same project restarts the same work and complains about, or visibly routes around, the last attempt. |
+| `CUT_OFF_NEUTRAL` | The session ended with work unfinished, but nothing shows frustration. The final turn was still running or waiting on a background job, the operator carried the same work into a new session without complaint, it looks like a context limit or crash, or the operator stepped away. |
+| `FLEET_SEAT` | The session was a fleet seat (`fleet_seat` is set) closed by its coordinator, and the operator did not type in it. |
+| `UNCLEAR` | The record cannot support any of the above without guessing. |
+
+Tie-breaks:
+- An earlier correction that the final turn then fixed, with a final message that sounds satisfied or neutral, is DONE, not frustration.
+- A final prompt that is a correction ("that's still wrong"), followed by a final turn that fixes it and reports clearly, is DONE. If the final turn fails to fix it, or ends on a promise, a question or a stall, it is CLOSED_IN_FRUSTRATION.
+- The next session is evidence only when it plainly continues the same work. A new, unrelated task is not evidence either way.
+- An aborted final turn on its own is not frustration. The operator may have pressed Esc to redirect. Look for the other signals.
+
+## Return per record
+
+- `turn_id`
+- `label`
+- `evidence`: the deciding words, quoted verbatim from the record (the final prompt, an earlier prompt, the final turn's end, or the next session's first prompt), or `""`
+- `confidence`: high, medium or low
+- For CLOSED_IN_FRUSTRATION only: `failure`, one plain sentence on what the assistant did that made the operator give up (its behaviour, not the task); `failure_tags`, 1-3 tags from the vocabulary in labelling-rubric.md; `severity`, minor, major or severe. Otherwise use "", [] and "none".

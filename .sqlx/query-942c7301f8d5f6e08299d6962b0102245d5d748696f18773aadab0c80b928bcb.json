@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE launch.tree_checks\n   SET finished_at = now(),\n       state_after = 'abandoned:unverified',\n       output = output || $3\n WHERE finished_at IS NULL\n   AND (run_id = $1 OR starts_with(run_id, $1 || '#'))\n   AND started_at < now() - make_interval(secs => $2)\nRETURNING id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.tree_checks",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Float8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "942c7301f8d5f6e08299d6962b0102245d5d748696f18773aadab0c80b928bcb"
+}

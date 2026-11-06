@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO requests.system_prompt_firing_rules\n                (request_system_prompt_id, filter_rule_id, ord)\n             SELECT rsp.id, u.rule_id, (u.ord - 1)::int\n               FROM UNNEST($2::bigint[]) WITH ORDINALITY AS u(rule_id, ord)\n               JOIN requests.system_prompts rsp ON rsp.request_id = $1\n             WHERE NOT EXISTS (\n                 SELECT 1 FROM requests.system_prompt_firing_rules f\n                 WHERE f.request_system_prompt_id = rsp.id\n                   AND f.ord = (u.ord - 1)::int\n             )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3c7a3114f5eb4cf3511078a1708a19025f288c52299c23bb010ccc7f24b4cac0"
+}

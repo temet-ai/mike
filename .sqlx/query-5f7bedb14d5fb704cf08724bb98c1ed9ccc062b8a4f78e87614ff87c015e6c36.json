@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE launch.launches\n   SET result             = $2,\n       reason             = $3,\n       opened             = opened OR $4,\n       delivered          = $5,\n       confirmed          = $6,\n       channel_check      = $7,\n       channel_checked_at = CASE WHEN $7::text IS NULL THEN channel_checked_at ELSE now() END,\n       stderr_text        = $8,\n       stderr_truncated   = $9\n WHERE id = $1\nRETURNING id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Bool",
+        "Bool",
+        "Bool",
+        "Text",
+        "Text",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5f7bedb14d5fb704cf08724bb98c1ed9ccc062b8a4f78e87614ff87c015e6c36"
+}

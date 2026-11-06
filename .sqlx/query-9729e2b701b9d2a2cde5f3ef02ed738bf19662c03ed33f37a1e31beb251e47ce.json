@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT identity AS \"identity!: Json<RuntimeThreadBinding>\"\n                 FROM runtime.threads WHERE namespace_id = $1 AND provider_thread_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "identity!: Json<RuntimeThreadBinding>",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "runtime.threads",
+            "name": "identity"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9729e2b701b9d2a2cde5f3ef02ed738bf19662c03ed33f37a1e31beb251e47ce"
+}

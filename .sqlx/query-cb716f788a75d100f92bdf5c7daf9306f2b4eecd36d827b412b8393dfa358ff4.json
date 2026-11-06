@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_sources SET last_heartbeat_at = now()\n             WHERE source_uuid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cb716f788a75d100f92bdf5c7daf9306f2b4eecd36d827b412b8393dfa358ff4"
+}

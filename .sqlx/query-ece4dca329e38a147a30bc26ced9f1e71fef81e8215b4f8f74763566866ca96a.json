@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workspace.coordination_events SET project_id = $2\n          WHERE session_id = $1 AND project_id IS DISTINCT FROM $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ece4dca329e38a147a30bc26ced9f1e71fef81e8215b4f8f74763566866ca96a"
+}

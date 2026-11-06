@@ -1,0 +1,10 @@
+{
+  "tagline": "Multi-session work threads kept in mike, readable from every machine",
+  "family": "mike",
+  "offers": {
+    "commands": ["/thread:list", "/thread:get", "/thread:new", "/thread:checkpoint", "/thread:depend", "/thread-board"],
+    "panes": ["Threads"],
+    "status": ["the thread this session is on and when it was last checkpointed"],
+    "acts": ["adds the project's open work threads to a session's first prompt", "suggests #thread slugs as you type"]
+  }
+}

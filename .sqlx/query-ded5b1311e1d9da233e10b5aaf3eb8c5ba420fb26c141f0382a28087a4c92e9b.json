@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(t.id, p.id) AS \"id!\", COALESCE(t.project_path, p.project_path) AS \"project_path!\"\n             FROM projects.projects p LEFT JOIN projects.projects t ON t.id = p.merged_into_id\n             WHERE p.project_uuid = $1 AND p.project_path <> $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "project_path!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "ded5b1311e1d9da233e10b5aaf3eb8c5ba420fb26c141f0382a28087a4c92e9b"
+}

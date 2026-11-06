@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.knowledge_documents(source_uuid, relative_path)\n             SELECT $1, x.relative_path FROM jsonb_to_recordset($2) AS x(relative_path text)\n             ON CONFLICT(source_uuid, relative_path) DO UPDATE SET deleted_at = NULL\n             WHERE memory.knowledge_documents.deleted_at IS NOT NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a1cf40f49f60262cdf612258e3d1d1898a0e69baa74cc1b10ff817f00050a4f1"
+}

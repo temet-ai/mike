@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lesson_maintenance_refusals AS r (pass, reason, cap)\n                   VALUES ($1, $2, $3)\n                   ON CONFLICT (pass) DO UPDATE\n                      SET reason = EXCLUDED.reason,\n                          cap = EXCLUDED.cap,\n                          refused_at = now(),\n                          logged_at = CASE WHEN r.logged_at <= now() - interval '1 hour'\n                                           THEN now() ELSE r.logged_at END\n                   RETURNING (r.logged_at = now()) AS \"logged!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "logged!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "8092fa8fa1ccfa4a3a798086b3183097bc8b1fcc02ebb2ad173c42be4d10db37"
+}

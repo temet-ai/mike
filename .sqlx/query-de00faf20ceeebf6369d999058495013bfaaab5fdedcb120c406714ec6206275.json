@@ -1,0 +1,73 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH stored AS (\n    SELECT DISTINCT ON (subject_kind, subject_key)\n           subject_kind, subject_key, new_value, redacted, changed_at, id, via\n      FROM config.change_log\n     WHERE changed_at <= $1\n       AND subject_kind IN ('setting', 'toggle', 'steerer')\n       AND subject_kind = ANY($2::text[])\n     ORDER BY subject_kind, subject_key, id DESC\n), build_at AS (\n    SELECT id, changed_at, via, new_value\n      FROM config.change_log\n     WHERE subject_kind = 'build' AND changed_at <= $1\n     ORDER BY id DESC\n     LIMIT 1\n), defaults AS (\n    SELECT 'setting'::text AS subject_kind, d.key AS subject_key, d.value\n      FROM build_at b, jsonb_each(b.new_value->'defaults'->'settings') d\n    UNION ALL\n    SELECT 'toggle'::text, d.key, d.value\n      FROM build_at b, jsonb_each(b.new_value->'defaults'->'toggles') d\n), joined AS (\n    SELECT subject_kind, subject_key,\n           s.new_value AS stored_value, s.redacted AS stored_redacted,\n           s.changed_at AS stored_at, s.id AS stored_id, s.via AS stored_via,\n           (s.subject_key IS NOT NULL) AS has_row,\n           d.value AS default_value\n      FROM stored s\n      FULL JOIN defaults d USING (subject_kind, subject_key)\n)\nSELECT j.subject_kind AS \"subject_kind!\", j.subject_key AS \"subject_key!\",\n       CASE WHEN j.stored_value IS NOT NULL OR j.subject_kind = 'steerer' THEN j.stored_value\n            ELSE j.default_value END AS \"value?\",\n       CASE WHEN j.stored_value IS NOT NULL THEN 'stored'\n            WHEN j.subject_kind = 'steerer' AND j.has_row THEN 'stored'\n            WHEN j.default_value IS NOT NULL THEN 'code_default'\n            ELSE 'unknown' END AS \"source!\",\n       COALESCE(j.stored_redacted AND j.stored_value IS NOT NULL, false) AS \"redacted!\",\n       CASE WHEN j.stored_value IS NULL AND j.default_value IS NOT NULL\n                 AND j.subject_kind <> 'steerer' THEN b.changed_at\n            ELSE j.stored_at END AS \"changed_at?\",\n       CASE WHEN j.stored_value IS NULL AND j.default_value IS NOT NULL\n                 AND j.subject_kind <> 'steerer' THEN b.id\n            ELSE j.stored_id END AS \"change_id?\",\n       CASE WHEN j.stored_value IS NULL AND j.default_value IS NOT NULL\n                 AND j.subject_kind <> 'steerer' THEN b.via\n            ELSE j.stored_via END AS \"via?\"\n  FROM joined j\n  LEFT JOIN build_at b ON true\n WHERE j.subject_kind = ANY($2::text[])\n ORDER BY j.subject_kind, j.subject_key\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "subject_kind!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "subject_key!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "value?",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "redacted!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "changed_at?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "change_id?",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "via?",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "de00faf20ceeebf6369d999058495013bfaaab5fdedcb120c406714ec6206275"
+}

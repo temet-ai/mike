@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM work.thread_acceptance_criteria WHERE thread_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f72ffbb6a6e550fb9c29b8350285df4d60a65ef0974f6e9d616244df40fb57b1"
+}

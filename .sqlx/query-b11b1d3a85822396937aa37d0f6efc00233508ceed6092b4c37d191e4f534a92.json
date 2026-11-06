@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.harvest_runs\n                    (project_id, session_id, request_id, tags_found,\n                     lessons_written, lessons_skipped, lessons_truncated)\n                 VALUES ($1, $2, $3, $4, $5, $6, $7)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b11b1d3a85822396937aa37d0f6efc00233508ceed6092b4c37d191e4f534a92"
+}

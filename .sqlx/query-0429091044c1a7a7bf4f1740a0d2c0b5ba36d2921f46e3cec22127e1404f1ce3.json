@@ -1,0 +1,42 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.folder AS \"folder!\", s.description AS \"description!\"\n                     FROM (SELECT DISTINCT ON (d.folder)\n                                  d.folder, d.description, d.status, d.created_at\n                             FROM memory.skill_drafts d\n                            WHERE d.project_id = $1\n                              AND d.folder <> $2\n                              AND d.status <> 'rejected'\n                            ORDER BY d.folder, d.lesson_watermark DESC) s\n                    ORDER BY (s.status = 'accepted') DESC, s.created_at DESC, s.folder\n                    LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "folder!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "folder"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "description!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.skill_drafts",
+            "name": "description"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "0429091044c1a7a7bf4f1740a0d2c0b5ba36d2921f46e3cec22127e1404f1ce3"
+}

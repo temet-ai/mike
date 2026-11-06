@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE steering.enrolments\n                    SET disenrolled_at = NOW()\n                  WHERE id              = $1\n                    AND disenrolled_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0d2d6176a350ea15b686f7f92d061e59bdfa99d446a5bc387bc7de7f4575c6bf"
+}

@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH newest AS (\n    SELECT n.id\n      FROM workspace.change_events n\n     WHERE n.checkout = $1\n     ORDER BY n.id DESC\n     LIMIT 3000\n), recent AS MATERIALIZED (\n    SELECT r.id, r.session_id, r.at, r.kind, r.paths\n      FROM workspace.change_events r\n     WHERE r.id = ANY(ARRAY(SELECT id FROM newest))\n       AND r.kind IN ('edit', 'shell_change', 'commit')\n), flat AS (\n    SELECT p.path, e.id, e.kind, e.session_id, e.at\n      FROM recent e\n      CROSS JOIN LATERAL unnest(e.paths) AS p(path)\n), marked AS (\n    SELECT f.path, f.id, f.kind, f.session_id, f.at,\n           max(f.id) FILTER (WHERE f.kind = 'commit') OVER (PARTITION BY f.path) AS last_commit,\n           row_number() OVER (PARTITION BY f.path, (f.kind = 'commit') ORDER BY f.id DESC) AS rank\n      FROM flat f\n)\nSELECT m.path AS \"path!\", m.session_id, m.at AS \"at!\"\n  FROM marked m\n WHERE m.kind <> 'commit'\n   AND m.rank = 1\n   AND (m.last_commit IS NULL OR m.id > m.last_commit)\n ORDER BY m.at DESC, m.path\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "path!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_events",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workspace.change_events",
+            "name": "at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      true,
+      false
+    ]
+  },
+  "hash": "e493ced8aeaa08d4a604a5b0421c91e2e6d2ce05209889a11ee644838d2e52d8"
+}

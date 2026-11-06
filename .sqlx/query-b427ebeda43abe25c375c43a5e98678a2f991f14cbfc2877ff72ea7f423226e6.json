@@ -1,0 +1,42 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.topic AS \"topic!\",\n                  (l.project_id IS NULL) AS \"shared!\",\n                  count(*) AS \"lesson_count!\"\n             FROM memory.lessons l\n            WHERE l.topic IS NOT NULL\n              AND l.archived_at IS NULL\n              AND l.stage_id IN (2, 3)\n              AND (l.expires_at IS NULL OR l.expires_at > now())\n              AND (l.project_id = $1 OR l.project_id IS NULL)\n            GROUP BY l.topic, (l.project_id IS NULL)\n            ORDER BY l.topic, 2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "topic!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "topic"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "shared!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "lesson_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      null,
+      null
+    ]
+  },
+  "hash": "b427ebeda43abe25c375c43a5e98678a2f991f14cbfc2877ff72ea7f423226e6"
+}

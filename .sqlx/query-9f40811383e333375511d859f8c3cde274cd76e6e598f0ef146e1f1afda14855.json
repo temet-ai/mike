@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT EXISTS (\n                       SELECT 1 FROM memory.lessons l\n                         JOIN memory.lesson_placements pl ON pl.id = l.placement_id\n                        WHERE l.id = $1 AND pl.code IN ('rule', 'agent')) AS \"found!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "found!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "9f40811383e333375511d859f8c3cde274cd76e6e598f0ef146e1f1afda14855"
+}

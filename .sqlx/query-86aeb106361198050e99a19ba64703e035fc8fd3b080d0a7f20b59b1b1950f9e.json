@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workspace.session_registrations\n                SET lease_expires_at = now() - INTERVAL '20 minutes'\n              WHERE session_id IN (\n                  SELECT id FROM sessions.sessions WHERE session_uuid = ANY($1)\n              )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "86aeb106361198050e99a19ba64703e035fc8fd3b080d0a7f20b59b1b1950f9e"
+}

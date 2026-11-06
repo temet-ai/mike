@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT s.session_uuid AS \"session_uuid!\"\n                     FROM (\n                         SELECT from_session_id AS session_id FROM mailbox.messages\n                          WHERE thread_id = $1 AND from_session_id IS NOT NULL\n                         UNION\n                         SELECT to_session_id AS session_id FROM mailbox.messages\n                          WHERE thread_id = $1 AND to_session_id IS NOT NULL\n                         UNION\n                         SELECT created_by_session_id AS session_id FROM mailbox.threads\n                          WHERE id = $1 AND created_by_session_id IS NOT NULL\n                     ) ids\n                     JOIN sessions.sessions s ON s.id = ids.session_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "821c8f6f742d6ab569c490266a16bf637c866954126f6e1c72628f2447ed031a"
+}

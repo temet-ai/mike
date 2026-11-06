@@ -1,0 +1,1 @@
+SELECT l.id, k.code AS kind, l.text, t.user_prompt FROM memory.lessons l JOIN memory.lesson_kinds k ON k.id = l.kind_id LEFT JOIN memory.operator_turns t ON t.id = l.source_turn_id WHERE l.id = ANY(ARRAY[330,331,390,416,417,435,436,439,442,454,461,476,484,602,632]::bigint[]) ORDER BY l.id

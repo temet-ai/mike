@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.knowledge_embedding_chunks(state_id, ordinal, body, embedding)\n             SELECT $1, x.ordinal, x.body, x.embedding::public.vector\n               FROM jsonb_to_recordset($2) x(ordinal integer, body text, embedding text)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0636ad996269564c649b8fd87f6100eeb259e6b28d70b932f3db869421557f09"
+}

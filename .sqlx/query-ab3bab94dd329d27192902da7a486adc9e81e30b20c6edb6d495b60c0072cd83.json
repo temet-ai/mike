@@ -1,0 +1,82 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH base AS (\n                    SELECT\n                        r.id AS request_id,\n                        sess.session_uuid::text AS session_id,\n                        r.created_at,\n                        rsp.id AS system_prompt_id,\n                        NULL::text AS prompt_sha256,\n                        'structural-mismatch'::text AS classification,\n                        rsp.unknown_blocks\n                    FROM requests.requests r\n                    JOIN sessions.sessions sess\n                        ON sess.id = r.session_id\n                    JOIN requests.system_prompts rsp\n                        ON rsp.request_id = r.id\n                    WHERE rsp.unknown_blocks IS NOT NULL\n                      AND r.created_at >= COALESCE($1::timestamptz, NOW() - INTERVAL '7 days')\n                      AND r.created_at < COALESCE($2::timestamptz, NOW())\n                      AND NOT EXISTS (\n                          SELECT 1 FROM requests.system_prompt_firing_rules j\n                          JOIN rules.rules fr ON fr.id = j.filter_rule_id\n                          JOIN overrides.overrides pc ON pc.filter_rule_id = fr.id\n                          JOIN overrides.sources src ON src.id = pc.source_id AND src.code = 'filter'\n                          WHERE j.request_system_prompt_id = rsp.id\n                      )\n                    UNION ALL\n                    SELECT\n                        r.id AS request_id,\n                        sess.session_uuid::text AS session_id,\n                        r.created_at,\n                        rsp.id AS system_prompt_id,\n                        rsp.prompt_sha256 AS prompt_sha256,\n                        'unknown-class'::text AS classification,\n                        NULL::jsonb AS unknown_blocks\n                    FROM requests.requests r\n                    JOIN sessions.sessions sess\n                        ON sess.id = r.session_id\n                    JOIN requests.system_prompts rsp\n                        ON rsp.request_id = r.id\n                    WHERE rsp.prompt_sha256 IS NOT NULL\n                      AND r.created_at >= COALESCE($1::timestamptz, NOW() - INTERVAL '7 days')\n                      AND r.created_at < COALESCE($2::timestamptz, NOW())\n                      AND NOT EXISTS (\n                          SELECT 1 FROM overrides.overrides pc\n                          JOIN overrides.sources src ON src.id = pc.source_id AND src.code = 'manual'\n                          WHERE pc.prompt_sha256 = rsp.prompt_sha256\n                      )\n                ),\n                firing AS (\n                    -- firing_rule_ids: uuid[]::text[] so the API returns the\n                    -- stable rule uuid, not the bigint surrogate key.\n                    SELECT\n                        b.classification,\n                        b.prompt_sha256,\n                        b.unknown_blocks,\n                        ARRAY_AGG(DISTINCT fr.uuid::text) AS firing_rule_ids\n                    FROM base b\n                    JOIN requests.system_prompt_firing_rules j\n                        ON j.request_system_prompt_id = b.system_prompt_id\n                    JOIN rules.rules fr ON fr.id = j.filter_rule_id\n                    GROUP BY b.classification, b.prompt_sha256, b.unknown_blocks\n                ),\n                grouped AS (\n                    -- One jsonb object per occurrence, ordered newest-first,\n                    -- so request_id and session_id stay paired -- two\n                    -- independently-aggregated arrays (a plain ARRAY_AGG next\n                    -- to an ARRAY_AGG DISTINCT) let a caller zip the wrong\n                    -- session onto a request once either array's order or\n                    -- cardinality diverged from the other.\n                    SELECT\n                        b.classification,\n                        b.prompt_sha256,\n                        b.unknown_blocks,\n                        COUNT(*)::bigint AS occurrence_count,\n                        MIN(b.created_at) AS first_seen,\n                        MAX(b.created_at) AS last_seen,\n                        jsonb_agg(\n                            jsonb_build_object('request_id', b.request_id, 'session_id', b.session_id)\n                            ORDER BY b.created_at DESC\n                        ) AS observations\n                    FROM base b\n                    GROUP BY b.classification, b.prompt_sha256, b.unknown_blocks\n                )\n                SELECT\n                    g.classification,\n                    g.prompt_sha256,\n                    g.unknown_blocks,\n                    COALESCE(sp.blocks->2->>'text', '') AS block_text,\n                    g.occurrence_count,\n                    g.first_seen,\n                    g.last_seen,\n                    g.observations AS \"observations!: sqlx::types::Json<Vec<AnomalyObservation>>\",\n                    COALESCE(f.firing_rule_ids, '{}'::text[]) AS group_firing_rule_ids\n                FROM grouped g\n                LEFT JOIN firing f\n                    ON f.classification = g.classification\n                   AND f.prompt_sha256 IS NOT DISTINCT FROM g.prompt_sha256\n                   AND f.unknown_blocks IS NOT DISTINCT FROM g.unknown_blocks\n                LEFT JOIN system_prompts.system_prompts sp\n                    ON sp.prompt_sha256 = g.prompt_sha256\n                ORDER BY g.last_seen DESC\n                LIMIT $3 OFFSET $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "classification",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "prompt_sha256",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "unknown_blocks",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "block_text",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "occurrence_count",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "first_seen",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "last_seen",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "observations!: sqlx::types::Json<Vec<AnomalyObservation>>",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "group_firing_rule_ids",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "ab3bab94dd329d27192902da7a486adc9e81e30b20c6edb6d495b60c0072cd83"
+}

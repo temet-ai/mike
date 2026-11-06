@@ -1,0 +1,45 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH open_promises AS (\n        SELECT d.id, d.session_id, d.operator_turn_id, d.effective_at, d.data,\n               COALESCE(NULLIF(d.data->'backing', 'null'::jsonb), '[]'::jsonb) AS backing_list\n          FROM memory.dossier_entries d\n         WHERE d.kind = 'promise' AND d.status = 'open' AND d.session_id = ANY($1)\n    ), backing AS (\n        SELECT p.id AS entry_id, (b->>'work_item_id')::bigint AS work_item_id, b->>'task_id' AS task_id\n          FROM open_promises p, jsonb_array_elements(p.backing_list) b\n    ), attention_broken AS (\n        SELECT DISTINCT ON (p.id) p.id, 'broken'::text AS status, a.first_seen_at AS event_at,\n               'agents.work_item_attention:' || a.id AS closed_by\n          FROM open_promises p\n          JOIN agents.work_item_attention a\n            ON a.session_id = p.session_id\n           AND a.first_seen_at >= p.effective_at\n           AND a.kind IN ('stalled_wait', 'result_lost', 'agent_silent', 'landed_polling')\n          JOIN backing bk ON bk.entry_id = p.id AND bk.task_id = split_part(a.subject, '@', 1)\n         ORDER BY p.id, a.first_seen_at, a.id\n    ), idle_broken AS (\n        SELECT DISTINCT ON (p.id) p.id, 'broken'::text AS status, a.first_seen_at AS event_at,\n               'agents.work_item_attention:' || a.id AS closed_by\n          FROM open_promises p\n          JOIN agents.work_item_attention a\n            ON a.session_id = p.session_id\n           AND a.kind = 'main_idle_with_open_work'\n           AND a.first_seen_at > p.effective_at\n          JOIN backing bk ON bk.entry_id = p.id\n          JOIN agents.work_items w\n            ON w.id = bk.work_item_id\n           AND (w.finished_at IS NULL OR w.finished_at > a.first_seen_at)\n         ORDER BY p.id, a.first_seen_at, a.id\n    ), failed_broken AS (\n        SELECT DISTINCT ON (p.id) p.id, 'broken'::text AS status, w.finished_at AS event_at,\n               'agents.work_items:' || w.id AS closed_by\n          FROM open_promises p\n          JOIN backing bk ON bk.entry_id = p.id\n          JOIN agents.work_items w\n            ON w.id = bk.work_item_id\n           AND w.state IN ('failed', 'killed')\n           AND w.finished_at IS NOT NULL\n         ORDER BY p.id, w.finished_at, w.id\n    ), unbacked_broken AS (\n        SELECT p.id, 'broken'::text AS status, s.last_seen AS event_at,\n               'memory.operator_turns:' || p.operator_turn_id AS closed_by\n          FROM open_promises p\n          JOIN sessions.sessions s ON s.id = p.session_id\n         WHERE (p.data->>'registry_coverage')::boolean IS TRUE\n           AND jsonb_array_length(p.backing_list) = 0\n           AND p.operator_turn_id IS NOT NULL\n           AND s.last_seen < now() - make_interval(mins => $2::bigint::int)\n           AND NOT EXISTS (\n               SELECT 1 FROM requests.requests r\n                 JOIN requests.turn_origins o ON o.id = r.turn_origin_id\n                                            AND o.code IN ('primary', 'primary_first')\n                WHERE r.session_id = p.session_id AND r.created_at > p.effective_at)\n           AND NOT EXISTS (\n               SELECT 1 FROM tools.uses tu\n                WHERE tu.session_id = p.session_id\n                  AND tu.tool_name IN ('Monitor', 'ScheduleWakeup', 'CronCreate')\n                  AND tu.created_at BETWEEN p.effective_at - interval '24 hours' AND p.effective_at)\n    ), kept_ready AS (\n        SELECT bk.entry_id, max(w.finished_at) AS last_finished\n          FROM backing bk\n          JOIN agents.work_items w ON w.id = bk.work_item_id\n         GROUP BY bk.entry_id\n        HAVING bool_and(w.state = 'completed' AND w.finished_at IS NOT NULL)\n    ), kept AS (\n        SELECT DISTINCT ON (p.id) p.id, 'kept'::text AS status, r.created_at AS event_at,\n               'requests.requests:' || r.id AS closed_by\n          FROM open_promises p\n          JOIN kept_ready k ON k.entry_id = p.id\n          JOIN requests.requests r ON r.session_id = p.session_id AND r.created_at >= k.last_finished\n          JOIN requests.turn_origins o ON o.id = r.turn_origin_id\n                                     AND o.code IN ('primary', 'primary_first')\n         WHERE EXISTS (\n               SELECT 1 FROM responses.stream_blocks sb\n                 JOIN responses.stream_block_types bt ON bt.id = sb.block_type_id AND bt.code = 'text'\n                WHERE sb.request_id = r.id)\n         ORDER BY p.id, r.created_at, r.id\n    ), superseded AS (\n        SELECT DISTINCT ON (p.id) p.id, 'superseded'::text AS status, r.created_at AS event_at,\n               'requests.requests:' || r.id AS closed_by\n          FROM open_promises p\n          JOIN prompt_kinds.classifications c ON c.session_id = p.session_id\n          JOIN prompt_kinds.kinds k ON k.id = c.kind_id AND k.code = 'operator'\n          JOIN requests.requests r ON r.id = c.request_id AND r.created_at > p.effective_at\n         ORDER BY p.id, r.created_at, r.id\n    ), events AS (\n        SELECT * FROM attention_broken\n        UNION ALL SELECT * FROM idle_broken\n        UNION ALL SELECT * FROM failed_broken\n        UNION ALL SELECT * FROM unbacked_broken\n        UNION ALL SELECT * FROM kept\n        UNION ALL SELECT * FROM superseded\n    )\n    SELECT DISTINCT ON (id) id AS \"id!\", status AS \"status!\", event_at AS \"closed_at!\",\n           closed_by AS \"closed_by!\"\n      FROM events\n     WHERE event_at IS NOT NULL\n     ORDER BY id, event_at, closed_by\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "status!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "closed_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "closed_by!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "47147b1f7dea2b635d95deaa8aaaf4f38d99f78568a1d71667bbb20d2df2bee1"
+}

@@ -1,0 +1,97 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT pc.id AS candidate_id, m.item_id AS \"item_id!\", m.ord AS \"ord!\", i.text, i.session_id,\n       i.operator_turn_id, i.effective_at,\n       (1 - (i.embedding <=> md.embedding))::float8 AS similarity_to_medoid\n  FROM memory.pattern_candidates pc\n  CROSS JOIN LATERAL unnest(pc.member_item_ids) WITH ORDINALITY AS m(item_id, ord)\n  LEFT JOIN memory.semantic_items i ON i.id = m.item_id\n  LEFT JOIN memory.semantic_items md ON md.id = pc.medoid_item_id\n WHERE pc.id = ANY($1)\n ORDER BY pc.id, m.ord\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "candidate_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.pattern_candidates",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "item_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "ord!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "operator_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "effective_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "effective_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "similarity_to_medoid",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      false,
+      true,
+      true,
+      false,
+      null
+    ]
+  },
+  "hash": "c4ae53be8c2734162ff3011430cc66b853e65e25a653f016f4e03a82b74803c9"
+}

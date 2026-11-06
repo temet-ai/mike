@@ -1,0 +1,83 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT n.note_uuid AS \"note_uuid!\", s.session_uuid AS \"author!\", n.title AS \"title!\",\n       n.body AS \"body!\", n.tags AS \"tags!\", (n.data ->> 'version')::bigint AS version\n  FROM workspace.session_notes n\n  JOIN sessions.sessions s ON s.id = n.session_id\n WHERE n.note_uuid = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "note_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_notes",
+            "name": "note_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "author!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "title!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_notes",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "body!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_notes",
+            "name": "body"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "tags!",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_notes",
+            "name": "tags"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "version",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "61444fa2e0f32185d6184a873390b00ef9230bff041a4e40e2507a229b9202bc"
+}

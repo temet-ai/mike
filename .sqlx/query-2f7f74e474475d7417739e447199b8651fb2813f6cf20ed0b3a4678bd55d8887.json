@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH stale AS (\n                     SELECT t.id\n                       FROM memory.operator_turns t\n                       JOIN sessions.sessions s ON s.id = t.session_id\n                      WHERE t.closed_at IS NULL\n                        AND s.last_seen < $2::timestamptz - $1::interval\n                      FOR UPDATE OF t SKIP LOCKED\n                 )\n                 UPDATE memory.operator_turns t\n                    SET closed_at     = NOW(),\n                        classified_at = NOW()\n                   FROM stale\n                  WHERE t.id = stale.id\n                  RETURNING t.id AS \"id!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Interval",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "2f7f74e474475d7417739e447199b8651fb2813f6cf20ed0b3a4678bd55d8887"
+}

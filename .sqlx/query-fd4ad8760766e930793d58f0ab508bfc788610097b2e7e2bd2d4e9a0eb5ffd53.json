@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.ask_ledger_entries\n        (session_id, operator_turn_id, request_id, kind, kind_source, keyword_kind, content, created_at)\n SELECT x.session_id, x.operator_turn_id, x.request_id, x.kind, 'keyword', x.kind, x.content, x.created_at\n   FROM jsonb_to_recordset($1::jsonb) AS x(\n        session_id bigint, operator_turn_id bigint, request_id bigint,\n        kind text, content text, created_at timestamptz)\n ON CONFLICT (request_id) WHERE request_id IS NOT NULL DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fd4ad8760766e930793d58f0ab508bfc788610097b2e7e2bd2d4e9a0eb5ffd53"
+}

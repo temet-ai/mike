@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.semantic_embedders\n                    SET copy_valid_from = $2, copy_verify = $3\n                  WHERE id = $1 AND status = 'current'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4470e3be8ac6fc5752aea750c3110d1a37578c6a91abb38417a1549b01683c6d"
+}

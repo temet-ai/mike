@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lesson_proposal_evidence\n            SET lesson_id = $2\n          WHERE lesson_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d24845e2a357200ecbd4442b8ade4455212ce56de8f9f16870fedcbff1beeb43"
+}

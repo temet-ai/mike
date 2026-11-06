@@ -1,0 +1,83 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH topics AS (\n                       SELECT l.project_id, l.topic,\n                              CASE WHEN count(DISTINCT l.agent_id) = 1\n                                        AND bool_and(l.agent_id IS NOT NULL)\n                                   THEN min(l.agent_id) END AS agent_id,\n                              max(l.id) AS watermark, count(*) AS lesson_count\n                         FROM memory.lessons l\n                         JOIN memory.lesson_stages ls\n                           ON ls.id = l.stage_id AND ls.code IN ('daily', 'long_term')\n                         LEFT JOIN memory.lesson_placements lp ON lp.id = l.placement_id\n                        WHERE l.archived_at IS NULL\n                          AND (l.placement_id IS NULL OR lp.code = 'skill')\n                          AND l.topic IS NOT NULL\n                          AND l.topic NOT LIKE 'shared:%'\n                          AND l.topic NOT LIKE 'verifier:%'\n                          AND l.project_id IS NOT NULL\n                        GROUP BY l.project_id, l.topic\n                       HAVING count(*) >= 2),\n                   named AS (\n                       SELECT t.project_id, p.project_path, t.topic, t.agent_id,\n                              a.name AS agent_name, t.watermark, t.lesson_count,\n                              CASE WHEN a.name IS NULL THEN t.topic\n                                   ELSE t.topic || '-' || a.name END AS folder\n                         FROM topics t\n                         JOIN projects.projects p ON p.id = t.project_id\n                         LEFT JOIN agents.agents a ON a.id = t.agent_id\n                        WHERE p.project_path <> '(no project)'),\n                   drafted AS (\n                       SELECT d.project_id, d.folder, d.lesson_watermark,\n                              count(*) AS revisions,\n                              bool_or(d.status <> 'rejected'\n                                      OR COALESCE(d.eval #>> '{review,decision}'\n                                                  IN ('nothing_to_save', 'wrong_place'), false)) AS held\n                         FROM memory.skill_drafts d\n                        GROUP BY d.project_id, d.folder, d.lesson_watermark)\n                   SELECT n.project_id AS \"project_id!\", n.project_path AS \"project_path!\",\n                          n.topic AS \"topic!\", n.agent_id, n.agent_name AS \"agent_name?\",\n                          n.folder AS \"folder!\", n.watermark AS \"watermark!\"\n                     FROM named n\n                    WHERE NOT EXISTS (\n                          SELECT 1 FROM drafted dr\n                           WHERE dr.project_id = n.project_id\n                             AND dr.folder = n.folder\n                             AND dr.lesson_watermark >= n.watermark\n                             AND (dr.held OR dr.revisions >= 3))\n                      AND NOT EXISTS (\n                          SELECT 1 FROM memory.skill_draft_failures f\n                           WHERE f.project_id = n.project_id\n                             AND f.folder = n.folder\n                             AND f.lesson_watermark >= n.watermark\n                             AND (f.attempts >= 3\n                                  OR f.last_failed_at > now() - interval '1 hour' * (2 ^ f.attempts)))\n                    ORDER BY n.lesson_count DESC, n.watermark DESC\n                    LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_path!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "topic!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "topic"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "agent_id",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "agent_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "folder!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "watermark!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true,
+      false,
+      true,
+      null,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "4fa81384792b8e959cdb2370ae63d56509db2ade3f67b40ad767e9e7cec54c74"
+}

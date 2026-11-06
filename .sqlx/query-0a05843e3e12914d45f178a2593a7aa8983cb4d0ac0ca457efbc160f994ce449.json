@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.at AS \"at!\", q.subject AS \"subject!\", q.detail AS \"detail!\", q.fires AS \"fires!\"\n  FROM unnest($4::timestamptz[]) AS s(at)\n CROSS JOIN LATERAL (\n    WITH c AS (\n        SELECT role, outcome, cost_usd, created_at FROM llm.calls\n         WHERE created_at >= s.at - interval '24 hours' AND created_at < s.at\n    ),\n    agg AS (\n        SELECT role, count(*) AS attempts,\n               count(*) FILTER (WHERE outcome = 'ok') AS ok,\n               count(*) FILTER (WHERE outcome = 'refused_ceiling') AS refused_ceiling,\n               count(*) FILTER (WHERE outcome = 'refused_rate') AS refused_rate,\n               count(*) FILTER (WHERE outcome = 'refused_spend') AS refused_spend,\n               count(*) FILTER (WHERE outcome IN ('refused_ceiling', 'refused_rate', 'refused_spend')) AS refused,\n               coalesce(sum(cost_usd) FILTER (WHERE created_at >= date_trunc('day', s.at)), 0) AS spend_today\n          FROM c GROUP BY role\n    ),\n    cfg AS (\n        SELECT coalesce(jsonb_object_agg(key, value), '{}'::jsonb) AS settings\n          FROM config.settings WHERE key = ANY($3::text[])\n    )\n    SELECT 'role:' || agg.role AS subject,\n           jsonb_build_object('attempts', agg.attempts, 'ok', agg.ok,\n                              'refused_ceiling', agg.refused_ceiling, 'refused_rate', agg.refused_rate,\n                              'refused_spend', agg.refused_spend, 'refused', agg.refused,\n                              'spend_today_usd', agg.spend_today, 'settings', cfg.settings) AS detail,\n           agg.refused >= $1::bigint AND agg.refused >= $2::float8 * agg.attempts AS fires\n      FROM agg CROSS JOIN cfg\n     ORDER BY agg.role\n ) q\n ORDER BY s.at, q.subject\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "subject!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "detail!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "fires!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Float8",
+        "TextArray",
+        "TimestamptzArray"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "0a05843e3e12914d45f178a2593a7aa8983cb4d0ac0ca457efbc160f994ce449"
+}

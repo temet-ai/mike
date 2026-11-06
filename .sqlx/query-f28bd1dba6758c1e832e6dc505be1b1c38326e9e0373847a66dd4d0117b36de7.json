@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH c AS (\n                       SELECT outcome, count(*) AS n FROM llm.calls\n                        WHERE role = 'judge_worker' AND created_at >= now() - make_interval(hours => $1)\n                        GROUP BY outcome\n                   )\n                   SELECT coalesce(jsonb_object_agg(outcome, n), '{}'::jsonb) AS \"outcomes!\" FROM c",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "outcomes!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "f28bd1dba6758c1e832e6dc505be1b1c38326e9e0373847a66dd4d0117b36de7"
+}

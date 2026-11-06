@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH dirs AS (\n    SELECT e.id AS entry_id, e.session_id, e.operator_turn_id, e.effective_at,\n           e.data ->> 'class' AS class, e.data ->> 'polarity' AS polarity, e.data -> 'span' AS span,\n           split_part(e.source_ref, ':', 2)::bigint AS request_id,\n           CASE WHEN s.project_resolution = 'unresolved' THEN 'no_project' ELSE 'project' END AS scope,\n           s.project_id\n      FROM memory.dossier_entries e\n      JOIN sessions.sessions s ON s.id = e.session_id\n      JOIN memory.turn_facts tf ON tf.operator_turn_id = e.operator_turn_id\n                               AND tf.session_class = 'operator'\n     WHERE e.kind = 'directive'\n       AND e.source = 'capture'\n       AND e.data ->> 'class' IN ('commit', 'push', 'merge', 'deploy', 'pr', 'proceed', 'ask_first')\n       AND e.data ->> 'polarity' IN ('allow', 'forbid')\n       AND e.source_ref LIKE 'requests.requests:%'\n       AND e.effective_at >= now() - make_interval(days => $1)\n),\ncorrecting AS (\n    SELECT DISTINCT d.entry_id\n      FROM dirs d\n      JOIN memory.turn_facts f ON f.next_genuine_request_id = d.request_id\n      JOIN memory.turn_verdicts v ON v.operator_turn_id = f.operator_turn_id\n                                 AND v.mode = 'live' AND v.reaction = 'corrected'\n),\nkeys AS (\n    SELECT d.scope, d.project_id, d.class, d.polarity,\n           count(*) AS evidence_count, count(DISTINCT d.session_id) AS session_count,\n           min(d.effective_at) AS first_at, max(d.effective_at) AS last_at\n      FROM dirs d\n      LEFT JOIN correcting c ON c.entry_id = d.entry_id\n     GROUP BY d.scope, d.project_id, d.class, d.polarity\n    HAVING count(DISTINCT d.session_id) >= $2 AND bool_or(c.entry_id IS NOT NULL)\n),\nlatest AS (\n    SELECT DISTINCT ON (d.scope, d.project_id, d.class, d.polarity)\n           d.scope, d.project_id, d.class, d.polarity, d.operator_turn_id\n      FROM dirs d\n     ORDER BY d.scope, d.project_id, d.class, d.polarity, d.effective_at DESC, d.entry_id DESC\n),\nopen_count AS (\n    SELECT count(*) AS n FROM memory.directive_proposals WHERE status = 'open'\n),\ncandidates AS (\n    SELECT k.*, t.user_prompt AS proposed_text,\n           row_number() OVER (ORDER BY k.evidence_count DESC, k.last_at DESC) AS rk\n      FROM keys k\n      JOIN latest l ON l.scope = k.scope AND l.project_id IS NOT DISTINCT FROM k.project_id\n                   AND l.class = k.class AND l.polarity = k.polarity\n      JOIN memory.operator_turns t ON t.id = l.operator_turn_id\n     WHERE NOT EXISTS (\n               SELECT 1 FROM memory.directive_proposals p\n                WHERE p.status = 'open' AND p.source = 'repeated_directive' AND p.scope = k.scope\n                  AND p.project_id IS NOT DISTINCT FROM k.project_id AND p.class = k.class\n                  AND p.polarity = k.polarity)\n       AND NOT EXISTS (\n               SELECT 1 FROM memory.directive_proposals p\n                WHERE p.status = 'rejected' AND p.source = 'repeated_directive' AND p.scope = k.scope\n                  AND p.project_id IS NOT DISTINCT FROM k.project_id AND p.class = k.class\n                  AND p.polarity = k.polarity\n                  AND p.decided_at > now() - make_interval(days => $5)\n                  AND k.evidence_count < 2 * p.evidence_count)\n),\nins AS (\n    INSERT INTO memory.directive_proposals\n        (source, scope, project_id, class, polarity, proposed_kind, proposed_text, evidence_count,\n         session_count, first_evidence_at, last_evidence_at, window_days, rollup_id, proposer_version)\n    SELECT 'repeated_directive', c.scope, c.project_id, c.class, c.polarity, 'preference',\n           COALESCE(c.proposed_text, ''), c.evidence_count, c.session_count, c.first_at, c.last_at,\n           $1, $3, $4\n      FROM candidates c\n      CROSS JOIN open_count oc\n     WHERE c.rk <= LEAST($6::bigint, GREATEST($7::bigint - oc.n, 0))\n    RETURNING id, scope, project_id, class, polarity\n)\nINSERT INTO memory.directive_proposal_evidence\n    (proposal_id, kind, ref_id, operator_turn_id, session_id, observed_at, detail)\nSELECT i.id, 'dossier_entry', d.entry_id, d.operator_turn_id, d.session_id, d.effective_at,\n       jsonb_build_object('class', d.class, 'polarity', d.polarity, 'span', d.span, 'request_id', d.request_id)\n  FROM ins i\n  JOIN dirs d ON d.scope = i.scope AND d.project_id IS NOT DISTINCT FROM i.project_id\n             AND d.class = i.class AND d.polarity = i.polarity\nRETURNING proposal_id AS \"proposal_id!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "proposal_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposal_evidence",
+            "name": "proposal_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8",
+        "Int8",
+        "Text",
+        "Int4",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "20e8cff15fe8a48cc5fe061cdb8235ca73a9d57cb9314b204f80a43b53549727"
+}

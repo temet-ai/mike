@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT l.subject_id AS \"subject_id!\", t.closed_at AS \"closed_at!\"\n                     FROM eval.labels_as_of('infinity'::timestamptz) l\n                     JOIN memory.operator_turns t ON t.id = l.subject_id\n                    WHERE l.subject_kind = 'turn' AND l.source = 'fleet_mirror/ground_truth'\n                      AND l.split = 'dev' AND t.closed_at >= $2 AND t.closed_at < $3\n                      AND EXISTS (\n                          SELECT 1 FROM memory.semantic_items i\n                           WHERE i.operator_turn_id = l.subject_id AND i.embedder_key = $1\n                             AND i.kind IN ('turn_prompt', 'turn_ending'))\n                    ORDER BY l.subject_id\n                    LIMIT $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "subject_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "closed_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "closed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      true
+    ]
+  },
+  "hash": "5acff67b874037f0267dd3afe04cebd2101735464038c44bd63be53c9347b736"
+}

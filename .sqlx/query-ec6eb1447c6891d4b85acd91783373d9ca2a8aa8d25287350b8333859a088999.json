@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT jsonb_build_object(\n                      'outcome', o.code, 'judge_model', t.judge_model,\n                      'rubric_version', t.judge_rubric_version,\n                      'bundle_id', t.outcome_bundle_id, 'classified_at', t.classified_at,\n                      'rationale', t.rationale) AS \"snapshot!\"\n                 FROM memory.operator_turns t JOIN memory.turn_outcomes o ON o.id = t.outcome_id\n                WHERE t.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "snapshot!",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "ec6eb1447c6891d4b85acd91783373d9ca2a8aa8d25287350b8333859a088999"
+}

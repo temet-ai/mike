@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH seats AS (\n    SELECT DISTINCT ON (s.id) l.seat, s.id AS sid, l.created_at AS launched_at,\n           CASE WHEN l.seat LIKE 'coordinator%' THEN 'coordinator'\n                WHEN l.seat LIKE 'observer%' THEN 'observer'\n                WHEN l.seat LIKE 'acceptance%' THEN 'acceptance'\n                WHEN l.seat LIKE 'template-%' THEN 'template'\n                WHEN l.seat = 'reference' THEN 'reference'\n                ELSE 'worker' END AS kind\n      FROM launch.launches l\n      JOIN sessions.sessions s ON s.session_uuid = l.session_uuid\n     WHERE l.run_id = $1 AND l.seat IS NOT NULL AND l.seat <> 'status'\n     ORDER BY s.id, l.created_at, l.id\n),\nsince AS (SELECT min(launched_at) AS at FROM seats),\nreports AS (\n    SELECT m.id, m.queued_at, m.from_session_id AS worker\n      FROM since\n      JOIN mailbox.messages m ON m.queued_at >= since.at\n      JOIN seats w ON w.sid = m.from_session_id AND w.kind = 'worker'\n      JOIN seats a ON a.sid = m.to_session_id AND a.kind = 'acceptance'\n     WHERE m.body ~* '(slice|final report|last slice|rework)'\n       AND m.body !~* '^\\s*(\\[mike|gate (notice|result)|mike gate)'\n),\nanswers AS (\n    SELECT r.id, min(m.queued_at) AS answered_at\n      FROM reports r\n      JOIN mailbox.messages m ON m.to_session_id = r.worker AND m.queued_at > r.queued_at\n      JOIN seats a ON a.sid = m.from_session_id AND a.kind = 'acceptance'\n     GROUP BY r.id\n)\nSELECT count(*) AS \"reports!\",\n       count(a.answered_at) AS \"answered!\",\n       round((percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM a.answered_at - r.queued_at)) / 60)::numeric, 1)::float8 AS median_minutes,\n       round((max(extract(epoch FROM a.answered_at - r.queued_at)) / 60)::numeric, 1)::float8 AS longest_minutes\n  FROM reports r LEFT JOIN answers a ON a.id = r.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "reports!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "answered!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "median_minutes",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "longest_minutes",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "a8f92c9a779ca66795664130a0e68cb3910cab5a68103e0fddcc1f9678646831"
+}

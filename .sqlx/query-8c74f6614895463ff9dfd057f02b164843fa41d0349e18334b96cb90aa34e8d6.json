@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH attempt AS (\n    UPDATE remote_control.injections\n       SET emitted_at = CASE WHEN $2 THEN COALESCE(emitted_at, now()) ELSE emitted_at END,\n           failed_at = CASE WHEN NOT $2 THEN COALESCE(failed_at, now()) ELSE failed_at END\n     WHERE event_id = $1\n    RETURNING message_uuid\n)\nUPDATE mailbox.messages m\n   SET claimed_at = CASE WHEN $2 THEN m.claimed_at ELSE NULL END,\n       sent_at = CASE WHEN $2 THEN COALESCE(m.sent_at, now()) ELSE m.sent_at END,\n       delivery_attempts = CASE WHEN $2 THEN GREATEST(m.delivery_attempts, 1)\n                               ELSE m.delivery_attempts END,\n       next_retry_at = CASE WHEN $2 THEN now() + interval '30 seconds' ELSE m.next_retry_at END\n  FROM attempt a\n WHERE m.message_uuid = a.message_uuid\n   AND m.consumed_at IS NULL AND m.dead_lettered_at IS NULL\n   AND m.sent_request_id IS NULL\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8c74f6614895463ff9dfd057f02b164843fa41d0349e18334b96cb90aa34e8d6"
+}

@@ -1,0 +1,9 @@
+SELECT rsp.request_id, r.request_body
+   FROM requests.system_prompts rsp
+   JOIN requests.requests r ON r.id = rsp.request_id
+  WHERE rsp.prompt_sha256 IS NULL
+    AND rsp.system_prompt_id IS NULL
+    AND rsp.unknown_blocks IS NULL
+    AND r.request_body IS NOT NULL
+  ORDER BY rsp.request_id ASC
+  LIMIT 500

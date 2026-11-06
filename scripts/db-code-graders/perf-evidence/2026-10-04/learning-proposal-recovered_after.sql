@@ -1,0 +1,1 @@
+UPDATE memory.lesson_proposal_recovery SET recovery_state = 'reproposed' WHERE verdict_id = 3013

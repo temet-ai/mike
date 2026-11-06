@@ -1,0 +1,1 @@
+SELECT t.slug, c.criteria_text FROM work.threads t JOIN work.thread_acceptance_criteria c ON c.thread_id = t.id WHERE t.project_id = (SELECT project_id FROM sessions.sessions WHERE id = 1984676) AND btrim(COALESCE(c.criteria_text, '')) <> '' ORDER BY t.updated_at DESC, t.slug

@@ -1,0 +1,1 @@
+SELECT key,value,updated_at FROM config.settings WHERE key='embedding.enabled'

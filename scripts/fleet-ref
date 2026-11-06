@@ -1,0 +1,299 @@
+#!/usr/bin/env bash
+# Reference fleets: a definition, a repository state and a known answer, run through the
+# inspect API and scored by the run record (artifacts measurement-plan.md).
+#
+#   scripts/fleet-ref prepare [node|rust] [--variant red-baseline] [--dir D]
+#       Copy the fixture to a temporary directory with a bare origin beside it, and put the
+#       known answers on a branch of a separate repository the fleet cannot see.
+#   scripts/fleet-ref run <name> [--drill] [--variant V] [--dir D]
+#       Prepare, define the fleet, and (without --drill) mark it ready, start it and wait for
+#       done, then print the record. --drill defines it, never starts it, and prints what the
+#       definition is missing and how many seats it would start.
+#   scripts/fleet-ref record <slug>
+#       Print the four numbers of a run.
+#
+# Environment: MIKE_INSPECT_ADDR (default 127.0.0.1:9989), FLEET_REF_TIMEOUT (seconds to
+# wait for done, default 2400), FLEET_REF_POLL (seconds between polls, default 20),
+# FLEET_REF_NO_INSTALL=1 (skip npm install in prepare).
+set -uo pipefail
+
+ROOT="${FLEET_REF_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+ADDR="${MIKE_INSPECT_ADDR:-127.0.0.1:9989}"
+API="http://$ADDR"
+GIT_ID=(-c user.name=fleet-ref -c user.email=fleet-ref@localhost -c commit.gpgsign=false)
+
+die() { echo "fleet-ref: $*" >&2; exit 1; }
+usage() { sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+
+py() { python3 -I -c "$@"; }
+
+definition_file() { echo "$ROOT/scripts/fleet-refs/$1.json"; }
+fixture_dir() { echo "$ROOT/crates/mike/tests/fixtures/fleet-ref-$1"; }
+
+json_get() { # json_get <dotted.path> reads JSON on stdin; prints scalars, JSON for the rest
+  py '
+import json, sys
+node = json.load(sys.stdin)
+for key in sys.argv[1].split("."):
+    if isinstance(node, dict) and key in node:
+        node = node[key]
+    else:
+        node = None
+        break
+if node is None:
+    print("")
+elif isinstance(node, (dict, list)):
+    print(json.dumps(node))
+else:
+    print(node)
+' "$1"
+}
+
+spec_get() { # spec_get <file> <dotted.path> -> scalar, or empty
+  py '
+import json, sys
+node = json.load(open(sys.argv[1]))
+for key in sys.argv[2].split("."):
+    node = node.get(key) if isinstance(node, dict) else None
+print("" if node is None else node)
+' "$1" "$2"
+}
+
+prepare_pinned() { # prepare_pinned <def.json>: the pinned slot on a branch with the answers reverted
+  local def="$1" pin slot slotdir stamp branch sha
+  pin="$(spec_get "$def" repository.pin)"; slot="$(spec_get "$def" repository.slot)"
+  [[ -n "$pin" && -n "$slot" ]] || die "the definition's repository needs a pin and a slot"
+  slotdir="$ROOT/$slot"
+  if [[ ! -e "$slotdir/.git" ]]; then
+    git -C "$ROOT" worktree add -q --detach "$slotdir" "$pin" || die "git worktree add $slot failed"
+  else
+    git -C "$slotdir" reset -q --hard || die "reset of $slot failed"
+    git -C "$slotdir" clean -fdq || die "clean of $slot failed"
+  fi
+  stamp="$(date +%Y%m%d%H%M%S)-$$"
+  branch="fleet-ref/$stamp"
+  git -C "$slotdir" checkout -q -b "$branch" "$pin" || die "cannot start $branch at $pin"
+  for sha in $(py '
+import json, sys
+for entry in json.load(open(sys.argv[1])).get("answers", {}).values():
+    print(entry["commit"])
+' "$def"); do
+    git -C "$slotdir" "${GIT_ID[@]}" revert --no-edit "$sha" >/dev/null 2>&1 || {
+      git -C "$slotdir" revert --abort >/dev/null 2>&1
+      die "reverting $sha did not apply cleanly on $branch"
+    }
+  done
+  echo "dir=$slotdir"
+  echo "work=$slotdir"
+  echo "branch=$branch"
+  echo "origin="
+  echo "pin=$pin"
+}
+
+cmd_prepare() {
+  local name=node variant="" dir=""
+  if [[ $# -gt 0 && "$1" != --* ]]; then name="$1"; shift; fi
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --variant) variant="${2:-}"; shift 2 ;;
+      --dir) dir="${2:-}"; shift 2 ;;
+      *) die "prepare: unknown argument $1" ;;
+    esac
+  done
+  local fixture def
+  fixture="$(fixture_dir "$name")"; def="$(definition_file "$name")"
+  [[ -f "$def" ]] || die "no definition for '$name' ($def)"
+  if [[ "$(spec_get "$def" repository.kind)" == "pinned-worktree" ]]; then
+    prepare_pinned "$def"
+    return
+  fi
+  [[ -d "$fixture" ]] || die "no fixture for '$name' ($fixture)"
+  if [[ -z "$dir" ]]; then
+    dir="$(mktemp -d "${TMPDIR:-/tmp}/fleet-ref-$name.XXXXXX")" || die "mktemp failed"
+  else
+    mkdir -p "$dir" || die "cannot create $dir"
+  fi
+  dir="$(cd "$dir" && pwd)"
+
+  local seed="$dir/seed"
+  mkdir -p "$seed"
+  tar -C "$fixture" --exclude='.answers' -cf - . | tar -C "$seed" -xf - || die "copy of the fixture failed"
+  if [[ "$variant" == "red-baseline" ]]; then
+    # The starting state fails its own check, so the fleet's baseline is red: a test that
+    # fails on purpose, committed with the rest. (The check installs its own modules, so a
+    # missing install no longer makes a baseline red.)
+    mkdir -p "$seed/test"
+    printf '%s\n' 'import test from "node:test";' 'import assert from "node:assert/strict";' \
+      'test("red baseline: the starting state fails on purpose", () => { assert.equal(1, 2); });' \
+      >"$seed/test/red-baseline.test.ts"
+  fi
+  git -C "$seed" init -q -b main || die "git init failed"
+  git -C "$seed" "${GIT_ID[@]}" add -A && git -C "$seed" "${GIT_ID[@]}" commit -q -m "fleet-ref $name: starting state" || die "seed commit failed"
+  git init -q --bare -b main "$dir/origin.git" || die "bare origin failed"
+  git -C "$seed" push -q "$dir/origin.git" main || die "push to the origin failed"
+  git clone -q "$dir/origin.git" "$dir/work" || die "clone of the origin failed"
+  rm -rf "$seed"
+
+  if [[ -d "$fixture/.answers" ]]; then
+    mkdir -p "$dir/answers"
+    git -C "$dir/answers" init -q -b answers || die "answers repository failed"
+    cp -R "$fixture/.answers/." "$dir/answers/"
+    git -C "$dir/answers" "${GIT_ID[@]}" add -A && git -C "$dir/answers" "${GIT_ID[@]}" commit -q -m "known answers" || die "answers commit failed"
+  fi
+
+  local modules=none
+  local install=1
+  [[ "$variant" == "red-baseline" ]] && install=0
+  [[ "${FLEET_REF_NO_INSTALL:-}" == "1" ]] && install=0
+  if (( install )) && [[ -f "$dir/work/package.json" ]]; then
+    if command -v npm >/dev/null 2>&1 &&
+      (cd "$dir/work" && npm install --no-audit --no-fund --silent >"$dir/npm-install.log" 2>&1); then
+      modules=installed
+    else
+      echo "fleet-ref: npm install did not finish (see $dir/npm-install.log); the baseline check will be red" >&2
+    fi
+  fi
+  echo "dir=$dir"
+  echo "work=$dir/work"
+  echo "origin=$dir/origin.git"
+  echo "answers=$dir/answers (branch answers)"
+  echo "variant=${variant:-none}"
+  echo "modules=$modules"
+}
+
+render_definition() { # render_definition <def.json> <work> <origin> <branch> -> definition JSON on stdout
+  py '
+import json, sys
+spec = json.load(open(sys.argv[1]))
+text = json.dumps(spec["definition"])
+for key, value in (("__REPO__", sys.argv[2]), ("__ORIGIN__", sys.argv[3]), ("__BRANCH__", sys.argv[4])):
+    text = text.replace(key, value)
+print(text)
+' "$1" "$2" "$3" "${4:-main}"
+}
+
+api_post() { # api_post <path> <json> -> body on stdout, status on fd 3 via file
+  curl -sS -m 60 -X POST -H 'content-type: application/json' -d "$2" -o "$3" -w '%{http_code}' "$API$1"
+}
+
+cmd_run() {
+  local name="" drill=0 variant="" dir=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --drill) drill=1; shift ;;
+      --variant) variant="${2:-}"; shift 2 ;;
+      --dir) dir="${2:-}"; shift 2 ;;
+      -*) die "run: unknown argument $1" ;;
+      *) [[ -z "$name" ]] && name="$1" || die "run: one reference name only"; shift ;;
+    esac
+  done
+  [[ -n "$name" ]] || die "run: name the reference fleet (node)"
+  local prep_args=("$name")
+  [[ -n "$variant" ]] && prep_args+=(--variant "$variant")
+  [[ -n "$dir" ]] && prep_args+=(--dir "$dir")
+  local prep
+  prep="$(cmd_prepare "${prep_args[@]}")" || { echo "$prep" >&2; die "prepare failed"; }
+  local work origin
+  work="$(printf '%s\n' "$prep" | sed -n 's/^work=//p')"
+  origin="$(printf '%s\n' "$prep" | sed -n 's/^origin=//p')"
+
+  local definition slug stamp tmp status
+  local branch task_count
+  branch="$(printf '%s\n' "$prep" | sed -n 's/^branch=//p')"
+  definition="$(render_definition "$(definition_file "$name")" "$work" "$origin" "${branch:-main}")" || die "cannot render the definition"
+  task_count="$(printf '%s' "$definition" | py 'import json,sys; print(len(json.load(sys.stdin)["tasks"]))')"
+  stamp="$(date +%Y%m%d%H%M%S)"
+  slug="fleet-ref-$name-${variant:+$variant-}$stamp"
+  [[ $drill -eq 1 ]] && slug="$slug-drill"
+  tmp="$(mktemp "${TMPDIR:-/tmp}/fleet-ref-reply.XXXXXX")" || die "mktemp failed"
+  trap 'rm -f "$tmp"' RETURN
+
+  local body
+  body="$(py '
+import json, sys
+print(json.dumps({"slug": sys.argv[1], "project_path": sys.argv[2], "definition": json.loads(sys.argv[3])}))
+' "$slug" "$work" "$definition")" || die "cannot build the request"
+  status="$(api_post /api/fleets "$body" "$tmp")" || die "the inspect API at $ADDR did not answer"
+  [[ "$status" == 2* ]] || die "define refused ($status): $(cat "$tmp")"
+
+  local missing starts missing_n
+  missing="$(json_get missing <"$tmp")"
+  [[ -n "$missing" ]] || missing="[]"
+  missing_n="$(printf '%s' "$missing" | py 'import json,sys; print(len(json.load(sys.stdin)))')"
+  starts="$(py '
+import json, sys
+starts = ((json.load(open(sys.argv[1])).get("at_ready") or {}).get("starts") or {})
+print(len(starts.get("workers") or []) + len(starts.get("waiting") or []))
+' "$tmp")"
+  echo "slug=$slug"
+  echo "work=$work"
+  if [[ "$missing_n" == "0" ]]; then echo "missing: empty"; else echo "missing: $missing"; fi
+  echo "starts: $starts"
+  if (( drill )); then
+    echo "drill: defined, not started"
+    [[ "$missing_n" == "0" && "$starts" == "$task_count" ]] || exit 1
+    return 0
+  fi
+  [[ "$missing_n" == "0" ]] || die "the definition is missing items: $missing"
+
+  status="$(curl -sS -m 60 -X PATCH -H 'content-type: application/json' -d '{"ready":true}' -o "$tmp" -w '%{http_code}' "$API/api/fleets/$slug")" || die "ready request failed"
+  [[ "$status" == 2* ]] || die "ready refused ($status): $(cat "$tmp")"
+  status="$(api_post "/api/fleets/$slug/start" '{}' "$tmp")" || die "start request failed"
+  [[ "$status" == 2* || "$status" == 409 ]] || die "start refused ($status): $(cat "$tmp")"
+
+  local deadline state=""
+  deadline=$(( $(date +%s) + ${FLEET_REF_TIMEOUT:-2400} ))
+  while :; do
+    curl -sS -m 30 -o "$tmp" "$API/api/fleets/$slug/status" || true
+    state="$(json_get state <"$tmp")"
+    [[ -n "$state" ]] || state="$(json_get fleet.state <"$tmp")"
+    echo "state: ${state:-unknown} as at $(date -u +%H:%M:%SZ)"
+    case "$state" in done|failed) break ;; esac
+    (( $(date +%s) < deadline )) || die "no done within ${FLEET_REF_TIMEOUT:-2400} s (last state ${state:-unknown})"
+    sleep "${FLEET_REF_POLL:-20}"
+  done
+  cmd_record "$slug"
+  [[ "$state" == done ]]
+}
+
+cmd_record() {
+  local slug="${1:-}"
+  [[ -n "$slug" ]] || die "record: name the run (fleet slug)"
+  local tmp
+  tmp="$(mktemp "${TMPDIR:-/tmp}/fleet-ref-record.XXXXXX")" || die "mktemp failed"
+  local status
+  status="$(curl -sS -m 60 -o "$tmp" -w '%{http_code}' "$API/api/fleets/$slug/record")" || { rm -f "$tmp"; die "the inspect API at $ADDR did not answer"; }
+  if [[ "$status" != 2* ]]; then
+    local reply; reply="$(cat "$tmp")"; rm -f "$tmp"
+    die "no record ($status): $reply"
+  fi
+  py '
+import json, sys
+record = json.load(open(sys.argv[1]))
+wanted = ["time_to_done_minutes", "fault_minutes", "tokens_per_accepted_task", "manual_interventions"]
+found = {}
+def walk(node):
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key in wanted and key not in found:
+                found[key] = value
+            walk(value)
+    elif isinstance(node, list):
+        for item in node:
+            walk(item)
+walk(record)
+for key in wanted:
+    print("%s: %s" % (key, json.dumps(found[key]) if key in found else "not in the record"))
+' "$tmp"
+  local rc=$?
+  rm -f "$tmp"
+  return $rc
+}
+
+case "${1:-}" in
+  prepare) shift; cmd_prepare "$@" ;;
+  run) shift; cmd_run "$@" ;;
+  record) shift; cmd_record "$@" ;;
+  -h|--help|help|"") usage ;;
+  *) usage >&2; exit 2 ;;
+esac

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lesson_file_conflicts(location_uuid, lesson_uuid, server_version)\n             SELECT $1, c.lesson_uuid, c.version\n               FROM unnest($2::uuid[]) AS x(lesson_uuid)\n               JOIN memory.lesson_file_changes c ON c.lesson_uuid = x.lesson_uuid\n               JOIN projects.locations l\n                 ON l.location_uuid = $1 AND l.project_id = c.project_id\n             ON CONFLICT(location_uuid, lesson_uuid) DO UPDATE\n               SET server_version = EXCLUDED.server_version, detected_at = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "40b08daea767ff09a0d70d8aa2727602cb4a7cbaa9369ba24b5b798e33cf22a0"
+}

@@ -1,0 +1,280 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n                       s.id          AS \"id!\",\n                       s.uuid        AS \"uuid!\",\n                       s.name        AS \"name!\",\n                       s.display_name AS \"display_name!\",\n                       s.description AS \"description!\",\n                       s.agent_id    AS \"agent_id!\",\n                       a.code        AS \"authority!\",\n                       m.code        AS \"mode!\",\n                       s.model       AS \"model!\",\n                       s.priority    AS \"priority!\",\n                       s.enabled     AS \"enabled!\",\n                       s.config      AS \"config!\",\n                       s.prompt,\n                       s.kind        AS \"kind!\",\n                       s.trigger_point AS \"trigger_point!\",\n                       s.invocation  AS \"invocation!\",\n                       s.pattern,\n                       s.auto_enrol  AS \"auto_enrol!\",\n                       s.project_id,\n                       p.project_path AS \"project_path?\",\n                       s.created_at  AS \"created_at!\",\n                       s.updated_at  AS \"updated_at!\"\n                   FROM steering.steerers s\n                   JOIN steering.authorities a ON a.id = s.authority_id\n                   JOIN steering.modes       m ON m.id = s.default_mode_id\n                   LEFT JOIN projects.projects p ON p.id = s.project_id\n                  WHERE s.id = $1\n                    AND s.deleted_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "display_name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "display_name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "description!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "agent_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "agent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "authority!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.authorities",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "mode!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.modes",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "model!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "priority!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "priority"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "enabled!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "config!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "config"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "prompt",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "prompt"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "trigger_point!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "trigger_point"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "invocation!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "invocation"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "pattern",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "pattern"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "auto_enrol!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "auto_enrol"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "project_path?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "updated_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.steerers",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "b039f7b3155115942bcd925f24b667de73b8de063e81f3ce918dfaacbcc2b189"
+}

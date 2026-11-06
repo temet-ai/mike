@@ -1,0 +1,109 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT u.session_id,\n       u.id AS tool_use_id,\n       u.tool_name,\n       u.created_at AS at,\n       coalesce(rs.completed_at, u.created_at) AS \"ran_from!\",\n       r.created_at AS \"ran_to?\",\n       r.is_error AS \"failed?\",\n       u.input\n  FROM tools.uses u\n  LEFT JOIN responses.responses rs ON rs.request_id = u.request_id\n  LEFT JOIN tools.results r ON r.tool_use_id = u.id\n WHERE u.file_path = $1\n   AND u.created_at >= $2\n   AND u.created_at <= $3\n   AND u.tool_name IN ('Edit', 'Write', 'MultiEdit')\n ORDER BY u.created_at, u.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "tool_use_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "tool_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "tool_name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "ran_from!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "ran_to?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "failed?",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "is_error"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "input",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "input"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      null,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "4fc40a5232e90d887eb0c9ee6709e75e9bc284311deae71468c919a972dadbb1"
+}

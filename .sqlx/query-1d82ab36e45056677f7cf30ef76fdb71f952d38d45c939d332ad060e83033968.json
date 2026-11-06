@@ -1,0 +1,100 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n                       project_path     AS \"project_path!\",\n                       fires_count      AS \"fires_count!: i64\",\n                       corrected_count  AS \"corrected_count!: i64\",\n                       delivered_count  AS \"delivered_count!: i64\",\n                       excluded_judge_failed_count AS \"excluded_judge_failed_count!: i64\",\n                       corrected_rate,\n                       delivered_rate\n                   FROM steering.verifier_rate_v\n                   WHERE ($1::text IS NULL OR project_path ILIKE '%' || $1 || '%')\n                   ORDER BY fires_count DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "project_path!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.verifier_rate_v",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "fires_count!: i64",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.verifier_rate_v",
+            "name": "fires_count"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "corrected_count!: i64",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.verifier_rate_v",
+            "name": "corrected_count"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "delivered_count!: i64",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.verifier_rate_v",
+            "name": "delivered_count"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "excluded_judge_failed_count!: i64",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.verifier_rate_v",
+            "name": "excluded_judge_failed_count"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "corrected_rate",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "steering.verifier_rate_v",
+            "name": "corrected_rate"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "delivered_rate",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "steering.verifier_rate_v",
+            "name": "delivered_rate"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "1d82ab36e45056677f7cf30ef76fdb71f952d38d45c939d332ad060e83033968"
+}

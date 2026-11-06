@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE projects.projects\n                 SET custom_name = $2\n                 WHERE project_path = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "17a402e01b671514a369b5268a61ee9ec6c79b0b108753a267517a40a2415b1f"
+}

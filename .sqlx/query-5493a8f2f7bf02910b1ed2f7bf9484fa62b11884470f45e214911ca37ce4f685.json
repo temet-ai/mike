@@ -1,0 +1,96 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT a.id AS \"lesson_a_id!\", a.text AS \"lesson_a_text!\", a.created_at AS \"lesson_a_created_at!\",\n                          b.id AS \"lesson_b_id!\", b.text AS \"lesson_b_text!\", b.created_at AS \"lesson_b_created_at!\",\n                          (a.embedding <=> b.embedding)::float8 AS \"distance!\"\n                     FROM memory.lessons a\n                     JOIN memory.lessons b ON b.project_id = a.project_id AND b.id > a.id\n                     JOIN memory.lesson_stages sa ON sa.id = a.stage_id AND sa.code IN ('daily', 'long_term')\n                     JOIN memory.lesson_stages sb ON sb.id = b.stage_id AND sb.code IN ('daily', 'long_term')\n                    WHERE a.project_id = $1\n                      AND a.embedding IS NOT NULL AND b.embedding IS NOT NULL\n                      AND (a.embedding <=> b.embedding) < $2\n                      AND NOT EXISTS (\n                          SELECT 1 FROM memory.lesson_relations r\n                           WHERE (r.from_lesson_id = a.id AND r.to_lesson_id = b.id)\n                              OR (r.from_lesson_id = b.id AND r.to_lesson_id = a.id)\n                      )\n                    ORDER BY (a.embedding <=> b.embedding)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lesson_a_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "lesson_a_text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "lesson_a_created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "lesson_b_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "lesson_b_text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "lesson_b_created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "distance!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "5493a8f2f7bf02910b1ed2f7bf9484fa62b11884470f45e214911ca37ce4f685"
+}

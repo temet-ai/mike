@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH input_codes AS (\n                       SELECT DISTINCT n.code\n                         FROM UNNEST($1::text[]) AS raw(code)\n                         CROSS JOIN LATERAL (SELECT mailbox.normalize_tag(raw.code) AS code) n\n                        WHERE n.code IS NOT NULL\n                   ),\n                   interned AS (\n                       INSERT INTO mailbox.tags (code)\n                       SELECT code FROM input_codes\n                       ON CONFLICT (code) DO SELECT\n                       RETURNING id\n                   )\n                   INSERT INTO mailbox.thread_tags (thread_id, tag_id)\n                   SELECT $2, id FROM interned\n                   ON CONFLICT DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cc36ae3a310c86e3d4df4617b9259bbb754bcffcddfba9a1e873d4ba3dd46609"
+}

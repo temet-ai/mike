@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE projects.locations SET machine_uuid = $2 WHERE machine_uuid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "43925340f0ad0168f36379ebc1d7b17da18682962705fdfcee5305962ceae5f7"
+}

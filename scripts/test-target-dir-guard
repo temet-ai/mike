@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# test-target-dir-guard — checks the build/sweep turn-taking in
+# scripts/lib/target-dir-guard.sh against a synthetic build directory.
+#
+# WHY THIS EXISTS
+#   The guard decides whether the cleaner may delete build artifacts while a
+#   build is running. Getting that wrong is expensive in both directions: too
+#   permissive and a running build dies with "failed to write
+#   .fingerprint/<crate>/invoked.timestamp", too strict and the cleaner never
+#   runs and the volume fills. Neither shows up until it costs someone an hour.
+#
+#   It runs against a temporary directory, never the real one. Testing the
+#   cleaner against the live shared build directory once cost every session on
+#   this machine its warm cache — a probe with a deliberately small cap
+#   reclaimed 20GB for real (2026-08-28).
+#
+# USAGE
+#   scripts/test-target-dir-guard        # prints one line per case, then a verdict
+#
+# EXIT CODE
+#   0 when every case passes. The last line is GUARD: PASS or GUARD: FAIL, so
+#   the verdict survives a pipe even where the exit status does not.
+set -uo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$script_dir/lib/target-dir-guard.sh"
+
+T="$(mktemp -d)"
+export CARGO_TARGET_DIR="$T"
+trap 'rm -rf "$T"' EXIT
+
+fail=0
+chk() {
+  if [[ "$1" == pass ]]; then printf '  PASS  %s\n' "$2"
+  else printf '  FAIL  %s\n' "$2"; fail=1; fi
+}
+
+guard_sweep_enter \
+  && chk pass "a free sweep slot can be claimed" \
+  || chk fail "a free sweep slot can be claimed"
+
+( guard_sweep_enter >/dev/null 2>&1 ) \
+  && chk fail "a second concurrent sweep is refused" \
+  || chk pass "a second concurrent sweep is refused"
+
+( GUARD_BUILD_WAIT_SECS=4 guard_build_enter ) & waiter=$!
+sleep 1
+[[ -e "$T/.guard/build.$waiter" ]] \
+  && chk fail "a build does not register while a sweep holds the slot" \
+  || chk pass "a build does not register while a sweep holds the slot"
+guard_sweep_leave
+wait "$waiter" 2>/dev/null
+# `$$` inside a bash subshell is the PARENT pid, so the waiter above registered
+# under this script's own pid rather than its own. Clear it before the next case.
+rm -f "$T/.guard"/build.*
+
+: > "$T/.guard/build.999999"
+GUARD_SWEEP_WAIT_SECS=4 guard_sweep_enter \
+  && chk pass "a registration whose process is gone is pruned, not blocking" \
+  || chk fail "a registration whose process is gone is pruned, not blocking"
+guard_sweep_leave
+
+sleep 60 & live=$!
+: > "$T/.guard/build.$live"
+GUARD_SWEEP_WAIT_SECS=4 guard_sweep_enter \
+  && chk fail "a live build blocks a sweep" \
+  || chk pass "a live build blocks a sweep"
+kill "$live" 2>/dev/null
+rm -f "$T/.guard/build.$live"
+
+guard_build_enter
+[[ -e "$T/.guard/build.$$" ]] \
+  && chk pass "a build registers when no sweep is running" \
+  || chk fail "a build registers when no sweep is running"
+guard_build_leave
+[[ -e "$T/.guard/build.$$" ]] \
+  && chk fail "a build deregisters when it finishes" \
+  || chk pass "a build deregisters when it finishes"
+
+mkdir -p "$T/.guard/sweeping" && echo 999999 > "$T/.guard/sweeping/pid"
+start=$SECONDS
+GUARD_BUILD_WAIT_SECS=20 guard_build_enter
+(( SECONDS - start < 5 )) && [[ ! -d "$T/.guard/sweeping" ]] \
+  && chk pass "a sweep slot whose process is gone is dropped, not waited on" \
+  || chk fail "a sweep slot whose process is gone is dropped, not waited on"
+guard_build_leave
+
+GUARD_OWNER_PID=$$ guard_sweep_enter >/dev/null 2>&1
+[[ "$(cat "$T/.guard/sweeping/pid" 2>/dev/null)" == "$$" ]] \
+  && chk pass "a sweep records its process in the slot" \
+  || chk fail "a sweep records its process in the slot"
+guard_sweep_leave
+[[ ! -d "$T/.guard/sweeping" ]] \
+  && chk pass "a finished sweep leaves no slot behind" \
+  || chk fail "a finished sweep leaves no slot behind"
+
+echo
+if (( fail == 0 )); then echo "GUARD: PASS"; else echo "GUARD: FAIL"; fi
+exit "$fail"

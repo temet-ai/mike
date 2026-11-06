@@ -1,0 +1,49 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT content_sha256 AS \"content_sha256!\",\n                          MIN(created_at) AS \"first_seen_at!\",\n                          MAX(created_at) AS \"last_seen_at!\",\n                          COUNT(*) AS \"request_count!\"\n                     FROM system_prompts.session_prompts\n                    WHERE agent_id = $1\n                      AND content_sha256 IS NOT NULL\n                    GROUP BY content_sha256\n                    ORDER BY MAX(created_at) DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "content_sha256!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "system_prompts.session_prompts",
+            "name": "content_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "first_seen_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "last_seen_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "request_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "3420af12c9d12f46304ca8bdb4372704e01c31529f0c2be3aad70daa15b043e0"
+}

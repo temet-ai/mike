@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE agents.work_item_attention\n              SET disposition = $2, disposition_reason = $3, disposition_at = now()\n            WHERE id = $1 AND disposition = 'pending'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4f282da594d3b0c898c305fafa1c689dae4d0bd4eed7d7acdff68d4ae9d8d7b5"
+}

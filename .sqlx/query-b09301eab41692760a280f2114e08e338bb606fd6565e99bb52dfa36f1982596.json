@@ -1,0 +1,98 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH node_set AS (\n    SELECT se.session_id, se.embedding, se.source, s.id AS session_db_id, s.title, s.last_seen,\n           s.last_status AS cached_status\n      FROM memory.session_embeddings se\n      JOIN sessions.sessions s ON s.session_uuid = se.session_id\n     WHERE s.project_id = $1\n     ORDER BY s.last_seen DESC\n     LIMIT $2\n)\nSELECT n.session_id AS \"session_id!\",\n       n.title AS \"title?\",\n       lv.outcome AS \"outcome?\",\n       n.last_seen AS \"last_seen!\",\n       COALESCE(ns.live_status, n.cached_status) AS \"last_status?\",\n       CASE WHEN pe.embedding IS NOT NULL\n            THEN (1.0 - (n.embedding <=> pe.embedding))::float8\n       END AS \"similarity_to_centroid?\",\n       n.source AS \"source!\",\n       COALESCE(sk.topics, '{}') AS \"topics!\"\n  FROM node_set n\n  LEFT JOIN LATERAL (\n      SELECT o.code AS outcome\n        FROM session_judges.verdicts v\n        JOIN session_judges.outcomes o ON o.id = v.outcome_id\n       WHERE v.session_id = n.session_db_id AND v.mode = 'live'\n       ORDER BY v.judged_at DESC, v.id DESC\n       LIMIT 1\n  ) lv ON TRUE\n  LEFT JOIN memory.session_knowledge sk ON sk.session_id = n.session_id\n  LEFT JOIN memory.project_embeddings pe ON pe.project_id = $1\n  LEFT JOIN LATERAL (\n      -- Newest-request status, read live because sessions.last_status can go stale\n      -- (issue #147). Top-1-per-group over the node set only.\n      SELECT CASE st.code\n                 WHEN 'pending'   THEN 'Pending'\n                 WHEN 'streaming' THEN 'Streaming'\n                 WHEN 'complete'  THEN 'Complete'\n                 WHEN 'error'     THEN 'Error: ' || COALESCE(re.message, '')\n             END AS live_status\n        FROM requests.requests nr\n        JOIN requests.statuses st ON st.id = nr.status_id\n        LEFT JOIN requests.errors re ON re.request_id = nr.id\n       WHERE nr.session_id = n.session_db_id\n       ORDER BY nr.created_at DESC, nr.id DESC\n       LIMIT 1\n  ) ns ON TRUE\n ORDER BY n.last_seen DESC\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "memory.session_embeddings",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "title?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "outcome?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.outcomes",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "last_seen!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "last_seen"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "last_status?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "similarity_to_centroid?",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.session_embeddings",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "topics!",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      false,
+      null,
+      null,
+      false,
+      null
+    ]
+  },
+  "hash": "b09301eab41692760a280f2114e08e338bb606fd6565e99bb52dfa36f1982596"
+}

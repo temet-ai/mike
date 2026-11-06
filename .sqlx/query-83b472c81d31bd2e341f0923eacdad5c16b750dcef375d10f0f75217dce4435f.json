@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT criteria_text FROM work.thread_acceptance_criteria WHERE thread_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "criteria_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_acceptance_criteria",
+            "name": "criteria_text"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "83b472c81d31bd2e341f0923eacdad5c16b750dcef375d10f0f75217dce4435f"
+}

@@ -1,0 +1,135 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT a.id, a.name, a.definition_path, a.description,\n        s.code AS \"source!\",\n        a.created_at, a.updated_at,\n        COALESCE(comp.composition_count, 0)::bigint AS \"composition_count!\",\n        COALESCE(disp.dispatch_count, 0)::bigint AS \"dispatch_count!\",\n        COALESCE(inst.instance_count, 0)::bigint AS \"instance_count!\",\n        COALESCE(sp.prompt_version_count, 0)::bigint AS \"prompt_version_count!\",\n        disp.last_dispatched_at AS \"last_dispatched_at?\"\n   FROM agents.agents a\n   JOIN agents.sources s ON s.id = a.source_id\n   LEFT JOIN (\n       SELECT agent_id, COUNT(*) AS composition_count\n         FROM overrides.overrides\n        WHERE agent_id IS NOT NULL\n        GROUP BY agent_id\n   ) comp ON comp.agent_id = a.id\n   LEFT JOIN (\n       SELECT ad.agent_id, COUNT(*) AS dispatch_count,\n              MAX(tu.created_at) AS last_dispatched_at\n         FROM agents.dispatches ad\n         JOIN tools.uses tu ON tu.id = ad.tool_use_id\n        GROUP BY ad.agent_id\n   ) disp ON disp.agent_id = a.id\n   LEFT JOIN (\n       SELECT agent_id, COUNT(*) AS instance_count\n         FROM agents.instances\n        WHERE agent_id IS NOT NULL\n        GROUP BY agent_id\n   ) inst ON inst.agent_id = a.id\n   LEFT JOIN (\n       SELECT agent_id, COUNT(DISTINCT content_sha256) AS prompt_version_count\n         FROM system_prompts.session_prompts\n        WHERE agent_id IS NOT NULL\n          AND content_sha256 IS NOT NULL\n        GROUP BY agent_id\n   ) sp ON sp.agent_id = a.id\n  WHERE a.id = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "definition_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "definition_path"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.sources",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "composition_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "dispatch_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "instance_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "prompt_version_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "last_dispatched_at?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "b6f047e469436f33c99cd073992822718ef2a720e696a9f5ec5df1619ec8ed16"
+}

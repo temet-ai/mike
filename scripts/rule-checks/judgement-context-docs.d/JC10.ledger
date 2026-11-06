@@ -1,0 +1,14 @@
+# JC10 ledger. The landed sha is the JC10 commit on feat/judgement-context.
+landed   JC10 2026-09-24 d2feb29e
+table    eval.runs
+table    eval.run_items
+table    eval.gates
+setting  llm.budget.eval.share_pct
+tool     list_eval_runs full
+tool     get_eval_run full
+tool     list_eval_run_items full
+tool     list_eval_gates full
+tool     get_eval_gate full
+cli      mike eval run
+cli      mike eval gate
+cli      mike eval show

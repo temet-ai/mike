@@ -1,0 +1,85 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT generation_id, event_id, capture_sequence, status, issues::text AS \"issues!\",\n                      effect_count\n                 FROM runtime.codex_projection_applications\n                WHERE generation_id = $1 AND capture_sequence > $2 AND json_array_length(issues) > 0\n                ORDER BY capture_sequence\n                LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "generation_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_projection_applications",
+            "name": "generation_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "event_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_projection_applications",
+            "name": "event_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "capture_sequence",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_projection_applications",
+            "name": "capture_sequence"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_projection_applications",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "issues!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "effect_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_projection_applications",
+            "name": "effect_count"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      null,
+      false
+    ]
+  },
+  "hash": "a0a14e958e04d4fa0119c4f1c1bbbcba0de4e565a64deb7f2a448ebf8d85b9f8"
+}

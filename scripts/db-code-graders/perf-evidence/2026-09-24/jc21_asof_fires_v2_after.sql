@@ -1,0 +1,1 @@
+SELECT i.id AS intervention_id, i.operator_turn_id, i.payload_text, i.missing_evidence, i.off_thread_topic, i.created_at FROM steering.interventions i WHERE i.session_id = 1173418 AND i.steerer_id = 14 AND i.created_at < '2026-09-24 08:22:50.453555+00'::timestamptz ORDER BY i.created_at DESC, i.id DESC LIMIT 10

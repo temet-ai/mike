@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.semantic_embedders SET status = 'retired' WHERE status = 'current'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "46cd5f26cd5e139792072460dd7a123441735a4f84031379eecf4a2018a37d85"
+}

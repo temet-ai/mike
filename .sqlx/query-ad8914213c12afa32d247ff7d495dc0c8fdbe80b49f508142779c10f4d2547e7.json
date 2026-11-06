@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT c.id, c.chunk_text, c.chunk_embedding::text AS \"embedding!\"\n                     FROM memory.operator_turn_chunks c\n                    WHERE c.embedded_at >= $1 AND c.embedding_model = $2\n                      AND char_length(c.chunk_text) > 0\n                    ORDER BY md5(c.id::text || $3), c.id\n                    LIMIT $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turn_chunks",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "chunk_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turn_chunks",
+            "name": "chunk_text"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "embedding!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "ad8914213c12afa32d247ff7d495dc0c8fdbe80b49f508142779c10f4d2547e7"
+}

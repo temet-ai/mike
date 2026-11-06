@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH candidates AS (\n                     SELECT id FROM messages.messages\n                     ORDER BY last_seen ASC\n                     LIMIT $1\n                 )\n                 DELETE FROM messages.messages m\n                 USING candidates c\n                 WHERE m.id = c.id\n                   AND NOT EXISTS (\n                       SELECT 1 FROM requests.messages rm WHERE rm.message_id = m.id\n                   )\n                   AND NOT EXISTS (\n                       SELECT 1 FROM requests.deltas rd WHERE rd.message_id = m.id\n                   )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8eea54ecf559edc4724308cec356fe49c4c6dab34184e611142a21f6c80410d7"
+}

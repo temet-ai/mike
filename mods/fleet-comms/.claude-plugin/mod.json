@@ -1,0 +1,11 @@
+{
+  "tagline": "In a fleet seat: the fleet's status, mail and messages, above the prompt and in a pane",
+  "family": "mike",
+  "offers": {
+    "commands": ["/fleet-comms"],
+    "panes": ["Fleet"],
+    "bands": ["messages above the prompt"],
+    "buttons": [{ "label": "Fleet", "command": "/fleet-comms" }],
+    "acts": ["arms /goal with the seat's goal from the fleet definition"]
+  }
+}

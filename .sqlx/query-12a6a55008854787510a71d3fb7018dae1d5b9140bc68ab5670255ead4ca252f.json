@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT payload_count, payload_kept_count,\n                  payload_type_counts AS \"counts: serde_json::Value\"\n             FROM remote_control.calls WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "payload_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "payload_count"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "payload_kept_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "payload_kept_count"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "counts: serde_json::Value",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "remote_control.calls",
+            "name": "payload_type_counts"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "12a6a55008854787510a71d3fb7018dae1d5b9140bc68ab5670255ead4ca252f"
+}

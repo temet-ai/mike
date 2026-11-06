@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH activity AS MATERIALIZED (\n                       SELECT MAX(r.created_at) AS last_request_at,\n                              MAX(r.created_at) FILTER (\n                                  WHERE ro.code IN ('primary', 'primary_first')\n                              ) AS last_eligible_turn_at\n                         FROM requests.requests r\n                         JOIN requests.turn_origins ro ON ro.id = r.turn_origin_id\n                         JOIN sessions.sessions s ON s.id = r.session_id\n                        WHERE s.session_uuid = $1\n                   )\n                   SELECT a.last_request_at       AS \"last_request_at?\",\n                          a.last_eligible_turn_at AS \"last_eligible_turn_at?\"\n                     FROM sessions.sessions s\n                     CROSS JOIN activity a\n                    WHERE s.session_uuid = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "last_request_at?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "last_eligible_turn_at?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "2fa0c7d27c1f8615a16fc3d991064f100f9b5f3d755beb33272b0148e1e025d2"
+}

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE launch.runs\n   SET closed_at = COALESCE(closed_at, now())\n WHERE run_id = $1\nRETURNING run_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "run_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.runs",
+            "name": "run_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f60dbd2023cd91e9bcb1d35ff2f0497df575cbaedeb05ab7998a7441dd930979"
+}

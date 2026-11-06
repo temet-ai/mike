@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO workspace.session_registrations\n            (session_id, project_id, cwd, lease_expires_at, released_at)\n         VALUES ($1, $2, '/tmp/fleet-correlation-test', $3, $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0cddef9fe5d999d0f6158ced279bfca13c5dd8cec09a3061858f2c5423bd892c"
+}

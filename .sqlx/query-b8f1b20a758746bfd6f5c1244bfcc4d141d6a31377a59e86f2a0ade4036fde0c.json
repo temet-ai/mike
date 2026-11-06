@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH due AS (\n    SELECT m.id, m.message_uuid, m.to_session_id, recip.session_uuid AS recipient_uuid,\n           m.from_session_id, m.sent_at, m.sent_request_id, m.channel_delivered_at,\n           split_part(m.body, E'\\n', 1) AS first_line\n      FROM mailbox.messages m\n      JOIN sessions.sessions recip ON recip.id = m.to_session_id\n     WHERE m.from_session_id IS NOT NULL\n       AND m.to_session_id IS NOT NULL\n       AND m.sender_notified_at IS NULL\n       AND m.sent_at IS NULL\n       AND m.sent_request_id IS NULL\n       AND m.channel_delivered_at IS NULL\n       AND m.consumed_at IS NULL\n       AND m.dead_lettered_at IS NULL\n       AND m.queued_at < $1\n       AND NOT EXISTS (\n           SELECT 1 FROM requests.requests r\n            WHERE r.session_id = m.to_session_id AND r.created_at >= $1\n       )\n     ORDER BY m.queued_at\n     LIMIT 100\n     FOR UPDATE OF m SKIP LOCKED\n)\n, latest_launch AS (\n    SELECT DISTINCT ON (l.session_uuid) l.session_uuid, l.run_id, l.seat, l.closed_at\n      FROM launch.launches l\n     WHERE l.session_uuid IN (SELECT recipient_uuid FROM due)\n     ORDER BY l.session_uuid, l.created_at DESC, l.id DESC\n), latest_fleet AS (\n    SELECT DISTINCT ON (f.run_id) f.run_id, f.definition\n      FROM launch.fleets f\n     WHERE f.run_id IN (SELECT run_id FROM latest_launch)\n     ORDER BY f.run_id, f.id DESC\n), task_labels AS (\n    SELECT l.session_uuid, string_agg(t.key, ', ' ORDER BY t.key) AS task\n      FROM latest_launch l\n      JOIN latest_fleet f ON f.run_id = l.run_id\n      CROSS JOIN jsonb_each(CASE WHEN jsonb_typeof(f.definition->'tasks') = 'object'\n                                THEN f.definition->'tasks' ELSE '{}'::jsonb END) t\n     WHERE t.value->>'session' = l.session_uuid::text OR t.value->>'seat' = l.seat\n     GROUP BY l.session_uuid\n), notices AS (\n    INSERT INTO mailbox.messages (message_uuid, to_session_id, from_session_id, body)\n    SELECT gen_random_uuid(), m.from_session_id, NULL,\n           '[mike mail] Not delivered: your message ' || m.message_uuid::text\n           || ' to ' || COALESCE(l.seat, sg.display_name, 'session')\n           || ' (' || CASE WHEN t.task IS NULL THEN '' ELSE 'task ' || t.task || ', ' END\n           || 'session ' || m.recipient_uuid::text || ')'\n           || CASE WHEN m.sent_at IS NULL AND m.sent_request_id IS NULL AND m.channel_delivered_at IS NULL\n                   THEN ' was never delivered: that session made no request in time. mike delivers it when that session next makes a request.'\n                   ELSE ' was delivered but never acknowledged before its delivery attempts ran out. mike will not deliver it again: resend it or ask that session.'\n              END\n           || E'\\nMessage first line: ' || m.first_line\n      FROM due m\n      LEFT JOIN sessions.session_goals sg ON sg.session_id = m.to_session_id\n      LEFT JOIN latest_launch l ON l.session_uuid = m.recipient_uuid\n      LEFT JOIN task_labels t ON t.session_uuid = m.recipient_uuid\n     WHERE l.run_id IS NULL OR l.closed_at IS NULL\n    RETURNING 1\n), stamped AS (\n    UPDATE mailbox.messages m\n       SET sender_notified_at = now()\n      FROM due\n     WHERE m.id = due.id\n    RETURNING 1\n)\nSELECT count(*) AS \"notified!\" FROM notices\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "notified!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "b8f1b20a758746bfd6f5c1244bfcc4d141d6a31377a59e86f2a0ade4036fde0c"
+}

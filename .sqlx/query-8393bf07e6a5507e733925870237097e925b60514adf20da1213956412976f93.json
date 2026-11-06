@@ -1,0 +1,92 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.slug, t.title, t.status, COALESCE(s.tldr, '') AS \"tldr!\",\n                            COALESCE(s.next_up, '') AS \"next_up!\", t.parse_error, t.updated_at\n                       FROM work.threads t\n                       LEFT JOIN work.thread_state s ON s.thread_id = t.id\n                      WHERE t.project_id = $1\n                      ORDER BY t.updated_at DESC, t.id DESC\n                      LIMIT $2 OFFSET $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "slug",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "slug"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "tldr!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "next_up!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "parse_error",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "parse_error"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      null,
+      null,
+      true,
+      false
+    ]
+  },
+  "hash": "8393bf07e6a5507e733925870237097e925b60514adf20da1213956412976f93"
+}

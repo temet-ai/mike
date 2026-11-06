@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lesson_shape_findings\n                      SET attempts = attempts + 1,\n                          last_error = $2,\n                          last_attempt_at = now(),\n                          resolution = CASE WHEN attempts + 1 >= $3 THEN 'kept' END,\n                          resolved_at = CASE WHEN attempts + 1 >= $3 THEN now() END\n                    WHERE lesson_id = $1 AND resolution IS NULL\n                RETURNING (resolution IS NOT NULL) AS \"kept!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kept!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "fae21176890cf555e03b6a6546f9bf1630ddc5c029a8e9a7ec8b0cae3d052d37"
+}

@@ -1,0 +1,1 @@
+UPDATE launch.launches SET closed_at = COALESCE(closed_at, now()), close_reason = COALESCE(close_reason, 'seat retired'), close_process_exited = COALESCE(close_process_exited, true) WHERE id = 206 RETURNING id

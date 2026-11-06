@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT rs.code\n                       FROM memory.lesson_relations r\n                       JOIN memory.lesson_relation_statuses rs ON rs.id = r.status_id\n                      WHERE r.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "code",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_relation_statuses",
+            "name": "code"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f355480eec114d85f218e8294007d43adea664b3ea8fba9f4839b81abfef9a1a"
+}

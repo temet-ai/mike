@@ -1,0 +1,119 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ev.proposal_id, ev.kind, ev.ref_id, ev.operator_turn_id, ev.session_id,\n                          ev.observed_at, ev.detail, t.user_prompt AS \"message_text?\",\n                          (t.id IS NULL) AS \"gone!\"\n                     FROM memory.directive_proposal_evidence ev\n                     LEFT JOIN memory.operator_turns t ON t.id = ev.operator_turn_id\n                    WHERE ev.proposal_id = $1\n                    ORDER BY ev.observed_at, ev.ref_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "proposal_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposal_evidence",
+            "name": "proposal_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposal_evidence",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "ref_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposal_evidence",
+            "name": "ref_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "operator_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposal_evidence",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposal_evidence",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "observed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposal_evidence",
+            "name": "observed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "detail",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.directive_proposal_evidence",
+            "name": "detail"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "message_text?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "user_prompt"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "gone!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      null
+    ]
+  },
+  "hash": "9de332cd1574333e5f11cdb634d1ac705bdad72d9d8bdafab202b951823a6b6b"
+}

@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# Runs scripts/install-mods against a temporary HOME. Never touches the real one.
+set -u
+
+script_dir=$(cd "$(dirname "$0")" && pwd)
+repo=$(cd "$script_dir/.." && pwd)
+install="$script_dir/install-mods"
+
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/install-mods-test.XXXXXX") || exit 1
+trap 'rm -rf "$tmp"' EXIT
+
+pass=0
+fail=0
+ok() { pass=$((pass + 1)); echo "ok   $1"; }
+bad() { fail=$((fail + 1)); echo "FAIL $1"; }
+check() { if "${@:2}"; then ok "$1"; else bad "$1"; fi; }
+
+is_link_to() { [ -L "$1" ] && [ "$(readlink "$1")" = "$2" ]; }
+contains() { case "$1" in *"$2"*) return 0 ;; *) return 1 ;; esac; }
+
+mods=""
+for d in "$repo"/mods/*/; do
+  [ -f "${d}.claude-plugin/plugin.json" ] || continue
+  mods="$mods $(basename "$d")"
+done
+
+# 1. fresh HOME: every mod but wiretap is linked to the repository copy
+h1="$tmp/h1"; mkdir -p "$h1"
+out=$(HOME="$h1" "$install" 2>&1); rc=$?
+check "fresh install exits 0" [ "$rc" = 0 ]
+for m in $mods; do
+  if [ "$m" = wiretap ]; then
+    check "wiretap not linked without the flag" [ ! -e "$h1/.claude/mods/wiretap" ]
+  else
+    check "$m linked to the repository copy" is_link_to "$h1/.claude/mods/$m" "$repo/mods/$m"
+  fi
+done
+check "prints CLAUDE_CODE_PLUGIN_DIRS" contains "$out" "CLAUDE_CODE_PLUGIN_DIRS=$h1/.claude/mods/"
+check "output names no wiretap path" bash -c '! printf "%s" "$1" | grep -q "^CLAUDE_CODE_PLUGIN_DIRS=.*wiretap"' _ "$out"
+
+# 2. second run changes nothing
+out2=$(HOME="$h1" "$install" 2>&1); rc=$?
+check "second run exits 0" [ "$rc" = 0 ]
+check "second run says already linked" contains "$out2" "already linked"
+
+# 3. --with-wiretap links wiretap too
+HOME="$h1" "$install" --with-wiretap >/dev/null 2>&1
+check "--with-wiretap links wiretap" is_link_to "$h1/.claude/mods/wiretap" "$repo/mods/wiretap"
+
+# 4. an existing real directory is left untouched with a message
+h2="$tmp/h2"; mkdir -p "$h2/.claude/mods/mike"
+echo keep > "$h2/.claude/mods/mike/own.txt"
+out=$(HOME="$h2" "$install" 2>&1); rc=$?
+check "existing directory: exit 3" [ "$rc" = 3 ]
+check "existing directory: message" contains "$out" "left untouched"
+check "existing directory: still a directory" [ -d "$h2/.claude/mods/mike" ]
+check "existing directory: not a link" [ ! -L "$h2/.claude/mods/mike" ]
+check "existing directory: content kept" [ "$(cat "$h2/.claude/mods/mike/own.txt")" = keep ]
+check "existing directory: others still linked" is_link_to "$h2/.claude/mods/mike-mail" "$repo/mods/mike-mail"
+
+# 5. --backup moves it aside, then links
+out=$(HOME="$h2" "$install" --backup 2>&1); rc=$?
+check "--backup exits 0" [ "$rc" = 0 ]
+check "--backup links mike" is_link_to "$h2/.claude/mods/mike" "$repo/mods/mike"
+bk=$(ls -d "$h2"/.claude/mods/mike.bak-* 2>/dev/null | head -n 1)
+check "--backup keeps the old directory" [ -n "$bk" ]
+check "--backup keeps its content" [ "$(cat "$bk/own.txt" 2>/dev/null)" = keep ]
+
+# 6. a link pointing elsewhere is replaced
+h3="$tmp/h3"; mkdir -p "$h3/.claude/mods" "$tmp/elsewhere"
+ln -s "$tmp/elsewhere" "$h3/.claude/mods/mike"
+HOME="$h3" "$install" >/dev/null 2>&1
+check "stale link replaced" is_link_to "$h3/.claude/mods/mike" "$repo/mods/mike"
+check "stale link target kept" [ -d "$tmp/elsewhere" ]
+
+# 7. --dry-run changes nothing
+h4="$tmp/h4"; mkdir -p "$h4"
+HOME="$h4" "$install" --dry-run >/dev/null 2>&1
+check "--dry-run creates nothing" [ ! -e "$h4/.claude" ]
+
+# 8. settings.json: only env.CLAUDE_CODE_PLUGIN_DIRS changes
+h5="$tmp/h5"; mkdir -p "$h5/.claude"
+cat > "$h5/.claude/settings.json" <<'JSON'
+{
+  "model": "x",
+  "env": { "OTHER": "1", "CLAUDE_CODE_PLUGIN_DIRS": "/elsewhere/mod:/gone/.claude/mods/old" },
+  "hooks": { "Stop": [] }
+}
+JSON
+HOME="$h5" "$install" >/dev/null 2>&1
+dirs=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["env"]["CLAUDE_CODE_PLUGIN_DIRS"])' "$h5/.claude/settings.json")
+check "settings: linked mods listed" contains "$dirs" "$h5/.claude/mods/mike"
+check "settings: wiretap not listed" bash -c '! printf "%s" "$1" | grep -q wiretap' _ "$dirs"
+check "settings: foreign entry kept" contains "$dirs" "/elsewhere/mod"
+check "settings: other keys untouched" python3 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d["model"]=="x" and d["env"]["OTHER"]=="1" and d["hooks"]=={"Stop":[]} else 1)' "$h5/.claude/settings.json"
+before=$(cat "$h5/.claude/settings.json")
+out=$(HOME="$h5" "$install" 2>&1)
+check "settings: second run changes nothing" [ "$(cat "$h5/.claude/settings.json")" = "$before" ]
+check "settings: second run says so" contains "$out" "already lists these mods"
+
+# 9. a settings.json that is not JSON is left alone, exit 4
+h6="$tmp/h6"; mkdir -p "$h6/.claude"
+echo '{ not json' > "$h6/.claude/settings.json"
+HOME="$h6" "$install" >/dev/null 2>&1; rc=$?
+check "bad settings.json: exit 4" [ "$rc" = 4 ]
+check "bad settings.json: untouched" [ "$(cat "$h6/.claude/settings.json")" = '{ not json' ]
+check "bad settings.json: no staged file left" bash -c '! ls "$1"/.claude/settings.json.install-mods.* >/dev/null 2>&1' _ "$h6"
+
+# 10. no settings.json yet: one is created with just the env key
+h7="$tmp/h7"; mkdir -p "$h7"
+HOME="$h7" "$install" >/dev/null 2>&1
+check "settings created" python3 -I -c 'import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if list(d)==["env"] and "CLAUDE_CODE_PLUGIN_DIRS" in d["env"] else 1)' "$h7/.claude/settings.json"
+
+echo
+echo "install-mods tests: $pass passed, $fail failed"
+[ "$fail" = 0 ]

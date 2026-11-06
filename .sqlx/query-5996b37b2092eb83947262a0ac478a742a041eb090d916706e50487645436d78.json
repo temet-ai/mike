@@ -1,0 +1,45 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.code, t.hue, COUNT(tt.thread_id) AS \"usage_count!\"\n                     FROM mailbox.tags t\n                     LEFT JOIN mailbox.thread_tags tt ON tt.tag_id = t.id\n                    GROUP BY t.id, t.code, t.hue\n                    ORDER BY t.code",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "code",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mailbox.tags",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "hue",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "mailbox.tags",
+            "name": "hue"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "usage_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      true,
+      null
+    ]
+  },
+  "hash": "5996b37b2092eb83947262a0ac478a742a041eb090d916706e50487645436d78"
+}

@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO eval.rates (rollup_id, family, metric, population, scope_kind, window_start,\n                        window_end, window_days, role, axis, class, dimension, dimension_value,\n                        k, n, value, ci_low, ci_high, weighted, detail)\nSELECT $1, 'action_effect', 'share', x.population, 'global',\n       $2::timestamptz - make_interval(days => $3::int), $2::timestamptz, $3,\n       'steerer', 'reaction', 'corrected', 'guard_question', x.question,\n       x.k, x.n, x.value, x.ci_low, x.ci_high, false, '{}'::jsonb\n  FROM unnest($4::text[], $5::text[], $6::int[], $7::int[], $8::float8[], $9::float8[], $10::float8[])\n       AS x(population, question, k, n, value, ci_low, ci_high)\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Int4",
+        "TextArray",
+        "TextArray",
+        "Int4Array",
+        "Int4Array",
+        "Float8Array",
+        "Float8Array",
+        "Float8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0841f4e1c1b914a2e51be0cb48737468f55e2577d0b68a493783eb4424fc291c"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions.sessions s SET location_uuid = NULL\n        FROM projects.locations l WHERE s.id = $1 AND s.location_uuid = l.location_uuid\n          AND l.project_id <> $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8e48cbe1c8861cbf43ba76da87b392f661136b85d8c2ef1873f412db1021b1c5"
+}

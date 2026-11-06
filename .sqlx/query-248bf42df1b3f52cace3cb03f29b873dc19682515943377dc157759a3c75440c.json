@@ -1,0 +1,39 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lessons\n                    (project_id, kind_id, text, text_sha256, stage_id, source_turn_id, source_id,\n                     session_id, request_id, embedding, embedding_model, embedded_at,\n                     placement_id, placement_covered_by, placement_reason, placed_at)\n                 SELECT $1::bigint, lk.id, $3::text, $4::bytea, ls.id, $5::bigint, lsrc.id,\n                        $6::bigint, $7::bigint, $8::text::vector, $9::text, NOW(),\n                        lp.id, CASE WHEN lp.id IS NULL THEN NULL ELSE $11::text END,\n                        CASE WHEN lp.id IS NULL THEN NULL ELSE $12::text END,\n                        CASE WHEN lp.id IS NULL THEN NULL ELSE NOW() END\n                   FROM memory.lesson_kinds lk\n                  CROSS JOIN memory.lesson_stages ls\n                  CROSS JOIN memory.lesson_sources lsrc\n                   LEFT JOIN memory.lesson_placements lp ON lp.code = $10::text\n                  WHERE lk.code = $2 AND ls.code = 'raw' AND lsrc.code = 'judge'\n                 RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Bytea",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "248bf42df1b3f52cace3cb03f29b873dc19682515943377dc157759a3c75440c"
+}

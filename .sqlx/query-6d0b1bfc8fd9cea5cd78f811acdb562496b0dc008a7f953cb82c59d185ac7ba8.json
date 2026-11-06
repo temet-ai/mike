@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions.sessions\n                     SET last_seen   = GREATEST(last_seen, $2),\n                         last_status = 'Pending'\n                     WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6d0b1bfc8fd9cea5cd78f811acdb562496b0dc008a7f953cb82c59d185ac7ba8"
+}

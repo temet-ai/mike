@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE steering.question_policies\n                    SET mode = $2, updated_via = $3, updated_at = now()\n                  WHERE id = $1 AND mode = $4",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "efb5df1a852a2be37dc00c15f6f2aa8afa526716de0d1daf6b0c004989660d4e"
+}

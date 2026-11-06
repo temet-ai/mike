@@ -1,0 +1,219 @@
+#!/usr/bin/env bash
+# task-wait — grade completed output once, or explicitly poll a file.
+#
+# Prefer the task's completion notification, then --grade-only. The legacy polling
+# mode remains for existing callers. Its default --until pattern covers success and
+# failure signatures: loops that grep only success hang forever on a compile error.
+#
+# Usage: task-wait <file-or-task-id> [--grade-only | --until REGEX] [--interval N] [--timeout N] [--show CMD] [--nonempty] [--grade]
+#
+#   <file-or-task-id>  A file path; if it does not exist as a file, it is resolved as a
+#                      background-task id: newest /private/tmp/claude-*/*/*/tasks/<id>.output
+#   --until REGEX      Pattern (grep -E) that ends the wait.
+#                      Default: 'Summary \[|error|error\[|FAIL|panicked|Blocked|DONE', with
+#                      'error' matched as a whole word so 'thiserror' never ends the wait
+#   --interval N       Poll interval in seconds (default 5)
+#   --timeout N        Give up after N seconds (default 600). On timeout: prints the last
+#                      20 lines anyway and exits 124.
+#   --show CMD         Command run on match with the file on its stdin, so every stage of a
+#                      pipeline works ('grep x | head'); the path is in $TASK_WAIT_FILE.
+#                      Stopped after 30s. Default 'tail -20'
+#   --nonempty         Succeed as soon as the file exists and is non-empty (ignores --until)
+#   --grade-only       Read a finished task's output once and grade it, without polling.
+#                      Use after its completion notification. Missing output or verdict
+#                      exits 3. This flag does not establish that the task has finished.
+#   --grade            Once the wait condition resolves, don't just exit 0 — scan the
+#                      output file for in-band verdict markers and exit with the REAL
+#                      status. A completion notification only reports the wrapper
+#                      shell's exit status, not the graded command's (mike#182); --grade
+#                      reads the command's own verdict instead of trusting the wrapper.
+#                      Every marker must stand ALONE on its own line (anchored both
+#                      ends), so prose that merely mentions the token can never fire it:
+#                      a line reading exactly 'REAL_EXIT_STATUS=N', or a
+#                      'GATE: PASS'/'GATE: FAIL (... exit N ...)' line (unparseable N ->
+#                      exit 1). Fail-closed: when the file carries more than one marker
+#                      and they disagree, the EARLIEST FAILING one wins, even if a later
+#                      marker claims success — an explicit GATE: FAIL (or a nonzero
+#                      REAL_EXIT_STATUS) is never overridden into a pass. Exit 0 only
+#                      when at least one marker exists and none of them fail. No marker
+#                      at all -> exit 3 (never 0 — absence of a verdict is not success).
+#                      Ignored on timeout, which already exits 124.
+#
+# Exit codes: 0 = pattern matched (or file non-empty with --nonempty), or --grade found
+#                 only passing in-band markers (GATE: PASS / REAL_EXIT_STATUS=0)
+#             124 = timed out
+#             2 = usage error
+#             3 = grading requested but no in-band verdict marker (or --grade-only output) found
+#             N = --grade found a failing in-band marker (GATE: FAIL / REAL_EXIT_STATUS=N);
+#                 the earliest failing marker wins over any later passing one
+set -u
+
+DEFAULT_UNTIL='Summary \[|(^|[^A-Za-z0-9_])error([^A-Za-z0-9_]|$)|error\[|FAIL|panicked|Blocked|DONE'
+
+usage() {
+  sed -n '2,/^set -u/{ /^#/s/^# \{0,1\}//p; }' "$0"
+}
+
+target=""
+until_re="$DEFAULT_UNTIL"
+interval=5
+timeout=600
+show_cmd='tail -20'
+nonempty=0
+grade=0
+grade_only=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --until)    [[ $# -ge 2 ]] || { echo "task-wait: --until needs a value" >&2; exit 2; }
+                until_re="$2"; shift 2 ;;
+    --interval) [[ $# -ge 2 ]] || { echo "task-wait: --interval needs a value" >&2; exit 2; }
+                interval="$2"; shift 2 ;;
+    --timeout)  [[ $# -ge 2 ]] || { echo "task-wait: --timeout needs a value" >&2; exit 2; }
+                timeout="$2"; shift 2 ;;
+    --show)     [[ $# -ge 2 ]] || { echo "task-wait: --show needs a value" >&2; exit 2; }
+                show_cmd="$2"; shift 2 ;;
+    --nonempty) nonempty=1; shift ;;
+    --grade)    grade=1; shift ;;
+    --grade-only) grade_only=1; shift ;;
+    -h|--help)  usage; exit 0 ;;
+    -*)         echo "task-wait: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    *)          if [[ -n "$target" ]]; then
+                  echo "task-wait: unexpected extra argument: $1" >&2; exit 2
+                fi
+                target="$1"; shift ;;
+  esac
+done
+
+[[ -n "$target" ]] || { echo "task-wait: missing <file-or-task-id>" >&2; usage >&2; exit 2; }
+[[ "$interval" =~ ^[0-9]+$ ]] || { echo "task-wait: --interval must be an integer (got '$interval')" >&2; exit 2; }
+[[ "$timeout"  =~ ^[0-9]+$ ]] || { echo "task-wait: --timeout must be an integer (got '$timeout')" >&2; exit 2; }
+
+# Resolve <file-or-task-id> to a concrete file path. Re-resolved every poll so a task
+# output file that appears mid-wait is picked up. Prints nothing if unresolved.
+show_file() {
+  local limiter
+  limiter=$(command -v gtimeout || command -v timeout || true)
+  if [[ -n "$limiter" ]]; then
+    TASK_WAIT_FILE="$1" "$limiter" 30 bash -c "$show_cmd" < "$1"
+  else
+    TASK_WAIT_FILE="$1" bash -c "$show_cmd" < "$1"
+  fi
+}
+
+resolve_target() {
+  if [[ -f "$target" ]]; then
+    printf '%s\n' "$target"
+    return 0
+  fi
+  # Task-id resolution: newest match wins. /bin/ls explicitly (cp/ls are aliased in the
+  # operator's interactive shell; aliases don't fire here, but be unambiguous anyway).
+  local newest
+  newest=$(/bin/ls -t /private/tmp/claude-*/*/*/tasks/"$target".output /tmp/claude-*/*/*/tasks/"$target".output 2>/dev/null | head -1) || true
+  [[ -n "$newest" ]] && printf '%s\n' "$newest"
+}
+
+# --grade: the wait condition resolving only proves the file matched a pattern — never
+# proof the graded command succeeded (a completion notification reports its wrapper
+# shell's exit status, not the command's; mike#182). Scan for in-band verdict markers
+# instead and exit with the real status. Every marker is anchored to a WHOLE line, so
+# prose that merely mentions the token (e.g. "REAL_EXIT_STATUS=0 was seen earlier") can
+# never fire it. Fail-closed: collects every marker in the file and, if any of them
+# signals failure, returns the EARLIEST failing one by line number — a later passing
+# marker (GATE: PASS, or a stray REAL_EXIT_STATUS=0) can never override an explicit
+# failure. Returns 0 (via echo) only when at least one marker exists and none fail;
+# returns non-zero with no output when the file carries no marker at all.
+grade_file() {
+  local f="$1" saw_marker=0 best_line=-1 best_code="" entry lineno content n
+
+  # A line that is EXACTLY 'REAL_EXIT_STATUS=N', nothing else on it.
+  while IFS= read -r entry; do
+    [[ -z "$entry" ]] && continue
+    lineno="${entry%%:*}"
+    content="${entry#*:}"
+    saw_marker=1
+    n="${content#REAL_EXIT_STATUS=}"
+    if [[ "$n" != "0" ]] && { [[ "$best_line" -eq -1 ]] || (( lineno < best_line )); }; then
+      best_line=$lineno
+      best_code="$n"
+    fi
+  done < <(grep -nE '^REAL_EXIT_STATUS=[0-9]+$' "$f" 2>/dev/null)
+
+  while IFS= read -r entry; do
+    [[ -z "$entry" ]] && continue
+    saw_marker=1
+  done < <(grep -nE '^GATE: PASS' "$f" 2>/dev/null)
+
+  while IFS= read -r entry; do
+    [[ -z "$entry" ]] && continue
+    lineno="${entry%%:*}"
+    content="${entry#*:}"
+    saw_marker=1
+    n=$(grep -oE 'exit [0-9]+' <<<"$content" | head -1 | grep -oE '[0-9]+')
+    n="${n:-1}"
+    if [[ "$best_line" -eq -1 ]] || (( lineno < best_line )); then
+      best_line=$lineno
+      best_code="$n"
+    fi
+  done < <(grep -nE '^GATE: FAIL' "$f" 2>/dev/null)
+
+  if [[ "$best_line" -ne -1 ]]; then
+    echo "$best_code"
+    return 0
+  fi
+  if (( saw_marker )); then
+    echo 0
+    return 0
+  fi
+  return 1
+}
+
+if (( grade_only )); then
+  file=$(resolve_target || true)
+  [[ -n "$file" ]] || { echo "task-wait: no output for '$target'; no verdict available" >&2; exit 3; }
+  status=$(grade_file "$file") || { echo "task-wait: no in-band verdict marker in $file" >&2; exit 3; }
+  show_file "$file"
+  exit "$status"
+fi
+
+start=$(date +%s)
+deadline=$(( start + timeout ))
+file=""
+
+while :; do
+  file=$(resolve_target || true)
+  if [[ -n "$file" ]]; then
+    if (( nonempty )); then
+      if [[ -s "$file" ]]; then
+        show_file "$file"
+        if (( grade )); then
+          status=$(grade_file "$file") || { echo "task-wait: --grade found no in-band verdict marker in $file" >&2; exit 3; }
+          exit "$status"
+        fi
+        exit 0
+      fi
+    elif grep -qE "$until_re" "$file" 2>/dev/null; then
+      show_file "$file"
+      if (( grade )); then
+        status=$(grade_file "$file") || { echo "task-wait: --grade found no in-band verdict marker in $file" >&2; exit 3; }
+        exit "$status"
+      fi
+      exit 0
+    fi
+  fi
+  now=$(date +%s)
+  if (( now >= deadline )); then
+    if [[ -n "$file" ]]; then
+      echo "task-wait: timed out after ${timeout}s waiting on $file (pattern: $until_re); last 20 lines:" >&2
+      tail -20 "$file"
+    else
+      echo "task-wait: timed out after ${timeout}s; could not resolve '$target' as a file or task id under /private/tmp/claude-*/*/*/tasks/ or /tmp/claude-*/*/*/tasks/" >&2
+    fi
+    exit 124
+  fi
+  # Don't oversleep past the deadline.
+  remaining=$(( deadline - now ))
+  sleep_for=$interval
+  (( sleep_for > remaining )) && sleep_for=$remaining
+  sleep "$sleep_for"
+done

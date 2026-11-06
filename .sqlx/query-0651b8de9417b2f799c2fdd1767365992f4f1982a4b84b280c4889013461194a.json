@@ -1,0 +1,123 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH windowed AS MATERIALIZED (\n                    SELECT sp.blocks, sp.created_at, r.model\n                    FROM system_prompts.session_prompts sp\n                    JOIN requests.requests r ON r.id = sp.request_id\n                    JOIN projects.projects p ON p.id = r.project_id\n                    WHERE sp.lane = $1\n                      AND sp.subagent_persona IS NOT DISTINCT FROM $2\n                      AND sp.created_at >= COALESCE($3::timestamptz, NOW() - INTERVAL '7 days')\n                      AND sp.created_at <  COALESCE($4::timestamptz, NOW())\n                      AND ($5::text IS NULL OR r.model = $5)\n                      AND ($6::text IS NULL OR p.project_path = $6)\n                ),\n                agg AS (\n                    SELECT COUNT(*)::bigint AS observation_count,\n                           MIN(created_at) AS first_seen,\n                           MAX(created_at) AS last_seen\n                    FROM windowed\n                ),\n                latest AS (\n                    SELECT blocks AS sample_blocks\n                    FROM windowed\n                    ORDER BY created_at DESC\n                    LIMIT 1\n                ),\n                model_breakdown AS (\n                    SELECT jsonb_agg(\n                               jsonb_build_object('model', model, 'count', model_count)\n                               ORDER BY model_count DESC, model\n                           ) AS model_breakdown\n                    FROM (\n                        SELECT model, COUNT(*)::bigint AS model_count\n                        FROM windowed\n                        GROUP BY model\n                    ) model_counts\n                ),\n                registered AS (\n                    SELECT DISTINCT ON (ov.lane, ov.agent_name)\n                        ov.id AS composition_id, ov.label, m.code AS mode, ov.agent_definition_path\n                    FROM overrides.overrides ov\n                    JOIN overrides.modes m ON m.id = ov.mode_id\n                    JOIN overrides.sources src ON src.id = ov.source_id AND src.code = 'manual'\n                    WHERE ov.lane = $1\n                      AND ov.agent_name IS NOT DISTINCT FROM $2\n                    ORDER BY ov.lane, ov.agent_name, ov.updated_at DESC\n                )\n                SELECT\n                    $1::text                          AS \"lane!\",\n                    $2::text                          AS subagent_persona,\n                    a.observation_count               AS \"observation_count!\",\n                    a.first_seen,\n                    a.last_seen,\n                    l.sample_blocks,\n                    COALESCE(mb.model_breakdown, '[]'::jsonb) AS \"model_breakdown!: sqlx::types::Json<Vec<PromptClassModelCount>>\",\n                    r.composition_id,\n                    r.label,\n                    r.mode,\n                    r.agent_definition_path\n                FROM agg a\n                LEFT JOIN latest l ON true\n                LEFT JOIN model_breakdown mb ON true\n                LEFT JOIN registered r ON true\n                WHERE a.observation_count > 0 OR r.composition_id IS NOT NULL",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lane!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "subagent_persona",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "observation_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "first_seen",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "last_seen",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "sample_blocks",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "system_prompts.session_prompts",
+            "name": "blocks"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "model_breakdown!: sqlx::types::Json<Vec<PromptClassModelCount>>",
+        "type_info": "Jsonb",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "composition_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "label"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "mode",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.modes",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "agent_definition_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "overrides.overrides",
+            "name": "agent_definition_path"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Timestamptz",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      true,
+      null,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "0651b8de9417b2f799c2fdd1767365992f4f1982a4b84b280c4889013461194a"
+}

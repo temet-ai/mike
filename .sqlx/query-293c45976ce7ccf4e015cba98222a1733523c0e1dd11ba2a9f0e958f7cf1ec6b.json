@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH lesson AS (\n    INSERT INTO memory.lessons (project_id, kind_id, text, stage_id, source_id, agent_id, session_id)\n    SELECT $1, lk.id, $3, ls.id, lsrc.id,\n           (SELECT min(a.id) FROM agents.agents a WHERE lower(a.name) = lower($5)), $4\n      FROM memory.lesson_kinds lk\n     CROSS JOIN memory.lesson_stages ls\n     CROSS JOIN memory.lesson_sources lsrc\n     WHERE lk.code = $2 AND ls.code = 'raw' AND lsrc.code = 'carry'\n    RETURNING id\n)\nINSERT INTO memory.carried_lessons (lesson_id, project_id, discipline, tag, source_note_uuid)\nSELECT lesson.id, $1, $5, $6, $7 FROM lesson\nRETURNING lesson_id AS \"lesson_id!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lesson_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.carried_lessons",
+            "name": "lesson_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Int8",
+        "Text",
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "293c45976ce7ccf4e015cba98222a1733523c0e1dd11ba2a9f0e958f7cf1ec6b"
+}

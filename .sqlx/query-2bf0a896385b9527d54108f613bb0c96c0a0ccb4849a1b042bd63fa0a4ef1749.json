@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT event_id AS \"event_id!\",\n       capture_sequence AS \"capture_sequence!\",\n       effect_ordinal AS \"effect_ordinal!\",\n       observation::text AS \"observation!\"\n  FROM runtime.codex_projection_effects\n WHERE generation_id = $1 AND thread_id = $2 AND effect_kind = $3\n   AND (capture_sequence, effect_ordinal) > ($4::bigint, $5::integer)\n ORDER BY capture_sequence, effect_ordinal\n LIMIT $6\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "event_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_projection_effects",
+            "name": "event_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "capture_sequence!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_projection_effects",
+            "name": "capture_sequence"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "effect_ordinal!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_projection_effects",
+            "name": "effect_ordinal"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "observation!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Int8",
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "2bf0a896385b9527d54108f613bb0c96c0a0ccb4849a1b042bd63fa0a4ef1749"
+}

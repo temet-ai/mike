@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT 1 AS refreshed FROM (SELECT memory.refresh_inherited_turns($1)) refresh",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "refreshed",
+        "type_info": "Int4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "6d70cadaa6d160c7b0c389d467e076d225f6729841205ba1293f24745c6bdda9"
+}

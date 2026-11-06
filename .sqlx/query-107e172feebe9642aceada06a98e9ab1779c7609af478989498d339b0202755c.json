@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT request_id AS \"request_id!\", response_body AS \"response_body!\"\n           FROM responses.responses\n           WHERE request_id = ANY($1)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "responses.responses",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "response_body!",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "responses.responses",
+            "name": "response_body"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "107e172feebe9642aceada06a98e9ab1779c7609af478989498d339b0202755c"
+}

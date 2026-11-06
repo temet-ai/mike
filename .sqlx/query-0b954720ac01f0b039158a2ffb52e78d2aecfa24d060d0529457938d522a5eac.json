@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO workspace.session_notes\n                  (note_uuid, session_id, kind, title, body, tags, data, created_at, updated_at)\n           SELECT l.brief_note_uuid, s.id, 'brief',\n                  'Launch brief' || COALESCE(': ' || l.seat, ''),\n                  l.brief_text, ARRAY['brief', 'launch'],\n                  jsonb_strip_nulls(jsonb_build_object(\n                      'launch_id', l.id, 'run_id', l.run_id, 'seat', l.seat,\n                      'model', l.model, 'agent', l.agent, 'brief_mode', l.brief_mode)),\n                  l.created_at, l.created_at\n             FROM launch.launches l\n             JOIN sessions.sessions s ON s.session_uuid = l.session_uuid\n            WHERE l.session_uuid = $1\n              AND l.brief_note_uuid IS NOT NULL\n              AND l.brief_text IS NOT NULL\n           ON CONFLICT (note_uuid) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0b954720ac01f0b039158a2ffb52e78d2aecfa24d060d0529457938d522a5eac"
+}

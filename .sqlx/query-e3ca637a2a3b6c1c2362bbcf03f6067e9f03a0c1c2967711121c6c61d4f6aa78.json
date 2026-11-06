@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.operator_turns\n            SET user_prompt = 'fix the parity harness', closed_at = NULL, created_at = $2\n          WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e3ca637a2a3b6c1c2362bbcf03f6067e9f03a0c1c2967711121c6c61d4f6aa78"
+}

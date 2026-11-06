@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO eval.bundles\n                    (role, subject_key, origin, status, components, content_sha256, build_sha,\n                     build_dirty, cause, promoted_at, override_reason)\n                 VALUES ($1, $2, 'candidate', 'live_ungated', $3, $4, $5, $6, $7,\n                         COALESCE($8::timestamptz, now()), $9)\n                 RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Jsonb",
+        "Text",
+        "Text",
+        "Bool",
+        "Jsonb",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e2c23233006b5a1bc974dd6f09b08757e9abd32e25473b626af0310c7d419b94"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.skill_retirements (project_id, folder)\n                 SELECT p.id, $2 FROM projects.projects p WHERE p.project_uuid = $1\n                 ON CONFLICT (project_id, folder) DO UPDATE\n                    SET retired_at = memory.skill_retirements.retired_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "323715035ae3eb6ae7f22b35821595170ca78e98ff831cf209a63cfe71677f7f"
+}

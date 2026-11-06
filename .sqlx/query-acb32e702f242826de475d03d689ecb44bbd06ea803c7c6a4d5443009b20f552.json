@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO requests.tools (request_id, ord, tool_name, definition_id)\n         SELECT u.request_id, u.ord, u.name, u.definition_id\n         FROM UNNEST($1::bigint[], $2::int[], $3::text[], $4::bigint[])\n              AS u(request_id, ord, name, definition_id)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int4Array",
+        "TextArray",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "acb32e702f242826de475d03d689ecb44bbd06ea803c7c6a4d5443009b20f552"
+}

@@ -1,0 +1,136 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT ON (steerer_id)\n                          id, steerer_id, question, scope, project_id, computed_at, rollup_id,\n                          applied_threshold, decision, detail\n                     FROM steering.guard_thresholds\n                    WHERE question = 'fire' AND decision = 'applied' AND computed_at <= $1\n                    ORDER BY steerer_id, computed_at DESC, id DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.guard_thresholds",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "steerer_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.guard_thresholds",
+            "name": "steerer_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "question",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.guard_thresholds",
+            "name": "question"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "scope",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.guard_thresholds",
+            "name": "scope"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.guard_thresholds",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "computed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "steering.guard_thresholds",
+            "name": "computed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "rollup_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "steering.guard_thresholds",
+            "name": "rollup_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "applied_threshold",
+        "type_info": "Float4",
+        "origin": {
+          "Table": {
+            "table": "steering.guard_thresholds",
+            "name": "applied_threshold"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "decision",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "steering.guard_thresholds",
+            "name": "decision"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "detail",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "steering.guard_thresholds",
+            "name": "detail"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "3e7b1c44cba13aa0cdf6b615759fc428260f915e2760e61bf14a73a38c81b911"
+}

@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH next_order AS (\n                     SELECT COALESCE(max(sort_order), 0) + 1 AS n\n                       FROM eval.axis_labels WHERE axis = 'failure_tag' AND sort_order < 99\n                 )\n                 INSERT INTO eval.axis_labels (axis, label, subject_kinds, sort_order, description)\n                 SELECT 'failure_tag', $1, '{turn,session_end}', n, $2 FROM next_order\n                 ON CONFLICT (axis, label) DO SELECT\n                 RETURNING sort_order, description",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "sort_order",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "eval.axis_labels",
+            "name": "sort_order"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.axis_labels",
+            "name": "description"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "a817a2b81a0e6883f80bd07f6097f83ce273bc5f17769e08f4cd5f7cf5244ed2"
+}

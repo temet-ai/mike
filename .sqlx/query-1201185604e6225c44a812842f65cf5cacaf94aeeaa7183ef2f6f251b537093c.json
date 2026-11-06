@@ -1,0 +1,60 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH latest AS (\n    SELECT DISTINCT ON (m.session_id) m.id AS map_id, m.session_id, m.ask_entry_count\n      FROM memory.acceptance_criteria_maps m\n     WHERE m.session_id = ANY($1)\n     ORDER BY m.session_id, m.version DESC\n), genuine AS (\n    SELECT e.session_id, count(*) AS n\n      FROM memory.ask_ledger_entries e\n      LEFT JOIN prompt_kinds.classifications c ON c.request_id = e.request_id\n      LEFT JOIN prompt_kinds.kinds k ON k.id = c.kind_id\n     WHERE e.session_id = ANY($1)\n       AND (k.code IS NULL OR k.code = 'operator')\n     GROUP BY e.session_id\n), recount AS (\n    SELECT l.map_id, l.session_id, l.ask_entry_count AS old_count,\n           LEAST(COALESCE(g.n, 0), $2)::int AS new_count\n      FROM latest l\n      LEFT JOIN genuine g ON g.session_id = l.session_id\n     WHERE LEAST(COALESCE(g.n, 0), $2) < l.ask_entry_count\n)\nSELECT map_id AS \"map_id!\", session_id AS \"session_id!\",\n       old_count AS \"old_count!\", new_count AS \"new_count!\"\n  FROM recount\n ORDER BY map_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "map_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.acceptance_criteria_maps",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.acceptance_criteria_maps",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "old_count!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.acceptance_criteria_maps",
+            "name": "ask_entry_count"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "new_count!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "1201185604e6225c44a812842f65cf5cacaf94aeeaa7183ef2f6f251b537093c"
+}

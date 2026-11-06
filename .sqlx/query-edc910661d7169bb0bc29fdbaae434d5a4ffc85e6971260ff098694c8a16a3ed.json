@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.dossier_entries d\n    SET status = x.status,\n        closed_at = x.closed_at,\n        close_recorded_at = now(),\n        closed_by = x.closed_by\n   FROM jsonb_to_recordset($1::jsonb) AS x(\n        id bigint, status text, closed_at timestamptz, closed_by text)\n  WHERE d.id = x.id\n    AND d.status = 'open'\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "edc910661d7169bb0bc29fdbaae434d5a4ffc85e6971260ff098694c8a16a3ed"
+}

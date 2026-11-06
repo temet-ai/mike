@@ -1,0 +1,6 @@
+# JC19 ledger. The landed line arrives with the commit that rewrites the retired sentences below;
+# retire fragments are enforced only once their package has a landed line.
+landed   JC19 2026-09-24 78944cc4
+retire   docs/ARCHITECTURE.md  closes the open operator turn as `abandoned`
+retire   docs/ARCHITECTURE.md  it closes the open turn with `outcome = 'abandoned'`
+require  .claude/fleet/mike-machinery.md  | Directive proposals |

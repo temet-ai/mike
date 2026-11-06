@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(DISTINCT (e.operator_turn_id, e.question))\n                        FILTER (WHERE e.outcome_label IS NULL\n                                  AND rx.reaction IN ('accepted', 'redirected', 'corrected',\n                                                      'closed_in_frustration', 'no_response',\n                                                      'unclear')) AS \"unlabelled!\",\n                      count(*) FILTER (WHERE i.delivery_channel = 'wake'\n                                         AND e.dispatched_at >= NOW() - interval '7 days')\n                          AS \"wakes_7d!\",\n                      count(*) FILTER (WHERE i.delivery_channel = 'append'\n                                         AND e.dispatched_at >= NOW() - interval '7 days')\n                          AS \"appends_7d!\"\n                 FROM steering.evaluations e\n                 JOIN steering.interventions i ON i.uuid = e.intervention_uuid\n                 LEFT JOIN LATERAL (\n                     SELECT v.reaction\n                       FROM memory.turn_verdicts v\n                      WHERE e.outcome_label IS NULL\n                        AND v.operator_turn_id = e.operator_turn_id AND v.mode = 'live'\n                      ORDER BY v.created_at DESC, v.id DESC\n                      LIMIT 1\n                 ) rx ON true\n                WHERE e.steerer_id = $1\n                  AND (i.delivered_request_id IS NOT NULL OR i.pushed_at IS NOT NULL)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "unlabelled!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "wakes_7d!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "appends_7d!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "9d50cc67b7ea187be3546f27f8db28e899955b46aa58b866831f0d0ba4180b27"
+}

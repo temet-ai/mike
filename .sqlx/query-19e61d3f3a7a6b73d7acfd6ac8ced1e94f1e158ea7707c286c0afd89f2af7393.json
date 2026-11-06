@@ -1,0 +1,196 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT q.question_uuid AS \"question_uuid!\", q.run_id,\n       a.session_uuid AS \"asker!\", ag.display_name AS asker_name,\n       t.session_uuid AS \"to_session?\", q.to_task,\n       q.about_note_uuid AS about_note, q.question AS \"question!\", q.blocked AS \"blocked!\",\n       q.state AS \"state!\", q.answer, sb.session_uuid AS \"settled_by?\",\n       q.created_at AS \"created_at!\", q.settled_at, q.escalated_at\n  FROM sessions.sessions t\n  JOIN workspace.questions q ON q.to_session_id = t.id AND q.state = 'open'\n  JOIN sessions.sessions a ON a.id = q.asker_session_id\n  LEFT JOIN sessions.session_goals ag ON ag.session_id = a.id\n  LEFT JOIN sessions.sessions sb ON sb.id = q.settled_by_session_id\n WHERE t.session_uuid = $1\n ORDER BY q.created_at, q.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "question_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workspace.questions",
+            "name": "question_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "run_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.questions",
+            "name": "run_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "asker!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "asker_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "display_name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "to_session?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "to_task",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.questions",
+            "name": "to_task"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "about_note",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workspace.questions",
+            "name": "about_note_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "question!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.questions",
+            "name": "question"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "blocked!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "workspace.questions",
+            "name": "blocked"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "state!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.questions",
+            "name": "state"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "answer",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.questions",
+            "name": "answer"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "settled_by?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workspace.questions",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "settled_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workspace.questions",
+            "name": "settled_at"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "escalated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workspace.questions",
+            "name": "escalated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "19e61d3f3a7a6b73d7acfd6ac8ced1e94f1e158ea7707c286c0afd89f2af7393"
+}

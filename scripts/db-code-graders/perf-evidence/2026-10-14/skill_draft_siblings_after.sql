@@ -1,0 +1,1 @@
+SELECT s.folder, s.description FROM (SELECT DISTINCT ON (d.folder) d.folder, d.description, d.status, d.created_at FROM memory.skill_drafts d WHERE d.project_id = 993478 AND d.folder <> 'ui-design' AND d.status <> 'rejected' ORDER BY d.folder, d.lesson_watermark DESC) s ORDER BY (s.status = 'accepted') DESC, s.created_at DESC, s.folder LIMIT 5

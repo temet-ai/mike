@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*)::bigint AS \"count!\"\n           FROM requests.requests r\n           JOIN sessions.sessions s ON s.id = r.session_id\n          WHERE s.session_uuid = $1 AND r.intercepted = true",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "358efa0c4bc27f5fcf409e6b697e672c37dfe382909c9717057f05a37c9d2736"
+}

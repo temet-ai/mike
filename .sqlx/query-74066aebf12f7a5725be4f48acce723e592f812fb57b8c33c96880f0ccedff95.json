@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH recent AS (\n        SELECT t.id AS turn_id, t.session_id\n          FROM memory.operator_turns t\n         WHERE t.created_at >= $1\n           AND t.closed_at IS NOT NULL\n           AND NOT EXISTS (\n               SELECT 1\n                 FROM memory.turn_facts_backstop_attempts a\n                WHERE a.operator_turn_id = t.id\n                  AND (a.unbuildable_at IS NOT NULL OR a.retry_after > now()))\n    ), newest_message AS (\n        SELECT c.session_id, max(c.classified_at) AS newest\n          FROM prompt_kinds.classifications c\n         WHERE c.session_id IN (SELECT session_id FROM recent)\n         GROUP BY c.session_id\n    ), stale AS (\n        SELECT r.session_id, r.turn_id\n          FROM recent r\n          LEFT JOIN memory.turn_facts f ON f.operator_turn_id = r.turn_id\n         WHERE f.operator_turn_id IS NULL\n        UNION\n        SELECT r.session_id, r.turn_id\n          FROM recent r\n          JOIN memory.turn_facts f ON f.operator_turn_id = r.turn_id\n         WHERE f.builder_version <> $2\n        UNION\n        SELECT r.session_id, r.turn_id\n          FROM recent r\n          JOIN memory.turn_facts f ON f.operator_turn_id = r.turn_id\n          JOIN requests.requests q ON q.operator_turn_id = r.turn_id\n                                  AND q.id > f.max_request_id\n        UNION\n        SELECT r.session_id, r.turn_id\n          FROM recent r\n          JOIN memory.turn_facts f ON f.operator_turn_id = r.turn_id\n          JOIN sessions.sessions s ON s.id = r.session_id\n         WHERE f.next_state = 'pending'\n           AND s.last_seen < $3\n        UNION\n        SELECT r.session_id, r.turn_id\n          FROM recent r\n          JOIN memory.turn_facts f ON f.operator_turn_id = r.turn_id\n          JOIN newest_message n ON n.session_id = r.session_id\n         WHERE f.next_state = 'pending'\n           AND n.newest > f.built_at\n    ), oldest_build AS (\n        SELECT r.session_id,\n               min(COALESCE(f.built_at, '-infinity'::timestamptz)) AS oldest\n          FROM recent r\n          LEFT JOIN memory.turn_facts f ON f.operator_turn_id = r.turn_id\n         WHERE r.session_id IN (SELECT session_id FROM stale)\n         GROUP BY r.session_id\n    ), chosen AS (\n        SELECT o.session_id, o.oldest\n          FROM oldest_build o\n         ORDER BY o.oldest ASC, o.session_id DESC\n         LIMIT $4\n    ), attempted AS (\n        INSERT INTO memory.turn_facts_backstop_attempts AS a\n               (operator_turn_id, attempt_count, last_attempt_at, retry_after)\n        SELECT st.turn_id, 1, now(), now() + interval '60 seconds'\n          FROM stale st\n          JOIN chosen c ON c.session_id = st.session_id\n        ON CONFLICT (operator_turn_id) DO UPDATE\n           SET attempt_count = a.attempt_count + 1,\n               last_attempt_at = now(),\n               retry_after = now() + least(interval '1 hour',\n                                           interval '60 seconds' * power(2, a.attempt_count)),\n               unbuildable_at = CASE WHEN a.attempt_count + 1 >= $5 THEN now() END\n    )\n    SELECT c.session_id AS \"session_id!\"\n      FROM chosen c\n     ORDER BY c.oldest ASC, c.session_id DESC\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "session_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Text",
+        "Timestamptz",
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "74066aebf12f7a5725be4f48acce723e592f812fb57b8c33c96880f0ccedff95"
+}

@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.requests\n            SET created_at = $2, completed_at = $3, operator_turn_id = $4 WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "34d55305f43c9363c2ef36fc805634f2c5b16ef336c7a17f3141a90cc588fca7"
+}

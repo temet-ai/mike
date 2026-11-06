@@ -1,0 +1,102 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n                       ce.id          AS \"id!\",\n                       s.session_uuid AS \"session_id?\",\n                       ce.actor_label AS \"actor_label!\",\n                       ek.code        AS \"kind!\",\n                       ce.subject     AS \"subject!\",\n                       ce.detail      AS \"detail!\",\n                       ce.created_at  AS \"created_at!\"\n                   FROM workspace.coordination_events ce\n                   JOIN workspace.event_kinds ek ON ek.id = ce.kind_id\n                   LEFT JOIN sessions.sessions s ON s.id = ce.session_id\n                  WHERE ce.project_id = $1\n                  ORDER BY ce.id DESC\n                  OFFSET $2 LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "workspace.coordination_events",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "actor_label!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.coordination_events",
+            "name": "actor_label"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.event_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "subject!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.coordination_events",
+            "name": "subject"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "detail!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "workspace.coordination_events",
+            "name": "detail"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workspace.coordination_events",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "fc2d70e1e2c1ab8d1e018f22259a0f1c4fdbf5c5afd9951d52a50260280507c7"
+}

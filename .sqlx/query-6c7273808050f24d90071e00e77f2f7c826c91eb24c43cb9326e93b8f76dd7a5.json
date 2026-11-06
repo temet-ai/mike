@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE eval.bundles\n                    SET status = 'retired', superseded_at = now(), superseded_by_id = $2\n                  WHERE id = $1 AND status IN ('live', 'live_ungated') AND id <> $2\n                 RETURNING role",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "role",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "role"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6c7273808050f24d90071e00e77f2f7c826c91eb24c43cb9326e93b8f76dd7a5"
+}

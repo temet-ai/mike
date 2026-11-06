@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT tu.file_path AS \"file_path!\"\n                     FROM tools.uses tu\n                    WHERE tu.session_id = $1 AND tu.file_path IS NOT NULL\n                    ORDER BY tu.file_path",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "file_path!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "file_path"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "a74a2f3aeac11e0d10dde705183a934f95ef4e1ac143f1d4b18fd0bf0fff60fd"
+}

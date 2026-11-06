@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO runtime.codex_projection_effects\n         (generation_id, namespace_id, event_id, capture_sequence, effect_ordinal, effect_kind,\n          thread_id, turn_id, item_id, observation)\n         SELECT $1, $2, $3, $4, effect.ordinal, effect.kind, effect.thread_id, effect.turn_id,\n                effect.item_id, effect.document::json\n         FROM UNNEST($5::integer[], $6::text[], $7::text[], $8::text[], $9::text[], $10::text[])\n         AS effect(ordinal, kind, thread_id, turn_id, item_id, document)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Int8",
+        "Int4Array",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9b2858c3ebebe661d7a70e0be2bf623f93d5a450c5e1e8e4e945644660aa1ddc"
+}

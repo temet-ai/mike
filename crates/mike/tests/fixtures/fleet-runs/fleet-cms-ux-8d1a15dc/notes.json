@@ -1,0 +1,2712 @@
+[
+  {
+    "data": {
+      "task": "T7",
+      "check": null,
+      "slice": null,
+      "commit": "7940ad9c696e5a873f586b6794d536f64f03cce4",
+      "criteria": [
+        "C5"
+      ],
+      "evidence": [
+        "site/cms/room/test/git.test.ts",
+        "site/cms/room/test/server.test.ts",
+        "site/cms/room/scripts/sandbox.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": false,
+        "verdict": null,
+        "checked_at": null,
+        "last_change_at": "2026-10-21T14:02:33.932860Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T7"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:03:11.619279+00:00",
+    "updated_at": "2026-10-21T14:03:11.619279+00:00",
+    "session_uuid": "410d558c-7cef-40c3-b9b6-be23522e41fb"
+  },
+  {
+    "data": {
+      "sha": "7940ad9c696e5a873f586b6794d536f64f03cce4",
+      "task": "T7",
+      "limits": null,
+      "evidence": null,
+      "readiness": "ready"
+    },
+    "kind": "decision",
+    "tags": [
+      "acceptance",
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:03:35.722606+00:00",
+    "updated_at": "2026-10-21T14:03:35.722606+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "task": "T7",
+      "check": "passed",
+      "slice": null,
+      "commit": "7940ad9c696e5a873f586b6794d536f64f03cce4",
+      "criteria": [
+        "C5"
+      ],
+      "evidence": [],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:03:46.886719Z",
+        "last_change_at": "2026-10-21T14:02:33.932860Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T7"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:03:59.919301+00:00",
+    "updated_at": "2026-10-21T14:03:59.919301+00:00",
+    "session_uuid": "410d558c-7cef-40c3-b9b6-be23522e41fb"
+  },
+  {
+    "data": {
+      "task": "T7",
+      "check": null,
+      "slice": null,
+      "commit": "6cdebb96a4727051fd4a2d669c296a0936fd32ce",
+      "criteria": [
+        "C5"
+      ],
+      "evidence": [
+        "site/cms/room/test/server.test.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": false,
+        "verdict": null,
+        "checked_at": null,
+        "last_change_at": "2026-10-21T14:04:23.467630Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T7"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:04:44.582391+00:00",
+    "updated_at": "2026-10-21T14:04:44.582391+00:00",
+    "session_uuid": "410d558c-7cef-40c3-b9b6-be23522e41fb"
+  },
+  {
+    "data": {
+      "task": "T7",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C5"
+      ],
+      "report_note": "212cff4e-7dd5-401a-afd4-d84c60aaf302",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T7"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:05:29.76834+00:00",
+    "updated_at": "2026-10-21T14:05:29.76834+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "task": "T1",
+      "check": null,
+      "slice": null,
+      "commit": "866f9b47616f378c79d30644854f816d36857e8c",
+      "criteria": [
+        "C1",
+        "C3",
+        "C4"
+      ],
+      "evidence": [
+        "artifacts/threads/cms-ux/reports/audit.md",
+        "docs/cms-admin-ux.md",
+        "artifacts/threads/cms-ux/reports/img/open-1440.png",
+        "artifacts/threads/cms-ux/reports/img/open-1280.png",
+        "artifacts/threads/cms-ux/reports/img/open-1440-axe.json",
+        "artifacts/threads/cms-ux/reports/img/open-1280-axe.json"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:05:30.348219Z",
+        "last_change_at": "2026-10-21T14:01:34.204353Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T1"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:05:55.157447+00:00",
+    "updated_at": "2026-10-21T14:05:55.157447+00:00",
+    "session_uuid": "7dc9cfbc-f642-4d25-8155-60dab72498f5"
+  },
+  {
+    "data": {
+      "sha": "866f9b47616f378c79d30644854f816d36857e8c",
+      "task": "T1",
+      "limits": null,
+      "evidence": null,
+      "readiness": "ready"
+    },
+    "kind": "decision",
+    "tags": [
+      "acceptance",
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:06:28.52411+00:00",
+    "updated_at": "2026-10-21T14:06:28.52411+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "task": "T1",
+      "check": null,
+      "slice": null,
+      "commit": "4cce71fd31784a679ccc06b3438576e6f697f5a3",
+      "criteria": [
+        "C1",
+        "C3",
+        "C4"
+      ],
+      "evidence": [
+        "artifacts/threads/cms-ux/reports/audit.md",
+        "artifacts/threads/cms-ux/reports/img/flow-3-saved-1440.png",
+        "artifacts/threads/cms-ux/reports/img/flow-4-review-1440.png",
+        "artifacts/threads/cms-ux/reports/img/flow-6-save-failed-1440.png",
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:08:28.718736Z",
+        "last_change_at": "2026-10-21T14:06:17.883763Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T1"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:09:11.732169+00:00",
+    "updated_at": "2026-10-21T14:09:11.732169+00:00",
+    "session_uuid": "7dc9cfbc-f642-4d25-8155-60dab72498f5"
+  },
+  {
+    "data": {
+      "task": "T8",
+      "check": null,
+      "slice": null,
+      "commit": "c26106d89cad1cd09e88b00591ff18dc75af8d90",
+      "criteria": [
+        "C3"
+      ],
+      "evidence": [
+        "site/cms/room/test/git.test.ts",
+        "site/cms/room/test/server.test.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:09:35.777398Z",
+        "last_change_at": "2026-10-21T14:09:13.126063Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T8"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:09:39.590833+00:00",
+    "updated_at": "2026-10-21T14:09:39.590833+00:00",
+    "session_uuid": "64e0b32f-89c6-423f-9084-c6ed1f5f5200"
+  },
+  {
+    "data": {
+      "task": "T1",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C1",
+        "C3",
+        "C4"
+      ],
+      "report_note": "71ed0efb-28c5-4f73-a955-0e9d4503550a",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T1"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:09:45.956436+00:00",
+    "updated_at": "2026-10-21T14:09:45.956436+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "task": "T3",
+      "check": null,
+      "slice": null,
+      "commit": "2a654cda5cb3f6345d283804521dfd02a5a8aa96",
+      "criteria": [
+        "C2",
+        "C5"
+      ],
+      "evidence": [
+        "site/cms/admin/test/states.test.ts",
+        "site/cms/admin/src/entries/states.ts",
+        "site/cms/admin/src/entries/EntryList.tsx",
+        "site/cms/admin/src/entries/NewEntry.tsx",
+        "site/cms/admin/src/entries/entries.css"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:09:35.777398Z",
+        "last_change_at": "2026-10-21T14:09:34.158223Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T3"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:09:53.564797+00:00",
+    "updated_at": "2026-10-21T14:09:53.564797+00:00",
+    "session_uuid": "4c43ab6f-23b1-4b0f-863a-1e370ae09d6a"
+  },
+  {
+    "data": {
+      "task": "T3",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "fail",
+      "criteria": [
+        "C2"
+      ],
+      "report_note": "7521ff99-39f5-46d7-a871-106942a2d2dd",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T3"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:10:57.942759+00:00",
+    "updated_at": "2026-10-21T14:10:57.942759+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "task": "T8",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C3"
+      ],
+      "report_note": "a0993e51-abc2-46df-a2d0-ff89279a89b0",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T8"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:12:18.299273+00:00",
+    "updated_at": "2026-10-21T14:12:18.299273+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "task": "T3",
+      "check": null,
+      "slice": null,
+      "commit": "388c672f09a87ec10a12e6c9fe88b1a31878019c",
+      "criteria": [
+        "C2",
+        "C5"
+      ],
+      "evidence": [
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:13:16.520540Z",
+        "last_change_at": "2026-10-21T14:12:04.180413Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T3"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:13:27.207116+00:00",
+    "updated_at": "2026-10-21T14:13:27.207116+00:00",
+    "session_uuid": "4c43ab6f-23b1-4b0f-863a-1e370ae09d6a"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "check": null,
+      "slice": null,
+      "commit": "cef17be0e0f1a3e83193fee5f56da37bc6f5a941",
+      "criteria": [
+        "C2",
+        "C3"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:13:16.520540Z",
+        "last_change_at": "2026-10-21T14:09:34.158223Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T5"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:13:40.677922+00:00",
+    "updated_at": "2026-10-21T14:13:40.677922+00:00",
+    "session_uuid": "65ada641-fbe8-4418-b312-387857295668"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "check": null,
+      "slice": null,
+      "commit": "5fae4314269011b8df0c6fcc45e26e3ca7687b1e",
+      "criteria": [
+        "C2",
+        "C3"
+      ],
+      "evidence": [
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:13:41.095214Z",
+        "last_change_at": "2026-10-21T14:09:34.158223Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:14:07.042116+00:00",
+    "updated_at": "2026-10-21T14:14:07.042116+00:00",
+    "session_uuid": "d1c2eb88-8297-4f34-82ea-0d8e1e03da97"
+  },
+  {
+    "data": {
+      "task": "T6",
+      "check": null,
+      "slice": null,
+      "commit": "b8bf13d3557b96c8b585b1f66cd513668cfd9081",
+      "criteria": [
+        "C2",
+        "C3"
+      ],
+      "evidence": [
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:14:43.011462Z",
+        "last_change_at": "2026-10-21T14:13:34.180209Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T6"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:14:55.024487+00:00",
+    "updated_at": "2026-10-21T14:14:55.024487+00:00",
+    "session_uuid": "d08acda6-23f7-4f54-8dfd-bc5a09358445"
+  },
+  {
+    "data": {
+      "task": "T9",
+      "check": null,
+      "slice": null,
+      "commit": "1c0162e704975a12324b05d1d6e79cde3e9702d8",
+      "criteria": [
+        "C2"
+      ],
+      "evidence": [
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:15:48.616839Z",
+        "last_change_at": "2026-10-21T14:14:47.364153Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T9"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:16:18.034183+00:00",
+    "updated_at": "2026-10-21T14:16:18.034183+00:00",
+    "session_uuid": "33938cfd-279d-418f-a97c-3111a4603a5c"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "check": null,
+      "slice": null,
+      "commit": "f2e4f9ffa71eb88d1f161108aa07a09a0f3eca0b",
+      "criteria": [
+        "C2",
+        "C3"
+      ],
+      "evidence": [
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:16:51.891304Z",
+        "last_change_at": "2026-10-21T14:09:34.158223Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:17:12.965857+00:00",
+    "updated_at": "2026-10-21T14:17:12.965857+00:00",
+    "session_uuid": "d1c2eb88-8297-4f34-82ea-0d8e1e03da97"
+  },
+  {
+    "data": {
+      "task": "T3",
+      "check": null,
+      "slice": null,
+      "commit": "388c672f09a87ec10a12e6c9fe88b1a31878019c",
+      "criteria": [
+        "C2",
+        "C5"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:16:51.891304Z",
+        "last_change_at": "2026-10-21T14:12:04.180413Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T3"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:17:23.812515+00:00",
+    "updated_at": "2026-10-21T14:17:23.812515+00:00",
+    "session_uuid": "4c43ab6f-23b1-4b0f-863a-1e370ae09d6a"
+  },
+  {
+    "data": {
+      "task": "T9",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C2"
+      ],
+      "report_note": "93b5a82d-caf9-4a1b-9d4a-8f5dd736cbf5",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T9"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:18:05.223654+00:00",
+    "updated_at": "2026-10-21T14:18:05.223654+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "check": null,
+      "slice": null,
+      "commit": "dda8d5aa210b6209dd77e223043653dcfd82a107",
+      "criteria": [
+        "C1",
+        "C2",
+        "C4"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:17:58.530054Z",
+        "last_change_at": "2026-10-21T14:17:34.857005Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:18:14.371735+00:00",
+    "updated_at": "2026-10-21T14:18:14.371735+00:00",
+    "session_uuid": "934ec3f1-ec2c-4503-ab9b-c1214333846d"
+  },
+  {
+    "data": {
+      "task": "T3",
+      "check": null,
+      "slice": null,
+      "commit": "388c672f09a87ec10a12e6c9fe88b1a31878019c",
+      "criteria": [
+        "C2",
+        "C5"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:18:46.096311Z",
+        "last_change_at": "2026-10-21T14:12:04.180413Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T3"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:19:06.323907+00:00",
+    "updated_at": "2026-10-21T14:19:06.323907+00:00",
+    "session_uuid": "4c43ab6f-23b1-4b0f-863a-1e370ae09d6a"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "check": null,
+      "slice": null,
+      "commit": "4f7edd8e7e114cac5e3bc84547d842e44ff01d05",
+      "criteria": [
+        "C2",
+        "C4"
+      ],
+      "evidence": [
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:19:15.436532Z",
+        "last_change_at": "2026-10-21T14:19:04.855438Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:19:24.461361+00:00",
+    "updated_at": "2026-10-21T14:19:24.461361+00:00",
+    "session_uuid": "934ec3f1-ec2c-4503-ab9b-c1214333846d"
+  },
+  {
+    "data": {
+      "task": "T3",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C2"
+      ],
+      "report_note": "23040504-01fc-4a3c-a0e7-b53e0129c18d",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T3"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:19:40.448084+00:00",
+    "updated_at": "2026-10-21T14:19:40.448084+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "check": null,
+      "slice": null,
+      "commit": "4905fa2bf01b5d2381497335bc1638fb31fe03a9",
+      "criteria": [
+        "C2",
+        "C3"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:19:36.560654Z",
+        "last_change_at": "2026-10-21T14:09:34.158223Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T5"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:19:41.174802+00:00",
+    "updated_at": "2026-10-21T14:19:41.174802+00:00",
+    "session_uuid": "65ada641-fbe8-4418-b312-387857295668"
+  },
+  {
+    "data": {
+      "task": "T6",
+      "check": null,
+      "slice": null,
+      "commit": "c39cacb4c229ba7c332ce6fb43d86b503384978c",
+      "criteria": [
+        "C2",
+        "C3"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:19:57.812910Z",
+        "last_change_at": "2026-10-21T14:13:34.180209Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T6"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:20:07.015975+00:00",
+    "updated_at": "2026-10-21T14:20:07.015975+00:00",
+    "session_uuid": "d08acda6-23f7-4f54-8dfd-bc5a09358445"
+  },
+  {
+    "data": {
+      "task": "T3",
+      "check": null,
+      "slice": null,
+      "commit": "388c672f09a87ec10a12e6c9fe88b1a31878019c",
+      "criteria": [
+        "C2",
+        "C5"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:19:57.812910Z",
+        "last_change_at": "2026-10-21T14:12:04.180413Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T3"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:20:14.980307+00:00",
+    "updated_at": "2026-10-21T14:20:14.980307+00:00",
+    "session_uuid": "4c43ab6f-23b1-4b0f-863a-1e370ae09d6a"
+  },
+  {
+    "data": {
+      "task": "T6",
+      "check": "passed",
+      "slice": null,
+      "commit": "c39cacb4c229ba7c332ce6fb43d86b503384978c",
+      "criteria": [
+        "C2",
+        "C3"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:21:06.498537Z",
+        "last_change_at": "2026-10-21T14:20:04.868849Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T6"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:21:12.557253+00:00",
+    "updated_at": "2026-10-21T14:21:12.557253+00:00",
+    "session_uuid": "d08acda6-23f7-4f54-8dfd-bc5a09358445"
+  },
+  {
+    "data": {
+      "task": "T9",
+      "check": null,
+      "slice": null,
+      "commit": "5098f660c46ae0ec4b81a859016659955ccf9c9a",
+      "criteria": [
+        "C2"
+      ],
+      "evidence": [
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": false,
+        "verdict": null,
+        "checked_at": null,
+        "last_change_at": "2026-10-21T14:22:05.006596Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T9"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:22:31.795353+00:00",
+    "updated_at": "2026-10-21T14:22:31.795353+00:00",
+    "session_uuid": "03f20341-77a9-42ab-9e6d-8b1464f48813"
+  },
+  {
+    "data": {
+      "task": "T10",
+      "check": null,
+      "slice": null,
+      "commit": "21d32ba7bbfa11cf42ad14aa25e497005860a9c9",
+      "criteria": [
+        "C6"
+      ],
+      "evidence": [
+        "docs/cms-admin-ux.md"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:22:37.624114Z",
+        "last_change_at": null
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T10"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:22:46.455485+00:00",
+    "updated_at": "2026-10-21T14:22:46.455485+00:00",
+    "session_uuid": "108f1d2e-e68c-4288-9fd8-06dfef43282d"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C2",
+        "C3"
+      ],
+      "report_note": "ad82f531-8c4e-4338-9455-b2596af2e350",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:23:47.284988+00:00",
+    "updated_at": "2026-10-21T14:23:47.284988+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "task": "T6",
+      "check": "passed",
+      "slice": null,
+      "commit": "c39cacb4c229ba7c332ce6fb43d86b503384978c",
+      "criteria": [
+        "C2",
+        "C3"
+      ],
+      "evidence": [
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "failed",
+        "checked_at": "2026-10-21T14:23:37.960231Z",
+        "last_change_at": "2026-10-21T14:20:04.868849Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T6"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:23:54.285037+00:00",
+    "updated_at": "2026-10-21T14:23:54.285037+00:00",
+    "session_uuid": "d08acda6-23f7-4f54-8dfd-bc5a09358445"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "fail",
+      "criteria": [
+        "C2",
+        "C4"
+      ],
+      "report_note": "288e8f91-ea88-4850-b372-0ddceee46612",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:23:56.420088+00:00",
+    "updated_at": "2026-10-21T14:23:56.420088+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "task": "T9",
+      "check": null,
+      "slice": null,
+      "commit": "5098f660c46ae0ec4b81a859016659955ccf9c9a",
+      "criteria": [
+        "C2"
+      ],
+      "evidence": [
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "failed",
+        "checked_at": "2026-10-21T14:23:37.960231Z",
+        "last_change_at": "2026-10-21T14:22:05.006596Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T9"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:24:14.93294+00:00",
+    "updated_at": "2026-10-21T14:24:14.93294+00:00",
+    "session_uuid": "03f20341-77a9-42ab-9e6d-8b1464f48813"
+  },
+  {
+    "data": {
+      "task": "T9",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C2"
+      ],
+      "report_note": "c6755b77-ca60-48a4-9aad-f4d43368fd26",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T9"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:24:31.43172+00:00",
+    "updated_at": "2026-10-21T14:24:31.43172+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "task": "T10",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "fail",
+      "criteria": [
+        "C6"
+      ],
+      "report_note": "fcd8fc2f-7f95-42e9-b3c3-5abec241dd79",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T10"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:24:54.209686+00:00",
+    "updated_at": "2026-10-21T14:24:54.209686+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "check": null,
+      "slice": null,
+      "commit": "28647b4fed70d2da40d8792e7a731d98033ee550",
+      "criteria": [
+        "C2",
+        "C4"
+      ],
+      "evidence": [
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:25:14.519282Z",
+        "last_change_at": "2026-10-21T14:24:35.006540Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:25:18.538614+00:00",
+    "updated_at": "2026-10-21T14:25:18.538614+00:00",
+    "session_uuid": "934ec3f1-ec2c-4503-ab9b-c1214333846d"
+  },
+  {
+    "data": {
+      "task": "T10",
+      "check": null,
+      "slice": null,
+      "commit": "767e40f90e2d3f1e405466c745dd73d225609d22",
+      "criteria": [
+        "C6"
+      ],
+      "evidence": [
+        "docs/cms-admin-ux.md"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:25:34.642523Z",
+        "last_change_at": "2026-10-21T14:25:13.880772Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T10"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:25:49.562092+00:00",
+    "updated_at": "2026-10-21T14:25:49.562092+00:00",
+    "session_uuid": "108f1d2e-e68c-4288-9fd8-06dfef43282d"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "check": null,
+      "slice": null,
+      "commit": "015a9cbd4bde42c0cac46be7bb091621bfec8eb2",
+      "criteria": [
+        "C2",
+        "C3",
+        "C6"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:25:55.703252Z",
+        "last_change_at": "2026-10-21T14:09:34.158223Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T5"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:26:07.444338+00:00",
+    "updated_at": "2026-10-21T14:26:07.444338+00:00",
+    "session_uuid": "65ada641-fbe8-4418-b312-387857295668"
+  },
+  {
+    "data": {
+      "task": "T10",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C6"
+      ],
+      "report_note": "d3da7c97-fa9a-40c3-b3ef-83601ed37f7d",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T10"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:26:30.822441+00:00",
+    "updated_at": "2026-10-21T14:26:30.822441+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "task": "T6",
+      "check": null,
+      "slice": null,
+      "commit": "9de55b236fe35ae3590c7813aab914efa917064c",
+      "criteria": [
+        "C2",
+        "C3"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:26:36.708901Z",
+        "last_change_at": "2026-10-21T14:25:35.230143Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T6"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:26:37.506144+00:00",
+    "updated_at": "2026-10-21T14:26:37.506144+00:00",
+    "session_uuid": "d08acda6-23f7-4f54-8dfd-bc5a09358445"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C2",
+        "C3"
+      ],
+      "report_note": "d738eb77-db0c-41d8-aee8-50d6d4538277",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T5"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:27:21.94587+00:00",
+    "updated_at": "2026-10-21T14:27:21.94587+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C1",
+        "C2",
+        "C4"
+      ],
+      "report_note": "ae7fe2e9-d494-48c4-ad62-3f566b4e6113",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:28:26.284683+00:00",
+    "updated_at": "2026-10-21T14:28:26.284683+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "check": "passed",
+      "slice": null,
+      "commit": "8b0cb786b6a8c94acbebf544d56e0ffc9999a691",
+      "criteria": [
+        "C2",
+        "C3",
+        "C6"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:30:32.879830Z",
+        "last_change_at": "2026-10-21T14:09:34.158223Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T5"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:30:59.163386+00:00",
+    "updated_at": "2026-10-21T14:30:59.163386+00:00",
+    "session_uuid": "65ada641-fbe8-4418-b312-387857295668"
+  },
+  {
+    "data": {
+      "task": "T5",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C6"
+      ],
+      "report_note": "f2d77b6f-9e29-4048-8e5a-ef9e5e78880d",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T5"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:31:31.740671+00:00",
+    "updated_at": "2026-10-21T14:31:31.740671+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "task": "T6",
+      "check": null,
+      "slice": null,
+      "commit": "725f35dce06763ae9694cdaae7aee083de2a3348",
+      "criteria": [
+        "C2",
+        "C3"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:32:14.776181Z",
+        "last_change_at": "2026-10-21T14:29:35.459234Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T6"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:32:28.637688+00:00",
+    "updated_at": "2026-10-21T14:32:28.637688+00:00",
+    "session_uuid": "d08acda6-23f7-4f54-8dfd-bc5a09358445"
+  },
+  {
+    "data": {
+      "task": "T3",
+      "check": "passed",
+      "slice": null,
+      "commit": "77657bb0a6f56361bec97175befe41a435ea53e0",
+      "criteria": [
+        "C5"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:32:56.574267Z",
+        "last_change_at": "2026-10-21T14:29:35.459234Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T3"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:33:03.332963+00:00",
+    "updated_at": "2026-10-21T14:33:03.332963+00:00",
+    "session_uuid": "4c43ab6f-23b1-4b0f-863a-1e370ae09d6a"
+  },
+  {
+    "data": {
+      "task": "T6",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C2",
+        "C3"
+      ],
+      "report_note": "1da523e2-5ccf-4674-9069-5737299c59b7",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T6"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:33:04.373775+00:00",
+    "updated_at": "2026-10-21T14:33:04.373775+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "as_at": "2026-10-21T14:33Z",
+      "base_sha": "e5de38656fbf8d9ffd42ed33b311ea5db98d0a02",
+      "handover": true,
+      "manifest": null,
+      "notes_since": null,
+      "unread_reports": {
+        "T3": "ec96bbea-0d70-40fc-ab0a-73026985c70f"
+      },
+      "open_obligations": {
+        "T11-C6-repo": "0373e3df-d63f-4d3b-a357-bc50ad272658",
+        "T4-C6-fields": "d2e694d4-c8b5-48d9-9a47-66d01b9c5372",
+        "T3-C5-walkthrough": "d1886ce5-d41b-4cb5-8ce9-8c409ff4f34d",
+        "T2-C2-failed-check": "cbf42d59-adbe-4f40-8710-332c14249fd6"
+      }
+    },
+    "kind": "decision",
+    "tags": [
+      "acceptance",
+      "acceptance-handover",
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:33:33.9309+00:00",
+    "updated_at": "2026-10-21T14:33:43.750505+00:00",
+    "session_uuid": "f00cf4b8-4c93-42f5-aa13-bc5154bb9fbd"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "check": null,
+      "slice": null,
+      "commit": "d1e174e4d5cded23c7f470c7cad53e1a1342bfad",
+      "criteria": [
+        "C6",
+        "C3"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:33:16.738874Z",
+        "last_change_at": "2026-10-21T14:24:05.006585Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:35:49.5183+00:00",
+    "updated_at": "2026-10-21T14:35:49.5183+00:00",
+    "session_uuid": "d1c2eb88-8297-4f34-82ea-0d8e1e03da97"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "check": "passed",
+      "slice": null,
+      "commit": "a0077c29de503eec4ca580e295183602c7511a12",
+      "criteria": [
+        "C2",
+        "C4"
+      ],
+      "evidence": [
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:33:16.738874Z",
+        "last_change_at": "2026-10-21T14:31:05.460484Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:35:57.472618+00:00",
+    "updated_at": "2026-10-21T14:35:57.472618+00:00",
+    "session_uuid": "feae9696-343d-4862-8593-ef32ee8686dc"
+  },
+  {
+    "data": {
+      "task": "T11",
+      "check": null,
+      "slice": null,
+      "commit": "59cb0b08a90d26a56eb57ff3d20701c9829549be",
+      "criteria": [
+        "C6"
+      ],
+      "evidence": [],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:36:22.084612Z",
+        "last_change_at": "2026-10-21T14:35:35.494869Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T11"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:36:33.939765+00:00",
+    "updated_at": "2026-10-21T14:36:33.939765+00:00",
+    "session_uuid": "bf0b569c-99ca-4e63-ba6f-600f2fea7686"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "check": null,
+      "slice": null,
+      "commit": "cfb43fff4b7226d36fce7aff472ff9977b1d2f79",
+      "criteria": [
+        "C2",
+        "C3",
+        "C6"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "failed",
+        "checked_at": "2026-10-21T14:36:42.046865Z",
+        "last_change_at": "2026-10-21T14:24:05.006585Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:37:05.23373+00:00",
+    "updated_at": "2026-10-21T14:37:05.23373+00:00",
+    "session_uuid": "d1c2eb88-8297-4f34-82ea-0d8e1e03da97"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "check": "passed",
+      "slice": null,
+      "commit": "a0077c29de503eec4ca580e295183602c7511a12",
+      "criteria": [
+        "C2"
+      ],
+      "evidence": [
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:38:45.854398Z",
+        "last_change_at": "2026-10-21T14:31:05.460484Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:39:13.615216+00:00",
+    "updated_at": "2026-10-21T14:39:13.615216+00:00",
+    "session_uuid": "feae9696-343d-4862-8593-ef32ee8686dc"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "check": null,
+      "slice": null,
+      "commit": "1a92fca4edd289e1c16a312b81f0ca4229ad407c",
+      "criteria": [
+        "C3",
+        "C6"
+      ],
+      "evidence": [
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:38:45.854398Z",
+        "last_change_at": "2026-10-21T14:24:05.006585Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:42:39.321708+00:00",
+    "updated_at": "2026-10-21T14:42:39.321708+00:00",
+    "session_uuid": "d1c2eb88-8297-4f34-82ea-0d8e1e03da97"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "check": "passed",
+      "slice": null,
+      "commit": "a0077c29de503eec4ca580e295183602c7511a12",
+      "criteria": [
+        "C2"
+      ],
+      "evidence": [
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:43:50.832158Z",
+        "last_change_at": "2026-10-21T14:31:05.460484Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:45:55.764988+00:00",
+    "updated_at": "2026-10-21T14:45:55.764988+00:00",
+    "session_uuid": "feae9696-343d-4862-8593-ef32ee8686dc"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "check": null,
+      "slice": null,
+      "commit": "d9ead749c9c18cb7003dfd36ce18c6be253ccb8a",
+      "criteria": [
+        "C6"
+      ],
+      "evidence": [
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:43:50.832158Z",
+        "last_change_at": "2026-10-21T14:24:05.006585Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:47:02.625115+00:00",
+    "updated_at": "2026-10-21T14:47:02.625115+00:00",
+    "session_uuid": "d1c2eb88-8297-4f34-82ea-0d8e1e03da97"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "fail",
+      "criteria": [
+        "C2"
+      ],
+      "report_note": "2fb64fe1-2726-4cf0-adb9-d224c549c40e",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:47:04.626285+00:00",
+    "updated_at": "2026-10-21T14:47:04.626285+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "check": "passed",
+      "slice": null,
+      "commit": "7b63a9f84b09f500cb8b6a624196898fd83b0496",
+      "criteria": [
+        "C2",
+        "C3",
+        "C6"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:49:10.600530Z",
+        "last_change_at": "2026-10-21T14:24:05.006585Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:49:38.300048+00:00",
+    "updated_at": "2026-10-21T14:49:38.300048+00:00",
+    "session_uuid": "d1c2eb88-8297-4f34-82ea-0d8e1e03da97"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "check": null,
+      "slice": null,
+      "commit": "c50a341bf966f0e34a34ed9ab731c2aac8730260",
+      "criteria": [
+        "C2",
+        "C4"
+      ],
+      "evidence": [
+        null,
+        null,
+        "site/cms/admin/test/problem-rows.test.ts"
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:49:10.600530Z",
+        "last_change_at": "2026-10-21T14:48:35.494716Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:49:40.701798+00:00",
+    "updated_at": "2026-10-21T14:49:40.701798+00:00",
+    "session_uuid": "feae9696-343d-4862-8593-ef32ee8686dc"
+  },
+  {
+    "data": {
+      "task": "T12",
+      "check": "passed",
+      "slice": null,
+      "commit": "a9382b08c1ac8932ed64734c6b0d0638a7982380",
+      "criteria": [
+        "C3",
+        "C5"
+      ],
+      "evidence": [],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:49:48.381130Z",
+        "last_change_at": "2026-10-21T14:48:41.385317Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T12"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:49:56.327057+00:00",
+    "updated_at": "2026-10-21T14:49:56.327057+00:00",
+    "session_uuid": "56583e2b-ed17-47fe-9b6c-eedae682d567"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C2",
+        "C4"
+      ],
+      "report_note": "659f7f4a-e898-434e-adb8-521db410ab63",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:51:36.778522+00:00",
+    "updated_at": "2026-10-21T14:51:36.778522+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C1"
+      ],
+      "report_note": "659f7f4a-e898-434e-adb8-521db410ab63",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:52:06.159222+00:00",
+    "updated_at": "2026-10-21T14:52:06.159222+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "check": null,
+      "slice": null,
+      "commit": "b717fd438955c9760873a92a3fc81f76265c7f67",
+      "criteria": [
+        "C6"
+      ],
+      "evidence": [
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:50:07.740699Z",
+        "last_change_at": "2026-10-21T14:24:05.006585Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:52:10.325398+00:00",
+    "updated_at": "2026-10-21T14:52:10.325398+00:00",
+    "session_uuid": "d1c2eb88-8297-4f34-82ea-0d8e1e03da97"
+  },
+  {
+    "data": {
+      "task": "T12",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C3",
+        "C5"
+      ],
+      "report_note": "073cdbf0-7bee-411e-8163-09d5c937e300",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T12"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:52:28.926058+00:00",
+    "updated_at": "2026-10-21T14:52:28.926058+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T11",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C6"
+      ],
+      "report_note": "db4be295-3a17-43d8-b26c-cc67a46ae24c",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T11"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:54:17.376207+00:00",
+    "updated_at": "2026-10-21T14:54:17.376207+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "fail",
+      "criteria": [
+        "C6"
+      ],
+      "report_note": "e41858fe-24ad-44f7-a19d-3615199bd641",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:54:24.667803+00:00",
+    "updated_at": "2026-10-21T14:54:24.667803+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "check": null,
+      "slice": null,
+      "commit": "b77c0c9ae6609a060dca4ae7eac73163302eb624",
+      "criteria": [
+        "C6"
+      ],
+      "evidence": [
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:52:41.313446Z",
+        "last_change_at": "2026-10-21T14:24:05.006585Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:56:37.78357+00:00",
+    "updated_at": "2026-10-21T14:56:37.78357+00:00",
+    "session_uuid": "d1c2eb88-8297-4f34-82ea-0d8e1e03da97"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C2"
+      ],
+      "report_note": "73b8cc73-4d73-4c91-aa81-ee1bdd95a0aa",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:57:38.333129+00:00",
+    "updated_at": "2026-10-21T14:57:38.333129+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T2",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C2"
+      ],
+      "report_note": "66c35d5a-9726-480f-b5b2-f3cb47b10cda",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T2"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:57:41.852772+00:00",
+    "updated_at": "2026-10-21T14:57:41.852772+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T13",
+      "check": "passed",
+      "slice": null,
+      "commit": "33f8a400ef204a04ab497cd7c6176a44e203ac3b",
+      "criteria": [
+        "C6"
+      ],
+      "evidence": [
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:58:10.650440Z",
+        "last_change_at": "2026-10-21T14:57:05.469309Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T13"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:58:49.909717+00:00",
+    "updated_at": "2026-10-21T14:58:49.909717+00:00",
+    "session_uuid": "ba9ffb5d-7801-4416-8f9c-b5e3b9306cb4"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "check": "passed",
+      "slice": null,
+      "commit": "b77c0c9ae6609a060dca4ae7eac73163302eb624",
+      "criteria": [
+        "C6"
+      ],
+      "evidence": [
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:58:10.650440Z",
+        "last_change_at": "2026-10-21T14:24:05.006585Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T14:59:20.39176+00:00",
+    "updated_at": "2026-10-21T14:59:20.39176+00:00",
+    "session_uuid": "d1c2eb88-8297-4f34-82ea-0d8e1e03da97"
+  },
+  {
+    "data": {
+      "task": "T3",
+      "check": "passed",
+      "slice": null,
+      "commit": "fe797760673210782c77b3ca7a9c674d83f363c3",
+      "criteria": [
+        "C5"
+      ],
+      "evidence": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T14:58:10.650440Z",
+        "last_change_at": "2026-10-21T14:37:05.493721Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T3"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:01:35.906457+00:00",
+    "updated_at": "2026-10-21T15:01:35.906457+00:00",
+    "session_uuid": "4c43ab6f-23b1-4b0f-863a-1e370ae09d6a"
+  },
+  {
+    "data": {
+      "task": "T3",
+      "scope": "slice",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C5"
+      ],
+      "report_note": "ec96bbea-0d70-40fc-ab0a-73026985c70f",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T3"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:03:53.025487+00:00",
+    "updated_at": "2026-10-21T15:03:53.025487+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T3",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C5"
+      ],
+      "report_note": "9b9d7865-86ca-4730-a93d-9af29faf7e0c",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T3"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:03:59.023049+00:00",
+    "updated_at": "2026-10-21T15:03:59.023049+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T13",
+      "check": "passed",
+      "slice": null,
+      "commit": "632e0063aacafe9fd211ea9d66d1ec9cfe7ff097",
+      "criteria": [
+        "C5",
+        "C6"
+      ],
+      "evidence": [
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T15:04:30.418490Z",
+        "last_change_at": "2026-10-21T15:03:27.784416Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T13"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:04:35.116233+00:00",
+    "updated_at": "2026-10-21T15:04:35.116233+00:00",
+    "session_uuid": "ba9ffb5d-7801-4416-8f9c-b5e3b9306cb4"
+  },
+  {
+    "data": {
+      "task": "T13",
+      "check": "passed",
+      "slice": null,
+      "commit": "632e0063aacafe9fd211ea9d66d1ec9cfe7ff097",
+      "criteria": [
+        "C5",
+        "C6"
+      ],
+      "evidence": [
+        null
+      ],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T15:04:30.418490Z",
+        "last_change_at": "2026-10-21T15:03:27.784416Z"
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T13"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:05:31.07912+00:00",
+    "updated_at": "2026-10-21T15:05:31.07912+00:00",
+    "session_uuid": "ba9ffb5d-7801-4416-8f9c-b5e3b9306cb4"
+  },
+  {
+    "data": {
+      "task": "T13",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C6"
+      ],
+      "report_note": "cd9cd85e-3a7f-4f35-9966-5cbf5e72fb07",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T13"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:11:54.600429+00:00",
+    "updated_at": "2026-10-21T15:11:54.600429+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T13",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C5",
+        "C6"
+      ],
+      "report_note": "f081f741-7d04-4850-ae7c-d6d4216112c0",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T13"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:11:58.617503+00:00",
+    "updated_at": "2026-10-21T15:11:58.617503+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T13",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C5",
+        "C6"
+      ],
+      "report_note": "2492dbf4-c8cb-457c-95dc-fe5a61bec7bb",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T13"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:12:02.314225+00:00",
+    "updated_at": "2026-10-21T15:12:02.314225+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C6"
+      ],
+      "report_note": "15f7ca5c-2cf6-43ec-9dfd-81916462a887",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:12:08.107966+00:00",
+    "updated_at": "2026-10-21T15:12:08.107966+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C6"
+      ],
+      "report_note": "4202f8da-102c-4313-8a89-92b89e0a3612",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:12:11.610355+00:00",
+    "updated_at": "2026-10-21T15:12:11.610355+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C3",
+        "C6"
+      ],
+      "report_note": "4b68699c-2845-4938-b8d2-8a0720b25ed9",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:12:18.39264+00:00",
+    "updated_at": "2026-10-21T15:12:18.39264+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C2",
+        "C3",
+        "C6"
+      ],
+      "report_note": "cb5c3887-ef87-4dc2-b53c-16139d4399c4",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:12:22.395568+00:00",
+    "updated_at": "2026-10-21T15:12:22.395568+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C3",
+        "C6"
+      ],
+      "report_note": "ced1b6e4-dfd3-49d2-b08a-e4db5d2d8d34",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:12:25.825976+00:00",
+    "updated_at": "2026-10-21T15:12:25.825976+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C6"
+      ],
+      "report_note": "7d2f5102-23df-4790-96ad-5fe119acecea",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:12:29.455441+00:00",
+    "updated_at": "2026-10-21T15:12:29.455441+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C2",
+        "C3",
+        "C6"
+      ],
+      "report_note": "8d1bd0d7-47ad-40f9-9366-6c97f62b3f9e",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:12:33.004131+00:00",
+    "updated_at": "2026-10-21T15:12:33.004131+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "check": null,
+      "slice": null,
+      "commit": "a2441832f2dfe29866586466d99ff5b8b9c43446",
+      "criteria": [
+        "C6"
+      ],
+      "evidence": [],
+      "brief_version": null,
+      "check_command": null,
+      "checked_after_last_change": {
+        "ran": true,
+        "verdict": "passed",
+        "checked_at": "2026-10-21T15:04:30.418490Z",
+        "last_change_at": null
+      }
+    },
+    "kind": "report",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "report",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:13:45.548513+00:00",
+    "updated_at": "2026-10-21T15:13:45.548513+00:00",
+    "session_uuid": "d8550452-23eb-404f-aedc-3996a0af78e2"
+  },
+  {
+    "data": {
+      "task": "T4",
+      "scope": "final",
+      "reason": null,
+      "verdict": "pass",
+      "criteria": [
+        "C6"
+      ],
+      "report_note": "30c8dace-773b-4133-8843-2650337a4130",
+      "brief_version": null
+    },
+    "kind": "decision",
+    "tags": [
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b",
+      "verdict",
+      "task:T4"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:25:45.678875+00:00",
+    "updated_at": "2026-10-21T15:25:45.678875+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  },
+  {
+    "data": {
+      "criteria": {
+        "C1": "met",
+        "C2": "met",
+        "C3": "met",
+        "C4": "met",
+        "C5": "met",
+        "C6": "met"
+      },
+      "manifest": null,
+      "final_sha": "a2441832f2dfe29866586466d99ff5b8b9c43446",
+      "gate_receipt": 1445,
+      "open_obligations": [],
+      "close_observations": [
+        "88503068-a7e7-4a63-94fd-2074762f69c6"
+      ]
+    },
+    "kind": "decision",
+    "tags": [
+      "acceptance",
+      "acceptance-handover",
+      "fleet:8d1a15dc-3f87-43fe-adda-bacba179506b"
+    ],
+    "status": null,
+    "created_at": "2026-10-21T15:26:10.904483+00:00",
+    "updated_at": "2026-10-21T15:26:10.904483+00:00",
+    "session_uuid": "90bed0c2-646b-4c3a-a46d-919dad175a72"
+  }
+]

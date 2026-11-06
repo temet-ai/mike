@@ -1,0 +1,1 @@
+export const LLM_SPEND_DEFAULT_WINDOW_DAYS = 7;

@@ -1,0 +1,672 @@
+#!/usr/bin/env node
+// motion-shot — film one state change in a Storybook story and read what moved.
+//
+// A still picture cannot show motion. This holds every animation the moment it starts,
+// steps all of them through the same clock, and saves one picture per step, side by side
+// in a single film. It also reads each animation from the browser: what it moves, for how
+// long and on which curve, and whether those are the design's tokens. What it prints is
+// what the browser ran, not what the CSS says.
+//
+// Usage: scripts/motion-shot <word> [word ...]          film what moves when the story loads
+//        scripts/motion-shot --id <story-id> --do hover --on '<selector>'
+//        --do <change>     load (default), hover, focus, click, press, key:<Key>
+//        --on <selector>   the element the change is made on (a Playwright selector)
+//        --setup <step>    a step to run and let settle first, as click:<selector>,
+//                          hover:<selector>, focus:<selector> or key:<Key>; repeatable
+//        --clip <selector> what the pictures show (default: everything that moved)
+//        --frames <n>      pictures across the motion (default 6)
+//        --reduced         run with prefers-reduced-motion: reduce
+//        --rapid <n>       afterwards make the change n times in quick succession and
+//                          report what is left running or left in an inline style
+//        --out <dir>       where pictures go (default: a folder under the temp dir)
+//        --theme <t> --width <n> --height <n>
+//        --json            print the reading as JSON on the last line
+//
+// Needs Storybook running — the stack keeps it up as `mike-stack-storybook` (`systemctl --user start mike-stack-storybook`; without systemd: `cd frontend && pnpm run storybook`)
+// It reports, it does not judge: exit 0 = watched. Exit 1 = no single story or no such
+// element. Exit 2 = Storybook is not running.
+
+import { createRequire } from 'node:module';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const base = process.env.STORYBOOK_URL ?? 'http://localhost:6006';
+
+const args = process.argv.slice(2);
+const take = (flag) => {
+	const at = args.indexOf(flag);
+	if (at === -1) return null;
+	const [, value] = args.splice(at, 2);
+	return value ?? null;
+};
+const takeAll = (flag) => {
+	const values = [];
+	for (let value = take(flag); value !== null; value = take(flag)) values.push(value);
+	return values;
+};
+const has = (flag) => {
+	const at = args.indexOf(flag);
+	if (at === -1) return false;
+	args.splice(at, 1);
+	return true;
+};
+
+const id = take('--id');
+const change = take('--do') ?? 'load';
+const on = take('--on');
+const setup = takeAll('--setup');
+const clipSelector = take('--clip');
+const frames = Math.max(2, Number(take('--frames') ?? 6));
+const rapid = Number(take('--rapid') ?? 0);
+const outRoot = take('--out') ?? path.join(tmpdir(), 'motion-shot');
+const theme = take('--theme');
+const width = Number(take('--width') ?? 1280);
+const height = Number(take('--height') ?? 900);
+const reduced = has('--reduced');
+const asJson = has('--json');
+const words = args.map((word) => word.toLowerCase());
+
+const fail = (code, message) => {
+	console.error(message);
+	process.exit(code);
+};
+
+if (!id && words.length === 0) {
+	fail(
+		1,
+		"Usage: scripts/motion-shot <word ...> | --id <story-id> [--do <change> --on '<selector>']"
+	);
+}
+if (change !== 'load' && !change.startsWith('key:') && !on) {
+	fail(1, `--do ${change} needs --on '<selector>': the element the change is made on.`);
+}
+
+let index;
+try {
+	index = await (await fetch(`${base}/index.json`)).json();
+} catch {
+	console.error(`NOT RUNNING: no Storybook at ${base}.`);
+	fail(2, 'Start it with: systemctl --user start mike-stack-storybook (without systemd: cd frontend && pnpm run storybook)');
+}
+
+const stories = Object.values(index.entries).filter((entry) => entry.type === 'story');
+const matches = id
+	? stories.filter((entry) => entry.id === id)
+	: stories.filter((entry) => {
+			const text = `${entry.title} ${entry.name} ${entry.importPath}`.toLowerCase();
+			return words.every((word) => text.includes(word));
+		});
+if (matches.length === 0) fail(1, `No story matches ${id ?? words.join(' ')}.`);
+if (matches.length > 1) {
+	console.error(`${matches.length} stories match. Film one: pass --id.`);
+	for (const entry of matches.slice(0, 30))
+		console.error(`  ${entry.id}  (${entry.title} / ${entry.name})`);
+	process.exit(1);
+}
+const story = matches[0];
+
+const require = createRequire(path.join(repoRoot, 'frontend', 'package.json'));
+let chromium;
+try {
+	({ chromium } = require('playwright'));
+} catch {
+	fail(2, 'SKIP: playwright not resolvable from frontend/ — run pnpm install there first.');
+}
+
+function installHold(options) {
+	const state = {
+		capturing: options.capturing,
+		reduced: options.reduced,
+		caught: []
+	};
+	window.__motion = state;
+	const seen = new Set();
+	const keep = (animation) => {
+		if (
+			animation.effect?.target?.closest?.(
+				'.sb-loader, .sb-preparing-story, .sb-preparing-docs, .sb-errordisplay'
+			)
+		)
+			return;
+		if (!seen.has(animation)) {
+			seen.add(animation);
+			state.caught.push(animation);
+		}
+		if (!state.reduced && animation.playState === 'running') animation.pause();
+	};
+	const hold = () => {
+		if (state.capturing) document.getAnimations().forEach(keep);
+	};
+	document.addEventListener('transitionrun', hold, true);
+	document.addEventListener('animationstart', hold, true);
+	const animate = Element.prototype.animate;
+	Element.prototype.animate = function (...rest) {
+		const animation = animate.apply(this, rest);
+		if (state.capturing) keep(animation);
+		return animation;
+	};
+	const tick = () => {
+		hold();
+		requestAnimationFrame(tick);
+	};
+	requestAnimationFrame(tick);
+}
+
+function readMotion() {
+	const state = window.__motion;
+	const root = getComputedStyle(document.documentElement);
+	const token = (name) => root.getPropertyValue(name).trim();
+	const squash = (text) => String(text).replace(/\s+/g, '');
+	const durations = ['--dur-1', '--dur-2', '--dur-3']
+		.map((name) => ({
+			name: name.slice(2),
+			ms: Number.parseFloat(token(name))
+		}))
+		.filter((entry) => Number.isFinite(entry.ms));
+	const easings = ['--ease-snap', '--ease-io']
+		.map((name) => ({ name: name.slice(7), curve: token(name) }))
+		.filter((entry) => entry.curve);
+	const layoutProperty =
+		/^(width|height|minWidth|minHeight|maxWidth|maxHeight|padding|margin|gap|rowGap|columnGap|top|right|bottom|left|inset|fontWeight|fontSize|lineHeight|gridTemplate|flexBasis|border.*Width)/;
+
+	const label = (element, pseudo) => {
+		if (!element) return '(no element)';
+		let text = element.tagName.toLowerCase();
+		for (const name of ['data-motion', 'data-slot', 'data-state', 'data-reveal']) {
+			if (element.hasAttribute(name)) text += `[${name}="${element.getAttribute(name)}"]`;
+		}
+		if (!text.includes('[')) {
+			const own = [...element.classList].find((entry) => !entry.startsWith('svelte-'));
+			if (own) text += `.${own}`;
+		}
+		return text + (pseudo ?? '');
+	};
+	const durationToken = (ms) => {
+		for (const times of [1, 2, 3, 4]) {
+			for (const entry of [...durations].reverse()) {
+				if (Math.abs(ms - entry.ms * times) < 0.5)
+					return times === 1 ? entry.name : `${entry.name} × ${times}`;
+			}
+		}
+		return null;
+	};
+
+	const read = state.caught.map((animation) => {
+		const effect = animation.effect;
+		const timing = effect?.getComputedTiming?.() ?? {};
+		const keyframes = effect?.getKeyframes?.() ?? [];
+		const moved = new Set();
+		for (const keyframe of keyframes) {
+			for (const key of Object.keys(keyframe)) {
+				if (!['offset', 'computedOffset', 'easing', 'composite'].includes(key)) moved.add(key);
+			}
+		}
+		const kind = animation.constructor.name;
+		const easing = kind === 'CSSAnimation' ? (keyframes[0]?.easing ?? '') : (timing.easing ?? '');
+		const duration = Number(timing.duration) || 0;
+		const delay = Number(timing.delay) || 0;
+		const repeats = !Number.isFinite(timing.iterations ?? 1);
+		const easingName =
+			easings.find((entry) => squash(entry.curve) === squash(easing))?.name ?? null;
+		return {
+			kind:
+				kind === 'CSSTransition' ? 'transition' : kind === 'CSSAnimation' ? 'keyframes' : 'script',
+			name: animation.transitionProperty ?? animation.animationName ?? animation.id ?? '',
+			on: label(effect?.target, effect?.pseudoElement),
+			moves: [...moved],
+			layout: [...moved].filter((key) => layoutProperty.test(key)),
+			duration,
+			delay,
+			end: delay + duration,
+			repeats,
+			easing,
+			durationToken: durationToken(duration),
+			easingToken: easingName
+		};
+	});
+	return { tokens: { durations, easings }, read };
+}
+
+function stepTo(time) {
+	const boxes = [];
+	for (const animation of window.__motion.caught) {
+		const timing = animation.effect?.getComputedTiming?.();
+		if (!timing) continue;
+		const once = (Number(timing.delay) || 0) + (Number(timing.duration) || 0);
+		try {
+			animation.currentTime = Number.isFinite(timing.endTime)
+				? Math.min(time, timing.endTime)
+				: time % Math.max(once, 1);
+		} catch {
+			continue;
+		}
+		const target = animation.effect.target;
+		if (target?.isConnected) {
+			const box = target.getBoundingClientRect();
+			if (box.width > 0 && box.height > 0) boxes.push([box.left, box.top, box.right, box.bottom]);
+		}
+	}
+	return new Promise((resolve) =>
+		requestAnimationFrame(() => requestAnimationFrame(() => resolve(boxes)))
+	);
+}
+
+function release() {
+	const state = window.__motion;
+	state.capturing = false;
+	for (const animation of state.caught) {
+		try {
+			if (Number.isFinite(animation.effect?.getComputedTiming?.().endTime)) animation.finish();
+			else animation.play();
+		} catch {
+			continue;
+		}
+	}
+	return new Promise((resolve) => setTimeout(resolve, 150));
+}
+
+function rememberPlaces() {
+	const root = document.querySelector('#storybook-root') ?? document.body;
+	window.__scrolled = [document.scrollingElement, ...root.querySelectorAll('*')]
+		.filter(
+			(element) =>
+				element &&
+				(element.scrollTop > 0 ||
+					element.scrollLeft > 0 ||
+					element.scrollHeight > element.clientHeight + 1)
+		)
+		.map((element) => ({
+			element,
+			top: element.scrollTop,
+			left: element.scrollLeft
+		}));
+	window.__places = [...root.querySelectorAll('*')]
+		.slice(0, 600)
+		.map((element) => {
+			const box = element.getBoundingClientRect();
+			return {
+				element,
+				style: element.getAttribute('style') ?? '',
+				box: [box.left, box.top, box.width, box.height]
+			};
+		})
+		.filter((entry) => entry.box[2] > 0 && entry.box[3] > 0);
+}
+
+function comparePlaces() {
+	for (const entry of window.__scrolled ?? []) {
+		entry.element.scrollTop = entry.top;
+		entry.element.scrollLeft = entry.left;
+	}
+	const moving = new Set();
+	for (const animation of window.__motion.caught) {
+		const target = animation.effect?.target;
+		if (!target) continue;
+		moving.add(target);
+		target.querySelectorAll('*').forEach((child) => moving.add(child));
+		for (let up = target.parentElement; up; up = up.parentElement) moving.add(up);
+	}
+	const name = (element) => {
+		let text = element.tagName.toLowerCase();
+		for (const attr of ['data-motion', 'data-slot', 'data-testid']) {
+			if (element.hasAttribute(attr)) text += `[${attr}="${element.getAttribute(attr)}"]`;
+		}
+		const own = [...element.classList].find((entry) => !entry.startsWith('svelte-'));
+		if (own) text += `.${own}`;
+		const words = (element.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 32);
+		return words ? `${text} "${words}"` : text;
+	};
+	const moved = [];
+	const styled = [];
+	for (const entry of window.__places ?? []) {
+		if (!entry.element.isConnected) continue;
+		const style = entry.element.getAttribute('style') ?? '';
+		if (style !== entry.style)
+			styled.push({
+				on: name(entry.element),
+				before: entry.style,
+				after: style
+			});
+		if (moving.has(entry.element)) continue;
+		const box = entry.element.getBoundingClientRect();
+		const by = [
+			box.left - entry.box[0],
+			box.top - entry.box[1],
+			box.width - entry.box[2],
+			box.height - entry.box[3]
+		];
+		if (by.some((value) => Math.abs(value) > 0.5)) {
+			moved.push({
+				on: name(entry.element),
+				by: by.map((value) => Math.round(value * 10) / 10)
+			});
+		}
+	}
+	return { moved, styled };
+}
+
+async function act(page, step, target) {
+	if (step === 'load') return;
+	if (step.startsWith('key:')) {
+		if (target) await page.locator(target).first().focus();
+		await page.keyboard.press(step.slice(4));
+		return;
+	}
+	const element = page.locator(target).first();
+	if (step === 'hover') await element.hover();
+	else if (step === 'focus') await element.focus();
+	else if (step === 'click') await element.click();
+	else if (step === 'press') {
+		await element.hover();
+		await page.mouse.down();
+	} else fail(1, `Unknown change: ${step}. Use load, hover, focus, click, press or key:<Key>.`);
+}
+
+async function undo(page, step, target) {
+	if (step === 'hover') await page.mouse.move(1, 1);
+	else if (step === 'focus') await page.locator(target).first().blur();
+	else if (step === 'press') await page.mouse.up();
+	else await act(page, step, target);
+}
+
+const ms = (value) => `${Math.round(value * 100) / 100}ms`;
+const outDir = path.join(
+	outRoot,
+	`${story.id}--${change.replace(/[^a-z0-9]+/gi, '-')}${reduced ? '--reduced' : ''}`
+);
+mkdirSync(outDir, { recursive: true });
+
+let reading;
+async function film() {
+	const browser = await chromium.launch();
+	reading = { story: story.id, change, on, reduced, out: outDir };
+	try {
+		const page = await browser.newPage({ viewport: { width, height } });
+		if (reduced) await page.emulateMedia({ reducedMotion: 'reduce' });
+		await page.addInitScript(installHold, {
+			capturing: change === 'load',
+			reduced
+		});
+		const globals = theme ? `&globals=theme:${theme}` : '';
+		await page.goto(`${base}/iframe.html?id=${story.id}&viewMode=story${globals}`, {
+			waitUntil: 'load',
+			timeout: 60000
+		});
+		await page.waitForSelector('#storybook-root > *', { timeout: 30000 });
+		await page.evaluate(() => document.fonts.ready);
+
+		if (change !== 'load') {
+			await page.waitForTimeout(900);
+			for (const step of setup) {
+				const at = step.indexOf(':');
+				const kind = step.slice(0, at);
+				const rest = step.slice(at + 1);
+				await act(page, kind === 'key' ? step : kind, kind === 'key' ? null : rest);
+				await page.waitForTimeout(700);
+			}
+			if (on) {
+				try {
+					await page.locator(on).first().waitFor({ state: 'attached', timeout: 15000 });
+				} catch {
+					throw new Error(`no element matches ${on} in ${story.id} after 15 seconds.`);
+				}
+				for (let attempt = 0; attempt < 4; attempt += 1) {
+					try {
+						await page.locator(on).first().scrollIntoViewIfNeeded({ timeout: 3000 });
+						break;
+					} catch (error) {
+						if (attempt === 3) throw error;
+						await page.waitForTimeout(400);
+					}
+				}
+			}
+			await page.mouse.move(1, 1);
+			await page.waitForTimeout(200);
+			await page.evaluate(rememberPlaces);
+			await page.screenshot({ path: path.join(outDir, 'before.png') });
+			await page.evaluate(() => {
+				window.__motion.caught.length = 0;
+				window.__motion.capturing = true;
+			});
+			await act(page, change, on);
+		}
+		await page.waitForTimeout(reduced ? 400 : 120);
+
+		const { tokens, read } = await page.evaluate(readMotion);
+		reading.tokens = tokens;
+		reading.motion = read;
+		const finite = read.filter((entry) => !entry.repeats);
+		const length = Math.min(
+			3000,
+			Math.max(
+				0,
+				...finite.map((entry) => entry.end),
+				...(finite.length ? [] : read.map((entry) => entry.end))
+			)
+		);
+		reading.length = length;
+
+		const pictures = [];
+		if (read.length > 0 && !reduced && length > 0) {
+			const times = Array.from({ length: frames }, (_, at) => (length * at) / (frames - 1));
+			let region = null;
+			if (clipSelector) {
+				await page.locator(clipSelector).first().waitFor({ state: 'attached', timeout: 15000 });
+				region = await page.locator(clipSelector).first().boundingBox();
+			} else {
+				const all = [];
+				for (const time of times) all.push(...(await page.evaluate(stepTo, time)));
+				if (all.length > 0) {
+					const left = Math.min(...all.map((box) => box[0]));
+					const top = Math.min(...all.map((box) => box[1]));
+					const right = Math.max(...all.map((box) => box[2]));
+					const bottom = Math.max(...all.map((box) => box[3]));
+					region = {
+						x: left - 32,
+						y: top - 32,
+						width: right - left + 64,
+						height: bottom - top + 64
+					};
+				}
+			}
+			const size = page.viewportSize();
+			const clip = region
+				? {
+						x: Math.max(0, Math.floor(region.x)),
+						y: Math.max(0, Math.floor(region.y)),
+						width: 0,
+						height: 0
+					}
+				: { x: 0, y: 0, width: size.width, height: size.height };
+			if (region) {
+				clip.width = Math.max(120, Math.min(size.width - clip.x, Math.ceil(region.width)));
+				clip.height = Math.max(60, Math.min(size.height - clip.y, Math.ceil(region.height)));
+			}
+			reading.clip = clip;
+			for (const [at, time] of times.entries()) {
+				await page.evaluate(stepTo, time);
+				const file = path.join(outDir, `frame-${at}.png`);
+				const data = await page.screenshot({ path: file, clip });
+				pictures.push({
+					caption: `${ms(time)} · ${Math.round((time / length) * 100)}%`,
+					data
+				});
+			}
+			await page.evaluate(release);
+			await page.waitForTimeout(250);
+			const data = await page.screenshot({
+				path: path.join(outDir, 'settled.png'),
+				clip
+			});
+			pictures.push({ caption: 'settled', data });
+		} else {
+			await page.evaluate(release);
+			await page.waitForTimeout(250);
+			await page.screenshot({ path: path.join(outDir, 'settled.png') });
+		}
+		const places = change === 'load' ? null : await page.evaluate(comparePlaces);
+		reading.neighboursMoved = places?.moved ?? null;
+		reading.inlineStyleAfter = places?.styled ?? [];
+
+		if (pictures.length > 0) {
+			const sheet = await browser.newPage({
+				viewport: { width: 1600, height: 400 }
+			});
+			const cells = pictures
+				.map(
+					(picture) =>
+						`<figure><img src="data:image/png;base64,${picture.data.toString('base64')}"><figcaption>${picture.caption}</figcaption></figure>`
+				)
+				.join('');
+			await sheet.setContent(
+				`<style>body{margin:0;padding:16px;background:#111;color:#eee;font:13px/1.4 ui-monospace,monospace;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}figure{margin:0;border:1px solid #444;padding:6px;background:#000}img{display:block;max-width:760px;height:auto}figcaption{padding-top:6px}</style>${cells}`
+			);
+			reading.film = path.join(outDir, 'film.png');
+			await sheet.screenshot({ path: reading.film, fullPage: true });
+			await sheet.close();
+		}
+
+		if (rapid > 0 && change !== 'load') {
+			await page.evaluate(() => {
+				window.__motion.caught.length = 0;
+			});
+			await undo(page, change, on);
+			await page.mouse.move(1, 1);
+			await page.waitForTimeout(900);
+			await page.evaluate(rememberPlaces);
+			for (let turn = 0; turn < rapid; turn += 1) {
+				await act(page, change, on);
+				await page.waitForTimeout(40);
+				await undo(page, change, on);
+				await page.waitForTimeout(40);
+			}
+			await page.mouse.move(1, 1);
+			await page.waitForTimeout(1500);
+			const left = await page.evaluate(() => {
+				const running = document
+					.getAnimations()
+					.filter((animation) => Number.isFinite(animation.effect?.getComputedTiming?.().endTime))
+					.filter((animation) => animation.playState === 'running').length;
+				window.__motion.caught.length = 0;
+				return running;
+			});
+			const after = await page.evaluate(comparePlaces);
+			reading.rapid = {
+				turns: rapid,
+				stillRunning: left,
+				moved: after.moved,
+				inlineStyle: after.styled
+			};
+			reading.rapid.picture = path.join(outDir, 'rapid.png');
+			await page.screenshot({ path: reading.rapid.picture });
+		}
+	} finally {
+		await browser.close().catch(() => null);
+	}
+}
+
+const closedFromOutside = (error) =>
+	/has been closed|target closed|browser closed|disconnected/i.test(String(error.message));
+for (let attempt = 1; ; attempt += 1) {
+	try {
+		await film();
+		break;
+	} catch (error) {
+		if (closedFromOutside(error) && attempt < 3) {
+			console.error(`The browser was closed from outside. Filming again (${attempt + 1} of 3).`);
+			await new Promise((resolve) => setTimeout(resolve, 2000));
+			continue;
+		}
+		console.error(`NOT WATCHED: ${String(error.message).split('\n')[0]}`);
+		if (closedFromOutside(error)) {
+			console.error(
+				'The browser was closed from outside three times. scripts/sb-test does this when it starts and when it ends: wait for that run to finish.'
+			);
+		}
+		process.exit(1);
+	}
+}
+
+writeFileSync(path.join(outDir, 'reading.json'), `${JSON.stringify(reading, null, 2)}\n`);
+
+const durations = reading.tokens.durations
+	.map((entry) => `${entry.name} ${entry.ms}ms`)
+	.join(' · ');
+const easings = reading.tokens.easings.map((entry) => `${entry.name} ${entry.curve}`).join(' · ');
+console.log(`story    ${reading.story}`);
+console.log(
+	`change   ${change}${on ? ` on ${on}` : ''}${reduced ? '   (prefers-reduced-motion: reduce)' : ''}`
+);
+console.log(`tokens   ${durations} · ${easings}`);
+console.log('');
+if (reading.motion.length === 0) {
+	console.log('MOVED    nothing. No transition or animation started.');
+} else {
+	console.log(
+		`MOVED    ${reading.motion.length}, the longest settled one ending at ${ms(reading.length)}`
+	);
+	for (const entry of reading.motion) {
+		const time = `${ms(entry.duration)}${entry.delay ? ` after ${ms(entry.delay)}` : ''}${entry.repeats ? ' repeating' : ''}`;
+		const still =
+			entry.duration === 0 ? 'instant' : reduced && entry.duration <= 1 ? 'stopped' : null;
+		const timeName = entry.durationToken ?? still ?? 'NOT A TOKEN';
+		const curveName =
+			entry.kind === 'script' && !entry.easingToken
+				? 'set in script'
+				: (entry.easingToken ?? `NOT A TOKEN ${entry.easing}`);
+		console.log(
+			`  ${entry.kind.padEnd(10)} ${String(entry.name || entry.moves.join(',')).padEnd(24)} ${time.padEnd(18)} ${timeName.padEnd(12)} ${curveName}`
+		);
+		console.log(
+			`  ${''.padEnd(10)} on ${entry.on}   moves ${entry.moves.join(', ') || '(nothing read)'}`
+		);
+		if (entry.layout.length > 0)
+			console.log(`  ${''.padEnd(10)} LAYOUT: ${entry.layout.join(', ')}`);
+	}
+}
+if (reduced) {
+	const still = reading.motion.filter((entry) => entry.duration > 1);
+	console.log('');
+	console.log(
+		still.length === 0
+			? 'REDUCED  nothing runs longer than 1ms.'
+			: `REDUCED  ${still.length} still run longer than 1ms.`
+	);
+}
+console.log('');
+if (reading.neighboursMoved === null) {
+	console.log('BESIDE   not measured on load: there is no earlier state to compare with.');
+} else if (reading.neighboursMoved.length === 0) {
+	console.log('BESIDE   nothing beside it changed place or size.');
+} else {
+	console.log(
+		`BESIDE   ${reading.neighboursMoved.length} elements beside it changed place or size (x, y, width, height):`
+	);
+	for (const entry of reading.neighboursMoved.slice(0, 8))
+		console.log(`  ${entry.by.join(', ').padEnd(24)} ${entry.on}`);
+}
+if (reading.inlineStyleAfter.length > 0) {
+	console.log(
+		`STYLE    ${reading.inlineStyleAfter.length} elements have a different inline style after it settled:`
+	);
+	for (const entry of reading.inlineStyleAfter.slice(0, 6))
+		console.log(`  ${entry.on}: "${entry.after}"`);
+}
+if (reading.rapid) {
+	console.log('');
+	console.log(
+		`RAPID    ${reading.rapid.turns} times there and back: ${reading.rapid.stillRunning} still running, ${reading.rapid.moved.length} out of place, ${reading.rapid.inlineStyle.length} inline styles left.`
+	);
+	for (const entry of reading.rapid.moved.slice(0, 6))
+		console.log(`  ${entry.by.join(', ').padEnd(24)} ${entry.on}`);
+	for (const entry of reading.rapid.inlineStyle.slice(0, 6))
+		console.log(`  ${entry.on}: "${entry.after}"`);
+	console.log(`  picture: ${reading.rapid.picture}`);
+}
+console.log('');
+if (reading.film) console.log(`film:    ${reading.film}`);
+console.log(`folder:  ${outDir}`);
+if (asJson) console.log(JSON.stringify(reading));

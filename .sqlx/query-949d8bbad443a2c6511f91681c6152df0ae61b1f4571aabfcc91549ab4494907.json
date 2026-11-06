@@ -1,0 +1,119 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT tu.wire_tool_use_id AS \"tool_id!\",\n       tu.tool_name AS \"tool_name!\",\n       tu.input,\n       tu.ord AS \"ord!\",\n       CASE WHEN tr.id IS NOT NULL THEN tu.wire_tool_use_id END AS \"result_tool_use_id?\",\n       tr.is_error      AS \"result_is_error?\",\n       tr.content_sha256 AS \"result_content_sha256?\",\n       tr.content_bytes AS \"result_content_bytes?\",\n       tr.content       AS \"result_content?\"\n  FROM tools.uses tu\n  LEFT JOIN tools.results tr\n         ON tr.tool_use_id = tu.id\n WHERE tu.request_id = $1\n ORDER BY tu.ord ASC\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tool_id!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "wire_tool_use_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "tool_name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "tool_name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "input",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "input"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "ord!",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "tools.uses",
+            "name": "ord"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "result_tool_use_id?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "result_is_error?",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "is_error"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "result_content_sha256?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "result_content_bytes?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "result_content?",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      null,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "949d8bbad443a2c6511f91681c6152df0ae61b1f4571aabfcc91549ab4494907"
+}

@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+# arch — the architecture model in docs/architecture, through the pinned LikeC4 CLI.
+#
+# docs/architecture holds one model of mike written in LikeC4's language. Every diagram
+# is a view of that model, so a renamed module is changed once and every picture follows.
+# This is the only way to run LikeC4 here: it uses the version pinned in scripts/likec4
+# and installs it on first use.
+#
+# Usage: scripts/arch check             is the model valid, formatted, and still true of the code?
+#        scripts/arch serve [--port N]  live preview that reloads on save, on port 9986
+#        scripts/arch png [view ...]    one picture per view, for the Read tool; all views when none named
+#        scripts/arch site              the browsable site as static files
+#        scripts/arch fmt               format the .c4 files in place
+#        scripts/arch views             list the view ids and titles
+#        scripts/arch mcp               LikeC4's MCP server over stdio; docs/architecture/likec4.mcp.json starts this
+#        scripts/arch likec4 <args>     any other LikeC4 command, run against the model
+#   png options: --light  render on the light theme (dark is the default)
+#
+# Pictures and the site go to docs/architecture/out, which is not committed.
+# Exit 0 = done. Exit 1 = the check failed. Exit 2 = wrong usage, or pnpm is missing.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TOOLING="${ROOT}/scripts/likec4"
+MODEL="${ROOT}/docs/architecture"
+OUT="${MODEL}/out"
+LIKEC4="${TOOLING}/node_modules/.bin/likec4"
+
+# LikeC4's own default, 5173, is taken by any other LikeC4 or Vite project on the machine.
+# 9986 sits in mike's own range, between the prompt assistant (9985) and proxy-forward (9987).
+SERVE_PORT="${ARCH_PORT:-9986}"
+
+# LikeC4's preview server switches on an AI chat, and installs a package for it, as soon
+# as it sees one of these in its environment. Nobody handed a diagram tool the operator's
+# model keys, so it never sees them: a session's own keys stay with the session.
+AI_KEYS=(OPENAI_API_KEY OPENROUTER_API_KEY ANTHROPIC_API_KEY GEMINI_API_KEY OLLAMA_HOST MINIMAX_API_KEY)
+
+usage() {
+    sed -n '2,/^$/s/^# \{0,1\}//p' "${BASH_SOURCE[0]}"
+}
+
+# Everything this prints goes to stderr: `arch mcp` owns stdout for JSON-RPC.
+ensure_installed() {
+    if [ -x "${LIKEC4}" ]; then
+        return
+    fi
+    if ! command -v pnpm >/dev/null 2>&1; then
+        echo "arch: pnpm is not on PATH, and LikeC4 is not installed in ${TOOLING#"${ROOT}/"}" >&2
+        exit 2
+    fi
+    echo "arch: installing the pinned LikeC4 into ${TOOLING#"${ROOT}/"} (first use)" >&2
+    pnpm --dir "${TOOLING}" install --frozen-lockfile >&2
+}
+
+without_ai_keys() {
+    local key
+    for key in "${AI_KEYS[@]}"; do
+        unset "${key}"
+    done
+}
+
+likec4() {
+    (without_ai_keys; "${LIKEC4}" "$@")
+}
+
+# For the long-running commands: replace this shell, so a signal reaches LikeC4 itself.
+exec_likec4() {
+    without_ai_keys
+    exec "${LIKEC4}" "$@"
+}
+
+check() {
+    local workdir exported failed=0
+    workdir="$(mktemp -d)"
+    exported="${workdir}/model.json"
+    trap 'rm -rf "${workdir}"' RETURN
+
+    likec4 validate "${MODEL}" >&2 || failed=1
+    if ! likec4 format --check "${MODEL}" >&2; then
+        echo "arch: the .c4 files are not formatted; run scripts/arch fmt" >&2
+        failed=1
+    fi
+    if likec4 export json --skip-layout --project mike -o "${exported}" "${MODEL}" >&2; then
+        node "${TOOLING}/check-model.mjs" "${exported}" || failed=1
+    else
+        failed=1
+    fi
+    return "${failed}"
+}
+
+png() {
+    local theme=dark filters=()
+    local arg
+    for arg in "$@"; do
+        case "${arg}" in
+            --light) theme=light ;;
+            *) filters+=(--filter "${arg}") ;;
+        esac
+    done
+    mkdir -p "${OUT}/png"
+    likec4 export png --theme "${theme}" --flat --seq "${filters[@]}" -o "${OUT}/png" "${MODEL}" >&2
+    find "${OUT}/png" -name '*.png' | sort
+}
+
+views() {
+    local workdir exported
+    workdir="$(mktemp -d)"
+    exported="${workdir}/model.json"
+    trap 'rm -rf "${workdir}"' RETURN
+    likec4 export json --skip-layout --project mike -o "${exported}" "${MODEL}" >/dev/null 2>&1
+    node -e '
+        const model = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8"));
+        for (const view of Object.values(model.views)) {
+            console.log(`${view.id.padEnd(20)} ${view.title ?? ""}`);
+        }
+    ' "${exported}"
+}
+
+command="${1:-}"
+[ $# -gt 0 ] && shift
+
+case "${command}" in
+    check)
+        ensure_installed
+        check
+        ;;
+    serve)
+        # Left to itself LikeC4 opens a second socket for live reload on every network
+        # interface, and that socket accepts any connection. Putting it on the page's own
+        # port makes it share the page's listener, which is bound to loopback.
+        port="${SERVE_PORT}"
+        rest=()
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --port) port="${2:?arch: --port needs a number}"; shift ;;
+                --port=*) port="${1#--port=}" ;;
+                *) rest+=("$1") ;;
+            esac
+            shift
+        done
+        ensure_installed
+        echo "arch: preview on http://localhost:${port}/ (this machine only)" >&2
+        exec_likec4 start --listen 127.0.0.1 --port "${port}" --hmr-port "${port}" "${rest[@]}" "${MODEL}"
+        ;;
+    png)
+        ensure_installed
+        png "$@"
+        ;;
+    site)
+        ensure_installed
+        likec4 build --title 'mike architecture' -o "${OUT}/site" "${MODEL}" >&2
+        echo "${OUT}/site/index.html"
+        ;;
+    fmt)
+        ensure_installed
+        likec4 format "${MODEL}"
+        ;;
+    views)
+        ensure_installed
+        views
+        ;;
+    mcp)
+        # LikeC4's HTTP transport listens on every network interface and has no option
+        # to bind to loopback, so only stdio is offered here.
+        for arg in "$@"; do
+            case "${arg}" in
+                --http|--port|--port=*|-p|-p=*)
+                    echo "arch: 'mcp ${arg}' is refused: LikeC4's HTTP transport listens on every interface. Use stdio." >&2
+                    exit 2
+                    ;;
+            esac
+        done
+        ensure_installed
+        exec_likec4 mcp "$@" "${MODEL}"
+        ;;
+    likec4)
+        ensure_installed
+        LIKEC4_WORKSPACE="${MODEL}" likec4 "$@"
+        ;;
+    ''|-h|--help|help)
+        usage
+        ;;
+    *)
+        echo "arch: unknown command '${command}'" >&2
+        usage >&2
+        exit 2
+        ;;
+esac

@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO sessions.session_goals\n                (session_id, goal, next_steps, set_by, role, display_name, instructions, updated_at)\n            VALUES ($1, COALESCE($2, $7, ''), COALESCE($3, $8, ''), $12,\n                    COALESCE($4, $9), COALESCE($5, $10), COALESCE($6, $11), now())\n            ON CONFLICT (session_id) DO UPDATE\n                SET goal         = COALESCE($2, NULLIF(sessions.session_goals.goal, ''), $7,\n                                            sessions.session_goals.goal),\n                    next_steps   = COALESCE($3, NULLIF(sessions.session_goals.next_steps, ''), $8,\n                                            sessions.session_goals.next_steps),\n                    set_by       = excluded.set_by,\n                    role         = COALESCE($4, sessions.session_goals.role, $9),\n                    display_name = COALESCE($5, sessions.session_goals.display_name, $10),\n                    instructions = COALESCE($6, sessions.session_goals.instructions, $11),\n                    updated_at   = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e2082becd378eaf172c06358ddd3888017fe26d9abbc69136eaab9e131485c01"
+}

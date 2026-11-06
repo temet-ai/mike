@@ -1,0 +1,79 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.id AS request_id, r.session_id,\n                          r.human_prompt, r.last_user_message,\n                          COALESCE(ak.code, 'operator') AS \"author!\",\n                          (r.claude_code_agent_id IS NOT NULL) AS \"has_agent_id!\"\n                     FROM requests.requests r\n                     JOIN requests.turn_types tt ON tt.id = r.turn_type_id AND tt.code = 'user_prompt'\n                     JOIN requests.turn_origins o ON o.id = r.turn_origin_id\n                                                 AND o.code IN ('primary', 'primary_first')\n                     LEFT JOIN requests.author_kinds ak ON ak.id = r.author_kind_id\n                     LEFT JOIN prompt_kinds.classifications c ON c.request_id = r.id\n                    WHERE r.session_id = ANY($1)\n                      AND (c.id IS NULL OR c.classifier_version IS DISTINCT FROM $2)\n                    ORDER BY r.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "human_prompt",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "human_prompt"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "last_user_message",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "last_user_message"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "author!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "has_agent_id!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "2b906c4e21d9539f021105add9e599c50e8437ddd7edb099df5885979e2a0370"
+}

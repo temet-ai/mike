@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO rules.rules\n                    (uuid, kind_id, value, action_id, text, trigger_token, inject_text, enabled, source_id, updated_at, project_path, sort_order, style_override, title)\n                 SELECT $1, rk.id, $3, ra.id, $5, $6, $7, $8, rs.id, $10, $11,\n                        (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM rules.rules), $12, $13\n                 FROM rules.kinds rk, rules.actions ra, rules.sources rs\n                 WHERE rk.code = $2 AND ra.code = $4 AND rs.code = $9\n                 RETURNING id, sort_order",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "sort_order",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "rules.rules",
+            "name": "sort_order"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Bool",
+        "Text",
+        "Timestamptz",
+        "Text",
+        "Bool",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "ba5c57b06eb058ed0a8f22879e19649b1a6e32756dd3e58743277e62b1d245ba"
+}

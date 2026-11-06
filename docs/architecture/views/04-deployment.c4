@@ -1,0 +1,13 @@
+views {
+
+  global style plannedWork
+
+  deployment view machine {
+    title 'Where it runs'
+    description 'The development machine: which supervisor owns each process and which port it listens on.'
+    include *
+    include omit.**
+    include internet.**
+    autoLayout TopBottom
+  }
+}

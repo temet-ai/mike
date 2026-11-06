@@ -1,0 +1,9 @@
+{
+  "tagline": "See every mod this session loaded, and what each one adds; the buttons under the prompt",
+  "offers": {
+    "commands": ["/mods"],
+    "panes": ["Mods"],
+    "status": ["one button per mod on the hint line under the prompt"],
+    "buttons": [{ "label": "Mods", "command": "/mods" }]
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT key, enabled, operator_set FROM config.feature_toggles ORDER BY key",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "config.feature_toggles",
+            "name": "key"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "enabled",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "config.feature_toggles",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "operator_set",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "config.feature_toggles",
+            "name": "operator_set"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "93b2cbe3232b6cb0fcee8371a2c19480e2dcb95ea4466c800fd0fd4a00c36c1d"
+}

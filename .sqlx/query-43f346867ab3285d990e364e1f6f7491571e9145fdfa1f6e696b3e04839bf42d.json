@@ -1,0 +1,136 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.turn_id, tot.code AS outcome, l.classified_at, l.judge_model,\n                        l.judge_rubric_version, l.rationale, l.unmet_ask, l.evidence_quality,\n                        l.judge_failure_reason, l.snapshot_at\n                   FROM memory.operator_turn_legacy_labels l\n                   LEFT JOIN memory.turn_outcomes tot ON tot.id = l.outcome_id\n                  WHERE l.turn_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turn_legacy_labels",
+            "name": "turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "outcome",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_outcomes",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "classified_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turn_legacy_labels",
+            "name": "classified_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "judge_model",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turn_legacy_labels",
+            "name": "judge_model"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "judge_rubric_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turn_legacy_labels",
+            "name": "judge_rubric_version"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "rationale",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turn_legacy_labels",
+            "name": "rationale"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "unmet_ask",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turn_legacy_labels",
+            "name": "unmet_ask"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "evidence_quality",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turn_legacy_labels",
+            "name": "evidence_quality"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "judge_failure_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turn_legacy_labels",
+            "name": "judge_failure_reason"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "snapshot_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turn_legacy_labels",
+            "name": "snapshot_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "43f346867ab3285d990e364e1f6f7491571e9145fdfa1f6e696b3e04839bf42d"
+}

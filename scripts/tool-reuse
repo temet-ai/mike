@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+"""Discover and reuse explicitly validated tools; never execute mined commands automatically."""
+import argparse
+import json
+import sys
+from tool_reuse import core
+
+parser = argparse.ArgumentParser(description=__doc__)
+sub = parser.add_subparsers(dest='action', required=True)
+sub.add_parser('list')
+p = sub.add_parser('show'); p.add_argument('id')
+p = sub.add_parser('run'); p.add_argument('id'); p.add_argument('--fresh', action='store_true')
+p = sub.add_parser('export'); p.add_argument('path')
+p = sub.add_parser('register')
+p.add_argument('id'); p.add_argument('--description', required=True)
+p.add_argument('--contract', required=True, help='Validated use, inputs, limitations and freshness requirements')
+p.add_argument('--cwd', default='.')
+p.add_argument('--dependency', action='append', default=[])
+p.add_argument('--environment', action='append', default=[])
+p.add_argument('--ttl', type=int, default=0)
+raw = sys.argv[1:]
+separator = raw.index('--') if '--' in raw else len(raw)
+command = raw[separator + 1:]
+args = parser.parse_args(raw[:separator])
+args.command = command
+try:
+    if args.action == 'register':
+        result = core.register(args)
+    elif args.action == 'list':
+        result = [{'id': r['id'], 'description': r['description'], 'cwd': r['cwd']} for r in core.catalog()]
+    elif args.action == 'show':
+        result = core.load(args.id)
+    elif args.action == 'export':
+        core.export(args.path); result = {'catalog': args.path}
+    else:
+        result = core.run(core.load(args.id), args.fresh)
+    print(json.dumps(result, indent=2))
+    if args.action == 'run':
+        raise SystemExit(result['exit_code'])
+except (ValueError, OSError) as error:
+    parser.exit(2, f'tool-reuse: {error}\n')

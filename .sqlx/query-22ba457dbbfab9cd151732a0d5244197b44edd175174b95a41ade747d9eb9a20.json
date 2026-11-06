@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT sender.session_uuid AS \"sender_uuid?\", failed.attempted_to, failed.reason\n           FROM mailbox.failed_sends failed\n           LEFT JOIN sessions.sessions sender ON sender.id = failed.attempted_by_session_id\n          WHERE failed.attempted_to = ANY($1) OR sender.session_uuid = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "sender_uuid?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "attempted_to",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mailbox.failed_sends",
+            "name": "attempted_to"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mailbox.failed_sends",
+            "name": "reason"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "22ba457dbbfab9cd151732a0d5244197b44edd175174b95a41ade747d9eb9a20"
+}

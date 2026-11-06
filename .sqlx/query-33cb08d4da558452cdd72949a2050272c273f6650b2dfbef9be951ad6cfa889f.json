@@ -1,0 +1,86 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.id AS \"id!\", p.project_path AS \"project_path!\", lk.code AS \"kind!\",\n                          l.text AS \"text!\", l.topic, l.agent_id\n                     FROM memory.lessons l\n                     JOIN projects.projects p ON p.id = l.project_id\n                     JOIN memory.lesson_kinds lk ON lk.id = l.kind_id\n                     JOIN memory.lesson_stages ls ON ls.id = l.stage_id\n                     JOIN memory.lesson_sources src ON src.id = l.source_id\n                    WHERE (ls.code IN ('daily', 'long_term') OR (ls.code = 'raw' AND src.code = 'operator'))\n                      AND (l.expires_at IS NULL OR l.expires_at > NOW())\n                      AND NOT EXISTS (\n                          SELECT 1\n                            FROM memory.lesson_relations r\n                            JOIN memory.lesson_relation_kinds rk ON rk.id = r.kind_id AND rk.code = 'supersedes'\n                            JOIN memory.lesson_relation_statuses rs ON rs.id = r.status_id AND rs.code = 'confirmed'\n                           WHERE r.to_lesson_id = l.id\n                      )\n                      AND (ls.code <> 'raw' OR NOT EXISTS (\n                          SELECT 1 FROM memory.lesson_shape_findings f\n                           WHERE f.lesson_id = l.id AND f.resolution IS NULL\n                      ))\n                    ORDER BY l.created_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_path!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "topic",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "topic"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "agent_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "agent_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "33cb08d4da558452cdd72949a2050272c273f6650b2dfbef9be951ad6cfa889f"
+}

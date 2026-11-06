@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO agents.agents(uuid, name) SELECT $1, $2\n        WHERE NOT EXISTS (SELECT 1 FROM agents.agents WHERE uuid = $1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "01392d9bb5b553eda94f9a2bf07f62c1dcbab118f1a4a0f7939fc17cc3ff82fa"
+}

@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# Checks the Rust reference fleet's definition without a build, a server or a database.
+#
+# Usage: scripts/test-fleet-deploy-guard     Exit: 0 = no FAIL. A case missing a prerequisite
+# prints NOT RUN and is never counted as a pass (FLEET_GUARD_REQUIRES overrides "git python3").
+set -uo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+pass=0 fail=0 notrun=0
+ok() { pass=$((pass+1)); echo "PASS: $1"; }
+bad() { fail=$((fail+1)); echo "FAIL: $1"; [[ -n "${2:-}" ]] && echo "  $2"; }
+eq() { if [[ "$3" == "$2" ]]; then ok "$1"; else bad "$1" "wanted [$2] got [$3]"; fi; }
+
+for need in ${FLEET_GUARD_REQUIRES:-git python3}; do
+    if ! command -v "$need" >/dev/null 2>&1; then
+        echo "NOT RUN: every case ($need is missing)"
+        echo "fleet deploy guard: 0 passed, 0 failed, 1 not run"
+        exit 0
+    fi
+done
+
+# The Rust reference fleet's definition: six tasks, each answer a real commit that changes
+# exactly the files the task owns and has a done_when command, and the six reverts apply
+# one after another to the pinned commit. NOT RUN where the pinned commit is not in the clone.
+rust_json="$root/scripts/fleet-refs/rust.json"
+pin="$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["repository"]["pin"])' "$rust_json" 2>/dev/null)"
+if [[ -z "$pin" ]]; then
+    bad "scripts/fleet-refs/rust.json names the pinned commit"
+elif ! git -C "$root" cat-file -e "${pin}^{commit}" 2>/dev/null; then
+    echo "NOT RUN: the Rust reference fleet's answers (pinned commit ${pin:0:8} is not in this clone)"; notrun=$((notrun+1))
+else
+    shape="$(python3 -I - "$rust_json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+tasks = d["definition"]["tasks"]
+problems = []
+if len(tasks) != 6 or sorted(tasks) != sorted(d["answers"]):
+    problems.append("six tasks, each with an answer")
+for key, task in tasks.items():
+    if "done_when" not in task["brief"] and "Done when" not in task["brief"]:
+        problems.append(key + " has no done_when")
+    if sorted(d["answers"][key]["files"]) != sorted(task["files"] + task["new_files"]):
+        problems.append(key + " answer files differ from the task's files")
+print("; ".join(problems) if problems else "ok")
+PY
+)"
+    eq "the Rust reference definition has six tasks, a done_when each and answers matching their files" "ok" "$shape"
+    tree="$(git -C "$root" rev-parse "${pin}^{tree}")" conflict=""
+    while IFS=' ' read -r task commit files; do
+        changed="$(git -C "$root" show --name-only --format= "$commit" | grep -v '^\.sqlx/' | LC_ALL=C sort | tr '\n' ' ')"
+        want="$(printf '%s\n' $files | LC_ALL=C sort | tr '\n' ' ')"
+        [[ "$changed" == "$want" ]] || conflict="$conflict $task(files)"
+        if merged="$(git -C "$root" merge-tree --write-tree --merge-base="$commit" "$tree" "${commit}^" 2>/dev/null)"; then
+            tree="$(printf '%s\n' "$merged" | head -n1)"
+        else
+            conflict="$conflict $task(revert)"
+        fi
+    done < <(python3 -I -c '
+import json, sys
+d = json.load(open(sys.argv[1]))
+for key, a in sorted(d["answers"].items()):
+    print(key, a["commit"], " ".join(a["files"]))
+' "$rust_json")
+    eq "each Rust reference answer changes exactly its files and all six reverts apply to the pin" "" "${conflict# }"
+fi
+
+# #671: a dry run must apply no migration to the live database. The smoke boot migrates, so a
+# dry run with pending migrations has to stop before it. Stubbed migrate-check output only;
+# nothing here connects to a database.
+source "$root/scripts/lib/proxy-runtime.sh"
+eq "pending count read from migrate-check output" "2" \
+    "$(printf 'Migration assessment — 2 pending, 0 mismatched, 0 missing-from-binary, 0 out-of-order\n' | pending_migration_count)"
+eq "no pending reads as zero" "0" \
+    "$(printf 'Migration assessment — 0 pending, 0 mismatched, 0 missing-from-binary, 0 out-of-order\n' | pending_migration_count)"
+eq "unreadable output counts as pending" "1" "$(printf 'garbage\n' | pending_migration_count)"
+order="$(awk '/pending_migration_count </ && !g { g = NR } /MIKE_SMOKE_RUN=1 [\\]$/ && !s { s = NR } END { print (g && s && g < s) ? "ok" : "gate " g " smoke " s }' "$root/scripts/deploy-proxy.sh")"
+eq "deploy-proxy.sh stops a dry run with pending migrations before the smoke boot" "ok" "$order"
+
+echo "fleet deploy guard: $pass passed, $fail failed, $notrun not run"
+(( fail == 0 ))

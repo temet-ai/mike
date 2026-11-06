@@ -1,0 +1,21 @@
+-- Follow-up to 20260811000003: add_column had no DEFAULT, so any
+-- INSERT into requests.requests that omits request_body_size (found in
+-- 15 files' test fixtures across the crate, none related to #68 -
+-- confirmed via `grep -rl "INSERT INTO requests.requests"
+-- crates/mike/src/`) fails the NOT NULL constraint the moment that
+-- migration lands, independent of anything those tests were actually
+-- checking. Caught via a pristine-worktree gate run (git worktree add
+-- at the pushed commit) surfacing 2 failures scoped/dirty-tree test
+-- runs during development did not.
+--
+-- DEFAULT 0 matches this column's own semantics (0 for an absent body,
+-- documented on the column already) and matches this repo's existing
+-- precedent for exactly this situation: requests.requests.author_kind_id
+-- (20260811010000) carries a DEFAULT for the identical reason. The
+-- production INSERT path (insert_request_initial) always supplies a
+-- real computed value explicitly; the DEFAULT only matters for callers
+-- that don't.
+--
+-- Metadata-only (constant DEFAULT, no rewrite) on this 240k+-row table.
+
+ALTER TABLE requests.requests ALTER COLUMN request_body_size SET DEFAULT 0;

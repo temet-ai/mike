@@ -1,0 +1,1 @@
+INSERT INTO memory.skill_draft_failures (project_id, folder, lesson_watermark, last_error) VALUES (993478, 'ui-design', 632, 'model: 502') ON CONFLICT (project_id, folder, lesson_watermark) DO UPDATE SET attempts = memory.skill_draft_failures.attempts + 1, last_error = EXCLUDED.last_error, last_failed_at = now() RETURNING attempts

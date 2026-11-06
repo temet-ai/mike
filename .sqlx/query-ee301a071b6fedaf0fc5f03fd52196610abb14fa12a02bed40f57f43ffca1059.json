@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lesson_proposal_jobs\n         SET status = CASE WHEN $2::bigint IS NULL THEN 'rejected' ELSE 'applied' END,\n             updated_at = NOW() WHERE verdict_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ee301a071b6fedaf0fc5f03fd52196610abb14fa12a02bed40f57f43ffca1059"
+}

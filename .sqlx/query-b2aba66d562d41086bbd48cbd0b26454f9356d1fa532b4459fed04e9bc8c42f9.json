@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lessons l SET stage_id = daily_s.id, text = $2\n                   FROM memory.lesson_stages daily_s\n                  WHERE daily_s.code = 'daily' AND l.id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b2aba66d562d41086bbd48cbd0b26454f9356d1fa532b4459fed04e9bc8c42f9"
+}

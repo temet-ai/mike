@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH cfg AS (\n                       SELECT coalesce(max((value #>> '{}')::bigint), 0) AS live_id\n                         FROM config.settings\n                        WHERE key = 'turn_judge.live_bundle_id'\n                   ),\n                   shadow AS (\n                       SELECT id, components FROM eval.bundles\n                        WHERE role = 'turn_judge_shadow' AND origin = 'resolver'\n                          AND superseded_at IS NULL\n                        ORDER BY created_at DESC, id DESC\n                        LIMIT 1\n                   ),\n                   live AS (\n                       SELECT b.id, b.components FROM eval.bundles b JOIN cfg ON b.id = cfg.live_id\n                   )\n                   SELECT live.id AS \"live_bundle_id!\", shadow.id AS \"shadow_bundle_id!\"\n                     FROM live, shadow\n                    WHERE (live.components - 'role'::text) = (shadow.components - 'role'::text)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "live_bundle_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "shadow_bundle_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.bundles",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "9c92252e3db41e44d676c7170ef0a5b53150876c31ebd0345eac4a5e6f81de7d"
+}

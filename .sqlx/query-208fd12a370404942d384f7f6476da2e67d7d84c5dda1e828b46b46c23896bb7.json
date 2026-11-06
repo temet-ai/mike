@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO workspace.session_registrations\n                     (session_id, project_id, cwd, worktree, registered_via,\n                      registered_at, lease_expires_at, released_at, pid, boot_id, reaped_at)\n                 VALUES ($1, $2, $3, $4, $5, now(), $6, NULL, $7, $8, NULL)\n                 ON CONFLICT (session_id) DO UPDATE\n                     SET project_id       = excluded.project_id,\n                         cwd              = excluded.cwd,\n                         worktree         = excluded.worktree,\n                         registered_via   = excluded.registered_via,\n                         registered_at    = now(),\n                         lease_expires_at = excluded.lease_expires_at,\n                         released_at      = NULL,\n                         -- COALESCE, not overwrite: most re-registrations\n                         -- (any hook call until H3 ships) carry no pid, and\n                         -- clobbering a previously-known-good pid/boot_id\n                         -- with NULL on every such re-register would make a\n                         -- reaped row's self-heal (A5) permanently\n                         -- non-reapable again.\n                         pid              = COALESCE(excluded.pid, workspace.session_registrations.pid),\n                         boot_id          = COALESCE(excluded.boot_id, workspace.session_registrations.boot_id),\n                         reaped_at        = NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "208fd12a370404942d384f7f6476da2e67d7d84c5dda1e828b46b46c23896bb7"
+}

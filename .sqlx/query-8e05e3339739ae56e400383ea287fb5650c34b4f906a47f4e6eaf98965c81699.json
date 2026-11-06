@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM memory.lesson_placement_reviews WHERE lesson_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8e05e3339739ae56e400383ea287fb5650c34b4f906a47f4e6eaf98965c81699"
+}

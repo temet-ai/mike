@@ -1,0 +1,53 @@
+name: Storybook coverage
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/src/lib/components/**'
+      - '.github/workflows/storybook-coverage.yml'
+
+jobs:
+  check:
+    name: New components must ship a story
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Find new components without stories
+        run: |
+          set -euo pipefail
+          base="origin/${{ github.base_ref }}"
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+
+          changed=$(git diff --name-only --diff-filter=A "${base}"...HEAD -- 'frontend/src/lib/components/**/*.svelte' \
+            | grep -v '\.stories\.svelte$' \
+            | grep -v '/ui/' \
+            || true)
+
+          if [ -z "$changed" ]; then
+            echo "No new components added."
+            exit 0
+          fi
+
+          missing=()
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            story="${f%.svelte}.stories.svelte"
+            if [ ! -f "$story" ]; then
+              missing+=("$f")
+            fi
+          done <<< "$changed"
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'New components missing sibling .stories.svelte:\n'
+            printf '  - %s\n' "${missing[@]}"
+            for f in "${missing[@]}"; do
+              echo "::error file=${f}::Missing sibling .stories.svelte"
+            done
+            exit 1
+          fi
+
+          echo "All new components have sibling stories."

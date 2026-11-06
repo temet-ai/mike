@@ -1,0 +1,67 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT c.subject_key AS toggle_key,\n                  c.changed_at,\n                  (c.old_value->>'enabled')::boolean AS enabled_before,\n                  (c.new_value->>'enabled')::boolean AS enabled_after,\n                  c.via\n             FROM config.change_log c\n            WHERE c.subject_kind = 'toggle'\n              AND c.changed_at >= $1\n              AND c.subject_key = ANY($2)\n            ORDER BY c.changed_at, c.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "toggle_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "config.change_log",
+            "name": "subject_key"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "changed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "config.change_log",
+            "name": "changed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "enabled_before",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "enabled_after",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "via",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "config.change_log",
+            "name": "via"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null,
+      null,
+      false
+    ]
+  },
+  "hash": "a49ba28e238ebe59ffd2866a3df6e5d4ff960f4f2055e6c30fc2ea03bc86eade"
+}

@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.location_uuid, l.machine_uuid, m.name AS machine_name, l.root_path, l.last_seen\n         FROM projects.locations l\n         JOIN projects.machines m ON m.machine_uuid = l.machine_uuid\n         WHERE l.project_id = $1\n         ORDER BY m.name, l.root_path, l.location_uuid",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "location_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "location_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "machine_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "machine_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "machine_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.machines",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "root_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "root_path"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "last_seen",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "last_seen"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "4d499b81c022302fdd36abd3de0448c23df42b4b1d8fa93208a1ceefcc0d877d"
+}

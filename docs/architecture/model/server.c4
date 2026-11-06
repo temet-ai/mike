@@ -1,0 +1,421 @@
+// Inside the mike server process: the listeners, the path a request takes, the state the
+// process holds, the inspect API and the launcher.
+//
+// The mutation stages are in pipeline.c4 and the background workers in workers.c4.
+
+model {
+
+  extend mike.server {
+
+    // --- listeners ----------------------------------------------------------------------------
+
+    proxyBind = listener 'Proxy bind :9988' {
+      #hot-path
+      technology 'axum, two routes, no middleware'
+      description '''
+        Routes `/v1/*` and `/v2/*` to the proxy handler. It carries no Tower layers,
+        so nothing added for the inspect API can wrap the forwarding path.
+      '''
+      link https://github.com/temet-ai/mike/blob/main/crates/mike/src/app.rs 'crates/mike/src/app.rs'
+    }
+
+    inspectBind = listener 'Inspect bind :9989' {
+      technology 'axum, REST and WebSocket'
+      description '''
+        `/api/*` and `/api/ws`. There is no login on it: a Host and Origin allow-list
+        stops a browser on another site, and stops nothing running on this machine.
+      '''
+      link https://github.com/temet-ai/mike/blob/main/docs/SECURITY.md 'docs/SECURITY.md'
+    }
+
+    spaBind = listener 'SPA bind :9990' {
+      technology 'axum, the inspect router plus the built web UI'
+      description '''
+        Serves the whole inspect API and the web UI from one origin, so the browser
+        never crosses ports. Switched off when `vite dev` takes the port.
+      '''
+      link https://github.com/temet-ai/mike/blob/main/crates/mike/src/serve/listeners.rs 'crates/mike/src/serve/listeners.rs'
+    }
+
+    // --- the path of a request ------------------------------------------------------------
+
+    engine = component 'Proxy engine' {
+      #hot-path
+      description '''
+        Four steps for every request: accept it and keep the original bytes, run
+        the mutation stages and write the capture row, forward it to Anthropic, then
+        hand the reply to the response path.
+      '''
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/proxy/engine 'crates/mike/src/proxy/engine'
+      link https://github.com/temet-ai/mike/blob/main/docs/REQUEST_FLOW.md 'docs/REQUEST_FLOW.md'
+    }
+
+    pipeline = component 'Request pipeline' {
+      #hot-path #mutates-request
+      description '''
+        Fourteen stages in a fixed order, then the composer. With nothing switched
+        on and no rules written, the body reaches Anthropic unchanged.
+      '''
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/pipeline 'crates/mike/src/pipeline'
+    }
+
+    capture = component 'Capture' {
+      #hot-path
+      description '''
+        Writes each request in two phases: a pending row before forwarding, which is
+        where the request id comes from, and a snapshot when the reply ends. Between
+        the two it applies stream events to the live capture. A crash in between
+        leaves a row the next boot marks as failed.
+      '''
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/capture 'crates/mike/src/capture'
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/store 'crates/mike/src/store'
+    }
+
+    response = component 'Response path' {
+      #hot-path
+      description 'Returns the reply to the client while a copy is parsed for capture.'
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/proxy/response 'crates/mike/src/proxy/response'
+
+      tee = component 'Stream tee' {
+        #hot-path
+        description '''
+          Splits the reply stream in two without copying: one side to the client,
+          one to the parser. A slow parser slows the read; events are never dropped.
+        '''
+        link https://github.com/temet-ai/mike/tree/main/crates/mike/src/sse 'crates/mike/src/sse'
+      }
+
+      gate = component 'Gated forwarder' {
+        #hot-path #mutates-response #default-off
+        description '''
+          Replaces the tee when a reply may need cutting. It passes frames as they
+          arrive and holds back only the newest few characters of text. On a listed
+          phrase, or a call to a tool mike declared, it cuts the reply, asks
+          Anthropic again, and joins the second answer onto the same message.
+        '''
+        metadata {
+          toggles ['weasel_intercept', 'proxy_tools']
+        }
+        link https://github.com/temet-ai/mike/tree/main/crates/mike/src/weasel_intercept 'crates/mike/src/weasel_intercept'
+        link https://github.com/temet-ai/mike/tree/main/crates/mike/src/proxy_tools 'crates/mike/src/proxy_tools'
+      }
+
+      buffered = component 'Buffered reply' {
+        #hot-path
+        description 'Reads a reply that is not streamed in one piece. It is never scanned for phrases.'
+      }
+
+      parser = component 'Stream parser' {
+        description 'Turns the copied stream into typed events: text, thinking, tool calls, usage, completion.'
+        link https://github.com/temet-ai/mike/tree/main/crates/mike/src/sse/parser 'crates/mike/src/sse/parser'
+      }
+    }
+
+    remoteControl = component 'Remote Control relay' {
+      description '''
+        Relays and captures the Remote Control channel every Claude Code session
+        opens to Anthropic, and can add a user turn to a session\'s open stream. This
+        is the one route a session treats as a request to act on.
+      '''
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/proxy/remote_control 'crates/mike/src/proxy/remote_control'
+      link https://github.com/temet-ai/mike/blob/main/docs/INJECTION_TRUST.md 'docs/INJECTION_TRUST.md'
+    }
+
+    analysis = component 'Reply analysis' {
+      description '''
+        Runs pattern analyzers over each finished reply and records what they find
+        against the request. It reports; it does not change the reply.
+      '''
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/analysis 'crates/mike/src/analysis'
+    }
+
+    // --- state held in the process ----------------------------------------------------------
+
+    state = component 'AppState' {
+      description 'Built once at startup and shared by all three listeners and every worker.'
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/config/app_state 'crates/mike/src/config/app_state'
+
+      requestStore = memory 'Live captures' {
+        description 'Requests whose reply is still arriving. An entry is removed once its snapshot is written.'
+      }
+
+      events = bus 'Event channel' {
+        technology 'tokio broadcast'
+        description '''
+          One channel carries stream events and database row changes to every
+          WebSocket subscriber and every worker that reacts to traffic.
+        '''
+      }
+
+      reminders = memory 'Reminder queue' {
+        description 'Nudges and mail waiting for a session\'s next request, when they could not be pushed sooner.'
+      }
+
+      overlays = memory 'Live configuration' {
+        technology 'ArcSwap'
+        description '''
+          Feature toggles, settings, filter rules, prompt compositions and the lesson
+          cache, swapped in whole when the operator changes one. The request path
+          reads them without a database call.
+        '''
+        link https://github.com/temet-ai/mike/tree/main/crates/mike/src/feature_toggles 'crates/mike/src/feature_toggles'
+        link https://github.com/temet-ai/mike/tree/main/crates/mike/src/settings 'crates/mike/src/settings'
+      }
+
+      inFlight = memory 'In-flight registry' {
+        description 'Counts requests being forwarded. At capacity a new request gets a 503 and a retry hint.'
+      }
+    }
+
+    dbListener = component 'Row-change listener' {
+      description 'Listens for row-change notifications from Postgres and republishes each on the event channel.'
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/db_listener 'crates/mike/src/db_listener'
+    }
+
+    // --- inspection -----------------------------------------------------------------------------
+
+    api = component 'Inspect API' {
+      description 'Everything the web UI, the MCP bridge and the prompt assistant can read or change.'
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/api 'crates/mike/src/api'
+
+      guard = component 'Host and origin guard' {
+        description 'Rejects a request whose Host or Origin is not on the allow-list. It is not a login.'
+        link https://github.com/temet-ai/mike/blob/main/crates/mike/src/api/host_guard.rs 'crates/mike/src/api/host_guard.rs'
+      }
+
+      rest = component 'REST handlers' {
+        description '''
+          One route table declares every route and whether an MCP tool covers it.
+          Finished traffic is read from Postgres; in-flight traffic from the process.
+        '''
+        link https://github.com/temet-ai/mike/tree/main/crates/mike/src/api/manifest 'crates/mike/src/api/manifest'
+      }
+
+      ws = component 'WebSocket' {
+        description 'Sends every event on the event channel to each connected browser.'
+        link https://github.com/temet-ai/mike/blob/main/crates/mike/src/api/ws.rs 'crates/mike/src/api/ws.rs'
+      }
+    }
+
+    embeddedSpa = component 'Built web UI' {
+      technology 'rust-embed'
+      description 'The compiled web UI, carried inside the binary.'
+      link https://github.com/temet-ai/mike/blob/main/crates/mike/src/spa.rs 'crates/mike/src/spa.rs'
+    }
+
+    // --- launching sessions ---------------------------------------------------------------------
+
+    launch = component 'Session launcher' {
+      description '''
+        Opens a terminal surface in a folder and starts a Claude Code session in it,
+        wired to the proxy, with its session id and identity decided beforehand.
+      '''
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/launch 'crates/mike/src/launch'
+      link https://github.com/temet-ai/mike/blob/main/docs/LAUNCH_DOMAIN.md 'docs/LAUNCH_DOMAIN.md'
+    }
+
+    fleet = component 'Fleet runner' {
+      description '''
+        Starts a fleet from its definition: warms a template per discipline, forks a
+        worker for every task that can start, watches the checkout, runs the one
+        shared check, commits a seat\'s work for it, and resolves each seat\'s
+        completion condition from the definition\'s goals for the fleet-comms mod
+        to arm as Claude Code\'s /goal.
+        On close, saves an opted-in retrospective job with the final definition
+        and roster, retaining the checkout for its independent run.
+      '''
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/launch/fleet 'crates/mike/src/launch/fleet'
+      link https://github.com/temet-ai/mike/blob/main/crates/mike/src/launch/fleet/shutdown.rs 'crates/mike/src/launch/fleet/shutdown.rs'
+      link https://github.com/temet-ai/mike/blob/main/crates/mike/src/launch/fleet/retrospective.rs 'crates/mike/src/launch/fleet/retrospective.rs'
+
+      reports = component 'Reports and verdicts' {
+        description '''
+          A worker\'s slice report and acceptance\'s verdict as one call each. A report
+          carries the commit, the check\'s verdict at it and whether the check ran after
+          the seat\'s last change; a task\'s state is worked out from these notes.
+        '''
+        link https://github.com/temet-ai/mike/blob/main/crates/mike/src/launch/fleet/report.rs 'crates/mike/src/launch/fleet/report.rs'
+      }
+
+      questions = component 'Questions between seats' {
+        description '''
+          A question to a peer is a record with a state that stays in front of the
+          recipient until answered or declined; a blocked one open five minutes goes
+          once to the reference seat.
+        '''
+        link https://github.com/temet-ai/mike/blob/main/crates/mike/src/launch/fleet/questions.rs 'crates/mike/src/launch/fleet/questions.rs'
+      }
+
+      proposals = component 'Task proposals' {
+        description '''
+          Adds a task to a running fleet, or splits one, when its files and criteria pass
+          the rules; a file another task owns holds the proposal and asks the owner.
+        '''
+        link https://github.com/temet-ai/mike/blob/main/crates/mike/src/launch/fleet/propose.rs 'crates/mike/src/launch/fleet/propose.rs'
+      }
+
+      runRecord = component 'Run record and carry-over' {
+        description '''
+          Writes the run\'s measures when a fleet closes, and turns notes marked to carry
+          into lesson candidates whose approved lines go into later runs\' templates.
+        '''
+        link https://github.com/temet-ai/mike/blob/main/crates/mike/src/launch/fleet/run_record.rs 'crates/mike/src/launch/fleet/run_record.rs'
+        link https://github.com/temet-ai/mike/blob/main/crates/mike/src/launch/fleet/carry.rs 'crates/mike/src/launch/fleet/carry.rs'
+      }
+
+      push = component 'Push check' {
+        description '''
+          Pushes a seat\'s commit and returns git\'s words when it fails; at ready, tries a
+          dry-run push and sets the gh credential helper when gh is logged in.
+        '''
+        link https://github.com/temet-ai/mike/blob/main/crates/mike/src/launch/fleet/push.rs 'crates/mike/src/launch/fleet/push.rs'
+      }
+    }
+
+    // --- clients for other services ---------------------------------------------------------
+
+    llm = component 'LLM client' {
+      #sends-content-out
+      description '''
+        The one client every model-backed worker uses: structured verdicts, retries, and a
+        record of each call. A call goes to OpenRouter, the Claude Code login or the Codex
+        login, chosen by `llm.provider` (or, in per-role mode, by the role\'s own model).
+      '''
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/llm 'crates/mike/src/llm'
+    }
+
+    embeddings = component 'Embedding client' {
+      description '''
+        Sends text to the embedding server. When the server is unreachable callers
+        fall back to text search; nothing fails.
+      '''
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/analysis/embeddings 'crates/mike/src/analysis/embeddings'
+    }
+  }
+
+  // --- into the server -----------------------------------------------------------------------
+
+  claudeCode -> mike.server.proxyBind 'sends every API request' {
+    technology 'HTTP, ANTHROPIC_BASE_URL'
+  }
+  mike.forward -> mike.server.proxyBind 'routes /v1 and /v2 traffic so it is captured' {
+    technology 'HTTP'
+  }
+  mike.mcp -> mike.server.inspectBind 'makes one call per tool' {
+    technology 'HTTP'
+  }
+  mike.assistant -> mike.server.inspectBind 'reads captures, proposes rule edits' {
+    technology 'HTTP'
+  }
+  mike.cli -> mike.server.inspectBind 'reads and commands a fleet' {
+    technology 'HTTP'
+  }
+  mike.spa -> mike.server.spaBind 'loads pages, reads data, receives live events' {
+    technology 'HTTP, WebSocket'
+  }
+
+  mike.server.proxyBind -> mike.server.engine 'hands every request to'
+  mike.server.inspectBind -> mike.server.api.guard 'passes each request through'
+  mike.server.spaBind -> mike.server.api.guard 'passes each API request through'
+  mike.server.spaBind -> mike.server.embeddedSpa 'serves pages from'
+  mike.server.api.guard -> mike.server.api.rest 'admits'
+  mike.server.api.guard -> mike.server.api.ws 'admits upgrades to'
+
+  // --- the path of a request ----------------------------------------------------------------
+
+  mike.server.engine -> mike.server.state.overlays 'resolves this session\'s toggles'
+  mike.server.engine -> mike.server.pipeline 'runs the stages on the body'
+  mike.server.engine -> mike.server.capture 'keeps the original bytes and writes the pending row'
+  mike.server.engine -> mike.server.state.inFlight 'registers the request'
+  mike.server.engine -[egress]-> anthropic 'forwards the request' {
+    technology 'HTTPS'
+  }
+  mike.server.engine -> mike.server.response.tee 'streams the reply through'
+  mike.server.engine -> mike.server.response.gate 'streams the reply through when a cut may be needed'
+  mike.server.engine -> mike.server.response.buffered 'reads a reply that is not streamed'
+  mike.server.engine -> mike.server.remoteControl 'hands Remote Control calls to'
+  mike.server.engine -[sql]-> mike.db.workspace 'puts a session on the roster at its first request'
+
+  mike.server.response.tee -> mike.server.response.parser 'copies every chunk to'
+  mike.server.response.gate -> mike.server.response.parser 'copies every chunk to'
+  mike.server.response.gate -[egress]-> anthropic 'asks again after a cut' {
+    technology 'HTTPS'
+  }
+  mike.server.response.gate -> mike.server.capture 'records the second request'
+  mike.server.response.buffered -> mike.server.capture 'snapshots at once'
+  mike.server.response.parser -[event]-> mike.server.state.events 'publishes stream events'
+
+  mike.server.state.events -[event]-> mike.server.capture 'stream events update the live capture'
+  mike.server.capture -> mike.server.state.requestStore 'holds the capture until its snapshot'
+  mike.server.capture -> mike.server.analysis 'runs the analyzers on the finished reply'
+  mike.server.capture -[event]-> mike.server.state.events 'announces a closed operator turn'
+
+  mike.server.capture -[sql]-> mike.db.requests 'pending row, then the snapshot'
+  mike.server.capture -[sql]-> mike.db.responses 'reply and its content blocks'
+  mike.server.capture -[sql]-> mike.db.messages 'new messages only'
+  mike.server.capture -[sql]-> mike.db.tools 'tool calls and results'
+  mike.server.capture -[sql]-> mike.db.agents 'agent dispatches and instances'
+  mike.server.capture -[sql]-> mike.db.systemPrompts 'the prompt, once per distinct text'
+  mike.server.capture -[sql]-> mike.db.sessions 'finds or creates the session'
+  mike.server.capture -[sql]-> mike.db.projects 'finds or creates the project'
+  mike.server.capture -[sql]-> mike.db.memory 'opens, extends and closes operator turns'
+
+  // --- Remote Control ---------------------------------------------------------------------------
+
+  mike.server.remoteControl -[egress]-> anthropic 'relays the channel call' {
+    technology 'HTTPS, SSE'
+  }
+  mike.server.remoteControl -> claudeCode 'adds a user turn to the open stream' {
+    technology 'SSE client_event'
+  }
+  mike.server.remoteControl -[sql]-> mike.db.remoteControl 'captured calls, pushes and acknowledgements'
+
+  // --- from capture to the screen -----------------------------------------------------------
+
+  mike.db -[event]-> mike.server.dbListener 'notifies of each row change' {
+    technology 'LISTEN / NOTIFY'
+  }
+  mike.server.dbListener -[event]-> mike.server.state.events 'republishes row changes'
+  mike.server.state.events -[event]-> mike.server.api.ws 'delivers every event to'
+
+  mike.server.api.rest -[sql]-> mike.db 'reads everything the web UI and the tools show'
+  mike.server.api.rest -[sql]-> mike.db.rules 'creates and edits rules'
+  mike.server.api.rest -[sql]-> mike.db.overrides 'creates and edits prompt compositions'
+  mike.server.api.rest -[sql]-> mike.db.config 'saves toggles and settings'
+  mike.server.api.rest -[sql]-> mike.db.mailbox 'stores mail between sessions'
+  mike.server.api.rest -[sql]-> mike.db.workspace 'registers sessions, renews leases, writes notes'
+  mike.server.api.rest -> mike.server.state.overlays 'swaps in what the operator changed'
+  mike.server.api.rest -> mike.server.state.requestStore 'reads replies still arriving'
+  mike.server.api.rest -> mike.server.remoteControl 'pushes mail to a session with an open stream'
+  mike.server.api.rest -> mike.server.state.reminders 'queues mail for the next request otherwise'
+  mike.server.api.rest -> mike.server.launch 'starts a session on request'
+  mike.server.api.rest -> mike.server.fleet 'starts, stops, checks and commits for a fleet'
+
+  // --- launching -------------------------------------------------------------------------------
+
+  mike.server.launch -> terminal 'opens a surface and starts claude in it'
+  mike.server.launch -[sql]-> mike.db.launch 'one row per launch attempt'
+  mike.server.launch -> mike.server.remoteControl 'pushes a long brief once the channel is linked, when launch_brief is on'
+  mike.server.fleet -> mike.server.launch 'warms templates and forks seats'
+  mike.server.fleet -[sql]-> mike.db.launch 'fleet definitions, runs, tasks and opt-in retrospective jobs'
+  mike.server.fleet -[sql]-> mike.db.mailbox 'mails the coordinator about seats that repeat each other'
+
+  mike.cli -[sql]-> mike.db.launch 'mike spawn writes the same ledger from its own process'
+  mike.cli -[sql]-> mike.db 'terminal UI reads, maintenance commands backfill'
+
+  // --- clients for other services ---------------------------------------------------------
+
+  mike.server.llm -[egress]-> openrouter 'asks for a structured verdict' {
+    technology 'HTTPS'
+  }
+  mike.server.llm -[egress]-> claudeCli 'runs claude -p for a claude/ model' {
+    technology 'child process, stdin and JSON'
+  }
+  mike.server.llm -[egress]-> codexCli 'runs codex exec for a codex/ model' {
+    technology 'child process, stdin and JSON events'
+  }
+  mike.server.llm -[sql]-> mike.db.llm 'records each call and its cost'
+  mike.server.embeddings -> infinity 'embeds text' {
+    technology 'HTTP, loopback'
+  }
+}

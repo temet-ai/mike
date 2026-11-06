@@ -1,0 +1,83 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH input AS (\n    SELECT DISTINCT ON (session_id, kind, subject) *\n      FROM unnest($1::bigint[], $2::text[], $3::text[], $4::timestamptz[], $5::text[])\n           AS i(session_id, kind, subject, since, message)\n     ORDER BY session_id, kind, subject\n), ins AS (\n    INSERT INTO agents.work_item_attention (session_id, kind, subject, since, message)\n    SELECT session_id, kind, subject, since, message FROM input\n    ON CONFLICT (session_id, kind, subject) DO NOTHING\n    RETURNING id, session_id, kind, subject, delivery_attempts,\n              last_delivery_attempt_at, disposition\n)\nSELECT ins.session_id AS \"session_id!\", ins.kind AS \"kind!\", ins.subject AS \"subject!\",\n       ins.id AS \"id!\", true AS \"inserted!\", false AS \"delivered!\",\n       ins.delivery_attempts AS \"delivery_attempts!\",\n       ins.last_delivery_attempt_at AS \"last_delivery_attempt_at?\",\n       ins.disposition AS \"disposition!\"\n  FROM ins\nUNION ALL\nSELECT a.session_id, a.kind, a.subject, a.id, false,\n       a.delivered_message_uuid IS NOT NULL, a.delivery_attempts,\n       a.last_delivery_attempt_at, a.disposition\n  FROM input i\n  JOIN agents.work_item_attention a\n    ON a.session_id = i.session_id AND a.kind = i.kind AND a.subject = i.subject\n WHERE NOT EXISTS (\n           SELECT 1 FROM ins\n            WHERE ins.session_id = i.session_id\n              AND ins.kind = i.kind\n              AND ins.subject = i.subject\n       )\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "subject!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "inserted!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "delivered!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "delivery_attempts!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "last_delivery_attempt_at?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "disposition!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TextArray",
+        "TextArray",
+        "TimestamptzArray",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "6f287ca231c5a03de9d93a34c6cba9c70bb39ac2ecd69e7386c2ac21476d189e"
+}

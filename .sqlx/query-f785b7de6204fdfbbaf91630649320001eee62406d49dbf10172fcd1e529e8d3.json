@@ -1,0 +1,234 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, kind, session_id, operator_turn_id, project_id, request_id,\n                          origin_session_uuid::text AS origin_session_uuid, origin_turn_id,\n                          source_ref, pattern, text, text_chars,\n                          embedding::text AS \"embedding!\", embedder_key, vector_source,\n                          builder_version, effective_at, recorded_at, data\n                     FROM memory.semantic_items WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "operator_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "project_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "origin_session_uuid",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "origin_turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "origin_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "source_ref",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "source_ref"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "pattern",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "pattern"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "text_chars",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "text_chars"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "embedding!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 13,
+        "name": "embedder_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "embedder_key"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "vector_source",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "vector_source"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "builder_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "builder_version"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "effective_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "effective_at"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "recorded_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "recorded_at"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "data",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_items",
+            "name": "data"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      null,
+      true,
+      false,
+      true,
+      false,
+      false,
+      null,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f785b7de6204fdfbbaf91630649320001eee62406d49dbf10172fcd1e529e8d3"
+}

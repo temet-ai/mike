@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO mailbox.messages\n               (message_uuid, to_session_id, from_session_id, body)\n           SELECT $1, s.id, $3, $4\n             FROM sessions.sessions s\n            WHERE s.session_uuid = $2\n           RETURNING message_uuid",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "message_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "message_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6cba1042383c9370e38cb4da967bcff166058afd65793c84771d4b192593bd66"
+}

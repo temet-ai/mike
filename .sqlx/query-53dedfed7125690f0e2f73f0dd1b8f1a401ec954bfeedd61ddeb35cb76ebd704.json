@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE requests.system_prompts\n            SET unknown_blocks = '{\"reason\": \"non_3_block\", \"len\": 4}'::jsonb\n          WHERE request_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "53dedfed7125690f0e2f73f0dd1b8f1a401ec954bfeedd61ddeb35cb76ebd704"
+}

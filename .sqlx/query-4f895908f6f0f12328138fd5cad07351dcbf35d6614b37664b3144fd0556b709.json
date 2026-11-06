@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT b.content\n                   FROM responses.stream_blocks b\n                   JOIN responses.stream_block_types t ON t.id = b.block_type_id\n                  WHERE b.request_id = $1\n                    AND t.code = 'text'\n                  ORDER BY b.seq_ord ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "content",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "responses.stream_blocks",
+            "name": "content"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4f895908f6f0f12328138fd5cad07351dcbf35d6614b37664b3144fd0556b709"
+}

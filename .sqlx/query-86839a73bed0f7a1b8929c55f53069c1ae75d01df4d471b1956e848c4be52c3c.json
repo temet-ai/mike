@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n                       CASE\n                           WHEN r.released_at IS NOT NULL THEN 'ended'\n                           WHEN r.lease_expires_at > now() THEN 'live'\n                           ELSE 'stale'\n                       END AS \"liveness!\"\n                   FROM workspace.session_registrations r\n                   JOIN sessions.sessions s ON s.id = r.session_id\n                  WHERE s.session_uuid = $1\n                  ORDER BY r.registered_at DESC\n                  LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "liveness!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "86839a73bed0f7a1b8929c55f53069c1ae75d01df4d471b1956e848c4be52c3c"
+}

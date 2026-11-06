@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# scripts/release-candidate-build [COMMIT]
+#
+# Builds one release candidate at COMMIT (default: HEAD) in the detached worktree
+# .claude/worktrees/release-candidate, inside a memory-capped systemd user unit
+# outside the fleet seats' Herdr unit, and copies it to
+# $RELEASE_CANDIDATES_DIR/<sha>/. Prints the candidate path and manifest sha256.
+# Fleet seats run it through its declared operation, so it takes the same
+# exclusive resource as the check and the gate.
+set -euo pipefail
+
+# The main checkout, also when this runs from a managed fleet slot.
+root=$(dirname "$(git -C "$(dirname "$0")" rev-parse --path-format=absolute --git-common-dir)")
+sha=$(git -C "$root" rev-parse "${1:-HEAD}")
+worktree=$root/.claude/worktrees/release-candidate
+candidates=${RELEASE_CANDIDATES_DIR:-$root/target/candidates}
+out=$candidates/$sha
+log=$candidates/build-$sha.log
+
+if [ -f "$out/manifest.json" ]; then
+    echo "Candidate: $out (already built)"
+    sha256sum "$out/manifest.json"
+    exit 0
+fi
+
+mkdir -p "$candidates"
+if git -C "$worktree" rev-parse --git-dir >/dev/null 2>&1; then
+    git -C "$worktree" checkout -q --detach "$sha"
+else
+    git -C "$root" worktree add -q --detach "$worktree" "$sha"
+fi
+
+cd "$worktree"
+mise install "node@$(cat .nvmrc)" >/dev/null
+node_bin="$(mise where "node@$(cat .nvmrc)")/bin"
+
+: >"$log"
+unit="mike-candidate-build-${sha:0:8}"
+# A withdrawn build must not keep running in its own unit beside the next job.
+trap 'systemctl --user stop "$unit" 2>/dev/null || true' EXIT
+systemd-run --user --unit="$unit" --wait --collect \
+    --working-directory="$worktree" \
+    -E PATH="$node_bin:$PATH" -E HOME="$HOME" -E CI=true \
+    -p MemoryMax=16G -p MemorySwapMax=2G -p RuntimeMaxSec=5400 -p OOMPolicy=stop \
+    -p StandardOutput="append:$log" -p StandardError="append:$log" \
+    /bin/bash -c '(cd frontend && rm -rf node_modules && pnpm fetch --frozen-lockfile) && exec ./scripts/release.sh'
+
+candidate=$(grep -oE 'Candidate: .*' "$log" | tail -1 | cut -d' ' -f2-)
+if [ -z "$candidate" ]; then
+    echo "release-candidate-build: no candidate printed; see $log" >&2
+    exit 1
+fi
+case $candidate in /*) ;; *) candidate=$worktree/$candidate ;; esac
+cp -r "$candidate" "$out.partial"
+mv "$out.partial" "$out"
+echo "Candidate: $out"
+sha256sum "$out/manifest.json"

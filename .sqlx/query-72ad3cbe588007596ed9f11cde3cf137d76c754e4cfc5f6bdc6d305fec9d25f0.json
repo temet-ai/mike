@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH upd AS (\n                 UPDATE requests.requests r\n                    SET status_id = error_s.id,\n                        completed_at = NOW()\n                   FROM requests.statuses error_s\n                  WHERE error_s.code = 'error'\n                    AND r.status_id = ANY (ARRAY[1, 2])\n                    AND r.created_at <= $1\n                  RETURNING r.id\n             )\n             INSERT INTO requests.errors (request_id, message)\n             SELECT id, 'proxy_crashed_during_stream' FROM upd",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "72ad3cbe588007596ed9f11cde3cf137d76c754e4cfc5f6bdc6d305fec9d25f0"
+}

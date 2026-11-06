@@ -1,0 +1,202 @@
+#!/usr/bin/env bash
+# cx — cargo with the repo env preloaded (.env + a per-checkout CARGO_TARGET_DIR), runnable from any cwd.
+# Usage: cx <any cargo args>
+#   Inner-loop examples:
+#     cx check -p mike --tests -j2
+#     cx nextest run -p mike-mcp --test <stem>
+set -euo pipefail
+
+# Resolve repo root from the script's own location (works from any cwd, even outside the repo).
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(git -C "$script_dir" rev-parse --show-toplevel)"
+cd "$repo_root"
+
+# A managed fleet slot (a clean checkout under .claude/worktrees) has no ignored
+# `artifacts` symlink, and tests include_str! fixtures from it. Link the main checkout's
+# artifacts directory in, so --tests compiles; no secrets are involved.
+if [[ ! -e "$repo_root/artifacts" ]]; then
+  cx_main_root="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+  if [[ "$cx_main_root" != "$repo_root" && -d "$cx_main_root/artifacts" ]]; then
+    ln -s "$(cd "$cx_main_root/artifacts" && pwd -P)" "$repo_root/artifacts" 2>/dev/null || true
+  fi
+fi
+
+source "$script_dir/lib/source-env.sh"
+mike_source_env_preserving_exported "$repo_root/.env"
+
+# Tests build ProxyConfig through the same loader as the binary, which reads
+# every MIKE_* variable. The developer's local-fallback database from .env is
+# not a test fixture: a test that inherits it dials a database that may not be
+# running and times out after 30s. Tests that want a fallback set their own.
+case " $* " in
+  *" test "* | *" nextest "*) unset MIKE_LOCAL_DATABASE_URL ;;
+esac
+
+# macOS's default TMPDIR is a long path under /var, which is a symlink. The
+# installation code refuses a symlinked ancestry and caps the control socket
+# path at 103 bytes, so tests get a short canonical folder instead.
+if [[ "$(uname -s)" == "Darwin" && "${TMPDIR:-}" != /private/tmp* ]]; then
+  export TMPDIR=/private/tmp
+fi
+
+cx_target_named="${CARGO_TARGET_DIR:-}"
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$repo_root/target}"
+
+# Ensure the build accelerators this script opts in to (sccache, lld) are
+# present, installing them if missing, then inject them via `cargo --config`.
+# shellcheck disable=SC1091
+source "$script_dir/lib/preflight-toolchain.sh"
+
+# MIKE_BUILD_CACHE=mbx is an opt-in: the cargo subcommand runs through mbx into
+# the build directory CARGO_TARGET_DIR names, and sccache is off. Anything else
+# leaves the command line exactly as it was. See scripts/mbx-trial/README.md.
+if [[ "${MIKE_BUILD_CACHE:-}" == "mbx" ]]; then
+  prepare_mbx_build_cache "$repo_root" "$cx_target_named"
+  cx_cmd=("$MBX_BIN" "$@")
+else
+  ensure_build_toolchain
+  compute_accelerator_cargo_args
+  cx_cmd=(cargo "${ACCELERATOR_CARGO_ARGS[@]}" "$@")
+fi
+
+if [[ -n "${CX_PRINT_COMMAND:-}" ]]; then
+  printf '%s\n' "${cx_cmd[@]}"
+  exit 0
+fi
+
+# ── Keeping the shared build directory from filling the volume ───────────────
+# Nothing removes anything from CARGO_TARGET_DIR on its own, so it grows until
+# the disk is full and then builds, git and the capture database all fail at
+# once. A scheduled cleaner exists, but a clock cannot answer a burst: on
+# 2026-08-28 updating 154 crates and running two full checks added 32GB in
+# forty minutes, faster than any interval that is cheap enough to run.
+#
+# So the check happens here instead, because every cargo command in this repo
+# comes through this script, at the two moments that actually matter: when a
+# build is about to consume space and there is little left, and when a build
+# has just made a whole slice of the directory obsolete. `df` costs nothing, so
+# the common case pays no measurable price.
+#
+# scripts/lib/target-dir-guard.sh carries the reasoning for the turn-taking.
+# shellcheck disable=SC1091
+source "$script_dir/lib/target-dir-guard.sh"
+
+SWEEPER="${CARGO_SWEEP_SCRIPT:-$script_dir/cargo-target-sweep}"
+# Below this many free gigabytes, reclaim before building rather than after
+# failing. One full workspace slice is around 35GB, so this is roughly enough
+# headroom to finish what is about to start.
+DISK_FLOOR_GB="${CX_DISK_FLOOR_GB:-30}"
+
+# Run the cleaner, but never while holding a build registration: the sweep waits
+# for builds to finish and the build would be waiting for the sweep.
+cx_sweep() {
+  local why="$1"
+  [[ -n "${CX_NO_SWEEP:-}" ]] && return 0
+  if [[ ! -x "$SWEEPER" ]]; then
+    echo "cx: ${why}, but the sweeper ${SWEEPER} is missing or not executable; nothing reclaimed" >&2
+    return 0
+  fi
+  echo "cx: reclaiming space in ${CARGO_TARGET_DIR} (${why})" >&2
+  "$SWEEPER" >&2 || true
+}
+
+# A clean checkout has no target folder yet, and the free-space read needs one.
+mkdir -p "$CARGO_TARGET_DIR"
+free_gb="$(guard_free_gb)"
+if [[ -n "$free_gb" ]] && (( free_gb < DISK_FLOOR_GB )); then
+  cx_sweep "${free_gb}G free, floor ${DISK_FLOOR_GB}G"
+fi
+
+# A changed lockfile means the dependency graph moved, and everything compiled
+# against the old graph is now dead weight. That is what produced the 32GB
+# spike, so it is the moment to reclaim rather than six hours later.
+lock_before=""
+source "$script_dir/lib/sha256.sh"
+[[ -f Cargo.lock ]] && lock_before="$(sha256 < Cargo.lock)"
+
+guard_build_enter
+trap guard_build_leave EXIT
+
+# ── A query without its .sqlx entry must not stop the crate for everyone (#533) ─
+# sqlx's macros read .sqlx/ offline. A seat that saves a new query! before its entry
+# exists makes crate mike fail to compile for every seat sharing the tree, until that
+# seat has prepared it (14 minutes, five seats, 2026-10-08). So when a build fails with
+# sqlx's "set DATABASE_URL ... or run cargo sqlx prepare" error and the tree has
+# uncommitted Rust changes (a seat's work in progress, never a clean checkout of a
+# commit, whose check must stay red when the entry is missing), cx runs
+# scripts/sqlx-prepare once for the whole checkout (others wait on a lock, they do not
+# run it again) and builds again. Opt out with CX_AUTOPREPARE=0.
+cx_sqlx_missing_msg='set `DATABASE_URL` to use query macros online'
+cx_autoprepare_ok=0
+if [[ "${CX_AUTOPREPARE:-1}" != "0" && ! -t 2 && "${1:-}" =~ ^(check|build|clippy|test|nextest|doc)$ ]]; then
+  cx_autoprepare_ok=1
+fi
+cx_errlog=""
+if (( cx_autoprepare_ok )); then
+  cx_errlog="$(mktemp "${TMPDIR:-/tmp}/cx-err.XXXXXX")"
+  trap 'guard_build_leave; rm -f "${cx_errlog:?}"' EXIT
+fi
+
+cx_run() {
+  if [[ -n "$cx_errlog" ]]; then
+    { "${cx_cmd[@]}" 2>&1 1>&3 | tee "$cx_errlog" >&2; return "${PIPESTATUS[0]}"; } 3>&1
+  else
+    "${cx_cmd[@]}"
+  fi
+}
+
+cx_prepare_once() {
+  local lock pid waited=0
+  lock="$(git rev-parse --path-format=absolute --git-common-dir)/cx-sqlx-prepare.lock.d"
+  while ! mkdir "$lock" 2>/dev/null; do
+    pid="$(cat "$lock/pid" 2>/dev/null || true)"
+    if [[ -n "$pid" ]] && ! kill -0 "$pid" 2>/dev/null; then
+      rm -rf "${lock:?}"; continue
+    fi
+    (( waited == 0 )) && echo "cx: another seat is preparing the sqlx queries; waiting for it" >&2
+    sleep 3; waited=$((waited + 3))
+    (( waited > 1500 )) && return 1
+    if [[ ! -d "$lock" ]]; then return 0; fi
+  done
+  echo $$ >"$lock/pid"
+  local pkgs=() prev="" a rc=0
+  for a in "${cx_orig_args[@]}"; do
+    [[ "$prev" == "-p" || "$prev" == "--package" ]] && pkgs+=(-p "$a")
+    prev="$a"
+  done
+  echo "cx: a query has no .sqlx entry; running scripts/sqlx-prepare once for the checkout (#533)" >&2
+  if (( ${#pkgs[@]} )); then
+    CX_AUTOPREPARE=0 "$script_dir/sqlx-prepare" -- "${pkgs[@]}" --all-targets >&2 || rc=$?
+  else
+    CX_AUTOPREPARE=0 "$script_dir/sqlx-prepare" >&2 || rc=$?
+  fi
+  rm -rf "${lock:?}"
+  return "$rc"
+}
+
+cx_orig_args=("$@")
+set +e
+cx_run
+status=$?
+if (( status != 0 && cx_autoprepare_ok )) && grep -qF "$cx_sqlx_missing_msg" "$cx_errlog" \
+   && [[ -n "$(git status --porcelain -- '*.rs' 2>/dev/null)" ]]; then
+  if cx_prepare_once; then
+    echo "cx: building again with the new .sqlx entries" >&2
+    cx_run
+    status=$?
+  else
+    echo "cx: sqlx-prepare did not succeed; the original errors above stand. A query that reads a column only an undeployed migration adds needs: scripts/sqlx-prepare --db <migrated scratch db>" >&2
+  fi
+fi
+set -e
+
+guard_build_leave
+trap - EXIT
+[[ -n "$cx_errlog" ]] && rm -f "$cx_errlog"
+
+if [[ -n "$lock_before" && -f Cargo.lock ]]; then
+  lock_after="$(sha256 < Cargo.lock)"
+  [[ "$lock_after" != "$lock_before" ]] && cx_sweep "dependency graph changed"
+fi
+
+exit "$status"

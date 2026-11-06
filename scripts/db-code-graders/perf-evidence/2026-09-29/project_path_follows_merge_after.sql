@@ -1,0 +1,1 @@
+SELECT COALESCE(p.merged_into_id, p.id) FROM (SELECT pr.id, pr.project_path, NULL::bigint AS merged_into_id FROM projects.projects pr) p WHERE p.project_path = '/mnt/data/projects/temet/temet-proxy-wt-wp03' LIMIT 1

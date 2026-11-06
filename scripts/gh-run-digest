@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+# gh-run-digest — one call: per-step conclusions for a GitHub Actions run, plus
+# log tails for failed/notable steps, with an optional --grep filter.
+#
+# Kills the report's 6-download re-grep chain (§4/P2, 0be30667): a failed run
+# had its log downloaded ~6 times with progressively widening greps because no
+# single call surfaced "which step failed" + "why" together.
+#
+# Usage:
+#   gh-run-digest <run-id> [--repo owner/repo] [--grep RE] [--tail N]
+#   gh-run-digest --from-file JOBS.json --log-dir DIR [--grep RE] [--tail N]
+#     (offline/test path: JOBS.json = `gh run view --json jobs` shape;
+#      DIR must contain one <job-name-sanitized>.log per job for tailing)
+#
+# Output: run status/conclusion header, one line per job/step with its
+# conclusion, then for every failed step (or every step if --grep matches
+# nothing, or always for conclusion=failure) a tail of that step's log
+# (default 30 lines, or every --grep match with 2 lines of context).
+#
+# Honest exit codes:
+#   0  run succeeded
+#   1  run failed / one or more steps failed
+#   2  usage error
+#   other non-zero: gh/network failure passed through
+#
+# Read-only: gh run view / gh run download of logs only. No re-run, no cancel.
+set -euo pipefail
+
+usage() {
+  local rc="${1:-2}"
+  if [[ "$rc" -eq 0 ]]; then
+    sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+  else
+    sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//' >&2
+  fi
+  exit "$rc"
+}
+
+err() { printf 'gh-run-digest: %s\n' "$1" >&2; }
+
+run_id="" repo="" grep_re="" tail_n=30 from_file="" log_dir=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --repo)      [[ $# -ge 2 ]] || { err "--repo needs a value"; exit 2; };      repo="$2"; shift 2 ;;
+    --grep)      [[ $# -ge 2 ]] || { err "--grep needs a value"; exit 2; };      grep_re="$2"; shift 2 ;;
+    --tail)      [[ $# -ge 2 ]] || { err "--tail needs a value"; exit 2; };      tail_n="$2"; shift 2 ;;
+    --from-file) [[ $# -ge 2 ]] || { err "--from-file needs a value"; exit 2; }; from_file="$2"; shift 2 ;;
+    --log-dir)   [[ $# -ge 2 ]] || { err "--log-dir needs a value"; exit 2; };   log_dir="$2"; shift 2 ;;
+    -h|--help) usage 0 ;;
+    -*) err "unknown option: $1"; exit 2 ;;
+    *)
+      if [[ -z "$run_id" ]]; then run_id="$1"
+      else err "unexpected argument: $1"; exit 2; fi
+      shift ;;
+  esac
+done
+
+command -v jq >/dev/null 2>&1 || { err "jq is required but not found on PATH"; exit 2; }
+[[ "$tail_n" =~ ^[0-9]+$ ]] || { err "--tail must be an integer"; exit 2; }
+
+sanitize() { printf '%s' "$1" | tr '/ ' '__'; }
+
+emit_step_tail() {
+  local job_name="$1" step_name="$2" logfile="$3"
+  printf '\n=== %s / %s ===\n' "$job_name" "$step_name"
+  if [[ ! -f "$logfile" ]]; then
+    printf '(log not available: %s)\n' "$logfile"
+    return
+  fi
+  if [[ -n "$grep_re" ]]; then
+    grep -nE -B2 -A2 -- "$grep_re" "$logfile" || printf '(no --grep matches in this step log)\n'
+  else
+    tail -n "$tail_n" "$logfile"
+  fi
+}
+
+digest() {
+  local jobs_json="$1" logdir="$2"
+  local conclusion
+  conclusion=$(printf '%s' "$jobs_json" | jq -r '[.[].conclusion] | if any(. == "failure") then "failure" else (if any(.=="cancelled") then "cancelled" else "success" end) end')
+  printf 'run conclusion (derived from jobs): %s\n' "$conclusion"
+  printf '%-30s %-40s %s\n' JOB STEP CONCLUSION
+  printf '%s' "$jobs_json" | jq -r '.[] | .name as $j | .steps[]? | [$j, .name, .conclusion] | @tsv' \
+    | while IFS=$'\t' read -r j s c; do printf '%-30s %-40s %s\n' "$j" "$s" "$c"; done
+
+  printf '%s' "$jobs_json" | jq -c '.[]' | while read -r job; do
+    local jname; jname=$(printf '%s' "$job" | jq -r '.name')
+    printf '%s' "$job" | jq -c '.steps[]? | select(.conclusion=="failure")' | while read -r step; do
+      local sname; sname=$(printf '%s' "$step" | jq -r '.name')
+      emit_step_tail "$jname" "$sname" "$logdir/$(sanitize "$jname").log"
+    done
+  done
+
+  if [[ -n "$grep_re" ]]; then
+    printf '\n--- --grep "%s" across all step logs ---\n' "$grep_re"
+    printf '%s' "$jobs_json" | jq -r '.[].name' | sort -u | while read -r jname; do
+      local f="$logdir/$(sanitize "$jname").log"
+      [[ -f "$f" ]] || continue
+      grep -nE -- "$grep_re" "$f" 2>/dev/null | sed "s#^#[$jname] #" || true
+    done
+  fi
+
+  [[ "$conclusion" == "success" ]]
+}
+
+if [[ -n "$from_file" ]]; then
+  [[ -f "$from_file" ]] || { err "--from-file: no such file: $from_file"; exit 2; }
+  [[ -n "$log_dir" ]] || { err "--from-file requires --log-dir"; exit 2; }
+  jobs_json=$(cat "$from_file")
+  if digest "$jobs_json" "$log_dir"; then exit 0; else exit 1; fi
+fi
+
+[[ -n "$run_id" ]] || usage
+command -v gh >/dev/null 2>&1 || { err "gh is required but not found on PATH (install: brew install gh, then gh auth login)"; exit 2; }
+
+repo_args=()
+[[ -n "$repo" ]] && repo_args=(--repo "$repo")
+
+jobs_json=$(gh run view "$run_id" "${repo_args[@]}" --json jobs --jq '.jobs')
+[[ -n "$jobs_json" && "$jobs_json" != "null" ]] || { err "no job data for run $run_id"; exit 1; }
+
+workdir=$(mktemp -d)
+trap 'rm -rf "$workdir"' EXIT
+# gh run view --log downloads the whole run's plain-text log in one call, then we
+# split it by job so failed-step tails come from data already fetched once.
+full_log=$(gh run view "$run_id" "${repo_args[@]}" --log 2>/dev/null || true)
+if [[ -n "$full_log" ]]; then
+  printf '%s' "$jobs_json" | jq -r '.[].name' | sort -u | while read -r jname; do
+    printf '%s\n' "$full_log" | grep -F "$jname"$'\t' > "$workdir/$(sanitize "$jname").log" 2>/dev/null || \
+      printf '%s\n' "$full_log" > "$workdir/$(sanitize "$jname").log"
+  done
+fi
+
+if digest "$jobs_json" "$workdir"; then exit 0; else exit 1; fi

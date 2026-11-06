@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO sessions.sessions (session_uuid, project_id, first_seen, last_seen)\n         VALUES ($1, $2, $3, $3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "05c2c813297ebd3d8c28d37ff2069d5018e453399d7c4fb6a7cd27e4c9810a30"
+}

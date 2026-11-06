@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sessions.sessions\n         SET project_id = $2, project_resolution = $3\n         WHERE id = $1\n           AND (project_id, project_resolution) IS DISTINCT FROM ($2, $3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f27cd490647071835a248f3fe57c9fd2c6943ea8fddef4c88908a240e2486687"
+}

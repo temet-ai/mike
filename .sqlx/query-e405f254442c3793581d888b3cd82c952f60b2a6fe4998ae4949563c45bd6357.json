@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.skill_policies (project_id, mode, changed_by)\n                 SELECT p.id, $2, $3 FROM projects.projects p WHERE p.project_uuid = $1\n                 ON CONFLICT (project_id) DO UPDATE\n                    SET mode = EXCLUDED.mode, changed_at = now(),\n                        changed_by = EXCLUDED.changed_by",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e405f254442c3793581d888b3cd82c952f60b2a6fe4998ae4949563c45bd6357"
+}

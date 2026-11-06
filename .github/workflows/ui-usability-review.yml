@@ -1,0 +1,156 @@
+name: UI usability review
+
+# Runs automatically when a PR touches frontend UI source. Two tiers:
+#   1. gate  — deterministic, API-free checks that FAIL the build on binding-rule
+#              violations (truncation, Tailwind var miscompile) + svelte-check +
+#              the layout-shift guard. These are the usability skills' executable
+#              self-checks.
+#   2. grade — Claude Code (headless) grades the changed UI against the four
+#              usability skills as a rubric and posts an ADVISORY PR comment.
+#              It is read-only: it never edits files or pushes.
+#
+# Setup: add an ANTHROPIC_API_KEY repo secret (Settings → Secrets and variables →
+# Actions). Without it the gate still runs; the grade job is skipped.
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/src/**/*.svelte'
+      - 'frontend/src/**/*.ts'
+      - 'frontend/src/**/*.css'
+      - '.claude/skills/plain-language-microcopy/**'
+      - '.claude/skills/contextual-help-disclosure/**'
+      - '.claude/skills/invokable-page-tour/**'
+      - '.claude/skills/ui-coherence-state-audit/**'
+      - 'scripts/usability-gate.sh'
+      - '.github/workflows/ui-usability-review.yml'
+
+concurrency:
+  group: ui-usability-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  gate:
+    name: Deterministic usability gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history for diff)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Deterministic gate (grep self-checks)
+        id: grep_gate
+        run: |
+          bash scripts/usability-gate.sh \
+            --base "${{ github.base_ref }}" \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: frontend/package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 25
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck (svelte-check)
+        working-directory: frontend
+        run: pnpm exec svelte-kit sync && pnpm exec svelte-check --tsconfig ./tsconfig.json
+
+      - name: Frontend architecture guards
+        working-directory: frontend
+        run: ../scripts/sb-test --unit --skip-typecheck frontendArchitecture.guard.test.ts
+
+  grade:
+    name: Usability grade (advisory)
+    runs-on: ubuntu-latest
+    # Advisory: a grade never blocks merge. Flip `continue-on-error` to false and
+    # have the prompt exit non-zero on FAIL to make it gating.
+    continue-on-error: true
+    # DISABLED 2026-07-13: the Claude account funding this grade is out of usage
+    # until next month's reset. To re-enable, restore the original condition:
+    #   if: ${{ github.event.pull_request.draft == false }}
+    if: ${{ false }}
+    steps:
+      - name: Checkout (full history for diff)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Skip if no API key
+        id: keycheck
+        run: |
+          if [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "has_key=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::ANTHROPIC_API_KEY not set — skipping the usability grade. Add the secret to enable it."
+          else
+            echo "has_key=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Usability grade (Claude Code, read-only)
+        if: ${{ steps.keycheck.outputs.has_key == 'true' }}
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: >-
+            --model claude-sonnet-4-6
+            --max-turns 30
+            --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git merge-base:*),mcp__github__add_issue_comment"
+          prompt: |
+            You are grading the frontend UI changes in this pull request for
+            USABILITY — whether someone who did not build this app could use the
+            changed surfaces unaided. You are READ-ONLY: do not edit, create, or
+            delete any files, and do not push. Produce a grade and post it.
+
+            ## Scope
+            Diff the PR against its base and look ONLY at changed/added frontend
+            source: `frontend/src/**/*.svelte`, `*.ts`, `*.css`. Use:
+            `git merge-base origin/${{ github.base_ref }} HEAD` then
+            `git diff <merge-base>..HEAD -- 'frontend/src/**'`.
+
+            ## Rubric — apply these four skills as the grading dimensions
+            Read each skill file and grade against it (cite file:line evidence
+            from the diff for every finding):
+            - `.claude/skills/plain-language-microcopy/SKILL.md` — jargon/system
+              nouns, verb+noun buttons, blameless actionable errors, sentence case,
+              empty-state copy.
+            - `.claude/skills/contextual-help-disclosure/SKILL.md` — help at the
+              right tier, reuse of Tooltip/HelpHint, nothing task-essential buried
+              in a hover, keyboard/screen-reader correctness.
+            - `.claude/skills/invokable-page-tour/SKILL.md` — only if the PR adds a
+              tour: user-invoked (never auto-launch), ARIA-dialog-correct,
+              dismissible-and-recallable.
+            - `.claude/skills/ui-coherence-state-audit/SKILL.md` — state coverage
+              (loading/empty/error), no layout shift on state change, role tokens
+              not raw hex/px, visually assessed legibility and structural accessibility.
+
+            Also respect the binding rules these encode: no truncation of
+            inspection content (`.claude/rules/agent-behavior-and-data.md`), no
+            layout stability (`.claude/rules/visual-design-and-ui.md`), and opt-in
+            traffic mutation and content egress. Do not grade colour-contrast ratios.
+
+            ## Output — post ONE sticky PR comment (via mcp__github__add_issue_comment)
+            Begin the comment body with the exact marker `<!-- usability-grade -->`
+            so it is identifiable. Then:
+            - An overall verdict: **PASS** / **PASS WITH NITS** / **NEEDS WORK**.
+            - A table: dimension | verdict (✅/⚠️/❌) | one-line summary.
+            - Per finding: `file:line` — what's wrong — the concrete fix (quote the
+              relevant skill rule). Be specific and short; no praise padding.
+            - If the changed surfaces are clean, say so plainly and stop.
+
+            Grade ONLY what the diff changed. Do not propose work outside the PR's
+            scope. Do not restate the whole skill files back to the reader.

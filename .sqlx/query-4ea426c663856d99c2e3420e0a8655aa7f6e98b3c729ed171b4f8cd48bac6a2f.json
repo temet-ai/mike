@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE work.threads\n            SET updated_at = now(), last_session_uuid = COALESCE($2, last_session_uuid)\n          WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4ea426c663856d99c2e3420e0a8655aa7f6e98b3c729ed171b4f8cd48bac6a2f"
+}

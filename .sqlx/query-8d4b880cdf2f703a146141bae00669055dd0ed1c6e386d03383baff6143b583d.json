@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT last_capture_sequence FROM runtime.codex_intake_state\n         WHERE namespace_id = $1 FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "last_capture_sequence",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_intake_state",
+            "name": "last_capture_sequence"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "8d4b880cdf2f703a146141bae00669055dd0ed1c6e386d03383baff6143b583d"
+}

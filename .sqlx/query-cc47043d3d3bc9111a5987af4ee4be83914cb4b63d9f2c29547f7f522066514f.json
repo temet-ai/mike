@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.claude_code_agent_id AS agent_id, res.created_at, res.content\n  FROM tools.uses u\n  JOIN tools.results res ON res.tool_use_id = u.id\n  JOIN requests.requests r ON r.id = u.request_id\n WHERE u.session_id = $1\n   AND u.tool_name = 'Bash'\n   AND (u.input->>'command' LIKE '%git push%' OR u.input->>'command' LIKE '%git commit%')\n ORDER BY res.created_at\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "agent_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "claude_code_agent_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "content",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "tools.results",
+            "name": "content"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "cc47043d3d3bc9111a5987af4ee4be83914cb4b63d9f2c29547f7f522066514f"
+}

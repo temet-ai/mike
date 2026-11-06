@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ai.id, s.session_uuid AS \"session_uuid!\",\n                          ai.subagent_persona, ai.started_at, ai.first_request_id\n                     FROM agents.instances ai\n                     JOIN sessions.sessions s ON s.id = ai.session_id\n                    WHERE ai.agent_id = $1\n                    ORDER BY ai.id DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.instances",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "subagent_persona",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.instances",
+            "name": "subagent_persona"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "started_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "agents.instances",
+            "name": "started_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "first_request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "agents.instances",
+            "name": "first_request_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "84b5dd5e80d9f7a3be8b48f5aacc4de5ef9b7d648be3f35786135dfafdf6a596"
+}

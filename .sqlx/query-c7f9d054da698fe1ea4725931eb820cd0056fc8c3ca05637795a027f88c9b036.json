@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE launch.runs\n   SET project_path = COALESCE($2, project_path),\n       backend = $3,\n       workspace_ref = COALESCE($4, workspace_ref),\n       tab_ref = COALESCE($5, tab_ref)\n WHERE run_id = $1\n   AND closed_at IS NULL\nRETURNING run_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "run_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.runs",
+            "name": "run_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c7f9d054da698fe1ea4725931eb820cd0056fc8c3ca05637795a027f88c9b036"
+}

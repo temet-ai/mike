@@ -1,0 +1,80 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.id AS \"lesson_id!\",\n                        l.text AS \"lesson_text!\",\n                        lk.code AS \"kind!\",\n                        count(*) AS \"injection_count!\",\n                        min(li.injected_at) AS \"first_injected_at!\",\n                        max(li.injected_at) AS \"last_injected_at!\",\n                        array_agg(DISTINCT li.origin ORDER BY li.origin) AS \"origins!\"\n                   FROM memory.lesson_injections li\n                   JOIN memory.lessons l ON l.id = li.lesson_id\n                   JOIN memory.lesson_kinds lk ON lk.id = l.kind_id\n                  WHERE li.session_id = $1\n                  GROUP BY l.id, l.text, lk.code\n                  ORDER BY l.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "lesson_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "lesson_text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "injection_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "first_injected_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "last_injected_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "origins!",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "8735bcf2f1f90ecfbaf78bd9cfe6945d7b1efef3804d12201337dc05df71b35e"
+}

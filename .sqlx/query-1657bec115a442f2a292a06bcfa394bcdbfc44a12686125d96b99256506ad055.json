@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE steering.evaluations e\n                    SET reach_at_due = u.reach\n                   FROM unnest($1::bigint[], $2::text[]) AS u(id, reach)\n                  WHERE e.id = u.id AND e.reach_at_due IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1657bec115a442f2a292a06bcfa394bcdbfc44a12686125d96b99256506ad055"
+}

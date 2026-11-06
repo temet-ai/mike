@@ -1,0 +1,7 @@
+{
+  "name": "mike",
+  "version": "0.2.0",
+  "author": { "name": "Dawid du Toit" },
+  "description": "mike in the terminal: the project's sessions in a pane, unread mike mail and what others changed on the status line, the changes since the session last looked at each prompt, and /recall over past turns",
+  "types": "./types/index.d.ts"
+}

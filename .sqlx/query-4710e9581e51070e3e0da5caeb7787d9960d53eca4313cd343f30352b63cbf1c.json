@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_revisions r SET document_uuid = k.document_uuid\n           FROM unnest($1::uuid[], $2::uuid[]) AS m(dropped, kept)\n           JOIN memory.knowledge_documents dd ON dd.source_uuid = m.dropped\n           JOIN memory.knowledge_documents k\n             ON k.source_uuid = m.kept AND k.relative_path = dd.relative_path\n          WHERE r.document_uuid = dd.document_uuid",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "UuidArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4710e9581e51070e3e0da5caeb7787d9960d53eca4313cd343f30352b63cbf1c"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lesson_file_receipts(location_uuid, lesson_uuid, version)\n             SELECT $1, c.lesson_uuid, c.version\n             FROM jsonb_to_recordset($2) AS x(lesson_uuid uuid, version bigint)\n             JOIN memory.lesson_file_changes c ON c.lesson_uuid = x.lesson_uuid AND c.version = x.version\n             JOIN projects.locations l ON l.location_uuid = $1 AND l.project_id = c.project_id\n             ON CONFLICT(location_uuid, lesson_uuid) DO UPDATE\n               SET version = EXCLUDED.version, written_at = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "58cbb51d9c84e09e6341460bb94932f351d99eb262ece3e08a2a264682448584"
+}

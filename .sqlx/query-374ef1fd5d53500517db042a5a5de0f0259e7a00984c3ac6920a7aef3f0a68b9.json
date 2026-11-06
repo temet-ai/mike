@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH recent AS (\n    SELECT v.cost_usd\n      FROM memory.turn_verdicts v\n     WHERE v.bundle_id = $1 AND v.mode = 'live' AND v.reaction IS NOT NULL\n       AND v.cost_usd IS NOT NULL\n     ORDER BY v.id DESC\n     LIMIT 200\n)\nSELECT avg(cost_usd)::float8 AS \"mean_cost?\" FROM recent\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "mean_cost?",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "374ef1fd5d53500517db042a5a5de0f0259e7a00984c3ac6920a7aef3f0a68b9"
+}

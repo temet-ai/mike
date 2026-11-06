@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO launch.introductions (again_use_id, run_id, first_use_id)\nSELECT p.again_use_id, $1, p.first_use_id\n  FROM unnest($2::bigint[], $3::bigint[]) AS p(again_use_id, first_use_id)\nON CONFLICT (again_use_id) DO NOTHING\nRETURNING again_use_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "again_use_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.introductions",
+            "name": "again_use_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8Array",
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0169b704408fe8f5095f4c97bc27ec27b274bf7bf2fe7735f0b561c4154b2070"
+}

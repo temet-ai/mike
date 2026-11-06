@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH\n    t0 AS (UPDATE requests.requests SET project_id = $2 WHERE project_id = $1),\n    t1 AS (UPDATE memory.operator_turns SET project_id = $2 WHERE project_id = $1),\n    t2 AS (UPDATE memory.lessons SET project_id = $2 WHERE project_id = $1),\n    t3 AS (UPDATE memory.directive_lessons SET project_id = $2 WHERE project_id = $1),\n    t4 AS (UPDATE memory.directive_proposals SET project_id = $2 WHERE project_id = $1),\n    t5 AS (UPDATE memory.lesson_file_changes SET project_id = $2 WHERE project_id = $1),\n    t6 AS (UPDATE memory.consolidation_actions SET project_id = $2 WHERE project_id = $1),\n    t7 AS (UPDATE memory.semantic_items SET project_id = $2 WHERE project_id = $1),\n    t8 AS (UPDATE workspace.session_registrations SET project_id = $2 WHERE project_id = $1),\n    t9 AS (UPDATE workspace.coordination_events SET project_id = $2 WHERE project_id = $1),\n    t10 AS (UPDATE steering.steerers SET project_id = $2 WHERE project_id = $1),\n    t11 AS (UPDATE mailbox.threads SET project_id = $2 WHERE project_id = $1),\n    t12 AS (UPDATE projects.locations SET project_id = $2 WHERE project_id = $1)\nUPDATE work.threads s SET project_id = $2 WHERE s.project_id = $1\n    AND NOT EXISTS (SELECT 1 FROM work.threads t WHERE t.project_id = $2 AND t.slug = s.slug)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2e7d04a68f24452c8df35fac84573b03aeaa4d906f217edf92052f32a9739a3e"
+}

@@ -1,0 +1,303 @@
+// The stages a request body passes through before it is forwarded, in the order declared
+// by `STAGE_ORDER` in crates/mike/src/pipeline. Each stage carries the gate that decides
+// whether it does anything, taken from the gate table in docs/REQUEST_FLOW.md.
+//
+// When a stage is added, removed or reordered in the code, change it here in the same commit.
+
+model {
+
+  extend mike.server.pipeline {
+
+    injectedBlockReplay = stage 'Injected block replay' {
+      #mutates-request
+      description '''
+        Puts back, byte for byte, the reminder blocks mike appended to a user message
+        on an earlier request of the same session lane, when that message arrives
+        unchanged, so the cached prefix still matches. Drops a record once its
+        message changes or leaves the history.
+      '''
+      metadata {
+        stage 'injected_block_replay'
+        gate 'a block an injection stage appended earlier in this lane'
+        default 'nothing to replay until an injection fires'
+      }
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/injected_replay 'crates/mike/src/injected_replay'
+    }
+
+    filter = stage 'Filter rules' {
+      #mutates-request
+      description '''
+        Drops, replaces or appends to text blocks that match a rule the operator
+        wrote. Rewrites afresh only on a session\'s first request; later requests
+        replay that rewrite.
+      '''
+      metadata {
+        stage 'filter'
+        gate 'operator-authored rules'
+        default 'no rules'
+      }
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/filter 'crates/mike/src/filter'
+    }
+
+    reminderOnToken = stage 'Hook token' {
+      #mutates-request
+      description '''
+        Strips the marker a shell hook leaves in the last user message. With the
+        toggle on it also replaces the marker with a pre-computed answer.
+      '''
+      metadata {
+        stage 'reminder_on_token'
+        gate 'always strips; reminder_on_token toggle enables the answer'
+        default 'strips only'
+      }
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/reminder_on_token 'crates/mike/src/reminder_on_token'
+    }
+
+    lazySections = stage 'Lazy sections' {
+      #mutates-request
+      description '''
+        Replaces a section of the system prompt with a short stub, and puts the
+        full section back as a reminder only when the last reply asked for it.
+      '''
+      metadata {
+        stage 'lazy_sections'
+        gate 'operator-authored rules'
+        default 'no rules'
+      }
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/lazy_sections 'crates/mike/src/lazy_sections'
+    }
+
+    recallInjector = stage 'Recall' {
+      #mutates-request #default-off
+      description '''
+        When the previous reply asked for a topic with a recall tag, looks up the
+        project\'s lessons on that topic and appends them as a reminder.
+      '''
+      metadata {
+        stage 'recall_injector'
+        gate 'recall_injector toggle'
+        default 'off'
+      }
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/recall_injector 'crates/mike/src/recall_injector'
+    }
+
+    lessons = stage 'Session lessons' {
+      #mutates-request #default-off
+      description 'Appends the project\'s consolidated lessons to the session\'s own requests.'
+      metadata {
+        stage 'lessons'
+        gate 'reminders.inject_lessons, session\'s own lane, not a tool loop'
+        default 'off'
+      }
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/reminders 'crates/mike/src/reminders'
+    }
+
+    selfIdentity = stage 'Self identity' {
+      #mutates-request #default-off
+      description 'Reminds a session of the name, role and goal it registered with.'
+      metadata {
+        stage 'self_identity'
+        gate 'self_identity_reminder toggle, session\'s own lane, not a tool loop'
+        default 'off'
+      }
+    }
+
+    workspaceBriefing = stage 'Workspace briefing' {
+      #mutates-request #default-off
+      description 'Tells a session which other sessions are working on the same project, once per change.'
+      metadata {
+        stage 'workspace_briefing'
+        gate 'workspace_briefing toggle, session\'s own lane, not a tool loop'
+        default 'off'
+      }
+    }
+
+    agentLessons = stage 'Agent lessons' {
+      #mutates-request #default-off
+      description 'Appends the lessons recorded for one kind of subagent to that subagent\'s requests.'
+      metadata {
+        stage 'agent_lessons'
+        gate 'agent_lessons toggle, subagent turns only'
+        default 'off'
+      }
+    }
+
+    reminders = stage 'Analyzer findings' {
+      #mutates-request #default-off
+      description 'Appends what the analyzers found in the previous reply.'
+      metadata {
+        stage 'reminders'
+        gate 'reminders toggle, session\'s own lane'
+        default 'off'
+      }
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/reminders 'crates/mike/src/reminders'
+    }
+
+    changeRecordTail = stage 'What others changed' {
+      #mutates-request #default-off
+      description 'Adds, on the first request of a turn, the lines of what others changed in the session\'s checkout since it last looked.'
+      metadata {
+        stage 'change_record_tail'
+        gate 'change_record_tail toggle, session\'s own lane, not a tool loop'
+        default 'off'
+      }
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/reminders 'crates/mike/src/reminders'
+    }
+
+    gitReadHint = stage 'Point git reads at what_changed' {
+      #mutates-request #default-off
+      description 'After a Bash git status, diff or log in the previous turn, adds one line naming what_changed, at most once per window of messages per session.'
+      metadata {
+        stage 'git_read_hint'
+        gate 'change_record toggle, session\'s own lane'
+        default 'off'
+      }
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/reminders 'crates/mike/src/reminders'
+    }
+
+    steererDrain = stage 'Nudges and mail' {
+      #mutates-request
+      description '''
+        Delivers queued steerer nudges and mail from other sessions on the session\'s
+        main turns. Mail the operator or a peer sent explicitly is delivered even
+        with autonomous steering off. On a real operator prompt it may wait, up to a
+        deadline, for a judge to grade the turn that just closed.
+      '''
+      metadata {
+        stage 'steerer'
+        gate 'main turns only; each source has its own delivery checks'
+        default 'autonomous steering off; explicit mail on'
+      }
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/steerer/stage 'crates/mike/src/steerer/stage'
+    }
+
+    repeatedNotices = stage 'Repeated notices' {
+      #mutates-request #default-off
+      description 'Sends a session each notice Claude Code adds to a pushed or channel message once, and removes later copies from the forwarded body.'
+      metadata {
+        stage 'repeated_notices'
+        gate 'repeated_notices toggle, session\'s own lane'
+        default 'off'
+      }
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/repeated_notices 'crates/mike/src/repeated_notices'
+    }
+
+    readDedup = stage 'Repeated reads' {
+      #default-off
+      description 'Measures what collapsing repeated file-read results would save. It forwards the body unchanged.'
+      metadata {
+        stage 'read_dedup'
+        gate 'compression_dedup.enabled'
+        default 'off'
+      }
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/read_dedup 'crates/mike/src/read_dedup'
+    }
+
+    fileReadCompression = stage 'File-read compression' {
+      #default-off
+      description 'Computes a smaller form of file reads and logs the saving. Even when on it forwards the body unchanged.'
+      metadata {
+        stage 'file_read_compression'
+        gate 'file_read_compression toggle'
+        default 'off, and measures only when on'
+      }
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/compress 'crates/mike/src/compress'
+    }
+
+    shellOutputCompression = stage 'Shell-output compression' {
+      #mutates-request #default-off
+      description '''
+        Shortens older Bash results in history to their head, tail and error or summary
+        lines, with an exact reference to the captured original. Cuts only while the
+        conversation\'s prompt cache is cold. Shadow mode records the cut and forwards
+        the body unchanged; the forward arm is a share of new sessions.
+      '''
+      metadata {
+        stage 'shell_output_compression'
+        gate 'shell_output_compression toggle'
+        default 'off; shadow with a forward share of 0 when on'
+      }
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/compress/shell_output 'crates/mike/src/compress/shell_output'
+    }
+
+    proxyTools = stage 'mike\'s own tools' {
+      #mutates-request #default-off
+      description '''
+        Adds mike\'s tools to a session that does not already have them through the
+        MCP bridge. The gated forwarder then answers a call to one of them itself.
+      '''
+      metadata {
+        stage 'proxy_tools'
+        gate 'proxy_tools toggle'
+        default 'off'
+      }
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/proxy_tools 'crates/mike/src/proxy_tools'
+    }
+
+    contextFocus = stage 'Reason for each tool call' {
+      #mutates-request #default-off
+      description '''
+        Adds a required context_focus_question field to every tool schema except the
+        file-editing tools, so the model says what it wants from each call. The response
+        path removes the field from each tool_use before the client sees it, streaming
+        included; capture keeps the original, so the question stays with its tool call.
+      '''
+      metadata {
+        stage 'context_focus_question'
+        gate 'context_focus_question toggle'
+        default 'off'
+      }
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/context_focus 'crates/mike/src/context_focus'
+    }
+
+    composer = stage 'Prompt composer' {
+      #mutates-request #default-off
+      description '''
+        Runs after the stages. On the first main request of a session it swaps the
+        text of the main system prompt for the operator\'s composition, changing no
+        other byte so the prompt cache still matches. Every other request it only
+        records which prompt was sent.
+      '''
+      metadata {
+        stage 'composer'
+        gate 'composition_enabled at boot, and a composition in template mode'
+        default 'off'
+      }
+      link https://github.com/temet-ai/mike/tree/main/crates/mike/src/compose_prompt 'crates/mike/src/compose_prompt'
+    }
+
+    // The declared order. Phase 1 runs up to the analyzer findings, phase 2 is the
+    // drain, phase 3 is the rest, and the composer runs after all fifteen.
+    injectedBlockReplay -[then]-> filter
+    filter -[then]-> reminderOnToken
+    reminderOnToken -[then]-> lazySections
+    lazySections -[then]-> recallInjector
+    recallInjector -[then]-> lessons
+    lessons -[then]-> selfIdentity
+    selfIdentity -[then]-> workspaceBriefing
+    workspaceBriefing -[then]-> agentLessons
+    agentLessons -[then]-> reminders
+    reminders -[then]-> changeRecordTail
+    changeRecordTail -[then]-> gitReadHint
+    gitReadHint -[then]-> steererDrain
+    steererDrain -[then]-> repeatedNotices
+    repeatedNotices -[then]-> readDedup
+    readDedup -[then]-> fileReadCompression
+    fileReadCompression -[then]-> shellOutputCompression
+    shellOutputCompression -[then]-> proxyTools
+    proxyTools -[then]-> contextFocus
+    contextFocus -[then]-> composer
+  }
+
+  // --- what the stages read ------------------------------------------------------------------
+
+  mike.server.pipeline.filter -> mike.server.state.overlays 'reads the rule set'
+  mike.server.pipeline.lazySections -> mike.server.state.overlays 'reads the rule set'
+  mike.server.pipeline.lessons -> mike.server.state.overlays 'reads the lesson cache'
+  mike.server.pipeline.composer -> mike.server.state.overlays 'reads the composition cache'
+  mike.server.pipeline.recallInjector -[sql]-> mike.db.memory 'looks up lessons by topic'
+  mike.server.pipeline.agentLessons -[sql]-> mike.db.memory 'looks up lessons for the agent'
+  mike.server.pipeline.workspaceBriefing -[sql]-> mike.db.workspace 'reads the roster'
+  mike.server.pipeline.steererDrain -> mike.server.state.reminders 'claims what is queued for this session'
+  mike.server.pipeline.steererDrain -[sql]-> mike.db.mailbox 'claims mail so it is delivered once'
+}

@@ -1,0 +1,88 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.id, l.project_id AS \"project_id!\", l.text, k.code AS \"kind!\",\n                          l.topic, a.name AS \"agent_name?\"\n                     FROM memory.lessons l\n                     JOIN memory.lesson_kinds k ON k.id = l.kind_id\n                     LEFT JOIN agents.agents a ON a.id = l.agent_id\n                     LEFT JOIN memory.lesson_placement_failures f ON f.lesson_id = l.id\n                    WHERE l.placement_id IS NULL\n                      AND l.archived_at IS NULL\n                      AND l.project_id IS NOT NULL\n                      AND COALESCE(l.topic, '') NOT LIKE 'verifier:%'\n                      AND (f.lesson_id IS NULL\n                           OR (f.attempts < 3\n                               AND f.last_failed_at <= now() - interval '1 hour' * (2 ^ f.attempts)))\n                    ORDER BY l.id\n                    LIMIT $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lesson_kinds",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "topic",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.lessons",
+            "name": "topic"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "agent_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "2174f987786c0d10fd859aa8403e61b04fa502aa6ef4b9484a6b847872f9d9a7"
+}

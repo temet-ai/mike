@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT active_generation_id AS \"active_generation_id?\" FROM runtime.codex_projection_heads\n             WHERE namespace_id = $1 FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "active_generation_id?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "runtime.codex_projection_heads",
+            "name": "active_generation_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "34eacb7a6698a0f1bcff072b8fed8fc63c3260066c78ab28a90cb6fff2204f35"
+}

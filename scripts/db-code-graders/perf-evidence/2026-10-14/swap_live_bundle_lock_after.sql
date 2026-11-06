@@ -1,0 +1,1 @@
+SELECT role, subject_key, status, components, promoted_at FROM eval.bundles WHERE id = 67 FOR UPDATE

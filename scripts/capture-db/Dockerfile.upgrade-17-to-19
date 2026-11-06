@@ -1,0 +1,21 @@
+# One-off pg_upgrade tool: the PostgreSQL 19 + pgvector image plus PostgreSQL 17
+# with the pgvector release the capture DB has installed (0.8.6), so pg_upgrade
+# can run both servers. Used by scripts/capture-db/upgrade-to-19.sh.
+FROM mike/postgres-pgvector:19rc1-0.8.7
+
+ARG OLD_MAJOR=17
+ARG OLD_PGVECTOR_VERSION=0.8.6
+
+RUN set -eux; \
+    sed -i "s/ main 19$/ main 19 ${OLD_MAJOR}/" /etc/apt/sources.list.d/pgdg.list; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        "postgresql-${OLD_MAJOR}" "postgresql-server-dev-${OLD_MAJOR}" \
+        build-essential ca-certificates git; \
+    git clone --branch "v${OLD_PGVECTOR_VERSION}" --depth 1 \
+        https://github.com/pgvector/pgvector.git /tmp/pgvector; \
+    make -C /tmp/pgvector OPTFLAGS="" PG_CONFIG="/usr/lib/postgresql/${OLD_MAJOR}/bin/pg_config"; \
+    make -C /tmp/pgvector install PG_CONFIG="/usr/lib/postgresql/${OLD_MAJOR}/bin/pg_config"; \
+    rm -rf /tmp/pgvector; \
+    apt-get purge -y --auto-remove build-essential git "postgresql-server-dev-${OLD_MAJOR}"; \
+    rm -rf /var/lib/apt/lists/*

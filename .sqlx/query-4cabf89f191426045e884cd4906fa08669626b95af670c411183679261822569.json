@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH labelled AS (\n                       SELECT e.outcome_label\n                         FROM steering.evaluations e\n                        WHERE e.steerer_id = $1 AND e.question = $2 AND e.mode = 'live'\n                          AND e.status = 'resolved_correction'\n                          AND e.outcome_label IN ('right', 'wrong')\n                          AND (e.arm = 'holdback'\n                               OR (e.arm = 'treated'\n                                   AND e.label_source IN ('operator', 'session_reply')))\n                        ORDER BY e.labelled_at DESC, e.id DESC\n                        LIMIT $3\n                   )\n                   SELECT count(*) FILTER (WHERE outcome_label = 'right')::bigint AS \"right!\",\n                          count(*) FILTER (WHERE outcome_label = 'wrong')::bigint AS \"wrong!\"\n                     FROM labelled",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "right!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "wrong!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "4cabf89f191426045e884cd4906fa08669626b95af670c411183679261822569"
+}

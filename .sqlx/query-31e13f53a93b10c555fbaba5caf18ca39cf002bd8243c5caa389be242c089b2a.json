@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*)::bigint AS \"chunk_count!\",\n       GREATEST(MAX(otc.embedded_at), MAX(m.chunks_embedded_at)) AS \"max_embedded_at?\",\n       CASE WHEN COUNT(*) > 0\n            THEN l2_normalize(avg(otc.chunk_embedding))::text\n       END AS \"embedding_text?\"\n  FROM memory.operator_turn_chunks otc\n  JOIN memory.operator_turns ot ON ot.id = otc.turn_id\n  JOIN sessions.sessions s ON s.id = ot.session_id\n  LEFT JOIN memory.session_chunk_marks m ON m.session_id = s.id\n WHERE s.session_uuid = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "chunk_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "max_embedded_at?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "embedding_text?",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "31e13f53a93b10c555fbaba5caf18ca39cf002bd8243c5caa389be242c089b2a"
+}

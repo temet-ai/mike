@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lessons l\n                    SET topic = v.topic\n                   FROM unnest($1::bigint[], $2::text[]) AS v(id, topic)\n                  WHERE l.id = v.id\n                    AND l.topic IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7e54953755aab2cb78b3f7aac89cd380d5495eec348b233dbce382b472209e39"
+}

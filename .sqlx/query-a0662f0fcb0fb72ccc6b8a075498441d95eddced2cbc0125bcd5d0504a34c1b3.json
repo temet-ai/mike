@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.knowledge_documents SET deleted_at = now()\n             WHERE source_uuid = $1 AND deleted_at IS NULL AND NOT EXISTS\n             (SELECT 1 FROM jsonb_to_recordset($2) AS x(relative_path text)\n              WHERE x.relative_path = memory.knowledge_documents.relative_path)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a0662f0fcb0fb72ccc6b8a075498441d95eddced2cbc0125bcd5d0504a34c1b3"
+}

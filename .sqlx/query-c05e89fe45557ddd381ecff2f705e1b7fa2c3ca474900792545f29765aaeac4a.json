@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO requests.deltas (\n             request_id, session_id, message_id, change_kind_id, ord\n         )\n         SELECT $1, $2, $3, dck.id, 0\n         FROM requests.delta_change_kinds dck\n         WHERE dck.code = 'added'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c05e89fe45557ddd381ecff2f705e1b7fa2c3ca474900792545f29765aaeac4a"
+}

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO workspace.change_places (session_id, checkout, last_event_id, updated_at)\nVALUES ($1, $2, $3, now())\nON CONFLICT (session_id, checkout) DO UPDATE\n   SET last_event_id = GREATEST(workspace.change_places.last_event_id, EXCLUDED.last_event_id),\n       updated_at = now()\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4ca8c049a5b4edf7b4d931a7e6c9642125aff6ac11bf8055c92906abed7c434a"
+}

@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+# test-timing — measure where the test suites spend their time.
+#
+# Runs every test family with a per-test reporter switched on, keeps the raw
+# reporter files as artifacts, and aggregates them into one report keyed by
+# test type (unit / integration / e2e / visual / scripts). Nothing here is a
+# gate: a failing test is recorded with its time and the run continues.
+#
+# USAGE
+#   scripts/test-timing [options] [family ...]
+#
+#   family ...        Which families to measure (default: all of them):
+#                       rust       nextest, every crate, DB tier included
+#                       frontend   svelte-check + vitest unit + integration
+#                       storybook  vitest Storybook browser project (visual)
+#                       e2e        Playwright smoke against a production build
+#                       scripts    shell/Python/Node regression suites
+#   --out DIR         Where raw files and the report land
+#                     (default: artifacts/YYYY-MM-DD/test-timing)
+#   --report-only     Skip every run; re-aggregate what is already in --out
+#   --no-db           Rust: leave the DB-backed integration/e2e harnesses out
+#   -h, --help        This help.
+#
+# OUTPUT (in --out)
+#   phases.jsonl        one line per phase: family, phase, seconds, exit code
+#   rust-junit.xml      nextest JUnit (profile `timing`, .config/nextest.toml)
+#   vitest-*.xml        vitest JUnit per sb-test pass (sb-test --junit)
+#   playwright.xml      Playwright JUnit
+#   scripts.log         test-suite output; per-phase seconds are parsed from it
+#   timings.json        every test with family, category, suite, seconds
+#   timings.csv         same, flat, for a spreadsheet
+#   report.md           the human report
+#
+# The categorisation lives in scripts/test-timing-report.py, next to the
+# parser. Change it there, then `scripts/test-timing --report-only`.
+set -uo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(dirname "$SCRIPT_DIR")"
+cd "$REPO" || exit 2
+
+usage() { sed -n '2,/^set -uo pipefail/p' "$0" | sed 's/^# \{0,1\}//; /^set -uo pipefail/d'; }
+
+OUT=""
+REPORT_ONLY=0
+NO_DB=0
+declare -a FAMILIES=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) usage; exit 0 ;;
+    --out) OUT="${2:?--out needs a DIR}"; shift 2 ;;
+    --report-only) REPORT_ONLY=1; shift ;;
+    --no-db) NO_DB=1; shift ;;
+    rust|frontend|storybook|e2e|scripts) FAMILIES+=("$1"); shift ;;
+    *) echo "test-timing: unknown argument: $1" >&2; usage >&2; exit 2 ;;
+  esac
+done
+(( ${#FAMILIES[@]} )) || FAMILIES=(rust frontend storybook e2e scripts)
+[[ -n "$OUT" ]] || OUT="$REPO/artifacts/$(date +%F)/test-timing"
+mkdir -p "$OUT" || exit 2
+OUT="$(cd "$OUT" && pwd)"
+PHASES="$OUT/phases.jsonl"
+
+want() { local f; for f in "${FAMILIES[@]}"; do [[ "$f" == "$1" ]] && return 0; done; return 1; }
+
+# phase FAMILY LABEL LOGFILE CMD... — time one command, append a phases.jsonl
+# line, never abort the run on failure.
+phase() {
+  local family="$1" label="$2" log="$3"; shift 3
+  local started ended rc=0
+  printf '\n==> [%s] %s\n' "$family" "$label"
+  started="$(date +%s.%N)"
+  "$@" >"$log" 2>&1 || rc=$?
+  ended="$(date +%s.%N)"
+  local secs; secs="$(awk -v a="$started" -v b="$ended" 'BEGIN{printf "%.3f", b-a}')"
+  printf '{"family":"%s","phase":"%s","seconds":%s,"exit":%d,"log":"%s","started":"%s"}\n' \
+    "$family" "$label" "$secs" "$rc" "$(basename "$log")" "$(date -u -d "@${started%.*}" +%FT%TZ)" >>"$PHASES"
+  if (( rc == 0 )); then printf '<== ok   %s (%ss)\n' "$label" "$secs"
+  else printf '<== FAIL %s (%ss, exit %d) — see %s\n' "$label" "$secs" "$rc" "$log"; fi
+  return "$rc"
+}
+
+run_rust() {
+  local -a filter=()
+  if (( NO_DB )); then
+    filter=(-E 'not (package(mike) & (binary(integration) | binary(e2e)))')
+  fi
+  phase rust "cargo build (test binaries)" "$OUT/rust-build.log" \
+    "$SCRIPT_DIR/cx" nextest run --all --profile timing --no-run
+  phase rust "nextest run" "$OUT/rust-run.log" \
+    "$SCRIPT_DIR/cx" nextest run --all --profile timing "${filter[@]}"
+  local junit="${CARGO_TARGET_DIR:-$REPO/target}/nextest/timing/junit.xml"
+  if [[ -f "$junit" ]]; then cp "$junit" "$OUT/rust-junit.xml"
+  else echo "test-timing: no nextest JUnit at $junit" >&2; fi
+}
+
+run_frontend() {
+  # Each vitest pass is run on its own so its JUnit keeps a distinct name
+  # (sb-test labels both node passes "logic").
+  phase frontend "svelte-check" "$OUT/frontend-typecheck.log" \
+    bash -c 'cd "$1" && pnpm exec svelte-kit sync && pnpm exec svelte-check --tsconfig ./tsconfig.json --fail-on-warnings' _ "$REPO/frontend"
+  phase frontend "vitest unit" "$OUT/frontend-unit.log" \
+    "$SCRIPT_DIR/sb-test" --unit --skip-typecheck --junit "$OUT"
+  [[ -f "$OUT/vitest-logic.xml" ]] && mv "$OUT/vitest-logic.xml" "$OUT/vitest-unit.xml"
+  phase frontend "vitest integration" "$OUT/frontend-integration.log" \
+    "$SCRIPT_DIR/sb-test" --integration --skip-typecheck --junit "$OUT"
+  [[ -f "$OUT/vitest-logic.xml" ]] && mv "$OUT/vitest-logic.xml" "$OUT/vitest-integration.xml"
+}
+
+run_storybook() {
+  phase storybook "vitest storybook (serial, default theme)" "$OUT/storybook.log" \
+    "$SCRIPT_DIR/sb-test" --storybook --skip-typecheck --junit "$OUT"
+}
+
+run_e2e() {
+  phase e2e "playwright (build + preview + smoke)" "$OUT/playwright.log" \
+    bash -c 'cd "$1/frontend" && PLAYWRIGHT_JUNIT_OUTPUT_NAME="$2/playwright.xml" pnpm exec playwright test --reporter=list,junit' _ "$REPO" "$OUT"
+}
+
+run_scripts() {
+  phase scripts "test-suite scripts" "$OUT/scripts.log" "$SCRIPT_DIR/test-suite" scripts
+}
+
+if (( ! REPORT_ONLY )); then
+  : >"$PHASES"
+  {
+    echo "host: $(hostname)  date: $(date -u +%FT%TZ)  commit: $(git rev-parse --short HEAD)  branch: $(git rev-parse --abbrev-ref HEAD)"
+    echo "cpus: $(nproc)  mem_gb: $(free -g | awk '/^Mem:/{print $2}')  families: ${FAMILIES[*]}  no_db: $NO_DB"
+  } >"$OUT/run.txt"
+  want frontend && run_frontend
+  want rust && run_rust
+  want storybook && run_storybook
+  want e2e && run_e2e
+  want scripts && run_scripts
+fi
+
+echo
+echo "==> aggregate"
+python3 "$SCRIPT_DIR/test-timing-report.py" "$OUT" || exit $?
+echo "test-timing: report at $OUT/report.md"

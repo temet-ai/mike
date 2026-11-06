@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH sender_run AS (\n    SELECT sl.run_id\n      FROM launch.launches sl\n     WHERE sl.session_uuid = $3 AND sl.run_id IS NOT NULL\n     ORDER BY sl.created_at DESC\n     LIMIT 1\n)\nSELECT DISTINCT s.session_uuid\n  FROM workspace.session_registrations r\n  JOIN sessions.sessions s ON s.id = r.session_id\n  JOIN sessions.session_goals sg ON sg.session_id = s.id\n WHERE r.project_id = $1\n   AND lower(CASE $4::text WHEN 'role' THEN sg.role ELSE sg.display_name END) = lower($2)\n   AND r.released_at IS NULL\n   AND r.lease_expires_at > now()\n   AND s.session_uuid <> $3\n   AND (\n     NOT EXISTS (SELECT 1 FROM sender_run)\n     OR EXISTS (\n       SELECT 1\n         FROM launch.launches l\n         JOIN sender_run sr ON sr.run_id = l.run_id\n        WHERE l.session_uuid = s.session_uuid))\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "31076e8ed07d63a7e910312f8f61f670d78ba6519f148e61d771cb61cf47ed57"
+}

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH fires AS (\n    SELECT i.id, i.steerer_id, st.kind AS class, i.confidence\n      FROM steering.interventions i\n      JOIN steering.steerers st ON st.id = i.steerer_id\n      JOIN steering.verdicts v ON v.id = i.verdict_id AND v.code = 'fired'\n     WHERE i.created_at >= $1::timestamptz - interval '30 days' AND i.created_at < $1::timestamptz\n),\nlab AS (\n    SELECT l.subject_id, l.label, l.tier, l.split\n      FROM eval.labels_as_of($3) l\n     WHERE l.subject_kind = 'intervention' AND l.axis = 'steer_valid'\n       AND l.label IN ('right', 'wrong') AND l.tier IN ('gold', 'relayed')\n),\nscored AS (\n    SELECT f.steerer_id, f.class, lab.tier, lab.split, lab.label = 'right' AS ok,\n           CASE WHEN f.confidence < 0.5 THEN '[0,0.5)' WHEN f.confidence < 0.7 THEN '[0.5,0.7)'\n                WHEN f.confidence < 0.85 THEN '[0.7,0.85)' ELSE '[0.85,1]' END AS bin,\n           to_char(least(floor(coalesce(f.confidence, 0) * 20), 19) * 0.05, 'FM0.00') AS bin05\n      FROM fires f JOIN lab ON lab.subject_id = f.id\n),\nagg AS (\n    SELECT steerer_id, class, tier, split, NULL::text AS dimension, NULL::text AS dimension_value,\n           count(*) FILTER (WHERE ok) AS k, count(*) AS n\n      FROM scored GROUP BY steerer_id, class, tier, split\n    UNION ALL\n    SELECT steerer_id, class, tier, split, 'confidence_bin', bin, count(*) FILTER (WHERE ok), count(*)\n      FROM scored GROUP BY steerer_id, class, tier, split, bin\n    UNION ALL\n    SELECT steerer_id, class, tier, split, 'confidence_bin_05', bin05, count(*) FILTER (WHERE ok), count(*)\n      FROM scored GROUP BY steerer_id, class, tier, split, bin05\n)\nINSERT INTO eval.rates (rollup_id, family, metric, population, scope_kind, window_start,\n                        window_end, window_days, role, axis, class, label_tier, label_split,\n                        dimension, dimension_value, steerer_id, question, mode, k, n, value,\n                        ci_low, ci_high, weighted, detail)\nSELECT $2, 'steer_calibration', 'fire_precision', 'steerer_evaluations', 'global',\n       $1::timestamptz - interval '30 days', $1::timestamptz, 30, 'steerer', 'steer_valid', agg.class, agg.tier, agg.split,\n       agg.dimension, agg.dimension_value, agg.steerer_id, agg.class, 'live', agg.k::int,\n       agg.n::int, agg.k::float8 / nullif(agg.n, 0),\n       eval.wilson_low(agg.k::float8 / nullif(agg.n, 0), agg.n),\n       eval.wilson_high(agg.k::float8 / nullif(agg.n, 0), agg.n), false, '{}'::jsonb\n  FROM agg\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1b859fd7bc1af9fe6aed94bfe2923fbd4f7a220e90ed30aa582017746ea066fe"
+}

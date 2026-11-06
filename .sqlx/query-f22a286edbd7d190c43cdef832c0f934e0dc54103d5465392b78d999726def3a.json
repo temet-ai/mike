@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT m.message_uuid AS \"message_uuid!\"\n             FROM mailbox.messages m\n             JOIN sessions.sessions recip ON recip.id = m.to_session_id\n            WHERE recip.session_uuid = $1\n              AND m.sent_request_id IS NULL\n              AND m.claimed_at IS NULL\n              AND m.consumed_at IS NULL\n              AND m.dead_lettered_at IS NULL\n            ORDER BY m.id ASC\n            LIMIT 256",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "message_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "mailbox.messages",
+            "name": "message_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f22a286edbd7d190c43cdef832c0f934e0dc54103d5465392b78d999726def3a"
+}

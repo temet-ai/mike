@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT split FROM eval.turn_splits WHERE operator_turn_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "split",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "eval.turn_splits",
+            "name": "split"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "672cbe36147fe33d7dde2238ba3f828415e5ed3bad5e958e82bccb841879e181"
+}

@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+"""Register a checkout and keep its documents available through Mike MCP."""
+try:
+    from knowledge.cli import main
+except ModuleNotFoundError as error:
+    if error.name == 'yaml':
+        raise SystemExit('PyYAML is required: run uv run --with pyyaml scripts/mike-knowledge ...') from error
+    raise
+
+if __name__ == '__main__':
+    main()

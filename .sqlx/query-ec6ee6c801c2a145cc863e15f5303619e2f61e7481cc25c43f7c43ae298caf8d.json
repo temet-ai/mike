@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO eval.rejudge_runs\n    (bundle_id, window_since, window_until, daily_call_cap, estimated_calls, estimated_usd, created_by, role)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8)\nRETURNING id AS \"id!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "eval.rejudge_runs",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Timestamptz",
+        "Int4",
+        "Int4",
+        "Float8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ec6ee6c801c2a145cc863e15f5303619e2f61e7481cc25c43f7c43ae298caf8d"
+}

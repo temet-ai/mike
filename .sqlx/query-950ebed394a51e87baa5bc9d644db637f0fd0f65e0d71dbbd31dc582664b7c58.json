@@ -1,0 +1,182 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, embedder_key, model, dim, chunk_max_chars, prefix_version, urls_seen,\n                        canary_version, canary_vectors, status, first_seen_at, last_checked_at,\n                        copy_valid_from, copy_verify\n                   FROM memory.semantic_embedders ORDER BY id DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_embedders",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "embedder_key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_embedders",
+            "name": "embedder_key"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "model",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_embedders",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "dim",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_embedders",
+            "name": "dim"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "chunk_max_chars",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_embedders",
+            "name": "chunk_max_chars"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "prefix_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_embedders",
+            "name": "prefix_version"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "urls_seen",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_embedders",
+            "name": "urls_seen"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "canary_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_embedders",
+            "name": "canary_version"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "canary_vectors",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_embedders",
+            "name": "canary_vectors"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_embedders",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "first_seen_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_embedders",
+            "name": "first_seen_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "last_checked_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_embedders",
+            "name": "last_checked_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "copy_valid_from",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_embedders",
+            "name": "copy_valid_from"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "copy_verify",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_embedders",
+            "name": "copy_verify"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "950ebed394a51e87baa5bc9d644db637f0fd0f65e0d71dbbd31dc582664b7c58"
+}

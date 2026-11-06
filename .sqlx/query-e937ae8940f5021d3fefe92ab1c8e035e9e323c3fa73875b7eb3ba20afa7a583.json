@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT kind, task_id, wire_tool_use_id\n           FROM agents.work_items\n          WHERE session_id = $1\n            AND state = 'running'\n            AND owner_agent_id IS NOT DISTINCT FROM $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "task_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "task_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "wire_tool_use_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.work_items",
+            "name": "wire_tool_use_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e937ae8940f5021d3fefe92ab1c8e035e9e323c3fa73875b7eb3ba20afa7a583"
+}

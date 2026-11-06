@@ -1,0 +1,70 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.model,\n                          count(*) AS \"requests!\",\n                          COALESCE(sum(resp.input_tokens), 0)::bigint AS \"input_tokens!\",\n                          COALESCE(sum(resp.output_tokens), 0)::bigint AS \"output_tokens!\",\n                          COALESCE(sum(resp.cache_creation_input_tokens), 0)::bigint AS \"cache_creation_tokens!\",\n                          COALESCE(sum(resp.cache_read_input_tokens), 0)::bigint AS \"cache_read_tokens!\",\n                          max(r.created_at) AS \"last_seen?\"\n                     FROM requests.requests r\n                     LEFT JOIN responses.responses resp\n                            ON r.id = resp.request_id\n                           AND resp.response_status >= 200 AND resp.response_status < 300\n                    WHERE r.created_at > now() - make_interval(days => $1)\n                      AND (r.model IS NULL OR r.model = '' OR resp.request_id IS NOT NULL)\n                    GROUP BY r.model\n                    ORDER BY count(*) DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "model",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "requests!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "input_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "output_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "cache_creation_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "cache_read_tokens!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "last_seen?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      true,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "ea390eb19e0e2f4ec2511cef450928d1f9e5e4cd2b770ded965e92c46a227fcf"
+}

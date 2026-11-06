@@ -1,0 +1,152 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH ids AS (\n                   SELECT unnest($1::bigint[]) AS session_id\n               ),\n               req_latest AS (\n                   SELECT DISTINCT ON (r.session_id) r.session_id, r.model\n                     FROM requests.requests r\n                    WHERE r.session_id = ANY($1) AND r.model IS NOT NULL\n                    ORDER BY r.session_id, r.created_at DESC\n               ),\n               req_counts AS (\n                   SELECT r.session_id, COUNT(*) AS request_count,\n                          MAX(r.created_at) AS last_request_at\n                     FROM requests.requests r\n                    WHERE r.session_id = ANY($1)\n                    GROUP BY r.session_id\n               ),\n               roster AS (\n                   SELECT DISTINCT ON (wr.session_id) wr.session_id, wr.cwd, wr.worktree,\n                          wr.released_at, wr.lease_expires_at, wr.registered_at\n                     FROM workspace.session_registrations wr\n                    WHERE wr.session_id = ANY($1)\n                    ORDER BY wr.session_id, wr.registered_at DESC\n               ),\n               goals AS (\n                   SELECT sg.session_id, sg.goal, sg.next_steps, sg.role\n                     FROM sessions.session_goals sg\n                    WHERE sg.session_id = ANY($1)\n               ),\n               subagent AS (\n                   SELECT DISTINCT ON (ai.session_id) ai.session_id, ag.name AS agent_type\n                     FROM agents.instances ai\n                     JOIN agents.agents ag ON ag.id = ai.agent_id\n                    WHERE ai.session_id = ANY($1)\n                    ORDER BY ai.session_id, ai.created_at DESC\n               ),\n               outcome AS (\n                   SELECT DISTINCT ON (v.session_id) v.session_id, o.code AS outcome, v.rationale\n                     FROM session_judges.verdicts v\n                     JOIN session_judges.outcomes o ON o.id = v.outcome_id\n                    WHERE v.session_id = ANY($1)\n                      AND v.mode = 'live'\n                    ORDER BY v.session_id, v.judged_at DESC, v.id DESC\n               ),\n               mail AS (\n                   SELECT to_session_id AS session_id,\n                          COUNT(*) FILTER (\n                              WHERE consumed_at IS NULL\n                                AND dead_lettered_at IS NULL\n                                AND sent_at IS NOT NULL\n                          ) AS unconsumed\n                     FROM mailbox.messages\n                    WHERE to_session_id = ANY($1)\n                    GROUP BY to_session_id\n               )\n               SELECT\n                   ids.session_id                 AS \"session_id!\",\n                   rl.model                       AS \"model?\",\n                   COALESCE(rc.request_count, 0)  AS \"request_count!\",\n                   ro.cwd                         AS \"cwd?\",\n                   ro.worktree                    AS \"worktree?\",\n                   CASE\n                       WHEN ro.session_id IS NULL THEN NULL\n                       WHEN ro.released_at IS NOT NULL THEN 'ended'\n                       WHEN rc.last_request_at IS NULL\n                            AND ro.registered_at < now() - interval '10 minutes' THEN 'uncaptured'\n                       WHEN ro.lease_expires_at > now()\n                            OR rc.last_request_at > now() - interval '15 minutes' THEN 'live'\n                       ELSE 'stale'\n                   END                            AS \"liveness?\",\n                   g.goal                         AS \"goal?\",\n                   g.next_steps                   AS \"next_steps?\",\n                   g.role                         AS \"declared_role?\",\n                   sa.agent_type                  AS \"agent_type?\",\n                   oc.outcome                     AS \"session_outcome?\",\n                   oc.rationale                   AS \"outcome_rationale?\",\n                   COALESCE(mail.unconsumed, 0)   AS \"unconsumed_mail!\"\n               FROM ids\n               LEFT JOIN req_latest rl ON rl.session_id = ids.session_id\n               LEFT JOIN req_counts rc ON rc.session_id = ids.session_id\n               LEFT JOIN roster ro ON ro.session_id = ids.session_id\n               LEFT JOIN goals g ON g.session_id = ids.session_id\n               LEFT JOIN subagent sa ON sa.session_id = ids.session_id\n               LEFT JOIN outcome oc ON oc.session_id = ids.session_id\n               LEFT JOIN mail ON mail.session_id = ids.session_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "model?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "model"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "request_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "cwd?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "cwd"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "worktree?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "worktree"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "liveness?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "goal?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "goal"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "next_steps?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "next_steps"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "declared_role?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "role"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "agent_type?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "agents.agents",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "session_outcome?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.outcomes",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "outcome_rationale?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "session_judges.verdicts",
+            "name": "rationale"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "unconsumed_mail!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      null,
+      true,
+      true,
+      null,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "e566fd38a81485f5800298299955ea963d38be776b9afc181294fdc32390bacb"
+}

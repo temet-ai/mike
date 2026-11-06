@@ -1,0 +1,51 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n                       COALESCE(a.name, r.subagent_persona) AS \"agent_label!\",\n                       COALESCE(\n                           (ARRAY_AGG(tu.input ->> 'description' ORDER BY tu.created_at)\n                                FILTER (WHERE tu.tool_name = 'Agent'\n                                          AND tu.input ->> 'description' IS NOT NULL)\n                           )[1],\n                           ''\n                       ) AS \"description!\",\n                       MIN(tu.created_at) AS \"first_seen!\",\n                       MAX(tu.created_at) AS \"last_seen!\",\n                       COUNT(DISTINCT tu.request_id) AS \"request_count!\"\n                   FROM tools.uses tu\n                   JOIN requests.requests r ON r.id = tu.request_id\n                   LEFT JOIN agents.instances ai ON ai.id = r.agent_instance_id\n                   LEFT JOIN agents.agents a ON a.id = ai.agent_id\n                  WHERE tu.session_id = $1\n                    AND (a.name IS NOT NULL OR r.subagent_persona IS NOT NULL)\n                  GROUP BY COALESCE(a.name, r.subagent_persona)\n                  ORDER BY MIN(tu.created_at) ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "agent_label!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "description!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "first_seen!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "last_seen!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "request_count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "152b1a9ba0d524f9d9bcfe53b126867b5b9e7f61822382c59738ca069f1e151d"
+}

@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.semantic_embedders\n                    (embedder_key, model, dim, chunk_max_chars, prefix_version, urls_seen,\n                     canary_version, canary_vectors, first_seen_at)\n                 VALUES ($1, $2, $3, $4, $5, ARRAY[$6::text], $7, $8, $9)\n                 RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.semantic_embedders",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int4",
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "23ecf9260f3b3dba8f05227d491571a87ee360c24f49b5f5afdb2f5be0c2f94d"
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE steering.interventions\n                      SET reverted_at   = NOW(),\n                          revert_reason = $2\n                    WHERE uuid            = $1\n                      AND reverted_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d4fa7579896b1657f52fb04aea3db91c6f0c541b922d2f15a26ba0f1bebbbcb4"
+}
