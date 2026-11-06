@@ -3,7 +3,6 @@ use std::process::Stdio;
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 
 use super::LlmError;
@@ -172,10 +171,12 @@ async fn run_once(
         .map_err(|e| transport(format!("codex exec could not start ({bin}): {e}")))?;
 
     if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(compose_prompt(req.system, req.user).as_bytes())
-            .await
-            .map_err(|e| transport(format!("codex exec stdin: {e}")))?;
+        super::child_stdin::write_prompt(
+            &mut stdin,
+            compose_prompt(req.system, req.user).as_bytes(),
+        )
+        .await
+        .map_err(|e| transport(format!("codex exec stdin: {e}")))?;
     }
 
     let output = tokio::time::timeout(req.timeout, child.wait_with_output())

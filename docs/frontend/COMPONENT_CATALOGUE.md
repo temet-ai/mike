@@ -373,6 +373,8 @@ since the 2026-09-08 session-page rework, and the message-view cards draw their 
   status display, no collapse.
 - `frontend/src/lib/components/shell/SessionControlsPanel.svelte` — done: composes SectionCard with
   `bordered={!grouped}`; the steerers/graders/rules/analyzers count line moved into `headerActions`.
+- `frontend/src/lib/components/shell/SessionReconcilePanel.svelte` — keep: composes SectionCard directly;
+  a single-session comparison of Claude Code's steps against captured requests, with its own load state.
 - `frontend/src/lib/components/shell/SessionLaunchPanel.svelte` — keep: composes SectionCard directly
   from the start (mike#260 step 4), same posture as `ProjectLaunchesPanel.svelte` above — a
   single-record "how this session was launched" detail over one `LaunchRow`, not a project.

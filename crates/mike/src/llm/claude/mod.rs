@@ -3,7 +3,6 @@ use std::process::Stdio;
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 
 use super::LlmError;
@@ -229,8 +228,7 @@ async fn run_once(
         })?;
 
     if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(req.user.as_bytes())
+        super::child_stdin::write_prompt(&mut stdin, req.user.as_bytes())
             .await
             .map_err(|e| transport(format!("claude stdin: {e}")))?;
     }

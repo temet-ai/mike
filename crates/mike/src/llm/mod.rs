@@ -1,5 +1,6 @@
 pub(crate) mod backoff;
 pub(crate) mod budget;
+mod child_stdin;
 pub(crate) mod claude;
 pub(crate) mod codex;
 pub mod error;
