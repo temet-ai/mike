@@ -41,7 +41,7 @@ Use it to debug why Claude Code misbehaved on a particular turn, to audit what y
 
 ## Quick Start
 
-> **Alpha:** mike is at `0.1.0-alpha.1`, for Linux x86_64 and Apple Silicon macOS. Expect
+> **Alpha:** mike is an alpha, for Linux x86_64 and Apple Silicon macOS. Expect
 > rough edges and changes between alphas.
 
 Install `mike` and `mike-mcp` with Homebrew or mise:

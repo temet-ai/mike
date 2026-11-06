@@ -1,0 +1,256 @@
+{
+  "version": 1,
+  "session_id": "00000000-0000-4000-8000-000000000001",
+  "availability": {
+    "eligible": {
+      "capture_version": 1,
+      "admitted_at": "2026-09-10T12:00:00Z",
+      "producer": "claude_code"
+    }
+  },
+  "actors": [
+    {
+      "id": "worker:00000000-0000-4000-8000-000000000001:worker-a",
+      "kind": "worker",
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "label": "Worker",
+      "producer_id": "worker-a",
+      "provenance": "producer_header",
+      "parent_actor_id": null,
+      "source": null
+    },
+    {
+      "id": "worker:00000000-0000-4000-8000-000000000001:worker-b",
+      "kind": "worker",
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "label": "Worker",
+      "producer_id": "worker-b",
+      "provenance": "producer_header",
+      "parent_actor_id": null,
+      "source": null
+    },
+    {
+      "id": "dispatch:00000000-0000-4000-8000-000000000001:10",
+      "kind": "unresolved_dispatch",
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "label": "Dispatch 10",
+      "producer_id": null,
+      "provenance": "source_row",
+      "parent_actor_id": null,
+      "source": {
+        "table": "tool_calls",
+        "row_id": "20",
+        "session_id": "00000000-0000-4000-8000-000000000001",
+        "request_id": "9007199254740993",
+        "detail_href": "/api/requests/9007199254740993"
+      }
+    }
+  ],
+  "activities": [
+    {
+      "id": "requests:9007199254740993:started",
+      "phase": "started",
+      "actor_id": "worker:00000000-0000-4000-8000-000000000001:worker-a",
+      "source": {
+        "table": "requests",
+        "row_id": "9007199254740993",
+        "session_id": "00000000-0000-4000-8000-000000000001",
+        "request_id": "9007199254740993",
+        "detail_href": "/api/requests/9007199254740993"
+      },
+      "kind": "requests",
+      "occurred_at": "2026-09-10T12:00:00Z",
+      "recorded_at": "2026-09-10T12:00:00Z",
+      "ended_at": "2026-09-10T12:00:02Z",
+      "time_semantics": "capture_interval",
+      "lifecycle": "started",
+      "outcome": null,
+      "source_revision": null,
+      "metadata": {
+        "tool_name": null,
+        "wire_tool_use_id": null,
+        "status_code": null,
+        "model": null,
+        "latency_ms": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "stage": null,
+        "role": null,
+        "steerer_id": null,
+        "turn_id": null,
+        "cost_usd": null,
+        "scope": null,
+        "verdict": null,
+        "has_verdict": null,
+        "attempt": null,
+        "body_available": null,
+        "heuristic_instance_id": null,
+        "agent_name": null,
+        "dispatch_description": null,
+        "firing_rule_count": null
+      }
+    },
+    {
+      "id": "requests:9007199254740993:completed",
+      "phase": "completed",
+      "actor_id": "worker:00000000-0000-4000-8000-000000000001:worker-a",
+      "source": {
+        "table": "requests",
+        "row_id": "9007199254740993",
+        "session_id": "00000000-0000-4000-8000-000000000001",
+        "request_id": "9007199254740993",
+        "detail_href": "/api/requests/9007199254740993"
+      },
+      "kind": "requests",
+      "occurred_at": "2026-09-10T12:00:02Z",
+      "recorded_at": "2026-09-10T12:00:02Z",
+      "ended_at": null,
+      "time_semantics": "recorded_observation",
+      "lifecycle": "completed",
+      "outcome": "success",
+      "source_revision": null,
+      "metadata": {
+        "tool_name": null,
+        "wire_tool_use_id": null,
+        "status_code": null,
+        "model": null,
+        "latency_ms": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "stage": null,
+        "role": null,
+        "steerer_id": null,
+        "turn_id": null,
+        "cost_usd": null,
+        "scope": null,
+        "verdict": null,
+        "has_verdict": null,
+        "attempt": null,
+        "body_available": null,
+        "heuristic_instance_id": null,
+        "agent_name": null,
+        "dispatch_description": null,
+        "firing_rule_count": null
+      }
+    },
+    {
+      "id": "requests:9007199254740994:started",
+      "phase": "started",
+      "actor_id": "worker:00000000-0000-4000-8000-000000000001:worker-b",
+      "source": {
+        "table": "requests",
+        "row_id": "9007199254740994",
+        "session_id": "00000000-0000-4000-8000-000000000001",
+        "request_id": "9007199254740994",
+        "detail_href": "/api/requests/9007199254740994"
+      },
+      "kind": "requests",
+      "occurred_at": "2026-09-10T12:00:00Z",
+      "recorded_at": "2026-09-10T12:00:00Z",
+      "ended_at": null,
+      "time_semantics": "capture_interval",
+      "lifecycle": "started",
+      "outcome": null,
+      "source_revision": null,
+      "metadata": {
+        "tool_name": null,
+        "wire_tool_use_id": null,
+        "status_code": null,
+        "model": null,
+        "latency_ms": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "stage": null,
+        "role": null,
+        "steerer_id": null,
+        "turn_id": null,
+        "cost_usd": null,
+        "scope": null,
+        "verdict": null,
+        "has_verdict": null,
+        "attempt": null,
+        "body_available": null,
+        "heuristic_instance_id": null,
+        "agent_name": null,
+        "dispatch_description": null,
+        "firing_rule_count": null
+      }
+    },
+    {
+      "id": "tools:20:emitted",
+      "phase": "emitted",
+      "actor_id": "dispatch:00000000-0000-4000-8000-000000000001:10",
+      "source": {
+        "table": "tool_calls",
+        "row_id": "20",
+        "session_id": "00000000-0000-4000-8000-000000000001",
+        "request_id": "9007199254740993",
+        "detail_href": "/api/requests/9007199254740993"
+      },
+      "kind": "tools",
+      "occurred_at": "2026-09-10T12:00:00Z",
+      "recorded_at": "2026-09-10T12:00:00Z",
+      "ended_at": null,
+      "time_semantics": "recorded_observation",
+      "lifecycle": "observed",
+      "outcome": null,
+      "source_revision": null,
+      "metadata": {
+        "tool_name": "Agent",
+        "wire_tool_use_id": "toolu_example",
+        "status_code": null,
+        "model": null,
+        "latency_ms": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "stage": null,
+        "role": null,
+        "steerer_id": null,
+        "turn_id": null,
+        "cost_usd": null,
+        "scope": null,
+        "verdict": null,
+        "has_verdict": null,
+        "attempt": null,
+        "body_available": null,
+        "heuristic_instance_id": null,
+        "agent_name": null,
+        "dispatch_description": null,
+        "firing_rule_count": null
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "dispatches:10:tool",
+      "from_id": "dispatch:00000000-0000-4000-8000-000000000001:10",
+      "to_id": "tools:20:emitted",
+      "kind": "dispatch_tool",
+      "source": {
+        "table": "tool_calls",
+        "row_id": "20",
+        "session_id": "00000000-0000-4000-8000-000000000001",
+        "request_id": "9007199254740993",
+        "detail_href": "/api/requests/9007199254740993"
+      },
+      "phase": "emitted",
+      "occurred_at": "2026-09-10T12:00:00Z",
+      "recorded_at": "2026-09-10T12:00:00Z"
+    }
+  ],
+  "coverage": {
+    "component": "requests",
+    "lower_id": null,
+    "upper_id": null,
+    "returned_through_id": null,
+    "exhausted": true,
+    "retention": "unknown",
+    "capture_complete": null,
+    "latest_only": false,
+    "omitted_components": [],
+    "server_observed_at": "2026-09-10T12:00:00Z",
+    "stale_reason": null,
+    "best_effort": false
+  },
+  "next_cursor": null
+}

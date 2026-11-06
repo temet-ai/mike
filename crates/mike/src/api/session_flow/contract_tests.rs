@@ -3,24 +3,14 @@ use super::dto::{SessionFlowCursor, SessionFlowPage};
 #[test]
 fn session_flow_sanitized_examples_roundtrip() -> anyhow::Result<()> {
     for fixture in [
-        include_str!(
-            "../../../../../artifacts/2026-09-10/session-flow/contract/eligible-empty.json"
-        ),
-        include_str!("../../../../../artifacts/2026-09-10/session-flow/contract/concurrent.json"),
-        include_str!(
-            "../../../../../artifacts/2026-09-10/session-flow/contract/missing-correlation.json"
-        ),
-        include_str!("../../../../../artifacts/2026-09-10/session-flow/contract/unavailable.json"),
-        include_str!(
-            "../../../../../artifacts/2026-09-10/session-flow/contract/partial-retention.json"
-        ),
-        include_str!("../../../../../artifacts/2026-09-10/session-flow/contract/agent-name.json"),
-        include_str!(
-            "../../../../../artifacts/2026-09-10/session-flow/contract/dispatch-description.json"
-        ),
-        include_str!(
-            "../../../../../artifacts/2026-09-10/session-flow/contract/firing-rule-count.json"
-        ),
+        include_str!("contract/eligible-empty.json"),
+        include_str!("contract/concurrent.json"),
+        include_str!("contract/missing-correlation.json"),
+        include_str!("contract/unavailable.json"),
+        include_str!("contract/partial-retention.json"),
+        include_str!("contract/agent-name.json"),
+        include_str!("contract/dispatch-description.json"),
+        include_str!("contract/firing-rule-count.json"),
     ] {
         let value: serde_json::Value = serde_json::from_str(fixture)?;
         let page: SessionFlowPage = serde_json::from_value(value.clone())?;
@@ -31,9 +21,8 @@ fn session_flow_sanitized_examples_roundtrip() -> anyhow::Result<()> {
 
 #[test]
 fn session_flow_cursor_preserves_large_source_ids() -> anyhow::Result<()> {
-    let page: SessionFlowPage = serde_json::from_str(include_str!(
-        "../../../../../artifacts/2026-09-10/session-flow/contract/partial-retention.json"
-    ))?;
+    let page: SessionFlowPage =
+        serde_json::from_str(include_str!("contract/partial-retention.json"))?;
     let cursor = page
         .next_cursor
         .ok_or_else(|| anyhow::anyhow!("missing cursor"))?;
@@ -45,9 +34,8 @@ fn session_flow_cursor_preserves_large_source_ids() -> anyhow::Result<()> {
 
 #[test]
 fn session_flow_rejects_raw_fields() -> anyhow::Result<()> {
-    let mut value: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../../../artifacts/2026-09-10/session-flow/contract/eligible-empty.json"
-    ))?;
+    let mut value: serde_json::Value =
+        serde_json::from_str(include_str!("contract/eligible-empty.json"))?;
     value["body"] = serde_json::json!("must never enter bulk data");
     assert!(serde_json::from_value::<SessionFlowPage>(value).is_err());
     Ok(())
@@ -55,9 +43,8 @@ fn session_flow_rejects_raw_fields() -> anyhow::Result<()> {
 
 #[test]
 fn session_flow_cursor_rejects_wrong_version_scope_and_bounds() -> anyhow::Result<()> {
-    let page: SessionFlowPage = serde_json::from_str(include_str!(
-        "../../../../../artifacts/2026-09-10/session-flow/contract/partial-retention.json"
-    ))?;
+    let page: SessionFlowPage =
+        serde_json::from_str(include_str!("contract/partial-retention.json"))?;
     let raw = page
         .next_cursor
         .ok_or_else(|| anyhow::anyhow!("missing cursor"))?;

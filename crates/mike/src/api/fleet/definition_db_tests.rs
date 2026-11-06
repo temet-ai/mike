@@ -443,10 +443,10 @@ async fn new_fleet_imports_project_operations_without_starting_seats() -> anyhow
     std::fs::create_dir_all(project.path().join(".claude/fleet"))?;
     std::fs::write(
         project.path().join(".claude/fleet/operations.json"),
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../.claude/fleet/operations.json"
-        )),
+        r#"{"schema_version": 1, "execution": {"cargo": true, "operations": {"frontend": {
+            "command": "scripts/sb-test",
+            "purpose": "Frontend type, logic and browser checks",
+            "resources": ["mike-frontend-tests"]}}}}"#,
     )?;
     let (status, view) = harness
         .post(

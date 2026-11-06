@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "session_id": "00000000-0000-4000-8000-000000000001",
+  "availability": {
+    "eligible": {
+      "capture_version": 1,
+      "admitted_at": "2026-09-10T12:00:00Z",
+      "producer": "claude_code"
+    }
+  },
+  "actors": [
+    {
+      "id": "mike:00000000-0000-4000-8000-000000000001:requests.requests",
+      "kind": "mike",
+      "session_id": "00000000-0000-4000-8000-000000000001",
+      "label": "Mike",
+      "producer_id": null,
+      "provenance": "source_row",
+      "parent_actor_id": null,
+      "source": {
+        "table": "requests.requests",
+        "row_id": "9007199254740993",
+        "session_id": "00000000-0000-4000-8000-000000000001",
+        "request_id": "9007199254740993",
+        "detail_href": "/api/requests/9007199254740993"
+      }
+    }
+  ],
+  "activities": [
+    {
+      "id": "requests.requests:9007199254740993:stage:1",
+      "phase": "stage:1",
+      "actor_id": "mike:00000000-0000-4000-8000-000000000001:requests.requests",
+      "source": {
+        "table": "requests.requests",
+        "row_id": "9007199254740993",
+        "session_id": "00000000-0000-4000-8000-000000000001",
+        "request_id": "9007199254740993",
+        "detail_href": "/api/requests/9007199254740993"
+      },
+      "kind": "manifest_stages",
+      "occurred_at": "2026-09-10T12:00:00Z",
+      "recorded_at": "2026-09-10T12:00:00Z",
+      "ended_at": null,
+      "time_semantics": "recorded_observation",
+      "lifecycle": "observed",
+      "outcome": "applied",
+      "source_revision": null,
+      "metadata": {
+        "tool_name": null,
+        "wire_tool_use_id": null,
+        "status_code": null,
+        "model": null,
+        "latency_ms": null,
+        "input_tokens": null,
+        "output_tokens": null,
+        "stage": "filter",
+        "role": null,
+        "steerer_id": null,
+        "turn_id": null,
+        "cost_usd": null,
+        "scope": null,
+        "verdict": null,
+        "has_verdict": null,
+        "attempt": null,
+        "body_available": null,
+        "heuristic_instance_id": null,
+        "agent_name": null,
+        "dispatch_description": null,
+        "firing_rule_count": 3
+      }
+    }
+  ],
+  "relationships": [],
+  "coverage": {
+    "component": "manifest_stages",
+    "lower_id": null,
+    "upper_id": null,
+    "returned_through_id": null,
+    "exhausted": true,
+    "retention": "unknown",
+    "capture_complete": null,
+    "latest_only": false,
+    "omitted_components": [],
+    "server_observed_at": "2026-09-10T12:00:00Z",
+    "stale_reason": null,
+    "best_effort": false
+  },
+  "next_cursor": null
+}

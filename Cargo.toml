@@ -14,7 +14,7 @@ rust-version = "1.95"
 license = "MIT"
 # mike + mike-mcp ship together off one tag (vX.Y.Z) — see docs/RELEASING.md.
 # proxy-forward stays independently versioned; it ships inside the mike binary as `mike forward`.
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 
 [workspace.dependencies]
 # Shared dep versions so both crates resolve identically. Crate-specific

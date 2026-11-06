@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "session_id": "00000000-0000-4000-8000-000000000001",
+  "availability": {
+    "eligible": {
+      "capture_version": 1,
+      "admitted_at": "2026-09-10T12:00:00Z",
+      "producer": "claude_code"
+    }
+  },
+  "actors": [],
+  "activities": [],
+  "relationships": [],
+  "coverage": {
+    "component": "requests",
+    "lower_id": null,
+    "upper_id": null,
+    "returned_through_id": null,
+    "exhausted": true,
+    "retention": "unknown",
+    "capture_complete": null,
+    "latest_only": false,
+    "omitted_components": [],
+    "server_observed_at": "2026-09-10T12:00:00Z",
+    "stale_reason": null,
+    "best_effort": false
+  },
+  "next_cursor": null
+}
