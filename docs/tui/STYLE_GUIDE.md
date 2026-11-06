@@ -10,8 +10,8 @@ summary: Normative rules for portable TUI Design — one universal layout, panel
 
 **Status:** Normative. TUI Design is portable and application-neutral. Application screen
 specs are layered on top; in this repository, mike's control center, setup flow, and any
-future terminal inspector are application examples. Every agent that designs or implements
-one (`tui-designer`, `tui-engineer`) is bound by the rules below. A screen spec or
+future terminal inspector are application examples. Whoever implements a TUI screen is
+bound by the rules below. A screen spec or
 implementation that violates a rule without a written operator exception is Wrong, not a
 style variation. (Operator correction 2026-07-24.)
 
@@ -108,7 +108,7 @@ terminal is a resource, not a paintbrush.
   16-color foundation, never a replacement for it**.
 
 Every color in the design system states its truecolor value *and* its 256-color fallback
-(tui-designer contract: "never spec a capability without its degradation").
+(the screen-spec contract: "never spec a capability without its degradation").
 
 **TUI-C3 — Detection and courtesy contract.** Check `$COLORTERM` for `truecolor`/`24bit`;
 check `$TERM` for `256color`; **respect `$NO_COLOR` unconditionally** — if set, strip all
@@ -218,8 +218,8 @@ window dots, and faux window chrome are banned outright. Labels that need contai
 square borders or bracketed tokens (`[ status: active ]`), matching the box-drawing idiom.
 (Operator correction 2026-07-23.)
 
-**TUI-G4 — Full-fidelity content.** `.claude/rules/agent-behavior-and-data.md`
-binds every content surface: scrolling and pagination over truncation, never `…`-elision of
+**TUI-G4 — Full-fidelity content.** The project's inspection-fidelity rule (`scripts/fidelity-check`,
+`docs/decisions/inspection-fidelity-catalogue.md`) binds every content surface: scrolling and pagination over truncation, never `…`-elision of
 inspection content. (Repo rule; stricter than the source article and it wins.)
 
 ## 4. Animation
@@ -298,7 +298,7 @@ terminal (TUI-V1). "The loop closes: design → build → run → see → fix �
 text cannot verify that borders line up, that `j`/`k` navigates, or that the final help row
 renders correctly. Every TUI change is verified by *running the app in a real
 terminal and reading the rendered screen* (pty harness / snapshot tests / terminal-automation
-tooling — `tui-engineer`'s pty and snapshot testing skills; ghostty-automator is the
+tooling — pty and snapshot testing; ghostty-automator is the
 reference model for emulator-level state inspection). The loop is design → build → run → see
 → fix → repeat. A passing unit test is not a substitute for seeing the screen — consistent
 with this repo's verification-before-completion rule.
@@ -311,7 +311,7 @@ size. A screen that only ever ran truecolor-fullscreen is unverified.
 
 ## Screen-spec checklist
 
-Every screen spec under `artifacts/` (and every review of one) checks:
+Every screen spec under `docs/tui/screens/` (and every review of one) checks:
 
 - [ ] Uses the universal layout — app bar path, nav/middle/detail-preview with contextual
       titles, navigation-only help bar in the final row (TUI-L1, `docs/tui/LAYOUT.md`)

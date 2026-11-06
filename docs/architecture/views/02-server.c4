@@ -50,7 +50,7 @@ views {
   view pipeline of mike.server.pipeline {
     title 'The request pipeline'
     description '''
-      Fourteen stages and the composer, in the order they run. Grey stages are off
+      The eighteen stages of STAGE_ORDER and the composer, in the order they run. Grey stages are off
       by default; the gate that switches each one on is in its details.
     '''
     include *

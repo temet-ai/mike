@@ -84,8 +84,8 @@ drift. A disabled anchor needs `aria-disabled`, `tabindex={-1}`, `href={undefine
 clickable child inside a clickable row calls `e.stopPropagation()`.
 
 **Collapse/expand** uses `open = $bindable(true)` plus `aria-expanded` on the trigger. App-wide persistence
-goes through the shared collapse store (`$lib/stores/collapseState.svelte.ts`), never local `$state` — see
-[`convention_collapsestore_expand_persistence`]. Chevrons are Lucide components.
+goes through the shared collapse store (`$lib/stores/collapseState.svelte.ts`), never local `$state` — the
+collapse-store expand-persistence convention. Chevrons are Lucide components.
 
 **Overlays and form controls wrap `bits-ui`** — one file per part, Root re-exporting the bits-ui prop type,
 Content adding project classes and the portal. Do not hand-roll a dialog, popover, select or tooltip.
@@ -113,9 +113,8 @@ Every reusable component has a co-located `<PascalName>.stories.svelte`. Storybo
 component behavior and runs the a11y gate.
 
 **One component → one story file → one fully-functional representative `<Story>`.** Per-theme, per-state,
-per-size and design-exploration variants are banned; see
-`.claude/rules/frontend-development.md`
-for the full rule and its `__foundations__/*` exemption.
+per-size and design-exploration variants are banned; the `__foundations__/*` galleries are the one exemption
+(see [`../../AGENTS.md`](../../AGENTS.md), the project instructions).
 
 - Fixtures come from factory functions, not inline literals shared between stories.
 - Components reading stores or `$app/*` need a `__harness__/` wrapper that injects them; stories import the
@@ -123,8 +122,8 @@ for the full rule and its `__foundations__/*` exemption.
 - Route stories inject their data via context (e.g. `detailById`) rather than fetching.
 - Interactive components carry a `play` test.
 - **No raw hex.** Stories are checked for it like production code — the gallery's tokens are the only source.
-- **Preserve inspection content.** Lean views need a full-content route; use scrolling or virtualization for complete items. Binding:
-  `.claude/rules/agent-behavior-and-data.md`.
+- **Preserve inspection content.** Lean views need a full-content route; use scrolling or virtualization for complete items
+  (project instructions: [`../../AGENTS.md`](../../AGENTS.md)).
 
 Run them with `scripts/sb-test` — the single frontend command (typecheck + unit + Storybook browser tests).
 Not `pnpm test`, not `vitest --project storybook` directly. `--json` gives a structured verdict.

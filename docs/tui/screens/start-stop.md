@@ -8,11 +8,9 @@ summary: Layout, data sources, states, and keymap for the Start / Stop lifecycle
 
 # Start / Stop
 
-Visual source of truth: `start-stop.html` (design project
-`903f9ba4-4fb6-46c1-a1e7-90bba166a25f`, viewport 1200×760, subtitle "mike running, stop
-selected"). The mock lives in that design project, not in this repository; this spec
-is the readable version of it. Style rules: see [`../STYLE_GUIDE.md`](../STYLE_GUIDE.md). Requirements
-floor: §3 of `artifacts/2026-07-20/tui-page-requirements.md`.
+The original mock (viewport 1200×760, subtitle "mike running, stop selected") is not
+in this repository; this spec is the readable version of it. Style rules: see
+[`../STYLE_GUIDE.md`](../STYLE_GUIDE.md).
 
 ## Purpose
 
@@ -21,7 +19,9 @@ the TUI adds no second lifecycle logic.
 
 ## Entry
 
-Navigation from Home's `menu` (Start or Stop item) or the direct `s`/`x` hotkey.
+`l` from Home's Services screen (`crates/mike/src/tui/screens/home.rs`), which opens
+this drill-down over the full frame; Home's `t` toggles the stack in place and `r`
+restarts it without leaving Home.
 
 ## Screen accent
 

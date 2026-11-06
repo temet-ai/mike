@@ -2,15 +2,15 @@
 title: Frontend Architecture — Routes, Components, Stores, API
 status: active
 created: 2026-06-21
-updated: 2026-09-28
+updated: 2026-11-06
 summary: Route-by-route audit of the SvelteKit SPA — route map, layout hierarchy, component inventory, stores, WebSocket integration, and the typed API client.
 ---
 
 # Frontend Architecture — Routes, Components, Stores, API
 
-Audit of `frontend/src/` as of 2026-07-07. The SPA is SvelteKit running under `adapter-static` in single-page mode (`+layout.ts` sets `ssr = false`, `prerender = false`), served by `vite dev` on `:9990`. The full app is one `index.html` fallback; SvelteKit handles routing client-side.
+Audit of `frontend/src/`, checked against the route tree on 2026-11-06. The SPA is SvelteKit running under `adapter-static` in single-page mode (`+layout.ts` sets `ssr = false`, `prerender = false`), served by `vite dev` on `:9990`. The full app is one `index.html` fallback; SvelteKit handles routing client-side.
 
-> No truncation rule applies. Component descriptions are short by design but **do not paraphrase** the captured content the components render — see `.claude/rules/agent-behavior-and-data.md`.
+> No truncation rule applies. Component descriptions are short by design but **do not paraphrase** the captured content the components render (project instructions: [`../../AGENTS.md`](../../AGENTS.md)).
 
 ## 1. SvelteKit Route Map
 
@@ -18,38 +18,54 @@ Every file under `frontend/src/routes/`. Dynamic segments use `[name]` syntax; t
 
 | URL Path | Route file | Mounts / renders | Purpose |
 | --- | --- | --- | --- |
-| `/` | `routes/+page.svelte` | `SystemLivePanel`, `EmptyStateOnboarding` (when cold) | Home — live system overview; onboarding hint on zero traffic. |
-| `/sessions` | `routes/sessions/+page.svelte` | Full paginated session list | All captured sessions, grouped by project. |
-| `/sessions/[sessionId]` | `routes/sessions/[sessionId]/+page.svelte` | `SessionOverview` + `SessionTimeline` snippet; `SessionFlow` (lazy-loaded) behind a Requests/Flow tab strip, `?view=flow` | Session landing: overview dashboard with timeline revealed on scroll; Flow tab is the FUNK Flow Instrument (§3 below). |
+| `/` | `routes/+page.svelte` | `PageIntro`, `PulseStrip`, `NowBand`, `CapabilityBanner`, `DestinationGroup`/`DestinationCard`, `HomeLaunchpad`, `ScheduledJobsPanel` (`home/`); `EmptyStateOnboarding` when cold | Home — overview + active sessions; onboarding hint on zero traffic. |
+| `/projects` | `routes/projects/+page.svelte` | `ProjectDirectory`, `ProjectDetailPanel`, `ProjectSessionsPanel`, `ProjectEmbeddingPanel`, `ProjectSettingsDialog`; `EmptyStateOnboarding`, `LoadErrorBanner` | Every codebase or workspace captured on the wire. |
+| `/projects/[projectPath]` | `routes/projects/[projectPath]/+page.svelte` | `ProjectIdentityHeading`, `ProjectDetailPanel`, `ProjectSessionsPanel`, `TimeSpentPanel`, `ProjectEmbeddingPanel`, `ProjectMemoryPanel`, `ProjectKnowledgePanel`, `ProjectLaunchesPanel` | One project: its sessions, time spent, memory, knowledge and launches. |
+| `/projects/[projectPath]/graph` | `routes/projects/[projectPath]/graph/+page.svelte` | `graph/EmbeddingGraph` | Session map: the project's sessions laid out by embedding similarity. |
+| `/sessions` | `routes/sessions/+page.svelte` | `SessionTableHead`, `SessionRow`, `ProjectSessionGroup`, `TimeSpentPanel` (`sessions/`); `OverviewBand`, `SearchField` | All captured sessions, grouped by project. |
+| `/sessions/[sessionId]` | `routes/sessions/[sessionId]/+page.svelte` | `SessionOverview` + `SessionTimeline` snippet, `RequestDrawer`, `ValidationStatusIndicator`; `SessionFlow` (lazy-loaded) behind a Requests/Flow tab strip, `?view=flow` | Session landing: overview dashboard with timeline revealed on scroll; Flow tab is the FUNK Flow Instrument (§3 below). |
 | `/sessions/[sessionId]/requests/[requestId]` | `routes/sessions/[sessionId]/requests/[requestId]/+page.svelte` | `RequestDetailColumn` | Request drill-down with band timeline + heavy-bytes drawer. |
-| `/agents` | `routes/agents/+page.svelte` | Inline list rows over `AgentListItem[]` (no extra component); `EmptyStateOnboarding` on cold start; `LoadErrorBanner` on failure | Catalogue of registered agents with version counts. |
-| `/agents/[agentId]` | `routes/agents/[agentId]/+page.svelte` | Inline detail panels over `AgentDetail` + composition timeline; `LoadErrorBanner` on failure | One agent + every linked composition (newest-first). |
-| `/analysis` | `routes/analysis/+page.svelte` | Inline severity-totals strip + category → session → request → finding tree; `EmptyStateOnboarding`, `HelpHint`, `LoadErrorBanner` | Findings dashboard: category → session → request → finding. |
-| `/sessions/labelling` | `routes/sessions/labelling/+page.svelte` | `JudgeHome` with Turns / Sessions tabs (`?for=sessions`) | Labelling: how the judge labels your turns and sessions. Per tab: the on/off switch, the configuration in use (read-only, with Edit to change it and the command to label older items again after the change), the latest labelling accuracy, its alarms, labelling of older items in progress, its configurations and its settings. `?edit={configuration}` opens the change step with that configuration chosen. |
+| `/sessions/[sessionId]/comms` | `routes/sessions/[sessionId]/comms/+page.svelte` | Inline thread list; `CopyIconButton`, `LoadErrorBanner` | One session's mailbox threads. |
+| `/sessions/[sessionId]/graph` | `routes/sessions/[sessionId]/graph/+page.svelte` | `graph/EmbeddingGraph` | Related sessions: the session's neighbours by embedding similarity. |
+| `/sessions/improvement` | `routes/sessions/improvement/+page.svelte` | `ImprovementStrip`, `WaitingForYou`, `LessonCandidateList`, `CorrectionTrend`, `RepeatedAsks`, `ActionEffectTable`, `GuardWakeList` (`improvement/`); `memory/DirectiveProposalsSection` | What the judge did: the lessons, nudges and directives its labels drove, what waits for you, and whether corrections are falling. |
+| `/sessions/improvement/guard` | `routes/sessions/improvement/guard/+page.svelte` | `GuardQuestionPanel`, `GuardWakeList` in `Tabs` | Guard nudges: every note the guard added or wake it sent, one panel per question, with your right or wrong on each. |
+| `/sessions/improvement/lessons/[id]` | `routes/sessions/improvement/lessons/[id]/+page.svelte` | `eval/EvalQuote`, `improvement/EffectVerdict` | One lesson candidate: where it came from, then approve it (edit the wording first if you want) or reject it. |
+| `/sessions/labelling` | `routes/sessions/labelling/+page.svelte` | `JudgeHome` with Turns / Sessions tabs (`?for=sessions`) | Judge: how the judge labels your turns and sessions. Per tab: the on/off switch, the configuration in use (read-only, with Edit to change it and the command to label older items again after the change), the latest labelling accuracy, its alarms, labelling of older items in progress, its configurations and its settings. `?edit={configuration}` opens the change step with that configuration chosen. |
 | `/sessions/labelling/accuracy` | `routes/sessions/labelling/accuracy/+page.svelte` | Labelling accuracy list | Every accuracy run per judge (tabs Turns / Sessions, `?for=sessions`), newest first by `created_at`, each a `TestRunCard` named by date, configuration and model: turns measured on, how often the judge gave the right label per question, turns left to review, and whether it passed the accuracy bar set for being put in use. |
 | `/sessions/labelling/accuracy/[runId]` | `routes/sessions/labelling/accuracy/[runId]/+page.svelte` | Accuracy run page | What one accuracy run measured and how it scored, compared with the configuration in use, and "Use this run's configuration" (links to the Labelling page's change step). |
 | `/sessions/labelling/accuracy/[runId]/review` | `routes/sessions/labelling/accuracy/[runId]/review/+page.svelte` | Review labels | One turn at a time where the judge's answer and the label differ, with the session around it (summary, the turn just before, earlier turns), the turn's evidence as attributed quotes, this turn's label and the judge's answer, and a pinned "Which is right?" panel where every answer is a button. Saves append gold labels tagged with the run while preserving its original labels, verdicts and metrics. |
-| `/sessions/labelling/review` | `routes/sessions/labelling/review/+page.ts` | Load-only redirect | 307 to the newest complete turn-judge accuracy run's Review labels page (query kept), otherwise `/sessions/labelling/accuracy`. |
-| `/diagnostics/tool-errors` | `routes/diagnostics/tool-errors/+page.svelte` | Tool-errors feed | Cross-request feed of `is_error: true` tool results. |
-| `/diagnostics/agent-dispatches` | `routes/diagnostics/agent-dispatches/+page.svelte` | Agent-dispatch feed | Cross-session agent-dispatch drill-down. |
-| `/memory` | `routes/memory/+page.svelte` | Memory page | Lessons with their outcomes and relations, the semantic worker's pattern candidates, and directive proposals awaiting a decision. |
-| `/diagnostics/memory` | `routes/diagnostics/memory/+page.svelte` | Memory diagnostics dashboard | Process RSS, store budget, top-N entries, SPA eviction counters. |
+| `/comms` | `routes/comms/+page.svelte` | Inline thread list; `ProjectSettingsDialog`, `LoadErrorBanner` | Every conversation between your sessions, grouped by project. |
 | `/filter/workbench` | `routes/filter/workbench/+page.svelte` | `FilterWorkbench` | Filter-rule authoring: collapsible outline, prompt pane (As sent / With my edits / Final lenses), and a side panel splitting "Your edits" from the prompt assistant chat. |
-| `/prompts` | `routes/prompts/+page.svelte` | `PromptKpiStrip`, `CompositionRow[]`, `AnomalyRow[]` | Prompt-composition management surface: KPI strip + classes table + anomalies table. |
-| `/prompts/[promptSha256]` | `routes/prompts/[promptSha256]/+page.svelte` | `ClassChip`, `CompositionStatsHeader`, `BlockCard[]`, `PromptCompositionDiff` | Composition detail / drift view; mode toggle (observe/template/replace). |
-| `/prompts/new` | `routes/prompts/new/+page.svelte` | `BlockCard[]` editor | Author a composition prefilled from `?from=request:{id}`. |
+| `/steering` | `routes/steering/+page.svelte` | `live/SteeringMonitor`, `live/SteererFleet` in `Tabs` | Steering hub: live steering monitor; Fleet tab (`?tab=fleet`) shows steerer management. |
+| `/steering/[id]` | `routes/steering/[id]/+page.svelte` | Steerer detail/edit; `settings/ModelPickerPopover` | Per-steerer configuration and enrolment. |
+| `/analysis` | `routes/analysis/+page.svelte` | Inline severity-totals strip + category → session → request → finding tree; `EmptyStateOnboarding`, `HelpHint`, `LoadErrorBanner`, `DisclosureMarker` | Flagged responses: category → session → request → finding. |
+| `/prompts` | `routes/prompts/+page.svelte` | `PromptKpiStrip`, `PromptCatalogueRow[]`; `FilterScopeStatus`, `FilteredEmptyState` | Captured system-prompt compositions: KPI strip + one row per prompt class. |
+| `/prompts/main` | `routes/prompts/main/+page.svelte` | `PromptClassDetail` (`lane="main"`) | The Claude Code main-agent prompt class. |
+| `/prompts/subagent/[persona]` | `routes/prompts/subagent/[persona]/+page.svelte` | `PromptClassDetail` (`lane="subagent"`; the `UNRESOLVED_PERSONA_SEGMENT` segment means no persona) | One subagent persona's prompt class. |
+| `/prompts/new` | `routes/prompts/new/+page.svelte` | `BlockCard[]` editor, `ClassChip` | Author a composition prefilled from `?from=request:{id}`. |
 | `/prompts/volatile-lines` | `routes/prompts/volatile-lines/+page.svelte` | Volatile-line registry CRUD | Regex patterns stripped from `system[N]` before class hashing. |
-| `/settings` | `routes/settings/+page.svelte` | Settings page | Hub: session-prompt features (reminders, recall_injector) + the general settings catalogue. Subsystems with their own page below are excluded here. |
+| `/agents` | `routes/agents/+page.svelte` | Inline list rows over `AgentListItem[]` (no extra component); `EmptyStateOnboarding` on cold start; `LoadErrorBanner` on failure | Catalogue of registered agents with version counts. |
+| `/agents/[agentId]` | `routes/agents/[agentId]/+page.svelte` | Inline detail panels over `AgentDetail` + composition timeline; `LoadErrorBanner` on failure | One agent + every linked composition (newest-first). |
+| `/fleet` | `routes/fleet/+page.svelte` | Inline fleet canvas; `EmptyStateOnboarding`, `LoadErrorBanner` | Session fleet canvas — captured sessions and the messages linking them. |
+| `/compression-review` | `routes/compression-review/+page.svelte` | `compression/CompressionReviewQueue` | Flagged requests, responses and tool results for compression investigation. |
+| `/tools` | `routes/tools/+page.svelte` | `tools/ToolProjectGroup`; `FilterScopeStatus`, `FilteredEmptyState` | Cross-session tool-call feed: every tool use captured, filterable by name and project, errors marked inline (`#errors`). |
+| `/diagnostics/agent-dispatches` | `routes/diagnostics/agent-dispatches/+page.svelte` | Agent-dispatch feed | Cross-session agent-dispatch drill-down. |
+| `/memory` | `routes/memory/+page.svelte` | `RunsStrip`, `DecisionActionCard`, `RelationsSection`, `OutcomesSection`, `DirectiveProposalsSection`, `PatternCandidatesPanel`, `WhatThisTouches` (`memory/`) | Memory page: lessons with their outcomes and relations, the semantic worker's pattern candidates, and directive proposals awaiting a decision. |
+| `/skills` | `routes/skills/+page.svelte` | `SkillModeControl`, `SkillFolderRow` per project in `Tabs` | The skills mike writes into your projects from their lessons, and your say over them. |
+| `/skills/[id]` | `routes/skills/[id]/+page.svelte` | `SkillStateBadge`, `SkillFilesViewer`, `SkillLessonList`, `SkillEvidence`, `SkillRevisionList`, `SkillPlacementAdvice` (`skills/`); `SectionCard` | One skill draft: its files, the lessons behind it, evidence, revisions and placement. |
+| `/proposals` | `routes/proposals/+page.svelte` | `proposals/ProposalRow` per project in `Tabs` | Lessons that belong in a rule or an agent definition, for you to accept or decline. |
+| `/diagnostics/memory` | `routes/diagnostics/memory/+page.svelte` | Memory diagnostics dashboard; `SectionCard` | Process RSS, store budget, top-N entries, SPA eviction counters. |
+| `/settings` | `routes/settings/+page.svelte` | `SettingsPage`, `FeatureToggleRow`, `SettingRow`, `SettingsSection`, `CapabilityPanel`, `LaunchBackendValidationCard`, `CompressionForwardingState` | Hub: feature toggles + the general settings catalogue. Subsystems with their own page below are excluded here. |
+| `/settings/steering` | `routes/settings/steering/+page.svelte` | Settings page | Steerer fleet config (model, thresholds, sub-judges) + live steerer list from `/api/steerers`, the turn guard's questions panel and its calibration panel. |
+| `/settings/workers` | `routes/settings/workers/+page.svelte` | Settings page | Background worker fleet config (lesson worker, harvester, retention sweep, DB resync) + sync status and the alarms no other page claims; one line points to the Judge page under Sessions. |
 | `/settings/assistants` | `routes/settings/assistants/+page.svelte` | Settings page | Prompt-assistant config: model, effort, instructions, what it can read/change, capture, budget, retention. |
 | `/settings/embedding` | `routes/settings/embedding/+page.svelte` | Settings page | Embedding model + endpoint config for memory recall. |
 | `/settings/flagging` | `routes/settings/flagging/+page.svelte` | Response flagging settings | Analysis master switch, five category toggles and false-positive filters, plus live correction (`weasel_intercept`) enablement, flagged phrases, correction prompt and buffer size. |
-| `/settings/steering` | `routes/settings/steering/+page.svelte` | Settings page | Steerer fleet config (model, thresholds, sub-judges) + live steerer list from `/api/steerers`, the turn guard's questions panel and its calibration panel. |
+| `/settings/integrations` | `routes/settings/integrations/+page.svelte` | `OpenRouterIntegrationPanel`, `AnthropicIntegrationPanel`, `CodexIntegrationPanel`, `AssistantProviderSelector`, `ModelUsageTable` (`settings/`); `AccountStrip`, `SpendByCallerChart`, `CallerTable` (`llmSpend/`) | External services this app talks to — OpenRouter account and balance, Anthropic and Codex, the assistant's provider, and per-model traffic captured on the wire. |
 | `/settings/history` | `routes/settings/history/+page.svelte` | Settings page | The configuration change timeline from `config.change_log` (`ChangeLogTable`), with a snapshot of the whole configuration at any past time. |
-| `/settings/workers` | `routes/settings/workers/+page.svelte` | Settings page | Background worker fleet config (lesson worker, harvester, retention sweep, DB resync) + sync status and the alarms no other page claims; one line points to the Labelling page under Sessions. |
-| `/steering` | `routes/steering/+page.svelte` | Steering hub | Live steering monitor; Fleet tab (`?tab=fleet`) shows steerer management. |
-| `/steering/[id]` | `routes/steering/[id]/+page.svelte` | Steerer detail/edit | Per-steerer configuration and enrolment. |
-| `/tools` | `routes/tools/+page.svelte` | Cross-session tool-call feed | Every tool use captured, filterable by name and project. |
+| `/settings/setup` | `routes/settings/setup/+page.svelte` | `SetupRow`, `SetupFeaturesPanel`, `SetupModelsPanel` (`settings/setup/`); `LaunchBackendValidationCard` | Each step of `mike setup`, with what mike found on this machine; change what the browser can here and copy the command for the rest. |
 | `/help` | `routes/help/+page.svelte` | Help landing | How-to guides + glossary + external references. |
+| `/help/docs/[slug]` | `routes/help/docs/[slug]/+page.svelte` (+ `+page.ts` loader) | `GuideLayout` | One installed guide: `+page.ts` looks the slug up in `PROJECT_DOCS` (`$lib/help/externalDocs`) and `DOCUMENT_CONTENT` (`$lib/help/documents`), 404 when unknown. |
 | `/help/glossary` | `routes/help/glossary/+page.svelte` | Glossary grouped by domain | Vocabulary canonical source; HelpHint popovers deep-link here. |
 | `/help/guides` | `routes/help/guides/+page.svelte` | Guide index | Lists every guide registered in `$lib/help/guides.ts`. |
 | `/help/guides/anomalies` | `routes/help/guides/anomalies/+page.svelte` | `GuideLayout` | Prompt-anomalies how-to. |
@@ -59,8 +75,11 @@ Every file under `frontend/src/routes/`. Dynamic segments use `[name]` syntax; t
 | `/help/guides/retention` | `routes/help/guides/retention/+page.svelte` | `GuideLayout` | Retention / TTL guide. |
 | `/help/guides/steering-concepts` | `routes/help/guides/steering-concepts/+page.svelte` | `GuideLayout` | Steering concepts how-to. |
 
+Many pages also have a `+page.ts` that only loads data (`memory`, `proposals`, `skills/**`, `sessions/improvement/**`, `sessions/labelling/**`, `settings/**`); the redirects below are the `+page.ts` files with no `+page.svelte`.
+
 **Redirect shims** (no `+page.svelte` — load-only):
 
+- `routes/diagnostics/tool-errors/+page.ts` — 308 → `/tools#errors` (the tool-errors feed is now the Tools page's errors section)
 - `routes/steerers/+page.ts` — 308 → `/steering?tab=fleet` (old `/steerers` bookmark compat)
 - `routes/steerers/[id]/+page.ts` — 308 → `/steering/[id]` (old `/steerers/42` → `/steering/42`)
 - `routes/settings/workers/evals/+page.ts` — 308 → `/sessions/labelling/accuracy`, query kept.
@@ -98,77 +117,71 @@ routes/+layout.svelte                 ← root layout
 └── <EvictionOverlay>                 only when `?debugEvictions=1`
 ```
 
-The left rail is `DestinationNav` (`shell/DestinationNav.svelte`), a persistent destination side-nav. It replaced the old `SessionsColumn` session-list rail. Nav groups and items (from `DestinationNav.svelte` as of 2026-09-28):
+The left rail is `DestinationNav` (`shell/DestinationNav.svelte`), a persistent destination side-nav. It replaced the old `SessionsColumn` session-list rail. Its groups and items, with the labels the rail shows:
 
-- **Overview** — Home (`/`), Projects (`/projects`), Sessions (`/sessions`), then indented Labelling (`/sessions/labelling`), Labelling accuracy (`/sessions/labelling/accuracy`) and Review labels (`/sessions/labelling/review`; a run's Review labels page lights it), then Comms (`/comms`). The static `labelling` segment outranks `/sessions/[sessionId]`.
+- **Overview** — Home (`/`), Projects (`/projects`), Sessions (`/sessions`), then indented What the judge did (`/sessions/improvement`), Guard nudges (`/sessions/improvement/guard`), Judge (`/sessions/labelling`) and Judge accuracy (`/sessions/labelling/accuracy`; a run's Review labels page lights it), then Comms (`/comms`). The static `labelling` and `improvement` segments outrank `/sessions/[sessionId]`.
 - **Levers** — Filters (`/filter/workbench`), Steering Monitor (`/steering`), Steerers (`/steerers` → redirects to `/steering?tab=fleet`)
-- **Insight** — Flagged responses (`/analysis`), Prompts (`/prompts`), Agents (`/agents`), Fleet (`/fleet`), Tools (`/tools`), then indented Agent dispatches (`/diagnostics/agent-dispatches`)
-- **System** — Memory (`/memory`), Memory diagnostics (`/diagnostics/memory`), Settings (`/settings`), then six indented sub-items — Steering (`/settings/steering`), Workers (`/settings/workers`), Assistants (`/settings/assistants`), Embedding (`/settings/embedding`), Flagging (`/settings/flagging`), Integrations (`/settings/integrations`) — followed by Help (`/help`)
+- **Insight** — Flagged responses (`/analysis`), Prompts (`/prompts`), Agents (`/agents`), Fleet (`/fleet`), Compression review (`/compression-review`), Tools (`/tools`), then indented Agent dispatches (`/diagnostics/agent-dispatches`)
+- **System** — Memory (`/memory`), Skills (`/skills`), Proposals (`/proposals`), Memory diagnostics (`/diagnostics/memory`), Settings (`/settings`), then six indented sub-items — Steering (`/settings/steering`), Workers (`/settings/workers`), Assistants (`/settings/assistants`), Embedding (`/settings/embedding`), Flagging (`/settings/flagging`), Integrations (`/settings/integrations`) — followed by Help (`/help`)
 
-The Workers settings page links to the Labelling page (Turns and Sessions).
+Pages without a rail item (`/settings/history`, `/settings/setup`, `/help/**`, every detail page) light their nearest ancestor. The Workers settings page links to the Judge page (Turns and Sessions).
 
 `+layout.ts` declares `ssr = false` and `prerender = false` so the whole app is an SPA fallback. `+layout.svelte` is the sole owner of:
 
 - **Stats polling** (`getStats()` every 5s, paused on `visibilitychange` hidden).
 - **WebSocket connection** (`proxyEvents.connect()` from `ws.svelte.ts`).
-- **Context providers**: `SessionListStore`, `SessionDetailStore`, `CollapseStore`, `FilterRulesStore`, and the `STATS_KEY` getter.
+- **Context providers**: `SessionListStore`, the session detail store (`createSessionDetailStore`, `stores/cache/sessionDetailStore.svelte.ts`), `CollapseStore`, `FilterRulesStore`, and the `STATS_KEY` getter.
 - **WS event draining**: a `$effect` reads `proxyEvents.totalEvents`, walks the ring from `processedEvents` to head, and dispatches each event into `sessionStore.handleEvent()` + `filterRulesStore.handleEvent()`. `Lagged` frames synthesised separately.
-- **Quick-create deep link**: handles `/?createFilterRule=1&prefillValue=...` from `AnomalyRow` by opening the filter drawer pre-populated.
 - **Global ⌘K handler**: toggles `shellState.commandPaletteOpen`.
 
 The `.app` grid uses CSS variables `--sessions-w` set from `shellState.sessionsCollapsed` / `shellState.sessionsWidth` so resize/collapse react instantly.
 
 ## 3. Component Inventory
 
-Alphabetical. Stories (`*.stories.svelte`), tests (`*.test.ts`), harnesses (`__harness__/`), and fixtures (`__fixtures__/`) are omitted; they are not runtime components.
+Alphabetical. Stories (`*.stories.svelte`), tests (`*.test.ts`), harnesses (`__harness__/`), and fixtures (`__fixtures__/`) are omitted; they are not runtime components. This section describes the components the routes above lean on; it is not exhaustive — [`COMPONENT_CATALOGUE.md`](COMPONENT_CATALOGUE.md) is the complete inventory.
 
-### `lib/components/` (top level)
+### `lib/components/detail/` and `lib/components/shared/` (request detail and shared primitives)
+
+The components once at the top level of `lib/components/` now live in `detail/` (request-detail sections) and `shared/` (page-wide primitives); `CommandPalette` moved to `shell/`, `MessageContentRenderer` to `message-view/` and `PromptComposition` to `prompts/`.
 
 | Component | File | Key props | Renders |
 | --- | --- | --- | --- |
-| `BodyViewer` | `BodyViewer.svelte` | `payload: BodyPayload`, `language?` | Full-bytes body view with code highlighting; no slicing. |
-| `CacheEfficiency` | `CacheEfficiency.svelte` | `usage: TokenUsage` | Cache hit ratio + tokens donut. |
-| `CommandPalette` | `CommandPalette.svelte` | none (reads `shellState`) | ⌘K palette: fuzzy-match across sessions/routes/actions. |
-| `CopyIconButton` | `CopyIconButton.svelte` | `text: string` | Copy-to-clipboard icon button. |
-| `CostBreakdown` | `CostBreakdown.svelte` | `usage`, `model` | Token cost estimation. |
-| `DetailHeader` | `DetailHeader.svelte` | `detail: RequestDetail` | Title row of the request-detail column. |
-| `DetailSkeleton` | `DetailSkeleton.svelte` | none | Loading placeholder for the detail column. |
-| `DiagnosticsCard` | `DiagnosticsCard.svelte` | `diagnostics: Diagnostic[]` | Per-finding category badges with operator-facing advice for one request; mounted in `RequestDrawer`. |
-| `EmptyStateOnboarding` | `EmptyStateOnboarding.svelte` | `onOpenHelp` | Zero-traffic hero with help CTA. |
-| `EvictionOverlay` | `EvictionOverlay.svelte` | none | Debug overlay subscribed to six eviction sources. |
-| `HeadersTable` | `HeadersTable.svelte` | `headers: Array<[string, string]>` | Full HTTP header table — every byte rendered. |
-| `HelpDrawer` | `HelpDrawer.svelte` | `stats?` | Slide-in help drawer; mirrors `/help` content. |
-| `HelpHint` | `HelpHint.svelte` | `slug: string`, `term?`, `definition?`, `ariaLabel?` | Inline `?` hint linking to `/help/glossary#<slug>`. |
-| `IdentifiersSection` | `IdentifiersSection.svelte` | `detail` | Upstream request/message id, session id, project. |
-| `LoadErrorBanner` | `LoadErrorBanner.svelte` | `error: string \| null`, `onRetry?` | Inline error with retry CTA. |
-| `MessageContentRenderer` | `MessageContentRenderer.svelte` | `content` blocks | Renders typed assistant/user content blocks. |
-| `MetricsStrip` | `MetricsStrip.svelte` | `detail` | Latency / TTFB / tokens row above the band. |
-| `ParametersSection` | `ParametersSection.svelte` | `params: RequestParams` | Inline section: model params + thinking config. |
-| `ParamsCard` | `ParamsCard.svelte` | `params` | Standalone card variant of `ParametersSection`. |
-| `PinToggle` | `PinToggle.svelte` | `pinned: boolean`, `onToggle` | Pin/unpin button (session or project). |
-| `PromptComposition` | `PromptComposition.svelte` | `composition: PromptComposition` | Read-only composition viewer. |
-| `RequestBodyCard` | `RequestBodyCard.svelte` | `requestId: number` | Lazy request-body fetch + viewer. |
-| `RequestErrorCard` | `RequestErrorCard.svelte` | `detail` | Error-status rendering for failed requests. |
-| `ResponseBodyCard` | `ResponseBodyCard.svelte` | `requestId: number` | Lazy response-body fetch + viewer (incl. SSE accumulator). |
-| `SectionCard` | `SectionCard.svelte` | `title`, `ariaLabel?`, `headerActions?` snippet, `collapsible?`, `sectionKey?`, `defaultCollapsed?`, `children` snippet | Collapsible card; collapse state read from `CollapseStore` context. |
-| `StatusPill` | `StatusPill.svelte` | `status: StatusKind` | Pill rendering of derived status (`Pending`/`Streaming`/`Complete`/`Error: ...`). |
-| `SystemPromptBreakdown` | `SystemPromptBreakdown.svelte` | `blocks: SystemBlocksProjection` | Per-block view of `system` array with composition match badges. |
-| `SystemPromptDetails` | `SystemPromptDetails.svelte` | `detail` | Wrapper that picks `SystemPromptBreakdown` vs raw. |
-| `SystemPromptVisibilitySignal` | `SystemPromptVisibilitySignal.svelte` | `detail` | "composition applied" badge with deep-link to `/prompts/[sha]`. |
-| `ToolNamesChips` | `ToolNamesChips.svelte` | `names: string[]` | Chip list of declared / used tool names. |
-| `Tooltip` | `Tooltip.svelte` | `text`, slot | Hover tooltip primitive. |
-| `TurnDeltaHeader` | `TurnDeltaHeader.svelte` | `delta`, `predecessorId` | Header for delta rows (added/removed messages). |
+| `BodyViewer` | `detail/BodyViewer.svelte` | `payload: BodyPayload`, `language?` | Full-bytes body view with code highlighting; no slicing. |
+| `CacheEfficiency` | `detail/CacheEfficiency.svelte` | `usage: TokenUsage` | Cache hit ratio + tokens donut. |
+| `CommandPalette` | `shell/CommandPalette.svelte` | none (reads `shellState`) | ⌘K palette: fuzzy-match across sessions/routes/actions. |
+| `CopyIconButton` | `shared/CopyIconButton.svelte` | `text: string` | Copy-to-clipboard icon button. |
+| `CostBreakdown` | `detail/CostBreakdown.svelte` | `usage`, `model` | Token cost estimation. |
+| `DetailHeader` | `detail/DetailHeader.svelte` | `detail: RequestDetail` | Title row of the request-detail column. |
+| `DetailSkeleton` | `detail/DetailSkeleton.svelte` | none | Loading placeholder for the detail column. |
+| `DiagnosticsCard` | `detail/DiagnosticsCard.svelte` | `diagnostics: Diagnostic[]` | Per-finding category badges with operator-facing advice for one request; mounted in `RequestDrawer`. |
+| `EmptyStateOnboarding` | `shared/EmptyStateOnboarding.svelte` | `onOpenHelp` | Zero-traffic hero with help CTA. |
+| `EvictionOverlay` | `shared/EvictionOverlay.svelte` | none | Debug overlay subscribed to six eviction sources. |
+| `HeadersTable` | `detail/HeadersTable.svelte` | `headers: Array<[string, string]>` | Full HTTP header table — every byte rendered. |
+| `HelpDrawer` | `shared/HelpDrawer.svelte` | `stats?` | Slide-in help drawer; mirrors `/help` content. |
+| `HelpHint` | `shared/HelpHint.svelte` | `slug: string`, `term?`, `definition?`, `ariaLabel?` | Inline `?` hint linking to `/help/glossary#<slug>`. |
+| `IdentifiersSection` | `detail/IdentifiersSection.svelte` | `detail` | Upstream request/message id, session id, project. |
+| `LoadErrorBanner` | `shared/LoadErrorBanner.svelte` | `error: string \| null`, `onRetry?` | Inline error with retry CTA. |
+| `MessageContentRenderer` | `message-view/MessageContentRenderer.svelte` | `content` blocks | Renders typed assistant/user content blocks. |
+| `MetricsStrip` | `detail/MetricsStrip.svelte` | `detail` | Latency / TTFB / tokens row above the band. |
+| `ParametersSection` | `detail/ParametersSection.svelte` | `params: RequestParams` | Inline section: model params + thinking config. |
+| `PinToggle` | `shared/PinToggle.svelte` | `pinned: boolean`, `onToggle` | Pin/unpin button (session or project). |
+| `PromptComposition` | `prompts/PromptComposition.svelte` | `composition: PromptComposition` | Read-only composition viewer. |
+| `RequestBodyCard` | `detail/RequestBodyCard.svelte` | `requestId: number` | Lazy request-body fetch + viewer. |
+| `ResponseBodyCard` | `detail/ResponseBodyCard.svelte` | `requestId: number` | Lazy response-body fetch + viewer (incl. SSE accumulator). |
+| `SectionCard` | `detail/SectionCard.svelte` | `title`, `ariaLabel?`, `headerActions?` snippet, `collapsible?`, `sectionKey?`, `defaultCollapsed?`, `children` snippet | Collapsible card; collapse state read from `CollapseStore` context. |
+| `StatusPill` | `shared/StatusPill.svelte` | `status: StatusKind` | Pill rendering of derived status (`Pending`/`Streaming`/`Complete`/`Error: ...`). |
+| `SystemPromptBreakdown` | `detail/SystemPromptBreakdown.svelte` | `blocks: SystemBlocksProjection` | Per-block view of `system` array with composition match badges. |
+| `SystemPromptVisibilitySignal` | `detail/SystemPromptVisibilitySignal.svelte` | `detail` | "composition applied" badge with a deep-link to the prompt class. |
+| `Tooltip` | `shared/Tooltip.svelte` | `text`, slot | Hover tooltip primitive. |
+| `TurnDeltaHeader` | `detail/TurnDeltaHeader.svelte` | `delta`, `predecessorId` | Header for delta rows (added/removed messages). |
 
 ### `lib/components/shell/` (shell chrome)
 
 | Component | File | Key props | Renders |
 | --- | --- | --- | --- |
-| `BandSeparator` | `shell/BandSeparator.svelte` | `delta` | Separator chrome between request bands. |
 | `ColumnResizer` | `shell/ColumnResizer.svelte` | `onResize`, `min`, `max` | Drag handle that mutates column width via `shellState`. |
 | `ConnectionBanner` | `shell/ConnectionBanner.svelte` | none | Reconnect/lagged banner pulled from `proxyEvents.state`. |
 | `DestinationNav` | `shell/DestinationNav.svelte` | none (reads `shellState`, `page`) | Left rail: grouped destination side-nav with collapsible/resize plumbing. Replaced `SessionsColumn` as the active left-rail component. |
-| `NewMessagesAffordance` | `shell/NewMessagesAffordance.svelte` | `count`, `onClick` | "N new messages" jump-to-bottom button. |
-| `RequestBand` | `shell/RequestBand.svelte` | `summary`, `detail?` | One request as a stacked band with inline sections. |
 | `RequestDetailColumn` | `shell/RequestDetailColumn.svelte` | reads URL params | The 4th column: identity bar + `SessionTimeline` + `RequestDrawer`. |
 | `RequestDrawer` | `shell/RequestDrawer.svelte` | reads `shellState.drawerKind` / `drawerBandId` | Slide-in heavy-bytes drawer (request/response/events/findings). |
 | `SessionOverview` | `shell/SessionOverview.svelte` | `now`, `timeline` snippet | `/sessions/[id]` landing dashboard; embeds the timeline below the seam. |
@@ -182,40 +195,37 @@ Alphabetical. Stories (`*.stories.svelte`), tests (`*.test.ts`), harnesses (`__h
 
 `SessionFlow.svelte` composes one framed instrument (`.edge.mech-group`, the same
 recipe `SessionOverview`'s mechanism group uses one row above it on the same
-route) holding six grouped `SectionCard` members, in reading order, with a
-hairline seam between them and no other content between — never a stack of
-separately bordered cards:
+route) holding five members, in reading order, with a hairline seam between
+them and no other content between — never a stack of separately bordered
+cards:
 
 | # | Member | File | Renders |
 | --- | --- | --- | --- |
 | 1 | Session flow | `FlowHeaderBand.svelte` | Static identity header: session id, peer (if any), start date, agent count, the coordinator's title, a `Timeline ↗` link back to the Requests tab, and — only while stale — a `chip-warning` STALE badge whose hover tooltip names the reasons. |
 | 2 | Timeline | `FlowPlayerBand.svelte` | The transport (`FlowTransport.svelte`: skip/rewind/play-pause/fast-forward/skip, follow-live, speed, the REPLAY/LIVE mode badge, the playhead clock), a seek `Slider`, the five role lanes (`FlowLanes.svelte`, from `laneModel.ts`), and the recorded-moments row (`FlowMarkers.svelte`, from `markers.ts`). |
-| 3 | Board | `SessionFlowBoard.svelte` | The FUNK Flow Instrument board: four `BoardColumn`s (SESSION, AGENTS, MIKE · PROXY · THE BOUNDARY, OUTSIDE THE BOUNDARY) laid out by `boardLayout.ts`, chips (`shared/board/NodeChip.svelte`) routed by `board/router.ts`, lit by `traceModel.ts`'s window at the playhead. Scrolls horizontally (`overflow-x: auto`) below its natural 1372px width. Header line reads `<columns> COLUMNS · <n> REQUESTS IN FLIGHT · <m> TOOL CALLS OPEN · <e> ERROR` from `counts.ts`'s `buildCounts`. |
+| 3 | Board | `SessionFlowBoard.svelte` inside `FlowBoardViewport.svelte` | The FUNK Flow Instrument board: four `BoardColumn`s (SESSION, AGENTS, MIKE · PROXY · THE BOUNDARY, OUTSIDE THE BOUNDARY) laid out by `boardLayout.ts`, chips (`shared/board/NodeChip.svelte`) routed by `board/router.ts`, lit by `traceModel.ts`'s window at the playhead. `FlowBoardViewport` scales it to the member's width below its natural 1372px stage width. Sits in one row with member 5. Header line reads `<columns> COLUMNS · <n> REQUESTS IN FLIGHT · <m> TOOL CALLS OPEN · <e> ERROR` from `counts.ts`'s `buildCounts`. |
 | 4 | Filter | `FlowFilterBand.svelte` | The legend/filter toggle row (`shared/LegendFilter.svelte`, vocabulary in `legendEntries.ts`) — every entry toggles a WHO identity, a trace kind, or a node-ring state on the board above; sits under the board, not beside it. |
-| 5 | Selected | `FlowDetailBand.svelte` | What's currently selected: one title line, one explanation line with complete in-flight id lists (never a slice), an `Open evidence ↗` action, and — when the selection is a followable agent worker — a secondary follow toggle. |
-| 6 | Evidence | — (composed directly in `SessionFlow.svelte`, `SectionCard` collapsed by default) | The full recorded-detail panel: `FlowEvidencePanel.svelte` (per-selection dl + causal-evidence traversal), `FlowActivityList.svelte` (paginated phase list), the relocated brush-window numeric inputs, and the accessible actors/coverage/browser-observation disclosures. `Open evidence ↗` (member 5) expands this member programmatically via the shared `CollapseStore`. |
+| 5 | Selected | `FlowDetailBand.svelte` | What's currently selected, in the pane beside the board: one title line, one explanation line with complete in-flight id lists (never a slice), an open-drawer action (`onOpenDrawer`), and — when the selection is a followable agent worker — a secondary follow toggle. |
 
-Supporting, non-member files: `sessionFlowStore.svelte.ts` (`SessionFlowStore`,
-`FlowLiveMark`, `FLOW_COMPONENTS`), `playback.svelte.ts` (`createFlowPlayback`,
-`FlowPlayback`), `projection.ts` (`sceneAt`, `normalizeFlowDataset`),
-`grouping.ts` (`buildAgentIdentities`), `boardLayout.ts` + `board/router.ts` +
-`board/types.ts` (the board's own layout/routing/trace vocabulary),
-`__fixtures__/fleet.ts` (`fleetDataset`, `peakMs` — the Storybook + route-story
-fixture: 24 agents, a peer, sidecars, 8 open tool calls, 9 Mike service
-roles). Selection never changes the playhead; the six members share one
+Supporting, non-member files live in `$lib/session-flow/` (not under
+`components/`): `sessionFlowStore.svelte.ts`, `playback.svelte.ts`,
+`projection.ts`, `grouping.ts`, `boardLayout.ts`, `laneModel.ts`, `markers.ts`,
+`traceModel.ts`, `counts.ts`, `legendEntries.ts`; the board's own routing and
+trace vocabulary is in `$lib/board/`. `FlowPromptModal.svelte` is the one other
+component in the folder. Selection never changes the playhead; the members share one
 `SessionFlowProps` interface — see `SessionFlow.svelte`'s module script, kept
 stable so `+page.svelte` can import the component lazily as
 `Component<SessionFlowProps>`.
 
-### `lib/components/live/` (live system panel)
+### `lib/components/live/` (live panels)
+
+The home page no longer mounts a live system panel (see `/` in §1); these primitives remain, alongside `SteeringMonitor` and `SteererFleet` mounted by `/steering`.
 
 | Component | File | Renders |
 | --- | --- | --- |
-| `ActivityFeed` | `live/ActivityFeed.svelte` | Rolling request activity rows. |
 | `HealthStrip` | `live/HealthStrip.svelte` | Health KPIs (uptime, error rate). |
 | `ResourceGauges` | `live/ResourceGauges.svelte` | Memory / RSS gauges driven by `MemoryTick`. |
 | `Sparkline` | `live/Sparkline.svelte` | Generic sparkline primitive. |
-| `SystemLivePanel` | `live/SystemLivePanel.svelte` | Wrapper for all four live sections; consumed by `/`. |
 | `ThroughputKpis` | `live/ThroughputKpis.svelte` | Requests/sec, tokens/sec sparklines. |
 
 ### `lib/components/message-view/`
@@ -223,9 +233,8 @@ stable so `+page.svelte` can import the component lazily as
 | Component | File | Renders |
 | --- | --- | --- |
 | `CodeBlock` | `message-view/CodeBlock.svelte` | Syntax-highlighted code block. |
-| `ReminderCard` | `message-view/ReminderCard.svelte` | `<system-reminder>` block card. |
-| `ReminderRow` | `message-view/ReminderRow.svelte` | One row inside `ReminderCard`. |
-| `ReminderSubgroup` | `message-view/ReminderSubgroup.svelte` | Collapsible subgroup inside `ReminderCard`. |
+| `ReminderRow` | `message-view/ReminderRow.svelte` | One `<system-reminder>` row. |
+| `ReminderSubgroup` | `message-view/ReminderSubgroup.svelte` | Collapsible subgroup of reminder rows. |
 | `SubRow` | `message-view/SubRow.svelte` | One sub-row inside a user/tool message. |
 | `SubRowDetail` | `message-view/SubRowDetail.svelte` | Expanded detail body for a sub-row. |
 | `SystemRemindersCard` | `message-view/SystemRemindersCard.svelte` | Card listing all system reminders for a turn. |
@@ -239,13 +248,12 @@ Pure helpers in this dir: `messageWalker.ts`, `parseSystemPrompt.ts`, `stripChro
 
 | Component | File | Renders |
 | --- | --- | --- |
-| `AnomalyRow` | `prompts/AnomalyRow.svelte` | One row in the `/prompts` anomalies table; emits create-filter-rule deep link. |
 | `BlockCard` | `prompts/BlockCard.svelte` | One `system[N]` block; editable on `/prompts/new`. |
 | `ClassChip` | `prompts/ClassChip.svelte` | Composition class identity chip (`prompt_sha256` short + label). |
-| `CompositionRow` | `prompts/CompositionRow.svelte` | One row in the classes table. |
-| `CompositionStatsHeader` | `prompts/CompositionStatsHeader.svelte` | KPI strip for the composition detail page. |
 | `PromptCompositionDiff` | `prompts/PromptCompositionDiff.svelte` | Drift view: composition vs request `system_blocks`. |
 | `PromptKpiStrip` | `prompts/PromptKpiStrip.svelte` | 4-cell KPI strip at the top of `/prompts`. |
+| `PromptCatalogueRow` | `prompts/PromptCatalogueRow.svelte` | One row per prompt class in the `/prompts` catalogue. |
+| `PromptClassDetail` | `prompts/PromptClassDetail.svelte` | One prompt class (`lane` main or subagent, with `persona`); mounted by `/prompts/main` and `/prompts/subagent/[persona]`. |
 
 ### `lib/components/filter/`
 
@@ -273,13 +281,10 @@ Filter rules are DB-only state authored at runtime via these components and the 
 
 ### `lib/components/eval/`
 
+The review-queue components of the earlier eval pages are gone; the Review labels page (§1) composes its own panes. What remains:
+
 | Component | File | Renders |
 | --- | --- | --- |
-| `EvalRunSummary` | `eval/EvalRunSummary.svelte` | Compact run/metric line; expanding it reveals configuration, bundle provenance and equivalents, costs, item counts and corrected-class precision/recall. |
-| `EvalReviewQueue` | `eval/EvalReviewQueue.svelte` | Selectable turn queue with disagreement, reviewed and changed-gold indicators; asks users to narrow filters when matches exceed the loaded limit. |
-| `EvalReviewPane` | `eval/EvalReviewPane.svelte` | Operator prompt, assistant output and next genuine message alongside `EvalVerdictChoice`; session/request links and collapsible label history. Distinguishes missing evidence from empty turns. |
-| `EvalVerdictChoice` | `eval/EvalVerdictChoice.svelte` | Recorded labels against the judge's answer, their supporting evidence and current-label changes; “Label is correct” / “Judge is correct” actions, reviewer note and a disclosure for custom per-axis choices. |
-| `EvalReviewDecision` | `eval/EvalReviewDecision.svelte` | Reaction/delivery radio choices inside `EvalVerdictChoice` when neither answer is wholly correct; saves the selected pair. |
 | `EvalChoiceGroup` | `eval/EvalChoiceGroup.svelte` | Reusable choice-button group for decided-state, gold-label, judge-label and severity filters. |
 | `LabelHistoryList` | `eval/LabelHistoryList.svelte` | Label history with provenance, withdrawal actions and confirmation of current relayed labels as gold. |
 
@@ -319,7 +324,7 @@ All under `frontend/src/lib/stores/`. Each `.svelte.ts` file uses Svelte 5 runes
 | `bandUnmount` | `bandUnmount.svelte.ts` | Emits `BandUnmount` events when `SessionTimeline` evicts from the rendered band window. | Subscribed only by `EvictionOverlay`. |
 | `deltaFallback` | `deltaFallback.ts` | Pure utility (not a store) that derives a delta when the backend lacks one. | `TurnDeltaHeader`. |
 
-`liveSystem` (`$lib/state/liveSystem.svelte.ts`) and `memory` (`$lib/state/memory.svelte.ts`) are state modules outside `stores/`. They derive panel-shaped views from the WS `MemoryTick`/`MemoryShed` stream — consumed by the home page (`SystemLivePanel`) and `/diagnostics/memory`.
+`liveSystem` (`$lib/state/liveSystem.svelte.ts`) and `memory` (`$lib/state/memory.svelte.ts`) are state modules outside `stores/`. They derive panel-shaped views from the WS `MemoryTick`/`MemoryShed` stream — consumed by the `live/` primitives (`HealthStrip`, `ResourceGauges`, `ThroughputKpis`) and `/diagnostics/memory`.
 
 ### Context keys
 
@@ -499,8 +504,8 @@ Type discipline: a Rust struct change must be reflected here, but the field name
 
 ## 8. Build & Dev
 
-- `vite dev` on `:9990` is the default boot path (`npm run start` aliases to `vite dev`).
-- `npm run build` produces `frontend/build/` (the static SPA fallback).
-- `npm run preview` serves the built output on `:9990` for production-style hosting.
-- Storybook (`npm run storybook`) renders every `*.stories.svelte`. Stub modules live in `lib/__storybook-stubs__/` and re-export sanitised versions of `api`, `ws`, and the layout-owned stores so stories never hit the network.
+- `vite dev` on `:9990` is the default boot path (`pnpm dev` / `pnpm start` alias to `vite dev`); `scripts/start-proxy.sh` runs it as the `mike-stack-*` SPA unit.
+- `pnpm build` (`vite build` with `adapter-static`, `fallback: 'index.html'`, `svelte.config.js`) writes `frontend/build/`. That directory is git-ignored and not in the tree: the SPA is built at release time. `crates/mike/build.rs` sets the `has_spa_build` cfg when `frontend/build/index.html` exists, and `crates/mike/src/spa.rs` embeds the folder into the `mike` binary with `rust-embed`, serving `index.html` as the fallback for every unknown path. A binary built without it answers the SPA bind with 503 ("SPA not built into this binary — run `make spa` and rebuild"). `make spa` runs the build locally; `scripts/release/prepare.py` runs it with `NODE_ENV=production` from frozen, offline dependencies before the native build.
+- `pnpm preview` serves the built output on `:9990` for production-style hosting.
+- Storybook (`pnpm storybook`) renders every `*.stories.svelte`. Stub modules live in `lib/__storybook-stubs__/` and re-export sanitised versions of `api`, `ws`, and the layout-owned stores so stories never hit the network. Tests run only through `scripts/sb-test`.
 - Self-hosted JetBrains Mono via `@fontsource-variable/jetbrains-mono` imported from `+layout.svelte`.

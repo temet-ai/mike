@@ -8,9 +8,8 @@ summary: Layout, data sources, states, and keymap for the Home / Status screen �
 
 # Home / Status
 
-Style rules: see [`../STYLE_GUIDE.md`](../STYLE_GUIDE.md), especially the status
-vocabulary rule at `.claude/rules/visual-design-and-ui.md`. Requirements floor:
-§1 of `artifacts/2026-07-20/tui-page-requirements.md`. The original mockup
+Style rules: see [`../STYLE_GUIDE.md`](../STYLE_GUIDE.md), especially its status
+vocabulary rule. The original mockup
 (`mike-control-center.html`, kept in the design project, not in this repository) was a starting point, not the current source of truth — this
 spec describes the implementation as it stands, which has diverged through several rounds
 of live design feedback (menu-disappears-on-nav, mismatched status vocabulary, misaligned
@@ -38,15 +37,16 @@ the SERVICES panel body:
 
 1. **Top bar** (`draw_top_bar`, Home-owned, one row): app name left, `● online/stopped ·
    configured` right.
-2. **Nav rail** (`App`-owned, persistent across Home/Config/Setup — never Home's own
-   concern, never disappears on navigation): a fixed 18-column `List` with exactly three
-   items, `Services` / `Config` / `Setup`. Arrow keys/`j`/`k`/`g`/`G` move the highlight
+2. **Nav rail** (`App`-owned, persistent across Home/Config/Setup/Sessions — never Home's own
+   concern, never disappears on navigation): a fixed 18-column `List` with exactly four
+   items, `Services` / `Config` / `Setup` / `Sessions` (`NAV_ITEMS` in
+   `crates/mike/src/tui/widgets.rs`). Arrow keys/`j`/`k`/`g`/`G` move the highlight
    **and** switch the active screen live — no `Enter` required. `Tab` hands keyboard focus
    to the active screen's content; `Shift+Tab` returns it to the rail. Hidden only on the
    `StartStop` drill-down (reached via `l` from Services), which keeps the full frame.
 3. **SERVICES panel** (content-sized, not stretched — blank space below on a tall
    terminal), one grouped `Block` with three plainly labeled sections, all sharing one
-   status vocabulary (`.claude/rules/visual-design-and-ui.md`):
+   status vocabulary (style guide):
    - **BINDS** — one row per bind (`proxy · /v1` `127.0.0.1:9988`, `inspect · /api`
      `127.0.0.1:9989`, `web ui` `127.0.0.1:9990`), glyph-leading: `● up` / `○ down`.
    - **SYSTEM** — `store` (byte usage/entry count), `process` (RSS peak), `mike-mcp`
@@ -70,7 +70,7 @@ hinted — the SERVICES panel's own status line states fact only (`● stack run
 
 ## ShortcutsModal sections
 
-- **nav rail:** `↑↓/jk` browse Services/Config/Setup · `⇥` focus this panel · `⇧⇥` back
+- **nav rail:** `↑↓/jk` browse Services/Config/Setup/Sessions · `⇥` focus this panel · `⇧⇥` back
   to the rail
 - **services:** `t` toggle services · `r` restart services · `l` open the full service
   screen (logs) · `s` setup · `q` quit

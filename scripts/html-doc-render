@@ -23,9 +23,6 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const PAGES = [
 	{ source: 'docs/tui/STYLE_GUIDE.html', out: 'docs/tui/style-guide', sections: 'section[id]' },
 	{ source: 'docs/tui/LAYOUT.html', out: 'docs/tui/layout' },
-	{ source: 'docs/plans/design/session-timeline-turns.html', out: 'docs/plans/design/session-timeline-turns' },
-	{ source: 'docs/plans/design/tool-result-step-layout.html', out: 'docs/plans/design/tool-result-step-layout' },
-	{ source: 'docs/plans/design/tool-uses-panel.html', out: 'docs/plans/design/tool-uses-panel' },
 ];
 
 const hashOf = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');

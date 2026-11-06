@@ -23,6 +23,7 @@ config file, or `MIKE_LAUNCH_BACKEND` in the environment:
 | `herdr-core` | The Herdr desktop app. Also reports session state. |
 | `tmux` | For machines without a display, such as an SSH session. |
 | `terminal` | A plain window per session. Hyprland only, because it needs `xdg-terminal-exec` and `hyprctl`. |
+| `ghostty` | A Ghostty window per session on macOS. Accepted as a value, but this build has no adapter for it yet: the setup wizard does not offer it, and `mike spawn` refuses as it does with `none`. |
 | `none` | The default. Nothing opens. |
 
 When you run `mike spawn` from inside a Herdr or tmux pane, mike opens the new session

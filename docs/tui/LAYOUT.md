@@ -100,9 +100,8 @@ made enforceable. Do not infer those rules from the illustrative mike HTML rendi
 
 - Content taller than its panel scrolls inside the panel. The panel does not grow and the
   layout does not change.
-- Content is never silently cut. Scrolling and pagination over truncation —
-  `.claude/rules/agent-behavior-and-data.md`
-  binds every content surface.
+- Content is never silently cut. Scrolling and pagination over truncation; the
+  inspection-fidelity rule (`scripts/fidelity-check`) binds every content surface.
 
 ## Resize
 

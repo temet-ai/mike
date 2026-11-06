@@ -15,7 +15,7 @@ hand-drawn pictures cannot:
 - **Rename or move a part once.** Every diagram that shows it follows.
 - **Plan against what exists.** A proposed change is a small file that adds to the real
   model, so the plan is drawn on the real system and cannot refer to a part that is not
-  there. See [`plans/`](plans/README.md).
+  there.
 - **Ask the model questions.** "What writes to the mailbox schema?", "what sends content
   off this machine?" and "what is on the path between a request and Anthropic?" are
   queries, for a person in the browser and for a session through the MCP server.
@@ -44,7 +44,7 @@ LikeC4 and keeps its listeners on this machine, and those commands do neither (s
 | `processes` | the seven things that run, and what connects them |
 | `server` | every part of the server process |
 | `requestPath` | what a request and its reply pass through |
-| `pipeline` | the fourteen stages and the composer, in order, with their gates |
+| `pipeline` | the eighteen stages of `STAGE_ORDER`, with the injected-block replay before them and the composer after, in order, with their gates |
 | `inspection` | how a captured request reaches the web UI and other sessions |
 | `judging` · `lessons` · `steering` | the three parts of the loop that turns one session's outcome into the next session's instructions |
 | `coordination` | the roster, the mailbox, launching, fleets and the change record |
@@ -66,7 +66,6 @@ LikeC4 and keeps its listeners on this machine, and those commands do neither (s
 | `deployment.c4` | where each process runs |
 | `global.c4` | styles every view shares |
 | `views/` | the diagrams |
-| `plans/` | proposed changes, drawn against the model |
 
 Tags carry the facts a reader most often wants at a glance: `#hot-path`,
 `#mutates-request`, `#mutates-response`, `#default-off`, `#default-on`,
@@ -91,16 +90,14 @@ Everything else in the model is checked by reading it. The prose reference is st
 [`ARCHITECTURE.md`](../ARCHITECTURE.md); where the two disagree, the code decides and
 both are fixed.
 
-The `likec4-dsl` skill in `.claude/skills/` is LikeC4's own language reference, and a
-session loads it when it works on a `.c4` file.
-
 ## For a session: the MCP server
 
 LikeC4 has an MCP server with twenty read-only tools over this model: search, read an
 element, find the relationships or the paths between two elements, walk everything
-upstream or downstream of one. It is not in the project's `.mcp.json`, because each
-session that loads it starts a 250 MB process. Start a session with it when the work is
-about architecture:
+upstream or downstream of one. It is not registered for every session, because each
+session that loads it starts a 250 MB process; `docs/architecture/likec4.mcp.json` is
+the one-server MCP config that starts it over stdio through `scripts/arch mcp`. Start a
+session with it when the work is about architecture:
 
 ```
 claude --mcp-config docs/architecture/likec4.mcp.json
