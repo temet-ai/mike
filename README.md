@@ -54,10 +54,11 @@ A name clash to know about: the MkDocs tool also called `mike` may be on your `P
 
 The [user guide](docs/user-guide/README.md) covers everything a user needs: [install](docs/user-guide/install.md), [setup](docs/user-guide/setup.md), [every page and command](docs/user-guide/pages.md), and [what to do when something looks wrong](docs/user-guide/troubleshooting.md).
 
-Reference and contributor docs:
+Reference and contributor docs. Start with the system map: one page that lists everything mike can do, where each ability lives in the code and how to verify it.
 
 | Doc | What it holds |
 |---|---|
+| [`docs/SYSTEM_MAP.md`](docs/SYSTEM_MAP.md) | Every capability, its surface, its default and its code; the index of all other docs |
 | [`docs/FEATURES.md`](docs/FEATURES.md) | Every optional feature, its default and what it does to traffic |
 | [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) | Boot config and every `MIKE_*` environment variable |
 | [`docs/SECURITY.md`](docs/SECURITY.md) | What each bind exposes and what leaves the machine |

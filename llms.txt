@@ -1,0 +1,35 @@
+# mike
+
+> A reverse proxy for Claude Code's traffic to api.anthropic.com. It records every request and response on your machine, shows them in a web UI, lets Claude Code query that history over MCP, and, only when switched on, changes what is sent (lessons, nudges, prompt rewrites, shortened tool output) and starts and coordinates Claude Code sessions. Rust workspace (`crates/mike`, `crates/mike-mcp`, `crates/proxy-forward`) plus a SvelteKit SPA (`frontend/`).
+
+Read docs/SYSTEM_MAP.md first: it lists every capability with its code location, surface (CLI, REST, MCP, web UI, terminal UI), default and deeper doc, and the commands that print the authoritative lists.
+
+## Start here
+
+- [System map](docs/SYSTEM_MAP.md): everything mike can do, where it lives, how to verify it.
+- [Project instructions](AGENTS.md): commands, structural limits, how work is routed.
+- [README](README.md): what it is for, install, trust boundary.
+- [User guide](docs/user-guide/README.md): every page and command, written for someone who just installed it.
+
+## Design
+
+- [Architecture](docs/ARCHITECTURE.md): rationale, decisions, module map.
+- [Developer quick start](ARCHITECTURE.md): conventions, test tiers, how to add code.
+- [Request flow](docs/REQUEST_FLOW.md): one request through the proxy and inspect binds.
+- [Startup flow](docs/STARTUP_FLOW.md): `mike serve` from boot to shutdown.
+- [Features](docs/FEATURES.md): every switch, its default, what it rewrites or sends.
+- [Configuration](docs/CONFIGURATION.md): boot keys and `MIKE_*` variables.
+- [Security](docs/SECURITY.md): what each bind exposes and what leaves the machine.
+- [Schema](docs/SCHEMA.md): the capture database.
+- [MCP bridge](docs/MCP_BRIDGE.md): tool families and profiles of `mike-mcp`.
+
+## Authoritative sources in the code
+
+- CLI: `crates/mike/src/cli.rs`, `crates/mike/src/config/subcommands/mod.rs`, `mike --help`.
+- MCP tools: `crates/mike-mcp/src/tools/catalogue.rs`, `mike-mcp list-tools --full --json`.
+- REST routes: `crates/mike/src/api/manifest/*.rs`.
+- Pipeline order: `pipeline::STAGE_ORDER` in `crates/mike/src/pipeline/mod.rs`.
+- Feature toggles: `crates/mike/src/feature_toggles/mod.rs`.
+- Workers: `crates/mike/src/serve/workers.rs`.
+- Web UI routes: `frontend/src/routes/`.
+- Migrations: `crates/mike/src/store/persistence/migrations/`.

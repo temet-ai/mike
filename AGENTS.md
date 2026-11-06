@@ -6,7 +6,8 @@ Web UI <http://localhost:9990/> · settings <http://localhost:9990/settings> ·
 inspect API <http://localhost:9989/api/requests> · diagrams <http://localhost:9986/> ·
 [Roadmap](https://github.com/orgs/temet-ai/projects/1)
 
-Docs: [`ARCHITECTURE`](docs/ARCHITECTURE.md) ·
+Docs: [`SYSTEM_MAP`](docs/SYSTEM_MAP.md) (read first: every capability, where it lives, how to verify) ·
+[`ARCHITECTURE`](docs/ARCHITECTURE.md) ·
 [`architecture/README`](docs/architecture/README.md) ·
 [`REQUEST_FLOW`](docs/REQUEST_FLOW.md) · [`STARTUP_FLOW`](docs/STARTUP_FLOW.md) ·
 [`SCHEMA`](docs/SCHEMA.md) · [`MCP_BRIDGE`](docs/MCP_BRIDGE.md) ·
