@@ -1165,12 +1165,19 @@ History table for `overrides.overrides`. Every successful INSERT or PATCH writes
 | `memory.turn_outcomes` | `unknown`(1) `accepted`(2) `corrected`(3) `abandoned`(4) `shipped`(5) |
 | `memory.chunk_roles` | `prompt`(1) `assistant`(2) |
 | `memory.lesson_kinds` | `correction`(1) `convention`(2) `warning`(3) `preference`(4) |
-| `memory.lesson_sources` | `agent`(1) `operator`(2) `copilot`(3) `harvester`(4) `directive`(5) `judge`(6) |
+| `memory.lesson_sources` | `agent`(1) `operator`(2) `copilot`(3) `harvester`(4) `directive`(5) `judge`(6) `carry`(7) |
 | `memory.lesson_stages` | `raw`(1) `daily`(2) `long_term`(3) `archived`(4) |
 | `memory.lesson_archived_reasons` | `duplicate`(1) `expired`(2) `trimmed`(3) `superseded`(4) `operator`(5) `rejected_by_operator`(6) `not_a_lesson`(7) |
 | `memory.lesson_relation_kinds` | `supersedes`(1) `refines`(2) `recurs`(3) `contradicts`(4) |
 | `memory.lesson_relation_methods` | `declared`(1) `artifact_reference`(2) `adjudicated`(3) `operator`(4) `write_time`(5) `rewritten`(6) |
 | `memory.lesson_relation_statuses` | `proposed`(1) `confirmed`(2) `rejected`(3) `contested`(4) |
+| `memory.consolidation_run_kinds` | `session`(1) `nightly`(2) `gc`(3) |
+| `memory.consolidation_triggers` | `schedule`(1) `startup_catchup`(2) `manual`(3) |
+| `memory.consolidation_run_statuses` | `running`(1) `completed`(2) `partial`(3) `failed`(4) |
+| `memory.consolidation_action_kinds` | `promoted_to_daily`(1) `promoted_to_long_term`(2) `archived_duplicate`(3) `archived_trimmed`(4) `archived_expired`(5) `deleted_expired`(6) `evaluated`(7) |
+| `memory.consolidation_outcomes` | `applied`(1) `failed`(2) `skipped`(3) |
+| `memory.consolidation_decided_by` | `embedding_distance`(1) `rank_order`(2) `expiry`(3) |
+| `memory.lesson_injection_lanes` | `primary`(1) `subagent`(2) |
 
 ### `memory.operator_turns`
 
@@ -1322,6 +1329,22 @@ embedded independently. Recall takes `MIN(chunk_embedding <=> query_vec)` over a
 
 ---
 
+### `memory.chunk_roles`
+
+Lookup for `memory.operator_turn_chunks.chunk_role_id`: which side of the turn a chunk came from. Seeded
+by the baseline. Deliberately unindexed as an FK target (`20260721030000_missing_fk_indexes.sql`): two
+rows, never deleted.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | |
+
+Seeded rows: `prompt`(1) `assistant`(2).
+
+---
+
+
 ### `memory.lessons`
 
 Operator/agent-authored memory entries scoped to a project. Pulled by `recall_project_context`. `kind_id`,
@@ -1387,6 +1410,421 @@ Columns added by the judgement-context migrations (definition as migrated):
 | Column | Definition |
 |---|---|
 | `portable_origin` | jsonb NOT NULL DEFAULT '{}' |
+
+### `memory.lesson_relations`
+
+Added in `20260729020000_memory_lesson_relations.sql`. Directional "B updates A" graph between lessons
+(`from_lesson_id` is the newer lesson, `to_lesson_id` the older one it supersedes, refines, recurs or
+contradicts). Never a deletion mechanism: a row only records that a relationship was proposed and how it
+was decided; archiving stays with `memory.consolidation_actions`. `candidate_distance` only nominated the
+pair for comparison; direction and kind come from `evidence_json`, the rationales and adjudication. Written
+by `crates/mike/src/lesson_relations/` (detection, rule-based and adjudicated pairs; the `lesson_relations`
+`llm.calls` role) through `store/persistence/lesson_relations.rs`, and at lesson write time by
+`store/persistence/lessons/write_time.rs` (`POST /api/lessons`, methods `write_time` and `rewritten`).
+Operator decisions arrive through `POST /api/memory/relations/{id}/confirm` and `/reject`; reads are
+`GET /api/memory/relations` and `GET /api/lessons/{id}/relations`; the nightly pass
+(`lesson_worker/nightly.rs`, `apply_confirmed_lesson_relations`) acts on confirmed rows. Lesson files
+import relations through `project_knowledge/lesson_relations_import.sql`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `uuid` | `UUID NOT NULL DEFAULT gen_random_uuid()` | Stable surrogate |
+| `from_lesson_id` | `BIGINT NOT NULL` | FK → `memory.lessons(id)` (NO ACTION). The newer, superseding/refining lesson |
+| `to_lesson_id` | `BIGINT NOT NULL` | FK → `memory.lessons(id)` (NO ACTION). The older lesson being updated |
+| `kind_id` | `BIGINT NOT NULL` | FK → `memory.lesson_relation_kinds(id)` |
+| `method_id` | `BIGINT NOT NULL` | FK → `memory.lesson_relation_methods(id)` |
+| `status_id` | `BIGINT NOT NULL` | FK → `memory.lesson_relation_statuses(id)` |
+| `candidate_distance` | `DOUBLE PRECISION NULL` | Cosine distance that nominated the pair; never decides kind, direction or status |
+| `evidence_json` | `JSONB NOT NULL DEFAULT '{}'` | Verifiable claims only: quoted spans, artifact refs, timestamps |
+| `proposer_model` | `TEXT NULL` | |
+| `proposer_rationale` | `TEXT NULL` | The proposer's free-form reasoning |
+| `adjudicator_model` | `TEXT NULL` | |
+| `adjudicator_agrees` | `BOOLEAN NULL` | |
+| `adjudicator_rationale` | `TEXT NULL` | |
+| `detector_version` | `TEXT NOT NULL` | |
+| `proposed_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `decided_at` | `TIMESTAMPTZ NULL` | |
+| `decided_by` | `TEXT NULL` | |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Constraints:**
+- `lesson_relations_not_self`: `from_lesson_id <> to_lesson_id`
+- `lesson_relations_adjudicator_not_proposer`: `adjudicator_model IS NULL OR proposer_model IS NULL OR adjudicator_model <> proposer_model` — a model never adjudicates its own proposal
+- `uq_lesson_relations_from_to_kind`: UNIQUE `(from_lesson_id, to_lesson_id, kind_id)`
+
+**Indexes:**
+- `idx_lesson_relations_from_lesson_id`: `from_lesson_id` (BTree)
+- `idx_lesson_relations_to_lesson_id`: `to_lesson_id` (BTree)
+- `kind_id`/`method_id`/`status_id` are deliberately unindexed: static lookup tables
+
+**Triggers:** `lesson_relation_file_queue` (`20260920000009_lesson_file_sync.sql`) re-queues the
+`from` lesson's portable file in `memory.lesson_file_changes` on every insert, update or delete;
+`trg_lesson_relations_change_generation` / `_upd` (`20261102260000_change_generations.sql`) bump the
+`lessons` row of `memory.change_generations`.
+
+---
+
+### `memory.lesson_relation_kinds`
+
+Lookup for `memory.lesson_relations.kind_id`. Added in `20260729020000_memory_lesson_relations.sql`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | |
+
+Seeded rows: `supersedes`(1) `refines`(2) `recurs`(3) `contradicts`(4).
+
+---
+
+### `memory.lesson_relation_methods`
+
+Lookup for `memory.lesson_relations.method_id`: how the relation was established. Rows 1–4 seeded in
+`20260729020000_memory_lesson_relations.sql`; `write_time` and `rewritten` added by
+`20261014190000_lesson_shape_findings.sql` for relations written with the lesson itself
+(`store/persistence/lessons/write_time.rs`, `shape_apply.rs`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | |
+
+Seeded rows: `declared`(1) `artifact_reference`(2) `adjudicated`(3) `operator`(4) `write_time`(5)
+`rewritten`(6).
+
+---
+
+### `memory.lesson_relation_statuses`
+
+Lookup for `memory.lesson_relations.status_id`. Added in `20260729020000_memory_lesson_relations.sql`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | |
+
+Seeded rows: `proposed`(1) `confirmed`(2) `rejected`(3) `contested`(4).
+
+---
+
+### `memory.consolidation_runs`
+
+Added in `20260729010000_memory_consolidation_audit.sql`. One row per consolidation pass of the lesson
+worker: `session` (`lesson_worker/session_consolidation.rs`), `nightly` (`lesson_worker/nightly.rs`) or
+`gc` (`lesson_worker/gc.rs`). Runs exist only to group and time; all meaning lives on
+`memory.consolidation_actions`, and there are deliberately no count columns here (totals are computed
+on read). The row is inserted as `running` at pass start (`start_consolidation_run`,
+`store/persistence/consolidation_audit.rs`) and updated at pass end (`finish_consolidation_run`), so a
+crashed pass shows as a stale running row; the already-ran-today gate is `status IN (completed, partial)`
+so a failed run does not block a retry. Read through `store/persistence/consolidation_reads/` for
+`GET /api/memory/consolidation/runs` and `GET /api/memory/consolidation/runs/{id}`, by the Session Flow
+projection (`session_flow/mike_memory.rs`) and the trace export (`api/session_flow/export_trace.rs`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `uuid` | `UUID NOT NULL DEFAULT gen_random_uuid()` | Stable surrogate |
+| `run_kind_id` | `BIGINT NOT NULL` | FK → `memory.consolidation_run_kinds(id)` |
+| `trigger_id` | `BIGINT NOT NULL` | FK → `memory.consolidation_triggers(id)` |
+| `status_id` | `BIGINT NOT NULL` | FK → `memory.consolidation_run_statuses(id)` |
+| `started_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `finished_at` | `TIMESTAMPTZ NULL` | NULL exactly while `status_id = running`; set once the pass completes, partially completes, or fails |
+| `error` | `TEXT NULL` | |
+
+**Constraints:**
+- `consolidation_runs_finished_consistent`: `(status_id = 1) = (finished_at IS NULL)`
+
+**Indexes:**
+- `idx_consolidation_runs_started_at`: `started_at DESC` (BTree)
+- `run_kind_id`/`trigger_id`/`status_id` are deliberately unindexed: static lookup tables
+
+**Triggers:** `trg_consolidation_runs_row_changed` (insert/delete) and
+`trg_consolidation_runs_row_changed_update` (update, only when a value changed) call
+`mike.notify_row_changed_consolidation_runs()`, which `pg_notify`s `proxy.row_changed` with
+`{table: 'consolidation_runs', id, op}` and no `session_id` (the table is global).
+
+---
+
+### `memory.consolidation_run_kinds`
+
+Lookup for `memory.consolidation_runs.run_kind_id`. Added in `20260729010000_memory_consolidation_audit.sql`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | |
+
+Seeded rows: `session`(1) `nightly`(2) `gc`(3).
+
+---
+
+### `memory.consolidation_triggers`
+
+Lookup for `memory.consolidation_runs.trigger_id`: what started the pass. Added in
+`20260729010000_memory_consolidation_audit.sql`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | |
+
+Seeded rows: `schedule`(1) `startup_catchup`(2) `manual`(3).
+
+---
+
+### `memory.consolidation_run_statuses`
+
+Lookup for `memory.consolidation_runs.status_id`. Added in `20260729010000_memory_consolidation_audit.sql`.
+`running` is a durable in-flight marker, not just a terminal label (see `memory.consolidation_runs`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | |
+
+Seeded rows: `running`(1) `completed`(2) `partial`(3) `failed`(4).
+
+---
+
+### `memory.consolidation_actions`
+
+Added in `20260729010000_memory_consolidation_audit.sql`. One row per lesson per consolidation decision:
+the decision record of what a pass evaluated, how it decided and against what. Identity and text columns
+are denormalised on purpose, because GC hard-deletes the lesson row: the `_uuid`/`_text`/`files_touched`
+copies are what survive the delete, and `lesson_text` carries the full text on every row, never sliced.
+Written by `record_consolidation_actions` (`store/persistence/consolidation_audit/record_actions.sql`) from
+`store/persistence/lessons/consolidation.rs` and `retention.rs`; `project_merge.rs` re-points
+`project_id` when projects merge. Read through `store/persistence/consolidation_reads/` for
+`GET /api/memory/decisions` (the run-agnostic newest-first decision feed), `GET /api/lessons/{id}/history`,
+`GET /api/sessions/{id}/memory-actions` and the run detail route, and by the Session Flow projection
+(`session_flow/mike_memory.rs`, `session_flow/cursor.rs`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `run_id` | `BIGINT NOT NULL` | FK → `memory.consolidation_runs(id)` ON DELETE CASCADE |
+| `lesson_id` | `BIGINT NULL` | FK → `memory.lessons(id)` ON DELETE SET NULL |
+| `lesson_uuid` | `UUID NOT NULL` | Survives the lesson's hard delete |
+| `project_id` | `BIGINT NULL` | FK → `projects.projects(id)` ON DELETE SET NULL |
+| `session_id` | `BIGINT NULL` | FK → `sessions.sessions(id)` ON DELETE SET NULL |
+| `session_uuid` | `UUID NULL` | Denormalised session UUID; what the row-change notification carries |
+| `source_turn_id` | `BIGINT NULL` | FK → `memory.operator_turns(id)` ON DELETE SET NULL |
+| `files_touched` | `TEXT[] NULL` | |
+| `agent_id` | `BIGINT NULL` | FK → `agents.agents(id)` ON DELETE SET NULL |
+| `lesson_text` | `TEXT NOT NULL` | The full lesson text being judged, on every action row |
+| `action_kind_id` | `BIGINT NOT NULL` | FK → `memory.consolidation_action_kinds(id)` |
+| `outcome_id` | `BIGINT NOT NULL` | FK → `memory.consolidation_outcomes(id)` |
+| `error` | `TEXT NULL` | The specific skip/failure cause (empty embedding, embed error, neighbour search error, …) |
+| `before_stage_id` | `BIGINT NULL` | FK → `memory.lesson_stages(id)` |
+| `after_stage_id` | `BIGINT NULL` | FK → `memory.lesson_stages(id)` |
+| `decided_by_id` | `BIGINT NULL` | FK → `memory.consolidation_decided_by(id)` |
+| `distance` | `REAL NULL` | Measured cosine distance at decision time |
+| `threshold` | `REAL NULL` | The threshold in effect at decision time, so a later config change cannot rewrite history |
+| `embedding_model` | `TEXT NULL` | |
+| `counterpart_lesson_id` | `BIGINT NULL` | FK → `memory.lessons(id)` ON DELETE SET NULL. The neighbour this lesson was judged against |
+| `counterpart_uuid` | `UUID NULL` | |
+| `counterpart_text` | `TEXT NULL` | The neighbour's text, so both sides of the decision are visible |
+| `runners_up` | `JSONB NOT NULL DEFAULT '[]'` | Ranks 2–3 of the compared neighbour set: `[{lesson_id, distance}, …]` |
+| `rank_detail` | `JSONB NULL` | Trim-only evidence: the `consolidation_count`/`created_at` rank and the excess `n` that made the row a target |
+| `injection_count` | `INTEGER NULL` | How many times the lesson had been injected as of this decision; the only place that evidence survives a GC delete |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Constraints:**
+- `consolidation_actions_outcome_error_consistent`: `(outcome_id = 1) = (error IS NULL)`
+
+**Indexes:**
+- `idx_consolidation_actions_run_id`: `run_id` (BTree)
+- `idx_consolidation_actions_lesson_id`: `lesson_id` (BTree)
+- `idx_consolidation_actions_session_id`: `session_id` (BTree)
+- `idx_consolidation_actions_source_turn_id`: `source_turn_id` (BTree)
+- `idx_consolidation_actions_project_created`: `(project_id, created_at DESC)` (BTree)
+- `idx_consolidation_actions_counterpart_lesson_id`: `counterpart_lesson_id` (BTree)
+- `idx_consolidation_actions_agent_id`: `agent_id` (BTree)
+- `idx_consolidation_actions_files_touched`: `files_touched` (GIN)
+- `idx_consolidation_actions_created_at`: `created_at DESC` (BTree) — the run-agnostic decision feed
+- `action_kind_id`/`outcome_id`/`before_stage_id`/`after_stage_id`/`decided_by_id` are deliberately unindexed: static lookup tables
+
+**Triggers:** `trg_consolidation_actions_row_changed` (insert/delete) and
+`trg_consolidation_actions_row_changed_update` (update, only when a value changed) call
+`mike.notify_row_changed_consolidation_actions()`, which `pg_notify`s `proxy.row_changed` with
+`{table: 'consolidation_actions', id, session_id: session_uuid, op}`.
+
+---
+
+### `memory.consolidation_action_kinds`
+
+Lookup for `memory.consolidation_actions.action_kind_id`. Added in
+`20260729010000_memory_consolidation_audit.sql`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | |
+
+Seeded rows: `promoted_to_daily`(1) `promoted_to_long_term`(2) `archived_duplicate`(3)
+`archived_trimmed`(4) `archived_expired`(5) `deleted_expired`(6) `evaluated`(7).
+
+---
+
+### `memory.consolidation_outcomes`
+
+Lookup for `memory.consolidation_actions.outcome_id`. Added in
+`20260729010000_memory_consolidation_audit.sql`. `applied` is the only outcome with a NULL `error`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | |
+
+Seeded rows: `applied`(1) `failed`(2) `skipped`(3).
+
+---
+
+### `memory.consolidation_decided_by`
+
+Lookup for `memory.consolidation_actions.decided_by_id`: the rule that decided the action. Added in
+`20260729010000_memory_consolidation_audit.sql`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | |
+
+Seeded rows: `embedding_distance`(1) `rank_order`(2) `expiry`(3).
+
+---
+
+### `memory.lesson_injections`
+
+Added in `20260729010000_memory_consolidation_audit.sql`. Live attribution: which request got which lesson
+injected. CASCADE (not SET NULL) on `lesson_id`/`request_id` because this table tracks rows that still
+exist; it is not an audit trail meant to survive its subjects' deletion
+(`memory.consolidation_actions.injection_count` carries that evidence past a GC delete). The proxy's lesson
+stage writes a row per injected lesson (`record_lesson_injections`,
+`store/persistence/lesson_injections/record.rs`, `origin = 'proxy'`); when the mike mod delivered the
+lessons as hook context instead, the proxy finds `[lesson:<id>]`-tagged text already in the client's
+request and writes one row per session and lesson on the first request that carried it
+(`record_mod_lesson_injections`, `mod_origin.rs`, `origin = 'mod'`); `backfill.rs` is the historical
+lesson→request backfill. Read by `GET /api/memory/lesson-outcomes` (`outcomes.rs`),
+`GET /api/sessions/{id}/lessons` (`session.rs`), the arm comparison (`arm_comparison.rs`), the
+improvement exposures queries (`improvement/lesson_exposures*.sql`), `consolidation_reads/lesson_injections.sql`,
+`session_delivery/evidence.rs` and the Session Flow projection (`session_flow/mike_requests.rs`, `cursor.rs`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `lesson_id` | `BIGINT NOT NULL` | FK → `memory.lessons(id)` ON DELETE CASCADE |
+| `request_id` | `BIGINT NOT NULL` | FK → `requests.requests(id)` ON DELETE CASCADE |
+| `session_id` | `BIGINT NULL` | FK → `sessions.sessions(id)` ON DELETE SET NULL |
+| `injected_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `lane_id` | `BIGINT NOT NULL` | FK → `memory.lesson_injection_lanes(id)` |
+| `persona` | `TEXT NULL` | |
+| `origin` | `TEXT NOT NULL DEFAULT 'proxy'` | Added by `20261014220000_lesson_injection_origin.sql`. `proxy`: the proxy's lesson stage added the text to the outgoing request. `mod`: the mike mod added it as hook context and the client sent it |
+
+**Constraints:**
+- `lesson_injections_origin_check`: `origin IN ('proxy', 'mod')`
+
+**Indexes:**
+- `idx_lesson_injections_lesson_id`: `lesson_id` (BTree)
+- `idx_lesson_injections_request_id`: `request_id` (BTree)
+- `idx_lesson_injections_session_injected`: `(session_id, injected_at DESC)` (BTree)
+- `idx_lesson_injections_lesson_request`: UNIQUE `(lesson_id, request_id)` (`20260729020000_memory_lesson_relations.sql`) — the `ON CONFLICT` arbiter for the backfill and the mod recorder
+- `lane_id` is deliberately unindexed: two-row static lookup table
+
+**Triggers:** `trg_lesson_injections_row_changed` (insert/delete) and
+`trg_lesson_injections_row_changed_update` (update, only when a value changed) call
+`mike.notify_row_changed_lesson_injections()`, which `pg_notify`s `proxy.row_changed` with
+`{table: 'lesson_injections', id, session_id, op}`; `session_id` is resolved from `session_id` when set,
+else through `request_id`.
+
+---
+
+### `memory.lesson_injection_lanes`
+
+Lookup for `memory.lesson_injections.lane_id`: which request lane the lesson was injected into. Added in
+`20260729010000_memory_consolidation_audit.sql`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | |
+
+Seeded rows: `primary`(1) `subagent`(2).
+
+---
+
+### `memory.lesson_delivery_arms`
+
+Added in `20261014180000_mod_lesson_delivery.sql`, with the `mod_lesson_delivery` feature toggle (global,
+default off). While the toggle is on, the mike mod adds lessons as hook context at prompt submit and the
+proxy stops injecting lessons into the sessions the mod serves; a stable share of sessions stays on proxy
+injection as the control group. One row per session that asked, recording which arm it is in and what the
+mod delivered to it. Written by `record_lesson_delivery`
+(`store/persistence/lesson_injections/delivery_arm.rs`) from `POST /api/lessons/for-prompt`; read by
+`compare_lesson_delivery_arms` (`arm_comparison.rs`) for `GET /api/lessons/delivery-comparison`, the
+weekly audit's bounded measurement of the two arms.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `session_uuid` | `UUID PRIMARY KEY` | |
+| `arm` | `TEXT NOT NULL` | CHECK `IN ('mod', 'control')` |
+| `decided_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `last_delivery_at` | `TIMESTAMPTZ NULL` | Set only by a delivery that carried at least one lesson |
+| `deliveries` | `INTEGER NOT NULL DEFAULT 0` | Count of deliveries that carried at least one lesson |
+| `lessons_delivered` | `INTEGER NOT NULL DEFAULT 0` | Running total of lessons delivered |
+| `bytes_delivered` | `BIGINT NOT NULL DEFAULT 0` | Running total of bytes delivered |
+
+**Indexes:**
+- `idx_lesson_delivery_arms_decided_at`: `decided_at DESC` (BTree)
+
+---
+
+### `memory.change_generations`
+
+Added in `20261102260000_change_generations.sql`. A change counter per derived dataset, bumped by
+row-level triggers on the tables the dataset reads. Workers that cache a dataset in memory read one row by
+primary key to learn whether to reload, instead of hashing the source tables on every tick. The UPDATE
+triggers fire only when a watched value really changed, so no-op writes (re-projection, upserts that change
+nothing, `last_seen` bumps) leave the counters alone. `memory.bump_change_generation()` is the trigger
+function; its arguments name the rows to bump. Read by `store/persistence/lessons/injectable.rs` (the
+`lessons` row, together with a count of lessons past `expires_at`, since a lesson can leave the injectable
+set by time without a write), `lessons/vectors.rs` (`lessons`) and `project_knowledge/session_scope.rs`
+(`session_projects`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `name` | `TEXT PRIMARY KEY` | The derived dataset |
+| `generation` | `BIGINT NOT NULL DEFAULT 0` | Incremented on every relevant change |
+| `changed_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+Seeded rows: `lessons`, `session_projects`.
+
+**Triggers that bump it:**
+- `lessons`: `trg_lessons_change_generation`/`_upd` on `memory.lessons`, `trg_lesson_relations_change_generation`/`_upd` on `memory.lesson_relations`, `trg_lesson_shape_findings_change_generation`/`_upd` on `memory.lesson_shape_findings`
+- `lessons` and `session_projects`: `trg_projects_path_change_generation`/`_upd` on `projects.projects` (insert, delete, change of `project_path`)
+- `session_projects`: `trg_sessions_project_change_generation`/`_del`/`_upd` on `sessions.sessions` (rows with a `location_uuid` or `project_resolution = 'operator'`; updates of `project_id`, `location_uuid`, `project_resolution`)
+
+The same migration adds `idx_lessons_expires_at` on `memory.lessons (expires_at) WHERE expires_at IS NOT NULL`
+for the expiry count.
+
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ### `memory.session_embeddings`
 
@@ -1476,6 +1914,129 @@ filtered/sorted/joined on) — the same rationale as `memory.operator_turns.tool
 
 ---
 
+### `memory.knowledge_documents`
+
+Added in `20260920000008_project_knowledge.sql`. One row per file path the collector has reported under a
+`memory.knowledge_sources` root; the row is the document's identity across revisions. A complete scan
+(`store/persistence/project_knowledge/documents.rs`, `POST /api/knowledge/sources/{id}/scan`) inserts or
+un-deletes a row per reported path, appends a `memory.knowledge_revisions` row when the content, title,
+kind, status or metadata changed (`ingest.sql`, ignoring `source_git_commit` and `source_worktree_dirty`)
+and points `current_revision` at it, and soft-deletes rows whose path the scan did not report. Read by
+`read.sql`, `search.sql` and `guidance.sql` (`GET /api/knowledge/read` / MCP `read_project_knowledge`,
+`GET /api/knowledge/search` / MCP `search_project_knowledge`), the `memory.knowledge_embedding_sources_v`
+view and `machine_merge.rs`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `document_uuid` | `UUID PRIMARY KEY DEFAULT gen_random_uuid()` | |
+| `source_uuid` | `UUID NOT NULL` | FK → `memory.knowledge_sources(source_uuid)` (NO ACTION) |
+| `relative_path` | `TEXT NOT NULL` | Path under the source root |
+| `current_revision` | `BIGINT NULL` | The newest revision; see the deferred FK below |
+| `deleted_at` | `TIMESTAMPTZ NULL` | Set when a complete scan no longer reports the path; cleared when it reappears |
+
+**Constraints:**
+- UNIQUE `(source_uuid, relative_path)`
+- `knowledge_current_revision`: FK `(document_uuid, current_revision)` → `memory.knowledge_revisions(document_uuid, id)` DEFERRABLE INITIALLY DEFERRED, so a revision can be inserted and pointed at in one transaction
+
+**Indexes:**
+- `knowledge_documents_source`: `(source_uuid, deleted_at)` (BTree)
+
+---
+
+### `memory.knowledge_revisions`
+
+Added in `20260920000008_project_knowledge.sql`. Immutable full source text and metadata of one observed
+version of a `memory.knowledge_documents` row; search results refer to these revisions, and generated OKF
+bundles are not original sources. Appended by `ingest.sql` (see `memory.knowledge_documents`). The `artifact`
+rows of `memory.knowledge_embedding_sources_v` are keyed by revision id, so a new revision is a new
+embedding source. Read by `read.sql`, `search.sql`, `guidance.sql`, `pending_embeddings.sql` and
+`machine_merge.rs`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `document_uuid` | `UUID NOT NULL` | FK → `memory.knowledge_documents(document_uuid)` (NO ACTION) |
+| `title` | `TEXT NOT NULL` | |
+| `body` | `TEXT NOT NULL` | Full source text, stored whole |
+| `content_hash` | `TEXT NOT NULL` | The collector's hash of the content; a changed hash is a new revision |
+| `kind` | `TEXT NOT NULL` | |
+| `status` | `TEXT NOT NULL DEFAULT 'unknown'` | |
+| `metadata` | `JSONB NOT NULL DEFAULT '{}'` | |
+| `observed_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `search_tsv` | `TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', title \|\| ' ' \|\| body)) STORED` | Kept for `ts_rank_cd` in `search.sql` |
+
+**Constraints:**
+- UNIQUE `(document_uuid, id)` — the target of the deferred `knowledge_current_revision` FK
+
+**Indexes:** none. `knowledge_revision_search` (GIN over `search_tsv`, 338 MB, unusable behind the OR in
+`search.sql`) was dropped by `20260930010100_drop_knowledge_revision_search.sql`.
+
+---
+
+### `memory.knowledge_embedding_state`
+
+Created in `20260920000010_knowledge_embeddings.sql` keyed by a text `reference` and a content hash;
+reshaped by `20261102210000_knowledge_embedding_typed_sources.sql` to be keyed by `(source_kind, source_id)`
+and to detect change from a version the source keeps instead of hashing every source on every read:
+`artifact` by the revision id itself, `note` by `workspace.session_notes.updated_at`, `thread` by the
+thread's newest `mailbox.messages` id, `lesson` by `memory.lessons.text_md5`. One row per source the
+project-knowledge embedding sweep (`crates/mike/src/embed_worker/knowledge.rs`, lease role
+`knowledge_embedding`) has attempted. `pending_embeddings.sql` picks sources from
+`memory.knowledge_embedding_sources_v` that have no row, a different `model_key`, a drifted version, or a
+due retry (`next_attempt_at <= now()` with `attempts < 10` or a `[transient]` error);
+`save_knowledge_embeddings` (`store/persistence/project_knowledge/embeddings.rs`) writes the row and its
+`memory.knowledge_embedding_chunks`. The knowledge health reads (`embedding_health_all.sql`,
+`embedding_health_project.sql`) count ready and failed rows per model, capped at `KNOWLEDGE_COUNT_CAP`;
+`search.sql` and `guidance.sql` join it for semantic search.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key (since `20261102210000`) |
+| `source_kind` | `TEXT NOT NULL` | CHECK `IN ('artifact', 'lesson', 'note', 'thread')` |
+| `source_id` | `BIGINT NOT NULL` | `memory.knowledge_revisions.id`, `memory.lessons.id`, `workspace.session_notes.id` or `mailbox.threads.id` by kind; no FK |
+| `model_key` | `TEXT NOT NULL` | The embedder the vectors came from; a different key re-embeds the source |
+| `completed_at` | `TIMESTAMPTZ NULL` | NULL until the source has vectors |
+| `attempts` | `INTEGER NOT NULL DEFAULT 0` | |
+| `next_attempt_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `last_error` | `TEXT NULL` | `[transient]`-prefixed errors retry past the attempt cap |
+| `source_updated_at` | `TIMESTAMPTZ NULL` | The note's `updated_at` the vectors match; `note` only |
+| `source_seq` | `BIGINT NULL` | The thread's newest message id the vectors match; `thread` only |
+| `source_hash` | `TEXT NULL` | The lesson's `text_md5` the vectors match; `lesson` only |
+
+**Constraints:**
+- `knowledge_embedding_state_source_kind_check`: `source_kind IN ('artifact', 'lesson', 'note', 'thread')`
+- `knowledge_embedding_state_version_shape_check`: `(source_kind = 'note' OR source_updated_at IS NULL) AND (source_kind = 'thread' OR source_seq IS NULL) AND (source_kind = 'lesson' OR source_hash IS NULL)`
+
+**Indexes:**
+- `knowledge_embedding_state_source_key`: UNIQUE `(source_kind, source_id)` (BTree)
+- `idx_knowledge_embedding_state_failed`: `model_key WHERE last_error IS NOT NULL` (BTree partial, `20261102410001`) — the capped failure count
+- `idx_knowledge_embedding_state_ready`: `model_key WHERE completed_at IS NOT NULL` (BTree partial, `20261102410002`) — the capped ready count after a model change
+
+---
+
+### `memory.knowledge_embedding_chunks`
+
+Added in `20260920000010_knowledge_embeddings.sql`; re-keyed from `(reference, ordinal)` to
+`(state_id, ordinal)` by `20261102210000_knowledge_embedding_typed_sources.sql`. The chunked text and vector
+of one embedded source, written with its `memory.knowledge_embedding_state` row by
+`save_knowledge_embeddings` and replaced whole when the source is re-embedded. Read by `search.sql` and
+`guidance.sql` for semantic project-knowledge search.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `state_id` | `BIGINT NOT NULL` | FK → `memory.knowledge_embedding_state(id)` ON DELETE CASCADE |
+| `ordinal` | `INTEGER NOT NULL` | Chunk position within the source |
+| `body` | `TEXT NOT NULL` | The chunk's text |
+| `embedding` | `public.vector(768) NOT NULL` | |
+
+**Primary key:** `(state_id, ordinal)`.
+
+---
+
+
+
+
+
 ### `memory.knowledge_sources` (collector health columns)
 
 The table itself was added in `20260920000008_project_knowledge.sql`: one row per explicitly registered
@@ -1501,6 +2062,55 @@ location for the current version, so it includes conflicted ones; `conflicted`: 
 `memory.lesson_file_conflicts`).
 
 ---
+
+### `memory.lesson_file_changes`
+
+Added in `20260920000009_lesson_file_sync.sql`. Transactional coalescing outbox of portable lesson
+revisions, including deletion tombstones: one row per lesson, re-projected from `memory.portable_lesson_v`
+by trigger `lesson_file_queue` on `memory.lessons` and `lesson_relation_file_queue` on
+`memory.lesson_relations` (`memory.queue_lesson_file()`, `memory.queue_lesson_relation_file()`).
+`version` increments only when the projected payload or project actually changed; a deleted lesson leaves
+a payload of `{lesson_uuid, deleted: true}`. The migration seeds a row for every lesson that existed.
+Filesystem delivery is acknowledged per location and version in `memory.lesson_file_receipts`. Read by
+`lesson_files` (`store/persistence/project_knowledge/lesson_sync.rs`, `GET /api/knowledge/lessons`), which
+hands a location every change with the version it last acknowledged; by the knowledge health read
+(`health.sql`, "pending" = changes with no receipt at the current version); `project_merge.rs` re-points
+`project_id` when projects merge.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `lesson_uuid` | `UUID PRIMARY KEY` | `memory.lessons.uuid`; no FK, so the tombstone outlives the lesson |
+| `project_id` | `BIGINT NOT NULL` | FK → `projects.projects(id)` (NO ACTION) |
+| `version` | `BIGINT NOT NULL DEFAULT 1` | Bumped on each real change of the payload |
+| `payload` | `JSONB NOT NULL` | The portable lesson document from `memory.portable_lesson_v`, or the deletion tombstone |
+| `changed_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Indexes:**
+- `lesson_file_changes_project`: `(project_id, lesson_uuid)` (BTree)
+
+---
+
+### `memory.lesson_file_receipts`
+
+Added in `20260920000009_lesson_file_sync.sql`. Which version of each lesson file a location's collector
+has written to disk: one row per `(location, lesson)`, upserted by `acknowledge_lesson_files`
+(`store/persistence/project_knowledge/lesson_sync.rs`, `POST /api/knowledge/lessons/ack`), which also
+clears the matching `memory.lesson_file_conflicts` row. A change whose receipt is behind
+`memory.lesson_file_changes.version` is pending for that location. `machine_merge.rs` moves receipts when
+machines merge.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `location_uuid` | `UUID NOT NULL` | FK → `projects.locations(location_uuid)` (NO ACTION) |
+| `lesson_uuid` | `UUID NOT NULL` | FK → `memory.lesson_file_changes(lesson_uuid)` (NO ACTION) |
+| `version` | `BIGINT NOT NULL` | The `lesson_file_changes.version` the location wrote |
+| `written_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Refreshed on each acknowledgement |
+
+**Primary key:** `(location_uuid, lesson_uuid)`.
+
+---
+
+
 
 ### `memory.lesson_file_conflicts`
 
@@ -1647,6 +2257,27 @@ The session class stays in `session_class` / `session_class_rule`; its evidence 
 
 ---
 
+### `memory.turn_facts_backstop_attempts`
+
+Added in `20261102230000_turn_facts_backstop_attempts.sql`. The dossier backstop used to re-serve every
+turn whose captured sources were not yet consistent on each 60 s tick, forever, and such sessions sorted
+first and filled the batch. Each time the backstop serves a stale turn, the candidates query
+(`store/persistence/turn_facts/candidates.sql`) now records an attempt here and skips the turn until
+`retry_after` (60 s, doubling per attempt, capped at 1 h), and for good once `unbuildable_at` is set, which
+happens when the attempt count reaches the query's cap parameter. Writing the turn's facts deletes its
+row (`turn_facts/upsert.sql`, `turn_facts/write.rs`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `operator_turn_id` | `BIGINT PRIMARY KEY` | FK → `memory.operator_turns(id)` ON DELETE CASCADE |
+| `attempt_count` | `INTEGER NOT NULL` | CHECK `> 0` |
+| `last_attempt_at` | `TIMESTAMPTZ NOT NULL` | |
+| `retry_after` | `TIMESTAMPTZ NOT NULL` | The turn is left alone until this time |
+| `unbuildable_at` | `TIMESTAMPTZ NULL` | Set once the attempt cap is reached; the turn is then skipped permanently |
+
+---
+
+
 ### `memory.ask_ledger_entries` (widened by `20260924180000_ask_ledger_dossier_entries.sql`)
 
 The ask ledger gains the request that carried each ask and who set its kind. `kind` also accepts
@@ -1664,6 +2295,66 @@ The ask ledger gains the request that carried each ask and who set its kind. `ki
 operator turn the steerer missed. The verifier and the intake author read only rows whose request is
 classified `operator` (`fetch_ask_ledger_for_model`); the inspection route returns every row with a
 `genuine` flag.
+
+### `memory.acceptance_criteria_maps`
+
+Added in `20260820000002_acceptance_criteria_maps.sql` (GitHub issue #152). One authoring of a session's
+acceptance criteria from the operator's accumulated words only, by a worker that never sees the session's
+own restatement of the ask (`crates/mike/src/steerer/intake_criteria/`, called from
+`steerer/fleet/ask_ledger.rs` after an ask-ledger entry when `should_reauthor` says the newest entry is
+beyond `last_ask_entry_id`). The map is re-authored per operator turn as a new `version` rather than
+overwritten, so the change between versions stays visible; the newest version is what a stop is graded
+against (`steerer/fleet/verifier_judge.rs`, `store/persistence/verifier_replay.rs`). Written by
+`store/persistence/acceptance_criteria.rs`; read by `GET /api/sessions/{id}/acceptance-criteria` and the
+ask-ledger recount SQL (`ask_ledger_backfill/`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `session_id` | `BIGINT NOT NULL` | FK → `sessions.sessions(id)` ON DELETE CASCADE |
+| `version` | `INTEGER NOT NULL` | 1 for the first authoring, incrementing per re-author |
+| `ask_entry_count` | `INTEGER NOT NULL` | How many ask-ledger entries the worker was shown |
+| `model` | `TEXT NULL` | The model that authored it |
+| `output_tokens` | `INTEGER NULL` | Output tokens billed; NULL when the provider reported no usage |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `last_ask_entry_id` | `BIGINT NULL` | Added by `20261007100000_acceptance_criteria_last_ask_entry.sql` and backfilled from `memory.ask_ledger_entries`; the newest entry the authoring saw, so a later entry triggers a re-author. No FK |
+
+**Constraints:**
+- `acceptance_criteria_maps_version_positive`: `version >= 1`
+- `acceptance_criteria_maps_session_version_uniq`: UNIQUE `(session_id, version)` — also serves the newest-version lookup
+
+---
+
+### `memory.acceptance_criteria`
+
+Added in `20260820000002_acceptance_criteria_maps.sql` (issue #152). One criterion within a map, as a row
+rather than a jsonb entry because each carries its own provenance and must be individually addressable.
+`operator` restates something the operator said, with the words in `operator_span`; `inferred` came from
+repo context and is what an operator should look at first. Issue #153 requires each criterion to name the
+state of the surface after the change, never the artifact added (`steerer/criteria_contract.rs` rejects
+artifact-scoped criteria before they are stored).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `map_id` | `BIGINT NOT NULL` | FK → `memory.acceptance_criteria_maps(id)` ON DELETE CASCADE |
+| `ord` | `INTEGER NOT NULL` | Position within the map |
+| `criterion` | `TEXT NOT NULL` | |
+| `provenance` | `TEXT NOT NULL` | `operator` or `inferred` |
+| `operator_span` | `TEXT NULL` | The operator's own words the criterion rests on; required for `operator`, forbidden for `inferred` |
+
+**Constraints:**
+- `acceptance_criteria_provenance_check`: `provenance IN ('operator', 'inferred')`
+- `acceptance_criteria_operator_span_backs_the_claim`: `(provenance = 'operator' AND operator_span IS NOT NULL AND length(trim(operator_span)) > 0) OR (provenance = 'inferred' AND operator_span IS NULL)`
+- `acceptance_criteria_non_empty`: `length(trim(criterion)) > 0`
+- `acceptance_criteria_map_ord_uniq`: UNIQUE `(map_id, ord)`
+
+**Indexes:**
+- `idx_acceptance_criteria_map_ord`: `(map_id, ord)` (BTree) — the join from the newest map
+
+---
+
+
 
 ### `memory.dossier_entries`
 
@@ -1900,6 +2591,76 @@ after the third. A model refusal from the call limiter is not a failure.
 | `last_error` | `TEXT NOT NULL` | The last failure's reason |
 | `last_failed_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | |
 
+### `memory.skill_policies`
+
+Added in `20261014210000_skill_review_controls.sql`, for the Skills page (`/skills`, routes under
+`/api/skills` in `crates/mike/src/api/skills/`). Whether mike may write learned skills into a project's
+checkouts on its own: `auto` (the promoter, `scripts/learning_audit/promote.py`, ships drafts that passed
+evaluation, or a generated skill when there is none) or `ask` (it ships only drafts the user approved). A
+project with no row is `ask`, so a project first seen after this table was created never receives a skill
+unasked; the migration writes `auto` for every unmerged project that existed when it ran. Read and written
+by `store/persistence/lessons/skill_review.rs` and `skill_review_writes.rs`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `project_id` | `BIGINT PRIMARY KEY` | FK → `projects.projects(id)` ON DELETE CASCADE |
+| `mode` | `TEXT NOT NULL` | CHECK `IN ('auto', 'ask')` |
+| `changed_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `changed_by` | `TEXT NOT NULL` | |
+
+---
+
+### `memory.skill_retirements`
+
+Added in `20261014210000_skill_review_controls.sql`. Skill folders the user retired on the Skills page. The
+promoter removes them from every checkout and does not write them again until the user restores the
+folder, which deletes the row. Read and written by `store/persistence/lessons/skill_review.rs` and
+`skill_review_writes.rs`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `project_id` | `BIGINT NOT NULL` | FK → `projects.projects(id)` ON DELETE CASCADE |
+| `folder` | `TEXT NOT NULL` | The skill folder name |
+| `retired_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Primary key:** `(project_id, folder)`.
+
+---
+
+### `memory.skill_installs`
+
+Added in `20261014210000_skill_review_controls.sql`. What the learning promoter last wrote into project
+checkouts on each machine, reported by the promoter at the end of every run through
+`POST /api/skills/installs` (`store/persistence/lessons/skill_review_writes.rs`; each report replaces that
+machine's rows): the `SKILL.md` path, the draft it came from (NULL for the generated skill), when it was
+first written and, once removed, when and why. `lessons/skill_coverage.sql` uses the live rows to decide
+which `skill`-placed lessons a shipped skill already covers (lessons at or below the install's
+`lesson_watermark` whose topic slug matches the folder). Read by the Skills page (`skill_review.rs`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `machine_uuid` | `UUID NOT NULL` | No FK to `projects.machines` |
+| `project_id` | `BIGINT NOT NULL` | FK → `projects.projects(id)` ON DELETE CASCADE |
+| `folder` | `TEXT NOT NULL` | The skill folder name |
+| `machine_name` | `TEXT NOT NULL` | |
+| `skill_path` | `TEXT NOT NULL` | The `SKILL.md` path on that machine |
+| `draft_id` | `BIGINT NULL` | FK → `memory.skill_drafts(id)` ON DELETE SET NULL; NULL for the generated skill |
+| `lesson_watermark` | `BIGINT NOT NULL` | The highest lesson id the shipped skill was built from |
+| `first_written` | `DATE NOT NULL` | |
+| `retired_at` | `DATE NULL` | When the promoter removed it |
+| `retired_reason` | `TEXT NULL` | CHECK `IN ('unloaded', 'corrected_above_base', 'user', 'policy')` (`corrected_above_base` added by `20261015090000_skill_install_corrected_reason.sql`): `unloaded` no load in 30 days; `corrected_above_base` at least 10 loads and the turns that loaded it were corrected more often than the project's turns over the same window; `user` retired on the Skills page; `policy` the project asks first and the user has not approved it |
+| `reported_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Primary key:** `(machine_uuid, project_id, folder)`.
+
+**Indexes:**
+- `skill_installs_project_idx`: `(project_id, folder)` (BTree)
+
+---
+
+
+
+
 ### The user's decisions on rule and agent proposals
 
 Added in migration `20261016100000_lesson_placement_reviews.sql`, for the Proposals page
@@ -1973,6 +2734,59 @@ identifier, in `CREATE TABLE` or in an `INSERT` column list.
 
 **Indexes:** `idx_lesson_proposal_evidence_lesson` on `lesson_id WHERE NOT NULL`;
 `idx_lesson_proposal_evidence_turn` on `operator_turn_id`.
+
+### `memory.lesson_proposal_jobs`
+
+Added in `20261005000000_learning_proposal_queue.sql`. One durable replay job per verdict for the lesson
+proposer (`crates/mike/src/lesson_proposer/`, queue code in
+`store/persistence/lessons/proposals/queue.rs`): when a proposal has been produced but cannot be written
+because embedding is unavailable, the immutable proposer inputs and the wire response are saved here as
+`awaiting_embedding` and replayed once `next_attempt_at` is due (back-off `15 * 2^n` s capped at 1 h,
+`retry_count` capped at 16), ending `applied`; a job whose verdict is no longer in
+`memory.lesson_eligible_corrections_v` becomes `rejected`. JSONB holds replay DTOs, not filter keys; the
+lifecycle and budget fields are typed.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `verdict_id` | `BIGINT PRIMARY KEY` | FK → `memory.turn_verdicts(id)` ON DELETE CASCADE |
+| `candidate` | `JSONB NOT NULL` | The `CorrectionCandidate` the proposer was given |
+| `proposed` | `JSONB NOT NULL` | The `ProposedLesson` the model returned |
+| `similar` | `JSONB NOT NULL` | The similar lessons shown to the model |
+| `model` | `TEXT NOT NULL` | |
+| `cost_usd` | `DOUBLE PRECISION NULL` | NULL when the provider reported no usage |
+| `generation_id` | `TEXT NULL` | The provider's generation id; NULL when absent |
+| `retry_count` | `INTEGER NOT NULL DEFAULT 0` | CHECK `>= 0` |
+| `next_attempt_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `status` | `TEXT NOT NULL` | CHECK `IN ('awaiting_embedding', 'rejected', 'applied')` |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `updated_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Indexes:**
+- `idx_lesson_proposal_jobs_pending`: `(updated_at, verdict_id) WHERE status = 'awaiting_embedding'` (BTree partial)
+
+---
+
+### `memory.lesson_proposal_recovery`
+
+Added in `20261005000000_learning_proposal_queue.sql`. Verdicts whose earlier proposal attempt failed on an
+ambiguous dependency error and are reassessed once under the normal daily budget. The migration seeds a
+row from every `memory.lesson_proposal_evidence` row with no `lesson_id` and a model other than `none`
+created on or after `2026-10-01T13:02:13Z`, keeping the full evidence row as an immutable audit payload
+before the current row is replaced; it makes no claim that every such row represented a valid rule. The
+queue (`store/persistence/lessons/proposals/queue.rs`) marks a row `obsolete` when its verdict is no longer
+in `memory.lesson_eligible_corrections_v`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `verdict_id` | `BIGINT PRIMARY KEY` | FK → `memory.turn_verdicts(id)` ON DELETE CASCADE |
+| `original_evidence` | `JSONB NOT NULL` | The full historical `lesson_proposal_evidence` row |
+| `recovery_state` | `TEXT NOT NULL DEFAULT 'needs_reproposal'` | CHECK `IN ('needs_reproposal', 'reproposed', 'obsolete')` |
+| `disposition_reason` | `TEXT NOT NULL DEFAULT ''` | |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+---
+
+
 
 ### `memory.lesson_proposal_guidance`
 
@@ -2069,6 +2883,24 @@ stops trying the lesson after the third; the weekly learning audit counts it as 
 | `last_error` | `TEXT NOT NULL` | |
 | `last_failed_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | |
 
+### `memory.lesson_placement_reviews`
+
+Added in `20261016100000_lesson_placement_reviews.sql`, for the Proposals page (`/proposals`, routes under
+`/api/proposals` in `crates/mike/src/api/proposals.rs`). The user's decision on a lesson placed as a rule or
+an agent statement: `accepted` (the user wants it in the rule or agent file the page names) or `declined`.
+A lesson with no row has not been decided; clearing a decision deletes the row. Nothing writes an accepted
+proposal into a rule or agent file; the page shows the file and the text to add. Read and written by
+`store/persistence/lessons/placement_proposals.rs`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `lesson_id` | `BIGINT PRIMARY KEY` | FK → `memory.lessons(id)` ON DELETE CASCADE |
+| `decision` | `TEXT NOT NULL` | CHECK `IN ('accepted', 'declined')` |
+| `decided_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Refreshed when the decision changes |
+
+---
+
+
 ### `memory.lesson_proposer_daily_budget` maintenance counter
 
 `maintenance_consumed BIGINT NOT NULL DEFAULT 0` was added in migration
@@ -2098,6 +2930,58 @@ once an hour per pass.
 |---|---|
 | `id` | bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY |
 | `code` | text NOT NULL UNIQUE |
+
+### `memory.lesson_sources`
+
+Lookup for `memory.lessons.source_id`: who recorded the lesson. Rows 1–3 seeded by the baseline;
+`harvester` added by `20260613000001_memory_recall_schema.sql`, `directive` and `judge` by
+`20260929000001_improvement_schema.sql`, `carry` by `20261006100000_fleet_run_records.sql` (sequence-assigned,
+with `memory.carried_lessons`). Joined wherever lessons are listed (`lessons/reads.rs`, `injectable.rs`,
+`improvement/lesson_actions*.sql`, `memory.portable_lesson_v`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | |
+
+Seeded rows: `agent`(1) `operator`(2) `copilot`(3) `harvester`(4) `directive`(5) `judge`(6) `carry`(7).
+
+---
+
+### `memory.lesson_stages`
+
+Lookup for `memory.lessons.stage_id` and for `memory.consolidation_actions.before_stage_id` /
+`after_stage_id`. Seeded by the baseline. `memory.lessons` enforces `(stage_id = 4) = (archived_at IS NOT NULL)`;
+only `daily` and `long_term` lessons are injectable.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | |
+
+Seeded rows: `raw`(1) `daily`(2) `long_term`(3) `archived`(4).
+
+---
+
+### `memory.lesson_archived_reasons`
+
+Lookup for `memory.lessons.archived_reason_id`. Rows 1–5 seeded by the baseline; `rejected_by_operator`
+added by `20260929000001_improvement_schema.sql`, `not_a_lesson` by `20261014190000_lesson_shape_findings.sql`
+(used by the shape pass, `lessons/shape_apply.rs`). `memory.lessons` requires `archived_reason_id = 1`
+(`duplicate`) whenever `duplicate_of_id` is set.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | |
+
+Seeded rows: `duplicate`(1) `expired`(2) `trimmed`(3) `superseded`(4) `operator`(5)
+`rejected_by_operator`(6) `not_a_lesson`(7).
+
+---
+
+
+
 
 ### `memory.pattern_assignments`
 
@@ -3378,6 +4262,42 @@ Added in `20261022000000_launch_fleet_events.sql`. The append-only record of a f
 ### `memory.carried_lessons`
 
 Added in the same migration, with the `carry` row of `memory.lesson_sources`. One row per session note marked `data.carry` that became a lesson candidate: `lesson_id` (PK, FK to `memory.lessons`, cascade), `project_id` (FK, cascade), `discipline`, `tag` (`carry:<slug of the title>`), `source_note_uuid` (unique) and the two counts, `runs_given` and `later_findings`, which only the two bridge tables move: `memory.carried_lesson_runs (lesson_id, run_id)` gets a row when a template is warmed with the lesson, and `memory.carried_lesson_findings (lesson_id, note_uuid)` when a later note carries its tag. Index `(project_id, discipline, tag)`.
+
+### `memory.carried_lesson_runs`
+
+Added in `20261006100000_fleet_run_records.sql`. One row per `(carried lesson, fleet run)` the lesson was
+given to: `store/persistence/fleet/carry_sql/warm.sql` inserts a row for each unarchived `daily` or
+`long_term` carried lesson of the fleet's project and requested disciplines when a template is warmed, and
+increments `memory.carried_lessons.runs_given` once per new row.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `lesson_id` | `BIGINT NOT NULL` | FK → `memory.carried_lessons(lesson_id)` ON DELETE CASCADE |
+| `run_id` | `TEXT NOT NULL` | The fleet run; no FK to `launch.runs` |
+| `given_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Primary key:** `(lesson_id, run_id)`.
+
+---
+
+### `memory.carried_lesson_findings`
+
+Added in `20261006100000_fleet_run_records.sql`. One row per `(carried lesson, later session note)` whose
+tag matched the lesson's `carry:<slug>` tag: `store/persistence/fleet/carry_sql/count_findings.sql` (and
+`count_findings_discipline.sql`) inserts a row when a note other than the lesson's own source note, written
+after the lesson, carries its tag, and increments `memory.carried_lessons.later_findings` once per new row.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `lesson_id` | `BIGINT NOT NULL` | FK → `memory.carried_lessons(lesson_id)` ON DELETE CASCADE |
+| `note_uuid` | `UUID NOT NULL` | The later note; no FK to `workspace.session_notes` |
+| `found_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Primary key:** `(lesson_id, note_uuid)`.
+
+---
+
+
 
 ### `launch.backend_validations`
 
