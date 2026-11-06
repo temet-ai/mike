@@ -21,7 +21,7 @@ A fresh install only captures: it forwards your requests unchanged and sends not
 
 ## Try it
 
-Linux needs glibc 2.35 or newer. [Install mike](docs/user-guide/install.md) also covers mise, which installs `mike` but not the `mike-mcp` companion, and archives.
+Linux needs glibc 2.35 or newer. [Install mike](docs/user-guide/install.md) also covers mise and archives.
 
 ```bash
 brew install temet-ai/mike/mike temet-ai/mike/mike-mcp

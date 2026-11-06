@@ -17,10 +17,11 @@ brew install temet-ai/mike/mike temet-ai/mike/mike-mcp
 With mise:
 
 ```sh
-mise use -g github:temet-ai/mike@<version>
+mise use -g github:temet-ai/mike@<version> \
+  'ubi:temet-ai/mike[matching=mike-mcp,exe=mike-mcp]@<version>'
 ```
 
-Use the version number of the release you want, for example `0.1.0-alpha.3`. Homebrew puts `mike` and `mike-mcp` on your PATH. mise installs `mike` only, so take `mike-mcp` from its own archive on the same release and put it on your PATH. Check the install with `mike --version` and `mike-mcp --version`.
+Use the version number of the release you want, for example `0.1.0-alpha.3`. Both routes put `mike` and `mike-mcp` on your PATH. Check the install with `mike --version` and `mike-mcp --version`.
 
 Without a package manager, keep the matching archive pair from one release candidate together on your executable PATH. Retain the candidate manifest and both archive/checksum pairs. Check the supplied checksums before using explicitly trusted files; checksums establish integrity, not authenticity. The optional [maintenance kit](/help/docs/recovery-and-maintenance) can install the pair without a source checkout.
 
@@ -88,7 +89,7 @@ brew upgrade mike mike-mcp
 ```
 
 ```sh
-mise upgrade github:temet-ai/mike
+mise upgrade github:temet-ai/mike ubi:temet-ai/mike
 ```
 
 Before upgrading an installation that keeps history in PostgreSQL, take a coordinated backup first with the maintenance kit. Keep the previous binaries and the backup until the new version has started and a new capture has been seen. Reinstalling an older binary against newer data is not a rollback; restore the backup into a fresh instance instead. See [backup, restore and upgrade](/help/docs/recovery-and-maintenance).
@@ -109,7 +110,7 @@ brew uninstall mike mike-mcp
 ```
 
 ```sh
-mise uninstall github:temet-ai/mike@<version>
+mise uninstall github:temet-ai/mike@<version> ubi:temet-ai/mike@<version>
 ```
 
 Removing the binaries does not remove captured history. The config, the data and state directories and any managed database remain until you delete them yourself. Keep a backup first if you may need the history again.

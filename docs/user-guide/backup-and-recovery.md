@@ -119,7 +119,7 @@ brew upgrade mike mike-mcp
 ```
 
 ```sh
-mise upgrade github:temet-ai/mike
+mise upgrade github:temet-ai/mike ubi:temet-ai/mike
 ```
 
 Restart with `mike serve`, or `mike service restart` if mike runs as a background service. Restart Claude Code after `mike-mcp` changes. `mike serve` applies the new version's database changes on startup; no other command does. To look first without changing anything, run `mike migrate-check` and `mike database check`. A newer mike changes the database in ways an older one cannot read, so putting the old program back is not a way to undo an upgrade. To go back, restore the backup into a fresh copy with the release that wrote it.
@@ -139,7 +139,7 @@ brew uninstall mike mike-mcp
 ```
 
 ```sh
-mise uninstall github:temet-ai/mike@<version>
+mise uninstall github:temet-ai/mike@<version> ubi:temet-ai/mike@<version>
 ```
 
    For an archive install, `"$MAINTENANCE" uninstall --prefix "$HOME/.local" --config "$CONFIG" --state-root "$STATE" --confirm-stopped-writers` unlinks the two commands. It keeps the configuration, database, files, logs, backups and the kit's stored copies of past releases. It has no option to purge.

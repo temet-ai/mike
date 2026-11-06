@@ -25,8 +25,10 @@ the cases a candidate is judged on.
 - **The tap.** `HOMEBREW_TAP_TOKEN` is not set, so the workflow's tap step warned and
   skipped, so alpha.3's formulas were written by hand with
   `scripts/release/homebrew_alpha.py`. A real install of both formulas passes on Linux.
-- **mise installs `mike` only.** The `github:` backend takes one archive per tool, so
-  `mike-mcp` comes from its own archive on the same release.
+- **mise needs two tools.** The `github:` backend takes one archive per tool, so `mike`
+  comes from `github:temet-ai/mike` and `mike-mcp` from
+  `ubi:temet-ai/mike[matching=mike-mcp,exe=mike-mcp]`. `install.md` has the one line; it
+  passes on Linux.
 - **alpha.1 did not build.** The export dropped files the `mike` crate embeds, so the
   public tree did not compile. The `Release alpha` run passed `validate`, failed the
   Linux build, had its macOS build cancelled and skipped `publish`.

@@ -20,10 +20,9 @@ Two things to know before you point real work at mike.
 
 **mike ships as `0.1.0-alpha.N` archives** for Linux x86_64 (glibc 2.35 or newer) and Apple
 Silicon macOS, through Homebrew (`brew install temet-ai/mike/mike temet-ai/mike/mike-mcp`) and
-mise (`github:temet-ai/mike`). There is no curl installer. Until the first alpha is published,
-everything below is a source checkout and the development stack; the route is in
-[`RELEASING.md`](RELEASING.md) and [`RELEASE_READINESS.md`](RELEASE_READINESS.md) records what
-still blocks a supported release.
+mise; [Install mike](user-guide/install.md) has the commands. There is no curl installer.
+Everything below is a source checkout and the development stack. The release route is in
+[`RELEASING.md`](RELEASING.md).
 
 **The inspect API has no authentication.** Any process on the machine can read every captured
 prompt and response, change any runtime setting including your OpenRouter API key, and start a

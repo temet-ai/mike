@@ -19,18 +19,11 @@ Homebrew installs both programs on your path and puts the Claude Code mods mike 
 ## Install with mise
 
 ```sh
-mise use -g github:temet-ai/mike@0.1.0-alpha.3
+mise use -g github:temet-ai/mike@0.1.0-alpha.3 \
+  'ubi:temet-ai/mike[matching=mike-mcp,exe=mike-mcp]@0.1.0-alpha.3'
 ```
 
-This installs `mike` only. Get `mike-mcp` from its own archive on the same release, into a folder on your `PATH`. Use `aarch64-apple-darwin` as the target on a Mac:
-
-```sh
-target=x86_64-unknown-linux-gnu
-curl -fsSL "https://github.com/temet-ai/mike/releases/download/v0.1.0-alpha.3/mike-mcp-v0.1.0-alpha.3-$target.tar.gz" \
-  | tar -xz -C ~/.local/bin mike-mcp
-```
-
-Other versions are on the [releases page](https://github.com/temet-ai/mike/releases). Upgrade with `mise upgrade github:temet-ai/mike`.
+The two programs are separate downloads from one release, so the line names both. Keep the quotes around the second one. Other versions are on the [releases page](https://github.com/temet-ai/mike/releases). Upgrade with `mise upgrade github:temet-ai/mike`.
 
 ## Install from an archive
 
