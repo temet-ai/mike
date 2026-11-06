@@ -161,18 +161,18 @@ recorded in `llm.calls`.
 
 | Worker | Gate (default) | Calls a model | What it does | Surfaces | Doc |
 |---|---|---|---|---|---|
-| Steerer fleet | `steerer` (off) | yes | Enrolled steerers watch sessions for goal and anchor drift and queue `<system-reminder>` interventions; verifier and refocus steerers | UI `/steering`, `/steering/<id>`, `/settings/steering`; REST `/api/steerers/*`; MCP `get_verifier_rate`, `list_steerer_evaluations` | [`STEERING_EXTENSION.md`](STEERING_EXTENSION.md), user guide [steering](user-guide/steering.md) |
+| Steerer fleet | `steerer` (off) | yes | Enrolled steerers watch sessions for goal and anchor drift and queue `<system-reminder>` interventions; verifier and refocus steerers. Verifier input is capped per section by `steerer.verifier.input_budget` | UI `/steering`, `/steering/<id>`, `/settings/steering`; REST `/api/steerers/*`; MCP `get_verifier_rate`, `list_steerer_evaluations` | [`STEERING_EXTENSION.md`](STEERING_EXTENSION.md), user guide [steering](user-guide/steering.md) |
 | Quiescence worker | `steerer` (off) | via its ticks | Steerer ticks after quiet periods; label ticks; guard demotion; lesson proposer tick when `judge_lessons` is on; turn guard when `turn_guard` is on | — | `quiescence_worker/` |
 | Turn judge | `judge_worker` (off) | yes | Labels and verdicts per operator turn | UI `/sessions/labelling`, `/sessions/labelling/accuracy`; MCP `get_turn_verdicts`, `list_eval_labels`, `relay_label` | user guide [judge](user-guide/judge.md) |
 | Session judge, session-end shadow | `session_judge`, `session_end_shadow` (off) | yes | Outcome and quality per session | MCP `get_session_verdicts`, `list_eval_session_end_items` | [`ARCHITECTURE.md`](ARCHITECTURE.md#decision-session-judge-per-session-outcomequality--issue-24) |
 | Turn guard | `turn_guard` (off) | yes | Four guard questions at turn end; each starts in `shadow`, promoted to `append` or `wake` by the operator | UI `/sessions/improvement/guard`; REST `/api/steering/guard/*`; `mike guard …` | [`IMPROVEMENT_LOOP.md`](IMPROVEMENT_LOOP.md) |
 | Lesson worker | `lesson_worker` (on) | no (embeddings if enabled) | Consolidates, dedups and garbage-collects lessons; nightly consolidation | UI `/memory`; MCP `record_lesson`, `list_lessons`, `delete_lesson` | user guide [memory](user-guide/memory.md) |
-| Lesson proposer and directive proposer | `judge_lessons`, `directive_proposer` (off) | proposer yes, directives no | Proposes lessons from judged turns and standing directives from repeated corrections; proposals wait on `/proposals` and `/memory` | UI `/proposals`, `/skills`; REST `/api/directive-proposals`, `/api/skills/*` | [`IMPROVEMENT_LOOP.md`](IMPROVEMENT_LOOP.md), [`LEARNING_OPERATIONS.md`](LEARNING_OPERATIONS.md) |
+| Lesson proposer | `judge_lessons` (off) | yes | Proposes lessons from judged turns; proposals wait on `/proposals` and `/memory` | UI `/proposals`, `/skills`; REST `/api/directive-proposals`, `/api/skills/*` | [`IMPROVEMENT_LOOP.md`](IMPROVEMENT_LOOP.md), [`LEARNING_OPERATIONS.md`](LEARNING_OPERATIONS.md) |
 | Dossier builder | `dossier_builder` (off) | no | `memory.turn_facts` per closed turn: next genuine message, how it ended, checks run | MCP `get_session_dossier`, `get_turn_facts`; `mike dossier-*` | [`ARCHITECTURE.md` §15](ARCHITECTURE.md#15-operator-turn-lifecycle) |
 | Semantic context | `semantic_context` (on, loopback embedder only) | embedder | Semantic items, pattern tagging and grouping, drift | REST `/api/semantic/*`; MCP `get_semantic_*`; `mike semantic …` | [`ARCHITECTURE.md` §15](ARCHITECTURE.md#semantic-context) |
 | Embed worker and knowledge scan | `embedding.enabled` (off) | embedder at `embedding.url` | Embeds turns, sessions and knowledge chunks; scans `~/.claude` memory and skills into knowledge sources every 120 s | UI `/settings/embedding`; MCP `recall_similar_turns`, `search_project_knowledge` | [`PROJECT_KNOWLEDGE.md`](PROJECT_KNOWLEDGE.md) |
 | Eval metrics | always | no | Daily rollups, rates and alarms over judge output | REST `/api/eval/*`; `mike eval …`; MCP `get_eval_rates`, `list_eval_alarms` | [`IMPROVEMENT_LOOP.md`](IMPROVEMENT_LOOP.md) |
-| Cross-session calibration | `directive_proposer` (off) | no | Calibrates guard thresholds across sessions | REST `/api/cross-session/*`; MCP `get_cross_session_calibration` | [`ARCHITECTURE.md` §15](ARCHITECTURE.md#cross-session-calibration-and-directive-proposals) |
+| Directive proposals | `directive_proposer` (off) | no | Proposes standing directives from corrections the operator restated across sessions, by SQL over captured data; also calibrates guard thresholds across sessions. Proposals wait on `/memory`; nothing is injected | REST `/api/cross-session/*`; MCP `get_cross_session_calibration` | [`ARCHITECTURE.md` §15](ARCHITECTURE.md#cross-session-calibration-and-directive-proposals) |
 | Change record | `change_record` (off) | no | Watches checkouts for file changes, commits, pushes and checks so `what_changed` answers without git | MCP `what_changed`; REST `/api/changes` | [`CHANGE_RECORD.md`](CHANGE_RECORD.md) |
 | Retention sweep, mailbox reaper, workspace reaper, channel-link sweep, work registry, health refresher, DB cost monitor, resync | `retention_sweep`, `channel_link_sweep`, `db_resync` (on); the rest always | no | Local housekeeping: TTL deletes (365 d default), expired mail, lapsed roster rows, channel links, DB statement budgets, fallback-to-primary resync | REST `/api/sync/status`, `/api/db-cost` | [`LOCAL_DB_FALLBACK.md`](LOCAL_DB_FALLBACK.md) |
 | Scheduled jobs | per-job `<job>.enabled` (on) | the scripts may | Runs repo scripts on a schedule: `learning_promote`, `learning_audit`, `compressor_loop`, `cargo_sweep`, `lessons_commit`, `usage_audit` | REST `/api/scheduled-jobs`, `POST …/{name}/run`; UI `/settings/workers` | [`LEARNING_OPERATIONS.md`](LEARNING_OPERATIONS.md) |
@@ -316,9 +316,9 @@ groups pages as Overview, Levers, Insight and System; the user guide's
   `/judge-disagreements/*` → `/sessions/labelling/*`.
 
 Frontend conventions, component catalogue and route contracts:
-[`frontend/CONVENTIONS.md`](frontend/CONVENTIONS.md),
-[`frontend/COMPONENT_CATALOGUE.md`](frontend/COMPONENT_CATALOGUE.md),
-[`frontend/ROUTES.md`](frontend/ROUTES.md); Storybook's Foundations stories are
+[`docs/frontend/CONVENTIONS.md`](frontend/CONVENTIONS.md),
+[`docs/frontend/COMPONENT_CATALOGUE.md`](frontend/COMPONENT_CATALOGUE.md),
+[`docs/frontend/ROUTES.md`](frontend/ROUTES.md); Storybook's Foundations stories are
 the visual source of truth.
 
 ## Terminal UI
@@ -384,9 +384,9 @@ Facts a reader would otherwise rediscover the hard way.
   them, so they are full-only.
 - The quiescence worker, and with it the lesson proposer, runs only while
   `steerer` is on.
-- [`SCHEMA.md`](SCHEMA.md) lacks sections for 79 live tables; the doc drift
-  gate (`scripts/rule-checks/judgement-context-docs.sh`) currently reports six
-  pre-existing drift lines, including a missing `.claude/fleet/mike-machinery.md`.
+- The doc drift gate (`scripts/rule-checks/judgement-context-docs.sh`) owns
+  this page too: a `schema.table` named here must exist in a migration, and the
+  ledgers under `judgement-context-docs.d/` require some fragments of it.
 - The agent names in `AGENTS.md`'s routing table (`rust-developer`,
   `frontend-developer`, …) are user-level agents, not files in this repository;
   `.claude/agents/` holds only the two fleet agents.

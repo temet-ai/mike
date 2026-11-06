@@ -48,7 +48,6 @@ services/prompt-assistant/dist/
 *.profraw
 
 # Claude Code agent state — per-developer, not part of the repo.
-# Note: `.claude/rules/` is tracked (shared team rules like testing.md).
 .claude/agent-memory/
 .claude/worktrees/
 .claude/.DS_Store

@@ -2,7 +2,7 @@
 # scripts/check-user-guide [--complete] [file...]
 #
 # Checks the public user guide in docs/user-guide/ against the rules of the site's renderer
-# (.claude/fleet/templates/guide.md, "What the site needs"). With no files it checks every page
+# (the list below). With no files it checks every page
 # of the guide that exists. It prints every failure as `file:line: reason`, then exits 1.
 # It changes no file. Without --complete it passes while pages are still being written.
 #

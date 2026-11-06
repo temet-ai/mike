@@ -93,9 +93,8 @@ svelte-check, unit, integration, and Storybook browser tests), then runs
 
 ## `ui-usability-review.yml`
 
-**Triggers:** PRs touching `frontend/src/**/*.svelte`, `*.ts`, `*.css`, any of the four usability
-skills (`plain-language-microcopy`, `contextual-help-disclosure`, `invokable-page-tour`,
-`ui-coherence-state-audit`), `scripts/usability-gate.sh`, or the workflow file itself.
+**Triggers:** PRs touching `frontend/src/**/*.svelte`, `*.ts`, `*.css`,
+`scripts/usability-gate.sh`, or the workflow file itself.
 
 **Two jobs:**
 1. **`gate`** (always runs, blocking) — `scripts/usability-gate.sh` (deterministic grep
@@ -114,10 +113,10 @@ skills (`plain-language-microcopy`, `contextual-help-disclosure`, `invokable-pag
 **Setup:** add an `ANTHROPIC_API_KEY` repo secret to enable the `grade` job; the `gate` job runs
 regardless.
 
-**A gap to know about:** the four usability skills that the trigger paths, `scripts/usability-gate.sh`
-and the `grade` rubric name under `.claude/skills/` are not in this repository (only
-`fleet-worker` is). The grep checks the gate runs are written into the script itself, so the
-`gate` job still works; the `grade` job runs without its rubric files.
+The grep checks the `gate` job runs are written into `scripts/usability-gate.sh`, and the
+`grade` job's four rubric dimensions are written into the workflow's prompt; neither reads a
+skill file. The `grade` job is currently switched off in the workflow (`if: false`, with the
+reason in a comment beside it).
 
 ---
 

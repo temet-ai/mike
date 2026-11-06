@@ -5,4 +5,4 @@ cli      verifier-replay
 retire   docs/ARCHITECTURE.md  and the full assistant response text sourced from
 require  docs/ARCHITECTURE.md  steerer.verifier.input_budget
 require  docs/SECURITY.md  mike verifier-replay
-require  .claude/fleet/mike-machinery.md  Verifier input
+require  docs/SYSTEM_MAP.md  Verifier input

@@ -1,4 +1,3 @@
-path .claude/fleet/mike-machinery.md:scripts/proxy-q
 path docs/ARCHITECTURE.md:frontend/build/
 path docs/CONFIGURATION.md:frontend/build
 path docs/SCHEMA.md:crates/mike/src/llm/openrouter.rs

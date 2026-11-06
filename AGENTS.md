@@ -108,6 +108,8 @@ session actually got.
 | Public guide `docs/user-guide/` | `user-guide-writer`                                                       |
 | Other docs, help, LikeC4     | `docs-writer`                                                                |
 
+These are user-level agents (`~/.claude/agents/`), not files in this repository; `.claude/agents/` holds only the
+two fleet agents. Where a named agent is not installed, the general-purpose agent does that work.
 Hand an agent well-specified or multi-file work and read its report when it returns; do not re-run its checks.
 Make small edits and subtle or cross-cutting changes yourself.
 

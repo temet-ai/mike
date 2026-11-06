@@ -40,6 +40,8 @@ cd "$ROOT"
 
 MIG=crates/mike/src/store/persistence/migrations
 TOGGLES=crates/mike/src/feature_toggles/mod.rs
+# TOGGLE_META moved to meta.rs; older trees (and the fixtures) keep it in mod.rs.
+TOGGLE_META_SRC=crates/mike/src/feature_toggles/meta.rs
 CATALOGUE=crates/mike-mcp/src/tools/catalogue.rs
 RC=scripts/rule-checks
 BASELINE=$RC/judgement-context-docs.baseline
@@ -48,7 +50,7 @@ SCHEMA_DOC=docs/SCHEMA.md
 FEATURES_DOC=docs/FEATURES.md
 MCP_DOC=docs/MCP_BRIDGE.md
 MACHINERY=.claude/fleet/mike-machinery.md
-OWNED_DOCS="docs/ARCHITECTURE.md docs/SCHEMA.md docs/CONFIGURATION.md docs/MCP_BRIDGE.md docs/FEATURES.md .claude/fleet/mike-machinery.md"
+OWNED_DOCS="docs/ARCHITECTURE.md docs/SCHEMA.md docs/CONFIGURATION.md docs/MCP_BRIDGE.md docs/FEATURES.md docs/SYSTEM_MAP.md"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -135,8 +137,10 @@ list_columns() {
 }
 
 list_toggles() {
-  [ -f "$TOGGLES" ] || return 0
-  awk '/TOGGLE_META/ { on = 1 } on && /^\];/ { on = 0 } on' "$TOGGLES" \
+  local src="$TOGGLES"
+  [ -f "$TOGGLE_META_SRC" ] && src="$TOGGLE_META_SRC"
+  [ -f "$src" ] || return 0
+  awk '/TOGGLE_META: / { on = 1 } on && /^\];/ { on = 0 } on' "$src" \
     | grep -oE 'key: "[^"]+"' | sed -E 's/key: "([^"]+)"/\1/' | LC_ALL=C sort -u || true
 }
 
@@ -207,7 +211,7 @@ check_table() {
 check_toggle() {
   local k="$1" label="$2"
   if ! list_toggles | grep -qxF -- "$k"; then
-    report "$label" "C2 $k $TOGGLES not in TOGGLE_META"
+    report "$label" "C2 $k ${TOGGLE_META_SRC} not in TOGGLE_META"
   fi
   if ! grep -qF -- "\`$k\`" "$FEATURES_DOC" 2>/dev/null; then
     report "$label" "C2 $k $FEATURES_DOC toggle not written as \`$k\`"

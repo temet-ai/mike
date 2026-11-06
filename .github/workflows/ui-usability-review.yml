@@ -3,10 +3,9 @@ name: UI usability review
 # Runs automatically when a PR touches frontend UI source. Two tiers:
 #   1. gate  — deterministic, API-free checks that FAIL the build on binding-rule
 #              violations (truncation, Tailwind var miscompile) + svelte-check +
-#              the layout-shift guard. These are the usability skills' executable
-#              self-checks.
+#              the layout-shift guard.
 #   2. grade — Claude Code (headless) grades the changed UI against the four
-#              usability skills as a rubric and posts an ADVISORY PR comment.
+#              rubric dimensions in its prompt and posts an ADVISORY PR comment.
 #              It is read-only: it never edits files or pushes.
 #
 # Setup: add an ANTHROPIC_API_KEY repo secret (Settings → Secrets and variables →
@@ -18,10 +17,6 @@ on:
       - 'frontend/src/**/*.svelte'
       - 'frontend/src/**/*.ts'
       - 'frontend/src/**/*.css'
-      - '.claude/skills/plain-language-microcopy/**'
-      - '.claude/skills/contextual-help-disclosure/**'
-      - '.claude/skills/invokable-page-tour/**'
-      - '.claude/skills/ui-coherence-state-audit/**'
       - 'scripts/usability-gate.sh'
       - '.github/workflows/ui-usability-review.yml'
 
@@ -122,21 +117,19 @@ jobs:
             `git merge-base origin/${{ github.base_ref }} HEAD` then
             `git diff <merge-base>..HEAD -- 'frontend/src/**'`.
 
-            ## Rubric — apply these four skills as the grading dimensions
-            Read each skill file and grade against it (cite file:line evidence
-            from the diff for every finding):
-            - `.claude/skills/plain-language-microcopy/SKILL.md` — jargon/system
-              nouns, verb+noun buttons, blameless actionable errors, sentence case,
-              empty-state copy.
-            - `.claude/skills/contextual-help-disclosure/SKILL.md` — help at the
-              right tier, reuse of Tooltip/HelpHint, nothing task-essential buried
-              in a hover, keyboard/screen-reader correctness.
-            - `.claude/skills/invokable-page-tour/SKILL.md` — only if the PR adds a
-              tour: user-invoked (never auto-launch), ARIA-dialog-correct,
-              dismissible-and-recallable.
-            - `.claude/skills/ui-coherence-state-audit/SKILL.md` — state coverage
-              (loading/empty/error), no layout shift on state change, role tokens
-              not raw hex/px, visually assessed legibility and structural accessibility.
+            ## Rubric — the four grading dimensions
+            Grade against each (cite file:line evidence from the diff for every
+            finding):
+            - Plain-language microcopy — no jargon or system nouns, verb+noun
+              buttons, blameless actionable errors, sentence case, empty-state copy.
+            - Contextual help disclosure — help at the right tier, reuse of
+              Tooltip/HelpHint, nothing task-essential buried in a hover,
+              keyboard/screen-reader correctness.
+            - Invokable page tour — only if the PR adds a tour: user-invoked (never
+              auto-launch), ARIA-dialog-correct, dismissible-and-recallable.
+            - UI coherence and state — state coverage (loading/empty/error), no
+              layout shift on state change, role tokens not raw hex/px, visually
+              assessed legibility and structural accessibility.
 
             Also respect the binding rules these encode: no truncation of
             inspection content (`.claude/rules/agent-behavior-and-data.md`), no

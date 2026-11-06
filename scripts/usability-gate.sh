@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 # usability-gate.sh — deterministic, API-free usability checks over a PR diff.
 #
-# Runs the *executable self-checks* baked into the usability skills
-# (.claude/skills/{plain-language-microcopy,contextual-help-disclosure,
-# invokable-page-tour,ui-coherence-state-audit}) against the lines a change
-# ADDS to the frontend. It is the Tier-1 gate behind the LLM usability review:
+# Runs the executable usability self-checks (the rules are written into this
+# script) against the lines a change ADDS to the frontend. It is the Tier-1 gate behind the LLM usability review:
 # unambiguous, binding-rule violations fail the build; softer copy smells are
 # reported as warnings (advisory, never fail).
 #
@@ -81,7 +79,7 @@ check error "Content truncation on an inspection surface" \
 # tailwind-v4-pitfalls: bracket-only CSS var miscompiles to invalid CSS.
 check error "Tailwind bg-[--foo] / text-[--foo] miscompile" \
   '(bg|text|border|ring|fill|stroke|shadow)-\[--[a-zA-Z]' \
-  "v4 does NOT auto-wrap --foo in var(); use bg-[var(--foo)] or bg-(--foo). See .claude/skills/tailwind-v4-pitfalls."
+  "v4 does NOT auto-wrap --foo in var(); use bg-[var(--foo)] or bg-(--foo). See docs/frontend/CONVENTIONS.md."
 
 # ── WARN severity: copy/help smells (advisory, never fail) ────────────────────
 

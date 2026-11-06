@@ -3,4 +3,4 @@
 landed   JC19 2026-09-24 78944cc4
 retire   docs/ARCHITECTURE.md  closes the open operator turn as `abandoned`
 retire   docs/ARCHITECTURE.md  it closes the open turn with `outcome = 'abandoned'`
-require  .claude/fleet/mike-machinery.md  | Directive proposals |
+require  docs/SYSTEM_MAP.md  | Directive proposals |
