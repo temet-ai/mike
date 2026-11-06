@@ -2,14 +2,14 @@
 title: Database Schema Reference
 status: active
 created: 2026-05-01
-updated: 2026-10-13
-summary: Reference for mike's multi-schema Postgres database — tables, columns, FKs, indexes, views, and triggers. Documents 146 tables; 79 live tables have no section yet, and the migrations are the source of truth.
+updated: 2026-11-06
+summary: Reference for mike's multi-schema Postgres database — tables, columns, FKs, indexes, views, and triggers. Every table a migration creates has a section (222 sections); the migrations are the source of truth.
 ---
 
 # Database Schema Reference
 
 **Scope:** this is a maintained reference, not an exhaustive generated schema dump. It
-documents 146 tables; 79 live tables have no section here yet. Where a definition here disagrees
+gives every table a migration creates its own section (222 in all). Where a definition here disagrees
 with `crates/mike/src/store/persistence/migrations/`, the ordered migrations are authoritative.
 
 The proxy's Postgres database captures, persists, and exposes every Claude API request that flows through the
@@ -97,6 +97,58 @@ Columns added by the judgement-context migrations (definition as migrated):
 | `project_uuid` | uuid NOT NULL DEFAULT gen_random_uuid() |
 
 ---
+
+### `projects.machines`
+
+Added by `20260920000008_project_knowledge.sql`. One row per machine that has registered a checkout
+of a project: the identity mike keeps in its state directory (`machine_identity::MachineIdentity`,
+`machine.json`). Upserted when a location is registered (`POST /api/knowledge/locations`,
+`store/persistence/project_knowledge/locations.rs`) or a repository is adopted
+(`project_knowledge/repo_adoption.rs`), and merged by the startup legacy-identity merge
+(`store/persistence/machine_merge.rs`). Read by the knowledge health report
+(`project_knowledge/health.sql`) and the project detail rehydrate (`rehydrate/project_detail.rs`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `machine_uuid` | `UUID` | Primary key; the machine's durable identity |
+| `name` | `TEXT NOT NULL` | The machine's display name; CHECK not blank |
+
+**Constraints:**
+- CHECK `btrim(name) <> ''` (unnamed)
+
+---
+
+### `projects.locations`
+
+Added by `20260920000008_project_knowledge.sql`. A machine-qualified checkout of a logical project;
+"paths do not define portable project identity" (table comment). Upserted on `(machine_uuid,
+root_path)` by `store/persistence/project_knowledge/locations.rs` (`POST /api/knowledge/locations`,
+`define_knowledge_project`) and `repo_adoption.rs`; `last_seen` is bumped on every re-registration
+and by knowledge document writes (`project_knowledge/documents.rs`). Referenced by
+`sessions.sessions.location_uuid`, `memory.knowledge_sources.location_uuid` and
+`memory.lesson_file_conflicts.location_uuid` (CASCADE). Read by the knowledge read/search/health
+queries, `mailbox.session_real_project_id()` (a session's project from its working folder),
+`change_record/checkouts_with_working_sessions.sql`, the work-thread import
+(`work_threads/import.rs`, `project.rs`) and `project_merge.rs`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `location_uuid` | `UUID DEFAULT gen_random_uuid()` | Primary key |
+| `project_id` | `BIGINT NOT NULL` | FK → `projects.projects(id)` (no ON DELETE action) |
+| `machine_uuid` | `UUID NOT NULL` | FK → `projects.machines(machine_uuid)` (no ON DELETE action) |
+| `root_path` | `TEXT NOT NULL` | The checkout's root on that machine; CHECK not blank |
+| `last_seen` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Last registration or knowledge write that named this location |
+
+**Constraints:**
+- UNIQUE `(machine_uuid, root_path)`
+- CHECK `btrim(root_path) <> ''` (unnamed)
+
+**Indexes:**
+- `locations_project`: `project_id` (BTree)
+
+---
+
+
 
 ## Domain: `sessions`
 
@@ -280,66 +332,183 @@ bytes remain authoritative; parsed JSON cannot preserve whitespace or duplicate 
 `idx_runtime_events_thread_order` covers `(namespace_id, provider_thread_id, id)`. Runtime event
 retention/reconciliation and normalized fleet-reader projections are not implemented here.
 
-### Codex projection tables
+### `runtime.codex_intake_state`
 
-Added by `20261014070000_codex_projection_receipts.sql` (C02b). They store trusted Codex
-receipts and the item projection built from them, one projection generation at a time, so a
-new projector version can rebuild beside the active one and replace it. Written and read only
-through `store/persistence/runtime/codex/`; no REST or MCP route reads them yet. The migration
-also adds unique index `idx_runtime_events_namespace_id` on `runtime.events (namespace_id, id)`
-so the tables below can reference an event together with its namespace. The `runtime.codex_*`
-tables are scaffolding with no production callers (`crates/mike/src/runtime/codex/`).
+Added by `20261014070000_codex_projection_receipts.sql` (C02b), together with the six
+`runtime.codex_*` tables below and unique index `idx_runtime_events_namespace_id` on
+`runtime.events (namespace_id, id)`, which lets those tables reference an event together with its
+namespace. The seven tables store trusted Codex receipts and the item projection built from them,
+one projection generation at a time, so a new projector version can rebuild beside the active one
+and replace it. They are scaffolding with no production callers: written and read only through
+`crates/mike/src/store/persistence/runtime/codex/` (`intake.rs`, `generation.rs`, `apply.rs`,
+`effects.rs`, `state.rs`, `projection_reads.rs`), whose only callers are
+`crates/mike/src/runtime/codex/` and the tests under `tests/integration/runtime_codex/`; no proxy
+path, worker, REST route or MCP tool reaches them.
 
-`runtime.codex_intake_state`: one row per namespace; `last_capture_sequence` BIGINT NOT NULL
-DEFAULT 0, the last capture sequence handed out for that namespace's receipts.
+This table holds one row per namespace: the last capture sequence handed out for that namespace's
+receipts (`intake.rs`).
 
-`runtime.codex_receipt_context`: the transport context of one captured event.
-
-| Column | Definition / purpose |
-|---|---|
-| `event_id` | BIGINT PRIMARY KEY; with `namespace_id`, FK to `runtime.events(namespace_id, id)` |
-| `namespace_id` | UUID NOT NULL |
-| `capture_sequence` | BIGINT NOT NULL, positive; unique per namespace, the projection order |
-| `context_version` | INTEGER NOT NULL, positive |
-| `connection_epoch` | UUID NOT NULL, non-nil; one app-server connection |
-| `frame_ordinal` | BIGINT NOT NULL, non-negative; unique per namespace and epoch |
-| `transport_gap` | BOOLEAN NOT NULL; frames may be missing before this one |
-| `context_document` | JSON NOT NULL; the full receipt context |
-| `created_at` | TIMESTAMPTZ NOT NULL DEFAULT NOW() |
-
-`runtime.codex_projection_generations`: `generation_id` UUID PRIMARY KEY (non-nil),
-`namespace_id` FK to `runtime.namespaces`, `projector_version` and `state_codec_version`
-(positive INTEGER), `state` (`building`, `active`, `retired` or `failed`),
-`last_applied_capture_sequence` BIGINT DEFAULT 0, `created_at`, `activated_at` (NULL until
-active). Unique `(namespace_id, generation_id)`.
-
-`runtime.codex_projection_heads`: one row per namespace naming its `active_generation_id`
-(nullable; FK with the namespace to the generations table).
-
-`runtime.codex_projection_applications`: one row per event a generation applied. Primary key
-`(generation_id, event_id)`, unique `(generation_id, capture_sequence)`. `status` is
-`projected`, `partial`, `unsupported`, `malformed` or `excluded`; `issues` JSON NOT NULL;
-`effect_count` INTEGER, non-negative; `applied_at` DEFAULT NOW(). FKs to its generation and to
-`runtime.codex_receipt_context (namespace_id, event_id, capture_sequence)`.
-
-`runtime.codex_projection_effects`: the effects one application produced. Primary key
-`(generation_id, event_id, effect_ordinal)`. `effect_kind` is `item`, `lifecycle`, `signal`,
-`usage` or `billing`; `thread_id` TEXT NOT NULL and `turn_id`, `item_id` nullable, all
-nonblank when present; `observation` JSON NOT NULL; `capture_sequence` BIGINT NOT NULL. The FK
-to its application is DEFERRABLE INITIALLY DEFERRED so effects and their application insert
-in one transaction. Indexes `idx_codex_effects_thread_order`, `idx_codex_effects_item_order`
-(partial, `item_id IS NOT NULL`) and `idx_codex_effects_kind_order` read a thread's effects
-in capture order.
-
-`runtime.codex_item_state`: the reduced state of each item in a generation. Primary key
-`(generation_id, thread_id, turn_id, item_id)`; `terminal` and `reconciliation_required`
-BOOLEAN NOT NULL; `first_capture_sequence` (positive) and `latest_capture_sequence` (not
-below the first); `state_codec_version` INTEGER, positive; `state_document` JSON NOT NULL.
-Index `idx_codex_items_stable_order` lists a thread's items in first-seen order.
+| Column | Type | Purpose |
+|---|---|---|
+| `namespace_id` | `UUID` | Primary key; FK → `runtime.namespaces(id)` (no ON DELETE action) |
+| `last_capture_sequence` | `BIGINT NOT NULL DEFAULT 0` | Last capture sequence issued; CHECK `>= 0` |
 
 ---
 
-## Domain: `messages`
+### `runtime.codex_receipt_context`
+
+The transport context of one captured Codex event (one row per `runtime.events` row admitted as a
+receipt). `capture_sequence` is the projection order within the namespace. Scaffolding, no
+production callers (see `runtime.codex_intake_state`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `event_id` | `BIGINT` | Primary key; with `namespace_id`, FK → `runtime.events(namespace_id, id)` |
+| `namespace_id` | `UUID NOT NULL` | |
+| `capture_sequence` | `BIGINT NOT NULL` | Projection order within the namespace; CHECK `> 0` |
+| `context_version` | `INTEGER NOT NULL` | CHECK `> 0` |
+| `connection_epoch` | `UUID NOT NULL` | One app-server connection; CHECK non-nil |
+| `frame_ordinal` | `BIGINT NOT NULL` | Position within the connection; CHECK `>= 0` |
+| `transport_gap` | `BOOLEAN NOT NULL` | Frames may be missing before this one |
+| `context_document` | `JSON NOT NULL` | The full receipt context |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Constraints:**
+- FK `(namespace_id, event_id)` → `runtime.events(namespace_id, id)` (no ON DELETE action)
+- UNIQUE `(namespace_id, capture_sequence)`
+- UNIQUE `(namespace_id, connection_epoch, frame_ordinal)`
+- UNIQUE `(namespace_id, event_id, capture_sequence)` (the composite FK target for the application and effect tables)
+
+---
+
+### `runtime.codex_projection_generations`
+
+One projection generation: a projector version's pass over a namespace's receipts. A generation is
+`building` until activated, then `active`, `retired` or `failed`. Scaffolding, no production callers
+(see `runtime.codex_intake_state`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `generation_id` | `UUID` | Primary key; CHECK non-nil |
+| `namespace_id` | `UUID NOT NULL` | FK → `runtime.namespaces(id)` (no ON DELETE action) |
+| `projector_version` | `INTEGER NOT NULL` | CHECK `> 0` |
+| `state_codec_version` | `INTEGER NOT NULL` | CHECK `> 0` |
+| `state` | `TEXT NOT NULL` | CHECK `IN ('building', 'active', 'retired', 'failed')` |
+| `last_applied_capture_sequence` | `BIGINT NOT NULL DEFAULT 0` | CHECK `>= 0` |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `activated_at` | `TIMESTAMPTZ NULL` | NULL until active |
+
+**Constraints:**
+- UNIQUE `(namespace_id, generation_id)` (the composite FK target for the tables below)
+
+---
+
+### `runtime.codex_projection_heads`
+
+One row per namespace naming its active generation. Scaffolding, no production callers (see
+`runtime.codex_intake_state`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `namespace_id` | `UUID` | Primary key; FK → `runtime.namespaces(id)` (no ON DELETE action) |
+| `active_generation_id` | `UUID NULL` | With `namespace_id`, FK → `runtime.codex_projection_generations(namespace_id, generation_id)`; NULL while no generation is active |
+
+---
+
+### `runtime.codex_projection_applications`
+
+One row per event a generation applied, with the outcome of applying it. Scaffolding, no production
+callers (see `runtime.codex_intake_state`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `generation_id` | `UUID NOT NULL` | |
+| `namespace_id` | `UUID NOT NULL` | |
+| `event_id` | `BIGINT NOT NULL` | |
+| `capture_sequence` | `BIGINT NOT NULL` | CHECK `> 0` |
+| `status` | `TEXT NOT NULL` | CHECK `IN ('projected', 'partial', 'unsupported', 'malformed', 'excluded')` |
+| `issues` | `JSON NOT NULL` | |
+| `effect_count` | `INTEGER NOT NULL` | Effects produced; CHECK `>= 0` |
+| `applied_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Constraints:**
+- PRIMARY KEY `(generation_id, event_id)`
+- UNIQUE `(generation_id, capture_sequence)`
+- FK `(namespace_id, generation_id)` → `runtime.codex_projection_generations(namespace_id, generation_id)`
+- FK `(namespace_id, event_id, capture_sequence)` → `runtime.codex_receipt_context(namespace_id, event_id, capture_sequence)`
+
+---
+
+### `runtime.codex_projection_effects`
+
+The effects one application produced, in order. The FK to its application is DEFERRABLE INITIALLY
+DEFERRED so an application and its effects insert in one transaction. Scaffolding, no production
+callers (see `runtime.codex_intake_state`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `generation_id` | `UUID NOT NULL` | |
+| `namespace_id` | `UUID NOT NULL` | |
+| `event_id` | `BIGINT NOT NULL` | |
+| `effect_ordinal` | `INTEGER NOT NULL` | Position within the application; CHECK `>= 0` |
+| `capture_sequence` | `BIGINT NOT NULL` | |
+| `effect_kind` | `TEXT NOT NULL` | CHECK `IN ('item', 'lifecycle', 'signal', 'usage', 'billing')` |
+| `thread_id` | `TEXT NOT NULL` | CHECK not blank |
+| `turn_id` | `TEXT NULL` | CHECK not blank when present |
+| `item_id` | `TEXT NULL` | CHECK not blank when present |
+| `observation` | `JSON NOT NULL` | |
+
+**Constraints:**
+- PRIMARY KEY `(generation_id, event_id, effect_ordinal)`
+- FK `(generation_id, event_id)` → `runtime.codex_projection_applications(generation_id, event_id)` DEFERRABLE INITIALLY DEFERRED
+- FK `(namespace_id, generation_id)` → `runtime.codex_projection_generations(namespace_id, generation_id)`
+- FK `(namespace_id, event_id, capture_sequence)` → `runtime.codex_receipt_context(namespace_id, event_id, capture_sequence)`
+
+**Indexes:**
+- `idx_codex_effects_thread_order`: `(generation_id, thread_id, capture_sequence, effect_ordinal)` (BTree) — a thread's effects in capture order
+- `idx_codex_effects_item_order`: `(generation_id, thread_id, turn_id, item_id, capture_sequence, effect_ordinal) WHERE item_id IS NOT NULL` (BTree partial)
+- `idx_codex_effects_kind_order`: `(generation_id, thread_id, effect_kind, capture_sequence, effect_ordinal)` (BTree)
+
+---
+
+### `runtime.codex_item_state`
+
+The reduced state of each item in a generation. Scaffolding, no production callers (see
+`runtime.codex_intake_state`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `generation_id` | `UUID NOT NULL` | |
+| `namespace_id` | `UUID NOT NULL` | |
+| `thread_id` | `TEXT NOT NULL` | CHECK not blank |
+| `turn_id` | `TEXT NOT NULL` | CHECK not blank |
+| `item_id` | `TEXT NOT NULL` | CHECK not blank |
+| `terminal` | `BOOLEAN NOT NULL` | |
+| `reconciliation_required` | `BOOLEAN NOT NULL` | |
+| `first_capture_sequence` | `BIGINT NOT NULL` | CHECK `> 0` |
+| `latest_capture_sequence` | `BIGINT NOT NULL` | CHECK `>= first_capture_sequence` |
+| `state_codec_version` | `INTEGER NOT NULL` | CHECK `> 0` |
+| `state_document` | `JSON NOT NULL` | |
+
+**Constraints:**
+- PRIMARY KEY `(generation_id, thread_id, turn_id, item_id)`
+- FK `(namespace_id, generation_id)` → `runtime.codex_projection_generations(namespace_id, generation_id)`
+
+**Indexes:**
+- `idx_codex_items_stable_order`: `(generation_id, thread_id, first_capture_sequence, turn_id, item_id)` (BTree) — a thread's items in first-seen order
+
+---
+
+
+
+
+
+
+
+
+### Codex projection tables
+
+Each `runtime.codex_*` table has its own section below.
 
 ### `messages.roles` (vocab)
 
@@ -513,9 +682,10 @@ sent.
 | `requests.methods` | `GET`(1) `POST`(2) `PUT`(3) `PATCH`(4) `DELETE`(5) `HEAD`(6) `OPTIONS`(7) `TRACE`(8) `CONNECT`(9) |
 | `requests.statuses` | `pending`(1) `streaming`(2) `complete`(3) `error`(4) |
 | `requests.turn_types` | `user_prompt`(1) `tool_loop`(2) `continuation`(3) |
-| `requests.turn_origins` | `primary`(1) `title_sidecar`(2) `subagent`(3) `advisor_sidecar`(4) `quota_probe`(5) `primary_first`(6) `monitor_sidecar`(7) `count_tokens_sidecar`(8) `web_fetch_sidecar`(9) `workflow_subagent`(11) `next_input_suggestion_sidecar`(12). `subagent`/`workflow_subagent` are classified from the system-prompt persona / `running inside a workflow script` marker on **every** request in a sub-agent's lineage — including `tool_loop` continuations — not just its first turn, so cross-session mailbox/steerer reminders never land on a sub-agent's tool loop. |
+| `requests.turn_origins` | `primary`(1) `title_sidecar`(2) `subagent`(3) `advisor_sidecar`(4) `quota_probe`(5) `primary_first`(6) `monitor_sidecar`(7) `count_tokens_sidecar`(8) `web_fetch_sidecar`(9) `steered`(10) `workflow_subagent`(11) `next_input_suggestion_sidecar`(12). `subagent`/`workflow_subagent` are classified from the system-prompt persona / `running inside a workflow script` marker on **every** request in a sub-agent's lineage — including `tool_loop` continuations — not just its first turn, so cross-session mailbox/steerer reminders never land on a sub-agent's tool loop. |
 | `requests.delta_change_kinds` | `added`(1) `removed`(2) |
 | `requests.delta_removed_reasons` | `compaction`(1) `tail_rebuild`(2) `unknown`(3) |
+| `requests.author_kinds` | `operator`(1) `harness`(2) `agent`(3) `unknown`(4); FK target of `requests.requests.author_kind_id` (NOT NULL DEFAULT 4) |
 
 ### `requests.requests`
 
@@ -596,6 +766,98 @@ Columns added by the judgement-context migrations (definition as migrated):
 | `request_body_size` | integer |
 | `request_envelope` | bytea |
 
+### `requests.methods` (vocab)
+
+Baseline lookup of HTTP methods. FK target of `requests.requests.method_id` and
+`remote_control.calls.method_id` (the latter reuses it rather than adding a parallel vocabulary).
+Deliberately not indexed from either side: the rows are never deleted.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | Method name |
+
+Seeded: `GET` (1), `POST` (2), `PUT` (3), `PATCH` (4), `DELETE` (5), `HEAD` (6), `OPTIONS` (7),
+`TRACE` (8), `CONNECT` (9).
+
+---
+
+### `requests.statuses` (vocab)
+
+Baseline lookup of request lifecycle states. FK target of `requests.requests.status_id`;
+`idx_requests_inflight_session` treats ids 1 and 2 as in flight.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | State name |
+
+Seeded: `pending` (1), `streaming` (2), `complete` (3), `error` (4).
+
+---
+
+### `requests.turn_types` (vocab)
+
+Baseline lookup of turn types. FK target of `requests.requests.turn_type_id`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | Turn type |
+
+Seeded: `user_prompt` (1), `tool_loop` (2), `continuation` (3).
+
+---
+
+### `requests.turn_origins` (vocab)
+
+Lookup of where a request came from (the primary thread, a sidecar, a sub-agent). FK target of
+`requests.requests.turn_origin_id`. Seeded with ids 1–6 at baseline and extended one row per
+migration since; every `INSERT` uses `OVERRIDING SYSTEM VALUE` and resets the sequence.
+`subagent`/`workflow_subagent` are classified on every request in a sub-agent's lineage, not just
+its first turn (see the vocabulary summary above).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | Origin name |
+
+Seeded: `primary` (1), `title_sidecar` (2), `subagent` (3), `advisor_sidecar` (4), `quota_probe`
+(5), `primary_first` (6) (baseline); `monitor_sidecar` (7,
+`20260609000002_add_monitor_sidecar_turn_origin.sql`); `count_tokens_sidecar` (8,
+`20260609000003_add_count_tokens_sidecar_turn_origin.sql`); `web_fetch_sidecar` (9,
+`20260610000002_add_web_fetch_sidecar_turn_origin.sql`); `steered` (10,
+`20260613000002_steering_schema.sql`); `workflow_subagent` (11,
+`20260618000001_add_claude_code_agent_id.sql`); `next_input_suggestion_sidecar` (12,
+`20260702000001_add_next_input_suggestion_sidecar_turn_origin.sql`).
+
+---
+
+### `requests.author_kinds` (vocab)
+
+Added by `20260811010000_requests_author_kind.sql` ([issue #105](https://github.com/temet-ai/mike/issues/105)):
+who authored the turn — the operator, the Claude Code harness, or an agent. The same migration added
+`requests.requests.author_kind_id BIGINT NOT NULL DEFAULT 4` (FK `requests_author_kind_id_fkey`,
+added NOT VALID then validated; index `idx_requests_author_kind_id`), set in the same INSERT that
+writes the request row (`store/persistence/request_write.rs`) and re-classified by the origin
+backfill (`store/persistence/origin_backfill.rs`). Historical rows keep `unknown`; no backfill ran.
+Read by the turn-fact classifier (`turn_facts/classify_load.rs`), the prompt stream
+(`prompt_stream/j2_text.sql`), `dossier_parity_dispositions.sql` and the learning proposal queue.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | Author kind |
+
+Seeded: `operator` (1), `harness` (2), `agent` (3), `unknown` (4).
+
+---
+
+
+
+
+
+
 ### `requests.messages`
 
 Ordered FK bridge per request. One row per `(request, ord)` pair. The content SHA comes via JOIN to
@@ -648,6 +910,35 @@ of the table's row content.
 - `idx_request_deltas_removed_reason`: `removed_reason_id WHERE NOT NULL` (BTree partial) — find all compactions
 
 ---
+
+### `requests.delta_change_kinds` (vocab)
+
+Baseline lookup. FK target of `requests.deltas.change_kind_id`; the
+`request_deltas_reason_only_on_removed` CHECK on `requests.deltas` keys on ids 1 and 2.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | Change kind |
+
+Seeded: `added` (1), `removed` (2).
+
+---
+
+### `requests.delta_removed_reasons` (vocab)
+
+Baseline lookup. FK target of `requests.deltas.removed_reason_id`, required on `removed` rows.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | Why the message left the conversation |
+
+Seeded: `compaction` (1), `tail_rebuild` (2), `unknown` (3).
+
+---
+
+
 
 ### `requests.diagnostics`
 
@@ -710,6 +1001,38 @@ truncated.
 - `idx_request_errors_request_id`: `request_id` (BTree)
 
 ---
+
+### `requests.response_intercepts`
+
+Added by `20260921130000_response_intercepts.sql` ([issue #318](https://github.com/temet-ai/mike/issues/318)).
+Durable evidence that a response-replacing path ran: one row per decision, keyed by session so it
+survives a request row that was never persisted (fallback id), and by request when one exists.
+Before it, the only proof a weasel intercept fired was a log line. Written by
+`PersistHandle::insert_response_intercept` (`store/persistence/response_intercepts.rs`) from the
+weasel intercept and proxy-declared-tool paths (`weasel_intercept/`). No REST route, MCP tool or
+worker reads it yet; only the e2e test `weasel_intercept_evidence.rs` does.
+
+`outcome`: `weasel_correction` (the streamed answer was discarded and a correction request sent;
+`subject` is the forbidden word), `proxy_tool_answer` (the proxy answered a proxy-declared tool
+call; `subject` is the tool name), `not_scanned_buffered` (intercept armed but the upstream
+response was not an event stream, so no scan ran; `subject` NULL).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `session_id` | `BIGINT NOT NULL` | FK → `sessions.sessions(id)` ON DELETE CASCADE |
+| `request_id` | `BIGINT NULL` | FK → `requests.requests(id)` ON DELETE SET NULL; the request whose response was replaced or left unscanned, NULL when it was never persisted or has been deleted |
+| `outcome` | `TEXT NOT NULL` | CHECK `IN ('weasel_correction', 'proxy_tool_answer', 'not_scanned_buffered')` |
+| `subject` | `TEXT NULL` | The forbidden word or tool name; NULL for `not_scanned_buffered` |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Indexes:**
+- `idx_response_intercepts_session_created`: `(session_id, created_at DESC)` (BTree)
+- `idx_response_intercepts_request`: `request_id WHERE request_id IS NOT NULL` (BTree partial)
+- `brin_response_intercepts_created_at`: `created_at` (BRIN)
+
+---
+
 
 ### `requests.system_prompts`
 
@@ -777,6 +1100,7 @@ the persona block; NULL when the system array has fewer than 3 blocks).
 
 - `responses.statuses`: HTTP status codes 100–599 (PK = status code; FK target for `responses.responses.response_status`)
 - `responses.stop_reasons`: `end_turn`(1) `max_tokens`(2) `stop_sequence`(3) `tool_use`(4) `pause_turn`(5) `error`(6) `refusal`(7)
+- `responses.stream_block_types`: `text`(1) `thinking`(2) `tool_use`(3) (FK target for `responses.stream_blocks.block_type_id`)
 - `responses.stream_delta_types`: `text`(1) `thinking`(2) `input_json`(3)
 
 ### `responses.responses`
@@ -811,6 +1135,58 @@ the `token_usage` JSONB at write time, so per-turn sums are `SUM(col)` instead o
 - `idx_request_responses_upstream_request_id`: `upstream_request_id WHERE NOT NULL` (BTree partial)
 
 ---
+
+### `responses.statuses` (vocab)
+
+Baseline lookup of HTTP status codes; the primary key is the code itself. FK target of
+`responses.responses.response_status`. `20260721030000_missing_fk_indexes.sql` deliberately leaves
+that FK unindexed: the 71 rows are never deleted.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `SMALLINT` | Primary key; the status code |
+| `reason` | `TEXT NOT NULL` | Reason phrase |
+
+**Constraints:**
+- `response_statuses_code_range`: `id >= 100 AND id <= 599`
+
+Seeded (71 rows): 100 Continue, 101 Switching Protocols, 102 Processing, 103 Early Hints, 200 OK,
+201 Created, 202 Accepted, 203 Non-Authoritative Information, 204 No Content, 205 Reset Content,
+206 Partial Content, 207 Multi-Status, 208 Already Reported, 226 IM Used, 300 Multiple Choices,
+301 Moved Permanently, 302 Found, 303 See Other, 304 Not Modified, 305 Use Proxy,
+307 Temporary Redirect, 308 Permanent Redirect, 400 Bad Request, 401 Unauthorized,
+402 Payment Required, 403 Forbidden, 404 Not Found, 405 Method Not Allowed, 406 Not Acceptable,
+407 Proxy Authentication Required, 408 Request Timeout, 409 Conflict, 410 Gone,
+411 Length Required, 412 Precondition Failed, 413 Content Too Large, 414 URI Too Long,
+415 Unsupported Media Type, 416 Range Not Satisfiable, 417 Expectation Failed, 418 I'm a teapot,
+421 Misdirected Request, 422 Unprocessable Content, 423 Locked, 424 Failed Dependency,
+425 Too Early, 426 Upgrade Required, 428 Precondition Required, 429 Too Many Requests,
+431 Request Header Fields Too Large, 451 Unavailable For Legal Reasons,
+500 Internal Server Error, 501 Not Implemented, 502 Bad Gateway, 503 Service Unavailable,
+504 Gateway Timeout, 505 HTTP Version Not Supported, 506 Variant Also Negotiates,
+507 Insufficient Storage, 508 Loop Detected, 510 Not Extended,
+511 Network Authentication Required, 520 Web Server Returned an Unknown Error,
+521 Web Server Is Down, 522 Connection Timed Out, 523 Origin Is Unreachable,
+524 A Timeout Occurred, 525 SSL Handshake Failed, 526 Invalid SSL Certificate,
+527 Railgun Error, 529 Site Overloaded.
+
+---
+
+### `responses.stop_reasons` (vocab)
+
+Baseline lookup of the API's `stop_reason` values. FK target of `responses.responses.stop_reason_id`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | Stop reason |
+
+Seeded: `end_turn` (1), `max_tokens` (2), `stop_sequence` (3), `tool_use` (4), `pause_turn` (5),
+`error` (6), `refusal` (7).
+
+---
+
+
 
 ### `responses.errors`
 
@@ -868,6 +1244,27 @@ old per-delta reconstruction.
 - `idx_response_stream_blocks_arrived_at`: `arrived_at` BRIN
 
 ---
+
+### `responses.stream_block_types` (vocab)
+
+Added by `20260625000007_stream_blocks.sql`. Closed lookup of assembled content-block kinds for
+`responses.stream_blocks.block_type_id`; mirrors the CHECK/FK pattern of the legacy
+`responses.stream_delta_types`, whose `input_json` delta kind folds into the `tool_use` block kind.
+Joined by name wherever a turn's text is assembled (`store/persistence/assemble/`,
+`turn_facts/text_facts.sql`, `turn_lifecycle/materialize.sql`, `steering/guard/replay_turns.sql`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | Block kind |
+
+**Constraints:**
+- `stream_block_types_code_known`: `code IN ('text', 'thinking', 'tool_use')`
+
+Seeded: `text` (1), `thinking` (2), `tool_use` (3).
+
+---
+
 
 ## Domain: `tools`
 
@@ -1085,6 +1482,90 @@ arrives. `first_request_id` is a real FK ON DELETE SET NULL (not a soft referenc
 - `agent_instances_session_persona_idx`: `(session_id, subagent_persona) WHERE NOT NULL` (BTree partial)
 
 ---
+
+### `agents.work_items`
+
+Added by `20260923130000_work_items.sql`. One row per background job a session launched through
+Claude Code — a `run_in_background` Bash command or an async Agent — recognised on the wire from the
+launching tool result (`work_items/parse.rs`: the "Command running in background with ID:" and
+"Async agent launched successfully." texts) and closed by the `<task-notification>` block a later
+request carries. Written inside the request-capture transaction by
+`store/persistence/work_items.rs` (`record_from_request_guarded`, which also applies earlier
+notifications a request body still carries for items whose finish was missed); the work-registry
+worker closes a still-running job from the last line of its output file
+(`work_items_reconcile.rs::close_job_from_its_output`), and
+`POST /api/sessions/{id}/work-items/backfill` replays a session's requests. Read by the work-registry worker's ledger (`work_registry_worker.rs`,
+`work_items/ledger.rs`, `work_items_ledger_rows.sql`), the dossier (`dossier_entries/backing_items.sql`,
+`promise_close.sql`), steering facts (`steering_facts/backing.sql`), turn facts
+(`turn_facts/checks_load.sql`) and the fleet (`fleet/background_ends.sql`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `session_id` | `BIGINT NOT NULL` | FK → `sessions.sessions(id)` ON DELETE CASCADE |
+| `wire_tool_use_id` | `TEXT NOT NULL` | The `tool_use` id of the launching call; UNIQUE |
+| `kind` | `TEXT NOT NULL` | CHECK `IN ('bash', 'agent')` |
+| `task_id` | `TEXT NOT NULL` | Claude Code's id for the job (the background command id or the agent id) |
+| `output_path` | `TEXT NULL` | The file the job's output is written to, from the launch text |
+| `owner_agent_id` | `TEXT NULL` | `x-claude-code-agent-id` of the sub-agent whose request launched it; NULL for the main thread |
+| `description` | `TEXT NULL` | |
+| `launched_request_id` | `BIGINT NULL` | FK → `requests.requests(id)` ON DELETE SET NULL; the request that carried the launch result |
+| `launched_at` | `TIMESTAMPTZ NOT NULL` | |
+| `state` | `TEXT NOT NULL DEFAULT 'running'` | CHECK `IN ('running', 'completed', 'failed', 'killed', 'unknown')`; `completed` with a non-zero exit code is stored as `failed` |
+| `finished_at` | `TIMESTAMPTZ NULL` | |
+| `finished_request_id` | `BIGINT NULL` | FK → `requests.requests(id)` ON DELETE SET NULL; the request that carried the task notification |
+| `notified_agent_id` | `TEXT NULL` | `x-claude-code-agent-id` of the request that carried the notification |
+| `exit_code` | `INTEGER NULL` | From the notification |
+| `summary` | `TEXT NULL` | From the notification |
+
+**Constraints:**
+- `uq_work_items_wire_tool_use_id`: UNIQUE `(wire_tool_use_id)`
+
+**Indexes:**
+- `idx_work_items_session_launched`: `(session_id, launched_at)` (BTree)
+- `idx_work_items_task_id`: `task_id` (BTree)
+- `idx_work_items_running`: `session_id WHERE state = 'running'` (BTree partial)
+
+---
+
+### `agents.work_item_attention`
+
+Added by `20260923200000_work_item_attention.sql`. A raise-once ledger of the conditions the
+work-registry worker finds in a session's work ledger (`work_items/attention.rs::assess`): kinds
+`result_lost`, `agent_silent`, `landed_polling`, `stalled_wait` and `main_idle_with_open_work`. One
+row per `(session, kind, subject)`, upserted by `work_item_attention_record.sql`; the worker
+(`work_registry_worker/delivery.rs`) mails the session once through the mailbox, retrying with
+exponential backoff up to six attempts (`20261007100100_work_item_attention_delivery_attempts.sql`),
+and settles the row with a disposition (`20261007100300_work_item_attention_disposition.sql`):
+`delivered` once mailed, `stale` when older than the delivery window, `resolved` when no longer
+true on the rescan before delivery, `given_up` when the attempts run out. `eval.alarms` copies the
+same raise-once idea.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `session_id` | `BIGINT NOT NULL` | FK → `sessions.sessions(id)` ON DELETE CASCADE |
+| `kind` | `TEXT NOT NULL` | Attention kind (open set, see above) |
+| `subject` | `TEXT NOT NULL` | The work item or agent the finding is about |
+| `since` | `TIMESTAMPTZ NOT NULL` | When the condition began |
+| `message` | `TEXT NOT NULL` | The text mailed to the session |
+| `first_seen_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `delivered_message_uuid` | `UUID NULL` | `mailbox.messages.message_uuid` of the delivery (soft reference, no FK) |
+| `delivery_attempts` | `INTEGER NOT NULL DEFAULT 0` | Mail attempts so far |
+| `last_delivery_attempt_at` | `TIMESTAMPTZ NULL` | |
+| `disposition` | `TEXT NOT NULL DEFAULT 'pending'` | CHECK `IN ('pending', 'delivered', 'stale', 'resolved', 'given_up')` |
+| `disposition_reason` | `TEXT NULL` | `mailed`, or why the row was settled without delivery |
+| `disposition_at` | `TIMESTAMPTZ NULL` | |
+
+**Constraints:**
+- `uq_work_item_attention`: UNIQUE `(session_id, kind, subject)`
+
+**Indexes:**
+- `idx_work_item_attention_session_seen`: `(session_id, first_seen_at)` (BTree)
+
+---
+
+
 
 ## Domain: `overrides`
 
@@ -3797,6 +4278,30 @@ indistinguishable from a first ack and should not fail. `200` `{ message_uuid, c
 Acking also drops any in-memory redelivery entry for that message immediately (`RequestStore::remove_mailbox_reminder`)
 rather than waiting for the next drain's `bump_redelivery_attempt` call to fail closed.
 
+### `mailbox.message_context_items`
+
+Added by `20260810100004_mailbox_message_context.sql`. Structured context items attached to a
+mailbox message — a request id, a commit sha, a URL — deep-linking pointers the recipient can jump
+to, distinct from the free-text body. `kind` is a closed set, revalidated at the REST layer so an
+unknown kind 400s naming it. Written with the message by
+`store/persistence/mailbox/thread_send.rs` (`insert_message_with_context`, the `context` field of
+a send); read back by `session_reads.rs` and `thread_reads.rs` into the message DTOs.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `message_id` | `BIGINT NOT NULL` | FK → `mailbox.messages(id)` ON DELETE CASCADE |
+| `kind` | `TEXT NOT NULL` | CHECK `IN ('request', 'session', 'thread', 'message', 'commit', 'file', 'issue', 'url', 'note')` |
+| `value` | `TEXT NOT NULL` | The pointer (id, sha, path, URL, ...) |
+| `label` | `TEXT NULL` | Optional display label |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Indexes:**
+- `idx_mailbox_message_context_items_message`: `message_id` (BTree)
+
+---
+
+
 ### `mailbox.failed_sends`
 
 Added in migration `20260709000001_mailbox_failed_sends.sql` ([issue #166](https://github.com/temet-ai/mike/issues/166)).
@@ -3825,14 +4330,102 @@ coordinator's message sits unread.
 
 ---
 
+### `mailbox.threads`
+
+Added by `20260810100001_mailbox_threads.sql`, which also gave `mailbox.messages` its `thread_id`
+(FK → `mailbox.threads(id)` ON DELETE SET NULL) and `in_reply_to_id` columns. A conversation thread
+between sessions: the unit an operator lists, filters, tags and resolves. Surfaced by
+`GET`/`POST /api/threads`, `GET /api/threads/{thread_uuid}` (`read_thread`),
+`POST /api/threads/{thread_uuid}/message`, `POST /api/threads/{thread_uuid}/resolve`
+(`resolve_thread`) and `GET /api/sessions/{id}/threads` (`get_session_threads`); persistence in
+`store/persistence/mailbox/thread_core.rs`, `thread_send.rs`, `thread_reads.rs` and
+`thread_summaries_tail.sql`. Project knowledge search (`project_knowledge/search.sql`) ranks thread
+messages too.
+
+`project_id` is placed by trigger `messages_place_thread_in_project` (AFTER INSERT OR UPDATE OF
+`thread_id` on `mailbox.messages`, `20261006000000_comms_thread_project_and_tags.sql`) from the
+participants' real project (`mailbox.thread_project_id()`), so no thread sits under the
+"(no project)" placeholder. `fleet_uuid` (`20261005020000_fleet_comms_thread.sql`) marks a fleet's
+comms thread — one per fleet, `thread_uuid = fleet_uuid` — into which `mailbox.file_fleet_mail()`
+files mail to or from the fleet's seats that has no thread of its own. Row changes NOTIFY through
+`trg_mailbox_threads_row_changed` / `trg_mailbox_threads_row_changed_update`
+(`20260810100002_mailbox_row_change_triggers.sql`, redefined by
+`20261102240000_row_changed_notify_only_on_relevant_change.sql` to fire on UPDATE only when a
+column changed).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `thread_uuid` | `UUID NOT NULL UNIQUE` | Stable surrogate; the id in routes and tool answers |
+| `subject` | `TEXT NOT NULL` | |
+| `project_id` | `BIGINT NULL` | FK → `projects.projects(id)` ON DELETE SET NULL; placed by trigger, see above |
+| `created_by_session_id` | `BIGINT NULL` | FK → `sessions.sessions(id)` ON DELETE SET NULL; counted as a participant |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `last_message_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Bumped on every message appended (new send, reply, or retroactive adoption); the sort key of the recent-threads views |
+| `resolved_at` | `TIMESTAMPTZ NULL` | Set once by `POST /api/threads/{thread_uuid}/resolve` |
+| `fleet_uuid` | `UUID NULL` | Set on a fleet's comms thread; unique where set |
+
+**Indexes:**
+- `idx_mailbox_threads_project_recent`: `(project_id, last_message_at DESC)` (BTree) — `GET /api/threads?project=`
+- `idx_mailbox_threads_created_by`: `created_by_session_id WHERE created_by_session_id IS NOT NULL` (BTree partial)
+- `threads_fleet_uuid`: `fleet_uuid WHERE fleet_uuid IS NOT NULL` (BTree unique partial)
+
+---
+
+### `mailbox.tags`
+
+Added by `20260810100003_mailbox_tags.sql`. Open vocabulary of thread tags, interned on demand: an
+unknown code on a send is inserted here, not rejected (`attach_tags_to_thread`,
+`store/persistence/mailbox/tags.rs`). Tags attach to threads, not messages. Since
+`20261006000000_comms_thread_project_and_tags.sql` a code is stored normalized by
+`mailbox.normalize_tag()` — lower case, spaces as hyphens, a leading `#` dropped, a bare number as
+`issue-<n>`, and nothing without a letter — enforced by CHECK; that migration rewrote the existing
+rows and moved their `thread_tags`. `GET /api/tags` lists every tag with its usage count.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `code` | `TEXT NOT NULL UNIQUE` | The normalized tag |
+| `hue` | `SMALLINT NULL` | Read into the tag DTO; nothing writes it today |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Constraints:**
+- `tags_code_normalized`: `code = mailbox.normalize_tag(code)`
+
+Seeded (ids assigned by the identity sequence): `handoff`, `blocked`, `review`, `merge`,
+`redeploy`, `heads-up`, `question`, `decision`.
+
+---
+
+### `mailbox.thread_tags`
+
+Added by `20260810100003_mailbox_tags.sql`. The many-to-many between threads and tags. Written by
+`attach_tags_to_thread` (`store/persistence/mailbox/tags.rs`); read by the thread listings
+(`thread_reads.rs`, `thread_summaries_tail.sql`) and the `GET /api/tags` usage count.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `thread_id` | `BIGINT NOT NULL` | FK → `mailbox.threads(id)` ON DELETE CASCADE |
+| `tag_id` | `BIGINT NOT NULL` | FK → `mailbox.tags(id)` ON DELETE CASCADE |
+
+**Constraints:**
+- PRIMARY KEY `(thread_id, tag_id)`
+
+**Indexes:**
+- `idx_mailbox_thread_tags_tag`: `tag_id` (BTree)
+
+---
+
+
+
+
 ## Domain: `remote_control`
 
 Added in migration `20260903000001_remote_control_channel.sql` ([issue #230](https://github.com/temet-ai/mike/issues/230)) —
 capture for the Remote Control channel every Claude Code session opens to `api.anthropic.com` under
 `/v1/code/sessions/<cse_id>/...`. These requests carry no `x-claude-code-session-id` header, so they
-are keyed on the `cse_` id parsed from the URL path instead. Full column-level documentation for
-`channels`, `calls` and `call_payloads` lives in that migration file's own header comment, not
-duplicated here; this section covers only what `20260908000003_remote_control_session_link.sql`
+are keyed on the `cse_` id parsed from the URL path instead. Each table has its own section at the
+end of this domain; the prose here covers what `20260908000003_remote_control_session_link.sql`
 ([issues #231/#232](https://github.com/temet-ai/mike/issues/231)) added on top of it.
 
 **`remote_control.channels`** gained five columns and a channel-to-session link. `local_session_uuid`,
@@ -3895,6 +4488,213 @@ the relay inserts frames only between complete SSE events, with bounded wake
 deadlines even while the client applies backpressure.
 
 ---
+
+### `remote_control.channels`
+
+Added by `20260903000001_remote_control_channel.sql`; the link and summary columns by
+`20260908000003_remote_control_session_link.sql`. One row per Remote Control `cse_` channel, with
+the liveness facts rolled up so the liveness query and the workspace roster never scan
+`remote_control.calls`. The capture path (`proxy::remote_control::capture::persist`, through
+`store/persistence/remote_control/touch_channel.sql` and `record_calls.sql`) upserts the row on
+every call, so it takes ~180,000 updates a day; the table is created `WITH (fillfactor = 70,
+autovacuum_vacuum_scale_factor = 0.05, autovacuum_vacuum_threshold = 25)` so those updates stay
+heap-only, and none of the hot columns is indexed. `session_id` is resolved from
+`local_session_uuid` (`link_channel_from_request_body.sql`, the sweep in `link_sweep.rs`) and then
+stays sticky. Read by `fetch_channel_snapshots` (the roster merge), `fetch_worker_status_history`,
+the launch channel checks (`launch/channel_exists.sql`, `session_has_channel.sql`), the steering
+promotion reach query, `renew_lease_on_heartbeat.sql` and the session-flow cursor.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `cse_id` | `TEXT NOT NULL UNIQUE` | The `cse_` id from `/v1/code/sessions/<cse_id>/...`; the natural key |
+| `session_id` | `BIGINT NULL` | FK → `sessions.sessions(id)` ON DELETE SET NULL; resolved lazily from `local_session_uuid`, sticky once set |
+| `client_session_id` | `TEXT NULL` | The `session_id` field inside the payloads (repeats `cse_id` in the 2.1.259 client); stored so a divergence is visible |
+| `worker_epoch` | `BIGINT NULL` | The worker generation the client addresses; from `POST /bridge`, echoed on worker calls |
+| `first_seen_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `last_seen_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Touched by every call on the channel |
+| `last_heartbeat_at` | `TIMESTAMPTZ NULL` | Last `POST /worker/heartbeat` |
+| `last_idle_seconds` | `INTEGER NULL` | `idle_seconds` from the last heartbeat body (client `idleTracker`) |
+| `last_heartbeat_interval_seconds` | `INTEGER NULL` | `current_interval_seconds` from the same heartbeat |
+| `worker_status` | `TEXT NULL` | Latest `PUT /worker` status; open set, no CHECK |
+| `worker_status_at` | `TIMESTAMPTZ NULL` | |
+| `last_delivery_at` | `TIMESTAMPTZ NULL` | Last `POST /worker/events/delivery` |
+| `stream_opened_at` | `TIMESTAMPTZ NULL` | `GET /worker/events/stream` opened |
+| `stream_closed_at` | `TIMESTAMPTZ NULL` | That stream closed |
+| `local_session_uuid` | `UUID NULL` | The local session, from the first kept `attachment`/`system` payload carrying `payload.sessionId`; first-write-wins |
+| `local_cwd` | `TEXT NULL` | `payload.cwd` from the same payload; first-write-wins |
+| `client_version` | `TEXT NULL` | `payload.version` (the Claude Code version) from the same payload; first-write-wins |
+| `post_turn_summary` | `JSONB NULL` | `external_metadata.post_turn_summary` from the latest `PUT /worker` that carried one; latest-wins |
+| `post_turn_summary_at` | `TIMESTAMPTZ NULL` | |
+
+**Constraints:**
+- `channels_last_idle_seconds_nonneg`: `last_idle_seconds IS NULL OR last_idle_seconds >= 0`
+- `channels_heartbeat_interval_positive`: `last_heartbeat_interval_seconds IS NULL OR last_heartbeat_interval_seconds > 0`
+
+**Indexes:**
+- `idx_rc_channels_session_id`: `session_id WHERE session_id IS NOT NULL` (BTree partial)
+- `brin_rc_channels_first_seen_at`: `first_seen_at` (BRIN, `pages_per_range = 32`)
+- `idx_rc_channels_local_session_uuid`: `local_session_uuid WHERE local_session_uuid IS NOT NULL` (BTree partial)
+
+---
+
+### `remote_control.calls`
+
+Added by `20260903000001_remote_control_channel.sql`. One row per HTTP call on a channel, recorded
+once after the response completes by `record_calls.sql` (bound from
+`proxy::remote_control::capture` in channel batches); the one exception is
+`/worker/events/stream`, whose row opens with `completed_at` NULL and is closed later. Which paths
+store full bodies is decided by `KNOWN_ENDPOINTS` / the body-capture policy in
+`proxy/remote_control/route.rs`, not here: `request_body IS NULL AND request_body_size IS NOT NULL`
+means a body existed and its bytes were not stored; `request_body_size IS NULL` means there was no
+body. A batch call's own `request_body` is NULL while its kept items live in
+`remote_control.call_payloads`; the size and digest still describe the whole batch. The CHECKs
+refuse any stored body whose length disagrees with its recorded size, so a slice cannot be written.
+Grows by ~180,000 rows a day; no roster or liveness query may scan it.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `channel_id` | `BIGINT NOT NULL` | FK → `remote_control.channels(id)` ON DELETE CASCADE |
+| `method_id` | `BIGINT NOT NULL` | FK → `requests.methods(id)`; deliberately unindexed |
+| `path` | `TEXT NOT NULL` | The suffix after `/v1/code/sessions/<cse_id>` (`/worker/heartbeat`, `/worker/events`, `/bridge`, ...); text, not a vocabulary id, to avoid row-lock contention on the write path |
+| `http_status` | `INTEGER NULL` | |
+| `request_body` | `BYTEA NULL` | Full request bytes, or NULL when the policy elided them |
+| `request_body_sha256` | `BYTEA NULL` | Raw 32-byte digest; a fingerprint, never a key |
+| `request_body_size` | `INTEGER NULL` | NULL = no body; 0 = an empty one |
+| `response_body` | `BYTEA NULL` | |
+| `response_body_sha256` | `BYTEA NULL` | |
+| `response_body_size` | `INTEGER NULL` | |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `completed_at` | `TIMESTAMPTZ NULL` | NULL while a call is open (only the SSE stream) |
+| `payload_count` | `INTEGER NULL` | Items the batch held; NULL for a call with no batch |
+| `payload_kept_count` | `INTEGER NULL` | Items that became `call_payloads` rows |
+| `payload_type_counts` | `JSONB NULL` | Item counts by payload type, including the dropped types |
+| `is_compaction` | `BOOLEAN NULL` | From `POST /worker/internal-events`; NULL on every other path |
+| `session_agent_id` | `TEXT NULL` | From the same envelope: the sub-agent that produced the event |
+| `preserved_event_ids` | `TEXT[] NULL` | From the same envelope: the events that survived a context compaction |
+
+**Constraints:**
+- `calls_request_sha_is_sha256`: `request_body_sha256 IS NULL OR octet_length(request_body_sha256) = 32`
+- `calls_response_sha_is_sha256`: `response_body_sha256 IS NULL OR octet_length(response_body_sha256) = 32`
+- `calls_request_body_size_nonneg`: `request_body_size IS NULL OR request_body_size >= 0`
+- `calls_response_body_size_nonneg`: `response_body_size IS NULL OR response_body_size >= 0`
+- `calls_request_body_is_whole`: `request_body IS NULL OR octet_length(request_body) = request_body_size`
+- `calls_response_body_is_whole`: `response_body IS NULL OR octet_length(response_body) = response_body_size`
+- `calls_payload_counts_nonneg`: both counts NULL or `>= 0`
+- `calls_payload_kept_within_count`: `(payload_count IS NULL) = (payload_kept_count IS NULL)` and `payload_kept_count <= payload_count`
+
+**Indexes:**
+- `idx_rc_calls_channel_created_at`: `(channel_id, created_at DESC)` (BTree) — the per-channel call history, and the channel FK's cascade
+- `brin_rc_calls_created_at`: `created_at` (BRIN, `pages_per_range = 32`)
+
+---
+
+### `remote_control.call_payloads`
+
+Added by `20260903000001_remote_control_channel.sql`. One row per payload item of a batch Remote
+Control call (`POST /worker/events`, up to 100 `{payload, ephemeral?}` items) that the capture policy
+KEPT. Items whose bytes duplicate what `/v1/messages` already captures (`stream_event`, `user`,
+`assistant`, `message`) get no row — they are only counted in the parent call's
+`payload_type_counts` — so a `permission_request`, `task_status`, `session_state_changed` or any
+unrecognised type is stored once, in full. Written by `record_calls.sql`; the proxy reads the
+`attachment`/`system` items for the session link before storage, and no production query reads this
+table today (integration tests only).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `call_id` | `BIGINT NOT NULL` | FK → `remote_control.calls(id)` ON DELETE CASCADE |
+| `ordinal` | `INTEGER NOT NULL` | Zero-based position within the batch, preserved although dropped items get no row |
+| `payload_type` | `TEXT NOT NULL` | The client's own payload `type`; open set, no CHECK |
+| `body` | `BYTEA NOT NULL` | The item's exact original bytes, sliced from the request body with no reserialization |
+| `body_sha256` | `BYTEA NOT NULL` | |
+| `body_size` | `INTEGER NOT NULL` | |
+| `created_at` | `TIMESTAMPTZ NOT NULL` | Copied from the parent call (deliberate denormalization for type-scoped, time-ranged reads) |
+
+**Constraints:**
+- `call_payloads_ordinal_nonneg`: `ordinal >= 0`
+- `call_payloads_sha_is_sha256`: `octet_length(body_sha256) = 32`
+- `call_payloads_body_size_nonneg`: `body_size >= 0`
+- `call_payloads_body_is_whole`: `octet_length(body) = body_size`
+- `call_payloads_one_row_per_item`: UNIQUE `(call_id, ordinal)` — also the call FK's index and the ordered per-call read
+
+**Indexes:**
+- `idx_rc_call_payloads_type_created_at`: `(payload_type, created_at DESC)` (BTree)
+
+---
+
+### `remote_control.worker_status_transitions`
+
+Added by `20260908000003_remote_control_session_link.sql`. One row per observed change in a
+channel's `worker_status`, appended set-based inside `record_calls.sql` only when the incoming
+status differs from what was stored — never on every heartbeat. `worker_status`/`worker_status_at`
+on the channel row stay the current reading; this table is the history they cannot hold. Read by
+`PersistHandle::fetch_worker_status_history` (`store/persistence/remote_control/reads.rs`; its
+production caller is the flapping warning in `proxy::remote_control::capture::persist`) and the
+session-flow status and cursor queries (`session_flow/status.rs`, `cursor.rs`). No REST or MCP
+route reads it directly.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `channel_id` | `BIGINT NOT NULL` | FK → `remote_control.channels(id)` ON DELETE CASCADE |
+| `from_status` | `TEXT NULL` | NULL for a channel's first observed status; open vocabulary, no CHECK |
+| `to_status` | `TEXT NOT NULL` | |
+| `observed_at` | `TIMESTAMPTZ NOT NULL` | The `worker_status_at` the transitioning call carried, not write time |
+| `call_id` | `BIGINT NULL` | FK → `remote_control.calls(id)` ON DELETE SET NULL; the call that carried the status, when known |
+
+**Indexes:**
+- `idx_rc_worker_status_transitions_channel_observed`: `(channel_id, observed_at DESC)` (BTree)
+
+---
+
+### `remote_control.injections`
+
+Added by `20260908000004_remote_control_injections.sql`; `source_kind`/`source_id` by
+`20260916020000_push_wake_injection_sources.sql` ([issue #255](https://github.com/temet-ai/mike/issues/255));
+`carried_request_id` by `20260923153500_injection_carried_request.sql`. The exact bytes of every
+mike-authored, id-less SSE frame pushed into a session's live Remote Control reply stream, including
+unsuccessful attempts: a database reservation (`reserve_injection.sql`,
+`reserve_steerer_injection.sql`, `reserve_unclaimed_injection.sql`) and the source's claim precede
+emission; `finish_injection.sql` stamps `emitted_at` or `failed_at`; only a captured
+`POST /worker/events/delivery` with `status: "received"` and the same event UUID stamps `acked_at`
+(`ack_injections.sql`, `ack_steering_interventions.sql`), which also consumes the mailbox row or
+acks the intervention. `release_stale_mailbox_push.sql` returns an unacked mailbox push to ordinary
+turn delivery. Once a later request body carries the acked reminder, `stamp_push_carriers.sql`
+records it in `carried_request_id` and back-fills the source's `sent_request_id`. An ack proves
+client receipt, not that the model acted on the message. See the prose above for the stream
+mechanics.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `event_id` | `UUID` | Primary key; the event UUID the frame carries and the ack names |
+| `channel_id` | `BIGINT NOT NULL` | FK → `remote_control.channels(id)` ON DELETE CASCADE |
+| `message_uuid` | `UUID NULL` | FK → `mailbox.messages(message_uuid)` ON DELETE SET NULL; the pushed mailbox message, when the source is `mailbox` |
+| `authored_by` | `TEXT NOT NULL DEFAULT 'mike'` | CHECK `authored_by = 'mike'` |
+| `frame` | `BYTEA NOT NULL` | The exact SSE frame bytes |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Reservation time |
+| `emitted_at` | `TIMESTAMPTZ NULL` | Handed to the reply stream |
+| `failed_at` | `TIMESTAMPTZ NULL` | Emission failed or timed out; the claim is released |
+| `acked_at` | `TIMESTAMPTZ NULL` | The addressed client reported `received`; first ack wins |
+| `ack_call_id` | `BIGINT NULL` | FK → `remote_control.calls(id)` ON DELETE SET NULL; the delivery call that acked |
+| `source_kind` | `TEXT NOT NULL DEFAULT 'mailbox'` | Which `ReminderSource` produced the push: `mailbox`, `steerer`, `lesson`, `diagnostic` or `recall` (no CHECK) |
+| `source_id` | `TEXT NULL` | The source's own id as text (mailbox `message_uuid`, steering intervention uuid); NULL for a source with no owning row |
+| `carried_request_id` | `BIGINT NULL` | The later request whose body carried the acked reminder (no FK); NULL until stamped |
+
+**Indexes:**
+- `idx_rc_injections_channel`: `channel_id` (BTree)
+- `idx_rc_injections_message`: `message_uuid WHERE message_uuid IS NOT NULL` (BTree partial)
+- `idx_rc_injections_ack_call`: `ack_call_id WHERE ack_call_id IS NOT NULL` (BTree partial)
+- `idx_rc_injections_source`: `(source_kind, source_id) WHERE source_id IS NOT NULL` (BTree partial) — ack routing by source
+- `idx_rc_injections_uncarried`: `channel_id WHERE acked_at IS NOT NULL AND carried_request_id IS NULL` (BTree partial) — acked pushes awaiting their carrier request
+
+---
+
+
+
+
+
 
 ## Domain: `workspace`
 
@@ -4147,7 +4947,10 @@ Added in migrations `20260916000001_launch_domain.sql` and
 folding a standalone terminal-launcher process into mike as a native launch domain). Four
 tables: `templates` (warm sessions `mike spawn fork` starts from), `runs` (a run id's shared
 backend workspace/tab), `launches` (one row per launch attempt, whatever its outcome),
-`backend_validations` (every live terminal-backend validation, whoever triggered it). See
+`backend_validations` (every live terminal-backend validation, whoever triggered it). Later
+migrations added `fleets`, `told`, `run_records`, `fleet_events`, `tree_changes` (what changed in a
+run's checkout), `tree_checks` (the project's check command, run once per tree state) and
+`introductions` (seats that repeated another seat's slow command), all documented below. See
 [`LAUNCH_DOMAIN.md`](LAUNCH_DOMAIN.md) for the CLI/MCP surface these tables back.
 
 ### `launch.templates`
@@ -4355,6 +5158,288 @@ managed command receipts settle. Read and written through
 - `idx_launch_fleets_project_created`: `(project_path, created_at DESC)` (BTree) — the per-project listing, newest first
 - `idx_launch_fleets_slug_created`: `(slug, created_at DESC)` (BTree) — slug lookup, newest wins
 - `idx_launch_fleets_run_id`: `run_id WHERE run_id IS NOT NULL` (BTree partial) — the run FK's own lookup and the `ON DELETE SET NULL` walk
+
+---
+
+### `launch.tree_changes`
+
+Added by `20260930020000_launch_tree_changes.sql`. What changed in a fleet run's checkout, read
+from the tree itself once a second while the run is running (`launch/fleet/watch.rs`, `git status
+--porcelain=v2`): one row per path per observed change, with the blob hash of the new content. Who
+made the change is worked out at read time from the seats' tool calls in flight at `seen_at`.
+Written by `fleet/insert_tree_changes.sql`; read by `tree_changes_since.sql` and
+`tree_changed_paths_since.sql` for `GET /api/fleets/{fleet}/changes` (`api/fleet/changes.rs`),
+the fleet tree view (`api/fleet/tree.rs`) and the fleet tick's introductions, proposals, floor and
+report proof (`launch/fleet/introduce.rs`, `propose_tick.rs`, `floor.rs`, `report_proof.rs`,
+`reuse.rs`). `run_id` is a soft reference to `launch.runs(run_id)`: no FK.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `run_id` | `TEXT NOT NULL` | The fleet run (soft reference) |
+| `path` | `TEXT NOT NULL` | Path relative to the checkout |
+| `change` | `TEXT NOT NULL` | CHECK `IN ('added', 'modified', 'deleted')` |
+| `content_sha` | `TEXT NULL` | Blob hash of the new content; NULL for a deletion |
+| `seen_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Indexes:**
+- `idx_tree_changes_run_seen`: `(run_id, seen_at, id)` (BTree)
+- `idx_tree_changes_run_path`: `(run_id, path, seen_at)` (BTree)
+
+---
+
+### `launch.tree_checks`
+
+Added by `20261001010000_launch_tree_checks.sql`; `state_after` by
+`20261001030000_tree_checks_state_after.sql`, `executing_at` by
+`20261101130000_tree_check_executing_at.sql`. The project's declared check command, run by mike for
+a fleet run once per state of the tree: `state` names the content of every file under the check's
+declared paths, so a second seat asking at the same state gets this row instead of a second run.
+The whole output is kept. Written and read through `store/persistence/fleet/` (`begin_tree_check`,
+`find_tree_check`, `latest_tree_check`, `add_tree_check_asker`, `add_tree_check_told`,
+`mark_tree_check_executing`, `finish_tree_check`, `abandon_expired_checks`, `abandon_unrun_check`,
+`measured_tree_check_seconds`) by the fleet's check, gate and commit-verify paths
+(`launch/fleet/check_run.rs`, `check_completion.rs`, `gate.rs`, `gate_queue.rs`,
+`commit_verify.rs`, `managed_queue.rs`, `start_baseline.rs`) behind `POST /api/fleets/{fleet}/check`,
+`/gate` and `/commit`, and by the run record. `run_id` is a soft reference to `launch.runs(run_id)`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `run_id` | `TEXT NOT NULL` | The fleet run (soft reference) |
+| `state` | `TEXT NOT NULL` | Hash of the tree state the check was asked for |
+| `command` | `TEXT NOT NULL` | The check command |
+| `started_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | When the row was opened |
+| `finished_at` | `TIMESTAMPTZ NULL` | |
+| `exit_code` | `INTEGER NULL` | |
+| `output` | `TEXT NOT NULL DEFAULT ''` | The whole output |
+| `askers` | `TEXT[] NOT NULL DEFAULT '{}'` | The seats that asked for this state |
+| `told` | `TEXT[] NOT NULL DEFAULT '{}'` | The seats mike mailed because their file failed it |
+| `state_after` | `TEXT NULL` | The tree state when the check finished; when it differs from `state` the tree changed during the run, so the result belongs to neither state and is not served to a later asker |
+| `executing_at` | `TIMESTAMPTZ NULL` | When the managed command's process actually started (`launch/fleet/managed_command.rs`); NULL while queued |
+
+**Indexes:**
+- `idx_tree_checks_run_state`: `(run_id, state, id DESC)` (BTree)
+
+---
+
+### `launch.introductions`
+
+Added by `20261001020000_launch_introductions.sql`. One row per slow command a fleet seat ran after
+another seat of the same run had already run the same command: `again_use_id` is the repeat,
+`first_use_id` the earlier run (both `tools.uses.id`, soft references). mike mails the coordinator
+once per row so it can put the two seats in touch; the row is what keeps that to once. Written by
+`launch/fleet/introduce.rs` (`fleet/record_introductions.sql`, `ON CONFLICT DO NOTHING`); a row
+whose mail could not be queued is deleted again (`told_sql/release_introduction.sql`) so the
+notice is retried, and `told_sql/recorded_introductions.sql` filters repeats already told.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `again_use_id` | `BIGINT` | Primary key; the repeat's `tools.uses.id` (soft reference) |
+| `run_id` | `TEXT NOT NULL` | The fleet run (soft reference to `launch.runs`) |
+| `first_use_id` | `BIGINT NOT NULL` | The earlier run's `tools.uses.id` (soft reference) |
+| `told_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Indexes:**
+- `idx_introductions_run`: `(run_id, told_at)` (BTree)
+
+---
+
+
+
+
+## Domain: `work`
+
+Added by `20260903000002_work_threads.sql` ([issue #243](https://github.com/temet-ai/mike/issues/243),
+moving worklog thread state out of `artifacts/threads/*/worklog.md` and the session-start hook that
+pasted it into every session) and extended by `20261022120000_work_threads_direct_write.sql`
+([issue #658](https://github.com/temet-ai/mike/issues/658): a thread lives in mike's database, not
+in a file, so it can be created, checkpointed and given entries directly). Six tables: `threads`
+(identity and metadata), `thread_state` (the present tense, one row per thread, replaced whole on
+every checkpoint), `thread_acceptance_criteria`, `thread_log` (append-only history),
+`thread_sessions` (which sessions worked which thread) and `thread_dependencies`. Not to be confused
+with `mailbox.threads`, a conversation between sessions. Surfaced by `GET`/`POST /api/work-threads`
+(`work_thread_list`, `work_thread_checkpoint`), `GET`/`PATCH /api/work-threads/{slug}`
+(`work_thread_get`), `POST /api/work-threads/{slug}/entries` (`work_thread_add_entry`) and
+`GET /api/work-threads/{slug}/export` (Markdown); persistence in `store/persistence/work_threads/`
+(`import.rs`, `meta.rs`, `checkpoint.rs`, `lock.rs`, `reads.rs`, `criteria.rs`). Project knowledge
+read and search (`project_knowledge/read.sql`, `search.sql`) include a project's threads.
+Session references (`last_session_uuid`, `thread_log.session_uuid`, `thread_sessions.session_uuid`)
+are deliberately soft, so a thread's history survives session rows being aged out.
+
+### `work.threads`
+
+One row per work thread: identity and metadata, parsed from a worklog by the import or created
+directly. `source_path`/`parsed_at`/`parse_error` record ingestion honesty: a worklog that fails to
+parse still gets a row rather than vanishing. `project_merge.rs` moves threads when projects merge.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `project_id` | `BIGINT NOT NULL` | FK → `projects.projects(id)` ON DELETE CASCADE |
+| `slug` | `TEXT NOT NULL` | The thread's name in routes and tools; unique per project; CHECK not blank |
+| `title` | `TEXT NULL` | |
+| `status` | `TEXT NULL` | CHECK `IN ('active', 'implementing', 'review', 'parked', 'done', 'complete', 'in-progress')` |
+| `branch` | `TEXT NULL` | |
+| `worktree` | `TEXT NULL` | Path of the thread's git worktree, relative to the project root |
+| `last_session_uuid` | `UUID NULL` | Soft reference to `sessions.sessions.session_uuid` |
+| `source_path` | `TEXT NULL` | The worklog file an import read the thread from; NULL for a thread created in mike (NOT NULL dropped by `20261022120000`) |
+| `parsed_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `parse_error` | `TEXT NULL` | Non-NULL when the worklog was read but its fields could not be fully extracted |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `updated_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `goal` | `TEXT NULL` | What the thread is for, in a sentence or two; not part of the replaced-whole state (`20261022120000`) |
+
+**Constraints:**
+- `threads_slug_not_blank`: `length(trim(slug)) > 0`
+- `threads_status_check`: the status list above (dropped and re-added unchanged by `20261022120000`)
+- `threads_has_title_or_error`: `title IS NOT NULL OR parse_error IS NOT NULL`
+- `threads_project_slug_uniq`: UNIQUE `(project_id, slug)`
+
+**Indexes:**
+- `idx_work_threads_project_updated`: `(project_id, updated_at DESC)` (BTree) — a project's threads, newest first; also the `project_id` FK index
+
+---
+
+### `work.thread_state`
+
+The present tense for one thread, REPLACED whole on every checkpoint (`work_threads/checkpoint.rs`)
+and never appended to; the state it replaces moves to `work.thread_log` first as a
+`state-replaced` entry. `thread_id` is the primary key, so one row per thread is a structural fact.
+`tldr` is the injected unit and is length-bounded on purpose: the hook this replaces died of
+unbounded accumulation. The embedding over the text columns is for similarity retrieval; the HNSW
+index is partial, so a query must repeat `WHERE embedding IS NOT NULL` to use it.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `thread_id` | `BIGINT` | Primary key; FK → `work.threads(id)` ON DELETE CASCADE |
+| `where_we_are` | `TEXT NOT NULL DEFAULT ''` | |
+| `next_up` | `TEXT NOT NULL DEFAULT ''` | |
+| `blockers` | `TEXT NOT NULL DEFAULT ''` | |
+| `open_questions` | `TEXT NOT NULL DEFAULT ''` | |
+| `updated_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Also the embedding staleness marker |
+| `embedding` | `vector(768) NULL` | NULL until an embed worker computes it |
+| `embedding_model` | `TEXT NULL` | |
+| `embedded_at` | `TIMESTAMPTZ NULL` | |
+| `tldr` | `TEXT NOT NULL DEFAULT ''` | The short summary a session reads to decide whether the thread is its business; CHECK `length(tldr) <= 600` |
+| `source_updated_at` | `TIMESTAMPTZ NULL` | Worklog mtime when the embedding was taken, so unchanged text is not re-embedded |
+| `decisions` | `TEXT NOT NULL DEFAULT ''` | Decisions in force, replaced whole like the other fields (`20261022120000`) |
+| `files` | `TEXT[] NOT NULL DEFAULT '{}'` | Files the next session must read, relative to the project root (`20261022120000`) |
+
+**Constraints:**
+- `thread_state_embedding_consistent`: `embedding`, `embedded_at` and `embedding_model` all NULL or all non-NULL
+- `thread_state_tldr_bounded`: `length(tldr) <= 600`
+
+**Indexes:**
+- `idx_work_thread_state_embedding_hnsw`: `embedding vector_cosine_ops WHERE embedding IS NOT NULL` (HNSW m=16 ef_construction=64, partial)
+
+---
+
+### `work.thread_acceptance_criteria`
+
+The parsed `<acceptance-criteria>` block of a thread, one row per thread, with an embedding for
+similarity retrieval. Same ingestion-honesty shape as `steering.thread_acceptance_criteria`, which
+is a separate table still used by the false-done judge bridge (the migration header marks the two
+as needing reconciliation). Written by `work_threads/criteria.rs` and the import.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `thread_id` | `BIGINT` | Primary key; FK → `work.threads(id)` ON DELETE CASCADE |
+| `criteria_text` | `TEXT NULL` | |
+| `source_path` | `TEXT NULL` | The worklog the criteria were read from; NULL for a thread created in mike (NOT NULL dropped by `20261022120000`) |
+| `parsed_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Also the embedding staleness marker |
+| `parse_error` | `TEXT NULL` | Non-NULL when the worklog was read but no acceptance-criteria block could be extracted |
+| `embedding` | `vector(768) NULL` | |
+| `embedding_model` | `TEXT NULL` | |
+| `embedded_at` | `TIMESTAMPTZ NULL` | |
+
+**Constraints:**
+- `thread_acceptance_criteria_has_text_or_error`: `criteria_text IS NOT NULL OR parse_error IS NOT NULL`
+- `thread_acceptance_criteria_embedding_consistent`: `embedding`, `embedded_at` and `embedding_model` all NULL or all non-NULL
+
+**Indexes:**
+- `idx_work_thread_acceptance_criteria_embedding_hnsw`: `embedding vector_cosine_ops WHERE embedding IS NOT NULL` (HNSW m=16 ef_construction=64, partial)
+
+---
+
+### `work.thread_log`
+
+Append-only history for a thread: never edited or bulk-replaced. Sessions write `checkpoint`,
+`decision`, `finding`, `brief`, `handoff` and `note` entries (`work_thread_add_entry`,
+`work_threads/lock.rs`); a checkpoint writes a `state-replaced` entry holding the old state fields
+in `data`. `ord` is the per-thread sequence, 1..n — a direct write takes `max(ord) + 1` while
+holding the thread row lock, and an import uses the entry's position in the worklog's
+"## Session log" section as its `ON CONFLICT` key.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `thread_id` | `BIGINT NOT NULL` | FK → `work.threads(id)` ON DELETE CASCADE |
+| `ord` | `INTEGER NOT NULL` | 1-based position within the thread; CHECK `>= 1` |
+| `entry_date` | `DATE NOT NULL DEFAULT current_date` | When the checkpoint happened (default added by `20261022120000`) |
+| `session_uuid` | `UUID NULL` | Soft reference to `sessions.sessions.session_uuid`; NULL for an entry that names no session |
+| `commit_sha` | `TEXT NULL` | Display metadata only, never indexed |
+| `summary` | `TEXT NOT NULL` | The entry's first line; CHECK not blank |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | When the row was written, distinct from `entry_date` |
+| `kind` | `TEXT NOT NULL DEFAULT 'checkpoint'` | CHECK `IN ('checkpoint', 'decision', 'finding', 'brief', 'handoff', 'note', 'state-replaced')` (`20261022120000`) |
+| `body` | `TEXT NOT NULL DEFAULT ''` | The entry in full (`20261022120000`) |
+| `data` | `JSONB NULL` | Structured payload: a `state-replaced` entry carries the old state fields; an imported worklog carries `{"imported_from": path}` (`20261022120000`) |
+
+**Constraints:**
+- `thread_log_ord_positive`: `ord >= 1`
+- `thread_log_summary_not_blank`: `length(trim(summary)) > 0`
+- `thread_log_thread_ord_uniq`: UNIQUE `(thread_id, ord)`
+- `thread_log_kind_check`: the kind list above
+
+**Indexes:**
+- `idx_work_thread_log_thread_newest`: `(thread_id, entry_date DESC, ord DESC)` (BTree) — one thread's log, newest first
+
+---
+
+### `work.thread_sessions`
+
+The corpus edge: which sessions worked which thread, many-to-many. A new session is given a TLDR
+plus these links rather than the accumulated text, and follows a link to that session's overview
+when it needs the detail. Written by `work_threads/lock.rs` and `criteria.rs` on every write a
+session makes to a thread, and by the import.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `thread_id` | `BIGINT NOT NULL` | FK → `work.threads(id)` ON DELETE CASCADE |
+| `session_uuid` | `UUID NOT NULL` | Soft reference to `sessions.sessions.session_uuid` |
+| `contribution` | `TEXT NOT NULL DEFAULT ''` | One line on what the session did for the thread; CHECK `length(contribution) <= 300` |
+| `first_seen_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `last_seen_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Constraints:**
+- PRIMARY KEY `(thread_id, session_uuid)`
+- `thread_sessions_contribution_bounded`: `length(contribution) <= 300`
+
+**Indexes:**
+- `idx_work_thread_sessions_recent`: `(thread_id, last_seen_at DESC)` (BTree) — which sessions worked this thread, most recent first
+- `idx_work_thread_sessions_by_session`: `session_uuid` (BTree) — which threads did this session work
+
+---
+
+### `work.thread_dependencies`
+
+Added by `20261022120000_work_threads_direct_write.sql`. Thread `thread_id` cannot finish before
+thread `depends_on_thread_id`; both threads belong to the same project and the persistence layer
+(`work_threads/meta.rs`) resolves the dependency by slug, so it survives a rename of the file that
+used to name it.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `thread_id` | `BIGINT NOT NULL` | FK → `work.threads(id)` ON DELETE CASCADE |
+| `depends_on_thread_id` | `BIGINT NOT NULL` | FK → `work.threads(id)` ON DELETE CASCADE |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Constraints:**
+- PRIMARY KEY `(thread_id, depends_on_thread_id)`
+- `thread_dependencies_no_self_reference`: `thread_id <> depends_on_thread_id`
+
+**Indexes:**
+- `idx_work_thread_dependencies_depends_on`: `depends_on_thread_id` (BTree)
 
 ---
 

@@ -82,7 +82,7 @@ disagree.
 | Web UI routes | `frontend/src/routes/` (file routing); nav in `frontend/src/lib/components/shell/DestinationNav.svelte` |
 | Boot config and env | `mike print-config`; `crates/mike/src/config/schema.rs`, `config/proxy_config_defaults.rs` |
 | Runtime settings | `GET /api/settings`; `crates/mike/src/settings/meta_*.rs` |
-| Schema | `crates/mike/src/store/persistence/migrations/` (312 files); [`SCHEMA.md`](SCHEMA.md) documents 146 tables and is behind on 79 |
+| Schema | `crates/mike/src/store/persistence/migrations/` (312 files); [`SCHEMA.md`](SCHEMA.md) has a section per table |
 | Doc drift gate | `scripts/rule-checks/judgement-context-docs.sh` (ledgers in `judgement-context-docs.d/`) |
 | User guide vs CLI | `crates/mike/tests/cli/user_guide.rs`, `scripts/check-user-guide --complete` |
 
@@ -340,8 +340,8 @@ detail. [`tui/STYLE_GUIDE.md`](tui/STYLE_GUIDE.md) and
   `sessions`, `system_prompts`, `prompt_kinds`, `tools`, `memory`, `steering`,
   `session_judges`, `eval`, `llm`, `mailbox`, `messages`, `workspace`, `work`,
   `launch`, `agents`, `remote_control`, `projects`, `rules`, `overrides`,
-  `config`, `jobs`, `sync`, `runtime`. [`SCHEMA.md`](SCHEMA.md) describes most
-  tables; the migrations folder is authoritative.
+  `config`, `jobs`, `sync`, `runtime`. [`SCHEMA.md`](SCHEMA.md) has a section per
+  table; the migrations folder is authoritative.
 - **Local fallback** (`local_database_url`) with resync; **trial** mode keeps
   everything in memory.
 - Retention: sessions older than `default_ttl` (365 days) are swept; pinned
