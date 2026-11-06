@@ -17,7 +17,8 @@ Docs: [`ARCHITECTURE`](docs/ARCHITECTURE.md) ·
 [`INJECTION_TRUST`](docs/INJECTION_TRUST.md) ·
 [`FORWARD_PROXY_WEBSOCKET_UPGRADE`](docs/FORWARD_PROXY_WEBSOCKET_UPGRADE.md) ·
 [`TROUBLESHOOTING`](docs/TROUBLESHOOTING.md) ·
-[`LOCAL_DB_FALLBACK`](docs/LOCAL_DB_FALLBACK.md). `docs/` holds more; list it.
+[`LOCAL_DB_FALLBACK`](docs/LOCAL_DB_FALLBACK.md) ·
+[`MODALITY_BENCH`](docs/MODALITY_BENCH.md). `docs/` holds more; list it.
 
 A Rust reverse proxy for Claude API traffic: two Rust binaries, one SPA process.
 Design rationale lives in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); only
@@ -154,6 +155,7 @@ All resolve the repo root themselves.
 | `scripts/style-guide-render` · `scripts/html-doc-render` | Render HTML docs to text and pictures; `--check` flags stale renders                                                     |
 | `scripts/read-anchored <file> <regex>`                   | Print a region with real line numbers                                                                                    |
 | `scripts/publish-user-guide [--status]`                  | The guide of the latest release onto temet.ai/docs/mike/; `--status` says whether the site is behind                     |
+| `scripts/modality-bench plan\|run\|grade\|collect\|dry-run` | One ask through single session, subagents, team, workflow and fleet, each in a sealed cell ([`MODALITY_BENCH`](docs/MODALITY_BENCH.md)) |
 | `scripts/gh-cat <owner/repo> <path>`                     | Read files from other GitHub repos                                                                                       |
 | `scripts/gh-run-digest` · `scripts/gh-security-posture`  | GH Actions run digest; Dependabot and security settings                                                                  |
 | `scripts/cargo-dep-info <crate>[@ver]`                   | Latest version, yanked flag, MSRV, dependents                                                                            |

@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+"""One ask, five ways of running Claude Code on it, each in a sealed cell (docs/MODALITY_BENCH.md).
+
+  plan    --dir D [--model sonnet] [--effort medium] [--reps 3] [--seed 1] [--arms a,b,...] [--cap 2400]
+  run     --dir D [--only cell,...]        one cell at a time; a stopped run resumes
+  grade   --dir D [--cell ID]              grade again from the cells' origins, no model
+  collect --dir D                          results.json and report.md
+  dry-run --dir D [--wrong T4,T5]          every cell with a scripted agent: plumbing and grader, no model
+
+The plan directory must not be under /tmp or a scratchpad folder: mike would class the cells
+as synthetic. Default plan directories live under ~/.local/state/modality-bench/.
+"""
+import argparse
+import fcntl
+import json
+import os
+from pathlib import Path
+import sys
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / 'scripts'))
+from modality_bench import ask, plan as planning, preflight, report, runner  # noqa: E402
+
+SPEC = ROOT / 'scripts' / 'fleet-refs' / 'node.json'
+INSPECT = os.environ.get('MIKE_INSPECT_URL', 'http://127.0.0.1:9989')
+PROXY = os.environ.get('MIKE_PROXY_URL', 'http://127.0.0.1:9988')
+
+
+def refuse_synthetic(directory):
+    path = str(Path(directory).resolve())
+    if path.startswith('/tmp/') or '/scratchpad' in path:
+        raise SystemExit(f'{path}: mike classes sessions under /tmp or a scratchpad as synthetic; plan elsewhere '
+                         '(default ~/.local/state/modality-bench/<name>)')
+
+
+def load_plan(directory):
+    path = Path(directory) / 'plan.json'
+    if not path.is_file():
+        raise SystemExit(f'{path} does not exist; run plan first')
+    return json.loads(path.read_text())
+
+
+def cell_records(directory):
+    records = []
+    for path in sorted((Path(directory) / 'cells').glob('*/cell.json')):
+        records.append(json.loads(path.read_text()))
+    return records
+
+
+def environment(dry):
+    env = {'proxy_url': PROXY, 'inspect_url': INSPECT, 'client_version': preflight.client_version(),
+           'user_scope': preflight.user_scope_hash(os.environ.get('CLAUDE_CONFIG_DIR') or Path.home() / '.claude')}
+    if dry:
+        env['settings_hash'] = None
+        return env
+    hosts = runner.Hosts(ROOT, INSPECT, PROXY)
+    env['settings_hash'] = preflight.settings_hash(hosts.settings())
+    return env
+
+
+def cmd_plan(args):
+    refuse_synthetic(args.dir)
+    target = Path(args.dir) / 'plan.json'
+    if target.exists():
+        raise SystemExit(f'{target} exists; a frozen plan is never replaced')
+    spec = ask.load_spec(SPEC)
+    arms = [a.strip() for a in args.arms.split(',') if a.strip()]
+    plan = planning.make_plan(spec, SPEC.relative_to(ROOT), args.model, args.effort, args.reps, args.seed, arms,
+                              environment(args.dry), cap_seconds=args.cap)
+    if args.budget_usd is not None:
+        plan['budget_usd'] = args.budget_usd
+    target.parent.mkdir(parents=True, exist_ok=True)
+    (target.parent / 'asks').mkdir(exist_ok=True)
+    for arm in arms:
+        if arm != 'fleet':
+            (target.parent / 'asks' / f'{arm}.md').write_text(ask.render_ask(spec, arm))
+    target.write_text(json.dumps(plan, indent=2) + '\n')
+    print(json.dumps({'status': 'planned', 'path': str(target), 'cells': len(plan['cells']),
+                      'order': [c['id'] for c in planning.cells_in_order(plan)]}))
+
+
+def with_lock(directory, body):
+    lock_path = Path(directory) / 'run.lock'
+    with open(lock_path, 'w') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            raise SystemExit(f'another run holds {lock_path}; one cell at a time')
+        return body()
+
+
+def run_cells(args, agent=None, read_capture=True, install=True):
+    plan = load_plan(args.dir)
+    spec = ask.load_spec(ROOT / plan['spec_path'])
+    if planning.digest(spec) != plan['spec_hash']:
+        raise SystemExit('the reference definition changed since the plan was frozen')
+    only = set(args.only.split(',')) if getattr(args, 'only', None) else None
+    hosts = runner.Hosts(ROOT, INSPECT, PROXY)
+    done = 0
+    for cell in planning.cells_in_order(plan, only):
+        record_path = Path(args.dir) / 'cells' / cell['id'] / 'cell.json'
+        if record_path.exists() and 'exit' in json.loads(record_path.read_text()):
+            print(f"{cell['id']}: already run", flush=True)
+            continue
+        if agent is None:
+            refusals = hosts.refusals(plan)
+            if refusals:
+                raise SystemExit('refusing to start ' + cell['id'] + ':\n  ' + '\n  '.join(refusals))
+        print(f"{cell['id']}: starting ({cell['arm']}, order {cell['order']})", flush=True)
+        record = runner.run_cell(ROOT, hosts, spec, plan, cell, args.dir, agent=agent, read_capture=read_capture, install=install)
+        grade = record.get('grade', {})
+        print(f"{cell['id']}: {record.get('stop')} in {record.get('wall_seconds')} s, accepted {grade.get('accepted')}/{grade.get('of')}, "
+              f"fidelity {record.get('fidelity', {}).get('ok')}", flush=True)
+        done += 1
+    print(json.dumps({'status': 'ran', 'cells': done}))
+
+
+def cmd_run(args):
+    with_lock(args.dir, lambda: run_cells(args))
+
+
+def cmd_dry_run(args):
+    wrong = tuple(t for t in (args.wrong or '').split(',') if t)
+    with_lock(args.dir, lambda: run_cells(args, agent=runner.scripted_agent(wrong=wrong), read_capture=False,
+                                          install=not args.no_install))
+
+
+def cmd_grade(args):
+    plan = load_plan(args.dir)
+    spec = ask.load_spec(ROOT / plan['spec_path'])
+    from modality_bench import grade as grading
+    for path in sorted((Path(args.dir) / 'cells').glob('*/cell.json')):
+        record = json.loads(path.read_text())
+        if args.cell and record['id'] != args.cell:
+            continue
+        record['grade'] = grading.grade_cell(spec, path.parent)
+        path.write_text(json.dumps(record, indent=2, default=str) + '\n')
+        print(f"{record['id']}: accepted {record['grade']['accepted']}/{record['grade']['of']}")
+
+
+def cmd_collect(args):
+    plan = load_plan(args.dir)
+    results = report.build_results(plan, cell_records(args.dir))
+    (Path(args.dir) / 'results.json').write_text(json.dumps(results, indent=2, default=str) + '\n')
+    (Path(args.dir) / 'report.md').write_text(report.render_report(results))
+    print(json.dumps({'status': 'collected', 'rows': len(results['rows']), 'report': str(Path(args.dir) / 'report.md')}))
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = parser.add_subparsers(dest='command', required=True)
+    p = sub.add_parser('plan'); p.add_argument('--dir', required=True)
+    p.add_argument('--model', default='sonnet'); p.add_argument('--effort', default='medium')
+    p.add_argument('--reps', type=int, default=3); p.add_argument('--seed', type=int, default=1)
+    p.add_argument('--arms', default=','.join(ask.ARMS)); p.add_argument('--cap', type=int, default=planning.DEFAULT_CAP_SECONDS)
+    p.add_argument('--budget-usd', type=float, default=None)
+    p.add_argument('--dry', action='store_true', help='plan without reading mike settings (for a dry run)')
+    p.set_defaults(func=cmd_plan)
+    r = sub.add_parser('run'); r.add_argument('--dir', required=True); r.add_argument('--only'); r.set_defaults(func=cmd_run)
+    d = sub.add_parser('dry-run'); d.add_argument('--dir', required=True); d.add_argument('--only'); d.add_argument('--wrong')
+    d.add_argument('--no-install', action='store_true', help='skip npm install (the typecheck then cannot run)')
+    d.set_defaults(func=cmd_dry_run)
+    g = sub.add_parser('grade'); g.add_argument('--dir', required=True); g.add_argument('--cell'); g.set_defaults(func=cmd_grade)
+    c = sub.add_parser('collect'); c.add_argument('--dir', required=True); c.set_defaults(func=cmd_collect)
+    args = parser.parse_args(argv)
+    args.func(args)
+
+
+if __name__ == '__main__':
+    main()

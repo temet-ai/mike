@@ -552,6 +552,7 @@ A task in a fleet definition may carry two more optional fields, checked when th
 - [`SCHEMA.md`](SCHEMA.md#domain-launch) — the `launch` schema.
 - [`CONFIGURATION.md`](CONFIGURATION.md) — every `launch_*` / `MIKE_LAUNCH_*` config knob.
 - [`FLEET_EVENTS.md`](FLEET_EVENTS.md) and [`FLEET_ISOLATED_CHECKS.md`](FLEET_ISOLATED_CHECKS.md) — the event kinds and the managed check slots.
+- [`MODALITY_BENCH.md`](MODALITY_BENCH.md) — the reference fleet's ask run through a single session, subagents, an agent team, a workflow and a fleet, each in a sealed cell (`scripts/modality-bench`).
 - [`docs/tui/screens/setup.md`](tui/screens/setup.md) — the setup wizard's terminal-backend step.
 - [`animations/fleet-run.html`](animations/fleet-run.html) — an interactive walkthrough of a fleet run built on these verbs; open it in a browser from a checkout. A recording of its scripted run:
 
