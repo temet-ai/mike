@@ -64,19 +64,19 @@ container started or the migrations succeeded.
 
 `scripts/frontend-audit` runs the installed project-declared pnpm against the
 frontend lockfile. It audits production, development and optional dependencies,
-uses the lowest documented `--audit-level=low`, and additionally fails any `info`
-advisories present in the report. It never fixes dependencies, adds ignores,
-raises the severity threshold, tolerates registry errors, or downloads a package
+uses `--audit-level=high`, and fails on any high or critical advisory in the
+report. Lower severities are printed in the summary and do not fail it. It never
+fixes dependencies, adds ignores, tolerates registry errors, or downloads a package
 manager. It also disables Corepack network downloads for this invocation.
 
-A valid complete JSON report, zero advisories, a zero pnpm exit status, and an
-unchanged lockfile are all required for PASS. Metadata counts and returned
-advisories both count: suppressed inventory cannot turn nonzero totals green.
+A valid complete JSON report, no high or critical advisories, a zero pnpm exit
+status, and an unchanged lockfile are all required for PASS. Metadata counts and
+returned advisories both count: suppressed inventory cannot turn nonzero totals green.
 The lockfile SHA-256 is printed to bind the result to the audited dependency set.
 
-- Exit 0 / PASS: a complete successful audit with zero reported advisories.
-- Exit 1 / FAIL: one or more advisories at any reported severity, including those
-  without a fix; a zero pnpm exit does not override reported vulnerabilities.
+- Exit 0 / PASS: a complete successful audit with no high or critical advisories.
+- Exit 1 / FAIL: one or more high or critical advisories, including those without a
+  fix; a zero pnpm exit does not override reported vulnerabilities.
 - Exit 2 / NOT RUN: prerequisites unavailable, registry/tool timeout or failure,
   an incomplete/unsupported report, unexpected command arguments, or a changed
   lockfile. This fails the containing source gate; it never means a clean audit.

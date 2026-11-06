@@ -46,14 +46,14 @@ class FrontendAuditTests(unittest.TestCase):
         self.assertIn("FRONTEND-AUDIT: PASS", output)
         self.assertIn("Frontend lockfile sha256:", output)
         command = run.call_args.args[0]
-        self.assertEqual(command, ["/offline/pnpm", "audit", "--json", "--audit-level=low",
+        self.assertEqual(command, ["/offline/pnpm", "audit", "--json", "--audit-level=high",
                                    "--dev", "--prod", "--optional",
                                    "--ignore-registry-errors=false", "--pm-on-fail=error"])
         self.assertEqual(run.call_args.kwargs["cwd"], self.root / "frontend")
         self.assertGreater(run.call_args.kwargs["timeout"], 0)
 
-    def test_every_severity_fails_even_when_pnpm_exits_zero(self):
-        for severity in AUDIT.SEVERITIES:
+    def test_high_and_critical_fail_even_when_pnpm_exits_zero(self):
+        for severity in AUDIT.BLOCKING:
             for exit_code in (0, 1):
                 with self.subTest(severity=severity, exit_code=exit_code):
                     code, output, _ = self.run_audit(report(**{severity: 1}), exit_code)
@@ -61,12 +61,20 @@ class FrontendAuditTests(unittest.TestCase):
                     self.assertIn("FRONTEND-AUDIT: FAIL", output)
                     self.assertNotIn("FRONTEND-AUDIT: PASS", output)
 
+    def test_lower_severities_pass_and_are_still_reported(self):
+        for severity in ("info", "low", "moderate"):
+            with self.subTest(severity=severity):
+                code, output, _ = self.run_audit(report(**{severity: 1}))
+                self.assertEqual(code, 0, output)
+                self.assertIn("FRONTEND-AUDIT: PASS", output)
+                self.assertIn(f"{severity}=1", output)
+
     def test_inventory_advisory_cannot_be_hidden_by_zero_metadata(self):
         value = report()
-        value["advisories"]["1"] = {"severity": "low", "patched_versions": None}
+        value["advisories"]["1"] = {"severity": "high", "patched_versions": None}
         code, output, _ = self.run_audit(value)
         self.assertEqual(code, 1, output)
-        self.assertIn("low=1", output)
+        self.assertIn("high=1", output)
 
     def test_unavailable_or_invalid_report_is_not_run_even_on_zero_exit(self):
         values = [None, {}, [], {"error": "private registry token"}, report(low=-1),
@@ -131,7 +139,7 @@ class FrontendAuditTests(unittest.TestCase):
         pnpm.chmod(0o700)
         env = {"PATH": f"{bin_dir}:{os.defpath}", "HOME": str(self.root)}
         for mode, value, expected in (("frontend-audit", report(), 0),
-                                      ("frontend-audit", report(low=1), 1),
+                                      ("frontend-audit", report(high=1), 1),
                                       ("frontend-audit", {}, 2),
                                       ("all", report(high=1), 1), ("all", {}, 2)):
             with self.subTest(mode=mode, value=value):

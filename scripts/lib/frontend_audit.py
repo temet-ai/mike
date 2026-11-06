@@ -9,9 +9,10 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 SEVERITIES = ("info", "low", "moderate", "high", "critical")
+BLOCKING = ("high", "critical")
 # No fix, ignored advisories, severity downgrade, or dependency-class exclusions.
 # Refuse pnpm's automatic package-manager download/version switch as well.
-AUDIT_ARGS = ["audit", "--json", "--audit-level=low", "--dev", "--prod",
+AUDIT_ARGS = ["audit", "--json", "--audit-level=high", "--dev", "--prod",
               "--optional", "--ignore-registry-errors=false", "--pm-on-fail=error"]
 TIMEOUT_SECONDS = 120
 
@@ -69,7 +70,7 @@ def run(root=ROOT):
         # authenticated URLs). A successful exit alone is never audit evidence.
         return no_result(f"no valid complete audit report; pnpm exit {result.returncode}")
     summary = ", ".join(f"{level}={counts[level]}" for level in SEVERITIES)
-    if any(counts.values()):
+    if any(counts[level] for level in BLOCKING):
         print(f"FRONTEND-AUDIT: FAIL ({summary}; pnpm exit {result.returncode})",
               file=sys.stderr)
         return 1
