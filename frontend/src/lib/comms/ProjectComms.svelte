@@ -29,12 +29,14 @@
 	let now = $state(Date.now());
 
 	onMount(() => {
+		const release = store.retain();
 		void store.load();
 		const unsubscribe = liveStore?.subscribe(store.handleEvent);
 		const timer = setInterval(() => (now = Date.now()), 5_000);
 		return () => {
 			unsubscribe?.();
 			clearInterval(timer);
+			release();
 		};
 	});
 

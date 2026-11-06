@@ -208,12 +208,16 @@
 		hydrated = true;
 		const threadParam = sp.get('thread');
 		if (threadParam) void selectThread(threadParam);
+		const release = comms.retain();
 		void comms.load();
 		void loadFleetProjects();
 		mounted = true;
 
 		const timer = setInterval(() => (now = Date.now()), 1_000);
-		return () => clearInterval(timer);
+		return () => {
+			clearInterval(timer);
+			release();
+		};
 	});
 </script>
 

@@ -72,20 +72,24 @@ pub fn bridge_cse_id(line: &str) -> Option<String> {
 mod tests {
     use super::*;
 
-    const BRIDGE: &str = r#"{"parentUuid":null,"type":"system","subtype":"bridge_status","content":"/remote-control is active","url":"https://claude.ai/code/session_01SAMPLE","cwd":"/mnt/data/projects/experiments/cli","sessionId":"8793f404-7b26-4f6d-9562-58e6ccf1cf82"}"#;
+    const BRIDGE: &str = concat!(
+        r#"{"parentUuid":null,"type":"system","subtype":"bridge_status","content":"/remote-control is active","url":"https://claude.ai/code/"#,
+        "session_",
+        r#"01AbCdEfGhJkLmNpQrStUvWx","cwd":"/mnt/data/projects/experiments/cli","sessionId":"8793f404-7b26-4f6d-9562-58e6ccf1cf82"}"#
+    );
 
     #[test]
     fn transcript_path_encodes_every_non_alphanumeric_as_dash() {
         let session: Uuid = "8793f404-7b26-4f6d-9562-58e6ccf1cf82".parse().unwrap();
         let path = transcript_path(
-            Path::new("/home/vimes"),
+            Path::new("/home/ada"),
             Path::new("/mnt/data/projects/experiments/cli"),
             session,
         );
         assert_eq!(
             path,
             PathBuf::from(
-                "/home/vimes/.claude/projects/-mnt-data-projects-experiments-cli/8793f404-7b26-4f6d-9562-58e6ccf1cf82.jsonl"
+                "/home/ada/.claude/projects/-mnt-data-projects-experiments-cli/8793f404-7b26-4f6d-9562-58e6ccf1cf82.jsonl"
             )
         );
     }
@@ -102,7 +106,7 @@ mod tests {
     fn bridge_cse_id_bridge_line_yields_cse_id() {
         assert_eq!(
             bridge_cse_id(BRIDGE).as_deref(),
-            Some("cse_01XSQ8ZcJt6YDkhdgrcBNsXo")
+            Some("cse_01AbCdEfGhJkLmNpQrStUvWx")
         );
     }
 
@@ -147,7 +151,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             read_bridge_cse_id(&path).unwrap().as_deref(),
-            Some("cse_01XSQ8ZcJt6YDkhdgrcBNsXo")
+            Some("cse_01AbCdEfGhJkLmNpQrStUvWx")
         );
     }
 

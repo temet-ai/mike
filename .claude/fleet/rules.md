@@ -32,13 +32,11 @@ The tree and index are shared: commit only with `fleet_commit` (or `mike fleet c
 When your brief gives you a goal, Claude Code's `/goal` is armed with it after your first turn, and a model judges it after every turn from your conversation alone.
 
 - Name the one check you ran at your own SHA and its verdict in your output; never wait on shared HEAD, the judge or peers. A reported external blocker pauses the loop, not acceptance.
-- When its bound runs out with work left, end the turn and say where the task stands.
-- Never run `/goal` or `/goal clear`, yourself or by mail.
+- When its bound runs out with work left, end the turn and say where the task stands. Never run `/goal` or `/goal clear`.
 
 ## Context
 
-Read with `select` projections and diffs a file at a time; give wide sweeps and any read over about 2,000 tokens to a haiku `Explore` subagent. Nothing in a fleet runs on Fable.
-
+Read with `select` projections and diffs a file at a time; give wide sweeps and any read over about 2,000 tokens to a haiku `Explore` subagent.
 ## Fences
 
 - Destructive git, migrations on the live database, service restarts and deploys outside what the definition allows, and posts to outside services other than the retrospective's fleet issues need the operator.

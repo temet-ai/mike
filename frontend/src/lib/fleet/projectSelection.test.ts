@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { chooseFleetProject, LatestFleetRequest } from './projectSelection';
 import type { FleetProjectSummary } from './types';
 
-function project(project_path: string): FleetProjectSummary {
-	return { project_path, first_seen: '', last_seen: '', pinned: false, custom_name: null };
+function project(project_path: string, last_seen = ''): FleetProjectSummary {
+	return { project_path, first_seen: '', last_seen, pinned: false, custom_name: null };
 }
 
 describe('fleet project selection', () => {
@@ -15,6 +15,21 @@ describe('fleet project selection', () => {
 		expect(chooseFleetProject('', [project('/home/user/new project')])).toBe(
 			'/home/user/new project'
 		);
+	});
+
+	it('chooses the project with the most recent activity, not the first path in the alphabet', () => {
+		const projects = [
+			project('.claude', '2026-07-10T14:28:00.000000+00:00'),
+			project('/work/busy', '2026-11-06T09:35:12.735528+00:00'),
+			project('/work/idle', '2026-11-02T18:41:46.544020+00:00')
+		];
+		expect(chooseFleetProject('', projects)).toBe('/work/busy');
+		expect(chooseFleetProject('', [...projects].reverse())).toBe('/work/busy');
+	});
+
+	it('prefers a project with a known last activity over one without', () => {
+		const projects = [project('/work/alpha'), project('/work/zebra', '2026-11-06T09:35:12+00:00')];
+		expect(chooseFleetProject('', projects)).toBe('/work/zebra');
 	});
 
 	it('chooses deterministically across API list order', () => {

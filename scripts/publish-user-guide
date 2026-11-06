@@ -1,0 +1,249 @@
+#!/usr/bin/env bash
+# scripts/publish-user-guide [--ref REF] [--site DIR] [--no-push]
+# scripts/publish-user-guide --status [--site DIR]
+#
+# Puts mike's user guide on https://temet.ai/docs/mike/, and says whether it is there.
+#
+# The website shows the guide of the latest published release, so its pages describe the mike
+# that Homebrew and mise install. Run this once a release is published. A correction that
+# should not wait for the next release is published by hand with `--ref main`.
+#
+# The guide travels one way: docs/user-guide in this repository, then the public repository
+# (temet-ai/mike), then the website. This command reads the public repository only, so a page
+# that is not public cannot reach the website, and "Page source on GitHub" on a page shows the
+# text that page was built from.
+#
+# Publishing, in order. It stops at the first step that fails and says what it left where:
+#   1. fetches docs/user-guide of the public repository at REF (default: the tag of the latest
+#      published release) into a temporary folder;
+#   2. runs scripts/check-user-guide --complete on it;
+#   3. in the checkout of the website's repository, which must be on main with nothing unpushed
+#      and no changed tracked file other than the guide's copy, runs the website's own
+#      `npm run sync:mike`, `npm run docs:check` and `scripts/check --build`;
+#   4. commits the guide's copy there and pushes main, which the website's deploy runner puts
+#      live, then waits until `scripts/deploy --status` there reports that commit live.
+# When the website already holds that guide it says so and changes nothing.
+#
+#   --status    change nothing; print which guide the website's pushed main holds, and how the
+#               latest release, the public main and this checkout compare with it
+#   --ref REF   a tag, branch or commit of the public repository (publishing only)
+#   --site DIR  the checkout of the website's repository; default $MIKE_SITE_CHECKOUT, else
+#               the folder `temet-ai` beside this repository
+#   --no-push   stop after the commit
+#
+# $MIKE_GUIDE_SOURCE_URL overrides the public repository's address, $MIKE_GUIDE_RELEASE the
+# release tag (otherwise read with `gh`) and $MIKE_GUIDE_WAIT_SECONDS the 300 seconds it waits
+# for the deploy; the test uses all three.
+# Exit: 0 published, nothing to publish, or (--status) the website holds the guide of the
+#       latest release or of a later commit on the public main; 1 a step failed, or (--status)
+#       the website holds neither; 2 usage, or something this needs is missing.
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SOURCE_URL="${MIKE_GUIDE_SOURCE_URL:-https://github.com/temet-ai/mike.git}"
+SOURCE_REPO="temet-ai/mike"
+GUIDE="docs/user-guide"
+SITE_PAGES="site/preview/content/mike"
+SITE_PUBLIC="site/preview/public/docs/mike"
+SITE_LIST="site/preview/lib/docs/list.ts"
+LIVE="https://temet.ai/docs/mike/"
+WAIT_SECONDS="${MIKE_GUIDE_WAIT_SECONDS:-300}"
+
+say() { printf '%s\n' "$*"; }
+die() { local rc="$1"; shift; printf 'publish-user-guide: %s\n' "$*" >&2; exit "$rc"; }
+usage() { awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "${BASH_SOURCE[0]}"; }
+
+mode=publish; ref=""; site="${MIKE_SITE_CHECKOUT:-}"; push=1
+while (($#)); do
+    case "$1" in
+        --status) mode=status ;;
+        --no-push) push=0 ;;
+        --ref) [[ $# -ge 2 ]] || die 2 "--ref needs a tag, branch or commit"; ref="$2"; shift ;;
+        --site) [[ $# -ge 2 ]] || die 2 "--site needs a folder"; site="$2"; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *) die 2 "unknown argument $1; see scripts/publish-user-guide --help" ;;
+    esac
+    shift
+done
+[[ "$mode" == status && -n "$ref" ]] && die 2 "--status reads the latest release; it takes no --ref"
+
+if [[ -z "$site" ]]; then
+    common="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir)" || die 2 "$ROOT is not a git checkout"
+    site="$(dirname "$(dirname "$common")")/temet-ai"
+fi
+if [[ ! -f "$site/site/preview/package.json" ]] || ! grep -q '"sync:mike"' "$site/site/preview/package.json"; then
+    die 2 "$site is not a checkout of the website's repository (site/preview/package.json has no sync:mike). Pass --site DIR or set MIKE_SITE_CHECKOUT."
+fi
+site="$(cd "$site" && pwd)"
+
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/publish-user-guide.XXXXXX")" || exit 2
+trap 'rm -rf "$tmp"' EXIT
+pub="$tmp/public"
+{ git init -q "$pub" && git -C "$pub" remote add origin "$SOURCE_URL"; } || die 2 "git could not make a temporary repository in $tmp"
+
+# The tag of the newest release that is not a draft. Pre-releases count: every release is one.
+latest_release() {
+    if [[ -n "${MIKE_GUIDE_RELEASE:-}" ]]; then say "$MIKE_GUIDE_RELEASE"; return 0; fi
+    command -v gh >/dev/null 2>&1 || return 1
+    gh api "repos/$SOURCE_REPO/releases?per_page=30" --jq '[.[] | select(.draft | not)][0].tag_name // empty'
+}
+
+# Commits and folders of the public repository, without file contents until a checkout needs them.
+fetch_source() { git -C "$pub" fetch -q --no-tags --filter=blob:none origin "$@"; }
+
+# manifest <repo> <commit> <pages folder> <pictures folder>: one sorted line for each page
+# ("page <file> <blob>") and each picture ("picture <path> <blob>"), read from the commit.
+manifest() {
+    {
+        git -C "$1" ls-tree "$2" "$3/" | awk -F'\t' '
+            $1 ~ / blob / && $2 ~ /\.md$/ { split($1, a, " "); n = $2; sub(/.*\//, "", n); print "page", n, a[3] }' &&
+        git -C "$1" ls-tree -r "$2" "$4/" | awk -F'\t' -v P="$4/" '
+            $1 ~ / blob / && tolower($2) ~ /\.(png|jpe?g|gif|svg|webp)$/ { split($1, a, " "); print "picture", substr($2, length(P) + 1), a[3] }'
+    } | LC_ALL=C sort
+}
+
+# holds <guide manifest> <website manifest>: the website's pages are exactly the guide's and it
+# has every picture of the guide. The website's sync never removes a picture, so one the guide
+# dropped stays there and does not count as a difference.
+holds() {
+    cmp -s <(grep '^page ' "$1") <(grep '^page ' "$2") || return 1
+    [[ -z "$(LC_ALL=C comm -23 <(grep '^picture ' "$1") <(grep '^picture ' "$2"))" ]]
+}
+
+# differing <manifest> <manifest>: the pages and pictures that are in one only, or differ.
+differing() { LC_ALL=C comm -3 "$1" "$2" | awk '{ print $2 }' | LC_ALL=C sort -u | tr '\n' ' ' | sed 's/ $//'; }
+
+status() {
+    local tag rel main here c held=""
+    tag="$(latest_release)" || tag=""
+    [[ -n "$tag" ]] || die 2 "could not read the latest release of $SOURCE_REPO: gh is missing or failed. Set MIKE_GUIDE_RELEASE to its tag."
+    fetch_source "+refs/heads/main:refs/remotes/origin/main" "+refs/tags/$tag:refs/tags/$tag" \
+        || die 1 "could not fetch main and the tag $tag from $SOURCE_URL"
+    rel="$(git -C "$pub" rev-parse "refs/tags/$tag^{commit}")" || die 1 "the tag $tag names no commit"
+    main="$(git -C "$pub" rev-parse refs/remotes/origin/main)" || die 1 "$SOURCE_URL has no main"
+    here="$(git -C "$ROOT" rev-parse HEAD)" || die 2 "$ROOT has no commit"
+    manifest "$pub" "$rel" "$GUIDE" "$GUIDE/images" > "$tmp/release.m" || die 1 "could not read $GUIDE at $tag"
+    grep -q '^page ' "$tmp/release.m" || die 1 "$SOURCE_REPO at $tag has no $GUIDE"
+    manifest "$pub" "$main" "$GUIDE" "$GUIDE/images" > "$tmp/main.m" || die 1 "could not read $GUIDE on main"
+    manifest "$ROOT" "$here" "$GUIDE" "$GUIDE/images" > "$tmp/here.m" || die 1 "could not read $GUIDE in $ROOT"
+    git -C "$site" fetch -q origin main || die 1 "git fetch failed in $site"
+    manifest "$site" origin/main "$SITE_PAGES" "$SITE_PUBLIC/images" > "$tmp/site.m" || die 1 "could not read the guide's copy in $site"
+
+    if holds "$tmp/release.m" "$tmp/site.m"; then
+        held="$rel"; cp "$tmp/release.m" "$tmp/held.m"
+    else
+        for c in $(git -C "$pub" rev-list --max-count=200 "$rel..$main" -- "$GUIDE"); do
+            manifest "$pub" "$c" "$GUIDE" "$GUIDE/images" > "$tmp/held.m"
+            if holds "$tmp/held.m" "$tmp/site.m"; then held="$c"; break; fi
+        done
+    fi
+
+    say "The latest release of $SOURCE_REPO is $tag (${rel:0:8})."
+    if [[ "$held" == "$rel" ]]; then
+        say "The website's main holds the guide of that release."
+    elif [[ -n "$held" ]]; then
+        say "The website's main holds the guide of $SOURCE_REPO at ${held:0:8}, a commit after that release, so it was published by hand."
+    else
+        say "The website's main holds neither the guide of that release nor a later one from $SOURCE_REPO main. Against the release's guide these differ: $(differing "$tmp/release.m" "$tmp/site.m")"
+    fi
+    if holds "$tmp/main.m" "$tmp/site.m"; then
+        say "$SOURCE_REPO main (${main:0:8}) has the same guide as the website."
+    elif [[ -n "$held" ]]; then
+        say "$SOURCE_REPO main (${main:0:8}) has changes the website does not show: $(differing "$tmp/held.m" "$tmp/main.m"). They go out with the next release, or now with: scripts/publish-user-guide --ref main"
+    fi
+    if cmp -s "$tmp/here.m" "$tmp/main.m"; then
+        say "This checkout (${here:0:8}) has the same guide as $SOURCE_REPO main."
+    else
+        say "This checkout (${here:0:8}) differs from $SOURCE_REPO main in: $(differing "$tmp/here.m" "$tmp/main.m"). A change reaches the website through $SOURCE_REPO."
+    fi
+    if [[ -n "$held" ]]; then say "publish-user-guide: the website is up to date"; return 0; fi
+    say "publish-user-guide: the website is behind; run scripts/publish-user-guide"
+    return 1
+}
+
+# The website's checkout is on main, has nothing unpushed, has no changed tracked file other than
+# the guide's copy (a run that stopped half way leaves those), and is brought up to origin/main.
+site_ready() {
+    local branch ahead other
+    branch="$(git -C "$site" symbolic-ref --short -q HEAD)" || branch="no branch"
+    [[ "$branch" == main ]] || die 1 "$site is on $branch; the guide is published from main. Use a checkout that is on main (--site DIR)."
+    git -C "$site" fetch -q origin main || die 1 "git fetch failed in $site"
+    ahead="$(git -C "$site" rev-list --count origin/main..HEAD)" || die 1 "could not compare $site with origin/main"
+    [[ "$ahead" == 0 ]] || die 1 "$site has $ahead commit(s) on main that are not pushed, and a push from here would publish them too. Push or remove them first."
+    other="$(git -C "$site" status --porcelain --untracked-files=no | awk -v A="$SITE_PAGES/" -v B="$SITE_PUBLIC/" -v C="$SITE_LIST" '
+        { p = substr($0, 4); if (index(p, A) != 1 && index(p, B) != 1 && p != C) print "  " p }')"
+    [[ -z "$other" ]] || die 1 "$site has changed tracked files that are not the guide's copy, and the website's check would build them in. Commit them or put them aside first:"$'\n'"$other"
+    git -C "$site" merge -q --ff-only origin/main || die 1 "could not bring $site up to origin/main"
+}
+
+# Waits until the website reports the pushed commit, or a later one that contains it, as live.
+wait_live() {
+    local commit="$1" waited=0 out="" live=""
+    if [[ ! -x "$site/scripts/deploy" ]]; then
+        say "publish-user-guide: pushed ${commit:0:8}; $site has no scripts/deploy to ask whether it is live"
+        return 0
+    fi
+    while :; do
+        out="$("$site/scripts/deploy" --status 2>&1)"
+        live="$(printf '%s\n' "$out" | sed -n 's/^deploy: temetai: live on [^ ]* : \([0-9a-f]\{40\}\).*/\1/p' | head -n 1)"
+        if [[ -n "$live" ]] && { [[ "$live" == "$commit" ]] || git -C "$site" merge-base --is-ancestor "$commit" "$live" 2>/dev/null; }; then
+            say "publish-user-guide: live at $LIVE (website commit ${live:0:8})"
+            return 0
+        fi
+        ((waited >= WAIT_SECONDS)) && break
+        sleep 15; waited=$((waited + 15))
+        git -C "$site" fetch -q origin main || true
+    done
+    printf '%s\n' "$out" >&2
+    die 1 "pushed ${commit:0:8}, and after $WAIT_SECONDS seconds the website does not report it live. Run $site/scripts/deploy --status; $site/.claude/rules/deploy.md says what to do when the deploy runner is down."
+}
+
+publish() {
+    local what commit changes p site_commit
+    local paths=()
+    if [[ -z "$ref" ]]; then
+        ref="$(latest_release)" || ref=""
+        [[ -n "$ref" ]] || die 2 "could not read the latest release of $SOURCE_REPO: gh is missing or failed. Pass --ref."
+        what="release $ref"
+    else
+        what="$ref"
+    fi
+
+    fetch_source --depth 1 "$ref" || die 1 "could not fetch $ref from $SOURCE_URL"
+    commit="$(git -C "$pub" rev-parse 'FETCH_HEAD^{commit}')" || die 1 "$ref names no commit"
+    git -C "$pub" config core.sparseCheckout true && printf '/%s/\n' "$GUIDE" > "$pub/.git/info/sparse-checkout" \
+        && git -C "$pub" checkout -q --detach "$commit" || die 1 "could not check out $GUIDE at $ref"
+    [[ -f "$pub/$GUIDE/README.md" ]] || die 1 "$SOURCE_REPO at $ref has no $GUIDE"
+    GUIDE_DIR="$pub/$GUIDE" "$ROOT/scripts/check-user-guide" --complete \
+        || die 1 "the guide at $ref fails scripts/check-user-guide; nothing was copied"
+
+    site_ready
+    say "Copying the guide of $what (${commit:0:8}) into $site"
+    (cd "$site/site/preview" && npm run -s sync:mike -- "$pub") || die 1 "the website's sync:mike failed; nothing was committed"
+    (cd "$site/site/preview" && npm run -s docs:check) \
+        || die 1 "the website's page list and the guide name different pages. Change mikeFiles in $site/$SITE_LIST as $site/site/preview/content/README.md says, then run this again. Nothing was committed."
+
+    changes="$(git -C "$site" status --porcelain -- "$SITE_PAGES" "$SITE_PUBLIC" "$SITE_LIST")"
+    if [[ -z "$changes" ]]; then
+        say "publish-user-guide: nothing to publish; the website's main already holds the guide of $what"
+        return 0
+    fi
+    [[ -x "$site/scripts/check" ]] || die 2 "$site has no scripts/check to check the website with"
+    "$site/scripts/check" --build \
+        || die 1 "the website's scripts/check --build failed. The copied pages are left in $site for a look; nothing was committed."
+
+    for p in "$SITE_PAGES" "$SITE_PUBLIC" "$SITE_LIST"; do [[ -e "$site/$p" ]] && paths+=("$p"); done
+    git -C "$site" add -- "${paths[@]}" \
+        && git -C "$site" commit -q -m "mike guide: synced to $SOURCE_REPO $ref (${commit:0:8})" -m "$changes" -- "${paths[@]}" \
+        || die 1 "git commit failed in $site"
+    site_commit="$(git -C "$site" rev-parse HEAD)"
+    if ((!push)); then
+        say "publish-user-guide: committed ${site_commit:0:8} in $site and did not push (--no-push)"
+        return 0
+    fi
+    git -C "$site" push -q origin main || die 1 "git push failed in $site; the commit ${site_commit:0:8} is there, not pushed"
+    say "Pushed ${site_commit:0:8} to the website's main."
+    wait_live "$site_commit"
+}
+
+"$mode"

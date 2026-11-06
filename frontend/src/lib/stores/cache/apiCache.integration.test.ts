@@ -13,7 +13,13 @@ import { __resetIdbHandleForTests, __deleteIdbForTests, __idbCountsForTests } fr
 import * as cacheIdb from './cacheIdb';
 import { __resetCacheConfigForTests } from './cacheConfig';
 import { __resetMemoryEvictionListenersForTests } from './cacheMemory';
-import { getHealth, __setRetryDelaysForTesting, __resetRetryDelaysForTesting } from '$lib/api';
+import {
+	getHealth,
+	listSessions,
+	__setRetryDelaysForTesting,
+	__resetRetryDelaysForTesting
+} from '$lib/api';
+import { FIRST_PAGE_PATH, PAGE_SIZE } from '$lib/stores/sessions.svelte';
 import { buildHealthResponse } from '$lib/test-support/healthFixtures';
 
 beforeEach(async () => {
@@ -109,6 +115,62 @@ describe('cachedGet — swr', () => {
 			cachedGet('/api/agents', fetcher)
 		]);
 		expect(fetcher).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe('cachedGet — an answer stored by an earlier page load', () => {
+	const path = '/api/sessions?offset=0&limit=50';
+
+	async function storeAtAge(target: string, value: unknown, ageMs: number): Promise<void> {
+		const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() - ageMs);
+		try {
+			await cachedGet(target, async () => value);
+			await vi.waitFor(async () => {
+				expect(await cacheIdb.idbGetApiResponse(target)).toEqual(value);
+			});
+		} finally {
+			clock.mockRestore();
+		}
+		__resetApiCacheForTests();
+		__resetIdbHandleForTests();
+	}
+
+	it('is not the answer once it is older than the freshness window: the network is', async () => {
+		await storeAtAge(path, { rows: ['two months ago'] }, freshnessWindowMs(path) + 1_000);
+		const fetcher = vi.fn().mockResolvedValue({ rows: ['today'] });
+		await expect(cachedGet(path, fetcher)).resolves.toEqual({ rows: ['today'] });
+		expect(fetcher).toHaveBeenCalledTimes(1);
+	});
+
+	it('does not stand in for a failed read once it is older than the freshness window', async () => {
+		await storeAtAge(path, { rows: ['two months ago'] }, freshnessWindowMs(path) + 1_000);
+		const fetcher = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+		await expect(cachedGet(path, fetcher)).rejects.toThrow('Failed to fetch');
+	});
+
+	it('is the answer while it is inside the freshness window', async () => {
+		await storeAtAge(path, { rows: ['a moment ago'] }, 1_000);
+		const fetcher = vi.fn().mockResolvedValue({ rows: ['a moment ago'] });
+		await expect(cachedGet(path, fetcher)).resolves.toEqual({ rows: ['a moment ago'] });
+	});
+
+	it('is the answer at any age when the path never changes', async () => {
+		const immutable = '/api/requests/7/stream_chunks';
+		await storeAtAge(immutable, { chunks: 3 }, 90 * 24 * 60 * 60 * 1000);
+		const fetcher = vi.fn().mockResolvedValue({ chunks: 99 });
+		await expect(cachedGet(immutable, fetcher)).resolves.toEqual({ chunks: 3 });
+		expect(fetcher).not.toHaveBeenCalled();
+	});
+
+	it('the session list reads its first page under the path its store listens on', async () => {
+		const fetcher = vi.fn().mockResolvedValue(new Response('[]', { status: 200 }));
+		vi.stubGlobal('fetch', fetcher);
+		try {
+			await listSessions({ offset: 0, limit: PAGE_SIZE });
+			expect(fetcher).toHaveBeenCalledWith(FIRST_PAGE_PATH, expect.anything());
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	});
 });
 

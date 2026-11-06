@@ -69,14 +69,14 @@ async fn sweep_tick_links_a_candidate_with_a_marker() -> anyhow::Result<()> {
     .await?;
 
     let project_id = seed_project(handle.pool(), "/tmp/sweep-tick-links").await?;
-    let session_uuid = seed_session_with_request(
-        handle.pool(),
-        project_id,
-        Some(
-            br#"{"messages":[{"role":"user","content":[{"type":"text","text":"<system-reminder>\nAttribution for git commits and pull requests\nClaude-Session: https://claude.ai/code/session_01SAMPLE\n</system-reminder>"}]}]}"#,
-        ),
-    )
-    .await?;
+    let request_body = [
+        r#"{"messages":[{"role":"user","content":[{"type":"text","text":"<system-reminder>\nAttribution for git commits and pull requests\nClaude-Session: https://claude.ai/code/"#,
+        "session_",
+        r#"sweepTickAbc123\n</system-reminder>"}]}]}"#,
+    ]
+    .concat();
+    let session_uuid =
+        seed_session_with_request(handle.pool(), project_id, Some(request_body.as_bytes())).await?;
 
     run_sweep_tick(&handle, 120, 200).await;
 

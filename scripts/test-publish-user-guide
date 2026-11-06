@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+# scripts/publish-user-guide test suite. It builds three repositories in a scratch dir: a public
+# repository with a guide and a release tag, a bare origin for the website, and a website checkout
+# whose sync, page-list check, check and deploy-status commands are small stand-ins. The real
+# script runs against them. No network, no GitHub, no real website.
+#
+# Usage: scripts/test-publish-user-guide     Exit: 0 = no FAIL (without git or npm every case is NOT RUN).
+set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CMD="$ROOT/scripts/publish-user-guide"
+pass=0; fail=0; notrun=0
+ok() { echo "PASS: $1"; pass=$((pass+1)); }
+bad() { echo "FAIL: $1"; [[ -n "${2:-}" ]] && echo "  $2"; fail=$((fail+1)); }
+skip() { echo "NOT RUN: $1 ($2)"; notrun=$((notrun+1)); }
+
+for tool in git npm; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        skip "every case" "$tool is not installed"
+        echo "test-publish-user-guide: $pass passed, $fail failed, $notrun not run"
+        exit 0
+    fi
+done
+
+SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/test-publish-user-guide.XXXXXX")" || exit 1
+trap 'rm -rf "$SCRATCH"' EXIT
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+export GIT_AUTHOR_NAME=test GIT_AUTHOR_EMAIL=test@example.invalid
+export GIT_COMMITTER_NAME=test GIT_COMMITTER_EMAIL=test@example.invalid
+export MIKE_PRIVATE_WORDS="$SCRATCH/words.txt"
+printf '# test list\nacmecorp\n' > "$MIKE_PRIVATE_WORDS"
+PAGES="$(sed -n 's/^MAP="\(.*\)"$/\1/p' "$ROOT/scripts/check-user-guide")"
+[[ -n "$PAGES" ]] || { echo "FAIL: could not read the page map from scripts/check-user-guide"; exit 1; }
+
+# The public repository: every page of the map, one picture, and the tag v1.
+PUB="$SCRATCH/public"
+git init -q -b main "$PUB"
+git -C "$PUB" config uploadpack.allowFilter true
+mkdir -p "$PUB/docs/user-guide/images"
+for p in $PAGES; do printf '# %s\n\nText.\n' "${p%.md}" > "$PUB/docs/user-guide/$p"; done
+printf '\x89PNG\r\n\x1a\n' > "$PUB/docs/user-guide/images/home.png"
+git -C "$PUB" add -A && git -C "$PUB" commit -q -m "guide" && git -C "$PUB" tag v1
+pub_edit() { # <page> <text> <message>: a new commit on the public main
+    printf '%s\n' "$2" > "$PUB/docs/user-guide/$1"
+    git -C "$PUB" commit -q -m "$3" -- "docs/user-guide/$1"
+}
+
+# The website: a bare origin and a checkout with stand-ins for the commands the script runs.
+ORIGIN="$SCRATCH/site-origin.git"
+SITE="$SCRATCH/site"
+git init -q --bare -b main "$ORIGIN"
+git init -q -b main "$SITE"
+mkdir -p "$SITE/site/preview/scripts" "$SITE/site/preview/lib/docs" "$SITE/scripts"
+cat > "$SITE/site/preview/package.json" <<'EOF'
+{ "scripts": { "sync:mike": "sh scripts/sync.sh", "docs:check": "sh scripts/docs-check.sh" } }
+EOF
+cat > "$SITE/site/preview/scripts/sync.sh" <<'EOF'
+src="$1/docs/user-guide"
+mkdir -p content/mike public/docs/mike/images
+rm -f content/mike/*.md
+cp "$src"/*.md content/mike/ || exit 1
+for f in "$src"/images/*.png; do [ -f "$f" ] && cp "$f" public/docs/mike/images/; done
+exit 0
+EOF
+echo '[ -z "${FAKE_LIST_FAILS:-}" ]' > "$SITE/site/preview/scripts/docs-check.sh"
+echo "export const mikeFiles = [];" > "$SITE/site/preview/lib/docs/list.ts"
+printf '#!/bin/sh\n[ "$1" = --build ] && [ -z "${FAKE_CHECK_FAILS:-}" ]\n' > "$SITE/scripts/check"
+cat > "$SITE/scripts/deploy" <<'EOF'
+#!/bin/sh
+root="$(cd "$(dirname "$0")/.." && pwd)"
+live="$(git -C "$root" rev-parse origin/main)"
+[ -n "${FAKE_DEPLOY_STALE:-}" ] && live=0000000000000000000000000000000000000000
+echo "deploy: temetai: live on https://temet.ai : $live"
+EOF
+chmod +x "$SITE/scripts/check" "$SITE/scripts/deploy"
+git -C "$SITE" add -A && git -C "$SITE" commit -q -m "website"
+git -C "$SITE" remote add origin "$ORIGIN" && git -C "$SITE" push -q -u origin main
+
+# run <name> <expected rc> <expected text or ""> [args...]
+run() {
+    local name="$1" erc="$2" etext="$3"; shift 3
+    local rc
+    OUT="$(MIKE_GUIDE_SOURCE_URL="file://$PUB" MIKE_GUIDE_RELEASE=v1 MIKE_GUIDE_WAIT_SECONDS=0 \
+        "$CMD" --site "$SITE" "$@" 2>&1)"; rc=$?
+    if [[ $rc -ne $erc ]]; then bad "$name" "rc $rc, wanted $erc: ${OUT:0:600}"
+    elif [[ -n "$etext" && "$OUT" != *"$etext"* ]]; then bad "$name" "wanted '$etext'; got: ${OUT:0:600}"
+    else ok "$name"; fi
+}
+# expect <name> <command...>: the command succeeds
+expect() { local name="$1"; shift; if "$@" >/dev/null 2>&1; then ok "$name"; else bad "$name" "failed: $*"; fi; }
+pushed() { git -C "$ORIGIN" rev-list --count main; }
+origin_page() { git -C "$ORIGIN" show "main:site/preview/content/mike/$1"; }
+site_clean() { [[ -z "$(git -C "$SITE" status --porcelain)" ]]; }
+
+run "status says a website with no guide is behind" 1 "the website is behind" --status
+run "status takes no --ref" 2 "takes no --ref" --status --ref main
+run "an unknown argument is a usage error" 2 "unknown argument" --bogus
+OUT="$("$CMD" --site "$SCRATCH/nowhere" --status 2>&1)"; rc=$?
+if [[ $rc -eq 2 && "$OUT" == *"not a checkout of the website"* ]]; then ok "a folder that is not the website is refused"; else bad "a folder that is not the website is refused" "rc $rc: ${OUT:0:300}"; fi
+
+before="$(pushed)"
+run "the release's guide is published and reported live" 0 "live at https://temet.ai/docs/mike/"
+expect "the push carried one commit" test "$(pushed)" -eq $((before + 1))
+expect "the website's origin has the guide's pages" origin_page README.md
+expect "the picture went to the public folder" git -C "$ORIGIN" cat-file -e main:site/preview/public/docs/mike/images/home.png
+expect "the commit names the release it came from" grep -q "synced to temet-ai/mike v1" <(git -C "$ORIGIN" log -1 --format=%s main)
+run "status then says the website holds the release's guide" 0 "holds the guide of that release" --status
+
+before="$(pushed)"
+run "publishing the same guide again changes nothing" 0 "nothing to publish"
+expect "no commit was pushed for it" test "$(pushed)" -eq "$before"
+
+pub_edit install.md $'# install\n\nCorrected.' "correct the install page"
+run "status names a page changed on main since the release" 0 "install.md" --status
+run "status says how to publish it by hand" 0 "--ref main" --status
+run "the default still publishes the release, not main" 0 "nothing to publish"
+
+before="$(pushed)"
+run "--no-push commits and stops" 0 "did not push" --ref main --no-push
+expect "nothing reached the origin" test "$(pushed)" -eq "$before"
+run "a checkout with an unpushed commit is refused" 1 "not pushed" --ref main
+git -C "$SITE" push -q origin main
+expect "the correction is on the origin once pushed" grep -q Corrected <(origin_page install.md)
+run "status says a later guide was published by hand" 0 "published by hand" --status
+
+echo "# changed" >> "$SITE/scripts/check"
+run "a changed tracked file outside the guide is refused" 1 "changed tracked files" --ref main
+git -C "$SITE" checkout -q -- scripts/check
+git -C "$SITE" checkout -q -b draft/notes/x
+run "a checkout on another branch is refused" 1 "is on draft/notes/x" --ref main
+git -C "$SITE" checkout -q main && git -C "$SITE" branch -q -D draft/notes/x
+
+pub_edit quickstart.md $'# quickstart\n\nNew text.' "rewrite the quickstart"
+before="$(pushed)"
+FAKE_CHECK_FAILS=1 run "a failing website check stops before the commit" 1 "scripts/check --build failed" --ref main
+expect "nothing was pushed for it" test "$(pushed)" -eq "$before"
+FAKE_LIST_FAILS=1 run "a page list that differs stops with where to change it" 1 "lib/docs/list.ts" --ref main
+run "a run after a stopped one finishes the publish" 0 "live at" --ref main
+expect "the stopped run's page is on the origin" grep -q "New text" <(origin_page quickstart.md)
+expect "the website checkout is left clean" site_clean
+
+pub_edit setup.md $'# setup\n\nA third change.' "change the setup page"
+FAKE_DEPLOY_STALE=1 run "a push the website does not report live is an error" 1 "does not report it live" --ref main
+
+pub_edit judge.md $'# judge\n\n<div>raw</div>' "a page the site cannot render"
+before="$(pushed)"
+run "a guide that fails the checker is not copied" 1 "fails scripts/check-user-guide" --ref main
+expect "the website checkout was not touched" site_clean
+expect "nothing was pushed for the failing guide" test "$(pushed)" -eq "$before"
+
+printf '# install\n\nEdited on the website.\n' > "$SITE/site/preview/content/mike/install.md"
+git -C "$SITE" commit -q -m "hand edit" -- site/preview/content/mike/install.md && git -C "$SITE" push -q origin main
+run "status says a copy edited on the website matches no guide" 1 "holds neither" --status
+
+echo "test-publish-user-guide: $pass passed, $fail failed, $notrun not run"
+[[ $fail -eq 0 ]]

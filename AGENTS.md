@@ -153,6 +153,7 @@ All resolve the repo root themselves.
 | `scripts/arch check\|serve\|png\|…`                      | The LikeC4 architecture model in `docs/architecture/`; the only way to run LikeC4 here. Live on <http://localhost:9986/> |
 | `scripts/style-guide-render` · `scripts/html-doc-render` | Render HTML docs to text and pictures; `--check` flags stale renders                                                     |
 | `scripts/read-anchored <file> <regex>`                   | Print a region with real line numbers                                                                                    |
+| `scripts/publish-user-guide [--status]`                  | The guide of the latest release onto temet.ai/docs/mike/; `--status` says whether the site is behind                     |
 | `scripts/gh-cat <owner/repo> <path>`                     | Read files from other GitHub repos                                                                                       |
 | `scripts/gh-run-digest` · `scripts/gh-security-posture`  | GH Actions run digest; Dependabot and security settings                                                                  |
 | `scripts/cargo-dep-info <crate>[@ver]`                   | Latest version, yanked flag, MSRV, dependents                                                                            |

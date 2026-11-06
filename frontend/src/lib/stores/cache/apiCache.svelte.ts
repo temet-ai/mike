@@ -147,9 +147,14 @@ export async function cachedGet<T>(
 	const existing = inFlight.get(path);
 	if (existing) return existing as Promise<T>;
 
+	// An answer stored by an earlier page load is given to the caller only while it is
+	// inside the path's freshness window. An older one is not an answer: the caller would
+	// keep it as the result while the refetch behind it reaches only update listeners.
+	const storedMaxAgeMs = pol === 'swr' ? freshnessWindowMs(path) : undefined;
+
 	const promise = (async (): Promise<T> => {
 		try {
-			const fromIdb = await idbReadWithTimeout(idbGetApiResponse(path));
+			const fromIdb = await idbReadWithTimeout(idbGetApiResponse(path, storedMaxAgeMs));
 			if (fromIdb !== null && fromIdb !== undefined) {
 				cache.set(path, fromIdb);
 				if (pol === 'swr' && !isFresh(path, Date.now())) void revalidate(path, fetcher);

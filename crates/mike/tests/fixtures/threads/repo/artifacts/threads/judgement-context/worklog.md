@@ -3,6 +3,9 @@ title: Judgement-context fleet worklog
 status: active
 created: 2026-09-24
 summary: Durable state of fleet run fleet-judgement-context-499f78cf, building the judgement-context program in mike. A successor coordinator resumes from this file alone.
+session-id:
+  - a1b2c3d4-0000-4000-8000-000000000001
+  - a1b2c3d4-0000-4000-8000-000000000002
 ---
 
 # Worklog: fleet-judgement-context-499f78cf

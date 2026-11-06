@@ -23,6 +23,7 @@ fn refusal_response(refusal: &RunRefusal) -> Response {
         RefusalReason::UnknownJob => (StatusCode::NOT_FOUND, "unknown_job"),
         RefusalReason::NotStarted => (StatusCode::CONFLICT, "not_started"),
         RefusalReason::TurnedOff => (StatusCode::CONFLICT, "turned_off"),
+        RefusalReason::NoScripts => (StatusCode::CONFLICT, "no_scripts"),
         RefusalReason::HeldElsewhere => (StatusCode::CONFLICT, "held_elsewhere"),
         RefusalReason::AlreadyRunning => (StatusCode::CONFLICT, "already_running"),
     };

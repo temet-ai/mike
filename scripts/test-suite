@@ -79,6 +79,8 @@ run_script_tests() {
     phase "Call-site lookup" "$SCRIPT_DIR/test-callsites" &&
     phase "Reference fleet script" "$SCRIPT_DIR/test-fleet-ref" &&
     phase "Deploy fleet guard" "$SCRIPT_DIR/test-fleet-deploy-guard" &&
+    phase "User guide checker" "$SCRIPT_DIR/test-check-user-guide" &&
+    phase "User guide publisher" "$SCRIPT_DIR/test-publish-user-guide" &&
     phase "Docs-agent tests" "$SCRIPT_DIR/docs-agent/test.sh"
 }
 

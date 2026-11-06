@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PORT="${MIKE_TEST_DB_PORT:-6667}"
 
 if [ "$(uname -s)" = "Darwin" ] && [ -z "${MIKE_TEST_DB_DATA:-}" ]; then
-    export MIKE_TEST_DB_DATA=mike_test_db_vm
+    export MIKE_TEST_DB_DATA=mike_test_db_vm_19
 fi
 
 docker compose -f "${SCRIPT_DIR}/docker-compose.yml" up -d

@@ -87,10 +87,10 @@ pub(crate) fn write_to_path(path: &Path) -> anyhow::Result<()> {
 mod tests {
     use super::*;
 
-    const COMMITTED_PATH: &str = ".claude/hooks/generated/analysis-corpus.json";
+    const COMMITTED_PATH: &str = "tests/fixtures/analysis-corpus.json";
 
-    fn repo_root() -> std::path::PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
+    fn crate_root() -> std::path::PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf()
     }
 
     #[test]
@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn generated_corpus_matches_committed_file() -> anyhow::Result<()> {
-        let committed_path = repo_root().join(COMMITTED_PATH);
+        let committed_path = crate_root().join(COMMITTED_PATH);
         let committed = std::fs::read_to_string(&committed_path).map_err(|e| {
             anyhow::anyhow!("failed to read committed corpus at {committed_path:?}: {e}")
         })?;

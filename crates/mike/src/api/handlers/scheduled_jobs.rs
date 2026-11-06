@@ -69,7 +69,7 @@ fn job_state(view: &JobView) -> CapabilityState {
             CapabilityState::Inert
         }
         JobState::Failing | JobState::Overdue => CapabilityState::Degraded,
-        JobState::Off => CapabilityState::Off,
+        JobState::Off | JobState::Unavailable => CapabilityState::Off,
         JobState::Ok | JobState::NeverRun | JobState::Running => CapabilityState::Active,
     }
 }
@@ -205,6 +205,17 @@ mod tests {
         assert_eq!(scheduled_jobs_row(&all_off).state, CapabilityState::Off);
         let some_off = vec![view(0, JobState::Off, 0), view(1, JobState::Ok, 0)];
         assert_eq!(scheduled_jobs_row(&some_off).state, CapabilityState::Active);
+    }
+
+    #[test]
+    fn jobs_that_are_not_available_here_never_degrade_the_row() {
+        let mixed = vec![view(0, JobState::Unavailable, 4), view(1, JobState::Ok, 0)];
+        assert_eq!(scheduled_jobs_row(&mixed).state, CapabilityState::Active);
+        let none = vec![
+            view(0, JobState::Unavailable, 0),
+            view(1, JobState::Unavailable, 0),
+        ];
+        assert_eq!(scheduled_jobs_row(&none).state, CapabilityState::Off);
     }
 
     #[test]

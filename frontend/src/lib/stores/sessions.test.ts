@@ -13,8 +13,17 @@ vi.mock('$lib/api', async () => {
 
 import { listSessions, patchSessionPin, findText, searchContent } from '$lib/api';
 import {
+	cachedGet,
+	__expireApiCacheFreshnessForTests,
+	__resetApiCacheForTests
+} from './cache/apiCache.svelte';
+import {
 	createSessionListStore,
 	looksLikeSessionId,
+	FIRST_PAGE_PATH,
+	LEGACY_SESSION_LIST_CACHE_KEY,
+	SAVED_FIRST_PAGE_MAX_AGE_MS,
+	SESSION_LIST_CACHE_KEY,
 	PAGE_SIZE,
 	THROTTLE_MS,
 	LIVE_STICKY_GRACE_MS,
@@ -22,6 +31,7 @@ import {
 	SESSION_SEARCH_MIN_QUERY
 } from './sessions.svelte';
 import { buildSessionSummary, buildUnifiedTextMatch } from '$lib/components/__fixtures__/session';
+import { createLocalStorageMock } from '$lib/test-support/localStorage-mock';
 import type { FindTextUnifiedResponse, ContentSearchResponse } from '$lib/types';
 
 const mockList = vi.mocked(listSessions);
@@ -811,5 +821,96 @@ describe('unified search (setSearch)', () => {
 
 		expect(store.contentTotalMatches).toBe(2);
 		expect(store.contentTotalSessions).toBe(2);
+	});
+});
+
+describe('saved first page', () => {
+	const { storage, localStorageMock } = createLocalStorageMock();
+
+	beforeEach(() => {
+		storage.clear();
+		vi.stubGlobal('localStorage', localStorageMock);
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	function save(savedAt: number, ids: string[]): void {
+		storage.set(
+			SESSION_LIST_CACHE_KEY,
+			JSON.stringify({ savedAt, sessions: ids.map((id) => buildSessionSummary({ id })) })
+		);
+	}
+
+	it('is drawn before the first answer when it was saved a moment ago', () => {
+		save(Date.now() - 5_000, ['saved-1']);
+		const store = createSessionListStore();
+		expect(store.sessions.map((s) => s.id)).toEqual(['saved-1']);
+		expect(store.loading).toBe(false);
+	});
+
+	it('is left out when it was saved longer ago than the limit', () => {
+		save(Date.now() - SAVED_FIRST_PAGE_MAX_AGE_MS - 1, ['saved-in-september']);
+		const store = createSessionListStore();
+		expect(store.sessions).toEqual([]);
+		expect(store.loading).toBe(true);
+	});
+
+	it('is left out when its save time is in the future', () => {
+		save(Date.now() + 60_000, ['saved-by-a-wrong-clock']);
+		expect(createSessionListStore().sessions).toEqual([]);
+	});
+
+	it('ignores a list in the older format, and the next save removes it', async () => {
+		storage.set(
+			LEGACY_SESSION_LIST_CACHE_KEY,
+			JSON.stringify([buildSessionSummary({ id: 'saved-without-a-time' })])
+		);
+		mockList.mockResolvedValue([buildSessionSummary({ id: 'today-1' })]);
+		const store = createSessionListStore();
+		expect(store.sessions).toEqual([]);
+		await store.refresh();
+		expect(storage.has(LEGACY_SESSION_LIST_CACHE_KEY)).toBe(false);
+		const saved = JSON.parse(storage.get(SESSION_LIST_CACHE_KEY) ?? '{}');
+		expect(saved.savedAt).toBe(Date.now());
+		expect(saved.sessions.map((s: { id: string }) => s.id)).toEqual(['today-1']);
+	});
+});
+
+describe('a first page the answer cache fetched again in the background', () => {
+	beforeEach(() => {
+		vi.useRealTimers();
+		__resetApiCacheForTests();
+	});
+
+	afterEach(() => {
+		__resetApiCacheForTests();
+	});
+
+	it('replaces the list, so a refresh is never left showing the answer before it', async () => {
+		const store = createSessionListStore();
+		const before = [buildSessionSummary({ id: 'before' })];
+		const after = [buildSessionSummary({ id: 'after' })];
+		mockList.mockImplementation(() => cachedGet(FIRST_PAGE_PATH, async () => before));
+		await store.refresh();
+		expect(store.sessions.map((s) => s.id)).toEqual(['before']);
+
+		__expireApiCacheFreshnessForTests();
+		mockList.mockImplementation(() => cachedGet(FIRST_PAGE_PATH, async () => after));
+		await store.refresh();
+		await vi.waitFor(() => expect(store.sessions.map((s) => s.id)).toEqual(['after']));
+	});
+
+	it('does not touch the list for another path', async () => {
+		const store = createSessionListStore();
+		mockList.mockResolvedValue([buildSessionSummary({ id: 'kept' })]);
+		await store.refresh();
+		const other = `/api/sessions?offset=${PAGE_SIZE}&limit=${PAGE_SIZE}`;
+		await cachedGet(other, async () => [buildSessionSummary({ id: 'older-1' })]);
+		__expireApiCacheFreshnessForTests();
+		await cachedGet(other, async () => [buildSessionSummary({ id: 'older-2' })]);
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		expect(store.sessions.map((s) => s.id)).toEqual(['kept']);
 	});
 });

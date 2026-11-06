@@ -15,6 +15,7 @@ pub(crate) enum JobState {
     NeverRun,
     Off,
     Running,
+    Unavailable,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -144,6 +145,15 @@ fn owned_elsewhere(owner: Option<Uuid>) -> Assessment {
     Assessment::new(JobState::Ok, detail, "")
 }
 
+fn unavailable(job: &Job, status: &JobStatus) -> Assessment {
+    let detail = format!(
+        "This job is the script {}, which mike runs from the directory it was started in. {} has no scripts folder, so the job does not run on this machine.",
+        job.script,
+        root_text(status)
+    );
+    Assessment::new(JobState::Unavailable, detail, "")
+}
+
 fn gate(job: &Job, status: &JobStatus, owner: Option<Uuid>) -> Option<Assessment> {
     if !status.started {
         return Some(Assessment::new(
@@ -178,6 +188,12 @@ fn gate(job: &Job, status: &JobStatus, owner: Option<Uuid>) -> Option<Assessment
             ),
         ));
     }
+    if status.script_dir_missing {
+        return Some(match owner.filter(|_| job.leased) {
+            Some(machine) => owned_elsewhere(Some(machine)),
+            None => unavailable(job, status),
+        });
+    }
     status.held_elsewhere.then(|| owned_elsewhere(owner))
 }
 
@@ -211,7 +227,7 @@ pub(crate) fn build_view(
     now: DateTime<Utc>,
 ) -> JobView {
     let assessment = assess(job, status, owner, now);
-    let scheduled_here = status.enabled && !status.held_elsewhere;
+    let scheduled_here = status.enabled && !status.held_elsewhere && !status.script_dir_missing;
     let scope = if job.leased {
         JobScope::OneMachine
     } else {

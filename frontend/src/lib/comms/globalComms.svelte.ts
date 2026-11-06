@@ -51,6 +51,12 @@ export interface GlobalCommsStore {
 	readonly resolveError: string | null;
 
 	load(): Promise<void>;
+	/**
+	 * Says a mounted view is showing this store's threads; the returned function ends that.
+	 * Mailbox changes reload the thread list only while at least one view holds it, because
+	 * the full list is a large answer and a costly query.
+	 */
+	retain(): () => void;
 	refreshThreads(): Promise<void>;
 	selectThread(uuid: string | null): Promise<void>;
 	resolveSelected(): Promise<void>;
@@ -195,8 +201,21 @@ export function createGlobalCommsStore(options: { project?: string } = {}): Glob
 		};
 	}
 
+	let viewers = 0;
+
+	function retain(): () => void {
+		viewers += 1;
+		let held = true;
+		return () => {
+			if (!held) return;
+			held = false;
+			viewers -= 1;
+		};
+	}
+
 	function handleEvent(event: ProxyEvent): void {
 		for (const listener of listeners) listener(event);
+		if (viewers === 0) return;
 		if (event.type === 'Lagged') {
 			void refreshThreads();
 			void refreshSelectedThread();
@@ -262,6 +281,7 @@ export function createGlobalCommsStore(options: { project?: string } = {}): Glob
 			return state.resolveError;
 		},
 		load,
+		retain,
 		refreshThreads,
 		selectThread,
 		resolveSelected,

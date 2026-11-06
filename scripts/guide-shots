@@ -1,0 +1,147 @@
+#!/usr/bin/env node
+// guide-shots — produce the pictures of the public user guide (docs/user-guide/images/*.png).
+//
+// It starts its own mike on spare ports with a scratch database and a throw-away HOME, points
+// the upstream at a local stub, sends the guide's fictional example (session `docs` in
+// ~/projects/site, corrected with "Put Homebrew first on the install page.") through the proxy
+// as real captured traffic, seeds the rest through mike's own routes, and photographs the web
+// UI with headless Chromium. Nothing here touches the shared stack or the capture database.
+//
+// Usage: scripts/guide-shots [--out <dir>] [--only a,b] [--binary <mike>] [--keep] [--list]
+//   --out     where the PNGs go (default docs/user-guide/images)
+//   --only    comma list of picture names (without .png); default all
+//   --binary  mike binary (default target/debug/mike)
+//   --keep    leave mike running after the shots and print its addresses (kill the pid yourself)
+// Needs: Docker container mike-test-pg up (scripts/test-db/up.sh), chromium, frontend/node_modules.
+// Exit 0 = all requested pictures written. Exit 2 = a prerequisite is missing (NOT RUN).
+
+import { spawn, execFileSync } from 'node:child_process';
+import { once } from 'node:events';
+import { createServer } from 'node:http';
+import { createRequire } from 'node:module';
+import { copyFileSync, symlinkSync, mkdirSync, mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { join, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { randomUUID } from 'node:crypto';
+import { seedDemo, DEMO } from './guide-shots-seed.mjs';
+import { svgToPng } from './guide-shots-term.mjs';
+import { SHOTS, shoot } from './guide-shots-pages.mjs';
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const args = process.argv.slice(2);
+const flag = (name) => { const i = args.indexOf(name); if (i < 0) return null; const [, v] = args.splice(i, 2); return v ?? null; };
+const keep = args.includes('--keep');
+const out = resolve(flag('--out') ?? join(root, 'docs/user-guide/images'));
+const only = (flag('--only') ?? '').split(',').filter(Boolean);
+const binary = resolve(flag('--binary') ?? join(root, 'target/debug/mike'));
+const PG = 'postgres://postgres:postgres@127.0.0.1:6667';
+
+function notRun(why) { console.error(`NOT RUN: ${why}`); process.exit(2); }
+if (!existsSync(binary)) notRun(`no mike binary at ${binary}`);
+try { execFileSync('docker', ['exec', 'mike-test-pg', 'pg_isready', '-U', 'postgres'], { stdio: 'ignore' }); }
+catch { notRun('mike-test-pg is not running (scripts/test-db/up.sh)'); }
+const require = createRequire(join(root, 'frontend/package.json'));
+let playwright;
+try { playwright = require('playwright'); } catch { notRun('frontend/node_modules has no playwright'); }
+
+const psql = (sql, db = 'postgres') => execFileSync('docker', ['exec', 'mike-test-pg', 'psql', '-U', 'postgres', '-d', db, '-X', '-At', '-c', sql], { encoding: 'utf8' });
+
+async function listen(handler) {
+  const server = createServer((req, res) => Promise.resolve(handler(req, res)).catch((e) => { res.writeHead(500).end(String(e)); }));
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  return server;
+}
+async function freePort() {
+  const s = createServer(); s.listen(0, '127.0.0.1'); await once(s, 'listening');
+  const p = s.address().port; await new Promise((r) => s.close(r)); return p;
+}
+
+// The stub upstream: answers every /v1/messages with a short streamed reply chosen by the
+// number of user turns, so the example reads like a real session.
+function sse(text, tool) {
+  const ev = (e, d) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`;
+  let s = ev('message_start', { type: 'message_start', message: { id: `msg_${randomUUID().slice(0, 8)}`, type: 'message', role: 'assistant', content: [], model: 'claude-sonnet-4-5', usage: { input_tokens: 1800, output_tokens: 1, cache_read_input_tokens: 9200 } } });
+  s += ev('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } });
+  s += ev('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } });
+  s += ev('content_block_stop', { type: 'content_block_stop', index: 0 });
+  if (tool) {
+    s += ev('content_block_start', { type: 'content_block_start', index: 1, content_block: { type: 'tool_use', id: tool.id, name: tool.name, input: {} } });
+    s += ev('content_block_delta', { type: 'content_block_delta', index: 1, delta: { type: 'input_json_delta', partial_json: JSON.stringify(tool.input) } });
+    s += ev('content_block_stop', { type: 'content_block_stop', index: 1 });
+  }
+  s += ev('message_delta', { type: 'message_delta', delta: { stop_reason: tool ? 'tool_use' : 'end_turn' }, usage: { output_tokens: 120 } });
+  s += ev('message_stop', { type: 'message_stop' });
+  return s;
+}
+const stubReplies = DEMO.replies;
+
+async function main() {
+  const work = mkdtempSync('/tmp/mg.');
+  const db = `guide_shots_${randomUUID().replaceAll('-', '').slice(0, 10)}`;
+  psql(`CREATE DATABASE ${db}`);
+  let turn = 0;
+  const upstream = await listen(async (req, res) => {
+    let body = ''; for await (const c of req) body += c;
+    if (!req.url.startsWith('/v1/messages')) { res.writeHead(404).end(); return; }
+    let parsed = {}; try { parsed = JSON.parse(body); } catch {}
+    const index = Math.max(0, ((parsed.messages ?? []).length - 1) >> 1);
+    const reply = stubReplies[Math.min(index, stubReplies.length - 1)];
+    turn += 1;
+    res.writeHead(200, { 'content-type': 'text/event-stream' }).end(sse(reply.text, reply.tool));
+  });
+  const [proxyPort, inspectPort, spaPort] = await Promise.all([freePort(), freePort(), freePort()]);
+  const cfg = join(work, 'config.toml');
+  writeFileSync(cfg, [
+    `proxy_listen_addr = "127.0.0.1:${proxyPort}"`, `inspect_listen_addr = "127.0.0.1:${inspectPort}"`,
+    `spa_bind = "127.0.0.1:${spaPort}"`, `upstream_url = "http://127.0.0.1:${upstream.address().port}"`,
+    `database_url = "${PG}/${db}"`, 'persist_enabled = true', 'smoke_run = true',
+  ].join('\n'));
+  // An allowlist: a key or token in the caller's shell must never reach the demo (it would
+  // make real calls and put real account data on a picture).
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => ['LANG', 'LC_ALL', 'TERM', 'USER', 'SHELL', 'TZ'].includes(k)));
+  Object.assign(env, { PATH: `${join(work, 'bin')}:/usr/bin:/bin`, HOME: work, XDG_CONFIG_HOME: join(work, 'cfg'), XDG_STATE_HOME: join(work, 'state') });
+  mkdirSync(env.XDG_CONFIG_HOME, { recursive: true }); mkdirSync(env.XDG_STATE_HOME, { recursive: true });
+  const log = [];
+  mkdirSync(join(work, 'bin'));
+  // mike names the machine it runs on from `hostname` (machine_identity.rs) and shows that name
+  // on Home. A shim first on PATH gives the demo a fictional machine, not this one.
+  writeFileSync(join(work, 'bin', 'hostname'), '#!/bin/sh\necho demo\n', { mode: 0o755 });
+  for (const name of ['mike', 'mike-mcp']) { const from = join(dirname(binary), name); if (existsSync(from)) copyFileSync(from, join(work, 'bin', name)); }
+  const claude = execFileSync('sh', ['-c', 'command -v claude || true'], { encoding: 'utf8' }).trim();
+  if (claude) symlinkSync(claude, join(work, 'bin', 'claude'));
+  const mike = spawn(join(work, 'bin', 'mike'), ['--config', cfg, 'serve'], { cwd: work, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  mike.stdout.on('data', (c) => log.push(String(c))); mike.stderr.on('data', (c) => log.push(String(c)));
+  const inspect = `http://127.0.0.1:${inspectPort}`, spa = `http://127.0.0.1:${spaPort}`, proxy = `http://127.0.0.1:${proxyPort}`;
+  let browser;
+  const cleanup = async () => {
+    if (browser) await browser.close().catch(() => {});
+    if (!keep) {
+      if (mike.exitCode === null) { mike.kill('SIGTERM'); await Promise.race([once(mike, 'exit'), new Promise((r) => setTimeout(r, 5000))]); if (mike.exitCode === null) mike.kill('SIGKILL'); }
+      upstream.closeAllConnections(); upstream.close();
+      try { psql(`DROP DATABASE IF EXISTS ${db} WITH (FORCE)`); } catch {}
+      rmSync(work, { recursive: true, force: true });
+    } else console.error(`kept: pid ${mike.pid} inspect ${inspect} spa ${spa} proxy ${proxy} db ${db} dir ${work}`);
+  };
+  try {
+    for (let i = 0; ; i++) {
+      if (mike.exitCode !== null) throw new Error(`mike exited: ${log.join('').slice(-1500)}`);
+      try { if ((await fetch(`${inspect}/api/health`, { signal: AbortSignal.timeout(500) })).ok) break; } catch {}
+      if (i > 600) throw new Error(`mike did not start: ${log.join('').slice(-1500)}`);
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    const ctx = { inspect, spa, proxy, work, log };
+    await seedDemo(ctx);
+    mkdirSync(out, { recursive: true });
+    const exe = existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined;
+    browser = await playwright.chromium.launch({ executablePath: exe, args: ['--no-sandbox'] });
+    const names = Object.keys(SHOTS).filter((n) => only.length === 0 || only.includes(n));
+    for (const name of names) {
+      try {
+        await shoot(browser, name, ctx, join(out, `${name}.png`), svgToPng);
+        console.log(`wrote ${join(out, `${name}.png`)}`);
+      } catch (e) { console.error(`FAILED ${name}: ${e.message}`); process.exitCode = 1; }
+    }
+  } finally { await cleanup(); }
+}
+main().catch((e) => { console.error(e); process.exit(1); });

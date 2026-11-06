@@ -11,10 +11,12 @@
 #   scripts/test-db/up.sh      # start (or resume) it and wait for health
 #   scripts/test-db/down.sh    # stop it, keeping the data
 #
-# On macOS, up.sh keeps the data in the docker volume mike_test_db_vm inside the
+# On macOS, up.sh keeps the data in the docker volume mike_test_db_vm_19 inside the
 # docker VM instead: a bind mount from the Mac (virtiofs) answers "Permission
 # denied" when the suite drops a database while a checkpoint runs, which fails
-# CREATE DATABASE and DROP DATABASE in parallel tests.
+# CREATE DATABASE and DROP DATABASE in parallel tests. The folder and the volume
+# both carry the PostgreSQL major version, because a server refuses to start on
+# another major version's data.
 #
 # MIKE_TEST_ADMIN_URL=postgres://postgres:postgres@127.0.0.1:6667/postgres
 name: mike-test-db
@@ -68,5 +70,5 @@ services:
       start_period: 10s
 
 volumes:
-  mike_test_db_vm:
-    name: mike_test_db_vm
+  mike_test_db_vm_19:
+    name: mike_test_db_vm_19

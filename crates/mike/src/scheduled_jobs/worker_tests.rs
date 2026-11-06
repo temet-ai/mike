@@ -24,6 +24,11 @@ static TURNED_OFF: Job = Job {
     cadence: NEVER_OPEN,
     ..PROMOTE
 };
+static NO_SCRIPTS: Job = Job {
+    name: "worker_test_no_scripts",
+    cadence: NEVER_OPEN,
+    ..PROMOTE
+};
 
 fn checkout(body: &str) -> anyhow::Result<tempfile::TempDir> {
     let dir = tempfile::tempdir()?;
@@ -88,6 +93,20 @@ async fn tick_for_a_turned_off_job_drops_the_request_without_running() -> anyhow
     assert_eq!(after.run_requested_at, None);
     assert_eq!(after.last_run, None);
     assert!(!after.enabled);
+    Ok(())
+}
+
+#[tokio::test]
+async fn tick_without_a_scripts_folder_drops_the_request_without_running() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let mut worker = worker(&NO_SCRIPTS, dir.path().to_path_buf(), true);
+    run_now::request_job_run(&NO_SCRIPTS, Utc::now()).map_err(|r| anyhow::anyhow!(r.message))?;
+    worker.tick().await;
+    let after = status::snapshot(NO_SCRIPTS.name);
+    assert!(after.script_dir_missing);
+    assert_eq!(after.run_requested_at, None);
+    assert_eq!(after.last_run, None);
+    assert_eq!(after.last_started_at, None);
     Ok(())
 }
 

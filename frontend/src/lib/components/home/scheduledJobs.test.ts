@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ScheduledJob } from '$lib/api/scheduledJobs';
 import {
+	isUnavailable,
 	lastRanText,
 	nextText,
 	relativeTime,
@@ -110,13 +111,22 @@ describe('stateView', () => {
 		expect(stateView('never_run')).toMatchObject({ label: 'never run', variant: 'chip-warning' });
 		expect(stateView('off')).toMatchObject({ label: 'off', variant: 'chip-muted' });
 		expect(stateView('running')).toMatchObject({ label: 'running', variant: 'chip-analyzed' });
+		expect(stateView('unavailable')).toMatchObject({
+			label: 'not available',
+			variant: 'chip-muted'
+		});
 	});
 
 	it('asks for attention only on failing, overdue and never_run', () => {
-		const attention = (['ok', 'failing', 'overdue', 'never_run', 'off', 'running'] as const).filter(
-			(s) => stateView(s).needsAttention
-		);
+		const attention = (
+			['ok', 'failing', 'overdue', 'never_run', 'off', 'running', 'unavailable'] as const
+		).filter((s) => stateView(s).needsAttention);
 		expect(attention).toEqual(['failing', 'overdue', 'never_run']);
+	});
+
+	it('tells a job this mike cannot run from one that is switched off', () => {
+		expect(isUnavailable(job({ state: 'unavailable' }))).toBe(true);
+		expect(isUnavailable(job({ state: 'off', enabled: false }))).toBe(false);
 	});
 
 	it('falls back to the off view for a state it does not know', () => {

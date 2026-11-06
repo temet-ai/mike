@@ -45,7 +45,9 @@ model {
           machine; nothing is leased. Exit code 1 (a hand-edited generated file kept
           as a conflict) is an alarm, not a failure. Consecutive failures back off,
           and the result shows on GET /api/scheduled-jobs and the scheduled_jobs row
-          of /api/capabilities. Every scheduled job records its finished runs in
+          of /api/capabilities. A proxy started in a directory with no scripts folder
+          runs no scheduled job, takes no job lease and reports each job as
+          unavailable. Every scheduled job records its finished runs in
           jobs.runs and restores its status, period slot and backoff from there on
           start; POST /api/scheduled-jobs/{name}/run (SPA only) asks the job\'s own
           worker to run it once. No LLM call.

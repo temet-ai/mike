@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+# scripts/check-user-guide test suite: each case builds a small guide folder in a scratch dir
+# (GUIDE_DIR) and runs the real script on it. No server, no database, no network.
+# With gawk installed the cases run a second time with awk forced to `gawk --posix`.
+#
+# Usage: scripts/test-check-user-guide     Exit: 0 = no FAIL (a case without its prerequisite is NOT RUN).
+set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CHECK="$ROOT/scripts/check-user-guide"
+pass=0; fail=0; notrun=0
+ok() { echo "PASS: $1"; pass=$((pass+1)); }
+bad() { echo "FAIL: $1"; [[ -n "${2:-}" ]] && echo "  $2"; fail=$((fail+1)); }
+skip() { echo "NOT RUN: $1 ($2)"; notrun=$((notrun+1)); }
+
+SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/test-check-user-guide.XXXXXX")" || exit 1
+trap 'rm -rf "$SCRATCH"' EXIT
+export HOME="$SCRATCH/home"; mkdir -p "$HOME"
+export MIKE_PRIVATE_WORDS="$SCRATCH/words.txt"
+printf '# test list\nacmecorp\nsecret-host[0-9]+\n' > "$MIKE_PRIVATE_WORDS"
+
+# run <name> <expected rc> <expected text or ""> [args...]: uses $G as the guide folder.
+run() {
+    local name="$1" erc="$2" etext="$3"; shift 3
+    local out rc
+    out="$(GUIDE_DIR="$G" "$CHECK" "$@" 2>&1)"; rc=$?
+    if [[ $rc -ne $erc ]]; then bad "$name" "rc $rc, wanted $erc: ${out:0:400}"
+    elif [[ -n "$etext" && "$out" != *"$etext"* ]]; then bad "$name" "wanted '$etext'; got: ${out:0:400}"
+    else ok "$name"; fi
+}
+fresh() { G="$SCRATCH/g$((++n))"; mkdir -p "$G/images"; }
+page() { printf '%s\n' "$2" > "$G/$1"; }
+n=0
+
+suite() {
+fresh
+page README.md $'# Title\n\nHello.\n\n## One\n\nText [other](quickstart.md#second-part) and [home](#one).\n\n![shot](images/home.png)'
+page quickstart.md $'# Quick\n\n## Second part\n\nBody.'
+printf '\x89PNG\r\n\x1a\n' > "$G/images/home.png"
+run "a clean partial guide passes" 0 "2 page(s) clean"
+run "a named file is checked alone" 0 "1 page(s) clean" "$G/quickstart.md"
+
+fresh; page README.md $'Text only.'
+run "no title fails" 1 "README.md:1: 0 \`# \` titles"
+fresh; page README.md $'# A\n\n# B'
+run "a second title fails with its line" 1 "README.md:3: a second"
+fresh; page README.md $'# A\n\n## Same\n\n## Same'
+run "a repeated section heading fails" 1 "README.md:5: repeated"
+fresh; page README.md $'# A\n\n```\n# not a title\n## Same\n## Same\n<div>\n```'
+run "a fenced block is not checked" 0 ""
+fresh; page README.md $'---\ntitle: x\n---\n# A'
+run "frontmatter fails" 1 "README.md:1: frontmatter"
+fresh; page README.md $'# A\n\n<div>x</div>'
+run "raw HTML fails" 1 "README.md:3: raw HTML"
+fresh; page README.md $'# A\n\n<!-- note -->'
+run "an HTML comment fails" 1 "README.md:3: HTML comment"
+fresh; page README.md $'# A\n\nSee <https://example.com> and `<div>`.'
+run "an autolink and code are not HTML" 0 ""
+fresh; page README.md $'# A\n\nText[^1].'
+run "a footnote fails" 1 "README.md:3: footnote"
+
+fresh; page README.md $'# A\n\n[x](memory-and-steering.md)'
+run "a link outside the map fails" 1 "README.md:3: link memory-and-steering.md"
+fresh; page README.md $'# A\n\n[x](memory.md)'
+run "a link to a map page not yet written passes" 0 ""
+fresh; page README.md $'# A\n\n[x](https://example.com/a.md) [y](mailto:a@b.c)'
+run "external links pass" 0 ""
+fresh; page README.md $'# A\n\n[x](quickstart.md#nope)'; page quickstart.md $'# Q\n\n## Real Heading, With `code`!'
+run "a missing anchor fails" 1 "README.md:3: anchor #nope"
+fresh; page README.md $'# A\n\n[x](quickstart.md#real-heading-with-code)'; page quickstart.md $'# Q\n\n## Real Heading, With `code`!'
+run "a slugified anchor passes" 0 ""
+fresh; page README.md $'# A\n\n[x](memory.md#anything)'
+run "an anchor on a page not yet written passes" 0 ""
+fresh; page README.md $'# A\n\n[x](#absent)'
+run "a missing anchor on the same page fails" 1 "anchor #absent"
+
+fresh; page README.md $'# A\n\n![x](shots/home.png)'
+run "an image outside images/ fails" 1 "README.md:3: image shots/home.png"
+fresh; page README.md $'# A\n\n![x](images/home.jpg)'
+run "a non-PNG image fails" 1 "images/home.jpg"
+fresh; page README.md $'# A\n\n![x](images/gone.png)'
+run "a missing image passes without --complete" 0 ""
+fresh; printf 'x' > "$G/images/notes.txt"; page README.md '# A'
+run "anything but PNGs in images/ fails" 1 "images/notes.txt:1: images/ holds PNG files only"
+fresh; printf 'not a png' > "$G/images/fake.png"; page README.md '# A'
+run "a file named .png that is not a PNG fails" 1 "images/fake.png:1: not a PNG"
+
+fresh; page README.md $'# A\n\nAsk AcmeCorp or secret-host42.'
+run "a private word fails, without case" 1 "README.md:3: private word"
+fresh; page README.md $'# A\n\nThe proxy listens on 127.0.0.1:9988.'
+run "a loopback address passes" 0 ""
+fresh; page README.md $'# A\n\nThe box is at 10.1.2.3.'
+run "another address fails" 1 "README.md:3: IP address 10.1.2.3"
+fresh; page README.md $'# A\n\nSee /home/someone/x.'
+run "a machine path fails" 1 "README.md:3: machine path"
+fresh; page README.md $'# A\n\n## Ok\n\n# B\n\n<p>x</p>\n\n[x](gone.md)'
+run "every failure is reported, not the first" 1 "4 failure(s)"
+
+fresh; page memory-and-steering.md $'# Old'; page README.md '# A'
+run "a file outside the map is ignored without --complete" 0 ""
+run "a named file outside the map fails" 1 "not a page of the map" "$G/memory-and-steering.md"
+run "a bare name is read from the guide folder" 0 "1 page(s) clean" README.md
+mkdir -p "$SCRATCH/elsewhere"; printf '<p>x</p>\n' > "$SCRATCH/elsewhere/README.md"
+run "a README outside the guide folder is refused" 1 "not in the guide folder" "$SCRATCH/elsewhere/README.md"
+
+# --complete
+fresh; page README.md $'# A\n\n![x](images/gone.png)'
+run "--complete reports a missing image" 1 "image images/gone.png does not exist" --complete
+fresh; page README.md '# A'
+run "--complete reports a missing page" 1 "quickstart.md:1: missing" --complete
+fresh; page README.md '# A'; page memory-and-steering.md '# Old'
+run "--complete reports a file outside the map" 1 "memory-and-steering.md:1: not in the page map" --complete
+fresh
+for p in README.md quickstart.md install.md setup.md pages.md web-ui.md reading-sessions.md projects.md flagged-responses.md prompts-and-agents.md terminal.md memory.md steering.md judge.md filters.md compression.md mcp.md sessions.md fleets.md threads.md mods.md command-line.md settings.md privacy.md backup-and-recovery.md troubleshooting.md; do page "$p" "# $p"; done
+run "--complete passes on the whole map" 0 "26 page(s) clean" --complete
+}
+
+echo "== system awk =="
+suite
+if command -v gawk >/dev/null 2>&1; then
+    echo "== gawk --posix =="
+    shim="$SCRATCH/shim"; mkdir -p "$shim"
+    printf '#!/bin/sh\nexec gawk --posix "$@"\n' > "$shim/awk"; chmod +x "$shim/awk"
+    PATH="$shim:$PATH" suite
+else
+    skip "the gawk --posix pass" "gawk is missing"
+fi
+
+echo "check-user-guide: $pass passed, $fail failed, $notrun not run"
+[[ $fail -eq 0 ]]

@@ -11,6 +11,8 @@ mod eval_withdraw_batch;
 
 #[path = "cli/fleet_lifecycle.rs"]
 mod fleet_lifecycle;
+#[path = "cli/user_guide.rs"]
+mod user_guide;
 #[path = "cli/version.rs"]
 mod version;
 

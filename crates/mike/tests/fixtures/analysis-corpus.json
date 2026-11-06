@@ -1,0 +1,137 @@
+{
+  "patterns": [
+    {
+      "name": "pragmatically",
+      "category": "justifying_shortcuts",
+      "regex": "pragmatic(ally)?",
+      "advice": "not a licence to reduce scope",
+      "enforcement": "advise"
+    },
+    {
+      "name": "for_now",
+      "category": "justifying_shortcuts",
+      "regex": "for now|for simplicity|for the time being",
+      "advice": "There is no 'later'",
+      "enforcement": "advise"
+    },
+    {
+      "name": "lightweight",
+      "category": "justifying_shortcuts",
+      "regex": "lightweight (version|implementation|approach|solution|option)",
+      "advice": "incomplete implementation",
+      "enforcement": "advise"
+    },
+    {
+      "name": "minimal",
+      "category": "justifying_shortcuts",
+      "regex": "minimal (version|implementation|viable)",
+      "advice": "don't deliver MVP unless asked",
+      "enforcement": "advise"
+    },
+    {
+      "name": "pre_existing",
+      "category": "deflecting_blame",
+      "regex": "pre-existing|pre existing",
+      "advice": "run git blame to prove it",
+      "enforcement": "strict"
+    },
+    {
+      "name": "it_appears",
+      "category": "deflecting_blame",
+      "regex": "it appears|was already (broken|an issue)",
+      "advice": "show the commit or you caused it",
+      "enforcement": "advise"
+    },
+    {
+      "name": "seems_to_be",
+      "category": "deflecting_blame",
+      "regex": "seems? to be|appears? to be a known issue",
+      "advice": "link to issue tracker",
+      "enforcement": "advise"
+    },
+    {
+      "name": "as_expected",
+      "category": "deflecting_blame",
+      "regex": "as expected",
+      "advice": "cite the documentation",
+      "enforcement": "advise"
+    },
+    {
+      "name": "straightforward",
+      "category": "avoiding_work",
+      "regex": "straightforward|trivial(ly)?",
+      "advice": "read the actual code, show file:line",
+      "enforcement": "advise"
+    },
+    {
+      "name": "revisit",
+      "category": "avoiding_work",
+      "regex": "revisit|come back to .*later",
+      "advice": "do it now or state explicitly incomplete",
+      "enforcement": "advise"
+    },
+    {
+      "name": "out_of_scope",
+      "category": "avoiding_work",
+      "regex": "out of scope",
+      "advice": "if user asked for it, it's in scope",
+      "enforcement": "strict"
+    },
+    {
+      "name": "natural_followup",
+      "category": "avoiding_work",
+      "regex": "natural (follow-up|next step)|follow-up (task|ticket)",
+      "advice": "don't punt work",
+      "enforcement": "strict"
+    },
+    {
+      "name": "consistent_with",
+      "category": "faking_understanding",
+      "regex": "consistent with.*existing (pattern|approach)",
+      "advice": "cite file:line",
+      "enforcement": "advise"
+    },
+    {
+      "name": "following_convention",
+      "category": "faking_understanding",
+      "regex": "following.*convention",
+      "advice": "show 3+ examples or admit it's new",
+      "enforcement": "advise"
+    },
+    {
+      "name": "aligning_with",
+      "category": "faking_understanding",
+      "regex": "aligning with",
+      "advice": "show the specific thing and prove alignment",
+      "enforcement": "advise"
+    },
+    {
+      "name": "robust",
+      "category": "overselling",
+      "regex": "\\brobust\\b",
+      "advice": "enumerate every error case",
+      "enforcement": "advise"
+    },
+    {
+      "name": "comprehensive",
+      "category": "overselling",
+      "regex": "comprehensive(ly)?",
+      "advice": "list what's covered",
+      "enforcement": "advise"
+    },
+    {
+      "name": "production_ready",
+      "category": "overselling",
+      "regex": "production[- ]ready",
+      "advice": "show the tests",
+      "enforcement": "advise"
+    },
+    {
+      "name": "clean",
+      "category": "overselling",
+      "regex": "clean (code|implementation|solution)",
+      "advice": "describe specific quality attributes",
+      "enforcement": "advise"
+    }
+  ]
+}

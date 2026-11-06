@@ -48,6 +48,7 @@ pub(crate) struct JobStatus {
     pub(crate) enabled: bool,
     pub(crate) held_elsewhere: bool,
     pub(crate) root: Option<PathBuf>,
+    pub(crate) script_dir_missing: bool,
     pub(crate) running_since: Option<DateTime<Utc>>,
     pub(crate) run_requested_at: Option<DateTime<Utc>>,
     pub(crate) last_started_at: Option<DateTime<Utc>>,

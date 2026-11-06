@@ -76,6 +76,22 @@ fn refusal_names_the_setting_when_the_job_is_turned_off() -> anyhow::Result<()> 
 }
 
 #[test]
+fn refusal_names_the_script_when_the_directory_has_no_scripts_folder() -> anyhow::Result<()> {
+    let mut status = ready();
+    status.script_dir_missing = true;
+    let Some(refusal) = refusal(&PROMOTE, &status) else {
+        anyhow::bail!("a job without a scripts folder was not refused");
+    };
+    assert_eq!(refusal.reason, RefusalReason::NoScripts);
+    assert!(
+        refusal.message.contains("scripts/learning-promote"),
+        "{}",
+        refusal.message
+    );
+    Ok(())
+}
+
+#[test]
 fn refusal_covers_unstarted_and_leased_elsewhere_jobs() {
     assert_eq!(
         reason_for(&JobStatus::default()),

@@ -9,6 +9,7 @@
 		isBusy,
 		isRunning,
 		isTurnedOff,
+		isUnavailable,
 		lastRanText,
 		nextText,
 		runIsTheFix,
@@ -37,6 +38,7 @@
 	const detailId = $derived(`sj-more-${job.id}`);
 	const busy = $derived(isBusy(job, queued));
 	const turnedOff = $derived(isTurnedOff(job));
+	const unavailable = $derived(isUnavailable(job));
 	const runTip = $derived(
 		busy
 			? isRunning(job)
@@ -69,6 +71,14 @@
 		<span class="sj-when sj-when--remote" data-slot="scheduled-job-remote"
 			>runs on another machine</span
 		>
+	{:else if unavailable}
+		<span class="sj-when sj-when--remote" data-slot="scheduled-job-unavailable">
+			<Tooltip text={job.detail || 'This mike has no scripts folder to run the job from.'}>
+				{#snippet child({ props })}
+					<span {...props}>this mike has no job scripts</span>
+				{/snippet}
+			</Tooltip>
+		</span>
 	{:else if runError}
 		<span class="sj-when sj-when--remote sj-error" role="alert" data-slot="scheduled-job-run-error"
 			>Not started. {runError}</span
@@ -81,7 +91,7 @@
 
 {#snippet action()}
 	<span class="sj-action" data-slot="scheduled-job-action">
-		{#if !remote}
+		{#if !remote && !unavailable}
 			<Tooltip text={runTip}>
 				{#snippet child({ props })}
 					<span {...props} class="sj-run-tip">

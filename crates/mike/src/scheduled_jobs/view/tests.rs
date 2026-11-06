@@ -326,3 +326,54 @@ fn a_manual_run_does_not_hide_a_missed_scheduled_run() {
         JobState::Overdue
     );
 }
+
+fn without_scripts() -> JobStatus {
+    JobStatus {
+        script_dir_missing: true,
+        ..ready()
+    }
+}
+
+#[test]
+fn a_job_without_a_scripts_folder_is_unavailable_and_not_scheduled() {
+    let mut status = without_scripts();
+    status.next_run_at = Some(at(14, 18, 0));
+    let v = build_view(&CARGO_SWEEP, &status, None, at(14, 12, 0));
+    assert_eq!(v.state, JobState::Unavailable);
+    assert!(v.detail.contains("scripts/cargo-sweep-all"), "{}", v.detail);
+    assert!(v.detail.contains("/srv/mike"), "{}", v.detail);
+    assert!(v.fix.is_empty(), "{}", v.fix);
+    assert_eq!(v.next_run_at, None);
+}
+
+#[test]
+fn earlier_failed_runs_do_not_make_a_job_without_a_scripts_folder_failing() {
+    let mut status = without_scripts();
+    status.last_started_at = Some(at(14, 6, 0));
+    status.last_run = Some(ran(
+        at(14, 6, 0),
+        RunResult::Unrunnable("scripts/cargo-sweep-all does not exist".to_owned()),
+    ));
+    status.consecutive_failures = 5;
+    assert_eq!(
+        state_of(&CARGO_SWEEP, &status, at(14, 12, 0)),
+        JobState::Unavailable
+    );
+}
+
+#[test]
+fn a_leased_job_without_a_scripts_folder_names_the_machine_that_runs_it() {
+    let owner = Uuid::from_u128(7);
+    let v = build_view(&AUDIT, &without_scripts(), Some(owner), at(14, 12, 0));
+    assert_eq!(v.state, JobState::Ok);
+    assert!(v.detail.contains(&owner.to_string()), "{}", v.detail);
+    let unowned = build_view(&AUDIT, &without_scripts(), None, at(14, 12, 0));
+    assert_eq!(unowned.state, JobState::Unavailable);
+}
+
+#[test]
+fn a_switched_off_job_without_a_scripts_folder_is_off() {
+    let mut status = without_scripts();
+    status.enabled = false;
+    assert_eq!(state_of(&PROMOTE, &status, at(14, 12, 0)), JobState::Off);
+}

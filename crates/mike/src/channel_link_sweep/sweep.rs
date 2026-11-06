@@ -95,12 +95,17 @@ mod tests {
 
     #[test]
     fn candidate_cse_ids_reads_the_attribution_reminder() {
+        let reminder = concat!(
+            "<system-reminder>\nAttribution for git commits and pull requests\nClaude-Session: https://claude.ai/code/",
+            "session_",
+            "01AbCdEfGhJkLmNpQrStUvWx\n</system-reminder>"
+        );
         let body = serde_json::json!({"messages":[{"role":"user","content":[{"type":"text",
-            "text":"<system-reminder>\nAttribution for git commits and pull requests\nClaude-Session: https://claude.ai/code/session_01SAMPLE\n</system-reminder>"}]}]})
+            "text":reminder}]}]})
         .to_string();
         assert_eq!(
             candidate_cse_ids(body.as_bytes()),
-            vec!["cse_013wPVgfQVUPDXraeMwjytZq".to_owned()]
+            vec!["cse_01AbCdEfGhJkLmNpQrStUvWx".to_owned()]
         );
     }
 

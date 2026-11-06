@@ -136,6 +136,47 @@ Preparation uses one Cargo build job and disables incremental compilation to
 keep native local verification resource-bounded. Ambient Cargo resource overrides
 do not change this build contract.
 
+## The guide on temet.ai
+
+The user guide in `docs/user-guide` is published at <https://temet.ai/docs/mike/>.
+The website shows the guide of the latest published release, so its pages describe
+the mike that Homebrew and mise install. Once a release is published, run:
+
+```sh
+scripts/publish-user-guide
+```
+
+It fetches `docs/user-guide` of the public repository at the release's tag, runs
+`scripts/check-user-guide --complete` on it, copies it into a checkout of the
+website's repository with that repository's own sync, page-list check and build,
+commits it there, pushes the website's main and waits until the website reports that
+commit live. It reads the public repository only, so a page that is not public
+cannot reach the website. It refuses a website checkout that is not on main, has
+unpushed commits or has changed tracked files other than the guide's copy. The
+website's checkout is the folder `temet-ai` beside this repository unless `--site`
+or `MIKE_SITE_CHECKOUT` names another. When the guide adds or removes a page, the
+command stops and names the page list in the website's repository that needs the
+same change.
+
+`scripts/publish-user-guide --status` changes nothing. It prints which guide the
+website's pushed main holds and how the latest release, the public main and this
+checkout compare with it, and exits 1 when the website holds neither the guide of
+the latest release nor a later one from the public main. Run it after a release to
+confirm the website followed.
+
+Between releases the guide on main may describe what is not released yet, and that
+text stays off the website. A correction that should not wait for the next release
+goes to the public main first and is then published by hand:
+
+```sh
+scripts/publish-user-guide --ref main
+```
+
+Four tests in `crates/mike/tests/cli/user_guide.rs` hold the guide to the code. They
+fail when `docs/user-guide/command-line.md` does not name a `mike` command, when a
+page shows a command mike does not have, when `settings.md` does not name a feature
+switch, and when `pages.md` does not name an entry of the web UI's menu.
+
 ## What is prepared
 
 - `mike`: the proxy and inspect API, with the production SPA built first

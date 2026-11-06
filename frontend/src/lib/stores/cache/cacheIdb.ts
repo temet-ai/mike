@@ -516,7 +516,14 @@ interface StoredApiResponse extends IdbEnvelope<unknown> {
 	path: string;
 }
 
-export async function idbGetApiResponse(path: string): Promise<unknown | null> {
+/**
+ * Reads a stored answer. With `maxAgeMs`, an answer stored longer ago than that reads as
+ * absent; it stays in the store until the next write for the path replaces it.
+ */
+export async function idbGetApiResponse(
+	path: string,
+	maxAgeMs?: number
+): Promise<unknown | null> {
 	if (typeof indexedDB === 'undefined') return null;
 	try {
 		const db = await openCacheDb();
@@ -527,7 +534,10 @@ export async function idbGetApiResponse(path: string): Promise<unknown | null> {
 			void db.delete(STORE_API, path).catch(() => {});
 			return null;
 		}
-		const updated: StoredApiResponse = { ...record, lastAccess: Date.now() };
+		const now = Date.now();
+		const age = now - record.storedAt;
+		if (maxAgeMs !== undefined && !(age >= 0 && age <= maxAgeMs)) return null;
+		const updated: StoredApiResponse = { ...record, lastAccess: now };
 		void db.put(STORE_API, updated).catch(() => {});
 		return record.payload;
 	} catch (err) {

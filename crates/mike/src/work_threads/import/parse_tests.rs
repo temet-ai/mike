@@ -206,7 +206,7 @@ fn an_unlabelled_state_of_play_is_kept_whole_and_the_session_list_is_read() -> a
     assert_eq!(thread.session_uuids.len(), 2);
     assert_eq!(
         thread.last_session_uuid,
-        Some(uuid("61ab3d33-f0da-4b70-854f-fb293b162b3a")?)
+        Some(uuid("a1b2c3d4-0000-4000-8000-000000000002")?)
     );
     let state = thread
         .state

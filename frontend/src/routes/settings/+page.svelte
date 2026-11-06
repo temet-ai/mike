@@ -271,6 +271,18 @@
 
 <svelte:head><title>Settings — mike</title></svelte:head>
 
+{#snippet frcState()}
+	{#if fileReadCompressionEffective !== null}
+		<CompressionForwardingState effective={fileReadCompressionEffective} />
+	{/if}
+{/snippet}
+
+{#snippet shellState()}
+	{#if shellOutputCompressionEffective !== null}
+		<CompressionForwardingState effective={shellOutputCompressionEffective} />
+	{/if}
+{/snippet}
+
 <SettingsPage
 	title="General settings"
 	current="/settings"
@@ -285,18 +297,6 @@
 		if (settingsLoadError !== null) void loadSettings();
 	}}
 >
-	{#snippet frcState()}
-		{#if fileReadCompressionEffective !== null}
-			<CompressionForwardingState effective={fileReadCompressionEffective} />
-		{/if}
-	{/snippet}
-
-	{#snippet shellState()}
-		{#if shellOutputCompressionEffective !== null}
-			<CompressionForwardingState effective={shellOutputCompressionEffective} />
-		{/if}
-	{/snippet}
-
 	{#snippet lede()}
 		Features that apply to a session, and every other setting. The steerer<HelpHint
 			slug="steerer"

@@ -131,6 +131,10 @@ fn unrunnable(why: String, started: Instant) -> RunReport {
     }
 }
 
+pub(super) fn script_dir_missing(root: &Path, job: &Job) -> bool {
+    !root.join(job.script).parent().is_some_and(Path::is_dir)
+}
+
 pub(super) async fn run_job(root: &Path, job: &Job) -> RunReport {
     let started = Instant::now();
     let script = root.join(job.script);
@@ -249,6 +253,15 @@ mod tests {
             began.elapsed()
         );
         assert_eq!(report.tail, vec!["started".to_owned()]);
+        Ok(())
+    }
+
+    #[test]
+    fn only_a_directory_without_the_scripts_folder_has_no_script_dir() -> anyhow::Result<()> {
+        let dir = tempfile::tempdir()?;
+        assert!(script_dir_missing(dir.path(), &PROMOTE));
+        std::fs::create_dir_all(dir.path().join("scripts"))?;
+        assert!(!script_dir_missing(dir.path(), &PROMOTE));
         Ok(())
     }
 

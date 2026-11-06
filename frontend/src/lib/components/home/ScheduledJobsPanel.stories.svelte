@@ -128,6 +128,15 @@
 		state: 'off',
 		next_run_at: null
 	});
+	const UNAVAILABLE = job({
+		id: 'old-build-sweep',
+		label: 'Old build sweep',
+		description: 'Frees disk space from old build folders.',
+		state: 'unavailable',
+		detail:
+			'This job is the script scripts/cargo-sweep-all, which mike runs from the directory it was started in. /home/user/.local/state/mike has no scripts folder, so the job does not run on this machine.',
+		next_run_at: null
+	});
 	const BY_HAND = job({
 		id: 'by-hand',
 		label: 'Index rebuild',
@@ -273,7 +282,7 @@
 
 <Story
 	name="One running on another machine"
-	args={{ now: NOW_MS, load: respond([BACKUP, REMOTE, HARVEST]) }}
+	args={{ now: NOW_MS, load: respond([BACKUP, REMOTE, HARVEST, UNAVAILABLE]) }}
 	play={async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await waitFor(() => expect(canvas.getByText('runs on another machine')).toBeInTheDocument());
@@ -282,6 +291,20 @@
 		await expect(remote.getAttribute('data-state')).toBe('ok');
 		await expect(within(remote).queryByText('off')).toBeNull();
 		await expect(canvas.getByText('omit')).toBeInTheDocument();
+		const unavailable = canvasElement.querySelector(
+			'[data-job-id="old-build-sweep"]'
+		) as HTMLElement;
+		await expect(unavailable.getAttribute('data-state')).toBe('unavailable');
+		await expect(within(unavailable).getByText('this mike has no job scripts')).toBeInTheDocument();
+		await expect(within(unavailable).queryByRole('button')).toBeNull();
+		await expect(unavailable.getBoundingClientRect().height).toBe(
+			remote.getBoundingClientRect().height
+		);
+		const badge = within(unavailable).getByText('not available');
+		const lane = unavailable.querySelector('.sj-state') as HTMLElement;
+		await expect(badge.getBoundingClientRect().right).toBeLessThanOrEqual(
+			lane.getBoundingClientRect().right + 0.5
+		);
 	}}
 >
 	{#snippet template(args)}

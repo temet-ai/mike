@@ -6,6 +6,7 @@ import {
 	searchContent,
 	ApiError
 } from '$lib/api';
+import { onApiCacheUpdate } from '$lib/stores/cache/apiCache.svelte';
 import type {
 	ProxyEvent,
 	SessionSummary,
@@ -35,7 +36,19 @@ export const THROTTLE_MS = 500;
 
 export const PAGE_SIZE = 50;
 
-export const SESSION_LIST_CACHE_KEY = 'mike:session-list:v1';
+/** The request path of the first page, which is also its key in the API answer cache. */
+export const FIRST_PAGE_PATH = `/api/sessions?offset=0&limit=${PAGE_SIZE}`;
+
+export const SESSION_LIST_CACHE_KEY = 'mike:session-list:v2';
+
+/** Held a bare list of rows with no save time, so its age could not be told. */
+export const LEGACY_SESSION_LIST_CACHE_KEY = 'mike:session-list:v1';
+
+/**
+ * How old the saved first page may be and still be drawn while the first answer is on
+ * its way. An older one is left out, so a tab opened after days never shows old rows.
+ */
+export const SAVED_FIRST_PAGE_MAX_AGE_MS = 10 * 60 * 1000;
 
 export const RECENT_ACTIVE_WINDOW_MS = 30 * 60 * 1000;
 
@@ -141,13 +154,27 @@ function reconcile(prev: SessionSummary[], next: SessionSummary[]): SessionSumma
 	});
 }
 
+interface SavedFirstPage {
+	savedAt: number;
+	sessions: SessionSummary[];
+}
+
+function isSavedFirstPage(value: unknown): value is SavedFirstPage {
+	if (typeof value !== 'object' || value === null) return false;
+	const candidate = value as Partial<SavedFirstPage>;
+	return typeof candidate.savedAt === 'number' && Array.isArray(candidate.sessions);
+}
+
 function readCachedFirstPage(): SessionSummary[] {
 	try {
 		if (typeof localStorage === 'undefined') return [];
 		const raw = localStorage.getItem(SESSION_LIST_CACHE_KEY);
 		if (!raw) return [];
 		const parsed: unknown = JSON.parse(raw);
-		return Array.isArray(parsed) ? (parsed as SessionSummary[]) : [];
+		if (!isSavedFirstPage(parsed)) return [];
+		const age = Date.now() - parsed.savedAt;
+		if (age < 0 || age > SAVED_FIRST_PAGE_MAX_AGE_MS) return [];
+		return parsed.sessions;
 	} catch {
 		return [];
 	}
@@ -156,7 +183,9 @@ function readCachedFirstPage(): SessionSummary[] {
 function writeCachedFirstPage(sessions: SessionSummary[]): void {
 	try {
 		if (typeof localStorage === 'undefined') return;
-		localStorage.setItem(SESSION_LIST_CACHE_KEY, JSON.stringify(sessions.slice(0, PAGE_SIZE)));
+		const saved: SavedFirstPage = { savedAt: Date.now(), sessions: sessions.slice(0, PAGE_SIZE) };
+		localStorage.setItem(SESSION_LIST_CACHE_KEY, JSON.stringify(saved));
+		localStorage.removeItem(LEGACY_SESSION_LIST_CACHE_KEY);
 	} catch {}
 }
 
@@ -402,23 +431,38 @@ export function createSessionListStore(): SessionListStore {
 		}
 	}
 
+	function applyFirstPage(fetched: SessionSummary[]): void {
+		s.sessions = reconcile(s.sessions, fetched);
+		writeCachedFirstPage(fetched);
+		s.error = null;
+		s.loadMoreError = null;
+		s.hasMore = fetched.length >= PAGE_SIZE;
+		clearWsTracking();
+		const currentIds = new Set(fetched.map((sess) => sess.id));
+		pruneWsTracking(currentIds);
+		s.projectLoadingMore = {};
+		s.projectLoadMoreError = {};
+		s.projectExhausted = {};
+	}
+
+	// The answer cache can give refresh() the answer it already held and fetch a newer one
+	// behind it. That newer answer reaches the list here.
+	let newerAnswers = 0;
+	onApiCacheUpdate(FIRST_PAGE_PATH, (value) => {
+		if (!Array.isArray(value)) return;
+		newerAnswers += 1;
+		applyFirstPage(value as SessionSummary[]);
+	});
+
 	async function refresh(): Promise<void> {
 		if (inFlight) return inFlight;
 		s.loading = true;
 		const promise = (async (): Promise<void> => {
 			try {
+				const seen = newerAnswers;
 				const fetched = await listSessions({ offset: 0, limit: PAGE_SIZE });
-				s.sessions = reconcile(s.sessions, fetched);
-				writeCachedFirstPage(fetched);
-				s.error = null;
-				s.loadMoreError = null;
-				s.hasMore = fetched.length >= PAGE_SIZE;
-				clearWsTracking();
-				const currentIds = new Set(fetched.map((sess) => sess.id));
-				pruneWsTracking(currentIds);
-				s.projectLoadingMore = {};
-				s.projectLoadMoreError = {};
-				s.projectExhausted = {};
+				// A newer answer that arrived while this one was awaited stays in place.
+				if (newerAnswers === seen) applyFirstPage(fetched);
 			} catch (err) {
 				s.error = err instanceof ApiError ? err.message : String(err);
 			} finally {

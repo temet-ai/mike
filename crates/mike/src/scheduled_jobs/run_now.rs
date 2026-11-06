@@ -19,6 +19,7 @@ pub(crate) enum RefusalReason {
     UnknownJob,
     NotStarted,
     TurnedOff,
+    NoScripts,
     HeldElsewhere,
     AlreadyRunning,
 }
@@ -62,6 +63,13 @@ pub(super) fn refusal(job: &Job, status: &JobStatus) -> Option<RunRefusal> {
             job.name, job.enabled_key
         );
         return Some(refused(RefusalReason::TurnedOff, why));
+    }
+    if status.script_dir_missing {
+        let why = format!(
+            "{} cannot run on this machine: the job is the script {}, and mike was started in a directory that has no scripts folder",
+            job.name, job.script
+        );
+        return Some(refused(RefusalReason::NoScripts, why));
     }
     if status.held_elsewhere {
         let why = format!(

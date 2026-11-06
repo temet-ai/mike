@@ -47,6 +47,12 @@ export const STATE_VIEW: Record<ScheduledJobState, StateView> = {
 		variant: 'chip-warning',
 		needsAttention: true,
 		border: 'var(--status-warning-border)'
+	},
+	unavailable: {
+		label: 'not available',
+		variant: 'chip-muted',
+		needsAttention: false,
+		border: 'var(--border-subtle)'
 	}
 };
 
@@ -111,6 +117,11 @@ export function isRunning(job: ScheduledJob): boolean {
 
 export function isTurnedOff(job: ScheduledJob): boolean {
 	return !job.enabled || job.state === 'off';
+}
+
+/** True when this mike has no script to run the job with, whatever the job's setting says. */
+export function isUnavailable(job: ScheduledJob): boolean {
+	return job.state === 'unavailable';
 }
 
 /** The fix for a refused or lost run is to run it again: failing, overdue and never-run rows. */

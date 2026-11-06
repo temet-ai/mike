@@ -25,7 +25,7 @@ pub(crate) use status::snapshot;
 pub(crate) use status::{JobStatus, replace_for_tests};
 pub(crate) use view::{JobState, JobView, build_view};
 
-use runner::{RunReport, RunResult, run_job};
+use runner::{RunReport, RunResult, run_job, script_dir_missing};
 use schedule::Schedule;
 use status::{RunRecord, Trigger};
 
@@ -56,10 +56,14 @@ pub(crate) fn spawn_scheduled_jobs(state: &AppState) {
     let now = Utc::now();
     for (index, job) in JOBS.iter().enumerate() {
         let next = Schedule::default().next_run_at(&job.cadence, now);
+        let no_scripts = root
+            .as_ref()
+            .is_some_and(|root| script_dir_missing(root, job));
         status::update(job.name, |s| {
             s.started = true;
             s.enabled = true;
             s.root = root.clone();
+            s.script_dir_missing = no_scripts;
             s.next_run_at = next;
         });
         if let Some(root) = &root {
@@ -174,8 +178,13 @@ impl Worker {
 
     async fn tick(&mut self) {
         self.refresh_enabled().await;
+        let no_scripts = self.refresh_script_dir();
         if !self.enabled {
             run_now::drop_request(self.job, "the job is turned off");
+            return;
+        }
+        if no_scripts {
+            run_now::drop_request(self.job, "the working directory has no scripts folder");
             return;
         }
         let holds = lease::holds(self.persist.as_ref(), self.job, TICK).await;
@@ -221,6 +230,12 @@ impl Worker {
     fn publish_next_run(&self, now: DateTime<Utc>) {
         let next = self.schedule.next_run_at(&self.job.cadence, now);
         status::update(self.job.name, |s| s.next_run_at = next);
+    }
+
+    fn refresh_script_dir(&self) -> bool {
+        let missing = script_dir_missing(&self.root, self.job);
+        status::update(self.job.name, |s| s.script_dir_missing = missing);
+        missing
     }
 
     async fn refresh_enabled(&mut self) {
