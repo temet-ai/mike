@@ -29,7 +29,7 @@ mike ships by the route radar (gg) ships by:
   public alpha.
 - **Source and builds.** The public repository `temet-ai/mike` holds the source and
   builds the release archives on its free GitHub-hosted runners: Linux x86_64 on
-  `ubuntu-22.04` and Apple Silicon macOS on `macos-14`. The private repository
+  `ubuntu-22.04` and Apple Silicon macOS on `macos-15`. The private repository
   runs no release workflow.
 - **Channels.** Homebrew through the tap `temet-ai/homebrew-mike`
   (`brew tap temet-ai/mike`, then `brew install mike mike-mcp`) and mise
@@ -60,7 +60,7 @@ dispatch builds and packages without publishing.
    `Cargo.lock` to `0.1.0-alpha.N` in a reviewed commit before tagging; the
    workflow never edits a version.
 2. **build** (one job per target, `fail-fast: false`): `x86_64-unknown-linux-gnu` on
-   `ubuntu-22.04` and `aarch64-apple-darwin` on `macos-14`. Each job installs the
+   `ubuntu-22.04` and `aarch64-apple-darwin` on `macos-15`. Each job installs the
    toolchain `scripts/release.sh` requires (the Rust version in
    `rust-toolchain.toml`, Node from `.nvmrc`, the pnpm in
    `frontend/package.json`), runs `cargo fetch --locked` and

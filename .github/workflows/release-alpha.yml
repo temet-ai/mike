@@ -46,7 +46,8 @@ jobs:
           # ubuntu-22.04 is the glibc 2.35 floor: the archive is built where it must run.
           - runner: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-          - runner: macos-14
+          # macos-15 is the oldest Apple Silicon image GitHub still hosts.
+          - runner: macos-15
             target: aarch64-apple-darwin
           # scripts/release.sh builds natively and supports these two targets only:
           # no Linux ARM, Intel macOS or Windows archive.
