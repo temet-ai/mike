@@ -2,7 +2,7 @@
 title: Isolated normal-default reliability runner image contract
 status: active
 created: 2026-10-14
-updated: 2026-10-14
+updated: 2026-11-06
 summary: Explicit local image and Linux verifier prerequisites for the opt-in normal-default reliability adapter, including fail-closed admission, bounded transfers and owned cleanup.
 ---
 
@@ -12,11 +12,12 @@ The `normal_defaults` reliability adapter is implemented in
 `scripts/release/journey_reliability_runner.py`. Its contract tests are offline.
 They do not establish that a candidate ran, that an image is compatible, that a
 particular Docker installation enforces these controls, or that AC20 passed.
-Actual candidate and M1/M2 duration evidence remains **NOT_RUN** until an
-explicitly authorized verifier completes the real workload.
+Actual candidate and timed-workload evidence (900 seconds or more) remains **NOT_RUN**
+until an explicitly authorized verifier completes the real workload. AC20 is not an
+alpha-gating case.
 
 The public acceptance helper requires all four `--normal-runner-*` selectors,
-explicit resource budgets, and a reliability stage. See the main release
+explicit resource budgets, and `--reliability-journey`. See the main release
 acceptance documentation for its complete CLI. A normal-default invocation is
 standalone: it cannot also run host-install, browser, fault, or other journeys.
 The host snapshots candidate bytes without executing their smoke commands.

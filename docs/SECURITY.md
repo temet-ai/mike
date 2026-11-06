@@ -2,7 +2,7 @@
 title: Security and trust boundary
 status: active
 created: 2026-09-17
-updated: 2026-10-16
+updated: 2026-11-06
 summary: What each mike bind exposes, what the Host/Origin guard does and does not stop, where captured data lives, what leaves the machine when a feature is enabled, and how to run with nothing enabled.
 ---
 
@@ -16,12 +16,9 @@ data is as sensitive as the repositories you work in.
 authentication anywhere. Any process on the machine can read all of it.** There is no
 supported way to expose it to a LAN or the internet.
 
-Do not put vulnerability details, exploit material, credentials or captured
-conversation content in ordinary issue forms. Use a verified private maintainer
-channel supplied with your invitation. If none has been supplied, ask for a
-private reporting route without disclosing the details, and withhold them until
-the route is verified. A private reporting contact must be established before
-pilot distribution; this document does not invent one.
+To report a vulnerability, follow [`../SECURITY.md`](../SECURITY.md): use GitHub's private
+reporting on the repository, and put no exploit details, credentials or captured conversation
+content in an ordinary issue.
 
 ## The trust boundary
 
@@ -77,7 +74,7 @@ change log replaces the value of any such key with `{"redacted": true}`.
 
 | Provider | Where the credential is | How it reaches mike | What the API gives back |
 |---|---|---|---|
-| OpenRouter | The process environment: `MIKE_STEERER_OPENROUTER_API_KEY`, or `OPENROUTER_API_KEY` as a fallback, normally from `.env` | Read at start. `PUT /api/settings/steerer/openrouter/key` replaces it in memory only, so it lasts until the process stops | The first twelve characters and the last three, never the key |
+| OpenRouter | The process environment: `MIKE_STEERER_OPENROUTER_API_KEY`, or `OPENROUTER_API_KEY` as a fallback; or the per-user config file, as `steerer_openrouter_api_key` or the name of a variable in `steerer_openrouter_api_key_from_env` | Read at start. `PUT /api/settings/steerer/openrouter/key` replaces it in memory only, so it lasts until the process stops | The first twelve characters and the last three, never the key |
 | Anthropic, API-key mode | The process environment: `MIKE_ASSISTANT_ANTHROPIC_API_KEY` | Read at start. `PUT /api/settings/assistant/anthropic/key` replaces it in memory only | The same shortened form. The one route that returns the whole key needs the service token described below |
 | Anthropic, Claude Code login | Claude Code's own credential store | mike starts the `claude` CLI's login and logout; it never reads the stored credential | Whether the CLI is signed in, and as whom |
 | Codex | The Codex CLI's own credential store | The prompt assistant starts `codex app-server` and asks it for account status, with token refresh off | Whether Codex is signed in, the plan and the usage |
@@ -98,14 +95,15 @@ forwarded upstream unchanged and is never stored: see the header list under
 
 ## What the Host/Origin guard does
 
-`crates/mike/src/api/host_guard.rs` is a middleware layer on the whole inspect router, so it
+`crates/mike/src/api/host_guard.rs` (with `host_guard/policy.rs`) is a middleware layer on the whole inspect router, so it
 applies on both `:9989` and `:9990`. It exists to stop a web page you visit from using your
 browser as a proxy into mike. It does two checks.
 
-**Host check.** The request's `Host` header must resolve to `localhost`, to a loopback IP, or
-to a host that appears in one of: `inspect_listen_addr`, `spa_bind`, the hosts of
-`spa_origins`, or the `inspect_allowed_hosts` list (`MIKE_INSPECT_ALLOWED_HOSTS`, empty by
-default). A request carrying `Host: evil.example` is rejected with 403. **This is what stops
+**Host check.** The request must carry one valid `Host` authority (HTTP/2 and HTTP/3 may use the
+URI authority instead; if both are present they must match). It must be the listener's own
+address (unless that is a wildcard), `localhost`, `127.0.0.1` or `[::1]`, at that listener's
+port, or an entry of `inspect_allowed_hosts` (`MIKE_INSPECT_ALLOWED_HOSTS`, empty by default).
+A request carrying `Host: evil.example` is rejected with 403. **This is what stops
 DNS rebinding**: an attacker's domain that resolves to `127.0.0.1` still sends its own name in
 `Host`.
 
@@ -123,8 +121,8 @@ Both checks return `403` with a JSON error body.
 - **It does not stop any local process.** `curl http://127.0.0.1:9989/api/requests` sends a
   loopback `Host` and no `Origin`, and passes both checks. So does anything else on the
   machine, running as any user.
-- **A request with no `Host` header at all passes the host check.** The guard allows it rather
-  than rejecting it.
+- **It does not see through `X-Forwarded-*`.** Forwarded-Host and Forwarded-Proto do not change
+  the policy, so a reverse proxy in front of mike is judged by the `Host` it sends.
 - **It does not protect the proxy bind.** `:9988` has no guard layer; anything that can reach
   it can push traffic through mike and have it captured.
 - **It does not make a non-loopback bind safe.** Adding your machine's hostname to
@@ -153,10 +151,12 @@ Both checks return `403` with a JSON error body.
   crossed the wire. If a session prints a secret, for example by reading `.env`, that text is
   in the conversation, so it is sent upstream and stored with it.
 - **Log files.** Written under `log_dir` when set.
-- **`.env` in the working directory.** The setup TUI writes `MIKE_STEERER_OPENROUTER_API_KEY`
-  there in plaintext, and so does anything else you put in that file, including the database
-  URL. The TUI writes the file with mode `0600` and tightens an existing file to that mode when
-  it rewrites it. A `.env` you created yourself keeps the mode you gave it.
+- **The per-user config file** (`~/.config/mike/config.toml`). It holds the database URL, which
+  contains the database password, and an OpenRouter key if you pasted one into setup (typing the
+  name of an environment variable stores only the name). Setup writes it readable by you only;
+  mike refuses a configuration folder that other users can enter. A `.env` in a development
+  checkout is read by the launcher scripts, not by the `mike` binary, and keeps whatever mode
+  you gave it.
 
 Retention: `retention_sweep` is on by default and periodically deletes sessions older than
 `default_ttl` (365 days). `sweep_at_startup` is off, so nothing is deleted at boot.
@@ -170,7 +170,7 @@ Each of the following sends data elsewhere, and each is off by default:
 
 | Enable this | And this leaves the machine | To |
 |---|---|---|
-| `steerer`, `judge_worker`, `session_judge`, `steerer.correction.enabled`, `steerer.refocus.enabled`, `lesson_relations.enabled` | Conversation text — prompts, assistant turns, tool-call summaries, and stored lessons — as the body of an LLM call | `openrouter.ai`, or whatever `steerer.openrouter_base_url` names |
+| `steerer`, `judge_worker`, `session_judge`, `judge_lessons`, `session_end_shadow`, `turn_guard`, `steerer.refocus.enabled`, `lesson_relations.enabled` | Conversation text — prompts, assistant turns, tool-call summaries, and stored lessons — as the body of an LLM call | `openrouter.ai`, or whatever `steerer.openrouter_base_url` names |
 | `embedding.enabled` with a **remote or hosted** `embedding.url` | The text being embedded: turns, lessons, project context, recall queries | Whatever that URL names. A local embedding server on `127.0.0.1` sends nothing off the machine. |
 | `mike verifier-replay --execute --out <file>` (flags `--set`, `--arm`, `--max-usd` default 15, `--model`, `--reasoning-effort`, `--prompt-file`); without `--execute` it is a dry run that sends nothing | Rebuilt verifier inputs of past turns: conversation text, tool-call lists, and the notes the session had been sent with the operator's recent replies. Per-call records go to `<out>.calls.jsonl` and reports to `--out`, never to `llm.calls` | `openrouter.ai`, or whatever `steerer.openrouter_base_url` names |
 | `otel_endpoint` set | Trace spans. mike's spans carry ids, sizes and counts; no prompt or response body was found on a span attribute | Your OTel collector |
@@ -194,10 +194,15 @@ A fresh install is already in this state. To confirm or restore it:
    `OPENROUTER_API_KEY`, no `MIKE_OTEL_ENDPOINT`. Without an OpenRouter key every LLM feature
    whose model runs on OpenRouter (the default for all of them) is inert even if its toggle is on.
 2. **Check the toggles.** `GET /api/settings/features` lists them with their current values;
-   `/settings` in the browser shows the same thing. The thirteen that rewrite traffic or call out
-   default off: `reminders`, `recall_injector`, `weasel_intercept`, `reminder_on_token`,
-   `mailbox_redelivery`, `steerer`, `judge_worker`, `session_judge`, `agent_lessons`,
-   `file_read_compression`, `proxy_tools`, `self_identity_reminder`, `repeated_notices`.
+   `/settings` in the browser shows the same thing, and `mike features watch-only` sets every
+   switch to its default. The ones that rewrite traffic or call out default off:
+   `reminders`, `recall_injector`, `weasel_intercept`, `reminder_on_token`, `mailbox_redelivery`,
+   `steerer`, `judge_worker`, `session_judge`, `judge_lessons`, `session_end_shadow`,
+   `turn_guard`, `agent_lessons`, `file_read_compression`, `shell_output_compression`,
+   `proxy_tools`, `self_identity_reminder`, `repeated_notices`, `workspace_briefing`,
+   `native_peer_mail`, `mod_lesson_delivery`, `context_focus_question` and `launch_brief`;
+   [`FEATURES.md`](FEATURES.md) lists every switch with its default. Switches that are on by
+   default work on local state only, and `semantic_context` refuses a non-loopback embedder.
 3. **Author no filter rules, lazy sections or prompt compositions.** All three rewrite the
    outbound request, and none of them has a feature toggle — the only gate is whether a rule
    you created matches the project. `composition_enabled` additionally defaults off.

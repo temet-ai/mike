@@ -2,7 +2,7 @@
 title: Adding a steerer, a judge question or judge context
 status: active
 created: 2026-10-05
-updated: 2026-10-05
+updated: 2026-11-06
 summary: The shared pieces every steerer and judge uses to decide, word, send and grade a note, and where a new one plugs in.
 ---
 

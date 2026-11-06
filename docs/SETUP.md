@@ -2,7 +2,7 @@
 title: Optional dependencies and launchers
 status: active
 created: 2026-07-20
-updated: 2026-10-16
+updated: 2026-11-06
 summary: What each optional external service buys you, what mike does without it, what it is commonly but wrongly assumed to need, and the cc shell launcher for captured restartable sessions.
 supersedes: the first-run and feature-toggle material this doc used to carry
 ---
@@ -48,9 +48,9 @@ capture cluster used `scripts/capture-db/upgrade-to-19.sh`).
 
 | Dependency | What it powers | Without it | How to be sure it is off |
 |---|---|---|---|
-| **OpenRouter API key** (`MIKE_STEERER_OPENROUTER_API_KEY`, or `OPENROUTER_API_KEY`) | The LLM features: steerer fleet (including the turn guard), session judge, judge worker, the offline `mike eval run` judge runs, correction classifier, lesson-relation detection. **Enabling any of these sends captured conversation text to `openrouter.ai`.** | Those workers log a warning at boot and never spawn. The forward path is unaffected. | Leave the key unset. All of the features are also off by default in `/settings`. |
+| **OpenRouter API key** (`MIKE_STEERER_OPENROUTER_API_KEY`, or `OPENROUTER_API_KEY`) | The LLM features: steerer fleet (including the turn guard), session judge, judge worker, the offline `mike eval run` judge runs, lesson-relation detection. **Enabling any of these sends captured conversation text to `openrouter.ai`.** | Those workers log a warning at boot and never spawn. The forward path is unaffected. | Leave the key unset. All of the features are also off by default in `/settings`. |
 | **Embedding server** (OpenAI-shaped `/embeddings`; default `http://127.0.0.1:7997`, model `nomic-embed-text-v1.5`; with Ollama, `http://127.0.0.1:11434/v1` and `nomic-embed-text`, which `mike setup embeddings` sets up) | Semantic recall ranking (`recall_similar_turns`, `recall_project_context`) and lesson dedup/promotion. | Recall falls back to Postgres `pg_trgm` text search — still works, lower-quality ranking. | `embedding.enabled` defaults off. If you turn it on, a **remote or hosted** `embedding.url` means the text being embedded leaves your machine; a local server does not. `MIKE_EMBEDDING__*` environment variables are **ignored** — use `/settings` or the `--embedding` CLI flag. |
-| **Docker** | The convenience local Postgres only. | Bring your own Postgres, or `scripts/local-db/up.sh --initdb` builds a bare `initdb` cluster. | n/a — never required by the proxy itself |
+| **Docker** | The convenience local Postgres only. | Bring your own Postgres, or run `mike db native` for the commands that set one up without Docker. | n/a — never required by the proxy itself |
 | **`proxy-forward` sidecar** (`:9987`) | Capturing Claude Code's Remote Control WebSocket channel, and failover to Anthropic while the proxy restarts. This is an HTTPS MITM with its own generated CA. | Normal `/v1/*` capture through `:9988` is complete; only the Remote Control channel goes unobserved. | Don't start it. All `MIKE_FORWARD_*` config is sidecar-local. |
 | **Node ≥ 25 + pnpm** | Building the browser UI. `mike` serves the SPA it was compiled with; `vite dev` is the hot-reload development path. | The inspect REST API (`:9989`) and every MCP tool still work. | Build mike without a `frontend/build` present, or set `MIKE_SPA_ENABLED=0`. |
 | **`rg` (ripgrep) on PATH** | The on-demand subsystem-manifest resolver used by the reminders feature. | That one resolver returns a typed error; nothing else is affected. | none needed |
@@ -72,7 +72,8 @@ capture cluster used `scripts/capture-db/upgrade-to-19.sh`).
 
 ## Launching a captured session: `mike claude` and the shell function
 
-`mike claude` starts Claude Code through mike. When the forwarding sidecar answers on `:9987` and
+`mike claude` starts Claude Code through mike. When `launch_use_sidecar` is on (the default is off;
+the stored `claude_route` choice does not turn it on), the forwarding sidecar answers on `:9987` and
 its certificate authority file exists, it sets `HTTPS_PROXY`, `NO_PROXY` and `NODE_EXTRA_CA_CERTS`
 so that mike captures every request and the Remote Control channel, and it adds `--remote-control`
 so that mike can restart the session later by pushing into that channel. Otherwise it sets

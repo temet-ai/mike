@@ -78,7 +78,7 @@ This checks the backup against the installed predecessor, selected files and cur
 
 The installer switches the complete binary pair, retains prior generations and refuses downgrades or changed same-version replacements. It does not restart services or migrate data. `mike migrate-check` and `mike database check` are read-only compatibility checks; only `mike serve` applies database migrations. Reinstalling an older binary against newer data is not rollback. Use the matching backup and binaries in a fresh instance after a failed upgrade.
 
-Use only a candidate qualified for your platform and the documented release-channel instructions supplied with that candidate. Publication and independent upgrade qualification may still be pending. The kit's availability does not establish recovery qualification or native macOS maintenance support. This help does not turn an unqualified download into a supported release.
+Use only a candidate for your platform, installed as its release notes describe. Upgrade qualification may still be pending. The kit's availability does not establish recovery qualification or native macOS maintenance support. This help does not turn an unqualified download into a supported release.
 
 ## Remove without losing data accidentally
 
@@ -106,4 +106,4 @@ If you enabled optional sidecar CA trust, shell environment exports, MCP registr
 
 ## Report a problem safely
 
-Give your release contact the candidate version, operating system and architecture, installation method, expected behaviour, exact error, and steps to reproduce with harmless sample data. Note whether the database is durable or trial, and whether you changed ports. Remove credentials, private paths, prompt text and personal information from logs and screenshots. Public repository access is not required to read this guide or investigate locally.
+Give the maintainers the version, operating system and architecture, installation method, expected behaviour, exact error, and steps to reproduce with harmless sample data. Note whether the database is durable or trial, and whether you changed ports. Remove credentials, private paths, prompt text and personal information from logs and screenshots. Public repository access is not required to read this guide or investigate locally.

@@ -2,7 +2,7 @@
 title: Runtime identity and observation contract
 status: active
 created: 2026-10-13
-updated: 2026-10-13
+updated: 2026-11-06
 summary: The bounded C01 identity and raw-event persistence foundation, its Claude compatibility boundary, and the request-dependent readers still awaiting normalized runtime data.
 ---
 
@@ -131,10 +131,7 @@ reader work and supported-version emitted behavior must be validated. C02 ingest
 C03 managed lifecycle, C04 durable mixed-runtime mail and C05 child/usage reconciliation remain
 separate work, followed by C06/C07 observation/wire fidelity and C08 fleet/UI acceptance.
 
-## Owner-run performance validation
+## Performance validation
 
-The fleet SQL performance procedure lists exact C01
-statements, changed fleet query groups, real-data scratch requirements, budgets, evidence
-binding and post-deploy checks. Performance validation and G6 remain NOT RUN until that
-procedure is executed and its actual evidence is reviewed. Correctness fixtures are not
-a performance verdict.
+Performance validation of the C01 statements and the changed fleet query groups, and gate G6,
+remain NOT RUN. Correctness fixtures are not a performance verdict.

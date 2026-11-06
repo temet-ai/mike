@@ -2,7 +2,7 @@
 title: Codex projection storage
 status: draft
 created: 2026-10-13
-updated: 2026-10-13
+updated: 2026-11-06
 summary: Trusted Codex receipt capture, generation-isolated projection application, full-content reads and the limits of database-only recovery.
 ---
 
@@ -13,16 +13,10 @@ and [C01 runtime evidence contract](RUNTIME_CONTRACT.md). Its source is
 `crates/mike/src/store/persistence/runtime/codex/`; table definitions are in the
 [runtime schema reference](SCHEMA.md#domain-runtime).
 
-The module is linked and additive migration
-`20261014070000_codex_projection_receipts.sql` is prepared in the migration directory.
-All 44 authored tests now run in the existing integration harness: 19 codec/validation
-cases and 25 database cases. All 44 passed on 2026-10-13 with disposable PostgreSQL
-configured, and final full-workspace/all-target Clippy with warnings denied passed.
-The monolithic library-test harness remains unlinked locally after repeated SIGKILLs
-near 7.7 GiB RSS; these focused results are not a full-workspace test-gate claim.
-Migration performance rehearsal and real-data query performance remain NOT RUN. The
-owner's existing draft-publication exception leaves performance outstanding before merge;
-it is not a passing G6 verdict.
+The module is linked, and the additive migration
+`20261014070000_codex_projection_receipts.sql` is in the migration directory. Migration
+performance rehearsal and real-data query performance have not been run; there is no
+passing performance verdict for this layer.
 
 This layer supplies public Rust `PersistHandle` methods and DTOs for a trusted adapter.
 It adds no REST/MCP route, transport, process launch, RPC request registry, history
@@ -203,26 +197,22 @@ investigating; do not edit context, effects or checkpoints to bypass an invarian
 Authored coverage includes codec round trips/errors, exclusion, exact/conflicting replay,
 raw/context rollback, full raw reads, all effect variants, unknown usage, terminal items,
 application rollback, concurrent intake/application, generation isolation and promotion.
-The tier migration preserved all 44 test names and 233 assertions (230 normalized
-expressions unchanged; three mechanical private-validator call-route substitutions); it added no ignored/disabled cases, new test binary or Cargo manifest change.
 
 | Tier | Test location and scope |
 |---|---|
-| 19 codec/validation integration tests | `crates/mike/tests/integration/runtime_codex/{codec_tests,tests_validation}.rs`: codec round trips/errors, intake/batch validation and closed-pool errors; no database connection |
-| 25 database integration tests | `crates/mike/tests/integration/runtime_codex/`, registered as `runtime_codex` in the existing `crates/mike/tests/integration.rs` harness: intake, atomicity, generations, observations, reads and database error cases |
+| Codec/validation integration tests | `crates/mike/tests/integration/runtime_codex/{codec_tests,tests_validation}.rs`: codec round trips/errors, intake/batch validation and closed-pool errors; no database connection |
+| Database integration tests | `crates/mike/tests/integration/runtime_codex/`, registered as `runtime_codex` in the existing `crates/mike/tests/integration.rs` harness: intake, atomicity, generations, observations, reads and database error cases |
 
 The integration cases use the existing isolated ephemeral helper through
 `runtime_codex/test_support.rs`; feature-gated `test-seams` wrappers expose the small
 internal operations required by those fixtures. DB cases can return early when the helper
 supplies no database, so a successful test-run summary alone must not be called DB coverage.
-All 44 integration cases passed on 2026-10-13 with no ignored cases. The 25 database
-cases used disposable PostgreSQL through the configured helper; the other 19 require
-no database connection. Final strict workspace/all-target Clippy passed. These results
-do not establish live compatibility or a successful full library-test link.
+The database cases use a disposable PostgreSQL through the configured helper; the codec and
+validation cases need no database connection. These results do not establish live
+compatibility.
 
-Before merge, finish validating the module/migration, run the applicable repository
-gates and record actual executed-versus-unrun DB cases. Follow
-FLEET_PERFORMANCE_VALIDATION.md for owner-run real-data
-query and DDL measurements. C02c still needs history fetching and freshness reconciliation;
+Before relying on this layer, validate the module and migration, run the applicable repository
+gates and record executed-versus-unrun database cases. Real-data query and DDL measurements have
+not been run. C02c still needs history fetching and freshness reconciliation;
 C02d needs runtime-aware readers; C03 needs authorized managed transport/control and live
 compatibility evidence. This storage layer does not complete those acceptance criteria.

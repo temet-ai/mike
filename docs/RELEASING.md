@@ -3,16 +3,42 @@ title: Preparing mike + mike-mcp release candidates
 status: active
 created: 2026-07-23
 updated: 2026-11-06
-summary: The 0.1.0-alpha.N release route (tag-triggered public repo workflow, Homebrew tap and mise, glibc 2.35 floor), archive preparation and verification; qualification and same-byte publication remain separate gates.
+summary: Where the 0.1.0-alpha.N release stands (tags exist, no GitHub Release yet), the release route (tag-triggered public repo workflow, Homebrew tap and mise, glibc 2.35 floor), archive preparation and verification; qualification and same-byte publication remain separate gates.
 ---
 
 # Preparing mike + mike-mcp release candidates
 
-[`RELEASE_READINESS.md`](RELEASE_READINESS.md) records the release-readiness
-assessment. The current staged work and acceptance criteria are tracked by
-[distribution issue #51](https://github.com/temet-ai/mike/issues/51), within
-[release plan #270](https://github.com/temet-ai/mike/issues/270).
+[`RELEASE_READINESS.md`](RELEASE_READINESS.md) records the September
+release-readiness assessment and [`RELEASE_ACCEPTANCE_MATRIX.md`](RELEASE_ACCEPTANCE_MATRIX.md)
+the cases a candidate is judged on.
 **A prepared candidate is not a qualified or published release.**
+
+## Where things stand (2026-11-06)
+
+- **Repositories.** `temet-ai/mike` is public. It was created on 2026-11-06 from a
+  collapsed export of the private development repository (`scripts/export-public`),
+  so it carries none of the development history. The tap `temet-ai/homebrew-mike`
+  is public and holds `Formula/` and a README.
+- **Tags.** `v0.1.0-alpha.1` and `v0.1.0-alpha.2` exist on the public repository.
+  **No GitHub Release has been published**, so there is nothing to install from
+  the tap or from mise yet.
+- **alpha.1 did not build.** The export dropped files the `mike` crate embeds, so the
+  public tree did not compile. The `Release alpha` run passed `validate`, failed the
+  Linux build, had its macOS build cancelled and skipped `publish`.
+- **alpha.2 has no Apple Silicon archive.** Its macOS job (`macos-14`) did not run:
+  GitHub retired that image on 2 November, and the job shows as cancelled. Its Linux
+  build was still running when this was written. `publish` needs the archives of both
+  targets, so the `Release alpha` run on this tag cannot publish.
+- **What is fixed but not yet public.** The workflow in the development repository builds
+  Apple Silicon on `macos-15`; the public repository's copy still names `macos-14`.
+  The export fix that keeps the files the crate embeds is on a development branch that
+  has not landed on the development repository's main branch.
+- **Scope of the alpha.** The bar is install and run, plus every case that can lose
+  data (AC01, AC02, AC03, AC07, AC08, AC22; see
+  [`RELEASE_ACCEPTANCE.md`](RELEASE_ACCEPTANCE.md)). There is no pilot. AC23 and AC24
+  and the upgrade, removal and reinstall journeys are not part of the alpha.
+- **Evidence.** No acceptance run is committed to this repository. A case counts only
+  from a ledger written by `scripts/release-acceptance` on a candidate.
 
 `scripts/release.sh` prepares local archives. It never changes workspace versions,
 tracked Homebrew formulae, tags, branches, releases, or tap repositories.
@@ -29,8 +55,9 @@ mike ships by the route radar (gg) ships by:
   public alpha.
 - **Source and builds.** The public repository `temet-ai/mike` holds the source and
   builds the release archives on its free GitHub-hosted runners: Linux x86_64 on
-  `ubuntu-22.04` and Apple Silicon macOS on `macos-15`. The private repository
-  runs no release workflow.
+  `ubuntu-22.04` and Apple Silicon macOS on `macos-15` (GitHub retired `macos-14` on
+  2 November). The private development repository runs no release workflow: its
+  Actions are disabled.
 - **Channels.** Homebrew through the tap `temet-ai/homebrew-mike`
   (`brew tap temet-ai/mike`, then `brew install mike mike-mcp`) and mise
   (`github:temet-ai/mike`). There is no curl installer.
@@ -45,8 +72,9 @@ mike ships by the route radar (gg) ships by:
 - **Not signed.** macOS archives are unsigned; Homebrew and mise are the
   supported routes.
 
-Publication and the creation of the tap, repository and tag need the operator's
-explicit yes; nothing in this repository does them.
+The repository, the tap and the two tags already exist. Pushing another tag, or
+publishing a release by any route, needs the operator's explicit yes; nothing in
+this repository does it on its own.
 
 ## The tag-triggered alpha workflow
 
@@ -86,16 +114,20 @@ step warns and succeeds; write the formulas by hand with the same command from
 the release's `checksums.txt`.
 
 **Public repository configuration.** The secret `HOMEBREW_TAP_TOKEN` (a token that
-can push to `temet-ai/homebrew-mike`) and the existing tap repository. Actions must
-be enabled with the default `GITHUB_TOKEN` allowed to write contents on the tag
-workflow (the job asks for it itself). Tags matching `v*-alpha.*` should be
-protected from deletion. No other secret is read.
+can push to `temet-ai/homebrew-mike`) and the existing tap repository. Actions are
+enabled on the public repository (all actions allowed), with the default
+`GITHUB_TOKEN` allowed to write contents on the tag workflow (the job asks for it
+itself). Tags matching `v*-alpha.*` should be protected from deletion. No other
+secret is read. On 2026-11-06 `gh secret list` showed no repository secret, so
+`HOMEBREW_TAP_TOKEN` is not set and the tap step would warn and skip; the formulas
+then have to be written by hand as described above.
 
 **Scope.** Only the two targets `scripts/release.sh` can build natively. There is no
 Linux ARM or Intel macOS archive until the script supports them. The workflow
 does not run the acceptance matrix: a published archive is an alpha, not a
 qualified release, and the tap formulas are not the qualified `homebrew.py`
-route below. `release-alpha.yml` has had no real tag run; the first one is its test.
+route below. The two real tag runs so far (alpha.1, alpha.2) are described under
+[Where things stand](#where-things-stand-2026-11-06); neither reached `publish`.
 
 Preparation uses one Cargo build job and disables incremental compilation to
 keep native local verification resource-bounded. Ambient Cargo resource overrides
@@ -301,10 +333,12 @@ fresh-instance restore, update checks and data-preserving removal.
 /new/outside-source/evidence` checks local integrity, disposable installation,
 installed CLI smoke and repeat installation with fresh HOME/cwd and an empty
 runtime PATH. Its private `result.json` and `summary.txt` bind observations to
-candidate hashes. This foundation deliberately leaves full AC01–AC27 journeys
-NOT_RUN: exit 2 means incomplete, exit 1 means helper failure. It is not a release
-qualification pass and does not replace native accounts, runtime/browser/MCP,
-storage, maintenance or real channel evidence.
+candidate hashes. The bare form can record AC08 at most and leaves the other five
+alpha cases (AC01, AC02, AC03, AC07, AC22) to the opt-in journeys; every other
+case stays NOT_RUN. Exit 0 means all six alpha cases hold PASS, exit 2 means one
+is still NOT_RUN, exit 1 means a helper failed. A PASS is a real journey's
+observation on that candidate, not a release qualification, and does not replace
+native accounts, browser/MCP, real-channel or Apple Silicon evidence.
 
 ## Running the acceptance matrix
 
@@ -321,27 +355,33 @@ The bare form above only checks the candidate and records the cases it cannot
 yet observe as `NOT_RUN`. The journeys are opt-in flags on the same command:
 `--trial-journey`, `--persistent-journey`, `--maintenance-journey`,
 `--browser-journey` (with `--browser-node` and `--browser-chromium`, both absolute
-paths), `--mode-journey`, `--mode-tui-journey` and `--fault-journey`, plus
-`--reliability-journey` (at least 900 seconds) with `--reliability-duration-seconds`. Journeys that
-need a database take `MIKE_TEST_ADMIN_URL` and `MIKE_RECOVERY_TEST_PGDATA`, both
-pointing at an owned PostgreSQL 19 test instance. Exit status 2 means the ledger is
-incomplete, which is the normal result of a partial run.
+paths, and `--browser-ipv6`), `--mode-journey`, `--mode-tui-journey`,
+`--fault-journey` and `--upgrade-predecessor`, plus `--reliability-journey` (at least
+900 seconds) with `--reliability-duration-seconds` and
+`--reliability-concurrent-sessions`. The alpha cases come from
+`--persistent-journey` (AC02, AC03, AC07), AC01 needs `--trial-journey` as well,
+and AC22 needs `--maintenance-journey` on top of the persistent one. Journeys that need a database take
+`MIKE_TEST_ADMIN_URL` and `MIKE_RECOVERY_TEST_PGDATA`, both pointing at an owned
+PostgreSQL 19 test instance. Exit status 2 means an alpha case is still NOT_RUN,
+which is the normal result of a partial run.
 
 The output directory must be new and sit outside the checkout and the candidate.
 The run writes its ledger there: `result.json` (every case with its observed
 value, exit status and evidence references) and `summary.txt` (the same result
 in words). Both are private; keep them out of the repository. The ledger lists
 all 33 cases, AC01–AC27, SG01–SG03, PUBLIC01, PUBLIC02 and FEEDBACK01. A case
-that has no observation stays `NOT_RUN`; the runner never reports a full pass.
+that has no observation stays `NOT_RUN`; only the six alpha cases gate the exit
+status.
 
-The matrix rows in [RELEASE_READINESS.md](RELEASE_READINESS.md#required-release-acceptance-matrix)
-say what each journey must show. A row is complete only when its ledger case
-holds a recorded verdict.
+The rows of [RELEASE_ACCEPTANCE_MATRIX.md](RELEASE_ACCEPTANCE_MATRIX.md) say what
+each journey must show. A row is complete only when its ledger case holds a
+recorded verdict.
 
 ## Where the matrix rows run
 
 The Linux mise journey installs the release archive into a fresh HOME through
-mise, then runs setup, capture, restart, upgrade and uninstall:
+mise (served from a local file registry, since no release is published), then runs
+setup, trial capture, restart, a second mise version of the same bytes, and uninstall:
 
 ```bash
 scripts/release-journey-mise --candidate /absolute/path/to/candidate \
@@ -351,18 +391,17 @@ scripts/release-journey-mise --candidate /absolute/path/to/candidate \
 The output directory must be new, empty and outside both the checkout and the
 candidate. It needs Python 3.11 and `mise` on `PATH`, and it uses no network and
 no sudo. Exit 0 means every step passed; exit 1 means a step failed. It never
-qualifies an AC case. Its evidence is `result.json` (hash-bound checks) and
-`summary.txt` in the output directory.
-
-This journey has not run yet, so no evidence path is recorded here. The committed
-copy will live under `artifacts/2026-10-19/release-journey/mise-linux/`, named
-here once the run has produced it.
+qualifies an AC case: its upgrade step re-installs the same bytes, so it proves
+the mise path and not a data migration, and AC23 and AC24 are outside the alpha.
+Its evidence is `result.json` (hash-bound checks) and `summary.txt` in the output
+directory. `--real-claude /absolute/path/to/claude` adds one real Claude print
+session through the proxy; it needs `CLAUDE_CODE_OAUTH_TOKEN` in the environment.
+No run of this journey is recorded in this repository.
 
 The Linux journeys run with the helper above, each in a fresh HOME. The Apple
-Silicon Homebrew row does not run in the fleet: no fleet seat runs on a Mac. It
-is run by Dawid or by a Mac session after the deploy, through the intended
-Homebrew channel, and its verdict is recorded in the same way. Until that run
-has a recorded verdict, the Apple Silicon Homebrew row stays NOT RUN.
+Silicon Homebrew row needs a Mac: the maintainer runs it through the intended
+Homebrew channel once a release and its formulas exist, and records its verdict
+the same way. Until then it stays NOT RUN.
 
 Optional installed-browser helpers require `--persistent-journey --browser-journey
 --browser-node /absolute/node --browser-chromium /absolute/chromium` in addition
@@ -410,8 +449,9 @@ UTC epochs, failed-status handling, stale executable identities, and refusal to
 publish. **Passing it is not a real Mike build, Linux ABI test, macOS test, or
 clean-account installation.**
 
-Before any release claim, record the required not-run evidence on the selected
-candidate, including:
+The alpha gate is the six cases in [`RELEASE_ACCEPTANCE.md`](RELEASE_ACCEPTANCE.md).
+Before any claim of a qualified (non-alpha) release, also record the not-run
+evidence below on the selected candidate:
 
 - Real native builds and runtime baselines, with conservative Linux library
   requirements and actual execution on the supported distributions
@@ -428,8 +468,9 @@ candidate, including:
 - Final clean-account installation from the actual published URLs or Homebrew
   tap, with downloaded hashes matching the independently qualified archives
 
-These are the remaining AC01/AC08/AC23/AC25/AC26 obligations in issue #51. Local
-preparation and helper tests alone do not close that issue.
+These are the AC01/AC08/AC23/AC25/AC26 obligations beyond the alpha bar (AC23,
+AC25 and AC26 do not gate an alpha). Local preparation and helper tests alone
+close none of them.
 
 ## cargo-dist and Homebrew
 

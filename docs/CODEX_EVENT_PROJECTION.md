@@ -2,7 +2,7 @@
 title: Codex event projection foundation
 status: active
 created: 2026-10-13
-updated: 2026-10-13
+updated: 2026-11-06
 summary: Pure, credential-safe Codex app-server observation decoding and item reduction, with explicit evidence and replay boundaries.
 ---
 
@@ -233,9 +233,14 @@ Run them through the repository test wrapper with the `runtime::codex` filter.
 These tests do not contact a database, launch an app-server, or use a model.
 
 C02b's durable raw reads and transactional replay/application implementation is
-linked and awaiting confirmed Cargo/DB validation; see its
-[storage contract and current check status](CODEX_PROJECTION_STORAGE.md). Real-data
-performance remains NOT RUN before merge under the existing draft-publication exception.
-C02c needs resumable history reconciliation and scripted RPC tests. C02d needs
-runtime-aware fleet readers. C03 needs authorized managed transport, control and live
-compatibility evidence before Codex launches can be enabled.
+linked; see its [storage contract](CODEX_PROJECTION_STORAGE.md). Real-data
+performance has not been run.
+
+`runtime::codex::history` (`crates/mike/src/runtime/codex/history/`) holds the pure side of
+history reconciliation: `HistoryRequest`/`HistoryQuery`/`HistoryIdentity` build a page
+request, `HistoryPage` and `HistoryEntry`/`HistoryTurn`/`HistoryItem` decode the response,
+and `next_history_step` with `HistoryCursorLedger` decides the next cursor action or the
+`HistoryBlocker`. It does not fetch anything or decide freshness across a live/history race.
+Resumable reconciliation against a live app-server and scripted RPC tests remain C02c work.
+C02d needs runtime-aware fleet readers. C03 needs authorized managed transport, control and
+live compatibility evidence before Codex launches can be enabled.

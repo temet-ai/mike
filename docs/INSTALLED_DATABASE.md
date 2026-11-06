@@ -2,7 +2,7 @@
 title: Installed database provider
 status: active
 created: 2026-10-13
-updated: 2026-11-05
+updated: 2026-11-06
 summary: Owned Docker provisioning and read-only existing-PostgreSQL prerequisites, with embedded migration ownership and explicit qualification limits.
 ---
 
@@ -10,7 +10,9 @@ summary: Owned Docker provisioning and read-only existing-PostgreSQL prerequisit
 
 `mike database provision` embeds its Docker Compose resource; it does not need a
 source checkout, host `psql`, `sqlx`, Rust, or Node. The setup menu uses the same
-provider. Trial is an explicit separate choice and never a database failure fallback.
+provider. Trial is an explicit separate choice and never a database failure fallback. `mike db up`
+is the shorter route to the same kind of database (container `mike-db`, volume `mike_pg_data`,
+the per-user config file); see [`GETTING_STARTED.md`](GETTING_STARTED.md).
 
 ## Managed Docker database
 
@@ -61,8 +63,8 @@ upgrade of the cluster.
 
 ### Measured first managed setup
 
-Measured 2026-11-05 on this host with a scratch config under `/mnt/data`, the installed
-`mike 0.1.0 (17255f7b)` binary, and the Dockerfile above. The base layers were already in the
+Measured 2026-11-05 on one development machine with a scratch config, a `mike 0.1.0` binary and
+the Dockerfile above. The base layers were already in the
 local image store; the build itself ran with `--no-cache`.
 
 | Step | Wall time | Notes |
@@ -79,8 +81,7 @@ are about 640 MB for the image plus its build layers, and about 50 MB for a fres
 migrations and capture data.
 
 The Docker state was not fully clean: the managed image tag and the pinned base were already
-cached, and the running capture and test containers keep their own image IDs.
-Only this seat's scratch container, volume and build tag were removed afterwards.
+cached.
 
 An explicit `--image pgvector/pgvector@sha256:...` can select a reviewed upstream
 digest, but it must run PostgreSQL 19. Other mutable tags and registries are

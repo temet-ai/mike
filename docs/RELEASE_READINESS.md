@@ -2,11 +2,18 @@
 title: Mike public release readiness
 status: active
 created: 2026-09-17
-updated: 2026-10-19
-summary: September release stocktake, verified blockers, supported installation proposal, and an ordered acceptance checklist for getting Mike into outside users' hands.
+updated: 2026-11-06
+summary: The September 2026 release stocktake kept as history - verified blockers, supported installation proposal and journey list; the current state and the alpha bar are in RELEASING.md and RELEASE_ACCEPTANCE.md.
 ---
 
 # Mike public release readiness
+
+> **This is the 2026-09-17 assessment, kept as the record of why the work started.**
+> Where things stand now is in [`RELEASING.md`](RELEASING.md#where-things-stand-2026-11-06):
+> the public repository exists, tags `v0.1.0-alpha.1` and `v0.1.0-alpha.2` are pushed,
+> and no GitHub Release is published. The alpha bar is the six cases in
+> [`RELEASE_ACCEPTANCE.md`](RELEASE_ACCEPTANCE.md); there is no pilot. The blocker
+> table below is a September snapshot, not a current defect list.
 
 **Decision on 2026-09-17: not ready for a public release.** The core product and
 much of July's release foundation exist. The unfinished work is the complete
@@ -17,42 +24,26 @@ privacy review before the repository's visibility changes.
 
 This is an assessment of source at `3c27b002146a47890ac917210b914495f805d861`,
 plus the small configuration fixes described below. It does not certify a final
-release artifact. Detailed evidence, file/line references, and reproductions:
-
-- Installation and distribution audit
-- Runtime and first-run audit
-- Quality, portability, and privacy audit
-- Verification record
-- Disposable database probe
+release artifact. The audit's lane reports (installation, runtime, quality and
+privacy, verification record, disposable database probe) are development records
+and are not part of the public tree; their conclusions are summarised here.
 
 ## What happened to the July release goal
 
-The [release mike milestone](https://github.com/temet-ai/mike/milestone/2) is
-still open, due 2026-07-26, with seven closed issues and one open issue. Closed
-work includes the embedded SPA (#47), removal of mandatory Cargo accelerators
-from plain Cargo (#48), the setup/control TUI (#50), capability reporting (#52),
-public naming (#53), funding (#62), and the Claude wrapper (#63).
+The July goal ("release mike") had closed the embedded SPA, removal of mandatory
+Cargo accelerators from plain Cargo, the setup/control TUI, capability reporting,
+public naming, funding and the Claude wrapper. Distribution was the open item: it
+held a working-history record of Apple Silicon builds and packaging, and the
+explanation that publication was waiting for approval or frozen CI was already
+stale in September. Issue closure alone is not installation evidence.
 
-The remaining [distribution issue #51](https://github.com/temet-ai/mike/issues/51)
-contains a working-history record of Apple Silicon builds and packaging. Its
-August 26 update records approval to create the tap and publish, and says CI
-service was restored. The old explanation that publication is waiting for
-approval or frozen CI is stale. The current technical blockers are below.
-
-GitHub queries on September 17 found:
-
-- The repository is **private**; there are **no tags and no GitHub Releases**.
-- The configured tap repository returned HTTP 404 to the authenticated account;
-  this establishes that it was unavailable to the audit, not whether an
-  inaccessible private repository exists elsewhere.
-- No release workflow exists. The local release target remains Apple Silicon
-  only, despite the maintainer now using Arch Linux.
-- The four latest Rust quality runs failed. The most recent failed at
-  `cargo fmt --check`, before the remaining quality steps could establish a pass.
-
-The old release worklog is useful
-history, but its parked July state is not the current execution plan. Use this
-document for readiness; issue closure alone is not installation evidence.
+GitHub queries on 2026-09-17 found a private repository with no tags, no GitHub
+Releases, no release workflow and an unavailable tap, a release target that built
+Apple Silicon only, and four failing Rust quality runs (the latest at
+`cargo fmt --check`). That has changed: the repository, the tap, a tag-triggered
+`release-alpha.yml` and two alpha tags now exist (see
+[RELEASING.md](RELEASING.md#where-things-stand-2026-11-06)), though no release is
+published.
 
 ## What is already usable
 
@@ -72,7 +63,7 @@ The complete no-DB Rust default-profile probe reported **3,158 passed, 70 failed
 Sixty-three failures require test DB configuration, one requires absent
 `.claude/old_rules`, and six are wrapper/proxy assertions needing follow-up.
 Some reported passes skip DB work internally. This is evidence of an unreliable
-test-tier boundary, not a passing release gate; see the verification record.
+test-tier boundary, not a passing release gate.
 
 ## Release blockers, in priority order
 
@@ -115,8 +106,7 @@ maintainer dotfiles, LAN database, herdr, or paid optional provider account.
 Use one native release product with two install channels: a verified Linux
 archive/download installer and macOS Homebrew. An AUR package can follow; it
 does not need to delay a working Linux binary. Keep the full Docker/GHCR
-application distribution [#49](https://github.com/temet-ai/mike/issues/49)
-optional, matching the July channel decision. Docker remains a supported way
+application distribution optional, matching the July channel decision. Docker remains a supported way
 to provide the database.
 
 Offer persistent setup using either Docker/Compose with pgvector or an existing
@@ -164,14 +154,16 @@ do not reopen unrelated feature development as a prerequisite.
 5. **Publish a preview after the gates pass.** Use the reviewed artifacts and
    sanitized source decision, then verify real downloads/tap installation.
    Record supported platforms, known limitations and a reproducible support
-   bundle with credential redaction. Close #51 and the milestone only after
-   installation from the published channel works.
+   bundle with credential redaction. Treat the distribution work as done only
+   after installation from the published channel works.
 
 ## Required release acceptance matrix
 
-The [local archive acceptance helpers](RELEASE_ACCEPTANCE.md) provide opt-in,
-hash-bound partial observations. They leave every full acceptance case NOT RUN
-and cannot qualify a release by themselves.
+This is the September journey list. The current cases, their IDs and pass criteria
+are in [`RELEASE_ACCEPTANCE_MATRIX.md`](RELEASE_ACCEPTANCE_MATRIX.md), and the
+[local archive acceptance helpers](RELEASE_ACCEPTANCE.md) record them. For the
+alpha, upgrade, uninstall and publication-retry rows below (AC23, AC24, AC25) do not
+gate; the alpha bar is install and run plus the cases that can lose data.
 
 Run against the final archives in fresh accounts/containers/VMs where appropriate,
 with no inherited `.env`, provider credentials or production database access.
@@ -181,7 +173,7 @@ authorized real Claude session for compatibility validation.
 | Journey | Required assertion |
 | --- | --- |
 | Arch x86_64, Docker/Compose only | Install → setup → capture → UI/API → MCP works; no host Postgres tools or compiler needed. |
-| Apple Silicon macOS, supported Homebrew path | Same journey outside the checkout; package signatures/runtime dependencies work on another machine. **Run outside the fleet:** Dawid or a Mac session runs this row after the deploy, because no fleet seat runs on a Mac. |
+| Apple Silicon macOS, supported Homebrew path | Same journey outside the checkout; package signatures/runtime dependencies work on another machine. Needs a Mac: the maintainer runs it through the Homebrew tap once a release exists. |
 | Existing Postgres + pgvector | Validate access/extensions, migrate, capture, restart twice; history and captured data remain correct. |
 | No optional services | Core journey works without OpenRouter, embedding server, herdr or sidecar; capability explanations are accurate. |
 | Config and mode changes | Alternate cwd/ports, paths with spaces, literal credentials, trial ↔ persistent, and CLI/env precedence all behave as documented. |

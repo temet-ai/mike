@@ -1,6 +1,6 @@
 ## Install, set up and capture
 
-This help is bundled into mike. Reading it needs no source checkout, Rust, Node, or repository access. Use a qualified archive for your operating system supplied by your release contact. Do not assume that an untested platform or a public download channel is supported.
+This help is bundled into mike. Reading it needs no source checkout, Rust, Node, or repository access. mike ships for Linux on x86_64 (glibc 2.35 or newer) and Apple Silicon macOS. Do not assume another platform works.
 
 Claude Code must already be installed and authenticated for a real capture; `claude --version` checks installation but does not send a request.
 
@@ -21,7 +21,7 @@ With mise:
 mise use -g github:temet-ai/mike@<version>
 ```
 
-Use the version number of the release you were given, for example `0.1.0-alpha.1`. Both routes put `mike` and `mike-mcp` on your PATH. Check the install with `mike --version` and `mike-mcp --version`.
+Use the version number of the release you want, for example `0.1.0-alpha.1`. Both routes put `mike` and `mike-mcp` on your PATH. Check the install with `mike --version` and `mike-mcp --version`.
 
 Without a package manager, keep the matching archive pair from one release candidate together on your executable PATH. Retain the candidate manifest and both archive/checksum pairs. Check the supplied checksums before using explicitly trusted files; checksums establish integrity, not authenticity. The optional [maintenance kit](/help/docs/recovery-and-maintenance) can install the pair without a source checkout.
 

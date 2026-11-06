@@ -101,6 +101,8 @@ everything: clear it.
 Every turn is made of one or more requests to Anthropic. To see exactly what was sent and what
 came back, open a request from its turn.
 
+![The Request body panel comparing the original request with what was sent](images/request.png)
+
 1. In the open turn, choose **view request** beside your prompt, or **view response** beside
    Claude's reply. A panel opens over the timeline with **Request body**, **Response body**,
    **Findings** or the request's events. Its address carries `?drawer=`, so you can copy a

@@ -2,28 +2,31 @@
 title: Release content and source exposure review
 status: draft
 created: 2026-10-13
-updated: 2026-10-13
-summary: Redacted local PUBLIC01/PUBLIC02 inventory and hash-pinned source-export dry runs, with explicit human approval and coverage limits.
+updated: 2026-11-06
+summary: Redacted local PUBLIC01/PUBLIC02 inventory and hash-pinned source-export dry runs, the one-shot public tree export and what it did and did not catch, with explicit human approval and coverage limits.
 ---
 
 # Release content and source exposure review
 
-This is the local implementation for [WP12 / #282](https://github.com/temet-ai/mike/issues/282).
+This is the local implementation of the content and source-exposure review.
 It produces review evidence. It does **not** approve a release, expose source, rotate a
 credential, publish an archive, change repository access, or rewrite history.
 [The candidate contract](RELEASE_CANDIDATE.md) remains authoritative for release scope.
+The public repository `temet-ai/mike` already exists (2026-11-06, from the one-shot
+export described below); neither gate has a verdict recorded in this repository.
 
 ## Two independent gates
 
 - **PUBLIC01, before any distribution:** review the exact candidate archive hashes,
   binary strings, embedded SPA, source maps, bundled resources, configuration examples,
-  diagnostics, notices, download-repository contents and destination access. A private
-  binary pilot must use an isolated access-controlled destination, not access to the
-  unchecked development repository.
+  diagnostics, notices, download-repository contents and destination access. The alpha
+  is public, so this reviews what the public destination shows. A binary-only
+  destination would have to be a separate repository, not access to the unchecked
+  development repository.
 - **PUBLIC02, before source exposure:** review the proposed source tree and the history
   being exposed, private prose/screenshots, unresolved credential candidates, rights,
   automatic source archives, destination and development-SHA mapping. Keeping development
-  history private is independent of completing PUBLIC01 for an invited binary pilot.
+  history private is independent of completing PUBLIC01 for a binary-only release.
 
 Both gate statuses in machine output are always `NOT_RUN`; all human approvals also stay
 `NOT_RUN`. An exit status or a zero-match scan cannot change them. Tests of these helpers
@@ -155,6 +158,8 @@ are not performed by this offline tool.
 
 The public repository becomes the one repository (the same route as gg), so
 `scripts/export-public OUT_DIR` runs once, for the first push, and has no sync or push mode.
+It has run: `temet-ai/mike` was created from its output on 2026-11-06 as a collapsed
+history, so its commits are not the development repository's SHAs.
 `OUT_DIR` must not exist; point it at a scratch folder outside the checkout. It exports
 `HEAD`, removes plans, internal docs, agent configuration and itself (its `EXCLUDE` list),
 strips `session_id:` front matter, then refuses on a gitleaks finding, a private word, a
@@ -345,15 +350,16 @@ The release owner must finish and sign the following evidence before the applica
 - Independent verifier: reproduce review evidence against the frozen candidate identities
 - Owner/legal/distribution approvals: record separately; none is implied by an automated result
 
-For an invited pilot, report suspected vulnerabilities through the private channel named in
-the invitation. If no verified private channel was supplied, ask the distributor for one
-before sending a report. Do not post credentials, database URLs, captures, screenshots of
-conversations or exploit-bearing private data in public issues. A minimal initial report
-can contain the qualified version/target, a synthetic reproduction and expected/observed
-behavior, with sensitive details retained for the verified private follow-up.
+Report suspected vulnerabilities through the route in [SECURITY.md](SECURITY.md): GitHub
+private vulnerability reporting on `temet-ai/mike`. On 2026-11-06 GitHub reported that
+feature as disabled on the repository, so the route is not verified; until it is
+enabled and tried, send no details. Do not post credentials, database URLs, captures,
+screenshots of conversations or exploit-bearing private data in public issues. A minimal
+initial report can contain the version/target, a synthetic reproduction and
+expected/observed behavior, with sensitive details retained for the private follow-up.
 
-Before public alpha, the owner must publish and verify a durable private security reporting
-route and name the responsible maintainer. No address, response SLA or currently supported
+For the alpha, the owner must enable and verify that private security reporting route and
+name the responsible maintainer. No address, response SLA or currently supported
 release is invented here. The proposed maintenance policy is: list qualified supported
 versions explicitly; review Rust/JS dependency advisories and font/asset notice changes
 before each candidate; requalify fixes and replacement artifacts locally; document migration
@@ -400,3 +406,12 @@ archive.pack + extract_checked on a built binary:
 
 The acceptance policy is `docs/RELEASE_ACCEPTANCE_MATRIX.md`, pinned by repository path in
 `acceptance_ledger.py` and `publication_gates.py`; the export tolerates no dead link.
+
+### What the export did not catch (alpha.1)
+
+None of those checks builds the exported tree. The first public tag, `v0.1.0-alpha.1`,
+did not compile: `EXCLUDE` removed `.claude` files that the `mike` crate embeds with
+`include_str!`/`include_bytes!`. The fix turns the export into an allowlist (`KEEP`) and
+refuses when an embedded file is left out; it is on a development branch that has not
+landed on the development repository's main branch, so `scripts/export-public` at this
+commit still has only `EXCLUDE`. Build an exported tree before pushing it.

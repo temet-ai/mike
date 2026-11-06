@@ -2,7 +2,7 @@
 title: Fleet events
 status: active
 created: 2026-10-21
-updated: 2026-10-22
+updated: 2026-11-06
 summary: The append-only record of a fleet run, `launch.fleet_events`: what a row is, every kind and its payload, and how a state is read from the rows.
 ---
 
@@ -15,24 +15,28 @@ task's seat, whether it is working or awaiting a verdict, whether the fleet is d
 is read by folding the rows of a run in `id` order, so there is no stored state to go
 stale and a run can be replayed from its rows alone.
 
-Nothing in fleet 1 writes an event: the table, its kinds and the persistence exist,
-and the three measured runs exist as fixtures under
-`crates/mike/tests/fixtures/fleet-runs/`. The writers belong to fleet 2, and they
-land one task at a time. Written so far (T12, `baaeb74b`): `report_filed` and one
-`verdict_recorded` per criterion, appended by the fleet report and verdict handlers
-(`crates/mike/src/api/fleet/report.rs`, `verdict.rs`) after their note is written;
-`check_queued` and `check_finished` for a configured check (T11, `d0dca1f6`,
-`crates/mike/src/launch/fleet/check_events.rs`); `tree_broken_by` when the shared tree's break is attributed (T15, `shared_tree.rs`); `seat_launch_failed`, `seat_process_gone`, `seat_woken` and `seat_closed` from the supervisor (T10, `fd7c7b51`, `d4139316`, `supervise.rs`); `floor_passed` and `floor_failed` when a task's floor has run (T13, `ba9bc34e`, `floor.rs`); `problem_opened`, `problem_decided` and `problem_escalated` from the problem machinery (T17, `da4ff83d`, `problems.rs`; a decision arrives through `POST /api/fleets/{fleet}/decide`, `27c69c4a`), and `verdict_recorded` also carries the judge's `needed` (`70a0610d`); `stop_requested` when a stop moves a fleet to stopping (T12, `b707df24`, `crates/mike/src/launch/fleet/shutdown.rs`); `question_asked` on an ask, appended through `crates/mike/src/launch/fleet/questions.rs`.
-`question_answered` is built there (`answered_event`, `record_answered`) and appended by
-the answer handler (`crates/mike/src/api/questions/answer.rs`, T12 `4aa6bbd3`) only
-when the answer settles the question; a decline or a refused answer writes none. The
-other kinds have no writer yet.
+mike writes 22 of the 26 kinds. `plan_versioned`, `seat_heartbeat_stale`, `operator_touched`
+and `resource_admitted` exist in the table and the code, and a problem's dossier reads
+`plan_versioned` (`launch/fleet/leaves/solver.rs`), but nothing writes them. Writers, relative to `crates/mike/src/`:
 
-Design: `artifacts/2026-10-21/fleet-redesign/design.md` section 1.1. Code:
-`crates/mike/src/launch/fleet/events.rs` (kinds and payloads),
-`crates/mike/src/store/persistence/fleet/events.rs` and `events_sql/` (persistence),
-migration `20261022000000_launch_fleet_events.sql`. Column reference:
-[`SCHEMA.md`](SCHEMA.md#launchfleet_events).
+| Kinds | Written by |
+|---|---|
+| `seat_launch_requested`, `seat_launch_failed` | `launch/fleet/seat.rs` when a seat is started; the supervisor (`supervise.rs`) also writes `seat_launch_failed` |
+| `seat_launch_confirmed`, `seat_first_request` | `launch/fleet/supervise_live.rs` |
+| `seat_process_gone`, `seat_woken`, `seat_closed` | the supervisor (`launch/fleet/supervise.rs`, `supervise_live.rs`); `cleanup.rs` also writes `seat_closed` when the run closes |
+| `commit_landed` | `fleet_commit`, as the commit lands (`launch/fleet/commit_landed.rs`, called from `commit.rs`) |
+| `check_queued`, `check_finished` | a configured check (`launch/fleet/check_events.rs`); a check left unfinished is settled with state `interrupted` |
+| `tree_broken_by` | `launch/fleet/shared_tree.rs`, when the shared tree's break is attributed |
+| `floor_passed`, `floor_failed` | `launch/fleet/floor.rs`, when a task's floor has run |
+| `report_filed`, `verdict_recorded` | the fleet report and verdict handlers (`api/fleet/report.rs`, `verdict.rs`), after their note is written; `verdict_recorded` is also written per criterion by the report judge (`launch/fleet/leaves/report_judge.rs`, `judge.rs`) |
+| `criterion_suspect` | `launch/fleet/propose_tick.rs` |
+| `question_asked`, `question_answered` | `launch/fleet/questions.rs`; the answer handler (`api/questions/answer.rs`) appends `question_answered` only when the answer settles the question, so a decline or a refused answer writes none |
+| `problem_opened`, `problem_decided`, `problem_escalated` | `launch/fleet/problems.rs`; a decision arrives through `POST /api/fleets/{fleet}/decide` |
+| `stop_requested` | `launch/fleet/shutdown.rs`, when a stop moves a fleet to stopping |
+
+Code: `launch/fleet/events.rs` (kinds and payloads), `store/persistence/fleet/events.rs`
+and `events_sql/` (persistence), migration `20261022000000_launch_fleet_events.sql`.
+Column reference: [`SCHEMA.md`](SCHEMA.md#launchfleet_events).
 
 ## A row
 
@@ -87,7 +91,7 @@ column lists the fields of that kind's struct.
 | `commit_landed` | A seat's commit reached the branch, written by `fleet_commit` as the commit lands (`commit.rs`). | `sha` |
 | `tree_broken_by` | A check failed and the commit that broke the tree is known. | `sha`, `paths` |
 | `check_queued` | A check was queued. | `receipt_id`, `operation` |
-| `check_finished` | A check finished. | `receipt_id`, `sha`, `passed` |
+| `check_finished` | A check finished (`state` is `finished`, `cancelled` or `interrupted`). | `receipt_id`, `sha`, `passed`, `state`, `exit` |
 | `floor_passed` | A task's computed floor (its `done_when` checks) passed. | `sha` |
 | `floor_failed` | A task's floor failed. | `sha`, `check` |
 
@@ -105,9 +109,9 @@ column lists the fields of that kind's struct.
 |---|---|---|
 | `question_asked` | A seat asked a question. | `question_id` |
 | `question_answered` | The question was answered. | `question_id` |
-| `problem_opened` | A problem matching a design trigger was opened. | `problem_id`, `trigger` |
-| `problem_decided` | The problem was decided. | `problem_id`, `decided_by` |
-| `problem_escalated` | The problem was passed up. | `problem_id` |
+| `problem_opened` | A problem matching a trigger was opened. | `problem_id`, `trigger`, `detail` |
+| `problem_decided` | The problem was decided. | `problem_id`, `decided_by`, `decision`, `reason`, `evidence_read`, `minutes` |
+| `problem_escalated` | The problem was passed up. | `problem_id`, `reason`, `question` |
 
 ### Declared resources
 
@@ -124,7 +128,7 @@ column lists the fields of that kind's struct.
 
 ## Reading a state
 
-The fold extends `launch/fleet/status_tasks.rs`. In outline:
+The fold is `launch/fleet/fold.rs`; `status_tasks.rs` reads it. In outline:
 
 | State | Derived as |
 |---|---|
@@ -132,12 +136,11 @@ The fold extends `launch/fleet/status_tasks.rs`. In outline:
 | A task with no seat | No such event, or the newest is `seat_launch_failed`. |
 | A task awaiting a verdict | A `report_filed` newer than the newest `verdict_recorded` for it. |
 | The fleet stopping | A `stop_requested` with any seat still live. |
-| The fleet done | A `stop_requested` and no seat live, or no seat live and every task accepted. |
+| The fleet done | A `stop_requested` and no seat live, or at least one seat confirmed, none live, and every task accepted. |
 
 ## Fixtures
 
-`crates/mike/tests/fixtures/fleet-runs/<run>/` holds the three measured runs
-(`fleet-radar-retire-ratatui-db99de21`, `fleet-writing-room-0656d7b7`,
-`fleet-cms-ux-8d1a15dc`) as `launches.json`, `notes.json`, `receipts.json` and
-`fleet.json`, with every text field dropped. `scripts/fleet-run-export <run id>`
-writes them from the capture database, read-only.
+`crates/mike/tests/fixtures/fleet-runs/<run>/` holds three measured runs as
+`launches.json`, `notes.json`, `receipts.json` and `fleet.json`, with every text field
+dropped. `scripts/fleet-run-export <run id>` writes them from the capture database,
+read-only.

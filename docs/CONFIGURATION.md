@@ -2,7 +2,7 @@
 title: Configuration
 status: active
 created: 2026-07-08
-updated: 2026-11-02
+updated: 2026-11-06
 summary: Boot configuration reference — the four-layer precedence including the per-user config file, how MIKE_* environment variables map to fields, every documented knob and its real default, the variables that are special-cased or ignored, and persistent storage setup.
 ---
 
@@ -66,7 +66,7 @@ precedence above:
 | `launch_auto_trust` | `true` lets `mike claude` write the folder-trust answer into `~/.claude.json`. Without this key the value is `false`; the wizard saves `false` unless you choose otherwise. |
 | `setup_features` | A feature choice (`watch-only`, `recommended` or `everything`) saved while the proxy was not running. The proxy applies it once at its next start and removes the key. |
 
-The mapping rules are the ones in [How `MIKE_*` names map to fields](#how-proxy_-names-map-to-fields).
+The mapping rules are the ones in [How `MIKE_*` names map to fields](#how-mike_-names-map-to-fields).
 A key written with the `MIKE_` prefix is rejected with a message that says to drop it, so a typo
 cannot be ignored silently. Strings, numbers and booleans are accepted. An array becomes the
 comma-separated text the variable would hold (`spa_origins`), or space-separated for
@@ -199,14 +199,15 @@ change them in `/settings`, which is where the runtime values come from.
 
 ### The OpenRouter API key
 
-The key is not part of the `MIKE_*` layer in practice. It resolves in this order, first
-non-empty winning:
+The key is never stored in the database or set through `/settings`. At boot it comes from the
+config file (`steerer_openrouter_api_key`, or the variable named by
+`steerer_openrouter_api_key_from_env`), and an environment variable overrides that:
 
-1. the `steerer.openrouter_api_key` setting stored in the database (`/settings`)
-2. `MIKE_STEERER_OPENROUTER_API_KEY` — note the **single** underscore before `OPENROUTER`
-3. `OPENROUTER_API_KEY`
+1. `MIKE_STEERER_OPENROUTER_API_KEY` — note the **single** underscore before `OPENROUTER`
+2. `OPENROUTER_API_KEY`
 
-It is never written out by `print-config`. With no key set, a job whose model runs on OpenRouter
+A running proxy re-reads the key from the variable named by the `steerer.openrouter_api_key_env`
+setting. It is never written out by `print-config`. With no key set, a job whose model runs on OpenRouter
 is inert regardless of its toggle, and a job whose model runs on the local `claude` or `codex`
 login still runs; see
 [Choosing the provider and the model for each job](#choosing-the-provider-and-the-model-for-each-job)
@@ -406,7 +407,7 @@ migration that needs a lock on a hot table (for example a new foreign key refere
 `requests.requests` or `sessions.sessions`) is not bound by the request path's 5s
 `lock_timeout`. `MIKE_MIGRATION_LOCK_TIMEOUT_SECS` (default `180`) controls how long that
 migration connection waits for a lock; it is read directly from the environment at connect
-time rather than through the three-layer boot loader above, so it has no CLI flag and does not
+time rather than through the boot loader above, so it has no CLI flag and does not
 appear in `print-config`. The migration connection also disables `statement_timeout` entirely
 — it must be allowed to finish, not merely wait patiently for its lock. A migration that alters a
 table capture writes continuously sets its own short `lock_timeout` (`SET LOCAL lock_timeout =
@@ -455,7 +456,9 @@ underscore: `MIKE_LAUNCH_BACKEND`, not `MIKE_LAUNCH__BACKEND`. Each has a matchi
 
 | Field | Env var | Default | What it does |
 |---|---|---|---|
-| `launch_backend` | `MIKE_LAUNCH_BACKEND` | `none` | The terminal backend `mike spawn` opens surfaces in. Shipped adapters: `herdr`, `tmux`, `terminal` (Hyprland only). `ghostty` parses but has no adapter. `none` means "not chosen yet" and every launch verb refuses until you pick one. |
+| `launch_backend` | `MIKE_LAUNCH_BACKEND` | `none` | The terminal backend `mike spawn` opens surfaces in. Accepted values: `herdr`, `herdr-core`, `tmux`, `terminal` (Hyprland only), `ghostty` and `none`; check `mike spawn doctor` for which ones work on this machine. `none` means "not chosen yet" and every launch verb refuses until you pick one. |
+| `launch_backend_follow_caller` | `MIKE_LAUNCH_BACKEND_FOLLOW_CALLER` | `true` | Open a launch in the terminal the caller runs in (herdr, tmux) before falling back to `launch_backend`. `false` always uses `launch_backend`. |
+| `launch_use_sidecar` | `MIKE_LAUNCH_USE_SIDECAR` | `false` | When on, `mike claude` routes the session through the sidecar as `HTTPS_PROXY`; off, it points the session straight at this proxy. |
 | `launch_proxy_forward_url` | `MIKE_LAUNCH_PROXY_FORWARD_URL` | `http://127.0.0.1:9987` | The sidecar a launched session gets as `HTTPS_PROXY`. |
 | `launch_no_proxy` | `MIKE_LAUNCH_NO_PROXY` | `localhost,127.0.0.1` | `NO_PROXY` for a launched session. |
 | `launch_ca_cert` | `MIKE_LAUNCH_CA_CERT` | unset | The sidecar CA for `NODE_EXTRA_CA_CERTS`. Unset resolves at use to the first existing of `~/.local/share/proxy-forward/ca-cert.pem` and `<cwd>/.deploy/proxy-forward-ca.pem`. |
@@ -484,7 +487,7 @@ them are off unless noted; the full feature inventory is in [`FEATURES.md`](FEAT
 | `recall_injector.enabled` / `.max_lessons_per_topic` | `MIKE_RECALL_INJECTOR__*` | `false` / `5` |
 | `compress.enabled` / `.min_block_bytes` | `MIKE_COMPRESS__*` | `false` / `256` |
 | `steerer.enabled` | `MIKE_STEERER__ENABLED` | `false` |
-| `steerer.model` | `MIKE_STEERER__MODEL` | `google/gemini-2.5-flash-lite` |
+| `steerer.model` | `MIKE_STEERER__MODEL` | `openai/gpt-5.6-luna` |
 | `steerer.openrouter_base_url` | `MIKE_STEERER__OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` |
 | `steerer.refocus.enabled` | `MIKE_STEERER__REFOCUS__ENABLED`, etc. | `false` |
 | `steerer.correction.*` | `MIKE_STEERER__CORRECTION__*` | ignored: the LLM correction classifier is retired; a set `enabled` logs a startup warning |

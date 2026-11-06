@@ -1,20 +1,24 @@
 ---
-title: Pilot feedback and corrective releases
+title: Alpha feedback and corrective releases
 status: active
 created: 2026-10-13
-updated: 2026-10-13
-summary: Safe install/runtime feedback forms, candidate handoff requirements, and evidence templates for the release pilot; not a claim that any target or channel is qualified.
+updated: 2026-11-06
+summary: Safe install/runtime feedback forms, candidate handoff requirements, and evidence templates for alpha feedback; the pilot was dropped, and nothing here claims that any target or channel is qualified.
 ---
 
-# Pilot feedback and corrective releases
+# Alpha feedback and corrective releases
 
-This is the feedback kit for [WP13 / #283](https://github.com/temet-ai/mike/issues/283).
-It does not certify an archive, install channel, outside-user journey, or corrective
-release. [The release plan](https://github.com/temet-ai/mike/issues/270) owns the
-stage gates; [release readiness](RELEASE_READINESS.md) records the audit. Required
-**NOT RUN is not a pass**. Local checks remain useful when GitHub CI is unavailable.
+This is the feedback kit for the public alpha (FEEDBACK01 in the
+[acceptance matrix](RELEASE_ACCEPTANCE_MATRIX.md)). The file keeps its old name
+because the issue forms link to it. There is no pilot and no invited cohort: anyone
+who installs an alpha may report. The kit does not certify an archive, install channel,
+outside-user journey, or corrective release; [release readiness](RELEASE_READINESS.md)
+records the September audit and [`RELEASING.md`](RELEASING.md#where-things-stand-2026-11-06)
+where the release stands (tags exist, no GitHub Release yet, so there is nothing to
+install). Required **NOT RUN is not a pass**. Local checks remain useful when hosted CI
+is unavailable.
 
-## Before inviting a pilot user
+## Before pointing users at an alpha
 
 The release lead supplies one candidate-specific page containing:
 
@@ -36,7 +40,7 @@ The release lead supplies one candidate-specific page containing:
   recovery steps, and a **verified private security reporting route**.
 
 If one of these is missing, record it as a blocker and complete the kit before
-inviting users. [Getting Started](GETTING_STARTED.md) describes the source-based
+announcing the alpha. [Getting Started](GETTING_STARTED.md) describes the source-based
 development path; it is not evidence of a prebuilt installation. This document
 intentionally does not supply guessed install, backup, or uninstall commands.
 
@@ -73,16 +77,15 @@ not a general installation health certificate.
 
 **Do not put vulnerability details or exploit material in the public issue forms.**
 The checked-in [security document](SECURITY.md) describes the trust boundary and
-requires private reporting, but does not provide a verified private reporting
-contact.
-No private email address or GitHub advisory endpoint is assumed here.
+names GitHub's private vulnerability reporting (the repository's **Security** tab), but
+this guide does not provide a verified private reporting route: on 2026-11-06 GitHub
+reported that feature as disabled on `temet-ai/mike`. No private email address or
+GitHub advisory endpoint is assumed here.
 
-If your invitation already supplies a verified private maintainer contact, ask
-there for the secure reporting route before sending sensitive details. Otherwise
-withhold the details until the maintainer publishes and verifies a private route.
-Do not publish a vulnerability merely because no private route is listed.
-Establishing and documenting that route is a release-lead prerequisite to pilot
-distribution; these forms do not resolve it.
+Until the maintainer enables the feature and confirms it works,
+withhold the details until a private route is published and verified.
+Do not publish a vulnerability merely because no private route is listed. Enabling and verifying that route is a release-lead prerequisite
+to announcing an alpha; these forms do not resolve it.
 
 ## Known limitations to carry into each candidate's notes
 
@@ -107,12 +110,12 @@ distribution; these forms do not resolve it.
 ## Triage and observation record
 
 Keep one record per observed install or repeat-use attempt, using a pseudonymous
-pilot ID. Record only consented, non-sensitive observations; no background
+reporter ID. Record only consented, non-sensitive observations; no background
 telemetry or conversation uploads are required. Ask whether the user returned,
 not what their real conversations contained.
 
 ```text
-Pilot ID / observation date:
+Reporter ID / observation date:
 Candidate version / source SHA:
 Artifact filename / SHA-256 / target / OS version:
 Channel actually used (private candidate, published download, Homebrew, source):
@@ -159,9 +162,9 @@ Release decision and authorization:
 
 The first candidate can be prepared before publication. Observe the real download
 channel after publication; staging files do not satisfy AC26. Run the next version
-through the same gates and the actual predecessor upgrade, then link the fix to
-its feedback. Keep [distribution #51](https://github.com/temet-ai/mike/issues/51)
-open until channel installs pass, and #283 open until the observed feedback and
+through the same gates and the actual predecessor upgrade (AC23 is outside the first
+alpha, which has no predecessor), then link the fix to its feedback. AC26 stays open
+until channel installs pass, and FEEDBACK01 until the observed feedback and
 corrective release demonstrate repeatability. Adding these templates closes none
 of those acceptance cases and does not recruit a cohort or authorize publication.
 

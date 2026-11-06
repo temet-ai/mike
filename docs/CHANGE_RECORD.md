@@ -2,8 +2,8 @@
 title: The change record
 status: active
 created: 2026-10-05
-updated: 2026-10-06
-summary: One record of what happened in a checkout, with who made each change and the content before it, the four answers a session reads from it, the lines added to answers it already gets and to the start of a turn, the two toggles that switch it on, and what it does not see.
+updated: 2026-11-06
+summary: One record of what happened in a checkout, with who made each change and the content before it, the five answers a session reads from it, the lines added to answers it already gets and to the start of a turn, the two toggles that switch it on, and what it does not see.
 ---
 
 # The change record
@@ -11,8 +11,9 @@ summary: One record of what happened in a checkout, with who made each change an
 ## What it lets a session do
 
 A session working in a checkout can ask, in one call, **what changed since it last looked**,
-**where things stand**, **whose a file is** and **what it has changed itself and not yet
-committed**, without running `git status`, `git log` or `git diff`. Sessions ran git to learn this 5,162 times in one week. In a checkout shared by
+**where things stand**, **whose a file is**, **what it has changed itself and not yet
+committed** and **the diff of a commit or of its own recorded changes**, without running
+`git status`, `git log` or `git diff`. In a checkout shared by
 several sessions git answers a different question from the one asked, because one working tree
 and one index hold everybody's changes together. The record knows which session made each
 change.
@@ -21,9 +22,6 @@ A session can also stop asking. With the second toggle on, a few lines of "since
 looked" are added to answers a seat already gets and to the start of each turn, so what a seat
 would have to remember to ask for arrives with its next answer.
 
-The study behind this is
-`artifacts/2026-10-05/comms-and-fleets/state-and-changes.md`.
-
 ## Both toggles are off
 
 Nothing here runs until it is switched on at `/settings` (or
@@ -31,8 +29,14 @@ Nothing here runs until it is switched on at `/settings` (or
 
 | Toggle | When on |
 |---|---|
-| `change_record` | The watcher records file changes, commits and pushes, and the note, mail, check and brief handlers write an event. The three answers read what was recorded. |
+| `change_record` | The watcher records file changes, commits and pushes, and the note, mail, check and brief handlers write an event. The answers read what was recorded. With it off `GET /api/changes` returns `{"recording": false, ...}`. |
 | `change_record_tail` | The answers of `fleet_commit`, `fleet_check`, `write_session_note` and `send_session_message` carry `since_you_last_looked`, and the first request of a turn carries a reminder with the same lines. With it off they are byte for byte what they were. |
+
+A third toggle, `client_serves_change_record_tail` (also off), lets a client that asks
+`POST /api/sessions/{id}/context` for a session's prompt context take the tail lines itself;
+the proxy's reminder stage then stands aside for that session
+(`change_record_tail_served_by_client` in the transformation manifest). It matters only when
+`change_record_tail` is on.
 
 With both off mike behaves as it did before the record existed. Nothing in the record is on the
 path that stores a request, a response or a tool call as it passes: the record is fed by its own
@@ -52,12 +56,12 @@ before and after, so the state before a change can be shown later, committed or 
 | `shell_change` | A file changed some other way, usually from a shell command | The watcher |
 | `commit` | A new commit on the branch, with its paths, sha and subject | The watcher, from the branch refs |
 | `push` | A remote ref moved | The watcher, from the branch refs |
-| `check` | A check or the gate finished, with the commit, the verdict and the failing files | The handlers in `launch/fleet/check_report.rs` and `gate_queue.rs` |
+| `check` | A check or the gate finished, with the commit, the verdict and the failing files | `record_finished` in `launch/fleet/check_report.rs`, called for checks and by `launch/fleet/gate_queue.rs` for the gate |
 | `verdict` | A note whose data carries a `verdict` | The note handler |
 | `note` | Any other session note | The note handler |
 | `mail` | A message between sessions | The mailbox handlers |
 | `brief` | A brief note written or replaced | The briefs-as-notes writer (see [`LAUNCH_DOMAIN.md`](LAUNCH_DOMAIN.md)) |
-| `task_state` | A fleet task changed state | Reserved in the schema; no writer yet |
+| `task_state` | A fleet task changed state | Reserved in the schema; nothing writes it |
 
 ### The watcher
 
@@ -95,10 +99,10 @@ slash that is a tracked path in the checkout counts. When no path can be establi
 is written with fewer paths rather than invented ones. The writing happens after the answer has
 gone out, so a note or a mail is never slower, and never fails, because of it.
 
-## The four answers
+## The five answers
 
-One route, `GET /api/changes?view=changes|standing|whose|mine` (and `tail`, below), and one MCP tool, `what_changed`
-(see [`MCP_BRIDGE.md`](MCP_BRIDGE.md)), in the default core profile.
+One route, `GET /api/changes?view=changes|standing|whose|mine|diff` (and `tail` and `feed`, below), and one MCP tool,
+`what_changed` (see [`MCP_BRIDGE.md`](MCP_BRIDGE.md)), in the default core profile.
 
 - **`changes`**: what others changed since the caller's place (or since a named commit or time),
   for the caller's own paths, for the paths it has read, for named paths, or for everything.
@@ -106,7 +110,8 @@ One route, `GET /api/changes?view=changes|standing|whose|mine` (and `tail`, belo
   committed, and the notes, mail and check verdicts on those paths. Asking moves the place.
 - **`standing`**: for a fleet seat, its task and state, its own uncommitted paths, the head
   against the remote (how far ahead and behind), the latest check, and how many events wait past
-  its place (counted up to 200). For a
+  its place (counted up to 200), and the questions other seats have asked it that are still
+  open. For a
   session outside a fleet, the other sessions working in the checkout with the paths each has
   uncommitted, and the five newest commits with who made each.
 - **`whose`**: for a path, the task that owns it in a running fleet, who last changed it, and
@@ -120,6 +125,13 @@ One route, `GET /api/changes?view=changes|standing|whose|mine` (and `tail`, belo
   says `paths_from: record`), and the task's files when it is off or has nothing for the session
   (`paths_from: task`); `fleet_report` uses the same check-after-last-change answer.
 
+- **`diff`**: a unified diff, as `unified_diff`, `truncated`, `source` and `unavailable`
+  (default 400 lines, at most 2000, set with `line_limit`). With `commit` (four or more hex
+  digits) it is that commit's first-parent diff; with `path` it is the recorded blobs for that
+  file since the caller's place; with neither it is the working-tree diff against `HEAD` of the
+  caller's own uncommitted recorded paths (`api/changes/diff.rs`,
+  `change_record/answers/diff.rs`). `since` and `paths` are refused.
+
 ### Each session's place
 
 `workspace.change_places` holds, for each session and checkout, the id of the last event the
@@ -130,7 +142,8 @@ gets none until something new is recorded.
 ### The lines added to other answers
 
 With `change_record_tail` on, the answers of `fleet_commit`, `fleet_check`, `write_session_note`
-and `send_session_message` carry `since_you_last_looked`: at most twelve short lines of what
+and `send_session_message` carry `since_you_last_looked` (`fleet_check` only when it runs a check, not
+a status read; `send_session_message` only when the sender is a fleet seat): at most twelve short lines of what
 `changes` would say for the session's own paths (eleven changes, then one line saying more wait
 when there are more), and nothing when nothing changed. A session's first look records its place
 and adds no lines.

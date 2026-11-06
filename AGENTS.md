@@ -89,7 +89,7 @@ new path warm), so prefer a branch in a warm checkout, reuse a worktree that has
 built, check `git worktree list` first, and remove the worktree when its branch
 lands.
 
-**Config.** Boot config precedence: defaults < `MIKE_*` env < CLI flags (`mike print-config`, `mike migrate-check`).
+**Config.** Boot config precedence: defaults < config file < `MIKE_*` env < CLI flags (`mike print-config`, `mike migrate-check`).
 Runtime config lives at
 `/settings`; `mike print-config`'s `LIVE OVERLAY` section is what a running
 session actually got.
@@ -104,6 +104,8 @@ session actually got.
 | Motion and animation         | `motion-designer` (owns `ui/motion.css`, `ui/motion.ts`, Foundations/Motion) |
 | Database / migrations / sqlx | `db-dev`                                                                     |
 | Bash under `scripts/`        | `scripts-developer` (`scripts/release/` → `release-tooling-developer`)       |
+| Public guide `docs/user-guide/` | `user-guide-writer`                                                       |
+| Other docs, help, LikeC4     | `docs-writer`                                                                |
 
 Hand an agent well-specified or multi-file work and read its report when it returns; do not re-run its checks.
 Make small edits and subtle or cross-cutting changes yourself.

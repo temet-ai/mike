@@ -96,6 +96,8 @@ working on, and who has written to whom. It is most useful when several sessions
 goal; [Fleets](fleets.md) explains how to start and close a group of sessions on purpose.
 A single session still appears here.
 
+![The Fleet canvas showing a project's sessions and the messages between them](images/fleet.png)
+
 1. Open **Fleet**. Pick a project in **project**. If a project is already chosen, **View
    project page** takes you to its page.
 2. Pick a **window**: 24h, 72h, 7d or 30d. Only sessions active in that window show.

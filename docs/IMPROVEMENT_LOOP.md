@@ -2,7 +2,7 @@
 title: The Improvement Loop
 status: active
 created: 2026-09-29
-updated: 2026-09-29
+updated: 2026-11-06
 summary: What mike does with a corrected turn — how a correction becomes a lesson, how a directive proposal is approved, what evidence the turn guard gathers, how an action's effect is measured honestly, and what the operator sees and does.
 ---
 
@@ -13,10 +13,8 @@ now: it can become a lesson injected into later sessions, it feeds the turn guar
 every action this produces is measured against its own before/after or holdback/treated window —
 honestly, which mostly means saying "not enough data yet" until the sample really is enough.
 
-Built overnight 2026-09-28 to 2026-09-29 (`artifacts/2026-09-29/judgement-at-work/PLAN.md` is the
-design; `artifacts/2026-09-28/judgement-at-work/BRIEF.md` is the operator's original ask). This
-doc is the plain-words summary for a later session or the operator; PLAN.md §§1-2 carries the
-full reasoning and the alternatives that were rejected.
+This doc is the plain-words summary for an operator or a later session. Source paths are
+relative to `crates/mike/src/`.
 
 ## 1. What the judge marks
 
@@ -32,10 +30,10 @@ never got a human reply back isn't enough evidence to act on.
 
 ## 2. Correction → lesson candidate
 
-A new background worker, the **lesson proposer** (`crates/mike/src/lesson_proposer/`), runs from
+A new background worker, the **lesson proposer** (`lesson_proposer/`), runs from
 the quiescence worker's tick — every fifth tick, alongside the existing guard labeller
-(`crates/mike/src/quiescence_worker/`). Each tick it looks at corrected, resolved verdicts it
-hasn't examined yet (`crates/mike/src/store/persistence/lessons/proposals.rs` does the selection;
+(`quiescence_worker/`). Each tick it looks at corrected, resolved verdicts it
+hasn't examined yet (`store/persistence/lessons/proposals.rs` does the selection;
 `memory.lesson_proposal_evidence` records every verdict it has looked at, whether or not that
 verdict produced a lesson).
 
@@ -56,13 +54,13 @@ evidence row.
 
 **Write-time decision:** before writing a new lesson, the proposer embeds the candidate rule and
 looks up the project's own active lessons within cosine distance 0.25 (at most five;
-`crates/mike/src/lesson_proposer/relate.rs`). For every accepted rule, with or without
+`lesson_proposer/relate.rs`). For every accepted rule, with or without
 neighbours, one model call (reserved from the same daily budget, role `lesson_proposer`) is shown
 the new rule, every neighbour in full and the project's closest memory and skill text, and
 decides the lesson's home (below) and, per neighbour, `store` (unrelated, keep both), `skip` (already said), `update` (same fact,
 the new text wins), `merge` (complementary, one lesson replaces both) or `contradicts` (cannot both
 be true). Distance alone never decides: "X is broken" and "X was fixed" are near-duplicates in
-embedding space (#110), so the prompt tells the model to prefer `update` over `skip` and
+embedding space, so the prompt tells the model to prefer `update` over `skip` and
 `contradicts` over `update` when unsure. The decision is written as a `memory.lesson_relations`
 row of method `write_time` and status `proposed`:
 
@@ -81,7 +79,7 @@ proposal pending for a backed-off retry instead of writing anything, so a model 
 archive a source or create an untraceable duplicate. The relation's `evidence_json` carries the
 verdict, the new source turn, and the related lesson's source, creation time, turn and session.
 
-The nightly consolidation run (`crates/mike/src/lesson_worker/nightly.rs`) then does two things.
+The nightly consolidation run (`lesson_worker/nightly.rs`) then does two things.
 It confirms every `proposed` write-time relation whose lessons are all judge-written, once the
 replacement has been promoted to `daily` or `long_term` (the same reinforcement rule judge
 lessons already use; the evidence behind the replaced lessons counts toward it). A relation that
@@ -95,13 +93,13 @@ replaced lesson had (`moved_evidence`, `inherited_injections`). Injection rows s
 archived lesson; the relation is the link between the two histories.
 
 **Rule shape:** a lesson is a durable instruction, not a status report. `record_lesson`, the
-proposer and a scan on the proposer tick check every lesson (`crates/mike/src/lesson_shape.rs`):
+proposer and a scan on the proposer tick check every lesson (`lesson_shape.rs`):
 over `lessons.shape.max_chars` characters (default 500), opening with a status word (Satisfied,
 Left unmet, Done, Built and similar), naming a session uuid or an early commit sha as its
 subject, or carrying a `verifier:` topic. A flagged lesson is accepted whole, recorded in
 `memory.lesson_shape_findings`, held at `raw`, kept out of consolidation, auto-promotion and
 injection, and the `record_lesson` result says why in its `shape` field. The shape pass
-(`crates/mike/src/lesson_proposer/shape_pass.rs`, at most three lessons per tick, reserved from
+(`lesson_proposer/shape_pass.rs`, at most three lessons per tick, reserved from
 the proposer budget) rewrites it into up to four rules with a `supersedes` relation of method
 `rewritten` to the original, which is archived as `superseded` with its text kept. A
 `verifier:` carryover note, or a status-shaped text the model finds no rule in, is archived as
@@ -156,7 +154,7 @@ judge's, not the operator's. A repeated correction is treated as strong enough e
 without waiting; a single correction only proposes. Setting this value to `0` makes every
 candidate wait for the operator regardless of reinforcement; `1` promotes every candidate
 immediately. All of this is on `/settings` under "Lesson proposer" (`judge_lessons.*`, defined in
-`crates/mike/src/settings/meta_improvement.rs`).
+`settings/meta_improvement.rs`).
 
 **Cost control:** `judge_lessons.max_per_day` (default `40`) caps how many corrections the
 proposer will examine in a day, each examination being at most one model call
@@ -170,8 +168,7 @@ call limiter, the proposer logs it at info level at most once an hour per pass a
 
 The whole thing sits behind the feature toggle `judge_lessons` (default **off** — it sends turn
 text to a model, so the default-off-mutation-and-egress rule applies;
-`crates/mike/src/feature_toggles/mod.rs`). **This install turns it on** at deploy time, recorded
-in the deploy's own report, not hardcoded into the toggle's default.
+`feature_toggles/mod.rs`). Turning it on is the operator's choice; the toggle's default stays off.
 
 ## 3. Approving a candidate, or a directive proposal
 
@@ -195,11 +192,10 @@ is nothing to consolidate first), links the lesson back to the proposal
 produced, and logs `config.change_log`. Rejecting a directive proposal takes a free-text note and
 archives it — no gold label, since a directive proposal was never a judge verdict to begin with.
 
-Both approval paths are deliberately **not automatic**: PLAN §1.3 chose this middle ground
-because the judge is right about 80% of the time on its own holdout, cheap when the judgement
-only marks a turn, and expensive once it becomes a lesson that reaches every later session of a
-project — the operator has said lessons were "creating a lot of noise" before, so one correction
-proposes and only a repeated correction (§2's auto-promote rule) acts without him.
+Both approval paths are deliberately **not automatic**: a judgement that only marks a turn is
+cheap, but once it becomes a lesson it reaches every later session of a project, so one
+correction proposes and only a repeated correction (§2's auto-promote rule) acts without the
+operator.
 
 ### What a fleet seat learned reaches the next run
 
@@ -224,38 +220,36 @@ an honest track record, not about changing when they fire:
    guard *held back on purpose* got an outcome label from the next message. When
    `steerer.turn_guard.label_live_passes` is on, an ordinary turn the guard looked at and chose
    not to act on (`mode = 'live', status = 'resolved_pass'`) also gets labelled
-   (`crates/mike/src/store/persistence/steering/guard/labels.rs`). Treated fires (the guard
+   (`store/persistence/steering/guard/labels.rs`; the setting defaults to off). Treated fires (the guard
    actually acted) stay excluded from labelling — the next message after an intervention is
    confounded by that intervention, so it can't honestly score the question's own precision.
-2. **Every relapse evaluation records the evidence behind it.** In `record` mode (the only mode
-   built so far — see §7), the relapse question's evaluation carries up to three similar earlier
-   corrections (`semantic::Retriever`, the same mechanism §2 uses) as `verdict_json.semantic.relapse`.
-   Nothing about the question's own gate or its input changes yet — this only makes the evidence
+2. **Every relapse evaluation records the evidence behind it.** With `semantic.relapse_evidence`
+   at `record` (the default; the setting also accepts `off` and `input`), the relapse question's
+   evaluation carries up to three similar earlier corrections (`semantic::Retriever`, the same
+   mechanism §2 uses) as `verdict_json.semantic.relapse` (`steerer/guard/semantic_evidence.rs`).
+   Nothing about the question's own gate or its input changes — this only makes the evidence
    visible for later.
 3. **The operator can mark a delivered wake or append "right" or "wrong"** directly from the page
-   that shows it (`PATCH /api/steering/evaluations/{id}/label`), which writes
+   that shows it (`PATCH /api/steering/evaluations/{uuid}/label`), which writes
    `label_source = operator` and feeds straight into that question's own precision.
 
 **The guard obeys the limit on notes per session.** A session that has already received its
 limit of steering notes inside the window (`steerer.session_note_limit`, three in an hour by
 default, counting every steerer) is not looked at by the guard until the window moves on, so
-those turn ends have no evaluation row in either arm. The fixed notes the guard sends were
-reworded on 2026-10-05 to say what it could not see and to leave room for the work being done
-already (`crates/mike/src/steerer/guard/nudges.rs`).
+those turn ends have no evaluation row in either arm. The fixed notes the guard sends are in
+`steerer/guard/nudges.rs`.
 
 **Notes from the other steerers are labelled from the session's whole reply.** The reply labeller
 waits for the turn that carried the note to end, reads everything the session wrote from the note
-to the end of that turn, and replaces any label an older labeller version wrote in the last 72
-hours. Version 1 read only the first request after the note, which graded a session that checked
-something and then declined the note as having complied.
+to the end of that turn (labeller `reply-labeller-v2`, `steerer/reply_label/`), and replaces any
+label an older labeller version wrote in the last 72 hours.
 
-**Holdback, and why it moved from 10% to 25% on this install:** a guard question's randomised
-holdback draw is its control arm — the honest way to know whether the nudge actually helped is to
-compare the holdback arm against the treated arm (§5's read point: 34 holdback events per
-question). Raising `holdback_pct` (default 10, this install 25 for `relapse` and
-`unobserved_done` only, `crates/mike/src/steerer/guard/policy.rs`) increases the share of fires
-held back, so the holdback arm reaches that read point faster — recorded as a settings change for
-this install, not a new default (a fresh install still holds back only 10%).
+**Holdback:** a guard question's randomised holdback draw is its control arm — the honest way
+to know whether the nudge actually helped is to compare the holdback arm against the treated
+arm (§5's read point: 34 holdback events per question). `steerer.turn_guard.holdback_pct`
+(default 10, allowed 0 to 50, `steerer/guard/policy.rs`) sets the share of fires held back;
+raising it makes the holdback arm reach that read point faster at the cost of more
+un-nudged turns.
 
 ## 5. Measuring an action's effect, honestly
 
@@ -265,13 +259,14 @@ measured differently because they *are* different:
 **Two kinds of action, two measures, one table.** A lesson or directive and a guard question are
 never measured the same way, on purpose:
 
-- **A lesson or directive** is observational — there's no holdback for it (a decision made in
-  2026, #288: nothing splits which sessions get an approved lesson and which don't, so there's no
-  control group to compare against). It gets a **before/after corrected share**: the corrected
-  share of judged turns in the lesson's own project before it went live, versus after, reported
-  with a 95% Newcombe (Wilson score) interval. The read point is at least 30 judged turns on both
-  sides and at least 7 days elapsed — below that, the page says **"Not enough data yet"**, never
-  a number.
+- **A lesson or directive** is observational — there's no holdback for it: nothing splits which
+  sessions get an approved lesson and which don't, so there's no control group to compare
+  against. It gets a **before/after corrected share**: the corrected share of judged turns in
+  the lesson's own project in the 14 days before it went live (promotion to `daily`), versus the
+  14 days after, reported with a 95% Newcombe (Wilson score) interval
+  (`store/persistence/improvement/effect.rs`, `interval.rs`). The read point is at least 20
+  judged turns on both sides — below that, the page says **"Not enough data yet"**, never a
+  number.
 - **A guard question** is randomised — every fire draws into a holdback or a treated arm before
   anyone sees the outcome. It gets **only** a holdback-versus-treated risk-difference estimate,
   with a bootstrap interval, read at 34 holdback events per question. A guard question is never
@@ -294,12 +289,13 @@ row.
 
 ## 6. Where this lives, and what the operator does
 
-**Sessions › What the judge did** (`/sessions/improvement`) is the new landing page: what
-mike did with the turns you corrected, what still waits on you, and whether you're being
-corrected less. Three sections: **Waiting for you** (lesson candidates, directive proposals,
-guard wakes with no verdict yet — approve, reject, or answer them right there), **What
-happened** (the last 7 days, in full sentences, never a bare count), and **Is it getting
-better** (the trend and the per-action effect table).
+**Sessions › What the judge did** (`/sessions/improvement`) is the landing page: what mike did
+with the turns you corrected, what still waits on you, and whether you're being corrected
+less. A summary strip sits on top, then three parts: **Waiting for you** (tabs for lesson
+candidates, guard nudges with no verdict yet and directive proposals — approve, reject, or
+answer them right there; the open tab is in `?waiting=`), **What you keep saying** (instructions
+you repeated, from `/api/improvement/repeats`) and, in a side rail, **Is it getting better**
+(the trend and the per-action effect table).
 
 **Sessions › What the judge did › Guard** (`/sessions/improvement/guard`) is one panel per
 turn-guard question: its mode, how often it fires, how often it's right, the holdback arm and
@@ -310,36 +306,34 @@ right?" control.
 single candidate or lesson: the rule (editable before approval), the turn it came from, similar
 and reinforcing corrections, and — once it's live — its injection count and effect.
 
-**Sessions › Judge** (`/sessions/labelling`, unchanged URL) stays the page for how accurate the
-judge is and what it costs; it now carries a one-line banner pointing at "What the judge did" and
-a cost card. **Review labels** is gone from the navigation entirely — label review now only
-happens where a label decides something (a lesson candidate, a guard wake), never as a queue of
-its own.
+**Sessions › Judge** (`/sessions/labelling`) is the page for how accurate the judge is and what
+it costs; its introduction links to "What the judge did". Accuracy runs and their label review
+live under it (`/sessions/labelling/accuracy`).
 
 ## 7. What this deliberately does not do yet
 
-- **No-project directives (J7).** A directive proposal with no associated project is a small
-  share of the total and the operator hasn't decided the policy for it yet (blocked on issue
-  #297's default-off kill switch for automatic artifact injection). Approving a no-project
-  directive is not built.
-- **`input` mode for relapse evidence.** §4's relapse evidence is `record` mode only — it's
-  written onto the evaluation for later reading, but nothing yet feeds it into the guard's own
-  gate or the model's input. That's a pre-registered change: it waits for 14 days of rows and 30
-  labelled would-fires on each side, with a Newcombe lower bound above zero, before the evidence
-  is trusted enough to act on rather than just record.
-- **Session-judge gating.** The session-level judge (as opposed to the turn judge) isn't trusted
-  to drive any action here — it has no passed accuracy gate yet (only one session-end holdout
-  batch exists, n=15, too few to measure). It's display and guard-label evidence only until that
-  changes.
+- **Directives without a project.** Approving a directive proposal requires at least one
+  target project (`target_project_ids` must not be empty), so a directive with no associated
+  project cannot be approved.
+- **`input` mode for relapse evidence.** `semantic.relapse_evidence` accepts `input`, whose
+  description says it adds the best neighbour to the guard's prompt, but the guard reads the
+  setting only to skip (`off`) or record the evidence (§4); nothing feeds it into the guard's
+  gate or the model's input.
 
-## 8. Settings this install changed from their shipped default
+## 8. Settings that govern the loop, with shipped defaults
 
-| Setting | Shipped default | This install |
-|---|---|---|
-| Feature toggle `judge_lessons` | off | on |
-| `steerer.turn_guard.label_live_passes` | off | on |
-| `steerer.turn_guard.holdback_pct` (relapse, unobserved_done only) | 10 | 25 |
-| `semantic.relapse_evidence` | record | record (unchanged) |
+| Setting | Default |
+|---|---|
+| Feature toggle `judge_lessons` | off |
+| `judge_lessons.min_confidence` | 0.7 |
+| `judge_lessons.max_per_day` | 40 |
+| `judge_lessons.auto_promote_min_evidence` | 2 |
+| `judge_lessons.maintenance_max_per_day` | 400 |
+| `lessons.shape.max_chars` | 500 |
+| `lessons.skills.max_per_project` | 12 |
+| `steerer.turn_guard.label_live_passes` | off |
+| `steerer.turn_guard.holdback_pct` | 10 |
+| `steerer.session_note_limit` | 3 per hour |
+| `semantic.relapse_evidence` | record |
 
-Every one of these is a live `/settings` value, changeable by the operator at any time; none of
-them are hardcoded into a new default for a fresh install.
+Every one of these is a live `/settings` value, changeable by the operator at any time.

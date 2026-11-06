@@ -2,8 +2,8 @@
 title: Local archive acceptance helpers
 status: active
 created: 2026-10-13
-updated: 2026-10-14
-summary: Opt-in installed archive checks, exact evidence boundaries, and remaining release qualification work.
+updated: 2026-11-06
+summary: The six alpha-gating cases and how each is recorded, the opt-in installed archive journeys, exact evidence boundaries, and the work left after the alpha.
 ---
 
 # Local archive acceptance helpers
@@ -37,12 +37,16 @@ and does not gate an alpha:
 A PASS row carries `observed.source` and the passed check ids; `command` and
 `exit_status` stay null because the journeys run in-process. A failed, unbound or
 unrun journey moves no case. Without the journeys that need the PG19 fixture, the run still exits 2.
-AC23 and AC24 (upgrade and reinstall) stay in the ledger as NOT_RUN and do not gate.
+AC23 and AC24 (upgrade and reinstall) are out of the alpha: they stay in the ledger,
+do not gate, and are NOT_RUN unless `--upgrade-predecessor` is given a trusted frozen
+predecessor and that journey passes (source `archive_upgrade_journey`). No alpha
+candidate has such a predecessor.
 
 Beyond the alpha cases above, the notes below that say a journey "remains NOT_RUN"
-describe a restricted runner; this host has docker, mise and the PG19 test database.
+describe a restricted runner, not a fact about the project; a runner with Docker, mise and
+the PG19 test database can run them.
 The evidence ledger retains all 33 canonical IDs: AC01–AC27, SG01–SG03,
-PUBLIC01, PUBLIC02 and FEEDBACK01. Each case includes its stage requirement,
+PUBLIC01, PUBLIC02 and FEEDBACK01. Each case includes its requirement (`required_before`),
 exact candidate binding when verification reaches the manifest, expected/observed
 result, command/exit/timing slots, test-count slots, evidence references and
 structured blockers. Missing observations stay null, not invented zero exits or
@@ -51,7 +55,7 @@ the case.
 
 AC26 and FEEDBACK01 are post-publication work, while PUBLIC02 is conditional on
 source exposure. Their visible NOT_RUN states must not be mistaken for circular
-prerequisites to preparing a first reviewed binary pilot. Source gates, complete
+prerequisites to preparing a first reviewed alpha. Source gates, complete
 platform assertions and independent content/rights review remain separate from
 the helper regression tests.
 
@@ -152,9 +156,10 @@ byte-for-byte across restart. Raw SSE transport bytes are checked separately and
 are not confused with the persisted response representation.
 
 This foreground SIGTERM/serve helper does not qualify the installed CLI/TUI
-start/stop flow, browser rendering, search, Docker provisioning, real Claude,
-logout/autostart, native clean-account installation, or any complete acceptance
-case. Offline tests of its mock orchestration are helper regression evidence only.
+start/stop flow, browser rendering, Docker provisioning, real Claude,
+logout/autostart or native clean-account installation. It is the source of the
+AC02, AC03 and AC07 rows (and of AC01 and AC22 with the journeys named in the alpha
+table), and of no other case. Offline tests of its mock orchestration are helper regression evidence only.
 If the execution environment forbids required process/socket operations, keep
 those observations NOT RUN; do not bypass the restriction or fabricate evidence.
 
@@ -307,10 +312,11 @@ unchanged; no live files or installation identity are relocated.
 
 Short owned paths are required for portable control-socket limits. An existing
 backup, foreign target, changed kit, failed source stop, mismatched restored data,
-or failed cleanup is an error. This helper does not qualify real-user backup,
-published-predecessor upgrades, interrupted installation, retained-state removal,
-or the complete AC22–AC24 cases. The current restricted host has not executed
-these installed journeys; mock tests validate the harness contracts only.
+or failed cleanup is an error. With a passing persistent journey this roundtrip
+is what records AC22. It does not qualify real-user backup, published-predecessor
+upgrades, interrupted installation, retained-state removal, or AC23 and AC24.
+Mock tests validate the harness contracts only; a PASS for AC22 exists only in a
+ledger written by a real run on a candidate.
 
 ## Optional two-version upgrade and retained reinstall
 
@@ -366,31 +372,33 @@ continuity.
 These helpers are implemented but their installed two-version execution remains
 NOT_RUN on the restricted host. Mock contracts do not establish a real predecessor
 upgrade, migration interruption, purge, native removal, real Claude integration,
-service/autostart behavior or published-channel installation. All full cases,
-including AC23/AC24, remain NOT_RUN.
+service/autostart behavior or published-channel installation. The upgrade and
+reinstall journeys are out of the alpha, and the first alpha has no published
+predecessor to upgrade from. AC23 and AC24 record PASS only from this journey
+on a real trusted predecessor pair; every other full case outside the six alpha
+cases stays NOT_RUN.
 
 ## Optional installed reliability workload
 
-`--reliability-stage M1` or `--reliability-stage M2` opts into a separate fresh
-runtime/database after any other selected journeys. It requires the same already
-running, explicitly owned disposable PostgreSQL 19 fixture described above.
-Neither `--persistent-journey` nor a browser is needed for this separate helper.
-For example, on an unrestricted verifier host with the trusted candidate:
+`--reliability-journey` opts into a separate fresh runtime/database after any other
+selected journeys. It requires the same already running, explicitly owned disposable
+PostgreSQL 19 fixture described above. Neither `--persistent-journey` nor a browser is
+needed for this separate helper. There is one policy and no stages. For example, on
+an unrestricted verifier host with the trusted candidate:
 
 ```sh
 MIKE_TEST_ADMIN_URL='postgres://postgres@127.0.0.1:6432/postgres?sslmode=disable' \
 MIKE_RECOVERY_TEST_PGDATA=/private/disposable-pg19 \
 scripts/release-acceptance --candidate /private/candidate --output /private/new-reliability-evidence \
-  --reliability-stage M2 --reliability-duration-seconds 3600 \
+  --reliability-journey --reliability-duration-seconds 3600 \
   --reliability-concurrent-sessions 8
 ```
 
-M1 defaults to at least 900 real monotonic seconds and one synthetic session;
-M2 defaults to at least 3600 seconds and eight sessions. Explicit durations must
-meet the stage minimum and cannot exceed 7200 seconds. Session counts are bounded
-at 32. Duration/concurrency options without a stage, zero values, shortened runs,
-and nonfinite durations are rejected before creating evidence. There is no
-short-run CLI override.
+The default is at least 900 real monotonic seconds and one synthetic session.
+`--reliability-duration-seconds` must lie between 900 and 7200 seconds, and
+`--reliability-concurrent-sessions` between 1 and 32. Duration/concurrency options
+without `--reliability-journey`, zero values, shortened runs, and nonfinite durations
+are rejected before creating evidence. There is no short-run CLI override.
 
 Each batch proves that the requested distinct sessions overlap at the owned
 synthetic upstream barrier, then verifies exact streamed bytes and durable
@@ -425,7 +433,7 @@ behavior. Explicit selection is also available through
 ### Explicit resource, drain and responsiveness budgets
 
 Add `--reliability-resource-budgets /private/reviewed-budgets.json` with a
-`--reliability-stage` to opt into the implemented observations. The regular,
+`--reliability-journey` to opt into the implemented observations. The regular,
 non-symlink JSON file is bounded to 16 KiB and must contain exactly these six
 unique keys, with no extra keys or implicit acceptance thresholds:
 
@@ -466,7 +474,7 @@ control or real-provider performance.
 
 ### Normal defaults: isolated adapter implemented, runtime unqualified
 
-`--reliability-profile normal_defaults` requires a stage, explicit resource
+`--reliability-profile normal_defaults` requires `--reliability-journey`, explicit resource
 budgets and a standalone invocation. It cannot be mixed with the trial,
 persistent, browser, maintenance, fault, installed-mode or upgrade journeys.
 The route copies and hashes bounded candidate input bytes on the host, but never

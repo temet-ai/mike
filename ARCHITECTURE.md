@@ -1,4 +1,4 @@
-# temet-proxy Architecture
+# mike Architecture
 
 This file is the **developer quick-start**: the invariants, conventions, and mechanical rules you need before touching any code. Read it before your first PR. It is fully self-contained — an agent reading only this file can determine where new code goes and how to add any new feature end-to-end.
 
@@ -43,28 +43,35 @@ For full historical rationale, decision log, and deep subsystem specs, see [`doc
 
 ```
 crates/
-├── mike/           — The proxy + inspect bind binary.
-│   src/            Two Axum servers (proxy :9988 + inspect :9989)
-│                   sharing one AppState. Owns the capture pipeline,
+├── mike/           — The proxy, inspect and SPA binds in one binary.
+│   src/            Three axum listeners sharing one AppState (proxy :9988,
+│                   inspect :9989, SPA :9990). Owns the capture pipeline,
 │                   SSE tee, filter, composer, weasel intercept, DB
-│                   writes, WebSocket broadcast, and all REST routes.
+│                   writes, WebSocket broadcast, all REST routes, the
+│                   terminal UI and the `mike spawn` launcher.
 │
-└── mike-mcp/       — Separate MCP bridge binary.
-    src/            Spawned by Claude Code over stdio. Talks HTTP to
-                    the inspect bind (:9989). Exposes 52 tools + 3
-                    resources via rmcp 0.17 (run `mike-mcp list-tools`
-                    for the authoritative count). NEVER imports
-                    mike as a library crate.
+├── mike-mcp/       — Separate MCP bridge binary.
+│   src/            Spawned by Claude Code over stdio. Talks HTTP to
+│                   the inspect bind (:9989). Exposes a `core` and a `full`
+│                   tool profile plus 3 resources via rmcp 3.1 (run
+│                   `mike-mcp list-tools --core --json` or `--full --json`
+│                   for the authoritative catalogue). NEVER imports
+│                   mike as a library crate.
+│
+└── proxy-forward/  — Separate HTTPS_PROXY MITM sidecar (:9987).
+    src/            Lets Claude Code keep Remote Control while mike
+                    captures; fails over to Anthropic when mike is down.
 ```
 
-**One process, two servers.** `mike` runs two `axum::serve` futures sharing one `AppState`:
+**One process, three listeners.** `mike serve` runs three `axum::serve` futures sharing one `AppState` (`crates/mike/src/serve/listeners.rs`):
 
 | Bind | Port | Routes | Contract |
 |---|---|---|---|
-| Proxy | 9988 | `/v1/*` → `api.anthropic.com` | Injecting/optionally-mutating pipeline (filter rules, lesson/reminder/steerer injection, composer splicing, weasel intercept); identity is the no-op default when no rule matches — capture always stores the untouched inbound bytes |
-| Inspect | 9989 | `/api/*` REST + `/api/ws` WS | CORS-locked, normal middleware |
+| Proxy | 9988 | `/v1/*` and `/v2/*` → `api.anthropic.com` | Injecting/optionally-mutating pipeline (filter rules, lesson/reminder/steerer injection, composer splicing, weasel intercept); identity is the no-op default when no rule matches — capture always stores the untouched inbound bytes |
+| Inspect | 9989 | `/api/*` REST + `/api/ws` WS | Host/Origin allow-list (`api/host_guard.rs`) plus CORS, compression, request-id, timeout and trace layers; no authentication |
+| SPA | 9990 | the whole `/api/*` router merged with the embedded SvelteKit build | Enabled by default (`spa_enabled`); the development stack turns it off and runs `vite dev` on the port instead |
 
-**Three-process deployment.** The SPA runs as an independent `vite dev` process on `:9990`. The MCP bridge is a separate binary (`mike-mcp`) spawned by Claude Code. Neither is embedded in the Rust binary.
+**Process layout.** The development stack (`scripts/start-proxy.sh`) runs `mike` with `MIKE_SPA_ENABLED=0`, the SPA as an independent `vite dev` process on `:9990`, the `proxy-forward` sidecar on `:9987`, the prompt assistant (`services/prompt-assistant`) on `:9985`, Storybook on `:6006` and the architecture diagrams on `:9986`, each a `mike-stack-*` systemd user unit. The MCP bridge is a separate binary (`mike-mcp`) spawned by Claude Code. An installed or plain `mike` launch serves the built SPA from the binary instead (`crates/mike/src/spa.rs`).
 
 **Workspace-level dependencies** are pinned in the root `Cargo.toml` `[workspace.dependencies]` — add a dep there first, then refer to it with `{ workspace = true }` in the crate manifest. This prevents version drift between crates.
 
@@ -72,26 +79,30 @@ crates/
 
 | Module | Purpose |
 |---|---|
-| `proxy/` | Core proxy domain. `handler.rs` is the axum handler for `/v1/*`. `upstream.rs` handles reqwest forwarding and URI rewriting. `headers.rs` is pure header filtering/rewriting. |
+| `proxy/` | Core proxy domain. `handler.rs` is the axum handler for `/v1/*` and `/v2/*`; `engine/` holds the pipeline steps (`accept`, `run_request_pipeline`, `forward_to_upstream`, `finalize_and_respond`). `upstream.rs` handles reqwest forwarding and URI rewriting, `headers.rs` is pure header filtering/rewriting, `response/` the tee and buffered forwarders, `remote_control/` the Remote Control relay. |
+| `pipeline/` | The `RequestStage` abstraction and `STAGE_ORDER`, the declared order of the mutating stages. Each domain module contributes its own `stage.rs`. |
 | `extract/` | Pure functions for request/response body inspection. No async, no state, fully unit-testable. |
-| `sse/` | SSE parsing and tee. `tee.rs` is the channel-based byte-tee. `parser.rs` emits `ProxyEvent`s. |
-| `store/` | In-memory request store. `persistence/` holds Postgres write paths. `operator_turns.rs` manages the OPEN→CLOSED lifecycle. |
-| `api/` | Inspect bind REST/WS. `mod.rs` builds the axum router. `handlers/` holds per-resource REST handlers. `manifest.rs` enforces MCP parity at build time. |
+| `sse/` | SSE parsing and tee. `tee.rs` is the channel-based byte-tee. `parser/` emits `ProxyEvent`s. |
+| `store/` | In-memory request store. `persistence/` holds Postgres write paths and `migrations/`. `operator_turns.rs` manages the OPEN→CLOSED lifecycle. |
+| `api/` | Inspect bind REST/WS. `manifest.rs` builds the router and declares each route's MCP coverage; `manifest/` holds the per-group route tables. `handlers/` holds per-resource REST handlers. |
+| `serve/` | Server lifecycle: listeners, startup sequence, background workers, shutdown. |
 | `filter/` | System-prompt filter pipeline. Drop/replace/append rules against `system[]` and `messages[*].content[]`. `FilterConfig` is hot-swapped via `ArcSwap`. |
-| `compose_prompt/` | Prompt composition pipeline. Runs after filter. Byte-splice (not parse-and-reserialize) to preserve cache keys. |
-| `reminders/` | Appends `<system-reminder>` blocks from prior analyzer findings to outgoing requests. |
-| `weasel_intercept/` | Buffer-then-decide SSE intercept. On `WeaselSignal::Hit`, discards buffer and issues a correction request. |
+| `compose_prompt/` | Prompt composition pipeline. Runs after the stages. Byte-splice (not parse-and-reserialize) to preserve cache keys. |
+| `reminders/` | Appends `<system-reminder>` blocks (session lessons, analyzer findings, change-record tail, git read hint) to outgoing requests. |
+| `weasel_intercept/` | Streaming gate over the SSE reply. Cuts the reply at a listed phrase or at a proxy-declared tool call and continues it with a second upstream answer. |
 | `agents/` | Agent registry domain. `AgentSource` enum (Observed, FileBacked, Dynamic). |
 | `analysis/` | Diagnostic pattern analysis. 19 patterns across 5 categories; reporting only, never injected. |
-| `config/` | `ProxyConfig` + figment 4-layer pipeline. `AppState` construction. `paths.rs` is the XDG lookup chain. |
-| `diagnostics/` | Pluggable analyzers registered in `AnalyzerRegistry` (hot-swapped via `ArcSwap`). |
-| `observability/` | Structured tracing setup, log format selection. |
+| `config/` | `ProxyConfig` + figment 4-layer pipeline (defaults, config file, `MIKE_*` env, CLI). `AppState` construction. `paths.rs` resolves the installation's directories. |
+| `diagnostics/` | Process-level diagnostics wrapper around the `analysis/` analyzers. |
+| `observability/` | Structured event emission, the startup banner and the memory ticker. |
 | `memory_cap/` | Global RSS cap manager. `Sheddable` trait + `ShedRegistry`. Background RSS tick loop. |
 | `in_flight.rs` | In-flight request registry. DashMap-backed with RAII `InFlightGuard`. Hard cap returns HTTP 503. |
-| `sweep.rs` | DB-side TTL sweep. Single SQL DELETE per tick. |
-| `db_listener.rs` | Postgres LISTEN/NOTIFY on `proxy.row_changed`. Re-broadcasts as `ProxyEvent::RowChanged`. |
-| `startup.rs` | Hot-reload config watcher. Boot-time stale-row recovery. |
-| `main.rs` | CLI parse, tracing init, server start (~50 lines). |
+| `retention_worker.rs` | DB-side TTL sweep on a timer, gated by the `retention_sweep` toggle. |
+| `db_listener/` | Postgres LISTEN/NOTIFY on `proxy.row_changed`. Re-broadcasts as `ProxyEvent::RowChanged`. |
+| `startup.rs` | Boot-time recovery and warm-up: stale-row recovery, mailbox reload, session sweep. |
+| `main.rs` | CLI parse and subcommand dispatch. |
+
+Per-domain detail is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) §9, which has the fuller module map.
 
 ---
 
@@ -99,15 +110,15 @@ crates/
 
 #### Thin handlers, no Tower middleware on the body path
 
-The proxy handler (`proxy/handler.rs`) is **not** Tower middleware. Tower is used only for non-body cross-cutting concerns: `TraceLayer`, `DefaultBodyLimit`. The handler owns the full request pipeline in sequence:
+The proxy handler (`proxy/handler.rs`) is **not** Tower middleware. The proxy router carries no Tower layers at all (`app.rs`, `proxy_router`: two routes and `with_state`); the inspect and SPA routers carry the middleware (`api/manifest.rs`, `local_router`: the Host/Origin guard, CORS, compression, request ids, tracing and timeouts). The handler hands the request to `proxy::engine`, which runs the pipeline in sequence:
 
 ```
-extract_request_parts()
-  → filter pipeline        (drop/replace/append text blocks)
-  → reminders pipeline     (append <system-reminder> findings)
+accept: extract parts + RequestSignals, keep the ORIGINAL bytes
+  → mutation stages        (pipeline::STAGE_ORDER: filter, reminders, steerer drain,
+                            compression, proxy_tools, ... — each behind its own gate)
   → compose_prompt pipeline (byte-splice system[2] for first-of-session)
+  → capture admission guard
   → build InterceptedRequest
-  → store.insert(req)
   → insert_request_initial   ← Phase 1 DB write (stub row)
   → in_flight.register()     → HTTP 503 if at capacity
   → client.post(upstream).send()
@@ -116,46 +127,38 @@ extract_request_parts()
   → NOTIFY proxy.row_changed
 ```
 
-The inspect bind (`api/mod.rs`) builds a separate axum `Router`. Every handler function is a thin dispatcher: read from `AppState`, call a service/persistence function, return a typed response.
+The stage list, gates and defaults are in [`docs/REQUEST_FLOW.md`](docs/REQUEST_FLOW.md) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) §3–4.
+
+
+The inspect bind (`api/manifest.rs`, `inspect_router`) builds a separate axum `Router`. Every handler function is a thin dispatcher: read from `AppState`, call a service/persistence function, return a typed response.
 
 #### Adding a new inspect route
 
-Three coordinated edits are required — any missing fails a test:
+Two coordinated edits are required — a missing one fails a test:
 
-1. **Add the route** in `api/mod.rs` (or the relevant handler file under `api/handlers/`).
-2. **Add a `manifest.rs` entry** in `api/manifest.rs` with its `Coverage` variant:
+1. **Add the route** in the group's module under `crates/mike/src/api/manifest/<group>.rs`: an entry in its `ROUTES` table (method, path, `Coverage`) and the `.route(...)` line in its `register` function, pointing at a handler in `api/handlers/`. A new group module is also listed in `inspect_route_manifest()` and `local_router()` in `api/manifest.rs`.
+2. **Choose its `Coverage`:**
    - `Coverage::Tool("tool_name")` — wraps a named MCP tool 1:1.
    - `Coverage::AggregatedInto("tool_name")` — data folded into an aggregate tool.
    - `Coverage::Resource("proxy://uri")` — surfaced as an MCP resource.
-   - `Coverage::Exempt { reason: "..." }` — deliberately not exposed via MCP.
-3. **Add the MCP tool** in `crates/mike-mcp/src/tools.rs` (or declare the exemption).
+   - `Coverage::Exempt { reason: "..." }` — deliberately not exposed via MCP. This is the default for a new route: every MCP tool costs tokens on every request, so a tool is added only when a real workflow needs one (in `crates/mike-mcp/src/tools/`).
 
-The parity test at `crates/mike-mcp/tests/manifest_coverage.rs` walks both directions and fails the build if either side is missing.
+The parity test at `crates/mike-mcp/tests/manifest_coverage.rs` walks the manifest and fails if a declared tool does not exist, and fails for a tool that no manifest entry points at.
 
 ---
 
 ### 3. MCP crate (mike-mcp)
 
-**The MCP bridge is a thin HTTP client, not a shared library.** It has no `Cargo.toml` dependency on `mike`. It talks HTTP to the inspect bind on `:9989`. Tool implementations in `tools.rs` look like:
-
-```rust
-// Thin: parse input → HTTP call → return result
-pub async fn handle_list_requests(client: &InspectClient, args: Value) -> CallToolResult {
-    let offset = args["offset"].as_u64().unwrap_or(0);
-    let limit  = args["limit"].as_u64().unwrap_or(20);
-    client.get_json(&format!("/api/requests?offset={offset}&limit={limit}")).await
-}
-```
+**The MCP bridge is a thin HTTP client, not a shared library.** It has no `Cargo.toml` dependency on `mike`'s binary code. It talks HTTP to the inspect bind on `:9989`. Tool implementations live in `crates/mike-mcp/src/tools/<domain>.rs`; each parses its arguments, calls one inspect endpoint through `InspectClient` and returns the result (every tool also accepts a `select` projection, applied in `tools/envelope.rs`).
 
 **No business logic lives here.** If a tool does more than deserialize arguments, call one HTTP endpoint, and return the result, the logic belongs in the inspect bind, not the MCP bridge.
 
 #### Adding an MCP tool
 
-1. Add a `pub const TOOL_<NAME>: &str = "tool_name";` constant at the top of `tools.rs`.
-2. Add a `Tool` registration in `server.rs::registered_tools()` with the input schema.
-3. Add a handler branch in the `call_tool` dispatcher.
-4. Add the corresponding `Coverage::Tool("tool_name")` entry in `mike/src/api/manifest.rs`.
-5. Run `cargo nextest run -p mike-mcp` — the parity test will now pass.
+1. Add the tool in the matching `crates/mike-mcp/src/tools/<domain>.rs`: a `TOOL_<NAME>` constant, its `Tool` definition and its handler branch, and re-export the constant from `tools.rs`.
+2. Register it in the domain's tool list so `tools/catalogue.rs` (`all_tools`) and `tools/dispatch.rs` (`call_tool`) reach it. Add its name to `CORE_TOOL_NAMES` only if you would reach for it while investigating a session; otherwise it ships in the `full` profile only.
+3. Add the matching `Coverage::Tool("tool_name")` entry in the route's `api/manifest/<group>.rs` table.
+4. Run `scripts/cx nextest run -p mike-mcp --test manifest_coverage` — the parity test passes once both sides agree.
 
 **All tracing goes to stderr.** Stdout is the JSON-RPC wire — a stray log line corrupts the MCP protocol.
 
@@ -163,7 +166,7 @@ pub async fn handle_list_requests(client: &InspectClient, args: Value) -> CallTo
 
 ### 4. The `test-seams` feature flag
 
-Some integration tests need to inject a wiremock server URL as the upstream, bypassing the real `api.anthropic.com`. The `test-seams` feature on the `mike` crate enables compile-time seams for this substitution.
+Some integration tests need to inject a wiremock server URL as the upstream, bypassing the real `api.anthropic.com`. The `test-seams` feature on the `mike` crate (declared in `crates/mike/Cargo.toml`) enables compile-time seams for this substitution.
 
 **The self-dep trick:** `mike` lists itself in `dev-dependencies` with `features = ["test-seams"]`. This means the integration test binaries (compiled from `tests/`) see the crate compiled with the test-seams feature, while the library and the `mike` binary itself are compiled without it. Production code is never affected.
 
@@ -202,9 +205,7 @@ The `unwrap_used` and `expect_used` lints are **errors**, not warnings. Every
 
 **In `tests/` and `main.rs`**: `expect()` with a descriptive message is permitted — test failures and startup failures are acceptable panics.
 
-**`unsafe_code` is denied** by `#![deny(unsafe_code)]` in every `src/lib.rs`. No exceptions without explicit team discussion.
-
-**CI command:** `scripts/lint-rust`
+**Gate command:** `scripts/lint-rust` (`make lint`)
 
 The structural limits are mandatory across every target:
 
@@ -251,17 +252,19 @@ Three layers, each with a different crate:
 
 ### 7. Configuration
 
-Config loads in a 3-layer `figment` pipeline. Later layers win:
+Config loads in a 4-layer `figment` pipeline. Later layers win:
 
 ```
-defaults  →  MIKE_* env vars  →  CLI flags
+defaults  →  config.toml  →  MIKE_* env vars  →  CLI flags
 ```
 
-There is no runtime file-backed config lookup anymore. The proxy boots from built-in defaults, process env, and CLI flags only. The live operator source of truth is `/settings`.
+The config file is the installation's `config.toml` (`mike config path` prints it; `--config <path>` selects another). The binary does not load a `.env`; import one with `mike import-dotenv`. The live operator source of truth is `/settings`.
 
-**Operator CLI surface:** Two subcommands remain for managing boot config out-of-process:
-- `mike print-config [--shell]` — resolved effective values
+**Operator CLI surface:** Two subcommands are the main ones for inspecting boot config out-of-process (`mike --help` lists the rest):
+- `mike print-config [--shell]` — resolved effective values (the `LIVE OVERLAY` section shows what a running session actually got)
 - `mike migrate-check` — validate the current database/config state before startup
+
+Boot config precedence is defaults < config file < `MIKE_*` env < CLI flags. [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) is the reference.
 
 **`scripts/start-proxy.sh` sources the binary:**
 
@@ -271,49 +274,48 @@ eval "$(mike print-config --shell)"
 
 The shell script has no config knowledge of its own. If you add a config key, add it to the `print-config --shell` output — the script picks it up automatically.
 
-**Key sub-tables:** `[proxy]`, `[inspect]`, `[weasel_intercept]`, `[reminders]`, `[persistence]`, `[lesson_worker]`, `[steerer]`, `[cap_manager]`. The runtime settings catalog is edited in `/settings`. Filter rules are **not** a config surface — they are DB-backed and authored at runtime via the inspect API / MCP `*_filter_rule` tools.
+The runtime settings catalog is edited in `/settings`. Filter rules are **not** a config surface — they are DB-backed and authored at runtime via the inspect API / MCP `*_filter_rule` tools.
 
 ---
 
 ### 8. Four-tier test taxonomy
 
-Tests are split across four named `[[test]]` binary targets so nextest can run them in parallel:
+Tests are split across named `[[test]]` binary targets in `crates/mike/Cargo.toml` (`proxy`, `integration`, `e2e`, `cli`, `schema`, `reminder_on_token` and several `*_contracts` / `release_*` targets) so nextest can run them in parallel:
 
 | Tier | Named target | What it covers | DB? | Upstream? |
 |---|---|---|---|---|
-| **Proxy** | `proxy_tests` | Handler pipeline, SSE tee, filter, weasel intercept, config | No | Wiremock (no real Anthropic) |
-| **Integration** | `integration_tests` | DB writes, persistence, migration round-trips, operator turn lifecycle | Real Postgres | No |
-| **Schema** | `schema_tests` | Migration checksums — fails if a migration file changes after merging | Real Postgres | No |
-| **E2E** | `e2e_tests` | Full system: proxy bind + inspect bind + DB + real SSE stream | Real Postgres | Wiremock |
+| **Proxy** | `proxy` | Handler pipeline, SSE tee, filter, weasel intercept, config (wiremock-only tests in `crates/mike/tests/proxy/`) | No | Wiremock (no real Anthropic) |
+| **Integration** | `integration` | DB writes, persistence, migration round-trips, operator turn lifecycle | Real Postgres | No |
+| **Schema** | `schema` | Migration checksums — fails if a migration file changes after merging | Real Postgres | No |
+| **E2E** | `e2e` | Full system: proxy bind + inspect bind + DB + real SSE stream | Real Postgres | Wiremock |
 
-**nextest runs all four in parallel** across separate processes. Cross-binary env races are impossible because each binary is a separate OS process with its own env.
+Unit tests live beside the code in `src/`. `.config/nextest.toml` partitions the suite: the default profile runs the tests that need no database, the `db` profile the rest, and `ci` all of them.
+
+**nextest runs the targets in parallel** across separate processes. Cross-binary env races are impossible because each binary is a separate OS process with its own env.
 
 **`serial_test` for env-mutating tests.** Tests that mutate process-global env (`MIKE_CONFIG`, `HOME`, `XDG_CONFIG_HOME`) within a single binary use `#[serial_test::serial(<group>)]`. This gates those tests within their binary without serialising the whole workspace.
 
-**NEVER `RUST_TEST_THREADS=1`.** This was removed because it serialised the entire workspace — 30-minute test runs. Per-binary `#[serial]` is the correct fix. The workspace toolchain config has a comment explaining this.
+**Never `RUST_TEST_THREADS=1`.** It serialises the entire workspace; per-binary `#[serial]` is the correct fix.
 
-**`make test`** runs `cargo nextest run --all`. `make test-p p=<crate>` scopes to one crate. `make test-t t=<filter>` runs a single test by name pattern.
+**`make test`** runs the no-database tests (`scripts/cx nextest run --all`), `make test-db` the database partition and `make test-all` everything. `make test-p p=<crate>` scopes to one crate. `make test-t t=<filter>` runs a single test by name pattern.
 
 ---
 
 ### 9. Database
 
-**sqlx with compile-time query checks.** All queries use `sqlx::query!` or `sqlx::query_as!` macros which verify SQL at compile time against the target schema. Normal builds use the committed `.sqlx` offline cache — no DB connection and no `DATABASE_URL`. After adding/changing a query, refresh the cache with `cargo sqlx prepare --database-url "$MIKE_DATABASE_URL"` (the repo's only DB var).
+**sqlx with compile-time query checks.** All queries use `sqlx::query!` or `sqlx::query_as!` macros which verify SQL at compile time against the target schema. Normal builds use the committed `.sqlx/` offline cache — no DB connection and no `DATABASE_URL`. After adding/changing a query, add it to the cache with `scripts/sqlx-prepare` (reads `MIKE_DATABASE_URL`, the repo's only DB var). Never run `cargo sqlx prepare` directly: it empties `.sqlx/` while it runs and breaks every build in the checkout.
 
-**Migrations on startup.** `startup.rs` calls `sqlx::migrate!("./migrations").run(&pool)` before the servers bind. The proxy never runs against an unmigrated schema.
+**Migrations.** `store/persistence/migrations.rs` embeds `store/persistence/migrations/` with `sqlx::migrate!`. Only `mike serve` applies them; other subcommands refuse to run while the migration ledger differs from the binary. The proxy never runs against an unmigrated schema.
 
-**pgvector test environment.** DB-backed tests provision ephemeral `claude_proxy_test_<uuid>` databases via `MIKE_TEST_ADMIN_URL` (a reachable admin Postgres, set in the workspace toolchain config with `force = false` so CI can override). There is no local Docker DB — the admin URL points at a remote/managed Postgres.
+**Test database.** DB-backed tests provision ephemeral databases (`claude_proxy_test_<uuid>`) on the Postgres that `MIKE_TEST_ADMIN_URL` names; `scripts/test-db/` starts a throwaway container for it (`mike-test-pg` on `127.0.0.1:6667`). Tests never touch the capture database.
 
-**Test DB isolation.** Each integration test that writes to the DB must:
-1. Use a unique schema or truncate tables in its fixture setup.
-2. Use the `test_support.rs` helpers (`setup_test_db`, `teardown_test_db`) which run migrations against a fresh schema.
-3. Mark with `#[serial_test::serial(db)]` if it touches shared tables.
+**Test DB isolation.** Use `TestDb` from `crates/mike/src/store/persistence/test_support/`. `TestDb::acquire` hands out a shared database: own your rows with unique ids, and do not assert global counts, truncate tables or issue unscoped deletes. Use `TestDb::acquire_isolated` when a test needs an empty private database, and call `handle.cleanup().await`.
 
-**Schema tests (`schema_tests` binary).** After a migration is merged, its checksum is fixed. Schema tests compute the SHA-256 of every migration file in `store/persistence/migrations/` and compare against stored expected values. This catches the "I edited a migration that's already applied in prod" class of mistake early.
+**Schema tests (`schema` target).** After a migration is merged, its checksum is fixed. `crates/mike/tests/schema/migration_checksums.rs` compares every file in `store/persistence/migrations/` with `migration-baseline.json`. This catches the "I edited a migration that's already applied" class of mistake early.
 
 **Two-phase write.** Every captured request goes through two DB writes:
-1. `insert_request_initial` — stub `Pending` row before upstream send. Enables FK-valid `response_stream_chunks` inserts during streaming.
-2. `snapshot_request` — terminal UPDATE + `INSERT INTO request_responses` at completion.
+1. `insert_request_initial` — stub `Pending` row before upstream send. Enables FK-valid content-block inserts during streaming.
+2. `snapshot_request` — terminal transaction at completion: request status, the `responses.responses` row and diagnostics.
 
 Rows stuck as `Pending` after a crash are healed by `recover_stale_pending_rows()` on the next startup.
 
@@ -327,9 +329,12 @@ The `scripts/` directory contains the full operational toolchain. All scripts ar
 
 | Port | Service | Purpose |
 |---|---|---|
-| 9988 | Proxy bind | `/v1/*` — set `ANTHROPIC_BASE_URL=http://127.0.0.1:9988` |
+| 9988 | Proxy bind | `/v1/*` and `/v2/*` — set `ANTHROPIC_BASE_URL=http://127.0.0.1:9988` |
 | 9989 | Inspect bind | `/api/*` REST + `/api/ws` WebSocket + CORS |
-| 9990 | SPA host | SvelteKit SPA (`vite dev` with HMR, or `pnpm run preview`) |
+| 9990 | SPA host | SvelteKit SPA (`vite dev` with HMR in the development stack; served by `mike` itself otherwise) |
+| 9987 | proxy-forward | HTTPS_PROXY MITM sidecar |
+| 9986 | Diagrams | The LikeC4 architecture model (`scripts/arch`) |
+| 9985 | Prompt assistant | `services/prompt-assistant` |
 | 6006 | Storybook | Component story sandbox |
 
 #### `scripts/start-proxy.sh`
@@ -349,12 +354,12 @@ Stops the `mike-stack-*` units, so systemd does not bring them back, then frees 
 
 ```bash
 ./scripts/stop-proxy.sh
-MIKE_STORYBOOK_PORT=6007 ./scripts/stop-proxy.sh   # custom Storybook port
+STORYBOOK_PORT=6007 ./scripts/stop-proxy.sh   # custom Storybook port
 ```
 
 #### `scripts/install.sh`
 
-Interactive one-shot setup wizard. Walks through: prerequisite checks (Rust, Node), Rust workspace build, frontend dep install, storage mode choice (in-memory / external Postgres), surgical `.env` bootstrap update (touches only the five managed keys, shows diff, asks before writing), and MCP bridge snippet for `~/.claude.json`. Safe to re-run.
+Interactive one-shot setup wizard for a source checkout. Walks through: prerequisite checks (Rust, Node), Rust workspace build, frontend dep install, storage mode choice (in-memory / external Postgres), surgical `.env` bootstrap update (touches only the five managed keys, shows diff, asks before writing), and MCP bridge snippet for `~/.claude.json`. Safe to re-run. Released builds install through `mike setup` instead.
 
 ```bash
 ./scripts/install.sh
@@ -473,46 +478,43 @@ make test-p p=mike
 
 #### Creating a migration
 
-1. Choose the next filename using today's date: `YYYYMMDD000001_description.sql`. If another migration for today already exists, increment the sequence: `YYYYMMDD000002_`.
-2. Write idempotent SQL. Use `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, etc. Migrations are run against production databases; they must survive being run twice without error.
-3. Scope to the `mike` schema: `CREATE TABLE mike.my_table (...)`.
+1. Choose a filename with a 14-digit UTC timestamp prefix that sorts after every existing migration (`YYYYMMDDHHMMSS_description.sql`, for example `20261103150000_parallel_autovacuum.sql`).
+2. Prefer idempotent SQL (`CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, `CREATE OR REPLACE`), since migrations run against existing databases.
+3. Put the object in its domain schema (`requests`, `sessions`, `memory`, `tools`, `steering`, `launch` and so on; [`docs/SCHEMA.md`](docs/SCHEMA.md) says which table lives where), not a catch-all schema.
 4. Prefer additive changes. Never DROP a column in the same migration that removes its usage — separate those into different deploys.
 
 #### Migration naming convention
 
 ```
-YYYYMMDDNNNNNN_description.sql
+YYYYMMDDHHMMSS_description.sql
 ```
 
-- `YYYYMMDD` — date (UTC)
-- `NNNNNN` — 6-digit sequence within the day, zero-padded (`000001`, `000002`, ...)
-- `description` — snake_case, short (e.g., `add_embedded_at_to_operator_turns`, `normalised_tool_data_plane`, `bodies_to_postgres`)
+- `YYYYMMDDHHMMSS` — UTC timestamp
+- `description` — snake_case, short (e.g., `add_embedded_at_to_operator_turns`, `parallel_autovacuum`)
 
 The lexicographic order of filenames IS the migration execution order. Never rename a migration file after it has been merged to main — schema tests checksum every file and fail on any change.
 
-#### Running `cargo sqlx prepare`
+#### Refreshing the sqlx offline cache
 
-`sqlx::query!` macros verify SQL at compile time. When you add or change a query, you must regenerate the offline query cache so CI can build without a live DB:
+`sqlx::query!` macros verify SQL at compile time. When you add or change a query, refresh the offline cache so builds work without a live DB:
 
 ```bash
-# The repo's only DB var is MIKE_DATABASE_URL; pass it to sqlx via --database-url
-# (no DATABASE_URL env var is used or set):
-cargo sqlx prepare --workspace --database-url "$MIKE_DATABASE_URL"
+scripts/sqlx-prepare            # reads MIKE_DATABASE_URL from .env; adds the new queries to .sqlx/
 ```
 
-This writes `sqlx-data.json` files. Commit them with the migration and the code that uses it. CI runs `cargo sqlx prepare --check` to verify the cache is in sync.
+Commit the `.sqlx/` changes with the migration and the code that uses it. Do not run `cargo sqlx prepare` directly (see §9).
 
 #### Testing with the schema test tier
 
 After writing a migration:
 
-1. Run it against your local test DB: `cargo nextest run --test schema_tests`
-2. If you see a checksum failure, you edited a migration that was already applied. Fix the issue in a NEW migration file, never by editing the existing one.
-3. The schema test tier runs automatically in CI via `make test`.
+1. Run the schema target: `make test-t t=migration_checksums`. It compares every migration with a frozen baseline and needs no database; new migrations are accepted, a changed or removed historical one fails.
+2. If you see a checksum failure, you edited a migration that was already applied. Fix the issue in a NEW migration file, never by editing the existing one, and never regenerate the frozen manifest to silence the check.
+3. The schema target runs in the landing gate.
 
 #### When the proxy is running against an existing DB
 
-Migrations run automatically on the next proxy startup via `sqlx::migrate!("./migrations").run(&pool)` in `startup.rs`. For a large migration (e.g. backfilling a new column across millions of rows), either:
+Migrations run automatically on the next `mike serve` start (`store/persistence/migrations.rs`). For a large migration (e.g. backfilling a new column across millions of rows), either:
 - Write the migration so it is fast (add the column nullable first, backfill as a separate step via a background task, add the NOT NULL constraint later), or
 - Stop the proxy, run the migration manually with `psql`, restart.
 
@@ -568,9 +570,9 @@ All design tokens live in `src/app.css`. The layering is:
 
 The `@theme inline` directive tells Tailwind to treat values as CSS-variable references at runtime, not static values baked at build time. Without `inline`, dark-mode overrides would break because Tailwind inlines the light-mode value.
 
-**This app is dark-only.** The surface is `#0f1117` (`--bg`). There is no light mode.
+**Themes.** The app ships five themes (`forge`, the default, `glacier`, `void`, `phosphor`, `crimson`; `src/lib/themes.ts`), each a `[data-theme='…']` block of token values in `src/app.css`. Components read `var(--*)` tokens, so they follow whichever theme is active.
 
-**CI enforcement:** `grep -rn "\bdark:" frontend/src` **outside** `components/ui/` must return zero matches. Application components read `var(--*)` tokens; they never use `dark:` prefixes. The `@custom-variant dark` directive exists solely for `shadcn-svelte` primitives under `ui/` — those are the single exception.
+**Convention:** outside `components/ui/`, application components never use `dark:` prefixes. The `@custom-variant dark` directive exists for the `shadcn-svelte` primitives under `ui/`.
 
 #### Adding a new design token
 
@@ -582,7 +584,7 @@ The `@theme inline` directive tells Tailwind to treat values as CSS-variable ref
 
 | Category | Examples |
 |---|---|
-| Surfaces | `--bg`, `--surface`, `--surface-2`, `--sidebar` |
+| Surfaces | `--bg`, `--surface-bg`, `--surface`, `--surface-2`, `--sidebar` |
 | Borders | `--border-color`, `--border-subtle` |
 | Text | `--text-strong`, `--text-1`, `--text-2`, `--text-3`, `--text-faint` |
 | Accents | `--green`, `--amber`, `--blue`, `--red`, `--destructive` |
@@ -659,22 +661,21 @@ Stories run in an isolated Storybook canvas without access to singletons like th
 
 #### How it works
 
-The Storybook Vite config aliases module paths so that when a story imports (say) `$lib/ws.svelte.ts`, it gets `$lib/__storybook-stubs__/ws.svelte.ts` instead. The alias is declared in `.storybook/main.ts`'s `viteFinal` hook.
+`.storybook/stub-aliases.ts` (`libStubAliases`) lists the module paths to replace, and both `.storybook/main.ts` and `vitest.config.ts` apply it: when a story imports `$lib/ws.svelte`, it gets `$lib/__storybook-stubs__/ws.svelte.ts` instead.
 
-**Alias ordering matters.** More-specific paths must come before prefix matches:
+**Order matters.** More-specific paths must come before prefix matches (the real list puts `$lib/api/<module>` before the bare `$lib/api` stub):
 
 ```typescript
-// Correct — longer match first
-{ find: '$lib/stores/sessions.svelte.ts',   replacement: stubsDir + '/stores-sessions.svelte.ts' },
-{ find: '$lib/stores',                       replacement: realStoresDir },
+{ find: /^\$lib\/api\/(.+)$/, replacement: path.join(root, 'src/lib/api/$1.ts') },
+{ find: '$lib/api', replacement: stub('api.ts') }
 ```
 
 #### Adding a stub for a new singleton
 
 1. Create `src/lib/__storybook-stubs__/my-singleton.svelte.ts` exporting the same interface as the real module but with static/no-op implementations.
-2. Add the alias in `.storybook/main.ts`:
+2. Add the alias to `libStubAliases` in `.storybook/stub-aliases.ts`:
    ```typescript
-   { find: '$lib/my-singleton.svelte', replacement: stubsDir + '/my-singleton.svelte.ts' }
+   { find: '$lib/my-singleton.svelte', replacement: stub('my-singleton.svelte.ts') }
    ```
 3. Verify in Storybook that stories using the stubbed module render without errors.
 
@@ -684,12 +685,13 @@ The Storybook Vite config aliases module paths so that when a story imports (say
 
 ### 18. Vitest two-project setup
 
-`vitest.config.ts` defines two named test projects:
+`vitest.config.ts` defines three named test projects:
 
 | Project | Environment | What it tests | File pattern |
 |---|---|---|---|
-| `unit` | node | Pure TS functions, store reducers, formatters, validators | `src/**/*.test.ts` (excludes `.svelte.test.ts`) |
-| `storybook` | browser/chromium (Playwright) | Stories rendered in real Chromium: smoke, interaction, a11y | Stories discovered by `storybookTest` plugin |
+| `unit` | node | Pure TS functions, store reducers, formatters, validators; external I/O mocked | `src/**/*.{test,spec}.{js,ts}` (excludes `*.integration.*`) |
+| `integration` | node | Code against real IndexedDB, fetch and WebSocket | `src/**/*.integration.{test,spec}.{js,ts}` |
+| `storybook` | browser/chromium (Playwright) | Stories rendered in real Chromium: smoke, interaction, a11y | Stories discovered by the `storybookTest` plugin |
 
 **`vitest.config.ts` is separate from `vite.config.ts`.** The SvelteKit Vite config (`vite.config.ts`) is for the app build. The Vitest config is for tests only. Mixing them causes the `storybookTest` plugin to interfere with the build.
 
@@ -697,14 +699,16 @@ The Storybook Vite config aliases module paths so that when a story imports (say
 
 - Pure function → `unit` project. Filename `*.test.ts`.
 - Component rendering / interaction / a11y → `storybook` project. Write a story (see §13), not a separate test file.
-- Full multi-route user flow → Playwright (not covered by this config; run separately).
+- Full multi-route user flow → Playwright (`e2e/`, `pnpm run test:e2e`).
 
 **Running tests:**
 
+Run frontend tests through `scripts/sb-test`, not raw `vitest`:
+
 ```bash
-pnpm test                    # both projects
-pnpm run test:unit           # unit only (fast)
-pnpm run test:stories        # storybook/browser only (slower)
+scripts/sb-test --skip-typecheck <filter>   # a focused run
+pnpm run test:unit                          # unit project (wraps scripts/sb-test --unit)
+pnpm run storybook:test                     # storybook project (wraps scripts/sb-test --storybook)
 ```
 
 ---
@@ -716,27 +720,16 @@ Every story is an accessibility test — structure, roles, names, keyboard reach
 ```typescript
 parameters: {
     a11y: {
-        test: 'error',                                    // axe violations FAIL the CI run
-        config: { rules: [{ id: 'color-contrast', enabled: false },
-                          { id: 'color-contrast-enhanced', enabled: false }] }
+        test: 'error',                                    // axe violations FAIL the run
+        options: { rules: { 'color-contrast': { enabled: false },
+                            'color-contrast-enhanced': { enabled: false } } }
     }
 }
 ```
 
-**Colour contrast is deliberately NOT gated** — axe's two contrast rules are disabled globally and no other gate asserts contrast ratios. See `.claude/rules/visual-design-and-ui.md`; do not re-add a contrast gate, an APCA lint, or per-token contrast floors.
+**Colour contrast is deliberately NOT gated** — axe's two contrast rules are disabled globally and no other gate asserts contrast ratios. Do not re-add a contrast gate, an APCA lint, or per-token contrast floors; judge legibility in the running app.
 
-**The dark background decorator is mandatory**, not cosmetic: stories must render on the app's real dark surface, not on Storybook's default white, or every screenshot and review pass lies about how the component looks. The decorator paints `#0f1117` on the story root:
-
-```typescript
-decorators: [
-    (story) => {
-        document.documentElement.style.background = '#0f1117';
-        document.body.style.background = '#0f1117';
-        document.body.style.color = 'var(--text-1)';
-        return story();
-    }
-]
-```
+**Stories render under a theme decorator**, not on Storybook's default white: `.storybook/preview.ts` wraps every story in `withThemeByDataAttribute` with `data-theme` set (default `forge`), so screenshots and review passes show the component as the app draws it.
 
 **Per-story override** for intentionally broken states (demonstrating anti-patterns):
 
@@ -808,7 +801,7 @@ Create `src/lib/components/MyComponent.stories.svelte`. Use `defineMeta` from `@
 
 **Step 2 — Use design tokens, not raw values.**
 
-Check `src/app.css` for the right token. If none fits, add one (see §14). Never write `color: #d5dae0` in a component — write `color: var(--text-1)`.
+Check `src/app.css` for the right token. If none fits, add one (see §14). Never write a raw hex value in a component — write `color: var(--text-1)`.
 
 **Step 3 — Implement the component.**
 
@@ -824,7 +817,7 @@ If the component contains reducers, formatters, or complex derived state, extrac
 
 **Step 5 — Verify a11y.**
 
-Run `pnpm run test:stories`. Fix every axe violation before opening a PR. `a11y: { test: 'error' }` makes them CI-blocking.
+Run `pnpm run storybook:test`. Fix every axe violation before opening a PR. `a11y: { test: 'error' }` makes them CI-blocking.
 
 **Step 6 — Wire into routes.**
 
@@ -839,22 +832,22 @@ Import the component in the appropriate route or parent component. `+page.svelte
 ```bash
 # Rust
 make build          # cargo build --all
-make test           # cargo nextest run --all
-make lint           # Rust file-size + strict Clippy structural lint gate
+make test           # no-database tests (cargo nextest)
+make test-db        # database tests
+make lint           # Rust structural lint gate
 make fmt            # cargo fmt
-make check          # fmt + lint + test
 
 # Frontend
 cd frontend
-pnpm run dev         # Vite dev (SPA only, no proxy)
+pnpm run dev         # Vite dev server with HMR (:9990)
 pnpm run storybook   # Storybook on :6006 (the stack already runs it as mike-stack-storybook)
-pnpm test            # Vitest (both projects)
+pnpm run test:unit   # unit tests, through scripts/sb-test
 pnpm run build       # Production SPA build
-pnpm run lint        # eslint + svelte-check
+pnpm run lint        # eslint
 
 # Full stack
-./scripts/start-proxy.sh    # Rust proxy + Vite dev SPA (ports 9988/9989/9990)
-./scripts/stop-proxy.sh     # Graceful shutdown of all processes
+./scripts/start-proxy.sh    # builds and deploys the proxy, sidecar, assistant, web UI, Storybook, diagrams
+./scripts/stop-proxy.sh     # stops the mike-stack-* units
 ```
 
 ### Ports
@@ -863,20 +856,23 @@ pnpm run lint        # eslint + svelte-check
 |---|---|
 | 9988 | Proxy bind — `ANTHROPIC_BASE_URL=http://localhost:9988` |
 | 9989 | Inspect bind — REST API + WebSocket |
-| 9990 | SPA host (Vite dev or `pnpm run preview`) |
+| 9990 | SPA host (Vite dev in the development stack, otherwise `mike` itself) |
+| 9987 | proxy-forward sidecar |
+| 9986 | Architecture diagrams |
+| 9985 | Prompt assistant |
 | 6006 | Storybook |
 
 ### Key files
 
 | File | Purpose |
 |---|---|
-| `docs/ARCHITECTURE.md` | Full rationale, decision log, request lifecycle, data model — 1154 lines |
-| `docs/REQUEST_FLOW.md` | Annotated request lifecycle (line-cited) |
+| `docs/ARCHITECTURE.md` | Full rationale, decision log, request lifecycle, data model |
+| `docs/REQUEST_FLOW.md` | Annotated request lifecycle (symbol-cited) |
 | `docs/SCHEMA.md` | Full DB schema reference |
 | `crates/mike/src/api/manifest.rs` | Inspect route + MCP coverage registry |
 | `crates/mike-mcp/tests/manifest_coverage.rs` | Parity test (both directions) |
 | `crates/mike/src/store/persistence/migrations/` | sqlx migration files |
 | `frontend/src/app.css` | All design tokens |
-| `frontend/docs/frontend/STYLE_GUIDE.html` | Design export FUNK started from (reference; the style guide is Storybook's Foundations stories) |
+| `docs/frontend/STYLE_GUIDE.html` | Design export FUNK started from (reference; the style guide is Storybook's Foundations stories) |
 | `/settings` | Live runtime configuration surface and source of truth |
-| `.claude/rules/agent-behavior-and-data.md` | No-truncation rule — read before touching capture/projection |
+| `docs/decisions/inspection-fidelity-catalogue.md` | Inspection-fidelity patterns — no truncation of captured content; read before touching capture/projection |

@@ -2,7 +2,7 @@
 title: Portable projects and project knowledge
 status: active
 created: 2026-09-20
-updated: 2026-10-14
+updated: 2026-11-06
 summary: Link checkouts on multiple machines, synchronize original documents and lessons, and retrieve project evidence through Mike MCP.
 ---
 
@@ -47,7 +47,7 @@ by a persistent machine UUID; matching directory names never merge projects.
 
 ## First setup
 
-The collector indexes UTF-8 Markdown (`.md`) files and requires Python 3 and PyYAML. Run it from the Mike checkout, supplying
+The collector (`scripts/mike-knowledge`, `scripts/knowledge/`) indexes UTF-8 Markdown (`.md`) files and requires Python 3 and PyYAML. Run it from the Mike checkout, supplying
 `--repo` for whichever repository you are working on. Set `MIKE_INSPECT_URL` or pass
 `--endpoint` when Mike runs on another machine. The inspect service's existing host
 access rules still apply.
@@ -59,8 +59,9 @@ scripts/mike-knowledge init --repo /path/to/repo --project EXISTING_PROJECT_UUID
 scripts/mike-knowledge init --repo /path/to/new-repo --name "My project"
 ```
 
-Initialization writes `.mike/knowledge.json` with the project UUID and source roots.
-Keep that file with the repository. On another machine, clone it and run `sync` or
+Initialization writes `.mike/knowledge.json` with the project UUID and one source for each of
+`artifacts/` and `docs/` that exists, each excluding a `knowledge` folder. It refuses to overwrite an
+existing file. Keep that file with the repository. On another machine, clone it and run `sync` or
 `watch`: the collector registers that machine's checkout under the same project.
 Machine identity lives outside Git, at `$XDG_STATE_HOME/mike/machine.json` (normally
 `~/.local/state/mike/machine.json`). Do not copy that file to a different machine.
@@ -89,7 +90,7 @@ fails, preserving both projects.
   "project_uuid": "PROJECT_UUID",
   "sources": [
     {"name": "artifacts", "path": "artifacts", "exclude": ["knowledge"]},
-    {"name": "docs", "path": "docs", "exclude": []}
+    {"name": "docs", "path": "docs", "exclude": ["knowledge"]}
   ]
 }
 ```
@@ -101,9 +102,9 @@ scripts/mike-knowledge watch --repo /path/to/repo --interval 30
 
 `watch` reconciles periodically; keep it running in a terminal or your existing
 service supervisor. Collection runs on the machine with the files, outside the
-proxy request path. It follows a configured root symlink, including Mike's sibling
-artifact repository, without recursively following arbitrary nested symlinks.
-Completed work is retained. Generated OKF `artifacts/knowledge` copies are excluded.
+proxy request path. It follows a configured root that is a symlink, without following
+symlinks nested below it. Completed work is retained. A source's `exclude` entries are
+paths relative to its root; the generated `init` configuration excludes `knowledge`.
 
 Every successful complete scan atomically records changed revisions and missing
 files. Missing/unreadable roots and malformed documents fail collection without
@@ -120,7 +121,7 @@ results include the last successful scan time.
 ## Claude Code memory files and project skills
 
 The proxy indexes two further sources itself, with no collector run and no
-`.mike/knowledge.json` entry. A background worker (`crates/mike/src/knowledge_scan/`)
+`.mike/knowledge.json` entry. A background worker (`knowledge_scan/`)
 wakes every two minutes, reads this machine's identity from
 `$XDG_STATE_HOME/mike/machine.json`, and takes every `projects.locations` row
 carrying that `machine_uuid`. For each location it looks for two directories on
@@ -157,7 +158,7 @@ embedding worker embeds the new documents with the other artifacts.
 
 For each correction the lesson proposer examines, it looks up the three closest
 memory or skill documents of the project (`GuidanceRow`,
-`crates/mike/src/store/persistence/project_knowledge/guidance.sql`): by embedding
+`store/persistence/project_knowledge/guidance.sql`): by embedding
 similarity of the operator's correcting message against the stored chunks when
 the embedding service answers within three seconds and the documents are
 embedded for the current model, and otherwise by an any-word text match.
@@ -249,8 +250,10 @@ Claude and Codex:
 - `list_project_locations`: discover projects and machine checkouts.
 - `define_project`: create a logical project, optionally restoring a known UUID.
 - `register_project_location`: explicitly link a checkout to a project.
-- `search_project_knowledge`: project UUID/path, text query, optional source kind,
-  historical inclusion, and pagination. Sources are artifacts, lessons, notes, turns.
+- `search_project_knowledge`: project UUID/path, text query, optional source `kind`,
+  historical inclusion, and pagination. Sources are artifacts, Claude Code memory files
+  (`memory`), project skills (`skill`), lessons, session notes, turns, comms threads
+  (`thread`) and work threads (`work_thread`).
 - `read_project_knowledge`: project plus returned reference; full source text and
   provenance. `artifact:123` identifies an immutable revision, not a mutable path.
 - `recall_project_context`: accepts an optional `query` to include knowledge results
@@ -307,7 +310,7 @@ the inspect host or URL encoding rules.
 Setup tools remain callable in the full/deferred catalogue; search, read and project
 location discovery are in the core profile. Search combines PostgreSQL text retrieval with model-matched semantic results using
 reciprocal-rank fusion. The existing embedding backfill worker chunks artifacts,
-lessons and notes outside request forwarding; turn results reuse existing turn
+lessons and notes outside request forwarding (a sweep every 30 seconds); turn results reuse existing turn
 vectors. New or changed sources remain text-searchable while embedding is pending.
 A model/endpoint/chunking change invalidates the new knowledge vectors and schedules
 re-embedding. Query embedding has a three-second deadline and falls back to lexical
@@ -323,8 +326,8 @@ multi-machine sessions to their canonical project.
 The worker shares the embedding circuit breaker and persists per-source exponential
 retry delays. After ten failures, that generation stops retrying; changing its source
 or embedding configuration starts a new generation. `/api/health` and
-`/api/capabilities` expose knowledge embedding coverage/failures. No external embedding
-service is enabled by this change; it uses Mike's configured embedding service.
+`/api/capabilities` expose knowledge embedding coverage/failures. The worker uses mike's
+configured embedding service (`embedding.url`, `embedding.model`).
 
 A source's stored embedding is tagged with a model key, the SHA-256 of
 `knowledge-v2:{model}:{chunk_max_chars}`. The key holds no server address, because
@@ -373,7 +376,8 @@ own database backup. Markdown is not a backup of those runtime records.
 
 Session notes retain their existing lifecycle, including deletion with the session.
 Promote a durable finding or decision to a source artifact before that session is
-pruned:
+pruned. `promote` accepts `note:` references and writes
+`artifacts/decisions/note-<uuid>.md` in the repository:
 
 ```sh
 scripts/mike-knowledge promote --repo /path/to/repo --reference note:NOTE_UUID
@@ -394,4 +398,4 @@ Run manifest coverage when adding or changing knowledge tools/routes.
 
 ## UI follow-through
 
-See [Project knowledge in the UI and running system](PROJECT_KNOWLEDGE_UI.md) for the live project detail panel and the remaining durable citation routes, location health and runtime retrieval evidence work.
+See [Project knowledge in the UI and running system](PROJECT_KNOWLEDGE_UI.md) for the project detail panel that searches and reads this material, and for what the UI does not yet show.

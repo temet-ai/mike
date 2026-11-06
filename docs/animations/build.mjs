@@ -508,13 +508,13 @@ function writesScene() {
 function bootScene() {
 	const W = 1000, DH = 650, H = HEAD + DH + 96;
 	const steps = [
-		{ d: 1.6, title: '.env before anything', log: [['load_dotenv_preserving_db_url()', 'first statement in main(), ahead of clap']], text: 'main() loads .env before Cli::parse(), keeping an already-set database URL.' },
+		{ d: 1.6, title: 'Fast paths before clap', log: [['main()', '--version · --build-info · fleet hooks · umask 0o077']], text: 'main() answers the version, build-info and fleet hook invocations before Cli::parse(); it reads no .env.' },
 		{ d: 2.2, title: 'Dispatch the subcommand', log: [['Cli::parse()', '→ serve'], [null, 'bare mike: TTY → TUI · no TTY → serve'], [null, 'spawn · claude · print-config → short-circuit']], text: 'A bare mike opens the TUI on a TTY and serves headless otherwise. mike serve always serves.' },
-		{ d: 2, title: 'Config and tracing', log: [['config::load', 'defaults < MIKE_* env < CLI flags'], ['init_tracing_and_log_startup', 'json | pretty · OTel · daily file']], text: 'Boot config is a figment chain. The runtime source of truth for toggles is /settings.' },
+		{ d: 2, title: 'Config and tracing', log: [['config::load', 'defaults < config file < MIKE_* env < CLI'], ['init_tracing_and_log_startup', 'json | pretty · OTel · daily file']], text: 'Boot config is a figment chain. The runtime source of truth for toggles is /settings.' },
 		{ d: 1.6, title: 'AppState::new', log: [['AppState::new', 'pg pool · store · channels · CancellationToken']], text: 'Initializes persistence when configured and builds the in-memory store, channels, task tracker and shutdown token.' },
 		{ d: 3.4, title: 'Startup sequence, before any port binds', log: [['run_crash_recovery', 'close stale Pending rows'], ['record_build_identity', 'build + code defaults'], ['spawn_bundle_retry', 'when publisher is present'], ['run_startup_session_sweep', 'skipped: sweep_at_startup = false', 'w'], ['run_mailbox_reload', 'mailbox → reminder queue'], ['run_composable_session_warmup', 'warm composable_session_index'], ['emit_startup_banner', 'byte budgets · pool dims']], text: ['Loopback warnings, crash recovery, build identity, bundle retry, session sweep, mailbox reload and warmup.', 'Recovery is attempted before listeners bind; a recovery failure is logged and boot continues.'] },
 		{ d: 1.6, title: 'LISTEN for row changes', log: [['db_listener::spawn_listener', 'LISTEN proxy.row_changed']], text: 'This task later turns every capture write into a live /api/ws event.' },
-		{ d: 3.6, title: 'Eighteen worker entry points', log: [['spawn_background_workers', '18 calls; spawn-time or work gates']], workers: true, text: ['Some gates prevent spawning; others disable work inside a running task. Defaults assume dependencies.', 'OpenRouter paths are opt-in; embedding and database destinations are configured separately.'] },
+		{ d: 3.6, title: 'Background worker entry points', log: [['spawn_background_workers', '27 calls; spawn-time or work gates']], workers: true, text: ['Some gates prevent spawning; others disable work inside a running task. Defaults assume dependencies.', 'OpenRouter paths are opt-in; embedding and database destinations are configured separately.'] },
 		{ d: 1.8, title: 'Observability tasks', log: [['spawn_observability_tasks', 'pruner · gauges · 5s ticker · RSS cap']], text: 'The cap manager sheds load in priority order past the RSS high-watermark; with rss_ceiling_bytes = 0 it only observes.' },
 		{ d: 2.6, title: 'Bind the listeners', log: [['listeners::bind_and_log', ':9988 · :9989 · :9990']], ports: true, text: ':9988 and :9989 always bind; :9990 only when spa_enabled (start-proxy.sh hands it to vite dev instead).' },
 		{ d: 2, title: 'Signal handler and hard backstop', log: [['install_signal_handler', 'SIGINT · SIGTERM · SIGHUP'], ['spawn_hard_deadline_backstop', 'SHUTDOWN_HARD_DEADLINE_SECS = 60']], text: 'SIGHUP counts too: a closed controlling terminal shuts mike down cleanly.' },
@@ -556,8 +556,8 @@ function bootScene() {
 			`<text x="${px + 32}" y="${y + 18}" class="sm">${esc(lbl)}</text>`;
 	});
 	// workers
-	const WK = [['lesson_worker', 1], ['resync', 1], ['embed_backfill', 1], ['semantic', 1], ['assembled_body_backfill', 1], ['judge_worker', 0, 1], ['dossier_builder', 0], ['steerer_fleet', 0, 1], ['quiescence', 0, 1], ['session_judge', 0, 1], ['mailbox_reaper', 1], ['work_registry', 1], ['eval_metrics', 1], ['cross_session', 1], ['channel_link_sweep', 1], ['remote_control_repush', 1], ['workspace_reaper', 1], ['retention_sweep', 1]];
-	right += `<text x="${px}" y="148" class="xs" style="letter-spacing:1.5px">WORKERS · DEFAULT WORK GATES</text>`;
+	const WK = [['lesson_worker', 1], ['resync', 1], ['embed_backfill', 1], ['semantic', 1], ['knowledge_scan', 1], ['judge_worker', 0, 1], ['dossier_builder', 0], ['steerer_fleet', 0, 1], ['quiescence', 0, 1], ['session_judge', 0, 1], ['mailbox_reaper', 1], ['work_registry', 1], ['eval_metrics', 1], ['cross_session', 1], ['channel_link_sweep', 1], ['remote_control_repush', 1], ['workspace_reaper', 1], ['retention_sweep', 1]];
+	right += `<text x="${px}" y="148" class="xs" style="letter-spacing:1.5px">SOME OF THE 27 WORKERS · DEFAULT WORK GATES</text>`;
 	WK.forEach(([n, on, eg], i) => {
 		const cx = px + (i % 2) * 177, cy = 158 + Math.floor(i / 2) * 39;
 		const t = workersAt + 0.3 + i * 0.2;
@@ -580,7 +580,7 @@ function bootScene() {
 		svg: frame({
 			W, H, heading: 'From mike serve to exit',
 			title: 'mike startup and shutdown, animated',
-			desc: 'Animated boot log of mike serve: .env loading, subcommand dispatch, config and tracing, AppState::new, the pre-bind startup sequence, the Postgres LISTEN task, eighteen background worker entry points with their default work gates, observability tasks, binding ports 9988, 9989 and 9990, the signal handler, serving, and a SIGTERM shutdown with graceful shutdown starting at 3s, a 10s serve deadline and a 60s hard backstop.'
+			desc: 'Animated boot log of mike serve: fast paths, subcommand dispatch, config and tracing, AppState::new, the pre-bind startup sequence, the Postgres LISTEN task, 27 background worker entry points with their default work gates, observability tasks, binding ports 9988, 9989 and 9990, the signal handler, serving, and a SIGTERM shutdown with graceful shutdown starting at 3s, a 10s serve deadline and a 60s hard backstop.'
 		}, body), T
 	};
 }

@@ -1,11 +1,11 @@
 # proxy-forward
 
 An HTTPS **forward proxy sidecar** that lets Claude Code keep Remote
-Control (`ANTHROPIC_BASE_URL` unset) while temet-proxy still captures
+Control (`ANTHROPIC_BASE_URL` unset) while mike still captures
 Anthropic API traffic.
 
 Recent Claude Code disables Remote Control when `ANTHROPIC_BASE_URL` points
-anywhere other than `api.anthropic.com`. temet-proxy's capture pipeline
+anywhere other than `api.anthropic.com`. mike's capture pipeline
 normally requires `ANTHROPIC_BASE_URL=http://127.0.0.1:9988`, forcing a
 choice between capture and Remote Control. `proxy-forward` removes that
 choice: Claude Code is launched with `ANTHROPIC_BASE_URL` **unset** and
@@ -24,7 +24,7 @@ proxy-forward :9987 ── host == api.anthropic.com ? ────────�
    ▼                                       ▼
  route per failover state machine    upstream host:port (TLS stays opaque)
    │
-   ├─ proxy Up AND path /v1/*  → http://127.0.0.1:9988  (temet-proxy captures)
+   ├─ proxy Up AND path /v1/*  → http://127.0.0.1:9988  (mike captures)
    └─ otherwise                → https://api.anthropic.com (direct, bypasses capture)
 ```
 
@@ -32,7 +32,7 @@ proxy-forward :9987 ── host == api.anthropic.com ? ────────�
   on-demand leaf certificate signed by a locally-generated CA. Every other
   `CONNECT` is **blind-tunnelled** — Remote Control's own traffic is never
   inspected or re-signed.
-- **Failover.** A background prober polls temet-proxy's existing
+- **Failover.** A background prober polls mike's existing
   `/api/health` route. When it is up, `/v1/*` requests route through
   `:9988` so capture happens; otherwise (or for non-`/v1` paths) the
   sidecar re-originates TLS straight to Anthropic so traffic never breaks.
@@ -41,14 +41,14 @@ proxy-forward :9987 ── host == api.anthropic.com ? ────────�
 - **HTTP/2.** The client-facing server offers ALPN `["h2","http/1.1"]` and
   serves whichever the client negotiates; the direct-Anthropic leg
   re-originates TLS with the same ALPN. The routed `:9988` leg is plain
-  HTTP/1 (temet-proxy is an HTTP/1 reverse proxy).
+  HTTP/1 (mike is an HTTP/1 reverse proxy).
 - **HTTP upgrades (WebSocket / `101`).** Claude Code's Remote Control
   channel is a persistent WebSocket to `api.anthropic.com`, not a plain
   request/response call — without upgrade support, routing that connection
   through this sidecar silently drops it, defeating the whole point of the
   sidecar. An HTTP/1.1 `Connection: Upgrade` request is detected on the
   MITM leg and always forwarded **Direct**, never through the routed
-  `:9988` leg (temet-proxy is a request/response reverse proxy and cannot
+  `:9988` leg (mike is a request/response reverse proxy and cannot
   carry a raw upgraded stream) — this holds even for a `/v1/*` path, which
   would otherwise route through `:9988`. Once the direct leg answers `101`,
   the client-facing and upstream raw byte streams are bridged
@@ -59,10 +59,10 @@ proxy-forward :9987 ── host == api.anthropic.com ? ────────�
   with a long-lived SSE `GET …/worker/events/stream` for phone → local
   delivery, which routes through `:9988` like any `/v1/*` call and is
   relayed frame by frame (pinned by
-  `remote_control_sse_stream_relays_each_frame_through_routed_leg`; see
-  `artifacts/2026-09-02/remote-control-reply-leg-resolved.md`).
+  `remote_control_sse_stream_relays_each_frame_through_routed_leg` in
+  `tests/forward_proxy/streaming.rs`).
 
-This is a **separate binary** — it ships nothing into temet-proxy's
+This is a **separate binary** — it ships nothing into mike's
 process, in the same decoupled mould as `crates/mike-mcp/`.
 
 ## Quick start
@@ -112,11 +112,11 @@ default**.
 | Setting | Env var | Flag | Default |
 |---|---|---|---|
 | Bind address | `MIKE_FORWARD_BIND` | `--bind` | `127.0.0.1:9987` |
-| Routed-leg target (temet-proxy) | `MIKE_FORWARD_UPSTREAM` | `--upstream` | `http://127.0.0.1:9988` |
+| Routed-leg target (mike) | `MIKE_FORWARD_UPSTREAM` | `--upstream` | `http://127.0.0.1:9988` |
 | Intercept host (MITM'd) | `MIKE_FORWARD_INTERCEPT_HOST` | `--intercept-host` | `api.anthropic.com` |
 | Health probe URL | `MIKE_FORWARD_HEALTH_URL` | `--health-url` | `http://127.0.0.1:9989/api/health` |
 | Probe interval | `MIKE_FORWARD_PROBE_INTERVAL` | — | `2s` |
-| Probe timeout | `MIKE_FORWARD_PROBE_TIMEOUT` | — | `1s` |
+| Probe timeout | `MIKE_FORWARD_PROBE_TIMEOUT` | — | `1s`, raised to at least 5s (`MIN_PROBE_TIMEOUT`) |
 | Probe mode | `MIKE_FORWARD_PROBE_MODE` | — | `http` |
 | CA directory | `MIKE_FORWARD_CA_DIR` | `--ca-dir` | `directories` data dir (e.g. `~/.local/share/proxy-forward/`) |
 | Max buffered request body | `MIKE_FORWARD_MAX_BODY_BYTES` | `--max-body-bytes` | `67108864` (64 MiB) |
@@ -126,7 +126,7 @@ default**.
 
 The **health probe** is a **combined** check, because the inspect bind
 (`:9989`, where `/api/health` lives) and the routed leg the router actually
-dials (`:9988`, temet-proxy's proxy bind) are different ports and can
+dials (`:9988`, mike's proxy bind) are different ports and can
 diverge. A probe reads **Up only when BOTH**:
 
 1. an HTTP `GET` to `MIKE_FORWARD_HEALTH_URL` returns HTTP 200 with JSON
@@ -135,8 +135,9 @@ diverge. A probe reads **Up only when BOTH**:
 2. a TCP connect to the routed leg's `host:port` (parsed from
    `MIKE_FORWARD_UPSTREAM`, i.e. `:9988`) succeeds within the timeout.
 
-Anything else (non-200, unreachable, timeout, or a dead routed port) reads
-Down. This requires no change to temet-proxy.
+Anything else (non-200, unreachable, timeout, or a dead routed port) is a
+failed probe; the state goes Down after two consecutive failures (one failure
+leaves Up as Up). This requires no change to mike.
 
 The **max buffered request body** (`MIKE_FORWARD_MAX_BODY_BYTES`) bounds
 the request body the MITM path buffers so it is replayable across the
@@ -161,8 +162,10 @@ to acknowledge it. This fail-closed gate stops a stale or leaked env var
 from silently redirecting real Anthropic traffic. When the ack is present
 and a seam is set, the proxy logs a prominent startup warning.
 
-## Out of scope
+## Running it in the stack
 
-Wiring this into `scripts/start-proxy.sh` and any `make install`-style
-install of the binary is a **later** step, intentionally not part of this
-crate.
+`scripts/start-proxy.sh` and `scripts/deploy-proxy.sh` start and keep the sidecar
+running as a persistent unit (`mike-stack-forward`, log `.deploy/proxy-forward.log`).
+A running, byte-identical sidecar is left untouched on a redeploy, so a proxy swap
+never drops a client that uses `HTTPS_PROXY`. The `cc` shell function
+(`scripts/shell/cc.zsh`) launches Claude Code through it.

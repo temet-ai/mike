@@ -2,16 +2,22 @@
 title: Backup, restore, upgrade and removal
 status: active
 created: 2026-10-13
-updated: 2026-10-13
+updated: 2026-11-06
 summary: Private installed maintenance, explicit tool selection, and recovery qualification requirements.
 ---
 
 # Backup, restore, upgrade and removal
 
-Status: implementation and disposable-fixture contract for #281. This is not
-AC21–AC24 qualification. New native `mike` candidate archives include a
-checkout-free optional maintenance kit. Real PostgreSQL, UI/MCP and predecessor
-rehearsals remain release blockers.
+Status: this describes the optional maintenance kit that `mike` release archives include,
+and the disposable-fixture checks behind it. It is not a statement that backup, restore or
+upgrade have passed qualification; see [Evidence still required](#evidence-still-required) and
+[`RELEASE_ACCEPTANCE_MATRIX.md`](RELEASE_ACCEPTANCE_MATRIX.md). Upgrade and reinstall (AC23, AC24)
+are out of scope for the first alpha.
+
+For the installed product's own commands, `mike uninstall` (see
+[`GETTING_STARTED.md`](GETTING_STARTED.md)) removes mike's MCP entry, shell blocks, plugin
+folders and background services and keeps the database and config file. The helper below is a
+separate, stricter tool for archive installs.
 
 ## Optional installed maintenance kit
 
@@ -136,12 +142,12 @@ overlapping config/data/state roots without moving or changing existing inputs.
 
 ### macOS layout and fresh installations
 
-The existing macOS default configuration remains
-`~/Library/Application Support/mike/config.toml`. Its default data root is that
-same `mike` directory and its state root is the nested `state/` directory. Those
-roots overlap, so the maintenance helper refuses that legacy layout. Passing the
-same default file explicitly with `--config` preserves its existing paths; it does
-not opt into another layout or relocate data.
+The macOS default configuration is `~/Library/Application Support/mike/config.toml`. Its
+default data root is that same `mike` directory and its state root is the nested `state/`
+directory. The helper accepts this exact shared-root layout (the config file is `DATA/config.toml`
+and the state root is `DATA/state`): each retained file is recorded once under its own scope and
+nothing is moved. Any other overlapping layout is refused. Pass the same file explicitly with
+`--config` to keep its existing paths.
 
 For a **fresh installation with no history to migrate**, select a distinct private
 configuration from the first setup, for example:
@@ -315,9 +321,8 @@ and downgrades. It never stops services, applies migrations or modifies data.
 For recovery after a failed migration, use the compatible backup **and** matching
 binary in a fresh instance. Reinstalling an old binary against newer data is not
 rollback. Preserve all historical migration checksums; do not repair mismatches
-by rewriting the ledger or edited historical SQL. First-preview AC23 must freeze
-two internal artifact versions; the next release must use the actual published
-predecessor and actual channel mechanism.
+by rewriting the ledger or edited historical SQL. A later release tests upgrade from
+the actual published predecessor through the actual channel mechanism.
 
 ## Removal preserves data
 
@@ -368,15 +373,10 @@ These test-only environment overrides remain separate from the installed
 helper's validated `--tool-directory` option; runtime library overrides are
 never inherited.
 
-The local PG17.11 run passed 16 backend/bootstrap cases, including exact restored
-rows/body bytes/settings/ledger/files, source and decoy isolation, nonempty-target
-refusal, frozen-service redirection refusal, transactional rollback, failed dump
-cleanup, tamper refusal, concurrent-write detection, and retaining a failed
-post-import target offline. This exposed and fixed a missing explicit restore
-connection target. These are backend integration results; the complete installed
-AC21–AC24 journeys below remain **NOT RUN**.
+These are backend integration results against a disposable cluster; the complete installed
+AC21–AC24 journeys below are not covered by them.
 
-Before closing #281, record candidate/predecessor SHAs and hashes, PostgreSQL and
+To qualify recovery, record candidate/predecessor SHAs and hashes, PostgreSQL and
 client versions, commands/exit codes and independent observations for:
 
 - AC21: disposable DB interruption, upstream 429/500, cancelled stream and an
@@ -402,8 +402,8 @@ executables through the source-deleted zipapp, restore synthetic private files,
 and check path/ownership/permission rejection and ambient credential isolation.
 These tests do not use real credentials, real backups, PostgreSQL or services.
 
-All four complete journeys are **NOT RUN** by the helper tests. Native macOS
-maintenance and published-channel upgrade are also **NOT RUN**.
+None of the four complete journeys is run by the helper tests. Native macOS maintenance and
+published-channel upgrade are also not run. Of these, only AC22 gates the first alpha.
 No hosted CI is required to run the disposable Linux rehearsal when that local
 environment is available.
 

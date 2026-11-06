@@ -2,7 +2,7 @@
 title: Getting Started
 status: active
 created: 2026-07-07
-updated: 2026-10-16
+updated: 2026-11-06
 summary: One correct path from a fresh clone to a captured Claude Code request, with prerequisites, database options, security expectations, and what each process does once the stack is up.
 ---
 
@@ -57,7 +57,7 @@ leaves your machine.
 | Prerequisite | What enabling it gets you | What it costs |
 |---|---|---|
 | **Embedding server** | Semantic ranking for recall and lesson dedup. Any server speaking the OpenAI-shaped `/embeddings` API works; the default URL is `http://127.0.0.1:7997` (Infinity) and Ollama's OpenAI-compatible endpoint also qualifies. Without it, recall falls back to Postgres text search. | If you point `embedding.url` at a remote or hosted endpoint, the text being embedded leaves your machine. A local server does not. |
-| **OpenRouter API key** | The LLM features: steerer fleet (including the turn guard), session judge, per-turn judge worker, the offline `mike eval run` judge runs, correction classifier, lesson-relation detection. | These send captured conversation text to `openrouter.ai`. All of them are off by default, and all of them are inert without a key. |
+| **OpenRouter API key** | The LLM features: steerer fleet (including the turn guard), session judge, per-turn judge worker, the offline `mike eval run` judge runs, lesson-relation detection. | These send captured conversation text to `openrouter.ai`. All of them are off by default, and all of them are inert without a key. |
 
 Full table of every optional feature with its class and default: [`FEATURES.md`](FEATURES.md).
 
@@ -99,15 +99,15 @@ extensions yourself; `mike db check` reports which case applies.
 
 `scripts/start-proxy.sh` reads `MIKE_DATABASE_URL` from `.env` in the repo root, not from the
 per-user config file. In a checkout, either copy the URL into `.env` or use the fallback
-database helper `scripts/local-db/up.sh` (see [`LOCAL_DB_FALLBACK.md`](LOCAL_DB_FALLBACK.md)
+database helper `scripts/local-db/up.sh --config PRIVATE_CONFIG` (see [`LOCAL_DB_FALLBACK.md`](LOCAL_DB_FALLBACK.md)
 for its caveats):
 
 ```bash
 MIKE_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:6666/mike
 ```
 
-`mike` loads a `.env` in the working directory at startup, and `mike config import-env` copies
-a checkout's `.env` into the per-user file. See [`CONFIGURATION.md`](CONFIGURATION.md).
+The `mike` binary does not read a `.env` file itself; `mike config import-env [PATH]` (default
+`.env`) copies one into the per-user file. See [`CONFIGURATION.md`](CONFIGURATION.md).
 
 ### 3. Start the stack
 
@@ -116,15 +116,16 @@ mike serve
 ```
 
 This applies embedded migrations and runs the proxy, inspect API and bundled UI.
-For a source-development stack with extra services, `scripts/start-proxy.sh` remains a
-separate development workflow; do not assume its `.env` bootstrap is the installed config.
 
-This builds and starts the `mike` binary detached, starts the `proxy-forward` sidecar, and runs
-a `vite dev` SPA and Storybook in the foreground of this terminal. It also reinstalls
-`mike-mcp` into `~/.local/bin` when that binary changed.
-
-Ctrl-C stops only the SPA and Storybook. The proxy and the sidecar keep running detached — stop
-those with `./scripts/stop-proxy.sh`.
+For the development stack in a checkout, `./scripts/start-proxy.sh` is a separate workflow
+and does not use the installed configuration. It builds each Rust component, then cuts over
+only what changed: it reinstalls `mike-mcp` into `~/.local/bin`, deploys `mike`, and starts the
+`proxy-forward` sidecar and a `vite dev` SPA. Where systemd is available these run as user
+units named `mike-stack-*` that outlive the script and restart on failure; without it
+(`MIKE_STACK_SUPERVISOR=nohup`, or macOS) the SPA runs in the foreground of that terminal and
+Ctrl-C stops only it. It does not start Storybook or the architecture diagrams
+(`systemctl --user start mike-stack-storybook mike-stack-arch`). Stop everything with
+`./scripts/stop-proxy.sh`.
 
 ### 4. Point Claude Code at the proxy
 
@@ -194,7 +195,7 @@ choice that needs text, and while you type, no key acts as a shortcut.
 | claude | Five parts: registers `mike-mcp` with Claude Code and counts its tools; chooses how Claude Code reaches mike; writes a shell function; installs the mods; chooses folder trust. | `mike claude-code` |
 | features | Watch only, recommended (recall, lessons and reminders) or everything, starting on recommended. | `mike features` |
 | models | Only for the background jobs the chosen features run. One provider for every job, or a provider and a model for each job, from the providers this machine can use (the Claude login, the Codex login, an OpenRouter key). Shows the OpenRouter spend limits, saves what you pick through the running proxy, reads it back, makes one small test call per Claude or Codex provider, checks the OpenRouter key the proxy holds, and shows the proxy's model-health rows. | `mike setup models` |
-| search | If Ollama is on the machine: pulls `nomic-embed-text` (skipped when it is there), sets `embedding.url` to `http://127.0.0.1:11434/v1`, `embedding.model` and `embedding.enabled` through the running proxy, fetches one embedding as the check (mike stores vectors of 768 numbers) and shows the proxy's search-by-meaning row. If Ollama is missing: installs it with Homebrew after a yes, and on Linux prints the install command because it needs root. It also takes the address of another embedding server, or leaves search by meaning off, in which case recall uses text matching. | `ollama pull` |
+| embeddings (the step is labelled "search") | If Ollama is on the machine: pulls `nomic-embed-text` (skipped when it is there), sets `embedding.url` to `http://127.0.0.1:11434/v1`, `embedding.model` and `embedding.enabled` through the running proxy, fetches one embedding as the check (mike stores vectors of 768 numbers) and shows the proxy's search-by-meaning row. If Ollama is missing: installs it with Homebrew after a yes, and on Linux prints the install command because it needs root. It also takes the address of another embedding server, or leaves search by meaning off, in which case recall uses text matching. | `ollama pull` |
 | terminal | Lists only the backends whose tools are on this machine: herdr, tmux, the Hyprland terminal (when `hyprctl` and `xdg-terminal-exec` are found) and none. The current one comes first and herdr is recommended, with `brew install herdr` offered when it is missing. The chosen backend is checked live by opening and closing a scratch workspace and is saved only when that passes. | `mike spawn doctor` |
 | ready | Shows the `mike doctor` checks as a checklist, with the fix for each warning, says how to start Claude Code (`mike claude`, or the shell function if one was written), then waits for the first request to reach the proxy and shows it (id, method, path, model, status, session). `c` stops waiting, `r` checks again, `b` opens the web UI, `t` opens its tour (the home page with `?tour=1`), and Enter starts `mike claude`. | `mike doctor` |
 
@@ -216,7 +217,7 @@ The `claude` step of the wizard runs these commands, and each works on its own:
 |---|---|
 | `mike claude-code status` | Shows the registration, the route, the shell function, the mods and the folder-trust choice. |
 | `mike claude-code mcp [--no-check] [--remove]` | Adds a `mike` entry under `mcpServers` in `~/.claude.json` with the absolute path of `mike-mcp` (beside `mike` or on PATH; a Homebrew install gets the stable `$(brew --prefix)/bin` path) and `MIKE_INSPECT_URL` taken from the configuration. The file is rewritten atomically and every other key stays. Unless `--no-check` is given it then starts `mike-mcp` once, sends `initialize` and `tools/list`, and reports how many tools it listed. `--remove` takes the entry out only when its command is `mike-mcp`. |
-| `mike claude-code route sidecar` or `plain` | Saves how Claude Code reaches mike as `claude_route` in the config file. `sidecar` is `mike claude` through the forwarding sidecar, which also captures Remote Control. `plain` sets `ANTHROPIC_BASE_URL` to the proxy and needs no certificate. |
+| `mike claude-code route sidecar` or `plain` | Saves how Claude Code reaches mike as `claude_route` in the config file. `sidecar` is `mike claude` through the forwarding sidecar, which also captures Remote Control; `mike claude` itself only routes through the sidecar while the `launch_use_sidecar` setting is on (default off). `plain` sets `ANTHROPIC_BASE_URL` to the proxy and needs no certificate. |
 | `mike claude-code shell [--name cc] [--shell zsh,bash,fish] [--remove]` | Writes a shell function between `# >>> mike >>>` and `# <<< mike <<<` in the startup file of each chosen shell (default: each of zsh, bash and fish that is installed), and replaces the block in place when run again. With the sidecar route the function runs `mike claude`; with the plain route it sets `ANTHROPIC_BASE_URL`. A name that is already a command on PATH is refused (the default is `cc`, or `mcc` when `cc` is taken). |
 | `mike claude-code mods [--with-wiretap] [--remove]` | Sets `CLAUDE_CODE_PLUGIN_DIRS` in the `env` section of `~/.claude/settings.json` to the mods in the package's `share/mike/mods` folder (a checkout uses its own `mods/` folder), keeps every other setting and folder, and records what it added. `wiretap`, which records every prompt and tool call, is installed only with `--with-wiretap`. |
 | `mike claude-code trust on` or `off` | Saves `launch_auto_trust`. With `on`, `mike claude` writes the trust answer for the folder it starts in into `~/.claude.json`. Without a saved choice, trust is off, so Claude Code asks about each new folder itself. |
@@ -273,8 +274,8 @@ services are missing.
 | `:9988` | `mike` (proxy bind) | Claude Code's `ANTHROPIC_BASE_URL` target; forwards to `api.anthropic.com` |
 | `:9989` | `mike` (inspect bind) | REST + WebSocket API backing the web UI and the MCP bridge. No authentication |
 | `:9990` | `mike` (SPA bind), or `vite dev` | The web UI. mike serves the SPA embedded in the binary *and* the whole `/api/*` surface here. `start-proxy.sh` sets `MIKE_SPA_ENABLED=0` and hands the port to `vite dev` for hot reload |
-| `:9987` | `proxy-forward` | HTTPS MITM sidecar with its own generated CA, started by `start-proxy.sh`. Captures Claude Code's Remote Control WebSocket channel and fails over to Anthropic while the proxy restarts |
-| `:6006` | Storybook | Component sandbox, also started by `start-proxy.sh` |
+| `:9987` | `proxy-forward` | HTTPS MITM sidecar with its own generated CA, started by `start-proxy.sh` (or `mike forward serve` under `mike service install`). Captures Claude Code's Remote Control WebSocket channel and fails over to Anthropic while the proxy restarts |
+| `:6006` | Storybook | Component sandbox; development checkout only, started with `systemctl --user start mike-stack-storybook`, not by `start-proxy.sh` |
 
 Three workspace binaries: `mike` (proxy, inspect, SPA, TUI, CLI, and the sidecar as `mike forward`),
 `mike-mcp` (MCP stdio bridge), and `proxy-forward` (the same sidecar as a standalone binary for

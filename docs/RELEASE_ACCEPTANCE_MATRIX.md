@@ -2,8 +2,8 @@
 title: Release acceptance matrix
 status: active
 created: 2026-11-05
-updated: 2026-11-05
-summary: The 33 stable case IDs of the release acceptance ledger, with the observation that makes each one pass; the alpha bar is the eight cases named in RELEASE_ACCEPTANCE.md.
+updated: 2026-11-06
+summary: The 33 stable case IDs of the release acceptance ledger, with the observation that makes each one pass; the alpha bar is the six cases named in RELEASE_ACCEPTANCE.md.
 ---
 
 # Release acceptance matrix
@@ -90,8 +90,8 @@ does not establish Docker runtime or Homebrew installation behavior.
 | AC20 | Normal defaults, no optional keys/services, multiple synthetic sessions and streaming turns. Fifteen minutes; a longer run with eight concurrent fixture sessions is not an alpha gate. | All expected completed captures accounted for; no panic, unbounded error flood/backlog or unexpected paid calls; UI/MCP remain usable; queues drain and resource use stays within recorded configured limits. Report peak resources; this is bounded reliability evidence, not a scalability claim. |
 | AC21 | Interrupt disposable DB, return upstream 429/500, cancel a stream, exhaust a quota-limited test data volume, then restore prerequisites. | Documented client/error behavior, observable partial/failed capture or degraded persistence, bounded retries/resource cleanup; no claim that failed writes are durable; restored system captures again and prior durable data remains. Record whether interrupted records can recover and any supported loss window. |
 | AC22 | Capture dataset including external body/blob state and settings; follow documented consistent backup; restore to fresh DB/data root. Inject backup failure. | Matching IDs/counts/body checksums plus UI/MCP reads after restore. Required config/blob state preserved. Failed backup is nonzero and never labelled complete; secret-bearing backup remains private. |
-| AC23 | Install frozen predecessor, populate data/config, back up, upgrade via real channel, interrupt/retry update, attempt incompatible downgrade. | Candidate retains data/config and new capture works; valid ledger; safe retry; incompatible older binary refuses before mutation and gives recovery instructions. The alpha uses an internal frozen predecessor; a later release tests the actual published one. |
-| AC24 | Remove installed product with captures/backup and unrelated client config present; then reinstall. | Only owned binary/integration/service changes; captures/config/volumes/backups retained by default; unrelated client entries survive; reinstall reconnects history. Any explicit purge is separate and unambiguous. |
+| AC23 | Install frozen predecessor, populate data/config, back up, upgrade via real channel, interrupt/retry update, attempt incompatible downgrade. | Candidate retains data/config and new capture works; valid ledger; safe retry; incompatible older binary refuses before mutation and gives recovery instructions. Out of the alpha (does not gate); the first alpha has no predecessor. A later release tests the actual published one. |
+| AC24 | Remove installed product with captures/backup and unrelated client config present; then reinstall. | Only owned binary/integration/service changes; captures/config/volumes/backups retained by default; unrelated client entries survive; reinstall reconnects history. Any explicit purge is separate and unambiguous. Out of the alpha (does not gate). |
 | AC25 | Prepare twice; simulate missing publication/tap permission, failed draft upload and partial publication. Retry. | Preparation leaves tracked source untouched; preflight failures precede publication; retry consumes identical verified hashes; published tags/assets are not rewritten; no false completed release. |
 | AC26 | New account installs from the actual published URLs/tap, not staging files. | Downloaded hashes equal qualified artifacts; AC01–AC07 pass from channel install. Homebrew and archive/download claims each need their own observation. |
 | AC27 | Seed fake secrets and request content; run local version, read-only doctor and opt-in support bundle with daemon stopped/degraded/ready. Exercise legitimate idle and expected-but-missing capture states at threshold boundaries under #200's documented expectation policy. | Version needs no config/DB; doctor mutates nothing; required failures nonzero, optional absence explained. Capture-gap threshold/state are exposed in health, expected missing traffic affects health/UI as documented, legitimate idle is distinguished, and boundary tests cover both. Bundle contains only safe allowlisted metadata, no planted secret/content; user can inspect it and nothing uploads automatically. |
@@ -115,10 +115,15 @@ owned quota-limited fixtures, never the host filesystem or capture database.
 
 | ID | Actions | Observable pass criteria |
 | --- | --- | --- |
-| PUBLIC01 | Inspect candidate binaries, embedded SPA/source maps/resources, archives, example config, diagnostics and download repository content. | No private captures/credentials or undeclared maintainer dependency ships; required licenses/notices present; distribution repository access matches pilot/public stage. |
-| PUBLIC02 | Inventory current tree and reachable history for proposed public source; scan candidates and manually review capture/screenshot material; rehearse selected clean export/sanitization. | Concrete reviewed publication tree/history, no unresolved private-content exposure, confirmed usable credentials rotated, source archive contents reviewed; destination and SHA mapping recorded. Applies before source visibility, independently of binary pilot. |
+| PUBLIC01 | Inspect candidate binaries, embedded SPA/source maps/resources, archives, example config, diagnostics and download repository content. | No private captures/credentials or undeclared maintainer dependency ships; required licenses/notices present; distribution repository access matches the public destination. |
+| PUBLIC02 | Inventory current tree and reachable history for proposed public source; scan candidates and manually review capture/screenshot material; rehearse selected clean export/sanitization. | Concrete reviewed publication tree/history, no unresolved private-content exposure, confirmed usable credentials rotated, source archive contents reviewed; destination and SHA mapping recorded. Applies before source visibility, independently of any binary release. |
 | FEEDBACK01 | After a public release: independent users follow only the published guide and artifacts; collect installation and repeat-use feedback; ship a corrective update. | First outside install and feedback exist (not an alpha gate); intervention and support data are recorded without conversation uploads; update fixes a reported issue and passes predecessor/channel tests.  |
 
+
+As of 2026-11-06 the source is public (`temet-ai/mike`, a collapsed export made with
+`scripts/export-public`) and PUBLIC01, PUBLIC02 and FEEDBACK01 have no verdict
+recorded in this repository. The export's own checks (gitleaks, the private word list, no maintainer
+paths, no dead links) are mechanical and do not stand in for either review.
 
 ## Where the harness lives
 

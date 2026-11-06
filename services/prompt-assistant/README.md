@@ -2,10 +2,8 @@
 
 A small Node/TypeScript service that runs either Claude Agent SDK or Codex App
 Server to help the operator reword the Claude Code system prompt mike captures
-and rewrites. It is section 3 of
-`artifacts/2026-09-22/prompt-assistant/spec.md` — the backend for the
-"Prompt assistant" panel on `/filter/workbench` and the
-`/settings/assistants` page (sections 4.4/4.5, built separately).
+and rewrites. It is the backend for the "Prompt assistant" panel on
+`/filter/workbench` and the `/settings/assistants` page.
 
 ## What it is
 
@@ -39,9 +37,8 @@ and rewrites. It is section 3 of
   dynamic tools.
 - Reads its configuration (model, effort, instructions, budget, which tools
   are exposed, …) from mike's settings API on **every message** — no restart
-  needed to pick up an operator change. Missing `prompt_assistant.*` keys
-  (e.g. before the settings-registry half of this change ships) fall back to
-  the defaults in `src/settings.ts`, which mirror the spec's table exactly.
+  needed to pick up an operator change. Missing `prompt_assistant.*` keys fall back to
+  the defaults in `src/settings.ts`.
 - Conversations are small JSON files, one per conversation, plus a
   budget ledger, both under `~/.local/state/mike/prompt-assistant/`
   (override with `PROMPT_ASSISTANT_STATE_DIR`, which is how the tests keep
@@ -70,7 +67,7 @@ API key handling lives in this service.
 | `PROMPT_ASSISTANT_CAPTURE_BASE_URL` | `http://localhost:9988` | `ANTHROPIC_BASE_URL` the SDK subprocess gets when `prompt_assistant.capture` is on, so its own traffic is captured by mike like any other session |
 | `PROMPT_ASSISTANT_STATE_DIR` | `~/.local/state/mike/prompt-assistant` | conversations + budget ledger. Override for tests/dev so they never touch the real state |
 | `PROMPT_ASSISTANT_SWEEP_INTERVAL_MS` | `3600000` (1h) | how often the `keep_days` sweep runs |
-| `PROMPT_ASSISTANT_MODEL_OVERRIDE` | unset | forces the model regardless of `prompt_assistant.model` in mike's settings — not part of the spec, added for cheap local smoke-testing (e.g. `claude-haiku-4-5`) |
+| `PROMPT_ASSISTANT_MODEL_OVERRIDE` | unset | forces the model regardless of `prompt_assistant.model` in mike's settings, for cheap local smoke-testing (e.g. `claude-haiku-4-5`) |
 | `PROMPT_ASSISTANT_CLAUDE_HOME` | `~/.claude` | root the `read_memory` tool reads `projects/<slug>/memory/*.md` under |
 
 ## The API
@@ -83,7 +80,7 @@ route them to this service (see the wiring note below).
 - `POST /api/assistant/conversations` `{ request_id }` → `{ id }`
 - `GET /api/assistant/conversations/:id` → `{ id, request_id, messages: [...] }`
 - `POST /api/assistant/conversations/:id/messages` `{ text, quote? }` →
-  `text/event-stream` with these event names/payloads (exactly per spec):
+  `text/event-stream` with these event names/payloads:
   - `event: text` `{ delta }`
   - `event: status` `{ phase }` — emitted by the tool handlers themselves as
     they run (`"reading prompt"`, `"reading edits"`, `"dry-run"`, `"reading
@@ -108,18 +105,20 @@ rate limits instead of the dollar ledger.
 Registered as an in-process MCP server (`createSdkMcpServer` +
 `tool()`/zod schemas), server name `prompt_assistant`. Each tool's wire name
 is `mcp__prompt_assistant__<name>`, and that full list is what gets passed as
-`allowedTools` — the run has no `canUseTool` callback and no TTY, so a tool
-call for anything not on that list is auto-denied rather than prompted for.
+`allowedTools`. There is no TTY, and the deny-by-default `canUseTool` callback
+(`src/agent/sandbox.ts`) denies a call to anything not on that list.
 
 | Tool | Gated by | What |
 |---|---|---|
 | `get_prompt({request_id})` | `read_prompt` | System blocks + session message of a request, from `GET /api/requests/:id` |
 | `list_edits()` | `read_edits` | The filter rules (title, match, action, text, enabled, fires), from `GET /api/filter/rules` |
-| `dry_run({request_id, rules})` | `read_prompt` **and** `read_edits` | The engine's result for a candidate rule set, from `POST /api/filter/rules/dry-run`. The spec names five `read_*` settings for six tools and doesn't spell out which one gates `dry_run`; since it needs both the prompt and the rule set, this service gates it on both being on. |
-| `read_project_instructions({request_id})` | `read_project_instructions` | `CLAUDE.md` + `.claude/rules/*.md` under the request's project path, read-only, each file capped at 64 KiB (with a `truncated` flag, never a silent slice — same shape the repo's inspection-fidelity convention uses elsewhere) |
-| `read_memory({request_id})` | `read_memory` (default **off**) | The project's Claude Code memory: `~/.claude/projects/<slug>/memory/*.md`, `MEMORY.md` first then the rest alphabetically, read-only, same 64 KiB-per-file cap. `<slug>` is the request's project path with every `/` replaced by `-` — Claude Code's own on-disk convention, verified against the directories that actually exist under `~/.claude/projects/` on this machine (e.g. `/mnt/data/projects/temet/temet-proxy` → `-mnt-data-projects-temet-temet-proxy`). A project with no `memory/` directory yet (never opened by Claude Code) returns `{files: []}`, not an error. |
+| `dry_run({request_id, rules})` | `read_prompt` **and** `read_edits` | The engine's result for a candidate rule set, from `POST /api/filter/rules/dry-run`. Since it needs both the prompt and the rule set, it is gated on both being on. |
+| `read_project_instructions({request_id})` | `read_project_instructions` | `CLAUDE.md` + `.claude/rules/*.md` under the request's project path, read-only, each file capped at 64 KiB (with a `truncated` flag, never a silent slice) |
+| `read_memory({request_id})` | `read_memory` (default **off**) | The project's Claude Code memory: `~/.claude/projects/<slug>/memory/*.md`, `MEMORY.md` first then the rest alphabetically, read-only, same 64 KiB-per-file cap. `<slug>` is the request's project path with every `/` replaced by `-`, Claude Code's own on-disk convention (e.g. `/home/me/projects/app` → `-home-me-projects-app`). A project with no `memory/` directory yet (never opened by Claude Code) returns `{files: []}`, not an error. |
 | `list_prompt_versions({model?})` | `read_versions` | The prompt-class catalogue, from `GET /api/prompts/classes` |
-| `propose_edit({title, edit_id?, action, match, text, reach})` | always on | Records a proposal and streams it as `event: proposal`. See "Proposals" below. |
+| `list_projects()` | `read_other_projects` | Every project mike has captured traffic for: path, name, session and request counts, from the inspect API |
+| `compare_across_projects({match, action?, since_days?, project_paths?})` | `read_other_projects` | A compact row per recently active project (default 30 days) saying whether the edit's match text occurs in its captured prompts and how many CLAUDE.md/rules paragraphs mention its key terms; pass `project_paths` to drill into specific projects |
+| `propose_edit({title, edit_id?, action, match, text, reach, project_path?})` | always on | Records a proposal and streams it as `event: proposal`. See "Proposals" below. |
 
 ## Proposals
 
@@ -200,9 +199,9 @@ the UUID check that traversed out of `conversations/`.
   (`.deploy/prompt-assistant.dist-sha`) written the last time it (re)started
   the service — a changed build output restarts it even without `--force`,
   mirroring `bin_sha`/`bins_differ`'s content-hash approach for the Rust
-  proxy/proxy-forward. The service is started with several parent-session
-  vars explicitly unset (`env -u CLAUDE_EFFORT -u CLAUDE_CODE_CHILD_SESSION`,
-  …) — belt-and-braces alongside `src/agent/env.ts`'s own allowlist, so the
+  proxy/proxy-forward. The service runs as the `mike-stack-assistant` systemd user unit, which
+  unsets several parent-session vars (`UnsetEnvironment=CLAUDE_EFFORT
+  CLAUDE_CODE_CHILD_SESSION …`) — belt-and-braces alongside `src/agent/env.ts`'s own allowlist, so the
   *service process itself* never carries them into `dist/server.js`, which
   then only spreads its own allowlisted env into the SDK subprocess.
 
@@ -236,7 +235,7 @@ spends anything or needs a running service.
 ```sh
 # in one terminal — a throwaway instance, NOT the real :9985 service:
 PROMPT_ASSISTANT_PORT=9975 \
-PROMPT_ASSISTANT_STATE_DIR=/tmp/prompt-assistant-e2e-state \
+PROMPT_ASSISTANT_STATE_DIR="$(mktemp -d)" \
 PROMPT_ASSISTANT_MODEL_OVERRIDE=claude-haiku-4-5 \
   pnpm run start
 
@@ -248,7 +247,7 @@ PROMPT_ASSISTANT_E2E_REQUEST_ID=421514 \
 ```
 
 Env vars: `PROMPT_ASSISTANT_E2E_URL` (default `http://127.0.0.1:9985`),
-`PROMPT_ASSISTANT_E2E_REQUEST_ID` (default `421514`),
+`PROMPT_ASSISTANT_E2E_REQUEST_ID` (default `421514`, a request id that must exist in the database you point it at),
 `PROMPT_ASSISTANT_E2E_QUESTION` (default the same one-sentence Harness-section
 question used during development). It asserts `health.ok`/`health.enabled`,
 that the conversation round-trips, that the message stream carries at least

@@ -2,19 +2,28 @@
 title: Same-byte release publication
 status: draft
 created: 2026-10-13
-updated: 2026-10-13
-summary: Offline archive and Homebrew proposals with explicit same-byte publication adapters; synthetic tests do not approve a release or qualify a distribution channel.
+updated: 2026-11-06
+summary: Offline archive and Homebrew proposals with explicit same-byte publication adapters; synthetic tests do not approve a release or qualify a distribution channel. The tag workflow publishes alphas by its own route.
 ---
 
 # Same-byte release publication
 
-This implements the archive and Homebrew publication-tooling slice of [#51](https://github.com/temet-ai/mike/issues/51).
-It does not close #51, authorize a destination, or certify an artifact. The
-current archive acceptance and PUBLIC review runners deliberately produce
-unqualified reports; **those reports are rejected before any network access**.
-`scripts/release.sh --publish` remains disabled. The separate entry point is
-`python3 scripts/release/publication.py` for archives and
+This is the archive and Homebrew publication tooling. It authorizes no destination
+and certifies no artifact. The current archive acceptance and PUBLIC review runners
+deliberately produce unqualified reports; **those reports are rejected before any
+network access**. `scripts/release.sh --publish` remains disabled. The separate entry
+point is `python3 scripts/release/publication.py` for archives and
 `python3 scripts/release/homebrew.py` for the separately qualified tap pair.
+
+**This is not how the alpha is published.** A pushed `v0.1.0-alpha.N` tag runs
+`.github/workflows/release-alpha.yml`, which builds on the public repository's runners,
+creates the pre-release and updates the tap by itself
+([`RELEASING.md`](RELEASING.md#the-tag-triggered-alpha-workflow)). As of 2026-11-06 it
+has published nothing: tags `v0.1.0-alpha.1` and `v0.1.0-alpha.2` exist and there is no
+GitHub Release. The tooling below is the stricter route for a qualified release, and
+the two do not share state. Because the public repository was created from a collapsed
+export, its commits are not the development repository's SHAs: a destination's
+`tag_commit` must be the public commit that built the candidate.
 
 ## Archive adapter boundaries
 
@@ -133,9 +142,10 @@ Additional explicit scope fields prevent accidental scope confusion:
 - PUBLIC01, for binary-only delivery:
   `binary_only_destination_and_generated_source_archives_reviewed: true`
 
-Every alpha requires real AC19 client compatibility, native AC08,
-source gates, supported database paths and the remaining applicable acceptance
-observations. Hosted execution that has not run remains NOT RUN. No CI pass,
+This contract is stricter than the alpha bar (six cases, see
+[`RELEASE_ACCEPTANCE.md`](RELEASE_ACCEPTANCE.md)): a publication through this tool
+needs real AC19 client compatibility, native AC08, the source gates, supported
+database paths and every other case in `target_cases` as PASS. Hosted execution that has not run remains NOT RUN. No CI pass,
 clean-account qualification, private-content approval or external-client result
 is inferred from this implementation's local synthetic tests.
 
@@ -312,8 +322,8 @@ Use `plan` with the same candidate/destination/tap/proposal flags plus
 The emitted plan hash binds both review documents, all selected archive identities,
 formula bytes and the exact base/predecessor contract. `plan` is entirely offline.
 
-The Apple Silicon Homebrew row of the [acceptance matrix](RELEASE_READINESS.md#required-release-acceptance-matrix)
-is run outside the fleet, by Dawid or a Mac session after the deploy; see
+The Apple Silicon Homebrew row of the [acceptance matrix](RELEASE_ACCEPTANCE_MATRIX.md)
+needs a Mac and is run by the maintainer once a release exists; see
 [where the matrix rows run](RELEASING.md#where-the-matrix-rows-run).
 
 `preflight` repeats all plan inputs and additionally requires
@@ -367,6 +377,7 @@ branch updates, denied permissions and explicit resume after unknown outcomes.
 
 Live credential behavior, actual GitHub publication/downloads, clean-account
 channel install, native macOS policy, real Homebrew/tap integration and external
-feedback remain unobserved. Mocked adapter coverage is not those observations. Keep #51/AC25
-open until the complete preparation/rehearsal evidence is independently accepted;
+feedback remain unobserved. Mocked adapter coverage is not those observations. Keep AC25
+NOT RUN until the complete preparation/rehearsal evidence is independently accepted;
 close AC26 only after installation from the actual authorized published channel.
+Neither gates the alpha.

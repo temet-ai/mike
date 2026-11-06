@@ -2,7 +2,7 @@
 title: Troubleshooting
 status: active
 created: 2026-06-17
-updated: 2026-11-01
+updated: 2026-11-06
 summary: Fixes for common local build and runtime failures — build accelerators, linker errors, toolchain PATH, DB reachability, port conflicts, inspect-API Host/Origin 403s, MCP connection errors, and stale frontend state.
 ---
 
@@ -124,12 +124,10 @@ export PATH="$HOME/.cargo/bin:$PATH"
 `query!`/`query_as!`/`query_scalar!` macros verify against the committed `.sqlx/` offline cache,
 and there is no `DATABASE_URL` env var in this repo. What a bare `cargo build` in your shell
 *does* lack is everything the untracked `.env` carries — `MIKE_DATABASE_URL`,
-`MIKE_TEST_ADMIN_URL` and the rest — and the shared build directory, so it compiles into
-`./target` and any DB-backed test fails on an unset variable. Use `scripts/cx <cargo args>`
-instead: it resolves the repo root from its own location (so it runs from any cwd), sources
-`.env`, and exports `CARGO_TARGET_DIR` (default `~/.cargo-target-shared`). Build output lands
-there, not in `./target`. `scripts/cx` also reclaims space in that shared directory when free
-space is below 30GB before a build, and again after any command that changed `Cargo.lock`.
+`MIKE_TEST_ADMIN_URL` and the rest — so any DB-backed test fails on an unset variable. Use
+`scripts/cx <cargo args>` instead: it resolves the repo root from its own location (so it runs
+from any cwd), sources `.env`, and builds into the checkout's own `target/` unless
+`CARGO_TARGET_DIR` is set.
 
 A live Postgres is required for two things: `cargo sqlx prepare` (to regenerate the `.sqlx` cache
 after changing a query — needs `MIKE_DATABASE_URL`), and DB-backed tests (need
@@ -149,104 +147,36 @@ start Postgres for you. Its preflight is not a plain exit-on-failure:
    back, and the deploy fails if it does not), or `[a]` abort. Enter means abort.
 4. With no terminal to ask on — CI, a non-interactive agent — it takes the abort path and exits 1.
 
-On the development host the capture DB is the container `armitage-pg`, and
-`scripts/capture-db/up.sh` starts it — that is what the script's message names when the
-unreachable address is on this machine. For an installation-owned local PostgreSQL,
-use `mike --config PRIVATE_CONFIG database provision`, or the thin
-`scripts/local-db/up.sh --config PRIVATE_CONFIG` development wrapper. The Compose resource
-is embedded and only `mike --config PRIVATE_CONFIG serve` runs migrations. See
-[`INSTALLED_DATABASE.md`](INSTALLED_DATABASE.md). `docker-compose.dev.yml` in the repo root still defines a
-`postgres` service under the `db` profile; there is no root `docker-compose.yml`, so a bare
-`docker compose up -d postgres` fails with "no configuration file provided" — pass
-`-f docker-compose.dev.yml --profile db`.
+A development checkout on the same host as the stack reaches its database through `.env`. For an
+installation-owned local PostgreSQL, run `mike db up` (Docker), or
+`mike --config PRIVATE_CONFIG database provision`, or the thin
+`scripts/local-db/up.sh --config PRIVATE_CONFIG` development wrapper. The Compose resource is
+embedded and only `mike --config PRIVATE_CONFIG serve` runs migrations. See
+[`INSTALLED_DATABASE.md`](INSTALLED_DATABASE.md). `docker-compose.dev.yml` in the repo root
+still defines a `postgres` service under the `db` profile; there is no root
+`docker-compose.yml`, so a bare `docker compose up -d postgres` fails with "no configuration
+file provided" — pass `-f docker-compose.dev.yml --profile db`.
 
 If queries fail with `connection refused` while Docker reports the container "healthy", check
 host **disk space**: a full disk produces I/O errors that kill the DB port even though the
-container looks up. The shared cargo target dir (`CARGO_TARGET_DIR`, typically
-`~/.cargo-target-shared`) is the usual culprit. `scripts/cx` runs the cleaner itself when free
-space is low, and a scheduled job runs the same cleaner as a backstop; if you need to reclaim
-space by hand, clear old artifacts there rather than running `cargo clean`, which discards the
-shared cache every session is using and forces a cold rebuild of every test harness.
+container looks up. The cargo build directory (`target/` in each checkout, or the directory
+`CARGO_TARGET_DIR` names) is the usual culprit. `scripts/cx` reclaims space when free space is
+low; to reclaim it by hand, clear old artifacts rather than running `cargo clean`, which forces
+a cold rebuild.
 
-### Capture DB on omit is unreachable
+### Database unreachable while mike runs
 
-The shared capture database (`claude_proxy`) runs as the Docker container `armitage-pg`, defined
-in `scripts/capture-db/docker-compose.yml`. Every connection string lives in the untracked
-`.env`: `MIKE_DATABASE_URL` and `MIKE_TEST_ADMIN_URL`, dialling `127.0.0.1:5440` on the host
-itself and the host's LAN address and port from another machine. Nothing tracked in the
-repository carries a database URL — not `.cargo/config.toml`, which holds only clippy rustflags
-and says outright never to commit a `MIKE_TEST_ADMIN_URL` default. (The root `config.toml` is a
-dead file: nothing loads it, and it is unrelated to the per-user `~/.config/mike/config.toml`
-that mike does read. Do not treat it as a source of truth.)
+`GET /api/health` reports `persistence: {enabled: true, reachable: false}` and a top-level
+`status: degraded`; DB-backed tests fail in bulk with `pool timed out while waiting for an open
+connection`. A `degraded` payload whose only cause is the `llm` block is a separate condition;
+read `persistence.reachable` to judge whether capture itself is healthy.
 
-The container publishes `5440` on every interface and restarts with the docker daemon
-(`restart: unless-stopped`, `docker.service` enabled), so after a reboot the DB is back as soon
-as docker is.
-
-#### Symptoms
-
-- DB-backed tests fail in bulk with `Error: pool timed out while waiting for an open connection`
-  (a dozen or more failing at once in one `make check` is the signature — not a handful of
-  flakes).
-- `GET /api/health` reports `persistence: {enabled: true, reachable: false}` and top-level
-  `status: degraded`.
-
-A `degraded` health payload whose *only* cause is the `llm` block (OpenRouter paused) is a
-separate, currently-normal condition — read `persistence.reachable` specifically to judge
-whether capture itself is healthy; don't conflate the two.
-
-#### Diagnose before blaming the app
-
-```bash
-docker ps --filter name=armitage-pg    # on omit: is the container up and healthy?
-docker logs --tail 50 armitage-pg      # crash recovery in progress, checksum failure, disk full
-scripts/proxy-q health                 # from any checkout: dials MIKE_DATABASE_URL and counts rows
-```
-
-#### Fix
-
-```bash
-scripts/capture-db/up.sh   # idempotent: starts the container if it is down, waits for health
-```
-
-Do **not** restart `mike` and do **not** re-run any migration. The running proxy self-heals once
-the DB is back: the sqlx pool reconnects and `persistence.reachable` flips back to `true`
-within seconds, no restart required.
-
-#### Onboarding another machine to the shared DB
-
-Any machine running its own `mike` proxy can capture into the same `claude_proxy` DB instead of a
-local-only one. That is what makes cross-machine session history possible: both machines'
-captures land in one place, and either machine's `mike-mcp` (pointed at its own local inspect
-bind, default `127.0.0.1:9989`) sees both.
-
-1. **Open the DB port to the LAN on the database host.** The container publishes `5440` on all
-   interfaces, but a host firewall that defaults to deny still filters it — a published docker
-   port is not automatically routed around the host's INPUT chain. Add a rule scoped to the LAN
-   subnet for TCP `5440`. Nothing is needed inside the container: its `pg_hba.conf` already
-   allows `host all all all scram-sha-256`.
-2. **On the other machine**, set `MIKE_DATABASE_URL` in its own untracked `.env` to the database
-   host's LAN address and credentials, instead of whatever local/fallback DB it was using. Do not
-   commit that URL anywhere.
-3. **Restart its proxy stack** (`./scripts/start-proxy.sh`) so the running `mike` process picks up
-   the new URL. From then on, everything that machine captures on its own `:9988`/`:9989` writes
-   into this shared DB — no change needed to its `mike-mcp` config, since that still talks to its
-   own local inspect bind, which now simply reads from the shared DB.
-
-If the other machine cannot reach the shared Postgres at all (not just slow or misconfigured), it
-should use [local DB fallback](LOCAL_DB_FALLBACK.md) — capture to a local Postgres and drain
-those rows into the shared DB on the next start that reaches it — rather than blocking on network
-access.
-
-#### History: the WSL2 portproxy era
-
-**Historical only — this topology no longer exists.** The same container once ran inside a WSL2
-Ubuntu distro on the Windows install of the same hardware, reachable from the LAN only through an
-elevated `netsh portproxy` rule that pinned the distro's IP, so every WSL restart broke the link
-until `scripts/migrate-db-to-armitage.sh lan-fix` rewrote it. When the machine moved to Arch
-Linux the cluster was copied byte-for-byte out of the distro's `ext4.vhdx` into the docker volume
-`armitage_pg_data`. The `lan-check`, `lan-fix` and `tunnel` subcommands remain in that script for
-the record; they target a topology that is gone, and nothing current should call them.
+Check the database first (`mike doctor`, then `mike db status` for the Docker database, or
+`docker logs` on its container for crash recovery, a checksum failure or a full disk). Start it
+again with `mike db up`, which keeps the data. Do not restart `mike` and do not re-run any
+migration: the connection pool reconnects and `persistence.reachable` returns to `true` within
+seconds. A machine that cannot always reach its database can use
+[local DB fallback](LOCAL_DB_FALLBACK.md).
 
 ## Runtime
 
@@ -287,39 +217,35 @@ allow-list middleware (`crates/mike/src/api/host_guard.rs`), and this 403 is tha
 rejecting the request before any handler runs. The response body is JSON and names which check
 failed.
 
-`host not allowed` means the request's `Host` header resolved to a host that is not
-allow-listed. The guard always allows `localhost` and any loopback IP, so this only fires when
-something is reaching the API by a non-loopback name or address: a LAN IP, a machine hostname, a
-container/service name, a reverse-proxy `Host`. A request with no `Host` header at all is
-allowed through.
+`host not allowed` means the request's `Host` authority is not one the guard accepts: the
+listener's own address and `localhost`, `127.0.0.1` and `[::1]`, each at the listener's actual
+port, plus anything in `MIKE_INSPECT_ALLOWED_HOSTS`. It fires when something reaches the API by
+a LAN IP, a machine hostname, a container name or a reverse-proxy `Host`, or on the wrong port.
+A request with no `Host` header is rejected too (`host required`) unless it is HTTP/2 or
+HTTP/3 and carries a URI authority. Other messages name their own cause: `invalid host`,
+`conflicting request authority`, `invalid origin`, and `cross-origin browser request requires an
+approved origin` for an Origin-less browser request with cross-site Fetch Metadata.
 
 `origin not allowed` means an `Origin` header was present and matched neither a configured SPA
-origin nor the request's own `Host` authority. `Origin: null` — a page opened from `file://`, a
-sandboxed iframe, some redirect chains — is always rejected and cannot be allow-listed.
+origin nor the request's own `Host` authority (scheme, host and effective port all count).
+`Origin: null` — a page opened from `file://`, a sandboxed iframe, some redirect chains — is
+always rejected and cannot be allow-listed.
 
 Fix by adding what is legitimately calling in:
 
-- `MIKE_INSPECT_ALLOWED_HOSTS` (config `inspect_allowed_hosts`, default empty) — extra hostnames
-  the `Host` header may carry.
+- `MIKE_INSPECT_ALLOWED_HOSTS` (config `inspect_allowed_hosts`, default empty) — extra
+  authorities the `Host` header may carry; a name without a port uses the listener's port.
 - `MIKE_SPA_ORIGINS` (config `spa_origins`) — full origins allowed to make cross-origin browser
-  calls. Their hostnames are also added to the allowed-host set. When the list is empty the guard
-  falls back to `http://127.0.0.1:9990` and `http://localhost:9990` and logs a warning.
+  calls. It does not add their hostnames as accepted `Host` values. When the list is empty the
+  guard falls back to `http://127.0.0.1:9990` and `http://localhost:9990`.
 
-The hosts of `inspect_listen_addr` and `spa_bind` are allow-listed automatically, unless they
-bind a wildcard address.
+The bind address of the listener is allow-listed automatically, unless it is a wildcard address.
+[`LOCAL_ACCESS.md`](LOCAL_ACCESS.md) has the full rules.
 
 **Allow-listing a host does not add authentication.** It widens who can reach an API that will
 serve full captured request and response bodies to anyone who asks. Read
 [`SECURITY.md`](SECURITY.md) before opening the bind beyond loopback — in particular *What the
 Host/Origin guard does not do*.
-
-### History: `403` hitting `/api/compose`
-
-**Historical only.** The compose sandbox (`POST /api/compose`, the `MIKE_ALLOW_COMPOSE` toggle,
-and the `claude -p` subprocess spawn) was removed from the codebase in commit `db533f43` — there
-is no `/api/compose` route, no `allow_compose` config field, and no `compose` MCP tool. If older
-documentation, a bookmark, or a stale build artifact references `MIKE_ALLOW_COMPOSE`, that
-reference is stale: the feature does not exist and there is nothing to re-enable.
 
 ### `ERR_MODULE_NOT_FOUND` from `vite dev`
 
@@ -415,12 +341,3 @@ of which is part of lint:
 Each has a `--self-test` that proves it can fail without touching anything real. Exit 1 names the
 assertion that moved; exit 2 means there was nothing to check (no binary found, or no Remote
 Control traffic in the last hour).
-
-If `rc-protocol-check-capture` reports the capture database as unreachable while running from a
-linked git worktree (anything under `.claude/worktrees/`, not the main checkout), that specific
-diagnosis is almost always wrong: `scripts/proxy-q` reads the database URL from an untracked
-`.env` file that only the main checkout has, so the script resolves the main checkout via
-`git rev-parse --path-format=absolute --git-common-dir` before shelling out to `proxy-q`, and a
-genuinely unreachable database still reports as unreachable from there. If you see "unreachable"
-from a worktree despite the main checkout working fine, that resolution step itself has broken —
-check that `scripts/proxy-q` still exists at the main checkout's root.

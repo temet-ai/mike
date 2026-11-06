@@ -2,7 +2,7 @@
 title: Development
 status: active
 created: 2026-07-08
-updated: 2026-10-22
+updated: 2026-11-06
 summary: Dev loop commands and house rules for contributing code to mike.
 ---
 
@@ -24,8 +24,9 @@ change.
 | Frontend | `scripts/sb-test --skip-typecheck <filter>` |
 | A script | the one `scripts/test-<name>` you touched |
 
-The 135 integration-test source files compile through six harnesses (`proxy`, `integration`,
-`e2e`, `cli`, `schema`, `reminder_on_token`), so a filter picks one concern.
+The integration-test sources compile through a handful of harnesses (`proxy`, `integration`,
+`e2e`, `cli`, `schema`, `reminder_on_token` and the `*_contracts` / `release_*` targets in
+`crates/mike/Cargo.toml`), so a filter picks one concern.
 `scripts/test-suite fast|all` exist for the landing gate, not the inner loop.
 
 Other useful entry points:
@@ -67,7 +68,7 @@ service and sets the variable. The fixture refuses the known live-capture
 instance and creates only its disposable databases.
 
 The fast schema checksum test compares embedded migrations to the committed
-`tests/schema/migration-baseline.json` frozen at source `3cadea314`. It never
+`crates/mike/tests/schema/migration-baseline.json` frozen at source `3cadea314`. It never
 searches for configuration, reads `MIKE_DATABASE_URL`, or opens a database.
 Existing migration versions must keep their checksum; add a new migration rather
 than regenerating this baseline to accept a historical edit. This is an internal
@@ -151,8 +152,8 @@ for manual component development — that's a dev server, not a test command, so
   This is a house-rule default, not a blanket clippy-enforced ban: real exceptions exist on
   both sides. Test-helper modules under `crates/mike/tests/common/` carry
   `#![allow(dead_code)]`/`#[allow(dead_code)]` where a symbol is only used by some of the
-  binaries that share the module. Production code carries a handful too — module- or
-  item-level `#[allow(dead_code)]` in `src/resolvers/manifest.rs` and `src/store/`, and
+  binaries that share the module. Production code carries one: an
+  `#[allow(dead_code)]` in `src/resolvers/manifest.rs`.
   Complexity-policy suppressions are not exceptions: `scripts/lint-rust` denies cognitive
   complexity, excessive arguments, excessive function length, and Clippy's broader complexity
   group, while a source scanner rejects attributes that could lower them. Those functions must
@@ -167,7 +168,7 @@ for manual component development — that's a dev server, not a test command, so
 - **The design system is binding.** [Storybook's Foundations stories](http://localhost:6006/?path=/story/foundations-style-guide--core) (FUNK —
   open them in a browser) govern every visual decision; [`frontend/CONVENTIONS.md`](frontend/CONVENTIONS.md)
   governs component code. No raw hex, no inline px, no hand-rolled dialogs.
-- See [`../CLAUDE.md`](../CLAUDE.md) for the full project rules — agent routing, code-navigation
+- See [`../AGENTS.md`](../AGENTS.md) for the full project rules — agent routing, code-navigation
   tooling (ast-grep tier 1, LSP tier 2, grep as last resort), and the inspection-fidelity rule
   that binds any change touching capture, schema columns, REST projections, MCP tool shape, or
   rendering of inspection content.
@@ -175,7 +176,7 @@ for manual component development — that's a dev server, not a test command, so
 ## Links
 
 - [`../README.md`](../README.md) — project overview
-- [`../CLAUDE.md`](../CLAUDE.md) — full project rules for Claude Code sessions working on this repo
+- [`../AGENTS.md`](../AGENTS.md) — full project rules for coding-agent sessions working on this repo
 - [`GETTING_STARTED.md`](GETTING_STARTED.md) — first-run setup: prerequisites, database, first run
 - [Storybook Foundations](http://localhost:6006/?path=/story/foundations-style-guide--core) — FUNK design system, binding for all visual work
 - [`frontend/CONVENTIONS.md`](frontend/CONVENTIONS.md) — frontend component conventions

@@ -2,7 +2,7 @@
 title: Features
 status: active
 created: 2026-07-08
-updated: 2026-10-18
+updated: 2026-11-06
 summary: What the web UI shows, and the complete table of optional features — what each does, whether it rewrites traffic or sends captured text off the machine, its default, and where to turn it on.
 ---
 
@@ -41,14 +41,14 @@ requests the same way:
 
 Other surfaces: `/projects`, `/prompts`, `/tools`, `/agents`, `/memory`, `/comms`, `/fleet`,
 `/steering`, `/filter/workbench`, `/diagnostics/memory`, `/diagnostics/agent-dispatches`, and
-`/help` with its guides. Settings live at `/settings` with sub-pages for `embedding`,
-`flagging`, `integrations`, `steering` and `workers`.
+`/help` with its guides. Settings live at `/settings` with sub-pages for `assistants`,
+`embedding`, `flagging`, `history`, `integrations`, `setup`, `steering` and `workers`.
 
 The page updates live via WebSocket as new requests come through.
 
 ## Response analysis and optional diagnostic reminders
 
-Every response, streaming or not, runs through a closed set of 20 regex patterns across five
+Every response, streaming or not, runs through a closed set of 19 regex patterns across five
 categories (`JustifyingShortcuts`, `DeflectingBlame`, `AvoidingWork`, `FakingUnderstanding`,
 `Overselling`) at `ResponseComplete` time. Hits are attached to the request as diagnostics and
 shown in the request detail view and the `/analysis` dashboard. The analyser itself only
@@ -57,12 +57,12 @@ records findings. If the `reminders` toggle is enabled,
 later primary request, or deliver it over Remote Control.
 
 This is governed by its own `analysis.*` settings rather than a feature toggle. It is purely
-local — no text leaves the machine for it. (The separate *correction classifier*, which is an
-LLM call, is listed in the table below.)
+local — no text leaves the machine for it.
 
 ## Optional features
 
-Every row is off unless the Default column says otherwise. "Rewrites traffic" means the bytes
+Rows in the first three tables below are off unless the Default column says otherwise; the
+tables after them list the switches that ship on. "Rewrites traffic" means the bytes
 mike forwards to Anthropic, or the bytes the client receives, differ from what the other side
 sent. "Sends text out" means captured conversation text is transmitted to a service other than
 `upstream_url`.
@@ -100,11 +100,11 @@ proxy applies it once, then removes the key, at its next start.
 | Steerer injection | `steerer` | off | Runs the steerer fleet, which watches sessions for goal and anchor drift and queues `<system-reminder>` blocks for the next turn. **Also sends text to OpenRouter** — see below. |
 | Proxy-declared tools | `proxy_tools` | off | Gives a session mike's own tools (currently `mike_session_roster`) when it does not already have them, by appending the definitions to the request's `tools[]` and answering the calls inside the proxy — see the response section. Three kinds of request are left alone: one from a session that brought the tools itself (its requests name the MCP tool `mcp__<server>__get_workspace_roster`, loaded or listed as loadable; once seen, the session is remembered); a sidecar call that shares nothing with the session (session title, web-page summary, monitor, quota probe, advisor); and a request whose own `tools[]` is empty. The next-prompt-suggestion and count-tokens calls re-send the session's tool list to reuse its prompt cache, so they follow the session. |
 | Repeated notices | `repeated_notices` | off | Claude Code adds a notice to every message another session pushes to a session ("This came from another Claude session …") and to every mike channel message that arrives mid-turn ("IMPORTANT: This is NOT from your user …"), and it closes every message the operator sends while the session is working with one sentence ("This is how Claude Code surfaces messages the user sends mid-turn …"). With this on, a session is sent each of the three once: the first copy stays and later copies are removed from the **forwarded** body, wherever Claude Code put them (system text, user text, or the reminder blocks after a tool's output). The captured copy keeps the original bytes. A session picks the switch up when it starts; a session that is already running picks it up when the proxy next restarts. |
-| Read deduplication | `compression.dedup_enabled` (setting) | off | Replaces duplicate Read/`cat` tool-result content in the **forwarded** body. The captured copy keeps the original bytes, so what mike stores and what Anthropic received differ. |
+| Read deduplication | `compression_dedup.enabled` (setting) | off | Replaces duplicate Read/`cat` tool-result content in the **forwarded** body. The captured copy keeps the original bytes, so what mike stores and what Anthropic received differ. |
 | Prompt compositions | `composition_enabled` (boot config) | off | With a composition in `template` mode, splices the composition's blocks into `system[]`. `observe` mode records the prompt identity without changing bytes; `replace` mode is not implemented and falls back to passthrough. |
 | Reminder-on-token | `reminder_on_token` | off | **Read the caveat below** — this stage changes the body whether the toggle is on or off, when a hook sentinel token is present. |
-| File-read compression | `file_read_compression` | off | Shortens large file reads in a conversation's history: an older read is replaced by a pointer when a newer whole read of the same file follows, and other reads keep their head and tail once the model has answered `file_read_compression.grace_turns` times (default 3) since the read, or sooner when the file was edited since. The newest result, protected paths and all explicitly ranged reads stay whole, including after compaction or when reduction markers exist only in forwarded history. Rereading a path returns its current version. Policy v4 markers also carry `get_request_body` arguments (`id`, `tool_use_id`, `sha256`) for the exact captured original result. Recovery rejects a missing, ambiguous or mismatched result; it does not depend on the current file. `file_read_compression.mode` is `shadow` by default: each request's manifest records what would be shortened and the request is sent unchanged. `forward` sends the shortened request. Judge it with `scripts/compressor-trial-report` on paired runs, not on bytes. |
-| Shell-output compression | `shell_output_compression` | off | Shortens older Bash output in a conversation's history to its first `head_lines` and last `tail_lines` (default 20 each) plus every error, failure, warning or summary line with `signal_context_lines` after it (default 3, at most `signal_line_cap` = 40). Each omitted range is marked `[[mike:shell_output_reduced]]`, and the result ends with `get_request_body` arguments (`id`, `tool_use_id`, `sha256`) for the exact captured output. The newest result, error results, output under `min_bytes` (1,500), output a hook, mod, tether or mike added (`<system-reminder`, `[[mike:`), and output the model has answered fewer than `grace_turns` (3) times since stay whole. A cut must save 25%. On the forward arm a new cut waits until the conversation's prompt cache is cold. `mode` and `forward_share` work as for file reads, with arms assigned independently. `scripts/compressor-loop` scores the arms per turn and per lane and counts cuts whose hidden lines were used later. The shadow replay is in `night-watch-notes/2026-11-01/shell-output-shadow/report.md`. |
+| File-read compression | `file_read_compression` | off | Shortens large file reads in a conversation's history: an older read is replaced by a pointer when a newer whole read of the same file follows, and other reads keep their head and tail once the model has answered `file_read_compression.grace_turns` times (default 3) since the read, or sooner when the file was edited since. The newest result, protected paths and all explicitly ranged reads stay whole, including after compaction or when reduction markers exist only in forwarded history. Rereading a path returns its current version. Policy v4 markers also carry `get_request_body` arguments (`id`, `tool_use_id`, `sha256`) for the exact captured original result. Recovery rejects a missing, ambiguous or mismatched result; it does not depend on the current file. `file_read_compression.mode` is `shadow` by default, with `file_read_compression.forward_share` at 0: each request's manifest records what would be shortened and the request is sent unchanged. In `shadow`, the percent of new sessions set by `forward_share` are sent shortened requests and the rest are the control; `forward` sends every new session shortened requests. Judge it with `scripts/compressor-trial-report` on paired runs, not on bytes. |
+| Shell-output compression | `shell_output_compression` | off | Shortens older Bash output in a conversation's history to its first `head_lines` and last `tail_lines` (default 20 each) plus every error, failure, warning or summary line with `signal_context_lines` after it (default 3, at most `signal_line_cap` = 40). Each omitted range is marked `[[mike:shell_output_reduced]]`, and the result ends with `get_request_body` arguments (`id`, `tool_use_id`, `sha256`) for the exact captured output. The newest result, error results, output under `min_bytes` (1,500), output a hook, mod, tether or mike added (`<system-reminder`, `[[mike:`), and output the model has answered fewer than `grace_turns` (3) times since stay whole. A cut must save 25%. On the forward arm a new cut waits until the conversation's prompt cache is cold. `shell_output_compression.mode` (default `shadow`) and `shell_output_compression.forward_share` (default 0) work as for file reads, with arms assigned independently. `scripts/compressor-loop` scores the arms per turn and per lane and counts cuts whose hidden lines were used later. |
 
 ### Changes what the client receives
 
@@ -125,7 +125,6 @@ All of these are inert without an OpenRouter API key
 | Session judge | `session_judge` | off | yes | A multi-turn digest: each turn's prompt and final response. |
 | Turn guard | `turn_guard` | off | yes | At each turn end and after quiescence, the turn's closing text, its dossier facts and (with `guard.calibration.input_mode = live`) a calibration block, to four guard questions. Every question starts in `shadow`: rows are recorded, nothing is delivered. A question the operator promotes to `append` or `wake` delivers a nudge, which changes traffic. |
 | Semantic context | `semantic_context` | on, loopback only | no | Operator-turn prompts, endings and anchors, to the registered embedder. Each call is refused unless the embedder URL is loopback, so nothing leaves the machine without an operator changing the embedder. |
-| Correction classifier | `steerer.correction.enabled` (setting) | off | yes | The previous turn's final assistant text plus the user's next message, to decide whether the user was correcting the model. |
 | Verifier input budget | `steerer.verifier.input_budget` (setting) | `verifier-input-v1` | yes | Narrows what the already-enabled verifier sends: each section of its message is capped and older tool calls are listed as counts. `uncapped` sends everything. It enables nothing by itself. |
 | Verifier replay | `mike verifier-replay --execute` (subcommand) | dry run | yes | Rebuilt past verifier inputs for the chosen arm, to OpenRouter, only with `--execute --out`; spend stops at `--max-usd` (default 15). |
 | Refocus steerer | `steerer.refocus.enabled` (setting) | off | yes | Part of the steerer fleet; injects grounding messages on anchor drift. |
@@ -149,6 +148,10 @@ the configured embedding and database endpoints, which can be remote.
 | Retention sweep | `retention_sweep` | Periodically deletes sessions older than `default_ttl` (365 days). |
 | Channel-link sweep | `channel_link_sweep` | Maintains the Remote Control channel↔session links. |
 | Workspace capture registration | `workspace_capture_registration` | Registers observed sessions in the workspace roster used for cross-session messaging. |
+| Fleet auto-start | `fleet_auto_start` | Starts a fleet as soon as its definition is complete. Off, it waits for `mike fleet start`. |
+| Prompt assistant | `prompt_assistant` | The prompt assistant; its sign-in and limits are on `/settings/assistants`. |
+| Semantic context | `semantic_context` | On, but each call is refused unless the embedder URL is loopback (see the table above). |
+| tether serves self-identity | `client_serves_self_identity` | When a client such as the tether mod supplies a session's identity note, mike stops adding its own for that session. |
 
 ### Local features that are off by default
 
@@ -160,6 +163,18 @@ These are local like the ones above, and ship off so a deploy changes nothing un
 | Change record | `change_record` | Keeps one record of what happened in each checkout a session works in: file changes with the session that made each and the content before, commits, pushes, checks, verdicts, notes, mail and briefs, each with its paths. Fed by file notifications from the operating system, with a slow backstop. Lets `what_changed` answer without git. No LLM call and no HTTP request; nothing leaves the machine. See [`CHANGE_RECORD.md`](CHANGE_RECORD.md). |
 | Change record lines | `change_record_tail` | Adds at most twelve lines under `since_you_last_looked` to the answers of `fleet_commit`, `fleet_check`, `write_session_note` and `send_session_message`, and to the first request of a turn as a reminder, saying what others changed in the files the session owns or has read. Needs `change_record`. With it off the answers are unchanged. |
 | Directive proposer | `directive_proposer` | Proposes standing directives from directives the operator restated across sessions and hand-backs he confirmed, by SQL over captured data. Proposals wait on `/memory`; nothing is injected. No LLM call and no HTTP request. |
+
+Also off by default, and described on the settings page (`featureCopy.ts`):
+
+| Toggle | What it does |
+|---|---|
+| `workspace_briefing` | Adds the session's peers and its own name, role and goal to its requests. |
+| `native_peer_mail` | Delivers mail from another session the way Claude Code delivers a message from one of your other sessions. Off, mail arrives as a mike channel message. |
+| `mod_lesson_delivery` | Lets the mike mod add lessons when a prompt is sent; mike stops adding lessons to a session once it holds tagged ones. One session in five keeps mike adding them, so the two ways can be compared. |
+| `context_focus_question` | Asks the model to add one short line to every tool call except file edits, saying what it wants; mike removes the field before Claude Code sees the call. |
+| `launch_brief` | Delivers a spawned session's long brief as mail from mike instead of a file. |
+| `judge_lessons`, `session_end_shadow` | Further judging jobs that call a model; they send captured text to your provider when on. |
+| `client_serves_*` (ten switches other than `client_serves_self_identity`) | Each tells mike to stand aside for one stage on a session when a client such as tether does that stage itself. |
 
 ## Things that are not feature toggles
 

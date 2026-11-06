@@ -3,7 +3,7 @@ title: Local DB Fallback & Async Resync
 status: active
 created: 2026-06-21
 updated: 2026-10-13
-summary: Reference for the shipped local-DB fallback feature — capturing to a local Postgres when the remote (shared, armitage-hosted) DB is unreachable, then draining the local-only rows back into the remote DB (row-level, idempotent, id-remapped) on the next proxy start that boots against the remote. No dump/restore.
+summary: Reference for the shipped local-DB fallback feature — capturing to a local Postgres when the remote (shared) DB is unreachable, then draining the local-only rows back into the remote DB (row-level, idempotent, id-remapped) on the next proxy start that boots against the remote. No dump/restore.
 ---
 
 # Local DB Fallback & Async Resync
@@ -16,18 +16,18 @@ drain per proxy start, and only on a start that reaches the remote DB, so recove
 captured during an outage means restarting mike once the remote is back. **No `pg_dump`/restore**
 — resync is an incremental, idempotent, app-level replication worker.
 
-The remote target is the shared capture database on `omit`: the Docker container
-`armitage-pg` (`scripts/capture-db/`), reached at `127.0.0.1:5440` on that host and at the host's
-LAN address on the same port from anywhere else — both spellings live in the untracked `.env`,
+In the development stack the remote target is the shared capture database: the Docker container
+`armitage-pg` (`scripts/capture-db/`), reached at `127.0.0.1:5440` on the host that runs it and at that
+host's LAN address on the same port from anywhere else. Both spellings live in the untracked `.env`,
 never in a tracked file (see [`ARCHITECTURE.md`](ARCHITECTURE.md#2-system-map) and
 [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md#capture-db-on-armitage-is-unreachable)). A stopped
 container looks identical, to this feature, to the machine being off: both present as
 `PersistError::Connect` and trigger the same fallback path. `docker ps --filter name=armitage-pg`
-on omit tells them apart, and `scripts/capture-db/up.sh` is the fix for the first.
+on the capture host tells them apart, and `scripts/capture-db/up.sh` is the fix for the first.
 
 What it delivers:
 
-1. When the remote (omit) Postgres is unreachable at boot, the proxy keeps capturing to a
+1. When the remote Postgres is unreachable at boot, the proxy keeps capturing to a
    local Postgres instead of running blind or failing to start.
 2. When the remote DB returns, the local-only rows are merged back into it row by row, with no
    manual step and no dump — on the **next start of the proxy against the remote DB**, not
@@ -109,7 +109,7 @@ Four mechanisms, all implemented:
    be draining and then resetting the very DB it is writing through), so the restart that drains
    is specifically a restart that boots on the remote DB. Deliberately **no** NOTIFY trigger on
    captured/synced tables either — a trigger firing per captured request would add write cost on
-   the proxy hot path (`.claude/rules/rust-database-reliability.md`, hot tier = 0% tolerance).
+   the proxy hot path (the hot tier tolerates no added write cost).
 3. **Dependency-ordered, idempotent replay.** `ResyncEngine::replay_pending`
    (`crates/mike/src/resync/engine/replay.rs`) walks tables in the baseline's topological order
    (`projects → sessions → messages/system_prompts → requests → responses/tools → agents →
@@ -158,12 +158,10 @@ worker at all. On top of the boot flag there is also a `db_resync` runtime featu
 `20260621000002_feature_toggle_db_resync.sql`) — the worker checks the boot config **and** the
 toggle, and skips the drain if either is off.
 
-Both boot flags default on, and that is the right default on its own merits rather than by
-blanket rule: the fallback is local-only. It neither rewrites traffic nor sends anything off the
+Both boot flags default on, and that is the right default on its own merits: the fallback is local-only. It neither rewrites traffic nor sends anything off the
 machine — it writes captures to a Postgres on `127.0.0.1` and, later, copies those rows into the
-capture DB the operator already configured. Nothing new leaves the host, so
-`.claude/rules/agent-behavior-and-data.md`
-does not apply to it. The honest nuance is that a fallback cannot engage without a
+capture DB the operator already configured. Nothing new leaves the host, so the
+default-off rule for traffic mutation and content egress does not apply to it. The honest nuance is that a fallback cannot engage without a
 `local_database_url` configured, so "enabled" is conditional on that URL existing — a
 configuration precondition, not a default-off feature gate.
 
@@ -235,7 +233,7 @@ table before setting it, so a target row a mid-drain dest-side delete already re
 
 **The content-hash decision (deliberate).** `messages`/`system_prompts` are **insert-always**, NOT
 resolved by `message_sha256`/`prompt_sha256`. Re-deriving a surrogate id from a content hash is
-banned (`.claude/rules/rust-database-reliability.md`), and the sha columns are intentionally unindexed —
+banned in this codebase, and the sha columns are intentionally unindexed —
 resolving by them would force a Seq Scan or a forbidden sha index. The accepted trade-off: a synced
 offline session may write duplicate body rows into remote (same sha, new id). This is bounded (only
 offline-window rows) and correct. Cross-DB sha-dedup would need operator sign-off on a last-resort
@@ -263,12 +261,11 @@ per-row correlated sha subqueries.
 
 ## Known limitations & design notes
 
-- **Shared remote semantics.** If the remote (omit) Postgres has *other* writers, upsert-on-natural-key
+- **Shared remote semantics.** If the remote Postgres has *other* writers, upsert-on-natural-key
   (above) is correct and collision-proof. If it's single-writer, the same worker still works —
   it's just never contended.
 - **Deletes / TTL sweeps.** Resync replays inserts/updates; it does not propagate local deletions.
-  `sweep_at_startup` (destructive session-deletion sweep) stays OFF by recorded operator approval
-  (2026-06-15) repo-wide, which avoids the local fallback DB being swept out from under an
+  `sweep_at_startup` (destructive session-deletion sweep) stays OFF by default, which avoids the local fallback DB being swept out from under an
   unsynced row — this is a standing operational mitigation, not something the resync engine itself
   guards against.
 - **`bytea` bodies** (`request_body`, `response_body`) round-trip fine but dominate row size. The

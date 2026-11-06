@@ -2,20 +2,20 @@
 title: Request flow — mike
 status: active
 created: 2026-05-22
-updated: 2026-10-21
+updated: 2026-11-06
 summary: Runtime request flow for the proxy bind (:9988) and the inspect API (:9989 and :9990), including the ordered mutation stages, the two-phase DB write, the SSE capture pipeline, the response-replacing branches, and the Remote Control relay.
 ---
 
 # Request flow — mike
 
-> Request-path audit 2026-09-26 against `crates/mike/src/proxy/handler.rs`, `crates/mike/src/proxy/engine/`, `crates/mike/src/pipeline/mod.rs`, and `crates/mike/src/weasel_intercept/`. Citations name a function, type or constant rather than a line number — grep the named symbol. Pair with [`STARTUP_FLOW.md`](STARTUP_FLOW.md) for what runs before the binds start listening, and [`SECURITY.md`](SECURITY.md) for the trust boundary the inspect API sits behind.
+> Request-path audit 2026-11-06 against `crates/mike/src/proxy/handler.rs`, `crates/mike/src/proxy/engine/`, `crates/mike/src/pipeline/mod.rs`, and `crates/mike/src/weasel_intercept/`. Citations name a function, type or constant rather than a line number — grep the named symbol. Pair with [`STARTUP_FLOW.md`](STARTUP_FLOW.md) for what runs before the binds start listening, and [`SECURITY.md`](SECURITY.md) for the trust boundary the inspect API sits behind.
 
 This doc maps the runtime behaviour of the proxy bind (`:9988`) and the inspect API (served on both `:9989` and `:9990`). Static call-graph tools cannot show this — axum routing is wired at runtime via `Router::route(...)`, and the SSE pipeline is dispatched through async channels, not through direct function calls.
 
 ## At a glance
 
-- **Proxy bind** — `proxy_router` (`crates/mike/src/app.rs`) routes both `/v1/{*rest}` and `/v2/{*rest}` to one catch-all `proxy_handler`, which orchestrates `proxy::engine`: `accept` → `run_request_pipeline` → `forward_to_upstream` → `finalize_and_respond`. `run_request_pipeline` runs the fourteen stages of `pipeline::STAGE_ORDER` with the steerer drain spliced in the middle, then the composer, then the DB stub insert — and only then does `proxy_handler` send upstream. Header masking and captured-header caps apply only to the inspection projection; the inbound body size limit and ordinary forwarding-header rules still apply.
-- **Ordered mutation stages** — `pipeline::STAGE_ORDER` (`crates/mike/src/pipeline/mod.rs`) is `filter`, `reminder_on_token`, `lazy_sections`, `recall_injector`, `lessons`, `self_identity`, `workspace_briefing`, `agent_lessons`, `reminders`, `steerer`, `repeated_notices`, `read_dedup`, `file_read_compression`, `shell_output_compression`, `proxy_tools`. `run_mutation_stages` (`proxy/engine/mutation_stages.rs`) executes `stages_before_steerer()`, then the steerer/mailbox queue drain, then `stages_after_steerer()`.
+- **Proxy bind** — `proxy_router` (`crates/mike/src/app.rs`) routes both `/v1/{*rest}` and `/v2/{*rest}` to one catch-all `proxy_handler`, which orchestrates `proxy::engine`: `accept` → `run_request_pipeline` → `forward_to_upstream` → `finalize_and_respond`. `run_request_pipeline` runs the eighteen stages of `pipeline::STAGE_ORDER` with the steerer drain spliced in the middle, then the composer, then the DB stub insert — and only then does `proxy_handler` send upstream. Header masking and captured-header caps apply only to the inspection projection; the inbound body size limit and ordinary forwarding-header rules still apply.
+- **Ordered mutation stages** — `pipeline::STAGE_ORDER` (`crates/mike/src/pipeline/mod.rs`) is `filter`, `reminder_on_token`, `lazy_sections`, `recall_injector`, `lessons`, `self_identity`, `workspace_briefing`, `agent_lessons`, `reminders`, `change_record_tail`, `git_read_hint`, `steerer`, `repeated_notices`, `read_dedup`, `file_read_compression`, `shell_output_compression`, `proxy_tools`, `context_focus_question`. `run_mutation_stages` (`proxy/engine/mutation_stages.rs`) executes `stages_before_steerer()`, then the steerer/mailbox queue drain, then `stages_after_steerer()`.
 - **Two-phase DB write** — `capture::insert_stub_and_mint_id` fires inside `capture_and_register` to create the parent FK row **before** the upstream request is built; `snapshot_terminal` (`insert_request_initial` idempotent + `snapshot_request` terminal transaction) fires at stream completion, writing response metadata and the terminal response row. Content-block FK writes land between the two phases. Tool call rows (`tools.uses`) are written per-event via `write_tool_use_row` in `spawn_store_updater` when `ToolUseEnd` fires — before the terminal snapshot.
 - **Two response-replacing branches** — `forward_streaming` (`proxy/response/streaming.rs`) buffers the SSE stream whenever `weasel_armed || tool_loop_armed`, where `tool_loop_armed` means the `proxy_tools` stage added a tool to this request. Weasel discards the model's answer on a forbidden-word hit and re-asks upstream; `proxy_tools` answers a `mike_*` tool call inside the proxy and re-asks upstream with the result. Both stream the *second* upstream answer to the client.
 - **agent_instances capture** — `snapshot_terminal` calls `create_instances_for_dispatches` (Phase 14) on orchestrator primary turns to create `agent_instances` rows and back-fill unbound sub-agent requests.
@@ -48,9 +48,9 @@ flowchart TB
     R3 --> R4["capture headers\nMAX_HEADERS · MAX_HEADER_BYTES\nmask sensitive · NOT applied to forwarded"]
     R4 --> R5["stored_body = original inbound bytes"]
     R5 --> R6["engine::run_request_pipeline"]
-    R6 --> R6a["run_mutation_stages — stages_before_steerer()\nfilter · reminder_on_token · lazy_sections\nrecall_injector · lessons · self_identity\nworkspace_briefing · agent_lessons · reminders"]
+    R6 --> R6a["run_mutation_stages — stages_before_steerer()\nfilter · reminder_on_token · lazy_sections\nrecall_injector · lessons · self_identity\nworkspace_briefing · agent_lessons · reminders\nchange_record_tail · git_read_hint"]
     R6a --> R7b["steerer::stage::drain\nsteerer + mailbox reminder queue"]
-    R7b --> R6c["stages_after_steerer()\nrepeated_notices · read_dedup · file_read_compression · shell_output_compression · proxy_tools"]
+    R7b --> R6c["stages_after_steerer()\nrepeated_notices · read_dedup · file_read_compression · shell_output_compression · proxy_tools\ncontext_focus_question"]
     R6c --> R8["guards::compose_and_guard\ncompose_prompt::stage::run\n+ cache-scope tripwire"]
     R8 --> R8c{"capture admission\nthrottled by memory pressure?"}
     R8c -- "yes, and body unmutated" --> RNC
@@ -130,9 +130,9 @@ flowchart TB
 
 ## Mutation gates and default behaviour
 
-![Animated pipeline: a request passes all thirteen stages and the composer; recall_injector, reminders, the steerer drain and read_dedup are armed in this example and add to the forwarded body, while the captured stored_body never changes](animations/mutation-stages.svg)
+![Animated pipeline: a request passes thirteen of the eighteen stages and the composer (the drawing predates the other five, which idle in this example); recall_injector, reminders, the steerer drain and read_dedup are armed in this example and add to the forwarded body, while the captured stored_body never changes](animations/mutation-stages.svg)
 
-Request-body mutation is opt-in through feature toggles, settings or operator-authored rules and compositions. A fresh configuration with no rules, queued messages or recognized hook tokens forwards the body unchanged. The shared steerer/mailbox drain is an exception to a blanket “every stage has an off toggle” description: it runs on eligible primary requests and can deliver explicitly authored mailbox messages independently of the steerer feature toggle. `agent-behavior-and-data.md` describes the governing policy; the gates below describe the implementation. Requests marked `x-mike-client: prompt-assistant` bypass the mutation stages and composer through `mutation_exempt`.
+Request-body mutation is opt-in through feature toggles, settings or operator-authored rules and compositions. A fresh configuration with no rules, queued messages or recognized hook tokens forwards the body unchanged. The shared steerer/mailbox drain is an exception to a blanket “every stage has an off toggle” description: it runs on eligible primary requests and can deliver explicitly authored mailbox messages independently of the steerer feature toggle. The gates below describe the implementation. Requests marked `x-mike-client: prompt-assistant` bypass the mutation stages and composer through `mutation_exempt`.
 
 Header masking and the per-pair `MAX_HEADERS` / `MAX_HEADER_BYTES` caps apply only to the **inspection projection** in `InterceptedRequest.request_headers` — forwarding uses `proxy::headers::filter_request_headers`, which strips hop-by-hop headers and `Content-Length`, rewrites `Host`, and requests `Accept-Encoding: identity`. Credentials are forwarded rather than inspection-masked. The request body sent upstream is whatever the last stage to fire produced.
 
@@ -149,12 +149,15 @@ Where each gate lives — some stages answer `enabled()` from the resolved sessi
 | `workspace_briefing` | `workspace_briefing`, session own lane, not a tool loop | off |
 | `agent_lessons` | `agent_lessons` toggle, Subagent turns only | off |
 | `reminders` | `reminders` toggle and session own lane | off |
+| `change_record_tail` | `change_record_tail` toggle, session own lane, not a tool loop; declines for a session whose client serves it (`change_record_tail_served_by_client`) and for template seats | off |
+| `git_read_hint` | `change_record` toggle and session own lane; declines for a session whose client serves it (`git_read_hint_served_by_client`) and for template seats | off |
 | `steerer` | drain runs on Primary/PrimaryFirst; same-request judge and reminder producers have their own gates; delivery checks source policy, staleness and mailbox claims | autonomous steering off; explicit mailbox delivery does not require it |
 | `repeated_notices` | `repeated_notices` toggle and session own lane | off |
 | `read_dedup` | `compression_dedup.enabled`, read inside `apply` | off — measures only, forwards byte-identical |
 | `file_read_compression` | `file_read_compression` toggle | off — and shadow-mode even when on: `apply` computes a reduction and logs it, never rewriting the forwarded body |
 | `shell_output_compression` | `shell_output_compression` toggle | off; when on, shadow with a forward share of 0: the manifest records each would-be cut of an older Bash result and the body is forwarded unchanged |
 | `proxy_tools` | `proxy_tools` toggle | off |
+| `context_focus_question` | `context_focus_question` toggle; declines for sidecar calls that do not resend the session's tool list (`context_focus_sidecar_call`) | off |
 | composer | `composition_enabled` boot config | off |
 
 “Session own lane” means Primary/PrimaryFirst with no `x-claude-code-agent-id` (`pipeline::is_session_own_lane`). The drain may await `judge_turn_close_before_drain` on a genuine human prompt, bounded by `steerer.request_timeout_secs`; steering is not exclusively background work. Eligible reminder producers may also use Remote Control delivery and leave the body unchanged.
@@ -163,6 +166,8 @@ How each one rewrites, when it does fire:
 
 - **filter** `Rewrote` — reparses the whole body to a `serde_json::Value` and reserialises with `serde_json::to_vec`. Does **not** preserve the original JSON serialization outside the matched block. The text-block walker excludes thinking blocks; reserialization alone does not establish that a thinking signature is invalid.
 - **`lazy_sections`**, **`recall_injector`**, the reminder stages (`lessons`, `self_identity`, `workspace_briefing`, `agent_lessons`) and **`reminders`** — each appends or replaces JSON string content via the same `serde_json::Value` round-trip as the filter; same reserialisation caveat applies.
+- **`change_record_tail`** and **`git_read_hint`** — append a `<system-reminder>` block through `try_append_reminder`, so the same round-trip caveat applies; the first lists what other sessions changed since this one last looked, the second is a fixed hint text.
+- **`context_focus_question`** — adds a focus field to the session's tool definitions in the forwarded body (`context_focus::inject`); it does not touch messages.
 - **steerer drain** — appends a `<system-reminder>` block to the last user message via `reminders::inject::inject_system_reminder`; same round-trip caveat.
 - **`repeated_notices`** — `rewrite_forwarded_only`. It decodes only the texts that hold a notice, removes the later copies, and writes that one JSON string back in place, so every other byte of the body is the client's. It reads system and user text, and the reminder blocks Claude Code appends after a tool's output; it never changes what a tool printed, an assistant turn, or what a person typed. From a message the operator sent mid-turn it removes only Claude Code's closing sentence, and only when that sentence is the last line of a block that opens with Claude Code's lead-in; the operator's words and the lead-in stay. A request that carries the whole conversation is judged by what it holds, so the first copy always stays and the earlier part is sent the same on every request (the prompt cache holds). A request that only continues a thread (`thread.type = "continue"`) carries no history, so mike remembers per session, in memory, which notices it has already forwarded; a restart or a new thread without the notice lets one more through. Capture stores each rewritten message again on every request that carries it (`compute_sent_patches`).
 - **`read_dedup`** and **`proxy_tools`** — `rewrite_forwarded_only`, so the stored audit copy stays the client's bytes while the forwarded body carries the stub or the tool declaration.

@@ -2,7 +2,7 @@
 title: Animated diagrams
 status: active
 created: 2026-09-23
-updated: 2026-10-21
+updated: 2026-11-06
 summary: Index of the animated SVG diagrams embedded in README.md and docs/, how they are built, and the interactive demos with their recordings.
 ---
 
@@ -10,38 +10,41 @@ summary: Index of the animated SVG diagrams embedded in README.md and docs/, how
 
 Six looping diagrams of what mike does to a Claude Code turn. Each one is a
 plain SVG that animates with SMIL and CSS, with no script, so it plays where
-GitHub shows it as an image. The three interactive demos are HTML pages, which
-GitHub shows as source. The two demos with a scripted run are recorded as
-animated WebP below, and the recordings play on GitHub too.
+GitHub shows it as an image. The two demos with a scripted run are recorded as
+animated WebP below, and the recordings play on GitHub too. The interactive
+versions are HTML pages: GitHub shows those as source, so open them in a browser
+from a checkout.
 
 | Diagram | Shows | Embedded in |
 |---|---|---|
 | [`mike-overview.svg`](mike-overview.svg) | One turn end to end: proxy, Anthropic, capture, web UI, MCP | [`README.md`](../../README.md) |
 | [`system-map.svg`](system-map.svg) | Every port a turn touches, including the `proxy-forward` sidecar | [`ARCHITECTURE.md` §2](../ARCHITECTURE.md#2-system-map) |
-| [`mutation-stages.svg`](mutation-stages.svg) | `pipeline::STAGE_ORDER` with four stages armed; the forwarded body changes and the capture does not | [`REQUEST_FLOW.md`](../REQUEST_FLOW.md#mutation-gates-and-default-behaviour), [`ARCHITECTURE.md` §4](../ARCHITECTURE.md#4-request-modification-pipeline) |
-| [`answer-replaced.svg`](answer-replaced.svg) | The buffered forwarder on a weasel-intercept hit | [`REQUEST_FLOW.md`](../REQUEST_FLOW.md#the-buffered-forwarder-two-ways-the-response-gets-replaced) |
+| [`mutation-stages.svg`](mutation-stages.svg) | Thirteen of the eighteen `pipeline::STAGE_ORDER` stages with four armed; the forwarded body changes and the capture does not | [`REQUEST_FLOW.md`](../REQUEST_FLOW.md#mutation-gates-and-default-behaviour), [`ARCHITECTURE.md` §4](../ARCHITECTURE.md#4-request-modification-pipeline) |
+| [`answer-replaced.svg`](answer-replaced.svg) | The buffered forwarder on a weasel-intercept hit | [`REQUEST_FLOW.md`](../REQUEST_FLOW.md#the-gated-forwarder-two-ways-a-reply-gets-cut-and-continued) |
 | [`two-phase-write.svg`](two-phase-write.svg) | The Phase-1 stub, per-event rows, and the Phase-2 terminal snapshot | [`REQUEST_FLOW.md`](../REQUEST_FLOW.md#two-phase-db-write) |
-| [`boot-and-shutdown.svg`](boot-and-shutdown.svg) | `mike serve` from `.env` to exit: workers, listeners, drain deadlines | [`STARTUP_FLOW.md`](../STARTUP_FLOW.md) |
+| [`boot-and-shutdown.svg`](boot-and-shutdown.svg) | `mike serve` from the first fast paths to exit: workers, listeners, drain deadlines | [`STARTUP_FLOW.md`](../STARTUP_FLOW.md) |
 
 ![How mike works](mike-overview.svg)
 
-## Interactive demo: one turn, live
+## One turn, live
 
-[`live-turn.html`](live-turn.html) is a simulated Claude Code terminal. Type a
-message, or press **Play demo**, and follow it through mike: a peer session's
+![Recording of the live-turn demo playing its two scripted turns with the default features armed](live-turn.webp)
+
+The recording is [`live-turn.html`](live-turn.html), a simulated Claude Code terminal. In
+the page, type a message, or press **Play demo**, and follow it through mike: a peer session's
 mailbox message, recalled lessons, a subagent dispatched with the Agent tool, a
 mike-mcp call, the answer streaming back, the harvester and the steerer
 fleet's verifier working off the hot path, and the queued nudge arriving with
 your next message. Features can be switched on and off before the first turn,
 including weasel intercept. Activity, the forwarded body and the Postgres rows
-written update as it runs. Open it in a browser from a checkout.
+written update as it runs. Open the file in a browser from a checkout.
 
-![Recording of the live-turn demo playing its two scripted turns with the default features armed](live-turn.webp)
+## A fleet run
 
-## Interactive demo: a fleet run
+![Recording of the fleet-run demo playing its scripted run, with acceptance rework and the observer's fenced-file finding switched on](fleet-run.webp)
 
-[`fleet-run.html`](fleet-run.html) is the coordinator's terminal. Type
-`/fleet <goal>`, or press **Play demo**, and follow a run with an observer,
+The recording is [`fleet-run.html`](fleet-run.html), the coordinator's terminal. In the page,
+type `/fleet <goal>`, or press **Play demo**, and follow a run with an observer,
 persistent worker seats and a separate acceptance seat. The coordinator warms
 templates with `mike spawn warm` and forks seats with `mike spawn fork`; seats
 receive successive work packages through addressed mailbox messages and keep
@@ -52,17 +55,15 @@ The observer checks progress and reports exceptions while the other seats work.
 Seats are torn down with `mike spawn kill` when the run is complete, rather than
 after each package. Switches illustrate rework, a fenced-file finding and a
 redeploy interrupting channels. The roster, mailbox and worklog are simulated.
-
-![Recording of the fleet-run demo playing its scripted run, with acceptance rework and the observer's fenced-file finding switched on](fleet-run.webp)
+Open the file in a browser from a checkout.
 
 ## Interactive version of the diagrams
 
-[`mike-in-motion.html`](mike-in-motion.html) has the same scenes with
-controls: pause, step, jump to any step, arm and disarm each mutation stage,
-and switch the response-path scenario (not armed, clean, forbidden-word hit,
-proxy tool call, buffer overflow). It has no scripted run to record; the SVGs
-above are its scenes. Open the file in a browser from a checkout. It needs no
-server.
+The scenes above also exist with controls in [`mike-in-motion.html`](mike-in-motion.html): pause,
+step, jump to any step, arm and disarm each mutation stage, and switch the response-path
+scenario (not armed, clean, forbidden-word hit, proxy tool call, buffer overflow). It has no
+scripted run to record; the SVGs above are its scenes. Open the file in a browser from a
+checkout. It needs no server.
 
 ## Changing a diagram
 

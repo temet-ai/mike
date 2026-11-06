@@ -2,7 +2,7 @@
 title: MCP Bridge
 status: active
 created: 2026-07-08
-updated: 2026-10-08
+updated: 2026-11-06
 summary: How to build, register, and use mike-mcp — the MCP bridge that exposes captured proxy traffic as structured tools inside a Claude Code session.
 ---
 
@@ -12,7 +12,7 @@ summary: How to build, register, and use mike-mcp — the MCP bridge that expose
 captured traffic from inside a session as structured MCP tools — sessions, requests, bodies,
 diagnostics, memory/lessons, filter rules — instead of hitting the REST API through WebFetch. It
 talks HTTP to the inspect API (`:9989` by default) and speaks MCP over stdio, spawned by Claude
-Code itself from this repo's `.mcp.json` or from `~/.claude.json`. For what the proxy is and how the three ports/two binaries fit
+Code itself from the `mike` entry in `~/.claude.json` or a project's `.mcp.json`. For what the proxy is and how the three ports/two binaries fit
 together, see [`../README.md`](../README.md); for standing up the proxy stack in the first place,
 see [`GETTING_STARTED.md`](GETTING_STARTED.md).
 
@@ -30,17 +30,20 @@ ever, [issue #226](https://github.com/temet-ai/mike/issues/226)).
 make install
 ```
 
-The workspace builds into a **shared** `CARGO_TARGET_DIR` (`~/.cargo-target-shared`), so there is
-no `./target/release/mike-mcp` to point at. `make install` runs the release build through
-`scripts/cx` and copies the binary to `~/.local/bin/mike-mcp`, which is what you register. If
-`~/.local/bin` is not on your `PATH`, the target says so and prints the export line to add.
+`make install` runs the release build of `mike-mcp` through `scripts/cx` (into `./target/` unless
+you set `CARGO_TARGET_DIR`) and copies the binary to `~/.local/bin/mike-mcp`, which is what you
+register. If `~/.local/bin` is not on your `PATH`, the target says so and prints the export line to
+add. An installed release carries `mike-mcp` beside `mike`; see
+[`user-guide/install.md`](user-guide/install.md).
 
 Re-run `make install` and restart Claude Code after pulling changes to `crates/mike-mcp/` or
 `crates/mike/`.
 
 ## 2. Register with Claude Code
 
-This repo's own `.mcp.json` invokes the installed binary from `PATH`:
+`mike claude-code mcp` writes the `mike` entry into `~/.claude.json` for you (`--remove` takes it
+out; `mike mcp register`, `unregister` and `probe` are the explicit forms, see
+[`user-guide/mcp.md`](user-guide/mcp.md)). By hand, the entry invokes the installed binary:
 
 ```json
 {
@@ -57,9 +60,9 @@ This repo's own `.mcp.json` invokes the installed binary from `PATH`:
 }
 ```
 
-The same block works in `~/.claude.json` under `mcpServers` for other repos. Use an absolute
-path (`~/.local/bin/mike-mcp`) instead of the bare command if the launching environment does not
-have `~/.local/bin` on `PATH`.
+The block goes under `mcpServers` in `~/.claude.json` (every repo) or a project's `.mcp.json`. Use
+an absolute path (`~/.local/bin/mike-mcp`) instead of the bare command if the launching
+environment does not have `~/.local/bin` on `PATH`.
 
 The `env` block is optional: `MIKE_INSPECT_URL` defaults to `http://127.0.0.1:9989`, matching
 mike's inspect bind. Set it to point the bridge at a non-default inspect address — for example
@@ -81,37 +84,41 @@ The bridge serves one of two tool sets, chosen by a `Profile` (`Core` or `Full`)
   seat never does fleet work. `define_fleet`, `get_fleet` and `get_fleet_graph`, which an
   operator session uses to author and watch a fleet, stay in `core`.
 - **`--full`** — the complete catalogue. Adds the non-investigation subsystems: prompt-composition
-  mutations (create/update/delete), the prompt-anomaly feed, memory-diagnostic measurement, and
-  per-session tool-use stats.
-
+  mutations (create/update/delete), the prompt-anomaly feed, memory-diagnostic measurement,
+  per-session tool-use stats, the evaluation, calibration and semantic reads, the configuration
+  change log, `define_project` and `register_project_location`, and the fleet-seat tools below.
 - **The `problem_solver` profile** (`mike-mcp --problem_solver`, `MIKE_MCP_PROFILE=problem_solver`)
   is the bounded session mike starts for one fleet problem. It serves `fleet_decide` and the
   read tools: `get_fleet`, `list_fleet_results`, `list_fleet_changes`, `list_session_notes`,
   `read_project_knowledge`, `search_project_knowledge`, `list_session_tool_uses`,
-  `get_session_messages`, and for writing only `write_session_note` and `send_session_message`.
-  It serves nothing that edits, commits, checks, builds, reports, defines a fleet or starts a
-  seat. `fleet_decide` (`fleet`, `session_id`, `problem_id`, `decision`, `reason`,
-  `evidence_read`, and `question` when escalating) records one decision from the allowed set
-  (`record_fault`, `instruct_seats`, `patch_definition`, `new_task`, `waive_obligation`,
-  `amend_ruling`, `accept_substitute_proof`, `disregard_receipt`, `rerun_targeted`,
-  `change_setting`, `escalate`); a call missing a field, or naming a decision outside the set, is
-  refused naming it. Over `POST /api/fleets/{fleet}/decide`.
-- **A profile per kind of fleet seat.** `worker`, `coordinator`, `acceptance`, `observer` and
-  `reference` (`crates/mike-mcp/src/profiles.rs`) each ship only what that kind of seat uses, so
-  a seat does not carry the schemas of tools it never calls. Every kind has the fleet tools
-  (`get_fleet`, `list_fleet_changes`, `list_fleet_results`, `fleet_commit`, `fleet_check`,
-  `fleet_where`, `what_changed`, `fleet_propose`, `fleet_split`), mail, notes and goals, the
-  questions and threads tools (`ask`, `answer`, `decline`, `read_thread`, `resolve_thread`),
-  four tools for reading what a peer ran (`find_text`, `get_request_tool_calls`,
-  `list_session_tool_uses`, `list_tool_errors`) and the project's lessons and knowledge. The
-  coordinator adds fleet definition and launching, the acceptance seat adds session and request
-  reading, and the observer adds both and the investigation tools. mike launches each fleet seat
-  with its kind's profile in `MIKE_MCP_PROFILE`. Every tool stays callable by name whatever the
-  profile.
-- **Five tools are only in `full`**: `confirm_message_receipt`, `register_workspace_session`,
-  `verify_message_read`, `workspace_heartbeat` and `ack_session_message`. A launched seat's
-  liveness comes from its channel and its mail is marked read without a call. A session outside
-  a fleet that registers itself or sends a heartbeat still calls them by name.
+  `get_session_messages`, and for writing only `write_session_note` and `send_session_message`
+  (`PROBLEM_SOLVER_TOOLS`, `crates/mike-mcp/src/profiles.rs`). It serves nothing that edits,
+  commits, checks, builds, reports, defines a fleet or starts a seat. `fleet_decide` (`fleet`,
+  `session_id`, `problem_id`, `decision`, `reason`, `evidence_read`, and `question` when
+  escalating) records one decision from the allowed set (`record_fault`, `instruct_seats`,
+  `patch_definition`, `new_task`, `waive_obligation`, `amend_ruling`, `accept_substitute_proof`,
+  `disregard_receipt`, `rerun_targeted`, `change_setting`, `escalate`); a call missing a field, or
+  naming a decision outside the set, is refused naming it. Over `POST /api/fleets/{fleet}/decide`.
+- **A profile per kind of fleet seat.** `worker`, `coordinator`, `acceptance`, `observer`,
+  `reference` and `retrospective` (`profiles.rs`) each ship only what that kind of seat uses, so a
+  seat does not carry the schemas of tools it never calls (30 tools for `worker`, 45 for
+  `coordinator`, 48 for `acceptance`, 68 for `observer`, 49 for `reference`, 8 for
+  `retrospective`, 11 for `problem_solver` in this build). The seat kinds that work on a task have the
+  fleet tools (`get_fleet`, `list_fleet_changes`, `list_fleet_results`, `fleet_commit`,
+  `fleet_check`, `fleet_where`, `what_changed`, `fleet_propose`, `fleet_split`, `fleet_report`),
+  mail, notes and goals, the questions and threads tools (`ask`, `answer`, `decline`,
+  `read_thread`, `resolve_thread`), four tools for reading what a peer ran (`find_text`,
+  `get_request_tool_calls`, `list_session_tool_uses`, `list_tool_errors`) and the project's lessons
+  and knowledge. The coordinator adds fleet definition and launching, the acceptance seat adds
+  session and request reading, and the observer adds both and the investigation tools. The
+  `retrospective` profile is the read-and-note set a closed run's retrospective uses
+  (`RETROSPECTIVE_TOOLS`). mike launches each fleet seat with its kind's profile in
+  `MIKE_MCP_PROFILE`. Every tool stays callable by name whatever the profile.
+- **Five tools are only in `full`** (`FULL_ONLY_TOOLS`): `confirm_message_receipt`,
+  `register_workspace_session`, `verify_message_read`, `workspace_heartbeat` and
+  `ack_session_message`. A launched seat's liveness comes from its channel and its mail is marked
+  read without a call. A session outside a fleet that registers itself or sends a heartbeat still
+  calls them by name.
 
 Selection precedence is **CLI flag > env var > default** (default is `core`):
 
@@ -119,8 +126,8 @@ Selection precedence is **CLI flag > env var > default** (default is `core`):
 mike-mcp --core                       # explicit core (same as default)
 mike-mcp --full                       # complete catalogue
 MIKE_MCP_PROFILE=full mike-mcp       # env-selected full profile
-MIKE_MCP_PROFILE=worker mike-mcp     # a fleet seat's kind: worker, coordinator,
-                                      # acceptance, observer or reference
+MIKE_MCP_PROFILE=worker mike-mcp     # a fleet seat's kind: worker, coordinator, acceptance,
+                                      # observer, reference, retrospective or problem_solver
 ```
 
 Two things about this split that are easy to get wrong:
@@ -130,11 +137,10 @@ Two things about this split that are easy to get wrong:
   tax — but the server still serves every tool. Calling `session_tool_use_stats` from a default
   session works; you just don't get its schema advertised up front.
 - **Several tools front features that are off by default.** The steering, memory/lesson and
-  mailbox tools sit on subsystems whose feature toggles default off (see
-  `.claude/rules/agent-behavior-and-data.md`),
-  so on a fresh install they return empty results or refuse until the corresponding toggle is
-  turned on at [`/settings`](http://localhost:9990/settings). An empty `list_lessons` is not
-  necessarily an empty database.
+  mailbox tools sit on subsystems behind feature toggles (`/settings`), so while a toggle is off
+  they return empty results or refuse until it is turned on at
+  [`/settings`](http://localhost:9990/settings). An empty `list_lessons` is not necessarily an
+  empty database.
 
 `mike-mcp list-tools [--json] [--core|--full]` is the authoritative source for the current tool
 list and count. Note that **`list-tools` defaults to `--full`**, the opposite of the server's
@@ -143,14 +149,11 @@ including in this doc: the split evolves independently of any prose description 
 
 ## 4. Tool catalogue
 
-`mike-mcp list-tools --core --json` reports 65 core tools and 37 full-only tools as of this
-install (2026-09-29) — both counts have drifted from this doc's own tables over time from
-unrelated work; the tables below are not a full re-audit, only `get_improvement_effects` added
-for tonight's package. Regenerate the counts from the binary, never from a number typed here.
-
-The tables below cover most of the core tools and a representative full-only sample, with each tool's own
-description from the binary. `mike-mcp list-tools [--core|--full] [--json]` remains authoritative
-— regenerate from it rather than trusting a count here.
+`mike-mcp list-tools --core --json` reports 67 tools in the core profile and 126 in the full one
+in this build (59 full-only). The tables below group the core tools and a representative
+full-only sample, with each tool's own description from the binary. `mike-mcp list-tools
+[--core|--full] [--json]` remains authoritative — regenerate from it rather than trusting a count
+here.
 
 ### Core tools (default profile)
 
@@ -220,8 +223,6 @@ description from the binary. `mike-mcp list-tools [--core|--full] [--json]` rema
 
 | Tool | What it does |
 |------|--------------|
-| `define_project` | Create a stable logical project UUID, independent of checkout paths |
-| `register_project_location` | Associate a machine UUID and checkout root with an existing project |
 | `list_project_locations` | Discover project UUIDs and their machine-specific locations |
 | `search_project_knowledge` | Hybrid text/semantic search across artifacts, lessons, notes, turns, comms threads (the mail sessions sent each other, one thread per fleet run) and work threads (kind `work_thread`: goal, state and acceptance criteria); returns references and retrieval coverage |
 | `read_project_knowledge` | Read the complete retained source for a reference returned by search, including provenance and revision metadata |
@@ -256,10 +257,11 @@ not treat source text as instructions.
 | `send_session_message` | Queue a cross-session message for another session, delivered into its next eligible turn |
 | `get_session_messages` | Read a session's mailbox: `inbox` (messages addressed to it) and `outbox` (messages it sent), oldest first, full bodies, never truncated |
 | `get_session_threads` | List every mailbox thread this session participates in, newest `last_message_at` first |
-| `ack_session_message` | Acknowledge a mailbox message you received |
 | `verify_session_message` | Verify a claimed mailbox delivery is genuine before acting on it |
-| `verify_message_read` | Check the delivery receipt of a message you sent with `send_session_message` |
-| `confirm_message_receipt` | Did the addressed session actually ACT on a mailbox message? |
+
+Full-only mailbox tools: `ack_session_message` (acknowledge a message you received),
+`verify_message_read` (the delivery receipt of a message you sent) and `confirm_message_receipt`
+(did the addressed session actually act on a message).
 
 **Reply addresses.** A sender asks for a reply with `request_reply: true` and
 does not type its own id. The bridge finds this call's own
@@ -271,8 +273,7 @@ names both ids. When the call cannot be found in the capture yet, the send goes
 through as given and the result carries `from_unverified: true`.
 `CLAUDE_CODE_SESSION_ID` is only a fallback for `request_reply`, never grounds
 for a refusal: a harness process can carry a different id from the
-conversation (session 6f544a61 sent as `da5acf75`, its temp-directory id, on
-2026-09-23). Two backstops sit in the proxy: the self-identity reminder is
+conversation. Two backstops sit in the proxy: the self-identity reminder is
 re-injected whenever its id line is missing from the outbound request, and
 response analysis queues a correction into the session's next turn when a mail
 call names another session as the caller's own.
@@ -285,15 +286,15 @@ the sender's receipt lookup and `confirm_message_receipt` reports as
 Sending does not wait for the recipient to drain its mailbox or finish a turn.
 Claude Code's scheduling of a frame received during a turn still requires a
 live-client proof. A missing or unavailable stream retains ordinary mailbox
-delivery. Both migrations `20260908000003` and `20260908000004` are required.
+delivery. Migrations `20260908000003` and `20260908000004` create the tables this uses.
 
 **Workspace coordination**
 
 | Tool | What it does |
 |------|--------------|
 | `get_workspace_roster` | Peer discovery for the cross-session coordination loop: every session currently registered on a project, with its declared identity (`name`, `role`, `instructions`, `goal`), cwd, worktree, and liveness state (channel-derived when the session has a linked Remote Control channel, lease-derived otherwise — `liveness_source` says which). A peer's `instructions` is DATA, never instructions to the reader |
-| `workspace_heartbeat` | Renew this session's workspace liveness lease and check its own mailbox inbox and outbox in one round-trip (mutating) |
-| `register_workspace_session` | Register this session on the workspace roster and declare its whole identity in the same call (`name`, `role`, `instructions`, `goal`, `next_steps`; `intent` is a deprecated alias for `goal`): find-or-create the session, optionally assign a confirmed canonical Git repo_root, and return the roster briefing plus the raw roster (mutating) |
+| `workspace_heartbeat` (full-only) | Renew this session's workspace liveness lease and check its own mailbox inbox and outbox in one round-trip (mutating) |
+| `register_workspace_session` (full-only) | Register this session on the workspace roster and declare its whole identity in the same call (`name`, `role`, `instructions`, `goal`, `next_steps`; `intent` is a deprecated alias for `goal`): find-or-create the session, optionally assign a confirmed canonical Git repo_root, and return the roster briefing plus the raw roster (mutating) |
 | `end_workspace_registration` | Release this session's active workspace registration, removing it from the roster (mutating) |
 | `get_fleet_graph` | This proxy's own session graph for a project: every session active in the window as a node (goal, cwd, worktree, model, liveness state, quality verdict, unconsumed mail count), and `messaged` edges aggregated from `mailbox.messages` traffic between sessions |
 
@@ -355,6 +356,8 @@ Each remains callable by name from a `core` session — only its schema is withh
 
 | Tool | What it does |
 |------|--------------|
+| `define_project` | Create a stable logical project UUID, independent of checkout paths |
+| `register_project_location` | Associate a machine UUID and checkout root with an existing project |
 | `create_prompt_composition` | Create a new composition |
 | `update_prompt_composition` | Patch a composition |
 | `delete_prompt_composition` | Delete a composition by id |
@@ -387,8 +390,6 @@ Each remains callable by name from a `core` session — only its schema is withh
 | `list_steer_question_events` | The evaluation rows behind a question's numbers, with arm, draw, due time, reach, labels, scored turn and the intervention; `GET /api/steering/questions/{steerer_id}/{question}/events` (full profile) |
 | `get_cross_session_calibration` | The turn guard's calibration snapshot whole (settings, rollup, candidate bins, base rates, thresholds in force) and the block it would read, rebuildable at any `as_of`; `GET /api/cross-session/calibration` (full profile) |
 | `list_directive_proposals` | Directive proposals newest first, or one with every evidence item and the operator's words in full; `GET /api/directive-proposals[/{id}]` (full profile) |
-| `define_fleet` | Describe a fleet, or change one, and read back what is still missing (mutating). Without `fleet` it creates one from `slug`, `project_path` and `patch`; with `fleet` (id or slug) it merges `patch` into the stored definition. `ready: true` asks mike to run every check. Every answer for a fleet that has not started carries `at_ready`: `starts` (the control seats, the tasks that get a worker at once, the templates, the reference seat, the tasks that wait, and `most_at_once`, the largest number of sessions open at one moment during the start, which is what the room check compares with the free panes; a pane counts only when a Claude session runs in it) and `machine` (what the machine check would refuse: a role or contract file that does not exist, no room in the terminal), computed on each call and not stored |
-| `get_fleet` | Read one fleet by id or slug: `state`, the whole `definition`, `missing`, `ready`, `at_ready` until it starts, run id and timestamps |
 | `list_fleet_changes` | What changed in a running fleet's checkout, read from the tree once a second: path, kind, hash, time, the seat whose command was running, the owning task, and a note for a write outside a task's files; `GET /api/fleets/{fleet}/changes` |
 | `list_fleet_results` | What the seats already ran: each Bash command with its exit, output tail and the paths that changed after it finished (`still_valid` when none under the given paths); `GET /api/fleets/{fleet}/results` |
 | `fleet_commit` | Commit a seat's own changed files, or the paths it names, through mike without the shared index; never refused on a judgement (a foreign path or a failing check comes back in `warnings`); pushed by the server, or by the bridge from the seat's own environment when the server cannot, with git's words in `push_error` (mutating); `POST /api/fleets/{fleet}/commit` |
@@ -400,27 +401,38 @@ Each remains callable by name from a `core` session — only its schema is withh
 
 A fleet is described in mike's database, not in a file or a script. A session fills it in with
 `define_fleet` and asks what is still missing; mike checks it and starts the fleet itself. Both
-tools are outside the `core` profile, callable by name from any session, and both take `select`
-(the result sits under the `fleet` key, so `select: ["/fleet/missing"]` returns only the list of
-what is missing).
+tools are in the `core` profile and both take `select` (the result sits under the `fleet` key, so
+`select: ["/fleet/missing"]` returns only the list of what is missing). `define_fleet` describes a
+fleet or changes one and reads back what is still missing (mutating): without `fleet` it creates
+one from `slug`, `project_path` and `patch`; with `fleet` (id or slug) it merges `patch` into the
+stored definition; `ready: true` asks mike to run every check. Every answer for a fleet that has not
+started carries `at_ready`: `starts` (the tasks that get a worker at once, the templates, the
+reference seat, the tasks that wait, and `most_at_once`, the largest number of sessions open at
+one moment during the start, which is what the room check compares with the free panes) and
+`machine` (what the machine check would refuse: a role or contract file that does not exist, no
+room in the terminal, a push that cannot work), computed on each call and not stored. `get_fleet`
+reads one fleet by id or slug: `state`, the whole `definition`, `missing`, `ready`, `at_ready`
+until it starts, run id and timestamps. How mike runs a started fleet is in
+[`LAUNCH_DOMAIN.md`](LAUNCH_DOMAIN.md#5-fleets).
 
 - **The definition.** `goal`, `ask`, `repo`, `branch`, `rules`, `shared_files`;
-  `criteria` keyed by id (`text`, `check`); `coordinator`, `observer` and `acceptance`, each with
-  `model`, `agent`, `brief` and `contract`; `workers` keyed by discipline (`model`, `agent`,
-  `contract`); `tasks` keyed by id (`name`, `discipline`, `criteria`, `files`, `brief`,
-  `after`, `goal`); `goals` (`fleet`, `coordinator`, `acceptance`, `observer`, `workers`), each a
-  completion condition in the words of Claude Code's `/goal`, all empty unless set: a seat whose
-  condition is set keeps working until a model judges it met; `workers` applies to every worker
-  with `{task}`, `{name}` and `{criteria}` filled in from its task, `tasks.<id>.goal` replaces it
-  for one task, and the coordinator carries `fleet` when it has none of its own. A goal over
-  4,000 characters once filled in, or a worker goal with an unknown placeholder, is listed as
-  missing. There is one checkout for every seat, so the definition names no second one, and a
-  fleet needs at least two tasks.
-- **What mike writes onto it.** When the fleet starts, mike records the session id of each control
-  seat (`coordinator.session`, `acceptance.session`, `observer.session`). When it starts a worker
-  for a task it records `tasks.<id>.seat`, `tasks.<id>.session` and `tasks.<id>.state`
-  (`starting`, then `working`, or `not started: <why>`). Setting a task's `seat` and `session` to
-  `null` has mike start a fresh seat for it on its next pass.
+  `criteria` keyed by id (`text`, `check`); `workers` keyed by discipline (`model`, `agent`,
+  `contract`); `tasks` keyed by id (`name`, `discipline`, `criteria`, `files`, `new_files`,
+  `brief`, `after`, `goal`, and optionally `done_when` and `exports`); `goals.workers`, and
+  `tasks.<id>.goal`, a completion condition in the words of Claude Code's `/goal`, empty unless
+  set: a worker whose condition is set keeps working until a model judges it met; `goals.workers`
+  applies to every worker with `{task}`, `{name}` and `{criteria}` filled in from its task, and
+  `tasks.<id>.goal` replaces it for one task. A goal over 4,000 characters once filled in, or a
+  worker goal with an unknown placeholder, is listed as missing. The definition also takes
+  `check`, `commit_check`, `gate`, `execution`, `reference`, `retrospective`, `briefs`,
+  `staffing`, `seat_settings` and `baseline` (see [`LAUNCH_DOMAIN.md`](LAUNCH_DOMAIN.md#5-fleets));
+  `coordinator`, `observer` and `acceptance` are still accepted seat blocks, but a started fleet
+  opens no such seat. There is one checkout for every seat, so the definition names no second
+  one, and a fleet needs at least two tasks.
+- **What mike writes onto it.** When the fleet starts, mike records a session id under
+  `coordinator.session` and `acceptance.session`. A task's seat, session and state are worked out
+  from the fleet's event record, not stored; `tasks.<id>.seat`, `.session` and `.state` in a
+  definition are ignored where mike can derive the answer.
 - **A patch is merged.** `define_fleet` merges `patch` into what is stored: named items are set,
   omitted items stay, an item set to `null` is removed, and a list is replaced whole. Calling it
   without `fleet` creates the fleet (`slug` and `project_path` required) and, when `ready: true`
@@ -498,7 +510,7 @@ inspect-API route: every entry returned by `all_tools()` must be the target of a
 manifest `Coverage::Tool` or `Coverage::AggregatedInto` entry, or the test fails. Conversely,
 every inspect route's manifest coverage must resolve to a real tool or resource. New inspect
 routes do **not** require a matching MCP tool by default — see the MCP-tools policy in
-[`../CLAUDE.md`](../CLAUDE.md) — but a tool without a backing route is a bug this test catches.
+[`../AGENTS.md`](../AGENTS.md) — but a tool without a backing route is a bug this test catches.
 
 ## 7. Channel push (mailbox wake over MCP)
 

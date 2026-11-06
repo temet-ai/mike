@@ -2,43 +2,38 @@
 title: Release source gates and hosted routing
 status: active
 created: 2026-10-14
-updated: 2026-10-18
-summary: Local source-gate commands, strict frontend audit outcomes, hosted routing, and the operator-requested October Actions pause.
+updated: 2026-11-06
+summary: Local source-gate commands, strict frontend audit outcomes, hosted routing, and where hosted CI runs now (public repository enabled, development repository disabled).
 ---
 
 # Release source gates and hosted routing
 
-WP01 / SG01–SG03 verify the selected source revision. They do not qualify archive
+SG01–SG03 verify the selected source revision. They do not qualify archive
 bytes, installed journeys, publication, or a different source revision. Record the
 actual source SHA, clean/dirty tree state, command, tool versions and exit status
 with each result. A required FAIL, NOT RUN, or DEFERRED prevents qualification.
 
-## Temporary hosted CI pause
+## Hosted CI today
 
-GitHub Actions is disabled at repository level for `temet-ai/mike` at the
-operator's request through 2026-10-31 (Africa/Johannesburg). This covers all
-workflows, including scheduled agents and manual dispatches. Workflow definitions
-and local quality gates remain in place.
+The October Actions pause (all workflows disabled through 2026-10-31) is over for
+the project's purposes, because the work moved. On 2026-11-06:
 
-During this pause, use applicable local checks. Do not dispatch, rerun, or poll
-hosted jobs, and do not repeatedly raise the known billing limitation in progress
-or completion reports. Report actual local validation and new failures. Retain
-truthful evidence: a local pass does not mean a hosted check passed. If explicitly
-asked about hosted CI, describe it as intentionally paused.
+- The public repository `temet-ai/mike` has Actions enabled (all actions allowed), and
+  its workflows run on every push to `main`.
+- The private development repository has Actions disabled
+  (`gh api repos/<owner>/<private-repo>/actions/permissions --jq .enabled` returns
+  `false`). That setting is the old pause carried by the rename, and is deliberate:
+  run the local gates there. It is re-enabled only by an operator decision.
+- The public `main` runs of that day: `E2E` passed on every push; `Frontend quality`
+  failed on every push, on the last run at its `Frontend dependency advisory audit`
+  step; `Rust quality` failed on the first push (its reason is not recorded here),
+  was cancelled by the next two pushes and was still running on the latest. None of
+  this is a qualification result for any candidate, and an October backlog needs no
+  rerun.
 
-Review availability from 2026-11-01. Restoration is manual, with no automatic
-timer. After confirming hosted execution is available, restore the prior
-repository setting and verify it:
-
-```sh
-gh api --method PUT repos/temet-ai/mike/actions/permissions -F enabled=true
-gh api repos/temet-ai/mike/actions/permissions --jq .enabled
-```
-
-Only `enabled` was changed; existing workflow definitions and other permission
-settings are preserved. Once restored, remove the temporary availability notice
-from `AGENTS.md` and `CLAUDE.md` and update this section. New events can trigger
-workflows; there is no need to rerun the October backlog.
+Hosted results and local results are separate observations: a local pass does not mean
+a hosted check passed, and a hosted failure does not make a local pass wrong. Record
+the actual run, SHA and step for either.
 
 ## Local execution first
 
@@ -104,7 +99,7 @@ their existing jobs:
   unfiltered. Checkout uses the event's selected ref, never a hardcoded `main`.
 
 The explicit candidate route is `.github/workflows/release-source-gates.yml`
-("Candidate source gates"). After hosted execution is authorized and available,
+("Candidate source gates"). On a repository where Actions is enabled (the public one),
 select the reviewed candidate branch/tag as its dispatch ref. Its three relative
 reusable workflow references and default checkouts resolve to the same event
 commit. Verify the resulting run SHA against the intended candidate; selecting a
@@ -117,11 +112,9 @@ standalone main/manual run cannot cancel a candidate orchestration run. No route
 adds `continue-on-error`, job-level branch exclusions or inherited secrets.
 
 These are checked-in routes, not evidence of successful hosted execution.
-Hosted job execution, trigger delivery and service startup remain **NOT RUN /
-DEFERRED: intentional hosted CI pause** until actual execution provides those
-observations. Repository Actions availability was verified as disabled on
-2026-10-18. This expected state is recorded here rather than repeated in routine
-completion reports.
+`Candidate source gates` (`workflow_dispatch`) has no recorded run. Hosted execution of
+SG01–SG03 on a candidate stays **NOT RUN** until a run on the candidate's SHA provides
+it; the ordinary `main` runs listed above are not candidate runs.
 
 ## Offline regression commands
 

@@ -2895,6 +2895,7 @@ sends and SET NULL if the sending session is deleted.
 - `idx_mailbox_messages_from_session`: `from_session_id WHERE NOT NULL` (BTree partial) — reply pointer queries
 - `idx_mailbox_messages_sent_request`: `sent_request_id WHERE NOT NULL` (BTree partial) — delivery confirmation
 - `idx_mailbox_messages_pending`: `(to_session_id, id) WHERE sent_request_id IS NULL` (BTree partial) — reload/drain lookup: never-sent rows for one recipient, oldest first
+- `idx_mailbox_messages_sender_unnotified`: `(queued_at) WHERE sender_notified_at IS NULL AND from_session_id IS NOT NULL AND to_session_id IS NOT NULL AND sent_at IS NULL` (BTree partial) — the mailbox reaper tells a sender once when its message was not delivered, and `sender_notified_at` records that it did
 - `idx_mailbox_messages_redelivery`: `(to_session_id, id) WHERE consumed_at IS NULL AND dead_lettered_at IS NULL AND sent_at IS NOT NULL` (BTree partial) — reload/drain lookup: already-sent, still-eligible rows for one recipient, oldest first
 
 **Staleness/dead-letter visibility** ([issue #166](https://github.com/temet-ai/mike/issues/166)):
@@ -3453,11 +3454,9 @@ global, non-session-scoped operator configuration — the runtime source of trut
 
 One row per named feature toggle. Closed key space enforced by a CHECK constraint that every migration
 introducing a new toggle drops and re-adds (idempotent `DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT`).
-There are eighteen toggle keys; `crates/mike/src/feature_toggles/mod.rs` is the authoritative
-list, and each toggle's code default is documented in [`FEATURES.md`](FEATURES.md). Twelve of
-them — every toggle that rewrites traffic or sends captured text off the machine — default off
-per `.claude/rules/agent-behavior-and-data.md`;
-the six local-only workers default on. The column default is still `TRUE`, so a stored row is
+`crates/mike/src/feature_toggles/mod.rs` is the authoritative list of toggle keys, and each
+toggle's code default is documented in [`FEATURES.md`](FEATURES.md). Every toggle that rewrites
+traffic or sends captured text off the machine defaults off. The column default is still `TRUE`, so a stored row is
 what actually decides, and migration `20260917000002_fresh_install_defaults_off.sql` turns the
 mutation and egress toggles off on a database that has captured no requests yet.
 
