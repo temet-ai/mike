@@ -2,7 +2,7 @@
 title: Using mike MCP from a Background Monitor / cron context
 status: active
 created: 2026-06-13
-updated: 2026-07-07
+updated: 2026-11-06
 summary: Explains why shell-based monitors cannot call MCP tools and documents the sanctioned pattern for periodic proxy inspection.
 ---
 
@@ -19,35 +19,13 @@ to call `mcp__mike__get_session_overview` or similar from within a
 
 ## The sanctioned pattern
 
-The shell's only job is to **wake the agent**. The agent — running in its own
-turn — then calls the MCP tools.
-
-```
-CronCreate (every N minutes)
-  └── fires a prompt → agent turn starts
-        └── agent calls mcp__mike__* tools
-              └── agent reports findings / takes action
-```
-
-Concretely with `CronCreate`:
-
-```
-CronCreate(
-  cron: "*/5 * * * *",
-  prompt: "Check the latest session for tool errors. Call
-           mcp__mike__list_tool_errors with limit=10 and report
-           any is_error=true rows you find.",
-  recurring: true,
-)
-```
-
-On each tick Claude Code enqueues that prompt, a new agent turn executes,
-the agent calls `list_tool_errors` (or whichever tools are needed), and
-the result appears in the conversation.
-
-The same pattern applies when using `Monitor` as the trigger: the Monitor
-command emits a line (an event), which Claude Code delivers as a notification,
-and the agent responds to it by calling MCP tools.
+The shell's only job is to **wake the agent**. The agent, running in its own turn, then
+calls the MCP tools. A monitor session polls on its own cadence: either a Claude Code
+scheduled task or the repo's `/loop` skill re-invokes the agent with a prompt such as
+"call `list_tool_errors` with `limit=10` and report any `is_error=true` rows", and the
+agent calls the tools and reports in that turn. The same holds when `Monitor` is the
+trigger: the Monitor command emits a line, Claude Code delivers it as a notification,
+and the agent responds by calling MCP tools.
 
 ## MCP tools suited to a watch loop
 
@@ -67,7 +45,7 @@ whole. Caller-driven projection, not truncation; see `docs/MCP_BRIDGE.md`.
 
 All of these are in the default `core` tool profile (`mike-mcp` launched with
 no flag), so no `--full` relaunch is needed for a watch loop. They work
-unchanged in the cron-tick agent turn — no special setup is required beyond
+unchanged in the woken agent turn — no special setup is required beyond
 having `mike-mcp` running and the proxy stack healthy, pointed at the inspect
 bind via `MIKE_INSPECT_URL` (default `http://127.0.0.1:9989`).
 
@@ -75,7 +53,7 @@ bind via `MIKE_INSPECT_URL` (default `http://127.0.0.1:9989`).
 
 Do not embed `curl http://127.0.0.1:9989/api/...` calls inside a Monitor
 script as a workaround. REST calls from shell work, but they bypass the MCP
-layer, produce unstructured output the cron-tick agent must parse, and are
+layer, produce unstructured output the woken agent must parse, and are
 harder to maintain. Use the sanctioned pattern above and let the agent call
 the MCP tools in its own turn.
 
@@ -83,4 +61,4 @@ the MCP tools in its own turn.
 
 A purpose-built `watch_session` long-poll MCP tool (tracked in [issue #134](https://github.com/temet-ai/mike/issues/134), gap #4) would let a single agent turn subscribe to session events
 without re-invoking the agent on each tick. Until that tool exists, the
-cron-tick re-invocation pattern is the correct approach.
+re-invocation pattern above is the correct approach.

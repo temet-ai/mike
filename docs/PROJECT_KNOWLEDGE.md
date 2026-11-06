@@ -396,6 +396,21 @@ Persistence tests: `scripts/cx test -p mike --lib project_knowledge` with a disp
 `MIKE_TEST_ADMIN_URL`. MCP transport tests: `scripts/cx test -p mike-mcp --lib knowledge`.
 Run manifest coverage when adding or changing knowledge tools/routes.
 
-## UI follow-through
+## In the web UI
 
-See [Project knowledge in the UI and running system](PROJECT_KNOWLEDGE_UI.md) for the project detail panel that searches and reads this material, and for what the UI does not yet show.
+The project detail page (`/projects/<path>`, `frontend/src/routes/projects/[projectPath]/+page.svelte`)
+has a collapsible **Project knowledge** section (`ProjectKnowledgePanel.svelte`) beside the
+sessions, launches and memory panels. It searches the project through `GET /api/knowledge/search`
+(first eight results, no pagination controls) as soon as the page opens and again on each
+submitted query; the header shows semantic embedding coverage (`ready/total`) and the result
+list notes a lexical fallback when the embedding service did not answer. Selecting a result
+calls `GET /api/knowledge/read` and opens a drawer with the retained text, the declared status,
+a `historical revision` tag when that revision is no longer current, and the content hash. The
+panel sends neither `kind` nor `include_historical`, so it searches current material only, and
+its selection is not in the URL. Results state what mike retained, not what is true: age is a
+freshness signal, never proof that a decision is obsolete, and similarity is not confidence.
+
+On the launcher side, `mike spawn open` reads `<repo_root>/.mike/knowledge.json`
+(`crates/mike/src/launch/cli/knowledge_location.rs`: version `1`, `project_uuid`), registers
+the checkout as a location under this machine's `machine.json` identity, and sends the
+returned `location_uuid` with the workspace registration, as described above.

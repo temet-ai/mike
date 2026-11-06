@@ -15,21 +15,10 @@ with each result. A required FAIL, NOT RUN, or DEFERRED prevents qualification.
 
 ## Hosted CI today
 
-The October Actions pause (all workflows disabled through 2026-10-31) is over for
-the project's purposes, because the work moved. On 2026-11-06:
-
-- The public repository `temet-ai/mike` has Actions enabled (all actions allowed), and
-  its workflows run on every push to `main`.
-- The private development repository has Actions disabled
-  (`gh api repos/<owner>/<private-repo>/actions/permissions --jq .enabled` returns
-  `false`). That setting is the old pause carried by the rename, and is deliberate:
-  run the local gates there. It is re-enabled only by an operator decision.
-- The public `main` runs of that day: `E2E` passed on every push; `Frontend quality`
-  failed on every push, on the last run at its `Frontend dependency advisory audit`
-  step; `Rust quality` failed on the first push (its reason is not recorded here),
-  was cancelled by the next two pushes and was still running on the latest. None of
-  this is a qualification result for any candidate, and an October backlog needs no
-  rerun.
+Hosted Actions run on the public repository `temet-ai/mike`, on every push to `main`
+and on pull requests; the private development repository has Actions off, so its
+gates run locally. `.github/workflows/release-source-gates.yml` is the hosted gate for
+a candidate ref ([`GITHUB_WORKFLOWS.md`](GITHUB_WORKFLOWS.md)).
 
 Hosted results and local results are separate observations: a local pass does not mean
 a hosted check passed, and a hosted failure does not make a local pass wrong. Record

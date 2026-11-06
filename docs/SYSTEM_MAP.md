@@ -195,7 +195,7 @@ recorded in `llm.calls`.
 
 | Capability | Code | Surfaces | Doc |
 |---|---|---|---|
-| Guided setup: welcome, machine, database, proxy, claude, terminal, models, embeddings, features, service, ready | `setup/`, `tui/screens/setup/` | `mike setup [step]`, `--mode trial\|docker\|existing`; UI `/settings/setup` | user guide [setup](user-guide/setup.md) |
+| Guided setup: welcome, machine, database, service, claude, features, models, embeddings, terminal, ready | `setup/`, `tui/screens/setup/` | `mike setup [step]`, `--mode trial\|docker\|existing`; UI `/settings/setup` | user guide [setup](user-guide/setup.md) |
 | Feature presets | `feature_presets/` | `mike features watch-only\|recommended\|everything` | [`FEATURES.md`](FEATURES.md#three-starting-points-mike-features) |
 | Database: provision an owned Docker PostgreSQL 19, check an existing one, native install | `setup/cli.rs`, `db_provision/` | `mike database provision\|check\|stop`, `mike db up\|down\|status\|check\|native` | [`INSTALLED_DATABASE.md`](INSTALLED_DATABASE.md) |
 | Local fallback database with resync to the primary | `config/persist_bootstrap.rs`, `resync/` | boot keys `local_database_url`, `db_fallback_enabled` | [`LOCAL_DB_FALLBACK.md`](LOCAL_DB_FALLBACK.md) |

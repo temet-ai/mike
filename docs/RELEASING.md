@@ -8,16 +8,15 @@ summary: Where the 0.1.0-alpha.N release stands (0.1.0-alpha.3 is published), th
 
 # Preparing mike + mike-mcp release candidates
 
-[`RELEASE_READINESS.md`](RELEASE_READINESS.md) records the September
-release-readiness assessment and [`RELEASE_ACCEPTANCE_MATRIX.md`](RELEASE_ACCEPTANCE_MATRIX.md)
+[`RELEASE_ACCEPTANCE_MATRIX.md`](RELEASE_ACCEPTANCE_MATRIX.md) lists
 the cases a candidate is judged on.
 **A prepared candidate is not a qualified or published release.**
 
 ## Where things stand (2026-11-06)
 
 - **Repositories.** `temet-ai/mike` is public. It was created on 2026-11-06 from a
-  collapsed export of the private development repository (`scripts/export-public`),
-  so it carries none of the development history. The tap `temet-ai/homebrew-mike`
+  collapsed export of the private development repository (the public-export step,
+  which lives in the private repository), so it carries none of the development history. The tap `temet-ai/homebrew-mike`
   is public and holds `Formula/` and a README.
 - **Current release.** `0.1.0-alpha.3` is published as a pre-release, with archives for
   Linux x86_64 and Apple Silicon. The `Release alpha` run on its tag passed `validate`,
@@ -386,102 +385,32 @@ native accounts, browser/MCP, real-channel or Apple Silicon evidence.
 
 ## Running the acceptance matrix
 
-Run the matrix against one candidate directory, the one `scripts/release.sh`
-printed after `Candidate:`. Do this in a fresh account, container or VM, with no
-inherited `.env`, provider credentials or production database access:
-
-```bash
-scripts/release-acceptance --candidate /absolute/path/to/candidate \
-  --output /absolute/path/to/new-evidence
-```
-
-The bare form above only checks the candidate and records the cases it cannot
-yet observe as `NOT_RUN`. The journeys are opt-in flags on the same command:
-`--trial-journey`, `--persistent-journey`, `--maintenance-journey`,
-`--browser-journey` (with `--browser-node` and `--browser-chromium`, both absolute
-paths, and `--browser-ipv6`), `--mode-journey`, `--mode-tui-journey`,
-`--fault-journey` and `--upgrade-predecessor`, plus `--reliability-journey` (at least
-900 seconds) with `--reliability-duration-seconds` and
-`--reliability-concurrent-sessions`. The alpha cases come from
-`--persistent-journey` (AC02, AC03, AC07), AC01 needs `--trial-journey` as well,
-and AC22 needs `--maintenance-journey` on top of the persistent one. Journeys that need a database take
-`MIKE_TEST_ADMIN_URL` and `MIKE_RECOVERY_TEST_PGDATA`, both pointing at an owned
-PostgreSQL 19 test instance. Exit status 2 means an alpha case is still NOT_RUN,
-which is the normal result of a partial run.
-
-The output directory must be new and sit outside the checkout and the candidate.
-The run writes its ledger there: `result.json` (every case with its observed
-value, exit status and evidence references) and `summary.txt` (the same result
-in words). Both are private; keep them out of the repository. The ledger lists
-all 33 cases, AC01–AC27, SG01–SG03, PUBLIC01, PUBLIC02 and FEEDBACK01. A case
-that has no observation stays `NOT_RUN`; only the six alpha cases gate the exit
-status.
-
-The rows of [RELEASE_ACCEPTANCE_MATRIX.md](RELEASE_ACCEPTANCE_MATRIX.md) say what
-each journey must show. A row is complete only when its ledger case holds a
-recorded verdict.
+`scripts/release-acceptance --candidate /absolute/candidate --output /new/outside-source/evidence`
+runs the matrix against the one candidate directory `scripts/release.sh` printed after
+`Candidate:`, in a fresh account, container or VM. The journeys, their flags, the
+PostgreSQL 19 fixture they need and the ledger they write are described in
+[`RELEASE_ACCEPTANCE.md`](RELEASE_ACCEPTANCE.md); the rows each journey must satisfy are
+in [`RELEASE_ACCEPTANCE_MATRIX.md`](RELEASE_ACCEPTANCE_MATRIX.md).
 
 ## Where the matrix rows run
 
-The Linux mise journey installs the release archive into a fresh HOME through
-mise (served from a local file registry, so it needs no published release), then runs
-setup, trial capture, restart, a second mise version of the same bytes, and uninstall:
-
-```bash
-scripts/release-journey-mise --candidate /absolute/path/to/candidate \
-  --output /absolute/path/to/new-empty-dir
-```
-
-The output directory must be new, empty and outside both the checkout and the
-candidate. It needs Python 3.11 and `mise` on `PATH`, and it uses no network and
-no sudo. Exit 0 means every step passed; exit 1 means a step failed. It never
-qualifies an AC case: its upgrade step re-installs the same bytes, so it proves
-the mise path and not a data migration, and AC23 and AC24 are outside the alpha.
-Its evidence is `result.json` (hash-bound checks) and `summary.txt` in the output
-directory. `--real-claude /absolute/path/to/claude` adds one real Claude print
-session through the proxy; it needs `CLAUDE_CODE_OAUTH_TOKEN` in the environment.
-No run of this journey is recorded in this repository.
-
-The Linux journeys run with the helper above, each in a fresh HOME. The Apple
-Silicon Homebrew row needs a Mac: the maintainer runs it through the intended
-Homebrew channel once a release and its formulas exist, and records its verdict
-the same way. Until then it stays NOT RUN.
-
-Optional installed-browser helpers require `--persistent-journey --browser-journey
---browser-node /absolute/node --browser-chromium /absolute/chromium` in addition
-to the candidate/output arguments. The explicit owned PostgreSQL 19 fixture
-(`MIKE_TEST_ADMIN_URL` and `MIKE_RECOVERY_TEST_PGDATA`) and the checkout's existing
-Playwright dependency must already be available. There are no tooling downloads,
-remote browser attachments, Vite servers, sandbox-disabling retries or automatic
-browser discovery. Do not run this option on a host that denies browser launch.
-
-Browser checks run **after** the baseline persistent journey (and optional
-maintenance roundtrip), with a separate fresh unseeded database, config, HOME,
-synthetic session and owned foreground server. They never add a second capture to
-the restart/maintenance fixture. Trial mode cannot supply the persisted session
-and response-body APIs needed by the UI, so `--trial-journey` alone is insufficient.
-The helper checks captured request/response DOM, deep-link reload, native
-WebSocket events and a live request-count update, selected connection addresses,
-local help navigation, four packaged document reloads, scripts and console errors.
-Owned-origin HTTP responses pass through without redirects; the only allowed
-browser POST is the bounded local SPA delta-fallback diagnostic. These are partial
-instrumented checks, not full browser security, real-provider or release acceptance.
-Reports stay unqualified and full cases stay NOT_RUN, including when offline
-mock/contract tests pass. The browser fixture's child processes and databases are
-cleaned up without adopting or stopping the PostgreSQL cluster.
-
-Run `scripts/test-release-installation` for interruption, ownership, integrity,
-cleanup and honest-acceptance fixture regressions. Run
-`scripts/test-release-recovery` for maintenance and checkout-free packaging
-fixtures, including help/validation/install after deleting the producing source
-tree, poisoned import paths, tampered support files and foreign ownership. No test
-installs into the operator's prefix or touches their data.
+The Linux rows run through `scripts/release-acceptance` and `scripts/release-journey-mise`,
+each in a fresh HOME; the Apple Silicon Homebrew row needs a Mac and stays NOT RUN until the
+maintainer runs it through the Homebrew channel. Which helper covers which row, and what
+the browser and reliability options add, is in
+[`RELEASE_ACCEPTANCE_MATRIX.md`](RELEASE_ACCEPTANCE_MATRIX.md#where-the-harness-lives) and
+[`RELEASE_ACCEPTANCE.md`](RELEASE_ACCEPTANCE.md).
 
 ## Local regression tests and remaining gates
 
 ```bash
 scripts/test-release-preparation
 ```
+
+Run `scripts/test-release-installation` for interruption, ownership, integrity,
+cleanup and honest-acceptance fixture regressions, and `scripts/test-release-recovery`
+for maintenance and checkout-free packaging fixtures. No test installs into the
+operator's prefix or touches their data.
 
 This suite is also registered in `scripts/test-suite scripts`. It uses isolated
 Git fixtures, shell-script fixture binaries, and tool stubs, plus bounded

@@ -6,7 +6,7 @@ updated: 2026-07-01
 summary: Extended rationale and the full historical anti-pattern catalogue for the inspection-fidelity rule, relocated out of the always-loaded rule body.
 ---
 
-Full rule: `.claude/rules/agent-behavior-and-data.md`. This
+The rule is graded by `scripts/fidelity-check` (`make fidelity`). This
 doc holds the extended "why" and the anti-pattern catalogue, relocated verbatim to keep the rule
 body lean.
 

@@ -20,7 +20,7 @@ In the development stack the remote target is the shared capture database: the D
 `armitage-pg` (`scripts/capture-db/`), reached at `127.0.0.1:5440` on the host that runs it and at that
 host's LAN address on the same port from anywhere else. Both spellings live in the untracked `.env`,
 never in a tracked file (see [`ARCHITECTURE.md`](ARCHITECTURE.md#2-system-map) and
-[`TROUBLESHOOTING.md`](TROUBLESHOOTING.md#capture-db-on-armitage-is-unreachable)). A stopped
+[`TROUBLESHOOTING.md`](TROUBLESHOOTING.md#capture-db-unreachable-connection-refused-db-backed-test--start-proxysh-failures)). A stopped
 container looks identical, to this feature, to the machine being off: both present as
 `PersistError::Connect` and trigger the same fallback path. `docker ps --filter name=armitage-pg`
 on the capture host tells them apart, and `scripts/capture-db/up.sh` is the fix for the first.
@@ -44,13 +44,6 @@ capture into, wants `mike db up`, which is described in
 pgvector in Docker on `127.0.0.1`, keeps the generated password in the mike config file, and
 leaves the schema to mike's own migrations. `scripts/local-db/up.sh`, described below, is the
 developer stack's helper for the fallback database.
-
-`scripts/local-db/up.sh` has a known fault that is not fixed there: when `sqlx` is not on the
-`PATH` it applies the migration files with `psql`, which bypasses the migration record that
-mike's own migrator keeps, so the first `mike serve` against that database tries to apply the
-baseline migration a second time and fails. It also needs `psql` on the host even when Postgres
-runs in Docker. Install `sqlx-cli` before using the script, or use `mike db up` for a database
-that is not a fallback.
 
 ## Foundations this relies on
 

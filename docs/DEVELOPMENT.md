@@ -152,8 +152,10 @@ for manual component development — that's a dev server, not a test command, so
   This is a house-rule default, not a blanket clippy-enforced ban: real exceptions exist on
   both sides. Test-helper modules under `crates/mike/tests/common/` carry
   `#![allow(dead_code)]`/`#[allow(dead_code)]` where a symbol is only used by some of the
-  binaries that share the module. Production code carries one: an
-  `#[allow(dead_code)]` in `src/resolvers/manifest.rs`.
+  binaries that share the module. Production code carries four: a module-level
+  `#![allow(dead_code)]` in `src/resolvers/manifest.rs` and one item-level
+  `#[allow(dead_code)]` each in `src/store/wiring.rs`, `src/store/persistence/lessons/mod.rs`
+  and `src/store/persistence/lessons/writes.rs`.
   Complexity-policy suppressions are not exceptions: `scripts/lint-rust` denies cognitive
   complexity, excessive arguments, excessive function length, and Clippy's broader complexity
   group, while a source scanner rejects attributes that could lower them. Those functions must

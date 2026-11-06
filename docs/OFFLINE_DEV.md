@@ -46,7 +46,6 @@ DB env var, and there is no `DATABASE_URL` in this repo to set.
 | Format | `cargo fmt` | nothing |
 | **No-database tests** | `make test` (`cargo nextest run --all`, add `--offline` to cargo) | nothing — wiremock + raw TCP on localhost |
 | Run the proxy offline | `mike database provision` (pinned image already cached), then `mike serve` | a local Postgres — see [below](#running-the-proxy-offline-local-db-fallback) |
-| Replay a captured session | see [Replay section](#replay-a-real-session-offline) | fixture exported while online |
 
 ---
 

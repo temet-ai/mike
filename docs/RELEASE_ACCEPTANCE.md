@@ -515,7 +515,7 @@ Inner candidate output cannot attest to that outer isolation. Cleanup rechecks e
 cleanup is reported with the retained container identity, not broadened to other
 containers. Runtime use requires an independently prepared trusted image meeting
 the [runner image contract](RELIABILITY_RUNNER_IMAGE.md) for Python/PostgreSQL
-17 and extensions.
+19 and extensions.
 
 Inside that boundary the workload uses one fresh database, private HOME and one
 normal-default boot. It relocates service endpoints while preserving every other

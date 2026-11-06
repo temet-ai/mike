@@ -1,3 +1,11 @@
+---
+title: PostgreSQL 19 operations
+status: active
+created: 2026-10-13
+updated: 2026-11-06
+summary: Operating mike on PostgreSQL 19 — the major-version requirement, the pgvector image, sqlx nullability under PostgreSQL 19 plans, and parallel autovacuum.
+---
+
 # PostgreSQL 19 operations
 
 Mike requires major version 19 for setup, runtime connections, migrations and

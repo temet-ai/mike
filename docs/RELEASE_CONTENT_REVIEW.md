@@ -11,7 +11,7 @@ summary: Redacted local PUBLIC01/PUBLIC02 inventory and hash-pinned source-expor
 This is the local implementation of the content and source-exposure review.
 It produces review evidence. It does **not** approve a release, expose source, rotate a
 credential, publish an archive, change repository access, or rewrite history.
-[The candidate contract](RELEASE_CANDIDATE.md) remains authoritative for release scope.
+[`RELEASING.md`](RELEASING.md) remains authoritative for release scope.
 The public repository `temet-ai/mike` already exists (2026-11-06, from the one-shot
 export described below); neither gate has a verdict recorded in this repository.
 
@@ -157,7 +157,7 @@ are not performed by this offline tool.
 ## The public tree: one-shot export and private words
 
 The public repository becomes the one repository (the same route as gg), so
-`scripts/export-public OUT_DIR` runs once, for the first push, and has no sync or push mode.
+the public-export step, which lives in the private repository, runs once, for the first push, and has no sync or push mode.
 It has run: `temet-ai/mike` was created from its output on 2026-11-06 as a collapsed
 history, so its commits are not the development repository's SHAs.
 `OUT_DIR` must not exist; point it at a scratch folder outside the checkout. It exports
@@ -368,9 +368,9 @@ support. Cadence, response targets and ownership remain decisions to approve. Un
 security-reporting readiness and supported-version maintenance remain `NOT_RUN` blockers
 for public alpha. The current unqualified internal version is not a supported public release.
 
-## The public tree (`scripts/export-public`)
+## The public tree
 
-`scripts/export-public OUT_DIR` builds the first public tree from `HEAD` in a new folder and
+The public-export step, which lives in the private repository, builds the first public tree from `HEAD` in a new folder and
 pushes nothing. It leaves out the internal material, makes the maintainer's home folders,
 real session links and private repository name into made-up ones, turns Markdown links to
 left-out files into plain text, and then refuses at the first hit of: gitleaks (default rules
@@ -382,28 +382,6 @@ material, a CLA file, or a missing `LICENSE` / `AGENTS.md`. The tree carries
 `docs/WHAT_MIKE_STORES_AND_SENDS.md`; release archives carry `THIRD-PARTY-NOTICES.md` beside
 `LICENSE` and `NOTICE.json`. The licence is MIT with no CLA.
 
-### Run record, 2026-11-05 (HEAD 5c8bb40f, T7 / C5)
-
-```
-$ scripts/export-public /mnt/data/t7-export                     exit 0
-export-public: /mnt/data/t7-export is clean (9911 files); nothing pushed
-$ ls /mnt/data/t7-export                                        present: CONTRIBUTING.md SECURITY.md
-    CODE_OF_CONDUCT.md THIRD-PARTY-NOTICES.md (218 entries) LICENSE AGENTS.md .gitleaks.toml
-    docs/WHAT_MIKE_STORES_AND_SENDS.md docs/RELEASE_ACCEPTANCE_MATRIX.md; absent: .claude artifacts docs/plans docs/threads
-    scripts/export-public; CLA-like files at the root: 0
-$ scripts/private-words-check --tree /mnt/data/t7-export       exit 0
-  employer-name grep: 0 files; maintainer path / session-link grep: 0 lines
-planted word, scratch repo with the same hooks:
-  staged file containing it     pre-commit   REFUSED, commit exit 1
-  commit message containing it  commit-msg   REFUSED, commit exit 1
-  file under --tree             private-words-check --tree  REFUSED, exit 1
-  same staged file, clean message             commit exit 0
-$ python3 -m unittest discover -s scripts/release -p test_prepare.py   Ran 29 tests ... OK
-  (test_prepare.py expects tar members: binary, LICENSE, NOTICE.json, THIRD-PARTY-NOTICES.md)
-archive.pack + extract_checked on a built binary:
-  members: mike-mcp, LICENSE, NOTICE.json, THIRD-PARTY-NOTICES.md (218 "###" entries)
-```
-
 The acceptance policy is `docs/RELEASE_ACCEPTANCE_MATRIX.md`, pinned by repository path in
 `acceptance_ledger.py` and `publication_gates.py`; the export tolerates no dead link.
 
@@ -412,6 +390,4 @@ The acceptance policy is `docs/RELEASE_ACCEPTANCE_MATRIX.md`, pinned by reposito
 None of those checks builds the exported tree. The first public tag, `v0.1.0-alpha.1`,
 did not compile: `EXCLUDE` removed `.claude` files that the `mike` crate embeds with
 `include_str!`/`include_bytes!`. The fix turns the export into an allowlist (`KEEP`) and
-refuses when an embedded file is left out; it is on a development branch that has not
-landed on the development repository's main branch, so `scripts/export-public` at this
-commit still has only `EXCLUDE`. Build an exported tree before pushing it.
+refuses when an embedded file is left out. Build an exported tree before pushing it.

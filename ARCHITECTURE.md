@@ -375,102 +375,13 @@ Where there is no systemd (`MIKE_STACK_SUPERVISOR=nohup`, macOS), `start-proxy.s
 
 ### 11. How to add a new backend feature end-to-end
 
-This walkthrough covers the full path from database to MCP tool. Follow every step in order — partial implementations will fail the parity test.
+The path from database to MCP tool, as pointers into the sections that own each step:
 
-**Step 1 — Write the sqlx migration.**
-
-Create a new file in `crates/mike/src/store/persistence/migrations/`:
-
-```
-YYYYMMDDNNNNNN_description.sql
-```
-
-For example: `20260601000001_my_feature_table.sql`. The name must be unique, lexicographically ordered after all existing migrations, and the timestamp prefix must be the actual date. Write idempotent SQL — use `IF NOT EXISTS`, `ON CONFLICT DO NOTHING`, or `CREATE OR REPLACE` where possible. `sqlx::migrate!` runs all pending migrations on startup in filename order.
-
-**Step 2 — Add a repository query.**
-
-Add the query to the appropriate module under `crates/mike/src/store/persistence/`. Use `sqlx::query!` or `sqlx::query_as!` macros — never raw string SQL at call sites. Queries compile against the committed `.sqlx` offline cache; after adding/changing one, refresh it with `cargo sqlx prepare --database-url "$MIKE_DATABASE_URL"` (the repo's only DB var — there is no `DATABASE_URL`).
-
-```rust
-// In store/persistence/my_feature.rs
-pub async fn fetch_my_feature(pool: &PgPool, id: i64) -> Result<MyFeatureRow, ProxyError> {
-    sqlx::query_as!(
-        MyFeatureRow,
-        "SELECT id, name, created_at FROM mike.my_feature WHERE id = $1",
-        id
-    )
-    .fetch_one(pool)
-    .await
-    .map_err(ProxyError::from)
-}
-```
-
-**Step 3 — Add an inspect API route handler.**
-
-Add the route handler in `crates/mike/src/api/handlers/`. Keep it thin: validate input, call the service/persistence function, return a typed JSON response.
-
-```rust
-// In api/handlers/my_feature.rs
-pub async fn get_my_feature(
-    State(state): State<AppState>,
-    Path(id): Path<i64>,
-) -> Result<Json<MyFeatureRow>, ProxyError> {
-    let persist = state.persist.as_ref().ok_or(ProxyError::PersistenceDisabled)?;
-    let row = fetch_my_feature(&persist.pool, id).await?;
-    Ok(Json(row))
-}
-```
-
-Register the route in `api/mod.rs`:
-
-```rust
-.route("/api/my-feature/:id", get(handlers::my_feature::get_my_feature))
-```
-
-**Step 4 — Add a `manifest.rs` entry.**
-
-Every route must declare its MCP coverage in `crates/mike/src/api/manifest.rs`. Choose the right variant:
-
-```rust
-RouteEntry {
-    method: "GET",
-    path: "/api/my-feature/:id",
-    coverage: Coverage::Tool("get_my_feature"),
-},
-```
-
-The parity test reads this manifest. Adding the route without a manifest entry fails the build.
-
-**Step 5 — Add the MCP tool in `mike-mcp`.**
-
-In `crates/mike-mcp/src/tools.rs`:
-
-1. Add a constant: `pub const TOOL_GET_MY_FEATURE: &str = "get_my_feature";`
-2. Add a `Tool` registration in `server.rs::registered_tools()` with name, description, and input schema.
-3. Add a handler branch in `call_tool`:
-
-```rust
-TOOL_GET_MY_FEATURE => {
-    let id = args["id"].as_i64().ok_or(McpError::InvalidArgs("id required"))?;
-    client.get_json(&format!("/api/my-feature/{id}")).await
-}
-```
-
-**Step 6 — Verify parity test passes.**
-
-```bash
-cargo nextest run -p mike-mcp --test manifest_coverage
-```
-
-If the test fails, re-check that the manifest entry tool name exactly matches the `TOOL_*` constant string.
-
-**Step 7 — Add integration tests.**
-
-Add tests to the `integration_tests` binary target in `crates/mike/tests/`. Use `setup_test_db` + `teardown_test_db` helpers. Mark with `#[serial_test::serial(db)]` if the test touches shared tables. Run with:
-
-```bash
-make test-p p=mike
-```
+1. **Migration** — a new file under `crates/mike/src/store/persistence/migrations/`; see §12 for naming, ordering and the walkthrough.
+2. **Query and sqlx cache** — `sqlx::query!`/`query_as!` in the owning `store/persistence/` module, then refresh `.sqlx/` with `scripts/sqlx-prepare` (never raw `cargo sqlx prepare`, which empties `.sqlx/` while it runs); see §9.
+3. **Inspect route** — a thin handler under `crates/mike/src/api/handlers/`, registered in the owning group's `crates/mike/src/api/manifest/<group>.rs`: one `RouteEntry` in its `ROUTES` table (with a `Coverage` choice; new routes default to `Exempt`) and the axum `.route("/api/.../{id}", …)` call in its `register` function; see §2.
+4. **MCP tool** (only when a real workflow needs it) — the tool in `crates/mike-mcp/src/tools/<domain>.rs`, listed in `catalogue.rs` `all_tools` (and `CORE_TOOL_NAMES` if it belongs in the core profile), dispatched in `dispatch.rs` `call_tool`; `crates/mike-mcp/tests/manifest_coverage.rs` ties the tool to its manifest entry and rejects orphans; see §3.
+5. **Tests** — by the four-tier taxonomy in §8; DB-backed tests take a database through `TestDb::acquire`, `acquire_shared` or `acquire_isolated` (§9) and run with `make test-db`.
 
 ---
 

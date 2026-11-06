@@ -120,10 +120,30 @@ owned quota-limited fixtures, never the host filesystem or capture database.
 | FEEDBACK01 | After a public release: independent users follow only the published guide and artifacts; collect installation and repeat-use feedback; ship a corrective update. | First outside install and feedback exist (not an alpha gate); intervention and support data are recorded without conversation uploads; update fixes a reported issue and passes predecessor/channel tests.  |
 
 
-As of 2026-11-06 the source is public (`temet-ai/mike`, a collapsed export made with
-`scripts/export-public`) and PUBLIC01, PUBLIC02 and FEEDBACK01 have no verdict
+As of 2026-11-06 the source is public (`temet-ai/mike`, a collapsed export made by
+the public-export step, which lives in the private repository) and PUBLIC01, PUBLIC02 and FEEDBACK01 have no verdict
 recorded in this repository. The export's own checks (gitleaks, the private word list, no maintainer
 paths, no dead links) are mechanical and do not stand in for either review.
+
+## Who verifies what
+
+Verification responsibility is split by area; an area's case is recorded in the ledger only from a real journey on the candidate.
+
+| Area | Cases | Verification |
+|---|---|---|
+| Archive, installer, publication | AC01, AC08, AC25, AC26 | Archive/installer verifier; AC26 after an authorized publication |
+| Database provider and migrations | AC02, AC09, AC10 | Disposable PostgreSQL and installed-provider verifier |
+| Capture fidelity and the archive harness | AC03, AC20 | Synthetic capture and archive harness verifier |
+| Packaged browser and onboarding | AC04, AC18 | Extracted-product browser verifier |
+| MCP, client and diagnostics | AC05, AC17, AC19, AC27 | MCP/client and safe-diagnostics verifier |
+| Local access policy | AC06 | Independent local-access security verifier |
+| Lifecycle and instance isolation | AC07, AC14, AC15 | Lifecycle, restart and instance-isolation verifier |
+| Configuration and literal input | AC11, AC12 | Configuration and literal-input verifier |
+| Setup and mode transitions | AC13, AC16 | Mode-transition and failure-recovery verifier |
+| Backup, upgrade and removal | AC21, AC22, AC23, AC24 | Maintenance/data-preservation verifier (AC23, AC24 outside the alpha) |
+| Source gates | SG01, SG02, SG03 | Fresh-source gate verifier |
+| Public content | PUBLIC01, PUBLIC02 | Distribution/source reviewer and operator approval |
+| Feedback | FEEDBACK01 | External alpha user and feedback owner |
 
 ## Where the harness lives
 

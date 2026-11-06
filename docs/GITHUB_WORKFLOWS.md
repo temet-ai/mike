@@ -8,17 +8,14 @@ summary: Reference for the GitHub Actions workflows in mike - which repository r
 
 # GitHub Actions Workflows
 
-Nine workflows live in `.github/workflows/` of the private development repository. The
-public repository `temet-ai/mike` was created from a collapsed export that leaves out
-`docs-agent.yml` and `deps-agent.yml`, so it carries seven. Actions is enabled on the
-public repository and disabled on the private one ([`RELEASE_SOURCE_GATES.md`](RELEASE_SOURCE_GATES.md#hosted-ci-today)),
-so nothing here runs privately: the two agents currently run nowhere, and the release
-workflows run only on the public repository.
+Seven workflows live in `.github/workflows/`. Actions is enabled on the
+public repository `temet-ai/mike` and disabled on the private development repository
+([`RELEASE_SOURCE_GATES.md`](RELEASE_SOURCE_GATES.md#hosted-ci-today)),
+so nothing here runs privately: the workflows run only on the public repository.
 
 Four are CI gates (pull requests, and pushes to `main` for three of them); one is an
 advisory usability gate on frontend PRs; two are release workflows (a tag-triggered
-alpha build and a manual candidate source-gate run); two are autonomous agents (docs and
-dependency advisories).
+alpha build and a manual candidate source-gate run).
 
 ---
 
@@ -33,8 +30,6 @@ dependency advisories).
 | `ui-usability-review.yml` ("UI usability review") | PR (frontend UI paths) | Deterministic usability gate (svelte-check, layout-shift guard, grep self-checks) + advisory Claude-graded usability review |
 | `release-alpha.yml` ("Release alpha") | Push of a tag `v*-alpha.*` + `workflow_dispatch` | Builds the Linux and Apple Silicon archives with `scripts/release.sh`, publishes a pre-release and updates the Homebrew tap; see [`RELEASING.md`](RELEASING.md#the-tag-triggered-alpha-workflow) |
 | `release-source-gates.yml` ("Candidate source gates") | `workflow_dispatch` only | Offline routing regressions plus the three reusable gates on the selected ref; see [`RELEASE_SOURCE_GATES.md`](RELEASE_SOURCE_GATES.md) |
-| `docs-agent.yml` ("Docs agent") | Push to `main` + `workflow_dispatch` | Analyses the diff and auto-updates affected docs (development repository only) |
-| `deps-agent.yml` ("Deps agent") | Scheduled (Mondays 06:31 UTC) + `workflow_dispatch` | Caged Claude Code agent fixes advisories/deprecations/breaking bumps (coupled crate families, API breaks); a deterministic step re-verifies and opens the PR (development repository only) |
 
 ---
 
@@ -119,84 +114,10 @@ skills (`plain-language-microcopy`, `contextual-help-disclosure`, `invokable-pag
 **Setup:** add an `ANTHROPIC_API_KEY` repo secret to enable the `grade` job; the `gate` job runs
 regardless.
 
----
-
-## `docs-agent.yml`
-
-The autonomous workflow. Everything below is how it was designed and debugged — useful context for a follow-up session.
-
-### Triggers
-
-```yaml
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
-    inputs:
-      diff_range:
-        description: "Git diff range (e.g. abc123~5..abc123). Defaults to HEAD~1..HEAD."
-        required: false
-        default: ""
-```
-
-`workflow_dispatch` is the manual trigger — useful for testing or backfilling docs for an older range.
-
-### What it does
-
-1. **Checkout** — `fetch-depth: 0` (full history needed for arbitrary `git diff` ranges).
-2. **Install Python 3.12** + `httpx` (from `scripts/docs-agent/requirements.txt`).
-3. **Run `python scripts/docs-agent`** — the main logic:
-   - Determines the diff range: uses `DIFF_RANGE` env if set, otherwise `HEAD~1..HEAD`.
-   - Calls the LLM (OpenRouter, model `anthropic/claude-haiku-4-5`) to classify the diff into four boolean flags: `architecture`, `schema`, `guides`, `ui_help`.
-   - Updates the relevant doc files based on those flags.
-   - Commits the changes to a branch named `docs/agent-<short-sha>` and opens a PR via the GitHub REST API (`POST /repos/{owner}/pulls`).
-
-### Python agent structure
-
-```
-scripts/docs-agent/
-  __main__.py       # orchestration: diff → classify → update → PR
-  client.py         # OpenRouter API client (httpx, model anthropic/claude-haiku-4-5)
-  git_util.py       # git helpers: get_diff(), commit_and_push(), create_pr()
-  requirements.txt  # httpx>=0.27
-```
-
-`create_pr()` uses `httpx.post` to the GitHub REST API directly with `GH_TOKEN`. The `gh` CLI is not used because it calls the GraphQL API, which is blocked in the remote execution environment.
-
-### Required secrets
-
-| Secret | What it is |
-|---|---|
-| `OPENROUTER_API_KEY` | OpenRouter API key — set in repo Settings → Secrets → Actions |
-| `GITHUB_TOKEN` | Auto-provided by GitHub Actions — no setup needed |
-
-### Infinite-loop guard
-
-When the docs-agent PR is squash-merged, GitHub creates a commit whose message is the PR title. The PR title always ends with `[docs-agent]`. The job `if:` condition checks for this:
-
-```yaml
-if: ${{ github.event_name == 'workflow_dispatch' ||
-        (!contains(github.event.head_commit.message, '[docs-agent]') &&
-          github.event.head_commit.author.email != 'docs-agent@github-actions') }}
-```
-
-Three layers:
-- **Squash merge** — the commit message contains `[docs-agent]` → job skipped.
-- **Rebase merge** — individual commit message contains `[docs-agent]` → job skipped.
-- **Belt+suspenders** — commit author email is `docs-agent@github-actions` → job skipped.
-- **Plain merge** — the merge commit says "Merge pull request…" (no tag), but its diff contains only `.md` files → the LLM classify step returns all-false flags → script exits without opening another PR.
-
-Always use **squash merge** when merging docs-agent PRs to keep the loop guard reliable.
-
-### Permissions
-
-```yaml
-permissions:
-  contents: write       # push a branch + commit docs changes
-  pull-requests: write  # open the PR
-```
-
-These are job-level, so the default token for the rest of the repo remains unaffected.
+**A gap to know about:** the four usability skills that the trigger paths, `scripts/usability-gate.sh`
+and the `grade` rubric name under `.claude/skills/` are not in this repository (only
+`fleet-worker` is). The grep checks the gate runs are written into the script itself, so the
+`gate` job still works; the `grade` job runs without its rubric files.
 
 ---
 
@@ -207,8 +128,7 @@ manual dispatch (which builds and packages without publishing). Jobs: `validate`
 `build` per target (`ubuntu-22.04` for Linux x86_64, Apple Silicon on a macOS runner), then
 `publish` on tags only. The steps, the Homebrew tap update, the secret it reads and the runs
 so far are in [`RELEASING.md`](RELEASING.md#the-tag-triggered-alpha-workflow). The
-development repository's copy builds on `macos-15`; the public repository's copy still names
-the retired `macos-14`.
+Apple Silicon build runs on `macos-15`, the oldest Apple Silicon image GitHub still hosts.
 
 `release-source-gates.yml` ("Candidate source gates") is `workflow_dispatch` only, with
 `contents: read`. It runs the offline routing regressions, then calls `rust-quality.yml`,
@@ -216,42 +136,7 @@ the retired `macos-14`.
 [`RELEASE_SOURCE_GATES.md`](RELEASE_SOURCE_GATES.md#hosted-routing-contract).
 
 There is no Dependabot auto-merge workflow any more, and Dependabot version updates are
-disabled; `deps-agent.yml` is the only automated advisory path.
-
----
-
-## `deps-agent.yml`
-
-**Triggers:** scheduled `31 6 * * 1` (Mondays 06:31 UTC) +
-`workflow_dispatch` with an optional `focus` input (an advisory id or crate name).
-Development repository only; with Actions disabled there it does not run.
-
-**Why it exists:** Dependabot's PR bot can't fix advisories that require bumping coupled crate
-families in lockstep or absorbing a breaking API change at call sites (the worked example:
-GHSA-w9wp-h8wv-79jx, where the `opentelemetry` family had to move together and `main.rs` needed a
-manual `ExportConfig` → `with_endpoint` migration). This workflow runs a caged Claude Code agent to
-do that work, then a deterministic step re-verifies and opens the PR.
-
-**Security model:** the LLM step never touches `git`, `gh`, or a write token — its `claude_args`
-allowlist is file edits plus a fixed set of `cargo` verbs (`check`, `build`, `clippy`, `deny`,
-`update`, `fmt`, `tree`; no `cargo run`), and `GH_TOKEN` is not in its environment. It edits the
-working tree and stops. A separate deterministic step then re-runs `cargo check`/`clippy -D
-warnings`/`cargo deny check` itself (never trusting the agent's self-report), greps the diff for
-a leaked API key, and only then commits to a `deps/agent-<sha>` branch and opens the PR via `gh`.
-
-**What it does:**
-1. Installs the pinned Rust toolchain + sccache + cargo-deny.
-2. Gathers signals read-only (`cargo deny check` output, open Dependabot alerts via `gh api`,
-   `deprecated` clippy warnings) into `/tmp/deps-signals.txt` — the only input the caged agent
-   sees.
-3. Runs the caged agent (`claude-code-action@v1`, routed through OpenRouter via
-   `ANTHROPIC_BASE_URL`, reusing the existing `OPENROUTER_API_KEY` secret — same key as
-   `docs-agent.yml`) to fix advisories/deprecations/breaking bumps and verify locally.
-4. Deterministically re-verifies, secret-scans the diff, and opens the PR — or exits cleanly with
-   no PR if the agent made no changes or the gate didn't pass.
-
-**Required secret:** `OPENROUTER_API_KEY` (same one `docs-agent.yml` uses). Without it the
-`fix-advisories` job logs a warning and every step after the key check is skipped.
+disabled.
 
 ---
 

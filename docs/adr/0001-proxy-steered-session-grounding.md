@@ -1,12 +1,14 @@
 ---
 title: Proxy-Steered Session Grounding (Steerers + bigbro)
-status: active
+status: superseded
 created: 2026-06-13
 updated: 2026-07-07
 summary: A proposal (steerer half shipped) for the system to act on sessions in two modes — in-band live "steerer" agents (cheap/fast OpenRouter models) that send a first-class user message into a drifting session to re-ground or command it (processed next if active, on return if idle), attributed to a non-human origin ("bigbro"); and an out-of-band post-session "distiller" that reads each closed session's captured transcript and writes durable artifacts (memory, worklog, doc/agent proposals). Includes the flagship Refocus steerer reference design and the loop where the distiller maintains the anchors the steerers read.
 ---
 
 # ADR 0001 — Proxy-Steered Session Grounding
+
+**Status: superseded.** The mechanism shipped differently: steerers append a `<system-reminder>` to the next request rather than sending a first-class user message. See [`STEERING_EXTENSION.md`](../STEERING_EXTENSION.md) and [`REQUEST_FLOW.md`](../REQUEST_FLOW.md). Kept as the record of the decision.
 
 > **Status: ACTIVE (operator-approved 2026-06-14).** This is an approved decision.
 > The steering feature is committed to build ([issue #163](https://github.com/temet-ai/mike/issues/163)); steerer-scope

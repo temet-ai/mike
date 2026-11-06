@@ -106,6 +106,18 @@ proxy applies it once, then removes the key, at its next start.
 | File-read compression | `file_read_compression` | off | Shortens large file reads in a conversation's history: an older read is replaced by a pointer when a newer whole read of the same file follows, and other reads keep their head and tail once the model has answered `file_read_compression.grace_turns` times (default 3) since the read, or sooner when the file was edited since. The newest result, protected paths and all explicitly ranged reads stay whole, including after compaction or when reduction markers exist only in forwarded history. Rereading a path returns its current version. Policy v4 markers also carry `get_request_body` arguments (`id`, `tool_use_id`, `sha256`) for the exact captured original result. Recovery rejects a missing, ambiguous or mismatched result; it does not depend on the current file. `file_read_compression.mode` is `shadow` by default, with `file_read_compression.forward_share` at 0: each request's manifest records what would be shortened and the request is sent unchanged. In `shadow`, the percent of new sessions set by `forward_share` are sent shortened requests and the rest are the control; `forward` sends every new session shortened requests. Judge it with `scripts/compressor-trial-report` on paired runs, not on bytes. |
 | Shell-output compression | `shell_output_compression` | off | Shortens older Bash output in a conversation's history to its first `head_lines` and last `tail_lines` (default 20 each) plus every error, failure, warning or summary line with `signal_context_lines` after it (default 3, at most `signal_line_cap` = 40). Each omitted range is marked `[[mike:shell_output_reduced]]`, and the result ends with `get_request_body` arguments (`id`, `tool_use_id`, `sha256`) for the exact captured output. The newest result, error results, output under `min_bytes` (1,500), output a hook, mod, tether or mike added (`<system-reminder`, `[[mike:`), and output the model has answered fewer than `grace_turns` (3) times since stay whole. A cut must save 25%. On the forward arm a new cut waits until the conversation's prompt cache is cold. `shell_output_compression.mode` (default `shadow`) and `shell_output_compression.forward_share` (default 0) work as for file reads, with arms assigned independently. `scripts/compressor-loop` scores the arms per turn and per lane and counts cuts whose hidden lines were used later. |
 
+**Compression widening evidence.** The compressor scorecard isolates follow-ups by session and agent, deduplicates tool ids,
+uses a thirty-minute observation window, and reports missing identity/result coverage and
+right-censored exposures. Sessions with mixed arms or incomplete usage are excluded from
+cost comparisons; arm observations are read in bounded one-day chunks. A later read is an association, not proof of recovery. Widening
+requires `compressor-qualification-v1` evidence matching the active policy, completed within
+seven days: passing original/compact executions for at least three distinct tasks in each
+of documentation, configuration and test-output, complete usage/results, activation and
+constraint verdict references, and a recovery test whose weakened control fails. Missing
+evidence blocks widening; a simultaneous protective policy change also blocks it. Existing
+settings are preserved. Whole-file rereads without a range or retained recovery marker do
+not carry the explicit-range guarantee.
+
 ### Changes what the client receives
 
 | Feature | Toggle / setting | Default | What it does |
@@ -211,15 +223,3 @@ request bytes are unchanged. This is the `DeliveredOutOfBand` outcome in the rem
 - [`CONFIGURATION.md`](CONFIGURATION.md) — boot configuration and every `MIKE_*` variable
 - [`REQUEST_FLOW.md`](REQUEST_FLOW.md) — the runtime request flow across both binds
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — design rationale for each mechanism above
-
-The compressor scorecard isolates follow-ups by session and agent, deduplicates tool ids,
-uses a thirty-minute observation window, and reports missing identity/result coverage and
-right-censored exposures. Sessions with mixed arms or incomplete usage are excluded from
-cost comparisons; arm observations are read in bounded one-day chunks. A later read is an association, not proof of recovery. Widening
-requires `compressor-qualification-v1` evidence matching the active policy, completed within
-seven days: passing original/compact executions for at least three distinct tasks in each
-of documentation, configuration and test-output, complete usage/results, activation and
-constraint verdict references, and a recovery test whose weakened control fails. Missing
-evidence blocks widening; a simultaneous protective policy change also blocks it. Existing
-settings are preserved. Whole-file rereads without a range or retained recovery marker do
-not carry the explicit-range guarantee.

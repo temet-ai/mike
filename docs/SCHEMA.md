@@ -3,15 +3,14 @@ title: Database Schema Reference
 status: active
 created: 2026-05-01
 updated: 2026-10-13
-summary: Reference for mike's multi-schema Postgres database — tables, columns, FKs, indexes, views, and triggers. Partially stale; the migrations are the source of truth.
+summary: Reference for mike's multi-schema Postgres database — tables, columns, FKs, indexes, views, and triggers. Documents 146 tables; 79 live tables have no section yet, and the migrations are the source of truth.
 ---
 
 # Database Schema Reference
 
-**Scope:** this is a maintained reference, not an exhaustive generated schema dump. Older
-sections still need reconciliation; the September judgement-context and session-judge additions
-are documented below. Where a definition here disagrees with
-`crates/mike/src/store/persistence/migrations/`, the ordered migrations are authoritative.
+**Scope:** this is a maintained reference, not an exhaustive generated schema dump. It
+documents 146 tables; 79 live tables have no section here yet. Where a definition here disagrees
+with `crates/mike/src/store/persistence/migrations/`, the ordered migrations are authoritative.
 
 The proxy's Postgres database captures, persists, and exposes every Claude API request that flows through the
 proxy. It exists so operators and future Claude sessions can inspect full-fidelity request/response history,
@@ -96,22 +95,6 @@ Columns added by the judgement-context migrations (definition as migrated):
 | Column | Definition |
 |---|---|
 | `project_uuid` | uuid NOT NULL DEFAULT gen_random_uuid() |
-
-### `projects.project_aliases`
-
-Added in migration `20260717000001_project_aliases.sql`. Backs project merges: every path folded into a
-target project keeps a row here so capture-side get-or-create redirects the alias to the target instead of
-resurrecting the merged source row. The in-memory alias map (`PersistHandle.project_aliases`) is loaded from
-this table at startup and refreshed after each merge.
-
-| Column | Type | Purpose |
-|---|---|---|
-| `alias_path` | `TEXT PRIMARY KEY` | The merged-away project path |
-| `project_id` | `BIGINT NOT NULL` | FK → `projects.projects(id)` ON DELETE CASCADE; the merge target |
-| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | |
-
-**Indexes:**
-- `idx_project_aliases_project_id`: `project_id` (BTree) — merged-paths aggregate join in `list_projects`, alias chain-fold in `merge_projects`
 
 ---
 
@@ -304,8 +287,8 @@ receipts and the item projection built from them, one projection generation at a
 new projector version can rebuild beside the active one and replace it. Written and read only
 through `store/persistence/runtime/codex/`; no REST or MCP route reads them yet. The migration
 also adds unique index `idx_runtime_events_namespace_id` on `runtime.events (namespace_id, id)`
-so the tables below can reference an event together with its namespace. Contracts and limits:
-[`CODEX_PROJECTION_STORAGE.md`](CODEX_PROJECTION_STORAGE.md).
+so the tables below can reference an event together with its namespace. The `runtime.codex_*`
+tables are scaffolding with no production callers (`crates/mike/src/runtime/codex/`).
 
 `runtime.codex_intake_state`: one row per namespace; `last_capture_sequence` BIGINT NOT NULL
 DEFAULT 0, the last capture sequence handed out for that namespace's receipts.

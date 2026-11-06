@@ -6,9 +6,9 @@ updated: 2026-07-01
 summary: Extended why-this-rule-exists narrative and the external citations supporting the Rust comment conventions rule, relocated out of the always-loaded rule body.
 ---
 
-Full rule: `.claude/rules/rust-database-reliability.md`.
-This doc holds the extended rationale and supporting citations, relocated verbatim
-to keep the rule body lean.
+The rule is graded by `scripts/rule-checks/rust-comments.py` and
+`scripts/rule-checks/rust-no-comments.sh`. This doc holds the extended rationale and
+supporting citations, relocated verbatim to keep the rule body lean.
 
 ## Why this rule exists
 
@@ -25,7 +25,7 @@ Every one of those lines rots the moment the history moves on, and a stale
 historical comment is worse than no comment: it is a false contract the next
 reader builds on. The history is **already recorded** — in `git log` / `git blame`
 (per-line authorship, exact date, the full commit message — "a whole novel" if it
-needs to be), in `artifacts/`, and in the capture DB. Source comments are not a
+needs to be) and in the capture DB. Source comments are not a
 second, hand-maintained, always-drifting copy of that record.
 
 > "Those comments belong in the version control commit comments. Version control

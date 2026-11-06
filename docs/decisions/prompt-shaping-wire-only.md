@@ -19,12 +19,12 @@ wire request.
 `build` (`api/prompt_shaping.rs:106-128`) returns enabled, project-scoped rules split three
 ways: `text_substring` and `xml_tag` as `filter_rules` (`:66-81`, scope
 `system_and_messages`), `lazy_section` and `inject_reminder` as `lazy_sections` (`:83-97`),
-and every cached composition (`:108-122`). The handler answers 400 for a non-UUID id
-(`:135-137`), then `client_served::mark(&id)` (`:140`). The mark is an in-memory set
-(`filter/client_served.rs:5-13`) and is per session, not per kind. Since `ac523b57` only the
-lazy-section stage reads it, and for a marked session it leaves out just the `inject_reminder`
-rules tether turns into standing sections (`lazy_sections/stage.rs:14-23`,
-`rules_left_to_mike`). The filter stage and the composer always run, so a tether session
+and every cached composition (`:108-122`). The handler answers 400 for a non-UUID id,
+then calls `api::client_serves::require_client_serves(&state, "client_serves_prompt_shaping")`
+(`api/prompt_shaping.rs`, `api/client_serves.rs`), which answers 409 unless the global
+`client_serves_prompt_shaping` feature toggle is on. The gate is one toggle for the whole
+installation, not a per-session or per-kind mark, and no pipeline stage reads it. The filter
+stage, the lazy-section stage and the composer always run, so a tether session
 keeps mike's `text_substring` and `xml_tag` rules, its lazy sections and its compositions
 (seen live on 2026-10-31: request 726379's filter stage `applied` rules 78, 58, 63, 64, 67,
 69 and 76 in a tether session). `ProjectQuery` has only `project` (`:12-16`), so a `kinds`
@@ -76,7 +76,7 @@ parameter is ignored and the answer carries every kind; tether reads only the re
 
 ## Agreement with tether's `docs/decisions/prompt-shaping.md`
 
-Compared against `/mnt/data/projects/temet/tether/docs/decisions/prompt-shaping.md` (U3).
+Compared against the tether mod's `docs/decisions/prompt-shaping.md` (U3).
 
 Agree:
 - `text_substring`, `xml_tag`, `lazy_section` and composition `template`/`replace` are not
@@ -86,8 +86,8 @@ Agree:
   item 3).
 - The global cache prefix, first-request rewrite with replay, and history matching are wire-only
   for every filter rule (tether's "Also wire-only" paragraph; mine items 1, 2, 4).
-- The route marks the whole session, not a kind, and ignores `kinds` today (tether's
-  Consequence section; `api/prompt_shaping.rs:12-16`, `:139`). Observe-mode compositions
+- The route is gated by one global toggle, not a per-session or per-kind mark, and ignores
+  `kinds` today (tether's Consequence section; `api/prompt_shaping.rs`). Observe-mode compositions
   change nothing.
 
 Differ:
@@ -105,11 +105,12 @@ Differ:
   (`compose_prompt/mod.rs:193-200`), so only `template` is a real loss when tether takes the
   stage.
 - tether's decision depends on mike reading `kinds` and marking per kind. That is still not
-  built: the handler marks the whole session after any call (`api/prompt_shaping.rs:139`).
+  built: the handler only checks the global `client_serves_prompt_shaping` toggle
+  (`api/prompt_shaping.rs`).
   Until it is, a tether session that reads the route for reminders loses every other kind
   above. That is the same dependency tether recorded, now confirmed on main.
 
 ## Revisit when
 
-The route takes `kinds` and `client_served` marks per kind, or Claude Code's hooks report
+The route takes `kinds` and the client-serves gate works per kind, or Claude Code's hooks report
 system sections and message text as rewritable.
