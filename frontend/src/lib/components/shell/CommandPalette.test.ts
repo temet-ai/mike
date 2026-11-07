@@ -36,7 +36,7 @@ vi.mock('$app/navigation', async () => ({
 	goto: (await import('$lib/test-support/app-navigation-mock')).makeGotoMock()
 }));
 vi.mock('$app/state', () => pageMock);
-vi.mock('$app/environment', () => browserMock);
+vi.mock('$app/env', () => browserMock);
 
 import CommandPalette from './CommandPalette.svelte';
 import { shellState } from '$lib/stores/shellState.svelte';

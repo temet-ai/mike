@@ -40,7 +40,7 @@
 
 	const triggerHref = $derived(
 		sessionId && row?.trigger_request_id != null
-			? (`/sessions/${encodeURIComponent(sessionId)}/requests/${row.trigger_request_id}` as `/sessions/${string}/requests/${string}`)
+			? (`sessions/${encodeURIComponent(sessionId)}/requests/${row.trigger_request_id}` as const)
 			: null
 	);
 

@@ -61,12 +61,12 @@ in the URL. Used on Labelling accuracy (one card per run) and at the top of a ru
 
 	function runHref(id: number): string {
 		return resolve(
-			`/sessions/labelling/accuracy/${id}` as `/sessions/labelling/accuracy/${string}`
+			`sessions/labelling/accuracy/${id}` as `sessions/labelling/accuracy/${string}`
 		);
 	}
 
 	function reviewHref(key: QuestionKey): string {
-		return `${resolve(`/sessions/labelling/accuracy/${run.id}/review` as `/sessions/labelling/accuracy/${string}/review`)}?mode=${key}`;
+		return `${resolve(`sessions/labelling/accuracy/${run.id}/review` as `sessions/labelling/accuracy/${string}/review`)}?mode=${key}`;
 	}
 
 	function nameOf(id: number): string {

@@ -144,7 +144,7 @@
 					{#snippet child({ props })}
 						<a
 							{...props}
-							href={resolve(`/sessions/${encodeURIComponent(sessionId)}`)}
+							href={resolve(`sessions/${encodeURIComponent(sessionId)}`)}
 							class="text-inherit hover:underline"
 						>
 							session {sessionId.slice(0, 12)}
@@ -203,7 +203,7 @@
 					detail={err ?? ''}
 					hint="The request may have been evicted by retention, or the inspect API may be unreachable. Pinned sessions keep their requests indefinitely."
 					onRetry={retry}
-					backHref={resolve(`/sessions/${encodeURIComponent(sessionId)}`)}
+					backHref={resolve(`sessions/${encodeURIComponent(sessionId)}`)}
 					backLabel="Back to this session"
 				/>
 			</div>

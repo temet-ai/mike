@@ -111,8 +111,7 @@ frontend/
 │   └── routes/              # One folder per page (sessions, fleet, settings, ...)
 ├── e2e/                     # Playwright journeys
 ├── static/
-├── svelte.config.js         # adapter-static + index.html fallback
-├── vite.config.ts           # dev + preview proxy: /api/assistant, /api/ws, /api
+├── vite.config.ts           # SvelteKit 3 config (adapter-static + index.html fallback) and dev + preview proxy: /api/assistant, /api/ws, /api
 └── README.md
 ```
 

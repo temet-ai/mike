@@ -11,7 +11,7 @@ learned from, in full.
 
 	function lessonHref(id: number): string {
 		return resolve(
-			`/sessions/improvement/lessons/${id}` as `/sessions/improvement/lessons/${string}`
+			`sessions/improvement/lessons/${id}` as `sessions/improvement/lessons/${string}`
 		);
 	}
 </script>

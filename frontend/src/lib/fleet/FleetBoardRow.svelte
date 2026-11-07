@@ -120,7 +120,7 @@
 	<a
 		class="flb-row__comms-link"
 		class:flb-row__comms-link--active={hasComms}
-		href={resolve(`/sessions/${encodeURIComponent(node.id)}/comms` as `/sessions/${string}/comms`)}
+		href={resolve(`sessions/${encodeURIComponent(node.id)}/comms` as `sessions/${string}/comms`)}
 		aria-label={hasComms
 			? `Open comms for ${node.label} (has exchanged mail)`
 			: `Open comms for ${node.label}`}

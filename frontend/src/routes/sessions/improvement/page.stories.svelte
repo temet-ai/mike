@@ -111,9 +111,8 @@
 		await expect(lessonsTab).toHaveAttribute('aria-selected', 'true');
 		await waitFor(() =>
 			expect(gotoSpy).toHaveBeenCalledWith('/sessions/improvement?waiting=lessons', {
-				replaceState: true,
-				noScroll: true,
-				keepFocus: true
+				replace: true,
+				reset: false
 			})
 		);
 		await expect(lessonsTab).toHaveTextContent('Lessons4');

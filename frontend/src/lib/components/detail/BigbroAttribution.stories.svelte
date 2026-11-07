@@ -128,7 +128,7 @@ Decisions: rose (#b8849e / --rose) is the colour family for steered turns; no ne
 				<div class="flex flex-wrap items-center gap-4">
 					<span class="font-mono text-caption text-[var(--text-2)]">
 						Trigger: <a
-							href={resolve('/sessions/f47ac10b-58cc-4372-a567-0e02b2c3d479/requests/41')}
+							href={resolve('sessions/f47ac10b-58cc-4372-a567-0e02b2c3d479/requests/41')}
 							class="text-[var(--text-3)] underline decoration-[var(--border-default)] underline-offset-2 hover:text-[var(--text-1)]"
 							>#41 →</a
 						>

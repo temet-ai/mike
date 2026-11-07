@@ -138,7 +138,7 @@
 			</p>
 		</div>
 		<div class="st-header__actions">
-			<Button variant="outline" href={resolve('/steering/new')}>
+			<Button variant="outline" href={resolve('steering/new')}>
 				<Plus class="size-3.5" aria-hidden="true" />
 				<span>New steerer</span>
 			</Button>
@@ -174,7 +174,7 @@
 				Steerers are named agents that observe or guide Claude sessions in real time. Create one to
 				start shaping how your sessions behave.
 			</p>
-			<Button variant="outline" href={resolve('/steering/new')}>
+			<Button variant="outline" href={resolve('steering/new')}>
 				<Plus class="size-3.5" aria-hidden="true" />
 				<span>Create your first steerer</span>
 			</Button>
@@ -219,7 +219,7 @@
 					</div>
 
 					<div class="st-td st-td--name">
-						<a href={resolve(`/steering/${s.id}` as const)} class="st-link st-link--name">
+						<a href={resolve(`steering/${s.id}` as const)} class="st-link st-link--name">
 							<span class="st-name">{s.display_name}</span>
 							<span class="st-slug">{s.name}</span>
 							{#if s.description}

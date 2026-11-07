@@ -1027,8 +1027,7 @@ The SPA's exhaustive route map, component inventory, store inventory, WS event c
 mike/                        # repo root
   frontend/                  # Svelte SPA
     package.json
-    svelte.config.js
-    vite.config.ts           # dev + preview proxy /api/* + /api/ws → :9989
+    vite.config.ts           # SvelteKit 3 config (adapter-static) + dev/preview proxy /api/* + /api/ws → :9989
     src/
       app.css
       lib/

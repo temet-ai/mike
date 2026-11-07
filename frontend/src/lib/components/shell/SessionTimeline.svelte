@@ -754,12 +754,11 @@
 				scrollDrivenUrlChange = true;
 				void goto(
 					resolve(
-						`/sessions/${encodeURIComponent(sid)}/requests/${id}` as `/sessions/${string}/requests/${string}`
+						`sessions/${encodeURIComponent(sid)}/requests/${id}` as `sessions/${string}/requests/${string}`
 					),
 					{
-						replaceState: true,
-						keepFocus: true,
-						noScroll: true
+						replace: true,
+						reset: false
 					}
 				).finally(() => {
 					requestAnimationFrame(() => {

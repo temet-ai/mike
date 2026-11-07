@@ -405,7 +405,7 @@
 
 	<div class="st-fleet-header">
 		<h2 class="st-subhead">Steerer fleet<HelpHint slug="fleet" /></h2>
-		<a href={resolve('/steering/new?mode=blank')} class="st-fleet-create"
+		<a href={resolve('steering/new?mode=blank')} class="st-fleet-create"
 			><Plus size={12} aria-hidden="true" />Create steerer</a
 		>
 	</div>
@@ -446,7 +446,7 @@
 				No steerers registered yet. Each one you create will inherit the default model above until
 				you give it its own.
 			</p>
-			<Button variant="outline" href={resolve('/steering/new?mode=blank')}>
+			<Button variant="outline" href={resolve('steering/new?mode=blank')}>
 				<Plus class="size-3.5" aria-hidden="true" />
 				<span>Create steerer</span>
 			</Button>
@@ -506,7 +506,7 @@
 								<span class="st-ftoggle__thumb"></span>
 							</span>
 						</button>
-						<a href={resolve(`/steering/${s.id}`)} class="st-fleet-edit">Edit</a>
+						<a href={resolve(`steering/${s.id}`)} class="st-fleet-edit">Edit</a>
 					</div>
 				</div>
 			{/each}

@@ -92,7 +92,7 @@
 	function syncUrlFromState(nextKind: DrawerKind | null, nextBandId: number | null): void {
 		const sid = page.params.sessionId;
 		if (!sid) return;
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		if (nextKind === null || nextBandId === null) {
 			if (!url.searchParams.has('drawer')) return;
 			url.searchParams.delete('drawer');
@@ -100,9 +100,8 @@
 				/* eslint-disable-next-line svelte/no-navigation-without-resolve -- rewriting the current page's own already-resolved pathname + a modified query string, not navigating to a named route; not expressible as a typed SvelteKit route */
 			}
 			void goto(url.pathname + url.search, {
-				replaceState: true,
-				keepFocus: true,
-				noScroll: true
+				replace: true,
+				reset: false
 			});
 			return;
 		}
@@ -120,9 +119,8 @@
 			/* eslint-disable-next-line svelte/no-navigation-without-resolve -- target mixes the current page's own pathname (or a computed sessions/requests path) with a modified query string; not a single named route */
 		}
 		void goto(target, {
-			replaceState: true,
-			keepFocus: true,
-			noScroll: true
+			replace: true,
+			reset: false
 		});
 	}
 

@@ -292,7 +292,7 @@
 				</div>
 
 				<div class="sap-header__right">
-					<a href={resolve('/steering/new')} class="sap-add-link" title="Create a new steerer">
+					<a href={resolve('steering/new')} class="sap-add-link" title="Create a new steerer">
 						+ New steerer
 					</a>
 				</div>

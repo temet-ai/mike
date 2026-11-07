@@ -96,7 +96,7 @@ is always reserved.
 					<li class="ra-item">
 						<p class="ra-item-meta">
 							{formatWhen(item.at)} · {item.project} ·
-							<a class="ra-link" href={resolve(`/sessions/${encodeURIComponent(item.session_id)}`)}
+							<a class="ra-link" href={resolve(`sessions/${encodeURIComponent(item.session_id)}`)}
 								>Open the session <ArrowUpRight size={12} aria-hidden="true" /></a
 							>
 						</p>

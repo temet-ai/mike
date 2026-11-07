@@ -51,7 +51,7 @@
 		return null;
 	}
 
-	const source = $derived(parsePrefillSource(page.url.searchParams));
+	const source = $derived(parsePrefillSource(new URLSearchParams(page.url.search)));
 
 	function isRealPersonaSegment(p: string | null): p is string {
 		return p !== null && p.length > 0 && p !== UNRESOLVED_PERSONA_SEGMENT;
@@ -64,10 +64,18 @@
 			: s.personaSegment;
 	}
 
-	function classDetailHref(s: ClassSource): `/prompts/subagent/${string}` | '/prompts/main' {
+	/** A class detail page as a Kit 3 pathname, which has no leading slash. */
+	type ClassPath = 'prompts/main' | `prompts/subagent/${string}`;
+
+	function classDetailPath(s: ClassSource): ClassPath {
 		return s.lane === 'main'
-			? '/prompts/main'
-			: `/prompts/subagent/${encodeURIComponent(s.personaSegment)}`;
+			? 'prompts/main'
+			: `prompts/subagent/${encodeURIComponent(s.personaSegment)}`;
+	}
+
+	/** `resolve()` takes one pathname shape per call, so the main class is resolved by route. */
+	function resolveClassPath(path: ClassPath): string {
+		return path === 'prompts/main' ? resolve('/prompts/main') : resolve(path);
 	}
 
 	async function sha256Hex(input: string): Promise<string> {
@@ -91,7 +99,7 @@
 	let classResolutionError = $state<{
 		kind: 'not-found' | 'unresolvable';
 		label: string;
-		classHref: `/prompts/subagent/${string}` | '/prompts/main';
+		classPath: ClassPath;
 		detail: string | null;
 	} | null>(null);
 
@@ -128,15 +136,15 @@
 		return 'Subagent (persona unresolved)';
 	});
 
-	function computeBoundIdentityHref(): `/prompts/subagent/${string}` | '/prompts/main' | undefined {
+	function computeBoundIdentityPath(): ClassPath | undefined {
 		if (boundIdentity === null) return undefined;
 		if (boundIdentity.kind === 'subagent') {
-			return `/prompts/subagent/${encodeURIComponent(boundIdentity.persona)}`;
+			return `prompts/subagent/${encodeURIComponent(boundIdentity.persona)}`;
 		}
-		if (boundIdentity.kind === 'main') return '/prompts/main';
-		return `/prompts/subagent/${encodeURIComponent(UNRESOLVED_PERSONA_SEGMENT)}`;
+		if (boundIdentity.kind === 'main') return 'prompts/main';
+		return `prompts/subagent/${encodeURIComponent(UNRESOLVED_PERSONA_SEGMENT)}`;
 	}
-	const boundIdentityHref = $derived(computeBoundIdentityHref());
+	const boundIdentityPath = $derived(computeBoundIdentityPath());
 
 	const effectiveAgentName: string | null = $derived(
 		boundIdentity?.kind === 'subagent'
@@ -204,7 +212,7 @@
 
 	async function resolveClassSource(s: ClassSource): Promise<number | null> {
 		const displayLabel = classLabel(s);
-		const classHref = classDetailHref(s);
+		const classPath = classDetailPath(s);
 		let detail: PromptClassDetailDto;
 		try {
 			detail =
@@ -215,7 +223,7 @@
 			classResolutionError = {
 				kind: 'not-found',
 				label: displayLabel,
-				classHref,
+				classPath,
 				detail: err instanceof ApiError ? err.message : String(err)
 			};
 			return null;
@@ -225,7 +233,7 @@
 			classResolutionError = {
 				kind: 'unresolvable',
 				label: displayLabel,
-				classHref,
+				classPath,
 				detail: null
 			};
 			return null;
@@ -235,7 +243,7 @@
 			classResolutionError = {
 				kind: 'unresolvable',
 				label: displayLabel,
-				classHref,
+				classPath,
 				detail: null
 			};
 			return null;
@@ -363,9 +371,11 @@
 					: {})
 			});
 			await goto(
-				resolve(
-					boundIdentityHref ?? (envelope.composition.lane === 'main' ? '/prompts/main' : '/prompts')
-				)
+				boundIdentityPath === undefined
+					? resolve(envelope.composition.lane === 'main' ? '/prompts/main' : '/prompts')
+					: boundIdentityPath === 'prompts/main'
+						? resolve('/prompts/main')
+						: resolve(boundIdentityPath)
 			);
 		} catch (err) {
 			saveError = err instanceof ApiError ? err.message : String(err);
@@ -441,7 +451,11 @@
 				<div class="mt-2 flex flex-wrap items-center justify-center gap-2">
 					<span class="pr-back-link-backing">
 						<a
-							href={resolve(classResolutionError?.classHref ?? '/prompts')}
+							href={classResolutionError === null
+								? resolve('/prompts')
+								: classResolutionError.classPath === 'prompts/main'
+									? resolve('/prompts/main')
+									: resolve(classResolutionError.classPath)}
 							class="pr-back-link"
 							data-augmented-ui="tr-clip bl-clip border"
 						>
@@ -492,7 +506,7 @@
 						<span class="pr-back-link-backing">
 							<a
 								href={resolve(
-									`/sessions/${encodeURIComponent(resolvedSessionId)}/requests/${resolvedRequestId}`
+									`sessions/${encodeURIComponent(resolvedSessionId)}/requests/${resolvedRequestId}`
 								)}
 								class="pr-back-link"
 								data-augmented-ui="tr-clip bl-clip border"
@@ -530,7 +544,7 @@
 						{#if resolvedSessionId !== null && resolvedRequestId !== null}
 							<a
 								href={resolve(
-									`/sessions/${encodeURIComponent(resolvedSessionId)}/requests/${resolvedRequestId}`
+									`sessions/${encodeURIComponent(resolvedSessionId)}/requests/${resolvedRequestId}`
 								)}
 								class="pr-source-link"
 								data-slot="prompt-new-source-link"
@@ -586,7 +600,9 @@
 						data-slot="prompt-new-bound-identity"
 					>
 						<span>Registering for</span>
-						<ClassChip label={boundIdentityLabel} href={boundIdentityHref} isActive />
+						<ClassChip label={boundIdentityLabel} href={boundIdentityPath === undefined ? undefined : resolveClassPath(boundIdentityPath)}
+							isActive
+						/>
 						<Tooltip
 							text="This composition is linked to the class shown here — the agent name is fixed to that class's identity so registration can't silently create a duplicate row."
 						>

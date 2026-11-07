@@ -22,8 +22,7 @@ artifacts/2026-10-14/learned-skills-ui/design.md.
 
 	function choose(uuid: string): void {
 		void goto(`${resolve('/skills')}?project=${encodeURIComponent(uuid)}`, {
-			keepFocus: true,
-			noScroll: true
+			reset: false
 		});
 	}
 

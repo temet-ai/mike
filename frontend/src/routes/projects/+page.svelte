@@ -90,14 +90,14 @@
 	}
 
 	function syncUrl(sel: string | null): void {
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		if (sel) url.searchParams.set('p', sel);
 		else url.searchParams.delete('p');
 		const qs = url.searchParams.toString();
 		const next = resolve(qs.length > 0 ? `/projects?${qs}` : '/projects');
 		const current = `${page.url.pathname}${page.url.search}`;
 		if (next === current) return;
-		void goto(next, { replaceState: true, keepFocus: true, noScroll: true });
+		void goto(next, { replace: true, reset: false });
 	}
 
 	$effect(() => {

@@ -424,7 +424,7 @@
 			};
 			const envelope = await createSteerer(body);
 			saveWarnings = envelope.warnings;
-			await goto(resolve(`/steering/${envelope.steerer.id}`));
+			await goto(resolve(`steering/${envelope.steerer.id}`));
 		} catch (err) {
 			saveError = err instanceof ApiError ? err.message : String(err);
 		} finally {
@@ -720,7 +720,7 @@
 
 					<p class="gf-escape">
 						Already know what you want?
-						<a href={resolve('/steering/new?mode=blank')} class="se-guide-link">
+						<a href={resolve('steering/new?mode=blank')} class="se-guide-link">
 							Create a blank steerer instead →
 						</a>
 					</p>
@@ -1224,7 +1224,7 @@
 			{#if steerer && !isNew}
 				<div class="se-header__actions">
 					<a
-						href={resolve(`/agents/${steerer.agent_id}`)}
+						href={resolve(`agents/${steerer.agent_id}`)}
 						class="se-btn"
 						data-augmented-ui="tl-clip br-clip border"
 						target="_blank"
@@ -1712,7 +1712,7 @@ task is finished"></textarea>
 						>
 							{saving ? 'Creating…' : 'Create steerer'}
 						</button>
-						<a href={resolve('/steering/new?mode=guided')} class="se-guide-link">
+						<a href={resolve('steering/new?mode=guided')} class="se-guide-link">
 							← Use guided flow instead
 						</a>
 					{:else}

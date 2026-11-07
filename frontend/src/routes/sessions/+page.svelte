@@ -66,7 +66,7 @@
 		urlSyncTimer = setTimeout(() => {
 			urlSyncTimer = null;
 			const trimmed = q.trim();
-			const url = new URL(page.url);
+			const url = new URL(page.url.href);
 			if (trimmed.length > 0) {
 				url.searchParams.set('q', trimmed);
 			} else {
@@ -75,7 +75,7 @@
 			const qs = url.searchParams.toString();
 			const next = resolve(qs.length > 0 ? `/sessions?${qs}` : '/sessions');
 			if (next === `${page.url.pathname}${page.url.search}`) return;
-			void goto(next, { replaceState: true, keepFocus: true, noScroll: true });
+			void goto(next, { replace: true, reset: false });
 		}, SESSION_SEARCH_DEBOUNCE_MS);
 	});
 
@@ -589,7 +589,7 @@
 			{#if !group.isUngrouped && group.path}
 				<a
 					class="ssn-project-name ssn-project-name--link"
-					href={resolve(`/projects/${encodeURIComponent(group.path)}`)}
+					href={resolve(`projects/${encodeURIComponent(group.path)}`)}
 				>
 					{group.name}
 				</a>

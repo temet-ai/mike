@@ -295,7 +295,7 @@
 	});
 
 	function syncUrl(proj: string, win: number, node: string | null, v: FleetView): void {
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		if (proj) url.searchParams.set('project', proj);
 		else url.searchParams.delete('project');
 		url.searchParams.set('window', String(win));
@@ -307,7 +307,7 @@
 		const current = `${page.url.pathname}${page.url.search}`;
 		if (next === current) return;
 		lastProjectParam = proj;
-		void goto(next, { replaceState: true, keepFocus: true, noScroll: true });
+		void goto(next, { replace: true, reset: false });
 	}
 </script>
 

@@ -81,12 +81,12 @@
 
 	function requestHref(requestId: string): string {
 		return resolve(
-			`/sessions/${encodeURIComponent(sessionId)}/requests/${encodeURIComponent(requestId)}` as `/sessions/${string}/requests/${string}`
+			`sessions/${encodeURIComponent(sessionId)}/requests/${encodeURIComponent(requestId)}` as `sessions/${string}/requests/${string}`
 		);
 	}
 
 	function sessionHref(id: string): string {
-		return resolve(`/sessions/${encodeURIComponent(id)}` as `/sessions/${string}`);
+		return resolve(`sessions/${encodeURIComponent(id)}` as `sessions/${string}`);
 	}
 
 	async function load(id: string): Promise<void> {

@@ -90,7 +90,7 @@
 		{#if action.project_path}
 			<a
 				class="dac-chip dac-chip--link"
-				href={resolve(`/projects/${encodeURIComponent(action.project_path)}` as const)}
+				href={resolve(`projects/${encodeURIComponent(action.project_path)}` as const)}
 				title={action.project_path}
 			>
 				{shortProject(action.project_path)}
@@ -99,7 +99,7 @@
 		{#if action.session_uuid}
 			<a
 				class="dac-chip dac-chip--link"
-				href={resolve(`/sessions/${encodeURIComponent(action.session_uuid)}` as const)}
+				href={resolve(`sessions/${encodeURIComponent(action.session_uuid)}` as const)}
 				aria-label="Open session {action.session_uuid}"
 			>
 				session {shortSessionId(action.session_uuid)}

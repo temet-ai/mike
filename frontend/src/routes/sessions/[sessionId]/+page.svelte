@@ -72,7 +72,7 @@
 	const pinned = $derived(listEntry?.pinned === true || summary?.pinned === true);
 	const project = $derived(listEntry?.project ?? summary?.project ?? null);
 	const commsHref = $derived(
-		resolve(`/sessions/${encodeURIComponent(sessionId)}/comms` as `/sessions/${string}/comms`)
+		resolve(`sessions/${encodeURIComponent(sessionId)}/comms` as `sessions/${string}/comms`)
 	);
 
 	function handleTogglePin(): void {
@@ -312,7 +312,7 @@
 	function flowUrlWith(
 		overrides: Partial<Record<'flowActor' | 'flowActivity' | 'flowAt', string | null>>
 	): string {
-		const params = new URLSearchParams(page.url.searchParams);
+		const params = new URLSearchParams(page.url.search);
 		for (const [key, value] of Object.entries(overrides)) {
 			if (value === null) params.delete(key);
 			else if (value !== undefined) params.set(key, value);
@@ -327,7 +327,7 @@
 		const target = flowUrlWith(overrides);
 		if (target === page.url.pathname + page.url.search) return;
 		// eslint-disable-next-line svelte/no-navigation-without-resolve -- rewriting the current page's own already-resolved pathname + a modified query string, matching RequestDrawer's identical `?drawer=` sync
-		void goto(target, { replaceState: true, keepFocus: true, noScroll: true });
+		void goto(target, { replace: true, reset: false });
 	}
 
 	function scrollFlowIntoView(): void {
@@ -414,7 +414,7 @@
 			</div>
 			<span class="session-subtitle">
 				{#if project}<a
-						href={resolve(`/projects/${encodeURIComponent(project)}`)}
+						href={resolve(`projects/${encodeURIComponent(project)}`)}
 						class="session-subtitle__project">{project}</a
 					><span class="session-subtitle__sep" aria-hidden="true">·</span>{/if}
 				{shortSessionId(sessionId)}

@@ -189,7 +189,7 @@
 									{#snippet child({ props })}
 										<a
 											{...props}
-											href={resolve(`/sessions/${encodeURIComponent(session.id)}`)}
+											href={resolve(`sessions/${encodeURIComponent(session.id)}`)}
 											class="session-item block text-inherit no-underline"
 											class:selected={isSelected}
 											class:session-item--live={isLive}

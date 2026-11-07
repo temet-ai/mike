@@ -26,7 +26,7 @@
 	]);
 
 	const backHref = $derived(
-		sessionId ? (`/sessions/${encodeURIComponent(sessionId)}` as const) : null
+		sessionId ? (`sessions/${encodeURIComponent(sessionId)}` as const) : null
 	);
 	const backLabel = $derived(sessionId ? `session ${shortSessionId(sessionId)}` : '');
 </script>

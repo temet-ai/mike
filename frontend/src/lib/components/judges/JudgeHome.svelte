@@ -107,7 +107,7 @@ its settings. Everything about operating this judge is here and nowhere else.
 	const runHref = $derived(
 		measured
 			? resolve(
-					`/sessions/labelling/accuracy/${measured.id}` as `/sessions/labelling/accuracy/${string}`
+					`sessions/labelling/accuracy/${measured.id}` as `sessions/labelling/accuracy/${string}`
 				)
 			: null
 	);

@@ -8,6 +8,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { libStubAliases } from './.storybook/stub-aliases';
+import { kitConfig } from './kit.config';
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -35,7 +36,7 @@ export default defineConfig({
 		hookTimeout: 30000,
 		projects: [
 			{
-				plugins: [sveltekit()],
+				plugins: [sveltekit(kitConfig)],
 				resolve: {
 					conditions: ['browser']
 				},
@@ -48,7 +49,7 @@ export default defineConfig({
 				}
 			},
 			{
-				plugins: [sveltekit()],
+				plugins: [sveltekit(kitConfig)],
 				resolve: {
 					conditions: ['browser']
 				},
@@ -66,8 +67,8 @@ export default defineConfig({
 						...libStubAliases(dirname),
 						{ find: '$lib', replacement: path.join(dirname, 'src/lib') },
 						{
-							find: '$app/environment',
-							replacement: path.join(dirname, 'src/lib/__storybook-stubs__/app-environment.ts')
+							find: '$app/env',
+							replacement: path.join(dirname, 'src/lib/__storybook-stubs__/app-env.ts')
 						},
 						{
 							find: '$app/navigation',
@@ -89,7 +90,7 @@ export default defineConfig({
 				},
 				plugins: [
 					tailwindcss(),
-					svelte({ hot: false }),
+					svelte(),
 					storybookTest({ configDir: path.join(dirname, '.storybook') })
 				],
 				define: {

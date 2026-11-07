@@ -21,13 +21,21 @@ overrides:
   linkify-it: '>=6.1.0 <7'
   brace-expansion: '>=5.0.6 <6'
   js-yaml: '>=4.2.0 <6'
-  cookie: '>=0.7.0 <0.8'
-  # GHSA-g3hv-75wg-m249 is fixed in minimatch 11.0.1; eslint pins 10.x.
-  minimatch: '>=11.0.1 <12'
+  # SvelteKit 3 depends on cookie 2 (parseCookie); 0.7.x lacks it.
+  cookie: '>=2.0.1 <3'
   # @storybook/mcp depends on valibot 1.2.0 exactly, while its own
   # @valibot/to-json-schema needs >=1.4.0 — an unmet peer that pnpm reports on
   # every install. Lifting valibot to 1.4+ satisfies both.
   valibot: '>=1.4.0 <2'
+  # GHSA-g3hv-75wg-m249 is fixed in minimatch 11.0.1; eslint pins 10.x.
+  minimatch: '>=11.0.1 <12'
+
+# bits-ui (latest 2.20) takes runed 0.35, which lists @sveltejs/kit ^2.21 as a
+# peer; only runed 0.38 declares kit 3 and bits-ui does not take it. The SPA
+# imports none of runed's kit-specific helpers (useSearchParams).
+peerDependencyRules:
+  allowedVersions:
+    'runed>@sveltejs/kit': '^3.0.0'
 
 patchedDependencies:
   '@storybook/addon-svelte-csf@5.1.2': patches/@storybook__addon-svelte-csf@5.1.2.patch

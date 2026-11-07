@@ -156,7 +156,7 @@
 	}
 
 	function requestHref(sessionId: string, requestId: string) {
-		return `/sessions/${encodeURIComponent(sessionId)}/requests/${requestId}` as const;
+		return `sessions/${encodeURIComponent(sessionId)}/requests/${requestId}` as const;
 	}
 </script>
 
