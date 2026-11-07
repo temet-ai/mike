@@ -2,8 +2,8 @@
 title: Preparing mike + mike-mcp release candidates
 status: active
 created: 2026-07-23
-updated: 2026-11-06
-summary: Where the 0.1.0-alpha.N release stands (0.1.0-alpha.3 is published), the release route (tag-triggered public repo workflow, Homebrew tap and mise, glibc 2.35 floor), archive preparation and verification; qualification and same-byte publication remain separate gates.
+updated: 2026-11-07
+summary: Where the 0.1.0-alpha.N release stands (0.1.0-alpha.4 is published), the release route (tag-triggered public repo workflow, Homebrew tap and mise, glibc 2.35 floor), archive preparation and verification; qualification and same-byte publication remain separate gates.
 ---
 
 # Preparing mike + mike-mcp release candidates
@@ -12,18 +12,16 @@ summary: Where the 0.1.0-alpha.N release stands (0.1.0-alpha.3 is published), th
 the cases a candidate is judged on.
 **A prepared candidate is not a qualified or published release.**
 
-## Where things stand (2026-11-06)
+## Where things stand (2026-11-07)
 
 - **Repositories.** `temet-ai/mike` is public. It was created on 2026-11-06 from a
   collapsed export of the private development repository (the public-export step,
   which lives in the private repository), so it carries none of the development history. The tap `temet-ai/homebrew-mike`
   is public and holds `Formula/` and a README.
-- **Current release.** `0.1.0-alpha.3` is published as a pre-release, with archives for
-  Linux x86_64 and Apple Silicon. The `Release alpha` run on its tag passed `validate`,
-  both builds and `publish`.
-- **The tap.** `HOMEBREW_TAP_TOKEN` is not set, so the workflow's tap step warned and
-  skipped, so alpha.3's formulas were written by hand with
-  `scripts/release/homebrew_alpha.py`. A real install of both formulas passes on Linux.
+- **Current release.** `0.1.0-alpha.4` is published as a pre-release, with archives for
+  Linux x86_64 and Apple Silicon, from the `Release alpha` run on its tag.
+- **The tap.** `HOMEBREW_TAP_TOKEN` is set. It was not when alpha.3 was tagged, so that
+  release's formulas were written by hand with `scripts/release/homebrew_alpha.py`.
 - **mise needs two tools.** The `github:` backend takes one archive per tool, so `mike`
   comes from `github:temet-ai/mike` and `mike-mcp` from
   `ubi:temet-ai/mike[matching=mike-mcp,exe=mike-mcp]`. `install.md` has the one line; it
@@ -120,9 +118,7 @@ can push to `temet-ai/homebrew-mike`) and the existing tap repository. Actions a
 enabled on the public repository (all actions allowed), with the default
 `GITHUB_TOKEN` allowed to write contents on the tag workflow (the job asks for it
 itself). Tags matching `v*-alpha.*` should be protected from deletion. No other
-secret is read. On 2026-11-06 `gh secret list` showed no repository secret, so
-`HOMEBREW_TAP_TOKEN` is not set and the tap step would warn and skip; the formulas
-then have to be written by hand as described above.
+secret is read.
 
 **Scope.** Only the two targets `scripts/release.sh` can build natively. There is no
 Linux ARM or Intel macOS archive until the script supports them. The workflow
