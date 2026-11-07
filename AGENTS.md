@@ -66,9 +66,10 @@ checkout only.
 **Checking a change.** Make the change, run one narrow check of what you
 changed (`scripts/cx check --lib -p <crate>`, the one test target, `scripts/sb-test
 --skip-typecheck <filter>`, or the one script test you touched), commit. The
-commit hooks and the landing gate grade the rest: no separate lint pass, no full
-suite, no re-run of a check that passed. One heavy cargo job at a time — two at
-once have exhausted memory on this host.
+commit and push hooks and CI grade the rest: no separate lint pass, no full suite,
+no re-run of a check that passed. What runs when is in
+[`GITHUB_WORKFLOWS`](docs/GITHUB_WORKFLOWS.md#rust-qualityyml). One heavy cargo job
+at a time — two at once have exhausted memory on this host.
 
 **Rust structural limits** (graded by `scripts/lint-rust` in the landing gate):
 files ≤ 500 lines, functions ≤ 100 lines, cognitive complexity ≤ 15, ≤ 6

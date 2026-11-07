@@ -37,7 +37,7 @@ pub(super) async fn git_said(repo: &str, args: &[&str]) -> Result<String, String
 }
 
 pub async fn push_once(repo: &str, branch: &str) -> Result<(), String> {
-    git_said(repo, &["push", "-q", "origin", branch])
+    git_said(repo, &["push", "--no-verify", "-q", "origin", branch])
         .await
         .map(|_| ())
 }
@@ -95,7 +95,7 @@ pub async fn push(repo: &str, branch: &str) -> Result<(), String> {
 }
 
 pub async fn dry_run(repo: &str, branch: &str) -> Result<(), String> {
-    let args = ["push", "--dry-run", "-q", "origin", branch];
+    let args = ["push", "--no-verify", "--dry-run", "-q", "origin", branch];
     let attempt = git_said(repo, &args);
     match tokio::time::timeout(DRY_RUN_TIMEOUT, attempt).await {
         Ok(result) => result.map(|_| ()),

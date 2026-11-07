@@ -18,6 +18,14 @@ GRADERS="$REPO_ROOT/scripts/db-code-graders"
 # Private words (word list outside the repo) never enter a commit.
 "$REPO_ROOT/scripts/private-words-check" --staged || exit 1
 
+if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks git --pre-commit --staged --no-banner --redact "$REPO_ROOT" >/dev/null 2>&1 || {
+        echo "Commit blocked: gitleaks found a secret; run: gitleaks git --pre-commit --staged --redact ." >&2
+        exit 1
+    }
+fi
+python3 "$REPO_ROOT/scripts/rule-checks/frontend-staged-lint.py" || exit 1
+
 # Docs/infra-only commits can't affect DB↔code integrity, so skip the DB graders
 # when nothing code- or SQL-shaped is staged. G4 (raw sqlx in persistence)
 # inspects the working TREE, not the staged diff, so without this guard an

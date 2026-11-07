@@ -1,16 +1,23 @@
 #!/usr/bin/env bash
-# The pre-push hook: formatting, clippy and the structural lint when Rust
-# changed, a secret scan of the pushed commits, and cargo-deny when the
-# lockfile changed. A checkout with no target/ leaves clippy to CI, since
-# that would be a cold build.
+# The pre-push hook. Refuses a direct push of Rust or frontend to main, since
+# those land through a pull request. Otherwise runs, for what the push changed:
+# a secret scan, SAST, Rust lint with the fast and changed-area tests, the
+# frontend typecheck and unit tests, and cargo-deny when the lockfile changed.
+# Fleet pushes skip it: they have a 20 second limit and their own gates.
 set -uo pipefail
+if [ -n "${MIKE_SEAT:-}" ]; then
+  cat >/dev/null
+  exit 0
+fi
 root=$(git rev-parse --show-toplevel)
 cd "$root" || exit 1
 
 none=0000000000000000000000000000000000000000
+pr_only='^(crates/|frontend/|\.sqlx/|Cargo\.(toml|lock)$)'
 changed=""
 ranges=""
-while read -r _local_ref local_sha _remote_ref remote_sha; do
+status=0
+while read -r _local_ref local_sha remote_ref remote_sha; do
   [ "$local_sha" = "$none" ] && continue
   if [ "$remote_sha" = "$none" ]; then
     range="origin/main..$local_sha"
@@ -18,11 +25,15 @@ while read -r _local_ref local_sha _remote_ref remote_sha; do
     range="$remote_sha..$local_sha"
   fi
   ranges="$ranges $range"
+  paths=$(git diff --name-only "$range" 2>/dev/null)
   changed="$changed
-$(git diff --name-only "$range" 2>/dev/null)"
+$paths"
+  if [ "$remote_ref" = refs/heads/main ] && printf '%s\n' "$paths" | grep -qE "$pr_only"; then
+    echo "pre-push: Rust and frontend changes land through a pull request; push a branch" >&2
+    exit 1
+  fi
 done
 
-status=0
 for range in $ranges; do
   if command -v gitleaks >/dev/null 2>&1; then
     gitleaks git --no-banner --redact --log-opts="$range" . >/dev/null 2>&1 || {
@@ -32,6 +43,22 @@ for range in $ranges; do
   fi
 done
 
+semgrep_bin=$(command -v semgrep || echo "$HOME/.local/bin/semgrep")
+scan_files=()
+while IFS= read -r file; do
+  [ -f "$file" ] && scan_files+=("$file")
+done <<<"$(printf '%s\n' "$changed" | grep -E '\.(rs|ts|js|mjs)$' | sort -u)"
+if [ -x "$semgrep_bin" ] && [ "${#scan_files[@]}" -gt 0 ]; then
+  (
+    ulimit -s unlimited 2>/dev/null
+    "$semgrep_bin" scan --metrics off --error --quiet \
+      --config p/rust --config p/javascript --config p/typescript "${scan_files[@]}"
+  ) || {
+    echo "pre-push: semgrep found a problem in the changed files" >&2
+    status=1
+  }
+fi
+
 if printf '%s\n' "$changed" | grep -qE '\.rs$|(^|/)Cargo\.toml$|^Cargo\.lock$'; then
   "$root/scripts/cx" fmt --check >/dev/null 2>&1 || {
     echo "pre-push: cargo fmt --check failed; run make fmt" >&2
@@ -39,9 +66,15 @@ if printf '%s\n' "$changed" | grep -qE '\.rs$|(^|/)Cargo\.toml$|^Cargo\.lock$'; 
   }
   if [ -d "$root/target" ]; then
     "$root/scripts/lint-rust" || status=1
+    "$root/scripts/cx" nextest run --all --no-fail-fast || status=1
+    "$root/scripts/test-area" || status=1
   else
-    echo "pre-push: no target/ in this checkout, CI lints this push"
+    echo "pre-push: no target/ in this checkout, CI lints and tests this push"
   fi
+fi
+
+if printf '%s\n' "$changed" | grep -qE '^frontend/' && [ -d "$root/frontend/node_modules" ]; then
+  (cd "$root/frontend" && ../scripts/sb-test --unit) || status=1
 fi
 
 if printf '%s\n' "$changed" | grep -qE '^Cargo\.lock$|^deny\.toml$' && command -v cargo-deny >/dev/null 2>&1; then

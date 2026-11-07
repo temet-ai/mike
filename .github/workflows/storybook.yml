@@ -1,6 +1,7 @@
 name: Frontend quality
 
-# PR and main routing are path-filtered; explicit candidate/manual runs are not.
+# Typecheck, unit tests and formatting run on every frontend push. Storybook runs
+# on pull requests, a release candidate and on request.
 on:
   pull_request:
     paths:
@@ -17,11 +18,10 @@ on:
       - '.github/workflows/storybook.yml'
   push:
     branches: [main]
-    paths-ignore:
-      - 'crates/**'
-      - '.sqlx/**'
-      - 'docs/**'
-      - '**/*.md'
+    paths:
+      - 'frontend/**'
+      - 'scripts/sb-test'
+      - '.github/workflows/storybook.yml'
   workflow_dispatch:
   workflow_call:
 
@@ -33,8 +33,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Frontend tests and Storybook build
+  checks:
+    name: Frontend typecheck, unit tests and formatting
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -59,16 +59,48 @@ jobs:
       - name: Frontend dependency advisory audit
         run: scripts/test-suite frontend-audit
 
+      - name: Reject redundant visual unit tests
+        run: node scripts/frontend-test-overlap.mjs --gate
+
+      - name: Formatting
+        working-directory: frontend
+        run: pnpm exec prettier --check .
+
+      - name: Typecheck and logic tests
+        working-directory: frontend
+        run: ../scripts/sb-test --unit --integration
+
+  storybook:
+    name: Storybook browser tests and build
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          package_json_file: frontend/package.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 25
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
       - name: Install Playwright chromium
         working-directory: frontend
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Reject redundant visual unit tests
-        run: node scripts/frontend-test-overlap.mjs --gate
-
-      - name: Typecheck, logic tests, and Storybook browser tests
+      - name: Storybook browser tests
         working-directory: frontend
-        run: ../scripts/sb-test
+        run: ../scripts/sb-test --storybook --skip-typecheck
 
       - name: Storybook build
         working-directory: frontend
