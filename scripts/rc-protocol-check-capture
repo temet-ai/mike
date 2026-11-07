@@ -65,8 +65,8 @@ db_url() {
     local url="${MIKE_Q_DB_URL:-${MIKE_DATABASE_URL:-}}"
     if [[ -z "$url" && -f "$main_root/.env" ]]; then
         url="$(sed -n 's/^MIKE_DATABASE_URL=//p' "$main_root/.env" | head -1)"
-        url="${url%\"}"
-        url="${url#\"}"
+        url="${url%[\"\']}"
+        url="${url#[\"\']}"
     fi
     printf '%s' "$url"
 }
