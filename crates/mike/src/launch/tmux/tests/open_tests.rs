@@ -87,6 +87,8 @@ async fn open_with_a_prompt_delivers_via_set_buffer_paste_buffer_then_enter() {
     fake.answer("set-buffer", "");
     fake.answer("paste-buffer", "");
     fake.answer("capture-pane", "after: hello world\n");
+    fake.answer("send-keys", "");
+    fake.answer("capture-pane", "\u{276f} \n");
     let backend = TmuxBackend::with_binary(fake.bin());
     let session = Uuid::new_v4();
     let surface = backend
@@ -115,9 +117,65 @@ async fn open_with_a_prompt_delivers_via_set_buffer_paste_buffer_then_enter() {
             "paste-buffer",
             "capture-pane",
             "send-keys",
+            "capture-pane",
             "display-message",
         ]
     );
+}
+
+#[tokio::test]
+async fn open_with_a_prompt_left_in_the_box_presses_enter_again() {
+    let fake = FakeTmux::new();
+    fake.answer("new-session", "%1\u{1f}0\n");
+    fake.answer("set-option", "");
+    fake.answer("send-keys", "");
+    fake.answer("display-message", "claude\n");
+    fake.answer("display-message", "4242\n");
+    fake.answer("capture-pane", "before\n");
+    fake.answer("set-buffer", "");
+    fake.answer("paste-buffer", "");
+    fake.answer("capture-pane", "\u{276f}\u{a0}hello world\n");
+    fake.answer("send-keys", "");
+    fake.answer("capture-pane", "\u{276f}\u{a0}hello world\n");
+    fake.answer("send-keys", "");
+    fake.answer("capture-pane", "\u{276f} \n");
+    let backend = TmuxBackend::with_binary(fake.bin());
+    let surface = backend
+        .open(&request(Uuid::new_v4(), None, Some("hello world")))
+        .await
+        .unwrap();
+
+    assert_eq!(surface.delivered, Some(true));
+    let calls = fake.calls();
+    let enters = calls
+        .iter()
+        .filter(|c| c[0] == "send-keys" && c.last().is_some_and(|k| k == "Enter"))
+        .count();
+    assert_eq!(enters, 3, "launch line, first submit, and the retry");
+}
+
+#[tokio::test]
+async fn open_with_a_pane_that_never_shows_a_box_gives_up_soon() {
+    let fake = FakeTmux::new();
+    fake.answer("new-session", "%1\u{1f}0\n");
+    fake.answer("set-option", "");
+    fake.answer("send-keys", "");
+    fake.answer("display-message", "claude\n");
+    fake.answer("display-message", "4242\n");
+    fake.answer("capture-pane", "before\n");
+    fake.answer("set-buffer", "");
+    fake.answer("paste-buffer", "");
+    fake.answer("capture-pane", "no input box here\n");
+    fake.answer("send-keys", "");
+    let backend = TmuxBackend::with_binary(fake.bin());
+    let started = std::time::Instant::now();
+    let surface = backend
+        .open(&request(Uuid::new_v4(), None, Some("hello world")))
+        .await
+        .unwrap();
+
+    assert_eq!(surface.delivered, Some(true));
+    assert!(started.elapsed() < std::time::Duration::from_secs(15));
 }
 
 #[tokio::test]
@@ -134,6 +192,8 @@ async fn open_with_a_prompt_waits_for_the_pane_to_change_before_sending_enter() 
     fake.answer("capture-pane", "before\n");
     fake.answer("capture-pane", "before\n");
     fake.answer("capture-pane", "after: hello world\n");
+    fake.answer("send-keys", "");
+    fake.answer("capture-pane", "\u{276f} \n");
     let backend = TmuxBackend::with_binary(fake.bin());
     let session = Uuid::new_v4();
     let surface = backend
@@ -145,11 +205,11 @@ async fn open_with_a_prompt_waits_for_the_pane_to_change_before_sending_enter() 
     let calls = fake.calls();
     let capture_count = calls.iter().filter(|c| c[0] == "capture-pane").count();
     assert_eq!(
-        capture_count, 4,
-        "polled past the two unchanged answers before proceeding"
+        capture_count, 5,
+        "polled past the two unchanged answers before proceeding, then read the box once"
     );
-    let last_capture = calls.iter().rposition(|c| c[0] == "capture-pane").unwrap();
-    assert_eq!(calls[last_capture + 1][0], "send-keys");
+    let submit_check = calls.iter().rposition(|c| c[0] == "capture-pane").unwrap();
+    assert_eq!(calls[submit_check - 1][0], "send-keys");
 }
 
 #[tokio::test]

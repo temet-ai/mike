@@ -6,7 +6,8 @@ use crate::launch::error::LaunchError;
 const PASTE_RENDER_TIMEOUT: Duration = Duration::from_secs(2);
 const PASTE_RENDER_POLL: Duration = Duration::from_millis(100);
 const SUBMIT_TIMEOUT: Duration = Duration::from_secs(45);
-const SUBMIT_POLL: Duration = Duration::from_secs(1);
+const NO_BOX_TIMEOUT: Duration = Duration::from_secs(5);
+const SUBMIT_POLL: Duration = Duration::from_millis(500);
 const BOX_MARK: char = '\u{276f}';
 const COLLAPSED_PASTE: &str = "[Pasted text";
 const PROMPT_LEAD_CHARS: usize = 24;
@@ -94,10 +95,16 @@ pub(super) fn box_state(screen: &str, text: &str) -> BoxState {
 }
 
 async fn press_until_taken(cli: &TmuxCli, pane: &str, text: &str, submit: &[String]) {
-    let deadline = Instant::now() + SUBMIT_TIMEOUT;
-    while Instant::now() < deadline {
+    let started = Instant::now();
+    let mut box_seen = false;
+    while started.elapsed() < SUBMIT_TIMEOUT {
         tokio::time::sleep(SUBMIT_POLL).await;
-        match capture_pane(cli, pane).await.map(|s| box_state(&s, text)) {
+        let state = capture_pane(cli, pane).await.map(|s| box_state(&s, text));
+        box_seen |= matches!(state, Some(BoxState::Unsent | BoxState::Taken));
+        if !box_seen && started.elapsed() >= NO_BOX_TIMEOUT {
+            return;
+        }
+        match state {
             Some(BoxState::Unsent) => {
                 if let Err(e) = cli.run_ok(submit, DEFAULT_TIMEOUT).await {
                     eprintln!("mike spawn: pressing Enter in {pane} failed again: {e}");
