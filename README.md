@@ -1,8 +1,28 @@
-# mike
+<p align="center">
+  <img src="docs/assets/mike-icon.svg" alt="" width="112" height="112">
+</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+<h1 align="center">mike</h1>
 
-mike shows you what Claude Code actually sent and what came back. It records every request and answer of your sessions on your own machine, so you can open any turn in a browser, search your history, and turn a correction into something the next session starts with. It is for people who use Claude Code every day and want to see inside it.
+<p align="center">
+  <strong>See what Claude Code actually sent and what came back.</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/temet-ai/mike/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/temet-ai/mike?include_prereleases&amp;label=release&amp;color=22d9ff&amp;labelColor=0e1116"></a>
+  <img alt="Linux x86_64 and Apple Silicon macOS" src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-ff2e88?labelColor=0e1116">
+  <a href="./LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/license-MIT-ffc933?labelColor=0e1116"></a>
+</p>
+
+<p align="center">
+  <a href="#try-it">Try it</a> ·
+  <a href="https://temet.ai/docs/mike/">User guide</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="docs/user-guide/privacy.md">Privacy</a> ·
+  <a href="https://github.com/temet-ai/mike/releases">Releases</a>
+</p>
+
+mike is an inspector for Claude Code, written in Rust. It records every request and answer of your sessions on your own machine, so you can open any turn in a browser, search your history, and turn a correction into something the next session starts with. It is for people who use Claude Code every day and want to see inside it.
 
 **Status:** alpha, for Linux x86_64 and Apple Silicon macOS. The current release is [0.1.0-alpha.3](https://github.com/temet-ai/mike/releases). Expect rough edges and changes between alphas.
 
@@ -21,7 +41,7 @@ A fresh install only captures: it forwards your requests unchanged and sends not
 
 ## Try it
 
-Linux needs glibc 2.35 or newer. [Install mike](docs/user-guide/install.md) also covers mise and archives.
+Homebrew works on macOS and on Linux, where mike needs glibc 2.35 or newer. [Install mike](docs/user-guide/install.md) also covers mise and archives.
 
 ```bash
 brew install temet-ai/mike/mike temet-ai/mike/mike-mcp
@@ -34,6 +54,31 @@ At setup, keep captures in memory for a first look, or choose a PostgreSQL datab
 
 Then open <http://localhost:9990>. Your session is under **Sessions**, updating as you work. Only sessions started through mike are captured. [Get started](docs/user-guide/quickstart.md) walks through it.
 
+## A look around
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="docs/user-guide/images/request.png"><img src="docs/user-guide/images/request.png" alt="A request shown as the original and as sent, side by side, with the difference marked"></a>
+      <br><strong>Original and sent, side by side</strong>
+    </td>
+    <td width="50%" valign="top">
+      <a href="docs/user-guide/images/flagged-response.png"><img src="docs/user-guide/images/flagged-response.png" alt="Flagged responses grouped by check and category, each linked to its session and turn"></a>
+      <br><strong>Weak answers flagged, with the turn they came from</strong>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="docs/user-guide/images/sessions.png"><img src="docs/user-guide/images/sessions.png" alt="The Sessions page: search, sessions grouped by project, and the time each one was active"></a>
+      <br><strong>Every session, searchable by project</strong>
+    </td>
+    <td width="50%" valign="top">
+      <a href="docs/user-guide/images/fleet.png"><img src="docs/user-guide/images/fleet.png" alt="A fleet graph: a writer and a reviewer session working, with the messages between them"></a>
+      <br><strong>A fleet of sessions and the messages between them</strong>
+    </td>
+  </tr>
+</table>
+
 ## Before you run it
 
 **mike has no login, so use it only on a computer nobody else uses.** Its local API has no authentication: any program on the machine can read every captured prompt and answer, change mike's settings and start Claude Code sessions. Keep it on the loopback address it starts with. Remote access is not supported. [SECURITY](docs/SECURITY.md) has the full trust boundary.
@@ -45,6 +90,8 @@ Then open <http://localhost:9990>. Your session is under **Sessions**, updating 
 mike sits between Claude Code and `api.anthropic.com`. Claude Code talks to it on `localhost:9988`, mike forwards to Anthropic over HTTPS and keeps a copy, and the web UI on `:9990` and the `mike-mcp` companion read that copy through a local API on `:9989`.
 
 ![A request goes through mike to Anthropic, the original and the response are stored, and the web UI and mike-mcp read them](docs/animations/mike-overview.svg)
+
+Named for Mike, the thinkum dinkum who ran the Moon in Heinlein's *The Moon Is a Harsh Mistress*. He heard every line on Luna and forgot nothing. This one settles for your Claude Code sessions.
 
 A name clash to know about: the MkDocs tool also called `mike` may be on your `PATH`. Check with `which -a mike`.
 

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="mike">
+	<path d="M44 0H256V212L212 256H0V44Z" fill="#57657a"/>
+	<path d="M49 12H244V207L207 244H12V49Z" fill="#191f26"/>
+	<path d="M216.6 182.4A104 104 0 1 1 132.4 24.1A90 90 0 1 0 216.6 182.4Z" fill="#dae1ea"/>
+	<circle cx="120" cy="56" r="8" fill="#57657a"/>
+	<circle cx="144" cy="56" r="8" fill="#57657a"/>
+	<circle cx="168" cy="56" r="8" fill="#57657a"/>
+	<circle cx="96" cy="80" r="8" fill="#57657a"/>
+	<circle cx="120" cy="80" r="8" fill="#57657a"/>
+	<circle cx="144" cy="80" r="8" fill="#57657a"/>
+	<circle cx="168" cy="80" r="8" fill="#57657a"/>
+	<circle cx="192" cy="80" r="8" fill="#ffc933"/>
+	<circle cx="96" cy="104" r="8" fill="#22d9ff"/>
+	<circle cx="120" cy="104" r="8" fill="#22d9ff"/>
+	<circle cx="144" cy="104" r="8" fill="#22d9ff"/>
+	<circle cx="168" cy="104" r="8" fill="#22d9ff"/>
+	<circle cx="192" cy="104" r="8" fill="#22d9ff"/>
+	<circle cx="216" cy="104" r="8" fill="#57657a"/>
+	<circle cx="96" cy="128" r="8" fill="#57657a"/>
+	<circle cx="120" cy="128" r="8" fill="#57657a"/>
+	<circle cx="144" cy="128" r="8" fill="#57657a"/>
+	<circle cx="168" cy="128" r="8" fill="#57657a"/>
+	<circle cx="192" cy="128" r="8" fill="#57657a"/>
+	<circle cx="216" cy="128" r="8" fill="#57657a"/>
+	<circle cx="120" cy="152" r="8" fill="#57657a"/>
+	<circle cx="144" cy="152" r="8" fill="#ff2e88"/>
+	<circle cx="168" cy="152" r="8" fill="#ff2e88"/>
+	<circle cx="192" cy="152" r="8" fill="#ff2e88"/>
+	<circle cx="216" cy="152" r="8" fill="#ff2e88"/>
+	<circle cx="144" cy="176" r="8" fill="#57657a"/>
+	<circle cx="168" cy="176" r="8" fill="#57657a"/>
+	<circle cx="192" cy="176" r="8" fill="#57657a"/>
+</svg>
