@@ -38,6 +38,16 @@ fi
 ln -sf "$CM_SOURCE" "$CM_TARGET"
 echo "✓ Installed: $CM_TARGET → $CM_SOURCE"
 
+PC_SOURCE="$REPO_ROOT/scripts/rule-checks/rust-staged-lint-post-commit.sh"
+PC_TARGET="$REPO_ROOT/.git/hooks/post-commit"
+chmod +x "$PC_SOURCE"
+if [ -e "$PC_TARGET" ] && [ ! -L "$PC_TARGET" ]; then
+    echo "Warning: $PC_TARGET already exists and is not a symlink. Backing up to $PC_TARGET.bak"
+    mv "$PC_TARGET" "$PC_TARGET.bak"
+fi
+ln -sf "$PC_SOURCE" "$PC_TARGET"
+echo "✓ Installed: $PC_TARGET → $PC_SOURCE"
+
 PP_SOURCE="$REPO_ROOT/scripts/pre-push-check"
 PP_TARGET="$REPO_ROOT/.git/hooks/pre-push"
 chmod +x "$PP_SOURCE"

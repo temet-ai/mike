@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
-# Commit-time Rust lint: formatting and the 500-line limit, on the staged files
-# only, so a peer's unfinished file in a shared checkout never blocks a commit.
-# Pass paths to check those instead of the staged files.
+# Commit-time Rust lint on the staged files only, so a peer's unfinished file in
+# a shared checkout never blocks a commit. Formats each file and stages the
+# result, and refuses a file over 500 lines. A file with unstaged changes is
+# refused rather than formatted, so those changes never join the commit.
+# Pass paths to format those without staging anything.
 set -uo pipefail
 root=$(git rev-parse --show-toplevel)
 cd "$root" || exit 2
 
 max_lines=500
+auto_add=0
 if [ "$#" -gt 0 ]; then
   files=$(printf '%s\n' "$@")
 else
+  auto_add=1
   files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.rs')
 fi
 [ -n "$files" ] || exit 0
@@ -28,11 +32,25 @@ while IFS= read -r file; do
 done <<<"$files"
 
 if [ -n "$rustfmt_bin" ] && [ "${#args[@]}" -gt 0 ]; then
-  output=$("$rustfmt_bin" --edition 2024 --check "${args[@]}" 2>&1)
+  formatted=$(mktemp "${TMPDIR:-/tmp}/rust-staged-lint.XXXXXX")
+  trap 'rm -f "$formatted"' EXIT
   for file in "${args[@]}"; do
-    if printf '%s\n' "$output" | grep -qF "Diff in $root/${file#"$root"/}"; then
-      echo "$file: not formatted; run make fmt"
+    if ! "$rustfmt_bin" --edition 2024 <"$file" >"$formatted" 2>/dev/null; then
+      echo "$file: rustfmt could not parse it"
       status=1
+      continue
+    fi
+    cmp -s "$file" "$formatted" && continue
+    if [ "$auto_add" = 1 ] && ! git diff --quiet -- "$file"; then
+      echo "$file: not formatted, and it has unstaged changes; run make fmt"
+      status=1
+      continue
+    fi
+    cat "$formatted" >"$file"
+    echo "$file: formatted"
+    if [ "$auto_add" = 1 ]; then
+      git add -- "$file"
+      printf '%s\n' "$file" >>"$(git rev-parse --git-dir)/rust-staged-formatted"
     fi
   done
 fi
