@@ -14,6 +14,13 @@ class ReleaseError(Exception):
     pass
 
 
+# Every target an archive is built for, each natively on its own host:
+# triple -> (uname -s, uname -m, `mike doctor` os, `mike doctor` architecture).
+TARGETS = {"x86_64-unknown-linux-gnu": ("Linux", "x86_64", "linux", "x86_64"),
+           "aarch64-unknown-linux-gnu": ("Linux", "aarch64", "linux", "aarch64"),
+           "aarch64-apple-darwin": ("Darwin", "arm64", "macos", "aarch64")}
+
+
 def run(args, *, cwd, env=None, timeout=None):
     try:
         result = subprocess.run(args, cwd=cwd, env=env, text=True,
@@ -110,12 +117,10 @@ def workspace_version(root, requested):
 def native_target(root, env):
     system = run(["uname", "-s"], cwd=root, env=env)
     machine = run(["uname", "-m"], cwd=root, env=env)
-    supported = {("Linux", "x86_64"): "x86_64-unknown-linux-gnu",
-                 ("Darwin", "arm64"): "aarch64-apple-darwin"}
-    try:
-        return supported[(system, machine)]
-    except KeyError as exc:
-        raise ReleaseError(f"unsupported native host {system}/{machine}; no cross-compilation") from exc
+    for target, host in TARGETS.items():
+        if host[:2] == (system, machine):
+            return target
+    raise ReleaseError(f"unsupported native host {system}/{machine}; no cross-compilation")
 
 
 def toolchain(root, env, target):

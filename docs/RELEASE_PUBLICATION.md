@@ -61,8 +61,8 @@ Keep the prepared candidate immutable, including its `qualified: false` field.
 Qualification is a separate, reviewed evidence bundle, never an edit to the
 manifest. For every selected native target, the tool uploads exactly two archive
 and checksum pairs plus the unchanged manifest bytes, named
-`manifest-<target>.json` to avoid collisions. One plan can contain Linux x86_64
-and Apple Silicon macOS candidates from the same version/source commit, but each
+`manifest-<target>.json` to avoid collisions. One plan can contain Linux x86_64,
+Linux ARM64 and Apple Silicon macOS candidates from the same version/source commit, but each
 requires its own complete target evidence. Select every advertised target before
 publication; adding a target later changes the plan and conflicts with the
 existing release. An unqualified target stays unsupported.

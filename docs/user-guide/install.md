@@ -5,7 +5,7 @@ mike comes as two programs that you install together from the same release: `mik
 ## Before you install
 
 - **Current release.** `0.1.0-alpha.3` is a pre-release, on the [releases page](https://github.com/temet-ai/mike/releases).
-- **Platforms.** Linux on x86_64 with glibc 2.35 (Ubuntu 22.04) or newer, and Apple Silicon Macs. There is no Linux ARM, Intel Mac or Windows build. macOS archives are not signed, which is why Homebrew and mise are the supported routes there.
+- **Platforms.** Linux on x86_64 or ARM64 with glibc 2.35 (Ubuntu 22.04) or newer, and Apple Silicon Macs. A Raspberry Pi needs a 64-bit OS, and `uname -m` should print `aarch64`. There is no 32-bit ARM, Intel Mac or Windows build. macOS archives are not signed, which is why Homebrew and mise are the supported routes there.
 - **Claude Code** must be installed and signed in before you capture anything. `claude --version` shows whether it is installed.
 - **A database** is chosen later, in [setup](setup.md). Docker is needed only if you want mike to run a PostgreSQL for you.
 

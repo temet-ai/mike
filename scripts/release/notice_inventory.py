@@ -13,12 +13,11 @@ import re
 import stat
 import tomllib
 
-from common import ReleaseError, clean_source, source_git
+from common import ReleaseError, TARGETS, clean_source, source_git
 
 MAX_ENTRIES = 20000
 MAX_INPUT_BYTES = 16 * 1024**2
 MAX_ASSET_BYTES = 64 * 1024**2
-TARGETS = ("x86_64-unknown-linux-gnu", "aarch64-apple-darwin")
 HEX = re.compile(r"[0-9a-f]{64}")
 
 

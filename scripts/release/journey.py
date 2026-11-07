@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 import stat
 
-from common import sha256
+from common import TARGETS, sha256
 from journey_fixture import SECRET, TEXT, TOOL_RESULT, upstream_fixture
 from journey_http import inspect_capture, spa_http, stream_capture
 from journey_mcp import run_mcp
@@ -98,9 +98,8 @@ def validate_doctor(value, manifest, *, persistent=False, stopped=False):
             and value["read_only"] is True and value["product"] == "mike", "DOCTOR_IDENTITY")
     require(value["source_sha"] == manifest["source_commit"] and value["version"] == manifest["version"]
             and value["source_dirty"] is False, "DOCTOR_BUILD_MISMATCH")
-    platforms = {"x86_64-unknown-linux-gnu": ("linux", "x86_64"),
-                 "aarch64-apple-darwin": ("macos", "aarch64")}
-    require((value["os"], value["architecture"]) == platforms.get(manifest["target"]), "DOCTOR_PLATFORM_MISMATCH")
+    host = TARGETS.get(manifest["target"])
+    require(host is not None and (value["os"], value["architecture"]) == host[2:], "DOCTOR_PLATFORM_MISMATCH")
     require(value["config_source"] == "selected_file", "DOCTOR_CONFIG_SOURCE")
     expected = {
         "configuration": (True, "pass", "CONFIG_LOADED"),

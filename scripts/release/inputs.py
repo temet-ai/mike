@@ -17,7 +17,7 @@ if __name__ == "__main__":
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from archive import BINARIES, SUPPORT_FILES, extract_checked, smoke, verify_candidate
-from common import ReleaseError, sha256
+from common import ReleaseError, TARGETS, sha256
 from owned_process import OwnedProcess
 
 MAX_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024
@@ -105,7 +105,7 @@ def snapshot_inputs(candidate, destination, *, max_total_bytes=None):
     # Do not construct a path from unchecked manifest strings.
     if not isinstance(version, str) or not re.fullmatch(r"[0-9A-Za-z.+-]+", version):
         raise ReleaseError("invalid candidate version")
-    if target not in ("x86_64-unknown-linux-gnu", "aarch64-apple-darwin"):
+    if target not in TARGETS:
         raise ReleaseError("unsupported candidate platform")
     expected = {"manifest.json"}
     for binary in BINARIES:

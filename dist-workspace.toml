@@ -2,7 +2,7 @@
 members = ["cargo:."]
 
 # Archives are built by scripts/release.sh, which the public repo's release workflow
-# runs on its free runners (Linux on ubuntu-22.04 for the glibc 2.35 floor).
+# runs on its free runners (Linux on ubuntu-22.04 and ubuntu-22.04-arm for the glibc 2.35 floor).
 # `dist generate` with ci=[] does not emit a workflow. See docs/RELEASING.md.
 [dist]
 # The preferred dist version to use (Cargo.toml SemVer syntax)
@@ -16,4 +16,4 @@ ci = []
 # Formulae come from scripts/release/homebrew.py, which pins the verified archive bytes.
 installers = []
 # Each target builds natively on its own runner and qualifies independently.
-targets = ["x86_64-unknown-linux-gnu", "aarch64-apple-darwin"]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu", "aarch64-apple-darwin"]
