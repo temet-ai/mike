@@ -32,6 +32,18 @@ SPA_PORT="${MIKE_FRONTEND_PORT:-9990}"
 STORYBOOK_PORT="${MIKE_STORYBOOK_PORT:-6006}"
 INSPECT_ADDR="${MIKE_INSPECT_ADDR:-127.0.0.1:9989}"
 
+# Under an installed service the web UI port belongs to the proxy process, and freeing it would
+# stop the proxy. MIKE_FRONTEND_PORT picks a spare port for vite instead.
+# shellcheck source=lib/managed-service.sh
+source "${SCRIPT_DIR}/lib/managed-service.sh"
+if managed_service_installed \
+    && [[ -n "$(managed_service_pid)" ]] \
+    && [[ "$(lsof -ti ":${SPA_PORT}" -sTCP:LISTEN 2>/dev/null | head -1)" == "$(managed_service_pid)" ]]; then
+    echo "restart-frontend.sh: port ${SPA_PORT} is the web UI of the installed service $(managed_service_identifier proxy)." >&2
+    echo "  Nothing was touched. Run vite beside it with MIKE_FRONTEND_PORT=9991 ./scripts/restart-frontend.sh" >&2
+    exit 1
+fi
+
 # Kill whoever is currently bound to a given TCP port, if anything.
 # Mirrors the helper in start-proxy.sh. Idempotent: no-op if the port is free.
 free_port() {

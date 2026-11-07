@@ -216,16 +216,113 @@ order="$(awk '
 eq "deploy-proxy.sh looks for the installed service before it sources .env" "ok" "$order"
 # The service cutover restarts the service and waits for a new boot generation. It must free no
 # real port, kill no pid, start no process of its own and leave the sidecar alone.
-body="$(awk '/^cutover_via_service\(\) \{/ { in_fn = 1 } in_fn { print } in_fn && /^\}/ { exit }' "$root/scripts/deploy-proxy.sh" \
+body="$(awk '/^cutover_via_service\(\) \{/ { in_fn = 1 } in_fn { print } in_fn && /^\}/ { exit }' "$lib" \
     | grep -v '^[[:space:]]*#')"
 if [[ -z "$body" ]]; then
-    bad "deploy-proxy.sh has a cutover_via_service function"
+    bad "the library has a cutover_via_service function"
 else
     eq "the service cutover restarts the proxy service and waits for a new generation" "2" \
         "$(printf '%s\n' "$body" | grep -c 'restart_service_and_wait')"
     forbidden="$(printf '%s\n' "$body" | grep -E 'free_port|kill |nohup|ensure_proxy_forward|stop-proxy|systemctl|launchctl' || true)"
-    eq "the service cutover frees no port, kills nothing, starts nothing and leaves the sidecar alone" "" "$forbidden"
+    eq "the service cutover frees no port, kills nothing and starts nothing itself" "" "$forbidden"
 fi
+
+# ── the cutover and rollback, with the service and the health endpoint stubbed ──────────────
+# $1 = generation after the first restart, $2 = after the second, "old" = nothing new answered.
+cutover_case() {
+    local d="$scratch/cut.$1.$2"
+    mkdir -p "$d/bin"
+    printf 'previous' >"$d/bin/mike"; printf 'previous' >"$d/prev"; chmod +x "$d/bin/mike" "$d/prev"
+    printf 'staged' >"$d/staged"; chmod +x "$d/staged"
+    echo 0 >"$d/restarts"
+    (
+        SERVICE_BIN="$d/bin/mike" STAGED_BIN="$d/staged" PREV_BIN="$d/prev" DEPLOYED_BIN="$d/deployed"
+        PID_FILE="$d/pid" DEPLOY_DIR="$d" PROJECT_ROOT="$d" SMOKE_LOG="$d/smoke" SERVICE_ID=test.service
+        INSPECT_ADDR=127.0.0.1:1 MIKE_ADDR=127.0.0.1:2 SERVICE_WAIT_SECONDS=1 CUTOVER_DONE=false
+        after_first="$1" after_second="$2"
+        verify_live_build_sha() { :; }; refresh_mike_cli() { :; }; warn_if_web_ui_is_stale() { :; }
+        managed_service_log() { echo "$d/no-log"; }
+        sync_service_sidecar() { echo "sidecar synced"; }
+        managed_service_restart() { echo $(( $(cat "$d/restarts") + 1 )) >"$d/restarts"; }
+        health_boot_generation() {
+            case "$(cat "$d/restarts")" in 0) echo old ;; 1) echo "$after_first" ;; *) echo "$after_second" ;; esac
+        }
+        cutover_via_service
+    ) >"$d/out" 2>&1
+    echo "$?" >"$d/rc"
+    printf '%s' "$d"
+}
+d="$(cutover_case new unused)"
+eq "a new process answering is a successful cutover" "0" "$(cat "$d/rc")"
+eq "after a cutover the service runs the staged binary" "staged" "$(cat "$d/bin/mike")"
+eq "after a cutover the record holds the staged binary" "staged" "$(cat "$d/deployed" 2>/dev/null)"
+eq "the sidecar is looked at only after the proxy is healthy" "1" "$(grep -c 'sidecar synced' "$d/out")"
+d="$(cutover_case old rolled-back)"
+eq "a build that never answers fails the deploy" "1" "$(cat "$d/rc")"
+eq "a failed cutover puts the previous binary back" "previous" "$(cat "$d/bin/mike")"
+eq "rollback is reported only when a new process answered" "1" "$(grep -c 'Rollback succeeded' "$d/out")"
+eq "a failed cutover leaves the sidecar alone" "0" "$(grep -c 'sidecar synced' "$d/out")"
+d="$(cutover_case old old)"
+eq "a failed rollback fails the deploy" "1" "$(cat "$d/rc")"
+eq "a failed rollback never claims success" "0" "$(grep -c 'Rollback succeeded' "$d/out")"
+eq "a failed rollback says the proxy is down" "1" "$(grep -c 'ROLLBACK ALSO FAILED' "$d/out")"
+
+# ── restart and stop drive launchd correctly, with a stub launchctl ─────────────────────────
+launch_stub="$scratch/launch-stub"; mkdir -p "$launch_stub"
+cat >"$launch_stub/launchctl" <<'EOF'
+#!/usr/bin/env bash
+echo "$*" >>"$LAUNCH_LOG"
+case "$1" in
+    print) [[ -f "$LAUNCH_LOADED" ]] || exit 113; echo "pid = 4242" ;;
+    bootout) rm -f "$LAUNCH_LOADED" ;;
+    bootstrap) touch "$LAUNCH_LOADED" ;;
+esac
+EOF
+chmod +x "$launch_stub/launchctl"
+launch_case() {   # $1 = yes when loaded, $2 = the function to run; prints the verbs it called
+    local log="$scratch/launch.log" loaded="$scratch/launch.loaded"
+    rm -f "$log" "$loaded"; [[ "$1" == yes ]] && touch "$loaded"
+    ( export PATH="$launch_stub:$PATH" LAUNCH_LOG="$log" LAUNCH_LOADED="$loaded" HOME="$scratch/home" MANAGED_SERVICE_PLATFORM=launchd
+      "$2" proxy ) >/dev/null 2>&1
+    awk '{ printf "%s ", $1 } $1 == "kickstart" { printf "%s ", $2 }' "$log" 2>/dev/null
+}
+eq "restart kills and restarts a loaded service" "print kickstart -k " "$(launch_case yes managed_service_restart)"
+eq "restart loads a service that stop unloaded" "print bootstrap " "$(launch_case no managed_service_restart)"
+eq "stop unloads a loaded service so launchd does not bring it back" "print bootout " "$(launch_case yes managed_service_stop)"
+eq "stop leaves an unloaded service alone" "print " "$(launch_case no managed_service_stop)"
+
+# ── the guard for scripts that bind mike's ports ────────────────────────────────────────────
+guard_case() {   # $1 = yes when the service runs; prints the exit status
+    local home="$scratch/guard-home" loaded="$scratch/guard.loaded"
+    rm -f "$loaded"; [[ "$1" == yes ]] && touch "$loaded"
+    mkdir -p "$home/Library/LaunchAgents"
+    printf '<!-- %s -->\n' "$MANAGED_SERVICE_MARKER" >"$home/Library/LaunchAgents/ai.temet.mike.proxy.plist"
+    ( export PATH="$launch_stub:$PATH" LAUNCH_LOG=/dev/null LAUNCH_LOADED="$loaded" HOME="$home" MANAGED_SERVICE_PLATFORM=launchd
+      refuse_while_service_runs "test" >/dev/null 2>&1 ) && echo 0 || echo 1
+}
+eq "a port-binding script stops while the service runs" "1" "$(guard_case yes)"
+eq "a port-binding script runs once the service is stopped" "0" "$(guard_case no)"
+for script in stop-proxy.sh start-debug.sh debug-stack-deps.sh start-and-monitor.sh restart-frontend.sh; do
+    if bash -n "$root/scripts/$script" 2>/dev/null; then ok "bash -n scripts/$script"; else bad "bash -n scripts/$script"; fi
+done
+
+# ── the sidecar restarts only when its own code changed ─────────────────────────────────────
+repo="$scratch/repo"; mkdir -p "$repo/crates/proxy-forward"
+git -C "$repo" init -q; git -C "$repo" config user.email t@t; git -C "$repo" config user.name t
+echo one >"$repo/crates/proxy-forward/a"; echo one >"$repo/other"
+git -C "$repo" add .; git -C "$repo" commit -qm one; first="$(git -C "$repo" rev-parse HEAD)"
+echo two >"$repo/other"; git -C "$repo" commit -qam two
+sidecar_case() {   # $1 = recorded commit; prints how often the sidecar restarted
+    ( PROJECT_ROOT="$repo" DEPLOY_DIR="$repo" PREV_BIN=/nonexistent
+      printf '%s\n' "$1" >"$repo/service-forward.commit"
+      managed_service_pid() { echo 7; }; _wait_for_sidecar() { return 0; }
+      managed_service_restart() { echo restarted; }
+      sync_service_sidecar ) 2>/dev/null | grep -c restarted
+}
+eq "the sidecar stays up when only other code changed" "0" "$(sidecar_case "$first")"
+echo two >"$repo/crates/proxy-forward/a"; git -C "$repo" commit -qam three
+eq "the sidecar restarts when its code changed" "1" "$(sidecar_case "$first")"
+eq "the restart is recorded so the next deploy leaves it alone" "$(git -C "$repo" rev-parse HEAD)" "$(cat "$repo/service-forward.commit")"
 
 echo "managed service deploy: $pass passed, $fail failed, $notrun not run"
 (( fail == 0 ))

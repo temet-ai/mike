@@ -70,7 +70,8 @@
 #                                              # ONLY; never touches the live proxy, and
 #                                              # skips the smoke boot when migrations are
 #                                              # pending, so it never migrates the DB
-#   ./scripts/deploy-proxy.sh --health-timeout=90   # override readiness wait (default 300s)
+#   ./scripts/deploy-proxy.sh --health-timeout=90   # override readiness wait (default 300s,
+#                                                   # 60s under an installed service)
 #
 # Stop the deployed proxy later with ./scripts/stop-proxy.sh (frees the ports).
 #
@@ -87,15 +88,17 @@
 #     per-user config file;
 #   - builds, runs migrate-check and the smoke boot on spare ports exactly as before;
 #   - copies the staged binary over the program the service file names (the previous one is
-#     kept in .deploy/mike.prev) and restarts the PROXY service only. No port is freed and no
-#     process is killed;
+#     kept in .deploy/mike.prev) and restarts the proxy service, or starts it when
+#     stop-proxy.sh unloaded it. No port is freed and no process is killed;
 #   - counts the cutover as done only when /api/health reports a boot generation different from
 #     the one that was answering before, because a pid is no handle once a supervisor restarts
-#     things and any 200 on the port could be the old process. A failed check puts the previous
-#     binary back and restarts again;
-#   - leaves the sidecar (`mike forward serve`) alone. It is the failover layer that covers the
-#     restart for every Claude session on the machine, and it keeps the previous build until
-#     `mike service restart`. The web UI on :9990 is the service's own.
+#     things and any 200 on the port could be the old process. That wait is 60 seconds, since
+#     the smoke boot has already migrated. A failed check puts the previous binary back and
+#     restarts again;
+#   - restarts the sidecar (`mike forward serve`) only when it is down or its own code changed,
+#     and only after the proxy is healthy. It is the failover layer that covers the proxy's
+#     restart, and a restart of it breaks every stream open through it. The web UI on :9990 is
+#     the service's own.
 
 set -euo pipefail
 
@@ -165,13 +168,14 @@ BUILD_PROFILE="release"
 DRY_RUN="false"
 FORCE="false"
 WAIT_MAX_SECONDS=300
+SERVICE_WAIT_SECONDS=60
 for arg in "$@"; do
     case "${arg}" in
         --release)              RELEASE_FLAG="--release"; BUILD_PROFILE="release" ;;
         --debug)                RELEASE_FLAG=""; BUILD_PROFILE="debug" ;;
         --dry-run)              DRY_RUN="true" ;;
         --force)                FORCE="true" ;;
-        --health-timeout=*)     WAIT_MAX_SECONDS="${arg#*=}" ;;
+        --health-timeout=*)     WAIT_MAX_SECONDS="${arg#*=}"; SERVICE_WAIT_SECONDS="${arg#*=}" ;;
         *) echo "deploy-proxy.sh: unknown argument '${arg}' (expected --release, --debug, --dry-run, --force, or --health-timeout=N)" >&2; exit 2 ;;
     esac
 done
@@ -365,96 +369,6 @@ verify_live_build_sha() {
     echo "==> Live build: ${live} matches HEAD${suffix}"
 }
 
-# Put binary $1 where the service runs it. The copy is made beside it and renamed over it, so
-# the running process keeps its own inode (cp over a running binary SIGKILLs it on macOS) and
-# SERVICE_BIN is never missing. 0 = replaced, 1 = nothing changed.
-install_service_binary() {
-    local tmp="${SERVICE_BIN}.deploy.$$"
-    if cp "$1" "${tmp}" && chmod +x "${tmp}" && mv -f "${tmp}" "${SERVICE_BIN}"; then
-        return 0
-    fi
-    rm -f "${tmp}"
-    return 1
-}
-
-# Restart the proxy service and wait for a process with a new boot generation to answer.
-# $1 = label. 0 = a new process answers. A failed restart command is a failure too.
-restart_service_and_wait() {
-    local before
-    before="$(health_boot_generation "${INSPECT_ADDR}")"
-    managed_service_restart_proxy || {
-        echo "==> Restarting ${SERVICE_ID} failed (is it loaded? 'mike service status' shows)" >&2
-        return 1
-    }
-    wait_new_generation "${INSPECT_ADDR}" "${before}" "$1"
-}
-
-# The installed service serves the web UI embedded in its binary, which is compiled from
-# frontend/build. This script does not rebuild that folder, so say when it predates the newest
-# frontend commit: the deploy would put an older web UI live.
-warn_if_web_ui_is_stale() {
-    local built changed
-    built="$(date -r "${PROJECT_ROOT}/frontend/build/index.html" +%s 2>/dev/null || echo 0)"
-    changed="$(git -C "${PROJECT_ROOT}" log -1 --format=%ct -- frontend/src frontend/static \
-        ':(exclude,glob)frontend/src/**/*.stories.*' ':(exclude,glob)frontend/src/**/*.test.*' 2>/dev/null || true)"
-    if (( built < ${changed:-0} )); then
-        echo "==> WARNING: frontend/build is older than the newest frontend commit, so this deploy" >&2
-        echo "    carries an older web UI. Run 'make spa' and deploy again to bring it up to date." >&2
-    fi
-}
-
-# Cutover under an installed service (see the header). Always exits: 0 when the new build
-# answers as a new process, 1 otherwise. Frees no port, kills no pid, starts no process;
-# the supervisor does the starting.
-cutover_via_service() {
-    local service_log
-    service_log="$(managed_service_log || true)"
-    warn_if_web_ui_is_stale
-    echo "==> Cutover: replacing ${SERVICE_BIN} and restarting ${SERVICE_ID} (the sidecar keeps running)"
-    if ! install_service_binary "${STAGED_BIN}"; then
-        echo "==> Could not write ${SERVICE_BIN} — the service was not touched." >&2
-        exit 1
-    fi
-    CUTOVER_DONE="true"   # the live binary is replaced; the abort notice would be wrong from here
-    if restart_service_and_wait "new proxy"; then
-        verify_live_build_sha "${INSPECT_ADDR}"
-        # Record what is now live so the NEXT deploy's smart-skip and .prev are trustworthy.
-        rm -f "${DEPLOYED_BIN}"
-        cp "${STAGED_BIN}" "${DEPLOYED_BIN}"
-        git -C "${PROJECT_ROOT}" rev-parse HEAD >"${DEPLOY_DIR}/mike.deployed.commit" 2>/dev/null || true
-        rm -f "${PID_FILE}"   # the supervisor owns the pid; a pid file of ours would only mislead
-        refresh_mike_cli || true
-        echo
-        echo "==> Cutover complete. The new proxy is live and healthy under ${SERVICE_ID}."
-        echo "    proxy bind:   http://${MIKE_ADDR}/v1/"
-        echo "    inspect bind: http://${INSPECT_ADDR}/api/"
-        echo "    service log:  ${service_log}"
-        echo "    The sidecar (mike forward serve) was not restarted and keeps the previous build"
-        echo "    until you run 'mike service restart'. 'mike service status' shows both services."
-        exit 0
-    fi
-
-    echo "==> The new proxy did not come up under ${SERVICE_ID} — service log: ${service_log}" >&2
-    if [[ -f "${service_log}" ]]; then tail -n 30 "${service_log}" >&2 || true; fi
-    if [[ -x "${PREV_BIN}" ]]; then
-        echo "==> Rolling back to the previous binary (${PREV_BIN})" >&2
-        echo "    NOTE: rollback is only safe if this deploy's migrations were additive." >&2
-        if install_service_binary "${PREV_BIN}" && restart_service_and_wait "rolled-back proxy"; then
-            rm -f "${DEPLOYED_BIN}"
-            cp "${PREV_BIN}" "${DEPLOYED_BIN}"
-            echo "==> Rollback succeeded — the previous binary is live under ${SERVICE_ID}." >&2
-            echo "    The new build failed its health check. Service log: ${service_log}" >&2
-            exit 1
-        fi
-        echo "==> ROLLBACK ALSO FAILED. The proxy service is DOWN; ${SERVICE_ID} keeps retrying ${SERVICE_BIN}." >&2
-        echo "    Inspect the service log (${service_log}) and ${SMOKE_LOG}." >&2
-        exit 1
-    fi
-    echo "==> No rollback binary available. The proxy service is DOWN; ${SERVICE_ID} keeps retrying ${SERVICE_BIN}." >&2
-    echo "    Inspect the service log (${service_log}) and ${SMOKE_LOG}." >&2
-    exit 1
-}
-
 # Smoke-test instance pid — cleaned up by the trap on any early exit. The trap
 # deliberately NEVER frees the real proxy ports: an abort must leave the live
 # proxy exactly as it was.
@@ -608,6 +522,7 @@ if [[ "${DRY_RUN}" == "false" && "${FORCE}" == "false" && -x "${LIVE_BIN}" ]] \
             cp "${STAGED_BIN}" "${DEPLOYED_BIN}"
         fi
         rm -f "${PID_FILE}"
+        sync_service_sidecar || exit 1
     else
         # Even when mike is unchanged, make sure the sidecar is up and current.
         ensure_proxy_forward
@@ -689,7 +604,6 @@ fi
 
 # ── 4. CUTOVER ───────────────────────────────────────────────────────────────
 if ${USE_SERVICE}; then
-    # The sidecar is already running as the service's own unit and covers the restart.
     echo "==> Cutover: stopping smoke instance"
     kill "${SMOKE_PID}" 2>/dev/null || true
     wait "${SMOKE_PID}" 2>/dev/null || true

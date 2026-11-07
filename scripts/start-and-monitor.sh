@@ -26,6 +26,10 @@ if [[ "${1:-}" == "--release" ]]; then
     BUILD_PROFILE="release"
 fi
 
+# shellcheck source=lib/managed-service.sh
+source "${PROJECT_ROOT}/scripts/lib/managed-service.sh"
+refuse_while_service_runs "start-and-monitor.sh"
+
 # ── 1. build ──────────────────────────────────────────────────────────────────
 echo "==> Building mike ${RELEASE_FLAG:+(release)}"
 cargo build ${RELEASE_FLAG} --manifest-path crates/mike/Cargo.toml

@@ -340,6 +340,13 @@ least five such channels and fewer than half are linked. That is what a protocol
 in practice: on 2026-09-10 Claude Code 2.1.272 stopped sending the events mike linked channels
 from, and no new channel was linked for six days (mike#268). On a normal day 85% to 99% link.
 
+mike learns the link in two main ways. `mike spawn` records it when it starts a session. For every
+other session, the channel-link sweep reads Claude Code's own session files,
+`~/.claude/sessions/<pid>.json`, once a minute: each running session's file holds its local session
+id and, under `bridgeSessionId`, its Remote Control id. If those files stop carrying
+`bridgeSessionId`, sessions started by hand stop linking while spawned ones carry on, so a day with
+only hand-started sessions shows the row as `degraded` although the protocol has not changed.
+
 To find what moved, run `make rc-protocol-check` by hand. It runs two scripts (mike#236), neither
 of which is part of lint:
 
