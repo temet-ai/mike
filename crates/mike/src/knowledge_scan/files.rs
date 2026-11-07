@@ -10,11 +10,13 @@ use crate::store::persistence::project_knowledge::DocumentInput;
 const MAX_DOCUMENTS: usize = 5000;
 const MEMORY_INDEX_FILE: &str = "MEMORY.md";
 const SKILL_FILE: &str = "SKILL.md";
+const SKIPPED_DIRECTORIES: [&str; 4] = [".git", "node_modules", "target", ".venv"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum SourceKind {
     Memory,
     Skills,
+    Tree,
 }
 
 impl SourceKind {
@@ -22,6 +24,7 @@ impl SourceKind {
         match self {
             Self::Memory => "memory",
             Self::Skills => "skill",
+            Self::Tree => "artifact",
         }
     }
 }
@@ -50,9 +53,18 @@ fn io_error(path: &Path) -> impl FnOnce(std::io::Error) -> ScanError + '_ {
 }
 
 pub(super) fn collect(root: &Path, kind: SourceKind) -> Result<Vec<DocumentInput>, ScanError> {
+    collect_excluding(root, kind, &[])
+}
+
+pub(super) fn collect_excluding(
+    root: &Path,
+    kind: SourceKind,
+    excludes: &[String],
+) -> Result<Vec<DocumentInput>, ScanError> {
     let mut paths = match kind {
         SourceKind::Memory => memory_paths(root)?,
         SourceKind::Skills => skill_paths(root)?,
+        SourceKind::Tree => tree_paths(root, excludes)?,
     };
     paths.sort();
     if paths.len() > MAX_DOCUMENTS {
@@ -94,6 +106,38 @@ fn memory_paths(root: &Path) -> Result<Vec<PathBuf>, ScanError> {
     Ok(found)
 }
 
+fn tree_paths(root: &Path, excludes: &[String]) -> Result<Vec<PathBuf>, ScanError> {
+    let mut found = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        for entry in fs::read_dir(&directory).map_err(io_error(&directory))? {
+            let entry = entry.map_err(io_error(&directory))?;
+            let path = entry.path();
+            let file_type = entry.file_type().map_err(io_error(&path))?;
+            if is_excluded(root, &path, excludes) {
+                continue;
+            }
+            if file_type.is_dir() {
+                let name = entry.file_name();
+                if !name
+                    .to_str()
+                    .is_some_and(|name| SKIPPED_DIRECTORIES.contains(&name))
+                {
+                    pending.push(path);
+                }
+            } else if file_type.is_file() && is_markdown(&path) {
+                found.push(path);
+            }
+        }
+    }
+    Ok(found)
+}
+
+fn is_excluded(root: &Path, path: &Path, excludes: &[String]) -> bool {
+    path.strip_prefix(root)
+        .is_ok_and(|relative| excludes.iter().any(|exclude| relative.starts_with(exclude)))
+}
+
 fn skill_paths(root: &Path) -> Result<Vec<PathBuf>, ScanError> {
     let mut found = Vec::new();
     for entry in fs::read_dir(root).map_err(io_error(root))? {
@@ -121,7 +165,7 @@ fn read_document(root: &Path, path: &Path, kind: SourceKind) -> Result<DocumentI
     let metadata = frontmatter::parse(&body);
     let relative_path = relative(root, path);
     Ok(DocumentInput {
-        title: title_of(&metadata, &body, &relative_path),
+        title: title_of(&metadata, &body, &relative_path, kind),
         kind: kind_of(&metadata, kind),
         status: text_field(&metadata, "status").unwrap_or_else(|| "unknown".to_owned()),
         content_hash: hex_digest(body.as_bytes()),
@@ -163,8 +207,17 @@ fn kind_of(metadata: &serde_json::Map<String, Value>, kind: SourceKind) -> Strin
         .unwrap_or_else(|| kind.default_kind().to_owned())
 }
 
-fn title_of(metadata: &serde_json::Map<String, Value>, body: &str, relative_path: &str) -> String {
-    if let Some(name) = text_field(metadata, "name") {
+fn title_of(
+    metadata: &serde_json::Map<String, Value>,
+    body: &str,
+    relative_path: &str,
+    kind: SourceKind,
+) -> String {
+    let declared = match kind {
+        SourceKind::Tree => text_field(metadata, "title"),
+        SourceKind::Memory | SourceKind::Skills => text_field(metadata, "name"),
+    };
+    if let Some(name) = declared {
         return name;
     }
     if let Some(heading) = body.lines().find_map(|line| line.strip_prefix("# ")) {

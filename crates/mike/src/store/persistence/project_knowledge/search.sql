@@ -21,16 +21,41 @@ WITH semantic_chunks AS (
     FROM memory.lesson_relations rel
     JOIN memory.lesson_relation_kinds rk ON rk.id = rel.kind_id AND rk.code = 'supersedes'
     JOIN memory.lesson_relation_statuses rs ON rs.id = rel.status_id AND rs.code = 'confirmed'
+), source_freshness AS (
+    SELECT s.source_uuid, jsonb_build_object(
+               'state', CASE WHEN jsonb_array_length(fr.reasons) = 0 THEN 'fresh' ELSE 'stale' END,
+               'reasons', fr.reasons,
+               'last_scan_at', s.last_scan_at,
+               'last_verified_at', GREATEST(s.last_scan_at, s.last_heartbeat_at)) AS freshness
+      FROM memory.knowledge_sources s
+      JOIN projects.locations sl ON sl.location_uuid = s.location_uuid
+     CROSS JOIN LATERAL (
+        SELECT COALESCE(jsonb_agg(f.reason), '[]'::jsonb) AS reasons
+          FROM (VALUES
+            (CASE WHEN s.last_failure IS NOT NULL AND s.last_failure_generation = s.generation
+                  THEN 'the source''s latest scan failed: ' || s.last_failure END),
+            (CASE WHEN GREATEST(s.last_scan_at, s.last_heartbeat_at) IS NULL
+                  THEN 'the source has never been scanned'
+                  WHEN GREATEST(s.last_scan_at, s.last_heartbeat_at) < now() - interval '1 hour'
+                  THEN 'no scanner has checked the source since '
+                       || to_char(GREATEST(s.last_scan_at, s.last_heartbeat_at) AT TIME ZONE 'UTC',
+                                  'YYYY-MM-DD"T"HH24:MI:SS"Z"') END)
+          ) AS f(reason)
+         WHERE f.reason IS NOT NULL
+     ) fr
+     WHERE sl.project_id = $1
 ), candidates AS (
     SELECT 'artifact:' || r.id AS reference, 'artifact' AS source_kind, r.title,
            r.status, d.relative_path AS path, r.observed_at AS updated_at,
            ts_rank_cd(r.search_tsv, q.tsq) AS rank, COALESCE(sem.score, 0) AS semantic_rank,
            jsonb_build_object('document_uuid', d.document_uuid, 'revision', r.id,
              'location_uuid', s.location_uuid, 'last_scan_at', s.last_scan_at,
-             'deleted', d.deleted_at IS NOT NULL, 'metadata', r.metadata) AS provenance
+             'deleted', d.deleted_at IS NOT NULL, 'metadata', r.metadata,
+             'freshness', sf.freshness) AS provenance
       FROM memory.knowledge_documents d
       JOIN memory.knowledge_sources s ON s.source_uuid = d.source_uuid
       JOIN projects.locations loc ON loc.location_uuid = s.location_uuid
+      JOIN source_freshness sf ON sf.source_uuid = s.source_uuid
       JOIN memory.knowledge_revisions r ON r.id = d.current_revision CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'artifact:' || r.id
      WHERE loc.project_id = $1 AND ($2 = '' OR r.search_tsv @@ q.tsq OR sem.score IS NOT NULL)
        AND s.name NOT IN ('claude-memory', 'skills')
@@ -42,10 +67,12 @@ WITH semantic_chunks AS (
            ts_rank_cd(r.search_tsv, q.tsq) AS rank, COALESCE(sem.score, 0) AS semantic_rank,
            jsonb_build_object('document_uuid', d.document_uuid, 'revision', r.id,
              'location_uuid', s.location_uuid, 'last_scan_at', s.last_scan_at,
-             'deleted', d.deleted_at IS NOT NULL, 'metadata', r.metadata) AS provenance
+             'deleted', d.deleted_at IS NOT NULL, 'metadata', r.metadata,
+             'freshness', sf.freshness) AS provenance
       FROM memory.knowledge_documents d
       JOIN memory.knowledge_sources s ON s.source_uuid = d.source_uuid
       JOIN projects.locations loc ON loc.location_uuid = s.location_uuid
+      JOIN source_freshness sf ON sf.source_uuid = s.source_uuid
       JOIN memory.knowledge_revisions r ON r.id = d.current_revision CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'artifact:' || r.id
      WHERE loc.project_id = $1 AND ($2 = '' OR r.search_tsv @@ q.tsq OR sem.score IS NOT NULL)
        AND s.name IN ('claude-memory', 'skills')

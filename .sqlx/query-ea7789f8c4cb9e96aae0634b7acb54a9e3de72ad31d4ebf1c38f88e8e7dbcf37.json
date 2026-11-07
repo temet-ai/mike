@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH missing AS (\n                 SELECT x.location_uuid, x.name,\n                        'the source root ' || x.root_path || ' does not exist; the earlier index is kept and may be out of date' AS error\n                   FROM unnest($1::uuid[], $2::text[], $3::text[]) AS x(location_uuid, name, root_path)\n             )\n             UPDATE memory.knowledge_sources s\n                SET last_failure = m.error, last_failure_at = now(),\n                    last_failure_generation = s.generation, last_heartbeat_at = now()\n               FROM missing m\n              WHERE s.location_uuid = m.location_uuid AND s.name = m.name\n                AND (s.last_failure IS DISTINCT FROM m.error\n                     OR s.last_failure_generation IS DISTINCT FROM s.generation)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ea7789f8c4cb9e96aae0634b7acb54a9e3de72ad31d4ebf1c38f88e8e7dbcf37"
+}

@@ -101,13 +101,14 @@ pub(crate) async fn read(
     State(state): State<AppState>,
     Query(input): Query<ReadQuery>,
 ) -> Result<Json<Value>, Response> {
-    state
+    let mut read = state
         .persist()
         .ok_or_else(persist_unavailable_response)?
         .read_project_knowledge(&input.project, &input.reference)
         .await
-        .map(Json)
-        .map_err(knowledge_error)
+        .map_err(knowledge_error)?;
+    disk_check::annotate(&mut read).await;
+    Ok(Json(read))
 }
 
 #[derive(Deserialize)]
@@ -179,10 +180,13 @@ pub(crate) async fn define_project(
     Ok(Json(json!(project)))
 }
 
+mod disk_check;
 mod health;
 mod retrieval;
 pub(crate) use health::embedding_capability;
 pub(crate) use retrieval::retrieve;
 
+#[cfg(test)]
+mod disk_check_tests;
 #[cfg(test)]
 mod registration_tests;

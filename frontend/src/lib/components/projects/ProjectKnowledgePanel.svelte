@@ -175,6 +175,7 @@
 		<div class="pk-drawer__meta">
 			<span>{selected.status ?? 'unclassified'}</span>
 			{#if selected.current === false}<span>historical revision</span>{/if}
+			{#if selected.freshness?.state === 'stale'}<span>out of date: {selected.freshness.reasons.join('; ')}</span>{/if}
 			{#if selected.content_hash}<span class="pk-hash">{selected.content_hash}</span>{/if}
 		</div>
 	</div>

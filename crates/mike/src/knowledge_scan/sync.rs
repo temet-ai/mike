@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use serde_json::Value;
 use uuid::Uuid;
 
+use super::declared::{self, DeclaredSource};
 use super::files::{self, ScanError, SourceKind, hex_digest};
 use crate::store::persistence::project_knowledge::{
     MEMORY_SOURCE, RegisteredSource, SKILLS_SOURCE, ScanInput, SourceInput,
@@ -37,13 +38,34 @@ impl ScanReport {
 
 #[derive(Debug, Default)]
 pub struct ScanMemo {
-    submitted: HashMap<(Uuid, &'static str), (i64, String)>,
+    submitted: HashMap<(Uuid, String), (i64, String)>,
 }
 
 struct Spec {
-    name: &'static str,
+    name: String,
     kind: SourceKind,
     root: PathBuf,
+    excludes: Vec<String>,
+    declared: bool,
+}
+
+impl From<DeclaredSource> for Spec {
+    fn from(source: DeclaredSource) -> Self {
+        Self {
+            name: source.name,
+            kind: SourceKind::Tree,
+            root: source.root,
+            excludes: source.excludes,
+            declared: true,
+        }
+    }
+}
+
+#[derive(Default)]
+struct Plan {
+    present: Vec<(Uuid, Spec)>,
+    missing: Vec<(Uuid, Spec)>,
+    unreadable_declarations: usize,
 }
 
 pub(super) fn encode_project_dir(root_path: &str) -> String {
@@ -53,22 +75,36 @@ pub(super) fn encode_project_dir(root_path: &str) -> String {
         .collect()
 }
 
-fn specs_for(root_path: &str, claude_home: &Path) -> [Spec; 2] {
+fn builtin_specs(root_path: &str, claude_home: &Path) -> [Spec; 2] {
     [
         Spec {
-            name: MEMORY_SOURCE,
+            name: MEMORY_SOURCE.to_owned(),
             kind: SourceKind::Memory,
             root: claude_home
                 .join("projects")
                 .join(encode_project_dir(root_path))
                 .join("memory"),
+            excludes: Vec::new(),
+            declared: false,
         },
         Spec {
-            name: SKILLS_SOURCE,
+            name: SKILLS_SOURCE.to_owned(),
             kind: SourceKind::Skills,
             root: Path::new(root_path).join(".claude").join("skills"),
+            excludes: Vec::new(),
+            declared: false,
         },
     ]
+}
+
+fn source_inputs<'a>(targets: impl Iterator<Item = &'a (Uuid, Spec)>) -> Vec<SourceInput> {
+    targets
+        .map(|(location, spec)| SourceInput {
+            location_uuid: *location,
+            name: spec.name.clone(),
+            root_path: spec.root.to_string_lossy().into_owned(),
+        })
+        .collect()
 }
 
 pub async fn scan_machine(
@@ -77,28 +113,24 @@ pub async fn scan_machine(
     claude_home: &Path,
     memo: &mut ScanMemo,
 ) -> Result<ScanReport, PersistError> {
-    let targets = present_sources(persist, machine, claude_home).await?;
-    let inputs: Vec<SourceInput> = targets
-        .iter()
-        .map(|(location, spec)| SourceInput {
-            location_uuid: *location,
-            name: spec.name.to_owned(),
-            root_path: spec.root.to_string_lossy().into_owned(),
-        })
-        .collect();
-    let registered = persist.register_knowledge_sources(&inputs).await?;
+    let plan = plan_sources(persist, machine, claude_home).await?;
     let mut report = ScanReport {
-        scanned: targets.len(),
+        scanned: plan.present.len(),
+        failed: plan.unreadable_declarations,
         ..ScanReport::default()
     };
+    report.failed += record_missing_roots(persist, &plan.missing, memo).await?;
+    let registered = persist
+        .register_knowledge_sources(&source_inputs(plan.present.iter()))
+        .await?;
     let mut collected = Vec::new();
-    for ((location, spec), source) in targets.iter().zip(registered) {
+    for ((location, spec), source) in plan.present.iter().zip(registered) {
         match sync_source(persist, *location, spec, source, memo, &mut collected).await {
             Ok(true) => report.updated += 1,
             Ok(false) => {}
             Err(error) => {
                 report.failed += 1;
-                tracing::warn!(root = %spec.root.display(), source = spec.name, %error,
+                tracing::warn!(root = %spec.root.display(), source = %spec.name, %error,
                     "knowledge_scan: source not updated; the earlier index is kept");
             }
         }
@@ -109,23 +141,58 @@ pub async fn scan_machine(
     Ok(report)
 }
 
-async fn present_sources(
+async fn record_missing_roots(
+    persist: &PersistHandle,
+    missing: &[(Uuid, Spec)],
+    memo: &mut ScanMemo,
+) -> Result<usize, PersistError> {
+    if missing.is_empty() {
+        return Ok(0);
+    }
+    for (location, spec) in missing {
+        memo.submitted.remove(&(*location, spec.name.clone()));
+        tracing::warn!(root = %spec.root.display(), source = %spec.name,
+            "knowledge_scan: source root does not exist; the earlier index is kept");
+    }
+    let declared = source_inputs(missing.iter().filter(|(_, spec)| spec.declared));
+    if !declared.is_empty() {
+        persist.register_knowledge_sources(&declared).await?;
+    }
+    let recorded = persist
+        .record_knowledge_roots_missing(&source_inputs(missing.iter()))
+        .await?;
+    Ok(usize::try_from(recorded).unwrap_or(usize::MAX))
+}
+
+async fn plan_sources(
     persist: &PersistHandle,
     machine: Uuid,
     claude_home: &Path,
-) -> Result<Vec<(Uuid, Spec)>, PersistError> {
-    let mut targets = Vec::new();
+) -> Result<Plan, PersistError> {
+    let mut plan = Plan::default();
     for location in persist.locations_on_machine(machine).await? {
-        for spec in specs_for(&location.root_path, claude_home) {
-            if tokio::fs::metadata(&spec.root)
-                .await
-                .is_ok_and(|meta| meta.is_dir())
-            {
-                targets.push((location.location_uuid, spec));
+        let mut specs = Vec::from(builtin_specs(&location.root_path, claude_home));
+        match declared::read(&location.root_path).await {
+            Ok(found) => specs.extend(found.into_iter().map(Spec::from)),
+            Err(error) => {
+                plan.unreadable_declarations += 1;
+                tracing::warn!(root = %location.root_path, %error,
+                    "knowledge_scan: declared sources not scanned");
             }
         }
+        for spec in specs {
+            let present = tokio::fs::metadata(&spec.root)
+                .await
+                .is_ok_and(|meta| meta.is_dir());
+            let bucket = if present {
+                &mut plan.present
+            } else {
+                &mut plan.missing
+            };
+            bucket.push((location.location_uuid, spec));
+        }
     }
-    Ok(targets)
+    Ok(plan)
 }
 
 fn fingerprint(
@@ -155,9 +222,14 @@ async fn sync_source(
     } = source.ok_or(SyncError::RootConflict)?;
     let root = spec.root.clone();
     let kind = spec.kind;
-    let documents = match tokio::task::spawn_blocking(move || files::collect(&root, kind)).await? {
+    let excludes = spec.excludes.clone();
+    let key = (location, spec.name.clone());
+    let collecting =
+        tokio::task::spawn_blocking(move || files::collect_excluding(&root, kind, &excludes));
+    let documents = match collecting.await? {
         Ok(documents) => documents,
         Err(error) => {
+            memo.submitted.remove(&key);
             persist
                 .record_knowledge_source_failure(source_uuid, &error.to_string())
                 .await?;
@@ -166,7 +238,6 @@ async fn sync_source(
     };
     collected.push(source_uuid);
     let print = fingerprint(&documents);
-    let key = (location, spec.name);
     if memo.submitted.get(&key) == Some(&(generation, print.clone())) {
         return Ok(false);
     }
