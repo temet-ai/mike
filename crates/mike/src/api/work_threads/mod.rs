@@ -32,6 +32,23 @@ fn thread_error(error: WorkThreadError) -> Response {
     }
 }
 
+async fn placed_folder(handle: &PersistHandle, path: &str) -> Result<Option<i64>, Response> {
+    if !path.starts_with('/') {
+        return Ok(None);
+    }
+    let Ok(machine) = crate::machine_identity::load_default().await else {
+        return Ok(None);
+    };
+    crate::workspace::checkouts::place_folder(
+        handle,
+        machine.machine_uuid,
+        &machine.machine_name,
+        path,
+    )
+    .await
+    .map_err(persist_error_response)
+}
+
 async fn project_id(handle: &PersistHandle, selector: Option<&str>) -> Result<i64, Response> {
     let selector = selector.map(str::trim).filter(|s| !s.is_empty()).ok_or_else(|| {
         refuse(
@@ -41,10 +58,15 @@ async fn project_id(handle: &PersistHandle, selector: Option<&str>) -> Result<i6
     })?;
     match handle.resolve_work_thread_project(selector).await {
         Ok(Some(project)) => Ok(project.id),
-        Ok(None) => Err(refuse(
-            StatusCode::BAD_REQUEST,
-            &format!("Unknown project `{selector}`; use list_project_locations"),
-        )),
+        Ok(None) => placed_folder(handle, selector).await?.ok_or_else(|| {
+            refuse(
+                StatusCode::BAD_REQUEST,
+                &format!(
+                    "Unknown project `{selector}`: no project has this path or this repository's \
+                     git remote; use list_project_locations"
+                ),
+            )
+        }),
         Err(other) => Err(thread_error(other)),
     }
 }

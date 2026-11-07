@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE projects.locations SET origin_url = $2\n             WHERE location_uuid = $1 AND origin_url IS DISTINCT FROM $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4b5c841045a4bae2480b0492fdcacd7fab92fd4a91a07908088e2053b7831b19"
+}
