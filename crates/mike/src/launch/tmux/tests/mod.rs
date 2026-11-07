@@ -9,6 +9,7 @@ mod fake;
 mod live;
 mod open_tests;
 mod probe_tests;
+mod prompt_tests;
 mod validate_tests;
 
 pub(super) use fake::FakeTmux;

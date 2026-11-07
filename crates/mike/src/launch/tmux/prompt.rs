@@ -5,6 +5,11 @@ use crate::launch::error::LaunchError;
 
 const PASTE_RENDER_TIMEOUT: Duration = Duration::from_secs(2);
 const PASTE_RENDER_POLL: Duration = Duration::from_millis(100);
+const SUBMIT_TIMEOUT: Duration = Duration::from_secs(45);
+const SUBMIT_POLL: Duration = Duration::from_secs(1);
+const BOX_MARK: char = '\u{276f}';
+const COLLAPSED_PASTE: &str = "[Pasted text";
+const PROMPT_LEAD_CHARS: usize = 24;
 
 pub(super) struct PromptOutcome {
     pub(super) delivered: bool,
@@ -38,21 +43,72 @@ pub(super) async fn deliver(
     wait_for_render(cli, pane, baseline.as_deref()).await;
     let submit = argv(&["send-keys", "-t", pane, "Enter"]);
     match cli.run_ok(&submit, DEFAULT_TIMEOUT).await {
-        Ok(()) => Ok(PromptOutcome {
-            delivered: true,
-            confirmed: false,
-            detail: Some(
-                "tmux has no agent_state capability; the channel check is the pass signal, \
-                 not this field"
-                    .to_string(),
-            ),
-        }),
+        Ok(()) => {
+            press_until_taken(cli, pane, text, &submit).await;
+            Ok(PromptOutcome {
+                delivered: true,
+                confirmed: false,
+                detail: Some(
+                    "tmux has no agent_state capability; the channel check is the pass signal, \
+                     not this field"
+                        .to_string(),
+                ),
+            })
+        }
         Err(e) => Ok(PromptOutcome {
             delivered: true,
             confirmed: false,
             detail: Some(format!("pasted but the submitting Enter failed: {e}")),
         }),
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum BoxState {
+    NotDrawn,
+    Unsent,
+    Taken,
+}
+
+pub(super) fn box_state(screen: &str, text: &str) -> BoxState {
+    let Some(line) = screen
+        .lines()
+        .rev()
+        .find(|line| line.trim_start().starts_with(BOX_MARK))
+    else {
+        return BoxState::NotDrawn;
+    };
+    let typed = line.trim_start_matches(|c: char| c == BOX_MARK || c.is_whitespace());
+    let lead: String = text
+        .lines()
+        .next()
+        .unwrap_or_default()
+        .chars()
+        .take(PROMPT_LEAD_CHARS)
+        .collect();
+    if typed.starts_with(COLLAPSED_PASTE) || (!lead.is_empty() && typed.starts_with(&lead)) {
+        BoxState::Unsent
+    } else {
+        BoxState::Taken
+    }
+}
+
+async fn press_until_taken(cli: &TmuxCli, pane: &str, text: &str, submit: &[String]) {
+    let deadline = Instant::now() + SUBMIT_TIMEOUT;
+    while Instant::now() < deadline {
+        tokio::time::sleep(SUBMIT_POLL).await;
+        match capture_pane(cli, pane).await.map(|s| box_state(&s, text)) {
+            Some(BoxState::Unsent) => {
+                if let Err(e) = cli.run_ok(submit, DEFAULT_TIMEOUT).await {
+                    eprintln!("mike spawn: pressing Enter in {pane} failed again: {e}");
+                    return;
+                }
+            }
+            Some(BoxState::Taken) | None => return,
+            Some(BoxState::NotDrawn) => {}
+        }
+    }
+    eprintln!("mike spawn: the prompt in {pane} was still unsent after {SUBMIT_TIMEOUT:?}");
 }
 
 async fn capture_pane(cli: &TmuxCli, pane: &str) -> Option<String> {
