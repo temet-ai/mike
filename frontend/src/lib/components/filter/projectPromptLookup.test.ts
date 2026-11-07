@@ -63,22 +63,20 @@ function fetchers(
 
 describe('findLatestCaptureInProject', () => {
 	it('resolves the latest observation as the found request id (main lane)', async () => {
-		const loadMainDetail = vi
-			.fn()
-			.mockResolvedValue(
-				detail({
-					recent_observations: [
-						{
-							request_id: '99001',
-							session_id: 's1',
-							created_at: 'x',
-							content_sha256: 'a',
-							altered: false,
-							model: 'claude-sonnet-5'
-						}
-					]
-				})
-			);
+		const loadMainDetail = vi.fn().mockResolvedValue(
+			detail({
+				recent_observations: [
+					{
+						request_id: '99001',
+						session_id: 's1',
+						created_at: 'x',
+						content_sha256: 'a',
+						altered: false,
+						model: 'claude-sonnet-5'
+					}
+				]
+			})
+		);
 		const result = await findLatestCaptureInProject(
 			{ lane: 'main', persona: null },
 			'claude-sonnet-5',
@@ -94,24 +92,22 @@ describe('findLatestCaptureInProject', () => {
 	});
 
 	it('routes a subagent class through loadSubagentDetail with the persona', async () => {
-		const loadSubagentDetail = vi
-			.fn()
-			.mockResolvedValue(
-				detail({
-					lane: 'subagent',
-					subagent_persona: 'code-reviewer',
-					recent_observations: [
-						{
-							request_id: '77',
-							session_id: 's2',
-							created_at: 'x',
-							content_sha256: 'b',
-							altered: false,
-							model: null
-						}
-					]
-				})
-			);
+		const loadSubagentDetail = vi.fn().mockResolvedValue(
+			detail({
+				lane: 'subagent',
+				subagent_persona: 'code-reviewer',
+				recent_observations: [
+					{
+						request_id: '77',
+						session_id: 's2',
+						created_at: 'x',
+						content_sha256: 'b',
+						altered: false,
+						model: null
+					}
+				]
+			})
+		);
 		const result = await findLatestCaptureInProject(
 			{ lane: 'subagent', persona: 'code-reviewer' },
 			null,
