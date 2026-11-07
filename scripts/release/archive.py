@@ -182,7 +182,7 @@ def maintenance_smoke(extracted, cwd, home):
 
 def runtime_requirements(binary, target, env):
     cwd = binary.parent
-    if target == "x86_64-unknown-linux-gnu":
+    if target.endswith("linux-gnu"):
         return {"method": "readelf (no ldd execution)",
                 "program_headers": run(["readelf", "-l", binary.name], cwd=cwd, env=env),
                 "dynamic_section": run(["readelf", "-d", binary.name], cwd=cwd, env=env),

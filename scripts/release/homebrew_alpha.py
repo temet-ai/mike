@@ -16,9 +16,9 @@ from urllib.parse import quote
 from common import ReleaseError
 from homebrew_proposal import DESCRIPTIONS, FORMULAE, formula_methods
 
-# Homebrew platform block -> (Homebrew architecture, release target).
-PLATFORMS = (("on_macos", "arm64", "aarch64-apple-darwin"),
-             ("on_linux", "x86_64", "x86_64-unknown-linux-gnu"))
+MAC_TARGET = "aarch64-apple-darwin"
+# Homebrew block inside `on_linux` -> release target.
+LINUX_TARGETS = (("on_arm", "aarch64-unknown-linux-gnu"), ("on_intel", "x86_64-unknown-linux-gnu"))
 VERSION = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+-alpha\.[0-9]+")
 REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 CHECKSUM_LINE = re.compile(r"([a-fA-F0-9]{64})\s+\*?(\S+)")
@@ -43,14 +43,20 @@ def render(name, version, repository, digests):
     tag = f"v{version}"
     lines = [f"class {FORMULAE[name]} < Formula", f"  desc {json.dumps(DESCRIPTIONS[name])}",
              f'  homepage "https://github.com/{repository}"', '  license "MIT"', f'  version "{version}"']
-    for block, architecture, target in PLATFORMS:
+
+
+    def archive(target, indent):
         filename = f"{name}-{tag}-{target}.tar.gz"
         if filename not in digests:
             raise ReleaseError(f"missing {filename} in checksums")
         url = f"https://github.com/{repository}/releases/download/{quote(tag, safe='')}/{quote(filename, safe='')}"
-        lines.extend(["", f"  {block} do", f"    depends_on arch: :{architecture}",
-                      f"    url {json.dumps(url)}", f'    sha256 "{digests[filename]}"', "  end"])
-    lines.extend(["", *formula_methods(name, version), "end", ""])
+        return [f"{indent}url {json.dumps(url)}", f'{indent}sha256 "{digests[filename]}"']
+
+    lines.extend(["", "  on_macos do", "    depends_on arch: :arm64", *archive(MAC_TARGET, "    "), "  end",
+                  "", "  on_linux do"])
+    for block, target in LINUX_TARGETS:
+        lines.extend([f"    {block} do", *archive(target, "      "), "    end"])
+    lines.extend(["  end", "", *formula_methods(name, version), "end", ""])
     return "\n".join(lines)
 
 

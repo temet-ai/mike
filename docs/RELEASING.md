@@ -59,7 +59,7 @@ mike ships by the route radar (gg) ships by:
   public alpha.
 - **Source and builds.** The public repository `temet-ai/mike` holds the source and
   builds the release archives on its free GitHub-hosted runners: Linux x86_64 on
-  `ubuntu-22.04` and Apple Silicon macOS on `macos-15` (GitHub retired `macos-14` on
+  `ubuntu-22.04`, Linux ARM64 on `ubuntu-22.04-arm` and Apple Silicon macOS on `macos-15` (GitHub retired `macos-14` on
   2 November). The private development repository runs no release workflow: its
   Actions are disabled.
 - **Channels.** Homebrew through the tap `temet-ai/homebrew-mike`
@@ -93,7 +93,8 @@ dispatch builds and packages without publishing.
    `Cargo.lock` to `0.1.0-alpha.N` in a reviewed commit before tagging; the
    workflow never edits a version.
 2. **build** (one job per target, `fail-fast: false`): `x86_64-unknown-linux-gnu` on
-   `ubuntu-22.04` and `aarch64-apple-darwin` on `macos-15`. Each job installs the
+   `ubuntu-22.04`, `aarch64-unknown-linux-gnu` on `ubuntu-22.04-arm` and
+   `aarch64-apple-darwin` on `macos-15`. Each job installs the
    toolchain `scripts/release.sh` requires (the Rust version in
    `rust-toolchain.toml`, Node from `.nvmrc`, the pnpm in
    `frontend/package.json`), runs `cargo fetch --locked` and
@@ -112,7 +113,7 @@ dispatch builds and packages without publishing.
 The tap step clones `temet-ai/homebrew-mike`, runs
 `scripts/release/homebrew_alpha.py <version> <repo> checksums.txt tap/Formula` and
 pushes `Formula/mike.rb` and `Formula/mike-mcp.rb` to the tap's default branch. The
-formulas pin Apple Silicon macOS and Linux x86_64 archives by the digests just
+formulas pin Apple Silicon macOS, Linux x86_64 and Linux ARM64 archives by the digests just
 published and share their install, caveats and test methods with the offline
 proposal in `homebrew_proposal.py`. Without the secret `HOMEBREW_TAP_TOKEN` the
 step warns and succeeds; write the formulas by hand with the same command from
@@ -125,9 +126,10 @@ enabled on the public repository (all actions allowed), with the default
 itself). Tags matching `v*-alpha.*` should be protected from deletion. No other
 secret is read.
 
-**Scope.** Only the two targets `scripts/release.sh` can build natively. There is no
-Linux ARM or Intel macOS archive until the script supports them. The workflow
-does not run the acceptance matrix: a published archive is an alpha, not a
+**Scope.** Only the three targets `scripts/release.sh` can build natively. There is no
+Intel macOS archive until the script supports it. The workflow
+publishes only when every target builds, so a failure on one holds the alpha for all
+three. It does not run the acceptance matrix: a published archive is an alpha, not a
 qualified release, and the tap formulas are not the qualified `homebrew.py`
 route below. The three real tag runs so far are described under
 [Where things stand](#where-things-stand-2026-11-06); alpha.3 is the first to reach `publish`.
@@ -186,10 +188,12 @@ Both inherit `[workspace.package].version`. `Cargo.lock` must agree with that
 version for both packages. `proxy-forward` is excluded.
 
 The first target is native `x86_64-unknown-linux-gnu`. Native
-`aarch64-apple-darwin` uses the same preparation contract on Apple Silicon.
-Cross-compilation, Intel macOS, and Linux ARM are unsupported by this script.
+`aarch64-apple-darwin` uses the same preparation contract on Apple Silicon, and
+native `aarch64-unknown-linux-gnu` the same on Linux ARM64. The reliability journeys
+and isolated acceptance runner remain x86_64 only.
+Cross-compilation and Intel macOS are unsupported by this script.
 The macOS path's fixture tests do not qualify a real Mac archive or its install
-channel. Both scoped platforms need their own real artifact and clean-account
+channel. All three scoped platforms need their own real artifact and clean-account
 observations.
 
 Mike archives also carry the tracked runtime files from `mods/` under

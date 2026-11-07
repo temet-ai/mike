@@ -34,7 +34,7 @@ Start with `mike doctor`. It checks your configuration, database, ports, Claude 
 | `mike service install` refuses | A development stack, or another program, is already answering on one of mike's ports. Stop it first. |
 | A request hangs | Anthropic is often rate-limiting. Open the request in the web UI and check its status; mike passes `429` and `529` answers and their retry headers through unchanged. |
 | `mike: command not found` | Check `brew --prefix` is on your path, or for mise run `mise use -g github:temet-ai/mike@<version>` again and open a new shell. |
-| mike will not run on Linux, citing the C library | mike needs glibc 2.35 or newer on x86_64. |
+| mike will not run on Linux, citing the C library | mike needs glibc 2.35 or newer, on x86_64 or ARM64. |
 
 ## No session appears
 

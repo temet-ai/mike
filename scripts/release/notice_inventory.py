@@ -13,12 +13,11 @@ import re
 import stat
 import tomllib
 
-from common import ReleaseError, clean_source, source_git
+from common import ReleaseError, TARGETS, clean_source, source_git
 
 MAX_ENTRIES = 20000
 MAX_INPUT_BYTES = 16 * 1024**2
 MAX_ASSET_BYTES = 64 * 1024**2
-TARGETS = ("x86_64-unknown-linux-gnu", "aarch64-apple-darwin")
 HEX = re.compile(r"[0-9a-f]{64}")
 
 
@@ -225,7 +224,7 @@ def validate_inventory(inventory):
 def binding(source_commit, version, target, cargo_sha, pnpm_sha, assets):
     require(isinstance(source_commit, str) and re.fullmatch(r"[0-9a-f]{40}(?:[0-9a-f]{24})?", source_commit)
             and text_field(version, 256) and re.fullmatch(r"[0-9A-Za-z.+-]+", version)
-            and target in TARGETS and all(isinstance(s, str) and HEX.fullmatch(s) for s in (cargo_sha, pnpm_sha)),
+            and isinstance(target, str) and target in TARGETS and all(isinstance(s, str) and HEX.fullmatch(s) for s in (cargo_sha, pnpm_sha)),
             "invalid source, version, target or lockfile binding")
     return {"source_commit": source_commit, "version": version, "target": target,
             "cargo_lock_sha256": cargo_sha, "pnpm_lock_sha256": pnpm_sha,

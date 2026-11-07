@@ -35,7 +35,9 @@ jobs:
             test "${GITHUB_REF_NAME#v}" = "$actual"
           fi
       - name: Formula renderer and release tooling contracts
-        run: python3 -m unittest discover -s scripts/release -p 'test_homebrew*.py'
+        run: |
+          python3 -m unittest discover -s scripts/release -p 'test_homebrew*.py'
+          python3 -m unittest discover -s scripts/release -p 'test_targets.py'
 
   build:
     needs: validate
@@ -46,11 +48,14 @@ jobs:
           # ubuntu-22.04 is the glibc 2.35 floor: the archive is built where it must run.
           - runner: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
+          # The arm64 runner has the same Ubuntu 22.04 base, so the same floor.
+          - runner: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
           # macos-15 is the oldest Apple Silicon image GitHub still hosts.
           - runner: macos-15
             target: aarch64-apple-darwin
-          # scripts/release.sh builds natively and supports these two targets only:
-          # no Linux ARM, Intel macOS or Windows archive.
+          # scripts/release.sh builds natively and supports these three targets only:
+          # no Intel macOS or Windows archive.
     runs-on: ${{ matrix.runner }}
     # scripts/release.sh builds with one Cargo job by contract.
     timeout-minutes: 240
@@ -137,15 +142,15 @@ jobs:
         run: |
           set -euo pipefail
           cd dist
-          # Two archives (mike, mike-mcp) for each of the two targets.
-          test "$(find . -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 4
+          # Two archives (mike, mike-mcp) for each of the three targets.
+          test "$(find . -maxdepth 1 -type f -name '*.tar.gz' | wc -l)" -eq 6
           cat ./*.tar.gz.sha256 | sort -k2 > checksums.txt
           sha256sum --check checksums.txt
           rm ./*.tar.gz.sha256
           version="${GITHUB_REF_NAME#v}"
           gh release create "$GITHUB_REF_NAME" ./*.tar.gz checksums.txt manifest-*.json \
             --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease --title "mike $version" \
-            --notes "mike $version, an alpha. Install: \`brew install temet-ai/mike/mike temet-ai/mike/mike-mcp\`, or see the install guide (docs/user-guide/install.md) for mise and archives. Linux x86_64 archives need glibc 2.35 or newer; macOS archives are Apple Silicon and unsigned."
+            --notes "mike $version, an alpha. Install: \`brew install temet-ai/mike/mike temet-ai/mike/mike-mcp\`, or see the install guide (docs/user-guide/install.md) for mise and archives. Linux x86_64 and ARM64 archives need glibc 2.35 or newer; macOS archives are Apple Silicon and unsigned."
       # The tap's formulas, rendered from this release's checksums. Needs
       # HOMEBREW_TAP_TOKEN, a token that can write to temet-ai/homebrew-mike;
       # without it the step warns and the manual step in docs/RELEASING.md applies.

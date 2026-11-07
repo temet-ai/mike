@@ -20,7 +20,7 @@ This guide is for someone who has just installed mike. It follows one fictional 
 
 Captured sessions hold your code, tool output and anything you typed. Treat the database and its backups like the project folders themselves.
 
-mike runs on Linux x86_64 (glibc 2.35 or newer) and on Apple Silicon Macs. mike is an alpha, so expect rough edges. [Install mike](install.md) has the commands.
+mike runs on Linux x86_64 and ARM64 (glibc 2.35 or newer) and on Apple Silicon Macs. mike is an alpha, so expect rough edges. [Install mike](install.md) has the commands.
 
 ## Where to start
 

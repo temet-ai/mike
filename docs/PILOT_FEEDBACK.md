@@ -87,8 +87,8 @@ to announcing an alpha; these forms do not resolve it.
 
 ## Known limitations to carry into each candidate's notes
 
-- An untested target is unsupported. Linux x86_64/Arch and Apple Silicon macOS
-  need independent observations. A download archive and Homebrew each need
+- An untested target is unsupported. Linux x86_64/Arch, Linux ARM64 and Apple
+  Silicon macOS need independent observations. A download archive and Homebrew each need
   their own channel verification; a locally built archive proves neither.
 - Trial/in-memory history is lost on restart and is bounded while running.
   Durable retention, backup, restore and predecessor upgrade need real database

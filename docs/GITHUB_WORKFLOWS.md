@@ -124,7 +124,8 @@ reason in a comment beside it).
 
 `release-alpha.yml` ("Release alpha") runs when a tag matching `v*-alpha.*` is pushed, or on
 manual dispatch (which builds and packages without publishing). Jobs: `validate`, then one
-`build` per target (`ubuntu-22.04` for Linux x86_64, Apple Silicon on a macOS runner), then
+`build` per target (`ubuntu-22.04` for Linux x86_64, `ubuntu-22.04-arm` for Linux ARM64,
+Apple Silicon on a macOS runner), then
 `publish` on tags only. The steps, the Homebrew tap update, the secret it reads and the runs
 so far are in [`RELEASING.md`](RELEASING.md#the-tag-triggered-alpha-workflow). The
 Apple Silicon build runs on `macos-15`, the oldest Apple Silicon image GitHub still hosts.

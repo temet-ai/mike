@@ -17,15 +17,15 @@ from unittest.mock import patch
 
 from archive import BINARIES, binary_identity, pack, smoke
 from notice_inputs import BASE as NOTICE_BASE, encoded as encoded_notice
-from common import ReleaseError, sha256, write_json
+from common import ReleaseError, TARGETS, sha256, write_json
 from inputs import clean_environment, owned_run, verified_inputs
 from install import install, install_verified, semver
 from install_state import OWNER, STATE_NAME, initialize, link_target, validate_generation
 from migration_inventory import SOURCE_PATH
 
 ROOT = Path(__file__).resolve().parents[2]
-TARGET = {("Linux", "x86_64"): "x86_64-unknown-linux-gnu",
-          ("Darwin", "arm64"): "aarch64-apple-darwin"}[(os.uname().sysname, os.uname().machine)]
+TARGET = next(target for target, host in TARGETS.items()
+              if host[:2] == (os.uname().sysname, os.uname().machine))
 
 
 def await_stopped_child(proc, timeout=2):

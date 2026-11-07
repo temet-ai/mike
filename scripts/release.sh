@@ -10,7 +10,7 @@ Usage: scripts/release.sh [CURRENT_VERSION] [--target NATIVE_TRIPLE]
        scripts/release.sh --verify CANDIDATE_DIRECTORY
 
 Prepare both binaries from a clean, reviewed commit using the current workspace
-version. Linux x86_64 and Apple Silicon macOS must each build on their own host.
+version. Linux x86_64, Linux ARM64 and Apple Silicon macOS must each build on their own host.
 Tools and dependency caches must already be provisioned; builds are offline.
 Archives, relative SHA256 files and a manifest go into ignored dist-out/.
 --verify checks and smoke-tests those exact archived bytes without rebuilding.
