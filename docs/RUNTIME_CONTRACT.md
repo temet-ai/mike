@@ -8,8 +8,8 @@ summary: The bounded C01 identity and raw-event persistence foundation, its Clau
 
 # Runtime identity and observation contract
 
-This is the foundational slice of [C01, issue #490](https://github.com/temet-ai/mike/issues/490),
-not completed Codex fleet support. Types live in `crates/mike/src/runtime/`; persistence lives in
+This is the foundational slice of the Codex work tracked in
+[issue #18](https://github.com/temet-ai/mike/issues/18), not completed Codex fleet support. Types live in `crates/mike/src/runtime/`; persistence lives in
 `crates/mike/src/store/persistence/runtime/`. The additive migration
 `20261013130000_runtime_identity_events.sql` creates the `runtime` schema. See
 [the schema reference](SCHEMA.md#domain-runtime) for columns and indexes.
@@ -126,7 +126,7 @@ cover durable namespace conflicts, unresolved ancestry, raw round trips (includi
 NUL), concurrent replay, same-item updates, missing references and absence of request writes.
 These tests use the repository's isolated test database helper, never the capture database.
 
-Test fixtures are not evidence of actual Codex emissions. Before #490 can close, the normalized
+Test fixtures are not evidence of actual Codex emissions. Before Codex can be called supported, the normalized
 reader work and supported-version emitted behavior must be validated. C02 ingestion/history,
 C03 managed lifecycle, C04 durable mixed-runtime mail and C05 child/usage reconciliation remain
 separate work, followed by C06/C07 observation/wire fidelity and C08 fleet/UI acceptance.
