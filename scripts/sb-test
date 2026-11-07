@@ -40,6 +40,9 @@
 #   --serial          Run Storybook one file at a time; the default.
 #   --workers N       Enable Storybook browser parallelism (disables --serial;
 #                     caution: causes 30s timeouts on visual snapshot-heavy files).
+#   --batch NAME      Run one Storybook batch. A whole-suite Storybook pass is split
+#                     into batches by area, each its own vitest run with a kept log.
+#   --list-batches    Print each batch's name, file count and paths, then exit.
 #   --update          Refresh visual baselines (VITEST_UPDATE_SNAPSHOTS=1).
 #   --raw, --verbose  Stream full vitest stdio instead of the compact summary.
 #   --junit DIR       Also write a JUnit XML per vitest pass into DIR
@@ -64,7 +67,14 @@
 #
 # EXIT CODE
 #   Non-zero if typecheck, any unit/integration test, or any Storybook run fails.
-#   Stops at the first failure.
+#   Stops at the first failure, except that every Storybook batch runs: one bad
+#   area does not hide the others.
+#
+# STORYBOOK LOGS AND STALLS
+#   Each batch streams test by test to frontend/test-results/sb-test/<time>/ and
+#   prints its duration when it ends. Follow a running batch with tail -f. A batch
+#   silent for SB_STALL_SECONDS (default 180) is killed and reported with the last
+#   test it reached.
 #
 # EXAMPLES
 #   scripts/sb-test                                     # typecheck + logic + storybook
@@ -81,7 +91,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(dirname "$SCRIPT_DIR")"
-FRONTEND="$REPO/frontend"
+FRONTEND="${SB_FRONTEND_ROOT:-$REPO/frontend}"
 APP_CSS="$FRONTEND/src/app.css"
 
 usage() { sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//; /^set -euo/d'; }
@@ -92,6 +102,77 @@ if [[ "${1:-}" != "--owned-test-child" ]]; then
   exec python3 "$SCRIPT_DIR/lib/owned-test-runner.py" "$0" "$@"
 fi
 shift
+
+# One line per batch: name, file count, then the path filters that select it.
+# Every story file belongs to exactly one area and every area to one batch.
+storybook_batches() {
+  ( cd "$FRONTEND" && find src -type f -name '*.stories.*' ) | LC_ALL=C sort | awk -F/ -v size="$BATCH_SIZE" '
+    {
+      if ($2 == "lib" && $3 == "components") depth = 4
+      else depth = 3
+      area = $1
+      for (i = 2; i <= depth && i <= NF; i++) area = area "/" $i
+      if (NF > depth) area = area "/"
+      if (!(area in count)) order[++areas] = area
+      count[area]++
+    }
+    function emit() {
+      if (!files) return
+      printf "b%02d-%s\t%d\t%s\n", ++batch, label, files, paths
+      files = 0; paths = ""
+    }
+    END {
+      for (i = 1; i <= areas; i++) {
+        area = order[i]
+        if (files && files + count[area] > size) emit()
+        if (!files) {
+          label = area
+          sub(/\/$/, "", label); sub(/.*\//, "", label); sub(/\..*/, "", label)
+          gsub(/[^A-Za-z0-9_-]/, "", label)
+        }
+        files += count[area]
+        paths = paths (paths == "" ? "" : " ") area
+      }
+      emit()
+    }'
+}
+
+# The supervisor owns the whole group; this ends one batch and leaves the run alive.
+kill_tree() {
+  local pid="$1" child
+  for child in $(pgrep -P "$pid" 2>/dev/null || true); do kill_tree "$child"; done
+  kill -KILL "$pid" 2>/dev/null || true
+}
+
+# Runs vitest with its output going to $1, ending it if the file stops growing.
+run_watched() {
+  local log="$1" size=-1 now last pid status=0
+  shift
+  "$@" >"$log" 2>&1 </dev/null &
+  pid=$!
+  last=$SECONDS
+  while kill -0 "$pid" 2>/dev/null; do
+    sleep 1
+    now=$(wc -c <"$log")
+    if (( now != size )); then
+      size=$now
+      last=$SECONDS
+    elif (( SECONDS - last >= STALL_SECONDS )); then
+      kill_tree "$pid"
+      wait "$pid" 2>/dev/null || true
+      return 124
+    fi
+  done
+  wait "$pid" || status=$?
+  return "$status"
+}
+
+vitest_in_frontend() { # Remaining args: env assignments, then --, then vitest args.
+  local -a assignments=()
+  while [[ "$1" != "--" ]]; do assignments+=("$1"); shift; done
+  shift
+  cd "$FRONTEND" && exec env ${assignments[@]+"${assignments[@]}"} pnpm exec vitest "$@"
+}
 
 discover_themes() {
   # Mirror scripts/storybook-test-all-themes.mjs / lint-tokens.mjs: parse
@@ -114,6 +195,12 @@ RUN_INTEGRATION=0
 RUN_STORYBOOK=0
 EXPLICIT_TIERS=0
 SKIP_TYPECHECK=0
+BATCH_SIZE="${SB_BATCH_SIZE:-45}"
+STALL_SECONDS="${SB_STALL_SECONDS:-180}"
+ONLY_BATCH=""
+LIST_BATCHES=0
+LOG_DIR=""          # set for Storybook batches: their logs are kept here
+declare -a BATCH_FILTERS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help) usage; exit 0 ;;
@@ -127,6 +214,8 @@ while [[ $# -gt 0 ]]; do
     --integration) RUN_INTEGRATION=1; EXPLICIT_TIERS=1; shift ;;
     --storybook) RUN_STORYBOOK=1; EXPLICIT_TIERS=1; shift ;;
     --skip-typecheck) SKIP_TYPECHECK=1; shift ;;
+    --batch) ONLY_BATCH="${2:?--batch needs a NAME}"; RUN_STORYBOOK=1; EXPLICIT_TIERS=1; shift 2 ;;
+    --list-batches) LIST_BATCHES=1; shift ;;
     --theme) THEMES=("${2:?--theme needs a NAME}"); shift 2 ;;
     --themes) mapfile -t THEMES < <(discover_themes); shift ;;
     --themes=*) IFS=',' read -r -a THEMES <<< "${1#*=}"; shift ;;
@@ -135,6 +224,16 @@ while [[ $# -gt 0 ]]; do
     *) FILTERS+=("$1"); shift ;;
   esac
 done
+
+if (( LIST_BATCHES )); then
+  storybook_batches
+  exit 0
+fi
+
+if [[ -n "$ONLY_BATCH" ]] && (( ${#FILTERS[@]} )); then
+  echo "sb-test: --batch selects its own files; drop the filter" >&2
+  exit 2
+fi
 
 if (( ! EXPLICIT_TIERS )); then
   RUN_UNIT=1
@@ -177,18 +276,30 @@ run_vitest() { # $1 = label, $2 = theme, remaining args = vitest args.
   local -a args=(run "$@")
   [[ -n "$theme" ]] && env+=("STORYBOOK_THEME=$theme")
   (( UPDATE )) && env+=("VITEST_UPDATE_SNAPSHOTS=1")
+  local reporter=default
+  [[ -n "$LOG_DIR" ]] && reporter=verbose
   if [[ -n "$JUNIT_DIR" ]]; then
     mkdir -p "$JUNIT_DIR"
-    args+=(--reporter=default --reporter=junit "--outputFile.junit=$JUNIT_DIR/vitest-${label//:/-}.xml")
+    args+=("--reporter=$reporter" --reporter=junit "--outputFile.junit=$JUNIT_DIR/vitest-${label//:/-}.xml")
+  elif [[ -n "$LOG_DIR" ]]; then
+    args+=("--reporter=$reporter")
   fi
-  if (( ${#FILTERS[@]} )); then
+  if (( ${#BATCH_FILTERS[@]} )); then
+    args+=("${BATCH_FILTERS[@]}")
+  elif (( ${#FILTERS[@]} )); then
     args+=(--passWithNoTests "${FILTERS[@]}")
   fi
 
-  local log clean_log rc=0
-  log="$(mktemp "${TMPDIR:-/tmp}/sb-test.XXXXXX")"
+  local log clean_log rc=0 started=$SECONDS
+  if [[ -n "$LOG_DIR" ]]; then
+    log="$LOG_DIR/${label//:/-}.log"
+  else
+    log="$(mktemp "${TMPDIR:-/tmp}/sb-test.XXXXXX")"
+  fi
   if (( RAW )); then
     ( cd "$FRONTEND" && env ${env[@]+"${env[@]}"} pnpm exec vitest "${args[@]}" ) > >(tee "$log") 2>&1 || rc=$?
+  elif [[ -n "$LOG_DIR" ]]; then
+    run_watched "$log" vitest_in_frontend ${env[@]+"${env[@]}"} -- "${args[@]}" || rc=$?
   else
     ( cd "$FRONTEND" && env ${env[@]+"${env[@]}"} pnpm exec vitest "${args[@]}" ) >"$log" 2>&1 || rc=$?
   fi
@@ -202,10 +313,20 @@ run_vitest() { # $1 = label, $2 = theme, remaining args = vitest args.
 
   if (( rc == 0 )) && [[ -n "$tests" ]]; then
     (( MATCHED_PHASES += 1 ))
-    (( RAW )) || printf '  [%s] ✓ %s | %s\n' "$label" "${files:-Test Files ?}" "$tests"
+    (( RAW )) || printf '  [%s] ✓ %s | %s | %ds\n' "$label" "${files:-Test Files ?}" "$tests" "$(( SECONDS - started ))"
     append_json_log "$clean_log" "vitest:$label" "$rc"
-    rm -f "$log" "$clean_log"
+    [[ -n "$LOG_DIR" ]] || rm -f "$log"
+    rm -f "$clean_log"
     return 0
+  fi
+
+  if (( rc == 124 && ! RAW )); then
+    printf '  [%s] ✗ STALLED: no output for %ds, stopped after %ds\n' "$label" "$STALL_SECONDS" "$(( SECONDS - started ))"
+    tail -n 3 "$clean_log" | sed 's/^/    last: /'
+    echo "    (full log: $log)"
+    append_json_log "$clean_log" "vitest:$label" "$rc"
+    rm -f "$clean_log"
+    return "$rc"
   fi
 
   if (( rc == 0 && ${#FILTERS[@]} > 0 )); then
@@ -342,6 +463,36 @@ else
   fi
 fi
 
+# A filtered pass is one vitest run. A whole-suite pass or --batch runs by batch.
+run_storybook_pass() { # $1 = label suffix, $2 = theme
+  local suffix="$1" theme="$2" line name count paths matched=0 status=0 failed=0
+  if (( ${#FILTERS[@]} )); then
+    run_vitest "storybook:$suffix" "$theme" "${browser_args[@]}"
+    return
+  fi
+  local -a batches=()
+  mapfile -t batches < <(storybook_batches)
+  LOG_DIR="$FRONTEND/test-results/sb-test/$(date +%Y%m%d-%H%M%S)"
+  mkdir -p "$LOG_DIR"
+  echo "sb-test: ${#batches[@]} batches, logs in $LOG_DIR"
+  for line in "${batches[@]}"; do
+    IFS=$'\t' read -r name count paths <<<"$line"
+    [[ -n "$ONLY_BATCH" && "$name" != "$ONLY_BATCH" ]] && continue
+    matched=1
+    read -r -a BATCH_FILTERS <<<"$paths"
+    status=0
+    run_vitest "storybook:$suffix:$name" "$theme" "${browser_args[@]}" || status=$?
+    (( status == 0 )) || failed=$status
+  done
+  BATCH_FILTERS=()
+  LOG_DIR=""
+  if (( ! matched )); then
+    echo "sb-test: no batch named $ONLY_BATCH (see --list-batches)" >&2
+    return 2
+  fi
+  return "$failed"
+}
+
 rc=0
 declare -a node_projects=()
 (( RUN_UNIT )) && node_projects+=(--project unit)
@@ -361,11 +512,11 @@ if (( rc == 0 && RUN_STORYBOOK )); then
 
   if (( ${#THEMES[@]} == 0 )); then
     echo "sb-test: storybook | default theme | filters: ${FILTERS[*]:-<all>}"
-    run_vitest "storybook:default" "" "${browser_args[@]}" || rc=$?
+    run_storybook_pass "default" "" || rc=$?
   else
     echo "sb-test: storybook | themes: ${THEMES[*]} | filters: ${FILTERS[*]:-<all>}"
     for theme in "${THEMES[@]}"; do
-      if ! run_vitest "storybook:$theme" "$theme" "${browser_args[@]}"; then
+      if ! run_storybook_pass "$theme" "$theme"; then
         rc=1
         echo "sb-test: FAIL — stopped at theme: $theme (themes before it passed)"
         break
