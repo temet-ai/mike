@@ -31,6 +31,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${PROJECT_ROOT}"
 
+# shellcheck source=lib/managed-service.sh
+source "${SCRIPT_DIR}/lib/managed-service.sh"
+refuse_while_service_runs "start-debug.sh"
+
 if [[ -f "${PROJECT_ROOT}/.env" ]]; then
     set -a
     # shellcheck disable=SC1091

@@ -608,8 +608,13 @@ ensure_prompt_assistant() {
         return 0
     fi
 
-    local already_running=false
-    if stack_units_enabled; then
+    local already_running=false under_launchd=false
+    if managed_service_installed && [[ "$(managed_service_platform)" == "launchd" ]]; then
+        under_launchd=true
+    fi
+    if ${under_launchd}; then
+        [[ -n "$(managed_service_pid assistant)" ]] && already_running=true
+    elif stack_units_enabled; then
         unit_active mike-stack-assistant && already_running=true
     else
         lsof -ti ":${PROMPT_ASSISTANT_PORT}" -sTCP:LISTEN >/dev/null 2>&1 && already_running=true
@@ -635,6 +640,17 @@ ensure_prompt_assistant() {
         echo "==> prompt-assistant on :${PROMPT_ASSISTANT_PORT} needs restarting (${why})"
     fi
 
+    if ${under_launchd}; then
+        managed_service_stop assistant || true
+        free_port "${PROMPT_ASSISTANT_PORT}"
+        install_assistant_agent "$(cd "${PROJECT_ROOT}" && pwd -P)" "${PROMPT_ASSISTANT_PORT}" "${INSPECT_ADDR}"
+        [[ -s "${log}" ]] && mv -f "${log}" "${log}.1"
+        echo "==> Starting prompt-assistant under $(managed_service_identifier assistant) (log -> ${log#"${PROJECT_ROOT}/"})"
+        managed_service_restart assistant
+        STARTED_PORTS+="${PROMPT_ASSISTANT_PORT} "
+        printf '%s' "${new_sha}" > "${stamp}" 2>/dev/null || true
+        return 0
+    fi
     if stack_units_enabled; then
         install_stack_units
         systemctl --user stop mike-stack-assistant.service 2>/dev/null || true

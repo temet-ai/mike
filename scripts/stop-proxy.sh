@@ -77,6 +77,23 @@ stop_port() {
 # ── main ──────────────────────────────────────────────────────────────────────
 echo "==> Stopping mike stack (ports ${PORTS[*]})"
 
+# launchd or systemd restarts a killed service within seconds, so an installed service is stopped
+# through its supervisor. It stays stopped until start-proxy.sh, `mike service restart` or the
+# next login.
+# shellcheck source=lib/managed-service.sh
+source "${SCRIPT_DIR}/lib/managed-service.sh"
+if managed_service_installed; then
+    if [[ "$(managed_service_platform)" == "launchd" ]]; then
+        managed_service_stop assistant || true
+    fi
+    for kind in proxy forward; do
+        echo "==> Stopping $(managed_service_identifier "${kind}") through its supervisor"
+        managed_service_stop "${kind}" || echo "==> Could not stop $(managed_service_identifier "${kind}")" >&2
+    done
+    echo "==> Sessions that reach Anthropic through the sidecar have no route until it is back."
+    echo "    Bring the service back with ./scripts/start-proxy.sh or 'mike service restart'."
+fi
+
 if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
     for unit in mike-stack-storybook mike-stack-arch mike-stack-spa mike-stack-assistant mike-stack-forward mike-stack-proxy; do
         if systemctl --user is-active --quiet "${unit}.service"; then

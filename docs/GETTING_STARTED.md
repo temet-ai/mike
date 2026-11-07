@@ -265,13 +265,22 @@ On a machine where the service is installed, `./scripts/start-proxy.sh` and `./s
 from a checkout deploy through it. They build mike, check which database migrations are pending,
 and start a trial copy of the new build on spare ports (a smoke boot) using the service's own
 configuration, not the checkout's `.env`. Only then do they copy the binary over the program the
-service file names and restart the proxy service. The sidecar is not restarted, because it keeps
-traffic flowing to Anthropic while the proxy restarts, so it keeps the previous build until you run
-`mike service restart`. The deploy counts the new build as live only when `/api/health` reports a
-boot generation, an identifier that changes each time the process starts, different from the one
-that was answering before. If that does not happen, it puts the previous binary back and restarts
-the proxy again. The web UI on port 9990 is the service's own, so `start-proxy.sh` does not start
-the development web server (vite) beside it.
+service file names and restart the proxy service. The deploy counts the new build as live only
+when `/api/health` reports a boot generation, an identifier that changes each time the process
+starts, different from the one that was answering before. If that has not happened within 60
+seconds (`--health-timeout` changes this), it puts the previous binary back and restarts the proxy
+again. The sidecar keeps traffic flowing to Anthropic during that restart, and restarting it breaks
+every stream open through it, so the deploy restarts it only when it is down or the code in
+`crates/proxy-forward` changed, and only after the proxy is healthy. The web UI on port 9990 is the
+service's own, so `start-proxy.sh` does not start the development web server (vite) beside it. On
+macOS `start-proxy.sh` also keeps the prompt assistant running as the launchd agent
+`ai.temet.mike.assistant`.
+
+`./scripts/stop-proxy.sh` stops the services through launchd or systemd, and they stay stopped until
+`./scripts/start-proxy.sh`, `mike service restart` or the next login. `start-debug.sh`,
+`debug-stack-deps.sh` and `start-and-monitor.sh` bind mike's own ports, so they refuse to run until
+you have stopped the service. `restart-frontend.sh` refuses port 9990 and works on any other
+port, for example `MIKE_FRONTEND_PORT=9991 ./scripts/restart-frontend.sh`.
 
 On Linux the user services stop when you log out unless lingering is on. mike does not run
 `sudo`; run `sudo loginctl enable-linger $USER` once if you want them to keep running.
