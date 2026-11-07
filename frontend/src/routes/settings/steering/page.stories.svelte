@@ -1,11 +1,12 @@
 <script module lang="ts">
 	import { defineMeta } from '@storybook/addon-svelte-csf';
-	import { expect, waitFor, userEvent } from 'storybook/test';
+	import { expect, waitFor, userEvent, within } from 'storybook/test';
 	import SteeringPage from './+page.svelte';
 	import type { FeatureDto, SettingMeta } from '$lib/api/settings';
 	import type { OpenRouterUsageDto } from '$lib/api/usage';
 	import type { SteererDto, ModelEntry } from '$lib/types';
 	import type { SteeringPageData } from './+page';
+	import { buildProviders } from '$lib/components/settings/setup/setupFixtures';
 
 	const FEATURES: FeatureDto[] = [
 		{ key: 'steerer', enabled: true, scope: 'global', applies: 'live_disable' },
@@ -139,6 +140,7 @@
 	};
 	let openrouterKeyConfigured = false;
 	let remountKey = $state(0);
+	let modelPatches: unknown[] = [];
 
 	const STEERERS: SteererDto[] = [
 		{
@@ -239,11 +241,14 @@
 		}
 	];
 
-	function buildData(): SteeringPageData {
+	function buildData(steererModel?: string): SteeringPageData {
 		return {
 			features: FEATURES,
 			loadError: null,
-			settings: SETTINGS,
+			settings:
+				steererModel === undefined
+					? SETTINGS
+					: SETTINGS.map((s) => (s.key === 'steerer.model' ? { ...s, value: steererModel } : s)),
 			settingsLoadError: null,
 			steerers: STEERERS,
 			steerersLoadError: null,
@@ -302,6 +307,11 @@
 				settings: { max_calls_per_day: 150, max_label_calls_per_day: 80, recall_sample_pct: 10 },
 				questions: []
 			});
+		if (url.includes('/api/llm/providers')) {
+			const providers = buildProviders();
+			for (const p of providers.providers) if (p.id === 'openrouter') p.available = true;
+			return json(providers);
+		}
 		if (url.includes('/api/usage/openrouter'))
 			return json(
 				openrouterKeyConfigured ? OPENROUTER_USAGE_CONFIGURED : OPENROUTER_USAGE_UNCONFIGURED
@@ -315,6 +325,7 @@
 				} catch {}
 			}
 			const existing = SETTINGS.find((s) => s.key === key);
+			if (key === 'steerer.model') modelPatches.push(value);
 			if (existing)
 				return json({ ...existing, value: (value ?? existing.value) as SettingMeta['value'] });
 			return json(
@@ -525,6 +536,53 @@
 		) as HTMLInputElement | null;
 		await expect(keyEnvInput).not.toBeNull();
 		await expect(keyEnvInput?.value).toBe('MIKE_STEERER_OPENROUTER_API_KEY');
+	}}
+>
+	{#snippet template(args)}
+		<div style="width:100%; min-height:100vh; background:var(--surface-bg);">
+			{#key remountKey}
+				<SteeringPage {...args} />
+			{/key}
+		</div>
+	{/snippet}
+</Story>
+
+<Story
+	name="SteererOnSubscription"
+	loaders={[
+		async () => {
+			openrouterKeyConfigured = false;
+			modelPatches = [];
+			globalThis.fetch = fetchStub as typeof globalThis.fetch;
+			return {};
+		}
+	]}
+	args={{ data: buildData('claude/sonnet') }}
+	play={async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		const provider = await canvas.findByLabelText('Provider');
+		await waitFor(() => expect((provider as HTMLSelectElement).value).toBe('claude'));
+		// The fleet rows below also have buttons labelled "Model"; the steerer's chooser is the <select>.
+		const modelSelect = canvas
+			.getAllByLabelText('Model')
+			.find((el): el is HTMLSelectElement => el instanceof HTMLSelectElement);
+		await expect(modelSelect?.value).toBe('claude/sonnet');
+		await expect(canvasElement.textContent).toContain('runs on your own Claude plan');
+		await expect(canvasElement.textContent).not.toContain('billed per call');
+		await expect(canvasElement.textContent).not.toContain('Needs an OpenRouter key');
+		await expect(canvasElement.textContent).not.toContain('OpenRouter API key');
+		await expect(canvasElement.querySelector('.mt-now')).toBeNull();
+		await expect(
+			canvasElement
+				.querySelector('button[aria-label="Enable Steerer — acts on live sessions"]')
+				?.hasAttribute('disabled')
+		).toBe(false);
+
+		// Browsing OpenRouter shows its paid catalogue but saves nothing.
+		await userEvent.selectOptions(provider, 'openrouter');
+		await waitFor(() => expect(canvasElement.textContent).toContain('billed per call'));
+		await expect(canvasElement.textContent).toContain('OpenRouter API key');
+		await expect(modelPatches).toEqual([]);
 	}}
 >
 	{#snippet template(args)}

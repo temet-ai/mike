@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { BookOpen, Search, X } from '@lucide/svelte';
 	import SectionCard from '$lib/components/detail/SectionCard.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import LoadErrorBanner from '$lib/components/shared/LoadErrorBanner.svelte';
 	import { ApiError, readProjectKnowledge, searchProjectKnowledge } from '$lib/api';
 	import type { KnowledgeReadResponse, KnowledgeSearchItem, KnowledgeSearchResponse } from '$lib/types';
@@ -11,6 +12,7 @@
 
 	const { projectPath }: Props = $props();
 	const sectionKey = $derived(`project:${projectPath}:knowledge-open`);
+	const PAGE_SIZE = 8;
 	let query = $state('');
 	let data = $state<KnowledgeSearchResponse | null>(null);
 	let selected = $state<KnowledgeReadResponse | null>(null);
@@ -18,18 +20,57 @@
 	let reading = $state(false);
 	let error = $state<string | null>(null);
 	let loadedFor = $state<string | null>(null);
+	let loadingMore = $state(false);
+	let moreError = $state<string | null>(null);
+	// The query the shown list answers; Load more continues it even if the box was edited since.
+	let activeQuery = '';
+	// Bumped by every new search so a slow page of an older search cannot append to a newer list.
+	let generation = 0;
 
 	async function search(): Promise<void> {
+		const mine = ++generation;
 		loading = true;
+		loadingMore = false;
 		error = null;
+		moreError = null;
+		activeQuery = query;
 		try {
-			data = await searchProjectKnowledge(projectPath, { query, limit: 8 });
+			const answer = await searchProjectKnowledge(projectPath, { query: activeQuery, limit: PAGE_SIZE });
+			if (mine !== generation) return;
+			data = answer;
 			loadedFor = projectPath;
 		} catch (err) {
+			if (mine !== generation) return;
 			data = null;
 			error = err instanceof ApiError ? err.message : String(err);
 		} finally {
-			loading = false;
+			if (mine === generation) loading = false;
+		}
+	}
+
+	async function loadMore(): Promise<void> {
+		if (!data || !data.has_more || data.next_offset === null || loadingMore) return;
+		const mine = generation;
+		loadingMore = true;
+		moreError = null;
+		try {
+			const page = await searchProjectKnowledge(projectPath, {
+				query: activeQuery,
+				limit: PAGE_SIZE,
+				offset: data.next_offset
+			});
+			if (mine !== generation || !data) return;
+			const seen = new Set(data.items.map((item) => item.reference));
+			data = {
+				...data,
+				items: [...data.items, ...page.items.filter((item) => !seen.has(item.reference))],
+				has_more: page.has_more,
+				next_offset: page.next_offset
+			};
+		} catch (err) {
+			if (mine === generation) moreError = err instanceof ApiError ? err.message : String(err);
+		} finally {
+			if (mine === generation) loadingMore = false;
 		}
 	}
 
@@ -83,7 +124,10 @@
 				<p class="pk-muted">Searching retained project sources…</p>
 			{:else if data}
 				<div class="pk-meta">
-					<span>{data.items.length} result{data.items.length === 1 ? '' : 's'}</span>
+					<span>
+						{data.items.length}
+						{data.has_more ? 'results so far' : data.items.length === 1 ? 'result' : 'results'}
+					</span>
 					<span>{data.retrieval_path === 'hybrid' ? 'text + semantic' : 'text search'}</span>
 					{#if data.embedding?.fallback}<span>semantic fallback: {data.embedding.fallback}</span>{/if}
 				</div>
@@ -101,6 +145,16 @@
 							</li>
 						{/each}
 					</ul>
+					{#if moreError}
+						<p class="pk-more-error" role="alert">Couldn't load more results: {moreError}</p>
+					{/if}
+					{#if data.has_more}
+						<div class="pk-more">
+							<Button variant="outline" size="sm" disabled={loadingMore} onclick={() => void loadMore()}>
+								{loadingMore ? 'Loading' : 'Load more'}
+							</Button>
+						</div>
+					{/if}
 				{/if}
 			{/if}
 		</div>
@@ -139,6 +193,8 @@
 	.pk-result__kind { color: var(--status-info-fg); font: 10px var(--font-mono, monospace); text-transform: uppercase; }
 	.pk-result__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 	.pk-result__path { grid-column: 2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.pk-more { display: flex; }
+	.pk-more-error { margin: 0; color: var(--status-danger-fg); font-size: 12px; }
 	.pk-muted { color: var(--text-3); font-size: 12px; }
 	.pk-drawer { position: fixed; inset: 12% 8% 8% auto; z-index: 20; display: flex; width: min(720px, 84vw); flex-direction: column; gap: 12px; border: 1px solid var(--border-default); background: var(--surface-card); padding: 18px; box-shadow: var(--shadow-3); }
 	.pk-drawer__head { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--border-default); padding-bottom: 10px; }

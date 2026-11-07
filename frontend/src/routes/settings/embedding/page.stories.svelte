@@ -57,8 +57,14 @@
 		})
 	];
 
-	function buildData(): EmbeddingPageData {
-		return { settings: SETTINGS, settingsLoadError: null };
+	function buildData(model?: string): EmbeddingPageData {
+		return {
+			settings:
+				model === undefined
+					? SETTINGS
+					: SETTINGS.map((s) => (s.key === 'embedding.model' ? { ...s, value: model } : s)),
+			settingsLoadError: null
+		};
 	}
 
 	let savedReason: string | null = null;
@@ -143,6 +149,12 @@
 	play={async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await expect(canvasElement.textContent).toContain('Embedding');
+		const radios = canvas.getAllByRole('radio');
+		await expect(radios).toHaveLength(2);
+		await expect(radios.map((r) => r.getAttribute('value'))).toEqual([
+			'nomic-embed-text-v1.5',
+			'nomic-embed-text'
+		]);
 		await userEvent.click(canvas.getByRole('switch'));
 		await expect(savedReason).toBeNull();
 		await expect(canvas.getByRole('button', { name: 'Disable embedding' })).toBeDisabled();
@@ -160,6 +172,33 @@
 			canvas.getByText('Embedding disabled. Your reason was recorded in settings history.')
 		).toBeInTheDocument();
 		await expect(canvasElement.querySelectorAll('[role="switch"]').length).toBeGreaterThan(0);
+	}}
+>
+	{#snippet template(args)}
+		<div style="width:100%; min-height:100vh; background:var(--surface-bg);">
+			<EmbeddingPage {...args} />
+		</div>
+	{/snippet}
+</Story>
+
+<Story
+	name="StoredModelOutsideList"
+	loaders={[
+		async () => {
+			globalThis.fetch = fetchStub as typeof globalThis.fetch;
+			return {};
+		}
+	]}
+	args={{ data: buildData('openai/text-embedding-3-small') }}
+	play={async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		const radios = canvas.getAllByRole('radio');
+		await expect(radios.map((r) => r.getAttribute('value'))).toEqual([
+			'openai/text-embedding-3-small',
+			'nomic-embed-text-v1.5',
+			'nomic-embed-text'
+		]);
+		await expect(radios[0]).toBeChecked();
 	}}
 >
 	{#snippet template(args)}
