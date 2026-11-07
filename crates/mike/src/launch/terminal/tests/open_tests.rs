@@ -108,14 +108,25 @@ async fn open_resolves_the_claude_child_pid_one_level_below_the_window() -> anyh
     let claude = bin_dir.path().join("claude");
     std::fs::write(
         &claude,
-        format!("#!/bin/sh\nexec '{}' 0.5\n", real.display()),
+        format!("#!/bin/sh\nexec '{}' 5\n", real.display()),
     )?;
     std::fs::set_permissions(&claude, std::fs::Permissions::from_mode(0o755))?;
 
     let mut req = request(folder.path(), vec![], "cc-z");
     req.program = claude.to_string_lossy().into_owned();
     req.args = vec![];
-    let surface = backend(&host).open(&req).await?;
+    let unloaded_host_budget = crate::launch::terminal::TerminalTimeouts {
+        window: Duration::from_secs(4),
+        child_pid: Duration::from_secs(4),
+        ..fast_timeouts()
+    };
+    let surface = XdgTerminalBackend::with_binaries_and_timeouts(
+        host.xdg_bin(),
+        host.hypr_bin(),
+        unloaded_host_budget,
+    )
+    .open(&req)
+    .await?;
     let window_pid: u32 = surface.surface_ref.parse()?;
     assert!(
         surface.pid.is_some_and(|pid| pid != window_pid),

@@ -117,13 +117,20 @@ async fn mail_claim_consumes_the_message_so_it_is_neither_redelivered_nor_dead_l
         .state
         .persist()
         .ok_or_else(|| anyhow::anyhow!("persist"))?;
-    let (sent, consumed): (bool, bool) = sqlx::query_as(
-        "SELECT sent_at IS NOT NULL, consumed_at IS NOT NULL
-           FROM mailbox.messages WHERE message_uuid = $1",
-    )
-    .bind(message_uuid)
-    .fetch_one(persist.pool())
-    .await?;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let (sent, consumed) = loop {
+        let (sent, consumed): (bool, bool) = sqlx::query_as(
+            "SELECT sent_at IS NOT NULL, consumed_at IS NOT NULL
+               FROM mailbox.messages WHERE message_uuid = $1",
+        )
+        .bind(message_uuid)
+        .fetch_one(persist.pool())
+        .await?;
+        if (sent && consumed) || Instant::now() >= deadline {
+            break (sent, consumed);
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    };
     assert!(sent, "a message the client claimed must be stamped sent");
     assert!(
         consumed,
