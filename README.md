@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="docs/assets/mike-icon.svg" alt="" width="112" height="112">
-</p>
-
 <h1 align="center">mike</h1>
 
 <p align="center">
