@@ -1,5 +1,20 @@
 use super::*;
 
+fn commands() -> Vec<String> {
+    [
+        "cargo build",
+        "cargo check",
+        "cargo test",
+        "cargo nextest run",
+    ]
+    .map(String::from)
+    .to_vec()
+}
+
+fn settings_env() -> String {
+    json!(commands()).to_string()
+}
+
 fn event(command: &str) -> Value {
     json!({
         "hook_event_name": "PreToolUse",
@@ -9,24 +24,23 @@ fn event(command: &str) -> Value {
 }
 
 #[test]
-fn literal_cargo_builds_and_timeouts_are_background_candidates() {
+fn declared_commands_and_timeouts_are_background_candidates() {
     for command in [
         "cargo build -p app",
         "cargo check",
         "cargo test -- --nocapture",
-        "cargo +nightly test",
         "/home/me/.cargo/bin/cargo build",
         "timeout 1700 cargo nextest run -p gg --test plugin_boundary --test renderer_parity",
         "cd '/repo with spaces' && export RUST_LOG=debug; timeout 580 cargo nextest run -p gg-core -E 'test(/ipc::/)' > /tmp/run.log 2>&1 | tail -10",
         "RUST_LOG=info env CARGO_TARGET_DIR=target timeout 300 command cargo check",
         "cargo \\\ntest",
     ] {
-        assert!(syntax::cargo_build(command), "{command}");
+        assert!(syntax::declared_command(command, &commands()), "{command}");
     }
 }
 
 #[test]
-fn nonbuilds_and_unsupported_shell_syntax_are_left_unchanged() {
+fn undeclared_commands_and_unsupported_shell_syntax_are_left_unchanged() {
     for command in [
         "cargo metadata --format-version 1",
         "cargo run -- cargo test",
@@ -52,9 +66,25 @@ fn nonbuilds_and_unsupported_shell_syntax_are_left_unchanged() {
         "cargo-test",
         "cargo testing",
     ] {
-        assert!(!syntax::cargo_build(command), "{command}");
-        assert!(response(&event(command)).is_none(), "{command}");
+        assert!(!syntax::declared_command(command, &commands()), "{command}");
+        assert!(
+            response(&event(command), &commands()).is_none(),
+            "{command}"
+        );
     }
+}
+
+#[test]
+fn any_program_can_be_declared_and_multi_word_commands_match_as_a_prefix() {
+    let declared = ["npm run build".to_string(), "scripts/slow".to_string()];
+    for command in ["npm run build --silent", "timeout 60 scripts/slow x"] {
+        assert!(syntax::declared_command(command, &declared), "{command}");
+    }
+    for command in ["npm run lint", "npm", "other/scripts/slow x", "cargo test"] {
+        assert!(!syntax::declared_command(command, &declared), "{command}");
+    }
+    assert!(!syntax::declared_command("anything", &[]));
+    assert!(!syntax::declared_command("anything", &[String::new()]));
 }
 
 #[test]
@@ -66,7 +96,8 @@ fn backgrounding_preserves_every_other_input_field_and_never_grants_permission()
     call["tool_input"]["run_in_background"] = json!(false);
     call["tool_input"]["dangerouslyDisableSandbox"] = json!(false);
     call["tool_input"]["future_field"] = json!({"untouched": [1, 2]});
-    let answer = response(&call).ok_or("recognized cargo command did not produce an update")?;
+    let answer =
+        response(&call, &commands()).ok_or("declared command did not produce an update")?;
     let mut expected = call["tool_input"].clone();
     expected["run_in_background"] = json!(true);
     assert_eq!(answer["hookSpecificOutput"]["updatedInput"], expected);
@@ -88,25 +119,25 @@ fn backgrounding_preserves_every_other_input_field_and_never_grants_permission()
 fn unrelated_events_and_already_backgrounded_inputs_are_unchanged() {
     let mut call = event("cargo test");
     call["tool_input"]["run_in_background"] = json!(true);
-    assert!(response(&call).is_none());
+    assert!(response(&call, &commands()).is_none());
     call["tool_input"]["run_in_background"] = json!(false);
     call["tool_name"] = json!("Read");
-    assert!(response(&call).is_none());
+    assert!(response(&call, &commands()).is_none());
     call["tool_name"] = json!("Bash");
     call["hook_event_name"] = json!("PostToolUse");
-    assert!(response(&call).is_none());
-    assert!(response(&json!({})).is_none());
+    assert!(response(&call, &commands()).is_none());
+    assert!(response(&json!({}), &commands()).is_none());
 }
 
 #[test]
-fn fleet_identity_and_explicit_environment_controls_are_required() {
-    assert!(fleet_enabled(Some("fleet-build-a1"), Some("1"), None));
+fn fleet_identity_and_a_declaration_are_required() {
+    let listed = commands();
+    assert!(fleet_enabled(Some("fleet-build-a1"), &listed, None));
     for run in [None, Some("manual-run"), Some("fleet-")] {
-        assert!(!fleet_enabled(run, Some("1"), None));
+        assert!(!fleet_enabled(run, &listed, None));
     }
-    assert!(!fleet_enabled(Some("fleet-build-a1"), None, None));
-    assert!(!fleet_enabled(Some("fleet-build-a1"), Some("0"), None));
-    assert!(!fleet_enabled(Some("fleet-build-a1"), Some("1"), Some("1")));
+    assert!(!fleet_enabled(Some("fleet-build-a1"), &[], None));
+    assert!(!fleet_enabled(Some("fleet-build-a1"), &listed, Some("1")));
 }
 
 #[test]
@@ -114,7 +145,7 @@ fn operator_hook_entries_are_preserved_and_default_handler_is_idempotent() {
     let original =
         json!({"matcher": "Bash", "hooks": [{"type": "command", "command": "operator-guard"}]});
     let mut settings = json!({
-        "env": {ENABLED_ENV: "1", "CUSTOM": "retained"},
+        "env": {COMMANDS_ENV: settings_env(), "CUSTOM": "retained"},
         "hooks": {"PreToolUse": [original.clone()], "Stop": [{"hooks": []}]},
     });
     let before = settings.clone();
@@ -130,18 +161,19 @@ fn operator_hook_entries_are_preserved_and_default_handler_is_idempotent() {
     assert_eq!(settings["env"], before["env"]);
     assert_eq!(
         settings["hooks"]["PreToolUse"][1]["hooks"][0]["command"],
-        "'/state/it'\\''s mike' fleet cargo-background-hook"
+        "'/state/it'\\''s mike' fleet background-hook"
     );
 }
 
 #[test]
 fn explicit_disable_and_invalid_operator_hook_shapes_are_not_overwritten() {
     for mut settings in [
-        json!({"disableAllHooks": true, "env": {ENABLED_ENV: "1"}}),
-        json!({"env": {ENABLED_ENV: "0"}}),
-        json!({"env": {ENABLED_ENV: "1", BACKGROUND_DISABLED: "1"}}),
-        json!({"env": {ENABLED_ENV: "1"}, "hooks": "operator-invalid"}),
-        json!({"env": {ENABLED_ENV: "1"}, "hooks": {"PreToolUse": "operator-invalid"}}),
+        json!({"disableAllHooks": true, "env": {COMMANDS_ENV: settings_env()}}),
+        json!({"env": {COMMANDS_ENV: "[]"}}),
+        json!({"env": {COMMANDS_ENV: "not json"}}),
+        json!({"env": {COMMANDS_ENV: settings_env(), BACKGROUND_DISABLED: "1"}}),
+        json!({"env": {COMMANDS_ENV: settings_env()}, "hooks": "operator-invalid"}),
+        json!({"env": {COMMANDS_ENV: settings_env()}, "hooks": {"PreToolUse": "operator-invalid"}}),
         json!({}),
     ] {
         let before = settings.clone();
@@ -157,7 +189,7 @@ fn malformed_or_oversized_input_fails_without_emitting_a_rewrite() {
         vec![b' '; MAX_INPUT_BYTES as usize + 1],
     ] {
         let mut output = Vec::new();
-        assert!(process(input.as_slice(), &mut output).is_err());
+        assert!(process(input.as_slice(), &mut output, &commands()).is_err());
         assert!(output.is_empty());
     }
 }
@@ -171,16 +203,16 @@ fn input_and_output_errors_are_propagated() {
         }
     }
     let mut output = Vec::new();
-    assert!(process(Unreadable, &mut output).is_err());
+    assert!(process(Unreadable, &mut output, &commands()).is_err());
     assert!(output.is_empty());
-    assert!(process(b"{}".as_slice(), &mut [0_u8; 0][..]).is_err());
+    assert!(process(b"{}".as_slice(), &mut [0_u8; 0][..], &commands()).is_err());
 }
 
 #[test]
 fn serialized_valid_input_returns_only_a_background_request() -> Result<(), String> {
     let input = serde_json::to_vec(&event("cargo check")).map_err(|e| e.to_string())?;
     let mut output = Vec::new();
-    process(input.as_slice(), &mut output)?;
+    process(input.as_slice(), &mut output, &commands())?;
     let answer: Value = serde_json::from_slice(&output).map_err(|e| e.to_string())?;
     assert_eq!(
         answer["hookSpecificOutput"]["updatedInput"]["run_in_background"],

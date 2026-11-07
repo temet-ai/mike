@@ -3,35 +3,21 @@ use std::collections::BTreeSet;
 use chrono::{DateTime, Duration, Utc};
 use serde::Serialize;
 
-use super::build_brake::{completion_unknown, waiting_without_wrapper};
+use super::background_result::completion_unknown;
 use super::definition::FleetDefinition;
-use super::work_of::{edits_files, through_wrapper, work_through};
+use super::operation::Execution;
+use super::work_of::{edits_files, work_through};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::{ChangedPathRow, TreeResultRow};
 
 const WINDOW_HOURS: i64 = 6;
 const ROWS_READ: i64 = 200;
-pub const DEFAULT_SLOTS: usize = 2;
-pub const MOST_SLOTS: usize = 64;
-
-pub fn slots(def: &FleetDefinition) -> usize {
-    def.build_slots.unwrap_or(DEFAULT_SLOTS)
-}
-
-pub fn check_slots(def: &FleetDefinition) -> Result<(), String> {
-    match def.build_slots {
-        Some(n) if n == 0 || n > MOST_SLOTS => Err(format!(
-            "`build_slots` is {n}; it must be from 1 to {MOST_SLOTS}: the number of builds the project's wrapper (`wrappers`) lets run at once, or left out for {DEFAULT_SLOTS}"
-        )),
-        _ => Ok(()),
-    }
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Ask<'a> {
     pub command: &'a str,
     pub wrappers: &'a [String],
-    pub slots: usize,
+    pub execution: &'a Execution,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -71,7 +57,7 @@ fn from_row(answer: &'static str, work: Vec<String>, row: &TreeResultRow) -> Reu
             "{seat} has a captured result. No checkout changes were observed since it started, but dependency validity and commit binding are unknown. Tool success is not a test pass. Inspect the recorded output with list_fleet_results and include_output before deciding whether to reuse it."
         ),
         "waiting" => format!(
-            "{seat} already started this command. Overlapping builds suggest it may be waiting for a build slot or target-directory lock; this is inferred, not an observed process state. Do not queue it a second time; wait for its result."
+            "{seat} already started this command. Commands past the capacity of a declared resource may be waiting for a unit of it; this is inferred, not an observed process state. Do not queue it a second time; wait for its result."
         ),
         "unfinished" => format!(
             "{seat} launched this native background task, but its completion has not been captured. Its current process state is unknown. Read the native task and its output before reusing a result or starting it again; a launch receipt is not a passed check."
@@ -98,22 +84,29 @@ fn holds(row: &TreeResultRow, wanted: &[String], wrappers: &[String]) -> bool {
     })
 }
 
-pub fn waiting_uses(rows: &[TreeResultRow], wrappers: &[String], slots: usize) -> BTreeSet<i64> {
-    if wrappers.is_empty() {
-        return waiting_without_wrapper(rows);
+pub fn waiting_uses(
+    rows: &[TreeResultRow],
+    wrappers: &[String],
+    execution: &Execution,
+) -> BTreeSet<i64> {
+    let mut waiting = BTreeSet::new();
+    for (capacity, timed) in execution.shared_resources().values() {
+        let mut open: Vec<&TreeResultRow> = rows
+            .iter()
+            .filter(|r| r.finished_at.is_none() && r.started_at.is_some())
+            .filter(|r| !completion_unknown(r))
+            .filter(|r| {
+                r.command.as_deref().is_some_and(|command| {
+                    timed
+                        .iter()
+                        .any(|(program, one)| one.covers(program, command, wrappers))
+                })
+            })
+            .collect();
+        open.sort_by_key(|r| (r.started_at, r.use_id));
+        waiting.extend(open.iter().skip(*capacity).map(|r| r.use_id));
     }
-    let mut queued: Vec<&TreeResultRow> = rows
-        .iter()
-        .filter(|r| r.finished_at.is_none() && r.started_at.is_some())
-        .filter(|r| !completion_unknown(r))
-        .filter(|r| {
-            r.command
-                .as_deref()
-                .is_some_and(|c| through_wrapper(c, wrappers))
-        })
-        .collect();
-    queued.sort_by_key(|r| r.started_at);
-    queued.iter().skip(slots).map(|r| r.use_id).collect()
+    waiting
 }
 
 fn no_observed_invalidation(row: &TreeResultRow, changed: &[ChangedPathRow]) -> bool {
@@ -145,7 +138,7 @@ pub fn decide(ask: &Ask<'_>, rows: &[TreeResultRow], changed: &[ChangedPathRow])
     {
         return from_row("unknown", wanted, done);
     }
-    let queued = waiting_uses(rows, ask.wrappers, ask.slots);
+    let queued = waiting_uses(rows, ask.wrappers, ask.execution);
     match matching
         .iter()
         .filter(|r| r.finished_at.is_none())
@@ -179,13 +172,13 @@ pub async fn ask(
             .map_err(|e| e.to_string())?,
         None => Vec::new(),
     };
-    if !def.execution.cargo || def.execution.operation(command).is_some() {
+    if def.execution.timed_commands.is_empty() || def.execution.operation(command).is_some() {
         return Ok(declared_answer(command, &rows));
     }
     let ask = Ask {
         command,
         wrappers: &def.wrappers,
-        slots: slots(def),
+        execution: &def.execution,
     };
     Ok(decide(&ask, &rows, &changed))
 }
@@ -214,6 +207,7 @@ fn declared_answer(command: &str, rows: &[TreeResultRow]) -> ReuseAnswer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     fn at(text: &str) -> DateTime<Utc> {
         text.parse().unwrap_or_default()
@@ -246,7 +240,23 @@ mod tests {
     }
 
     fn wrappers() -> Vec<String> {
-        vec!["scripts/cargo-slot".to_string()]
+        vec!["scripts/builder-slot".to_string()]
+    }
+
+    fn slots(capacity: u32) -> Execution {
+        let timed = super::super::operation::TimedCommand {
+            resources: vec![super::super::operation::ResourceClaim::Counted(
+                super::super::operation::CountedResource {
+                    name: "build".into(),
+                    capacity,
+                },
+            )],
+            ..Default::default()
+        };
+        Execution {
+            timed_commands: [("builder".to_string(), timed)].into_iter().collect(),
+            ..Execution::default()
+        }
     }
 
     fn ask_for(command: &str, wrappers: &[String]) -> ReuseAnswer {
@@ -256,28 +266,28 @@ mod tests {
                 "sim-T02",
                 "2026-10-04T10:00:00Z",
                 Some("2026-10-04T10:02:00Z"),
-                "python3 - <<'EOF'\nopen('a.rs','w')\nEOF\nscripts/cargo-slot cargo check -p sim 2>&1 | tail",
+                "python3 - <<'EOF'\nopen('a.rs','w')\nEOF\nscripts/builder-slot builder check -p sim 2>&1 | tail",
             ),
             row(
                 2,
                 "sim-T03",
                 "2026-10-04T10:05:00Z",
                 None,
-                "scripts/cargo-slot cargo test -p sim",
+                "scripts/builder-slot builder test -p sim",
             ),
         ];
         let changed = vec![change("crates/sim/src/a.rs", "2026-10-04T09:59:00Z")];
         let ask = Ask {
             command,
             wrappers,
-            slots: 2,
+            execution: &slots(2),
         };
         decide(&ask, &rows, &changed)
     }
 
     #[test]
     fn a_check_matches_the_build_part_of_a_chained_edit_and_check() {
-        let answer = ask_for("scripts/cargo-slot cargo check -p sim", &wrappers());
+        let answer = ask_for("scripts/builder-slot builder check -p sim", &wrappers());
         assert_eq!(answer.answer, "unknown", "{answer:?}");
         assert_eq!(answer.seat.as_deref(), Some("sim-T02"));
         assert!(
@@ -294,36 +304,36 @@ mod tests {
             "sim-T02",
             "2026-10-04T10:00:00Z",
             Some("2026-10-04T10:02:00Z"),
-            "cargo check -p sim",
+            "builder check -p sim",
         )];
         let changed = vec![change("crates/sim/src/a.rs", "2026-10-04T10:03:00Z")];
         let ask = Ask {
-            command: "cargo check -p sim",
+            command: "builder check -p sim",
             wrappers: &[],
-            slots: 2,
+            execution: &slots(2),
         };
         let answer = decide(&ask, &rows, &changed);
         assert_eq!(answer.answer, "none");
     }
 
     #[test]
-    fn transitive_cargo_paths_and_changes_during_execution_invalidate_reuse() {
+    fn transitive_builder_paths_and_changes_during_execution_invalidate_reuse() {
         let rows = vec![row(
             1,
             "ink-T7",
             "2026-10-04T10:00:00Z",
             Some("2026-10-04T10:02:00Z"),
-            "cargo build --bin gg",
+            "builder build --bin gg",
         )];
         let ask = Ask {
-            command: "cargo build --bin gg",
+            command: "builder build --bin gg",
             wrappers: &[],
-            slots: 2,
+            execution: &slots(2),
         };
         for path in [
             "crates/gg-core/src/host.rs",
             "crates/gg-sessions/src/lib.rs",
-            "Cargo.lock",
+            "builder.lock",
         ] {
             for seen in [
                 "2026-10-04T10:00:00Z",
@@ -345,7 +355,7 @@ mod tests {
     #[test]
     fn a_command_that_edits_first_is_never_answered_from_a_result() {
         let answer = ask_for(
-            "sed -i 's/a/b/' a.rs && scripts/cargo-slot cargo check -p sim",
+            "sed -i 's/a/b/' a.rs && scripts/builder-slot builder check -p sim",
             &wrappers(),
         );
         assert_eq!(answer.answer, "none");
@@ -361,7 +371,7 @@ mod tests {
 
     #[test]
     fn a_command_another_seat_is_running_is_running_while_a_slot_is_free() {
-        let answer = ask_for("scripts/cargo-slot cargo test -p sim", &wrappers());
+        let answer = ask_for("scripts/builder-slot builder test -p sim", &wrappers());
         assert_eq!(answer.answer, "running", "{answer:?}");
         assert_eq!(answer.seat.as_deref(), Some("sim-T03"));
     }
@@ -373,64 +383,57 @@ mod tests {
             started(
                 1,
                 "2026-10-04T10:00:00Z",
-                "scripts/cargo-slot cargo test -p a",
+                "scripts/builder-slot builder test -p a",
             ),
             started(
                 2,
                 "2026-10-04T10:01:00Z",
-                "scripts/cargo-slot cargo test -p b",
+                "scripts/builder-slot builder test -p b",
             ),
             started(
                 3,
                 "2026-10-04T10:02:00Z",
-                "scripts/cargo-slot cargo test -p sim",
+                "scripts/builder-slot builder test -p sim",
             ),
-            started(4, "2026-10-04T10:03:00Z", "cargo test -p other"),
+            started(4, "2026-10-04T10:03:00Z", "npm test"),
         ];
-        let waiting = waiting_uses(&rows, &wrappers(), 2);
+        let waiting = waiting_uses(&rows, &wrappers(), &slots(2));
         assert_eq!(waiting.into_iter().collect::<Vec<_>>(), vec![3]);
+        let execution = slots(2);
+        let wrappers = wrappers();
         let sim = Ask {
-            command: "scripts/cargo-slot cargo test -p sim",
-            wrappers: &wrappers(),
-            slots: 2,
+            command: "scripts/builder-slot builder test -p sim",
+            wrappers: &wrappers,
+            execution: &execution,
         };
         let answer = decide(&sim, &rows, &[]);
         assert_eq!(answer.answer, "waiting", "{answer:?}");
         assert!(answer.message.contains("this is inferred"));
         let first = Ask {
-            command: "scripts/cargo-slot cargo test -p a",
+            command: "scripts/builder-slot builder test -p a",
             ..sim
         };
         assert_eq!(decide(&first, &rows, &[]).answer, "running");
     }
 
     #[test]
-    fn the_slot_count_comes_from_the_definition_and_defaults_to_two() {
-        let mut def = FleetDefinition::default();
-        assert_eq!(slots(&def), 2);
-        assert_eq!(check_slots(&def), Ok(()));
-        def.build_slots = Some(5);
-        assert_eq!(slots(&def), 5);
-        assert_eq!(check_slots(&def), Ok(()));
-        def.build_slots = Some(0);
-        let refused = check_slots(&def).err().unwrap_or_default();
-        assert!(
-            refused.contains("`build_slots` is 0; it must be from 1 to 64"),
-            "{refused}"
-        );
-        def.build_slots = Some(65);
-        assert!(check_slots(&def).is_err());
+    fn a_stored_slot_count_is_ignored_whatever_its_value() -> anyhow::Result<()> {
+        for stored in [json!(5), json!(0), json!(65), json!(-1), json!("two")] {
+            let parsed = FleetDefinition::from_value(&json!({"build_slots": stored}));
+            assert!(parsed.map_err(anyhow::Error::msg).is_ok());
+        }
+        Ok(())
     }
 
     #[test]
-    fn a_third_slot_lets_the_third_queued_command_run() {
+    fn a_third_unit_lets_the_third_queued_command_run() {
         let started = |id: i64, at: &str| {
             row(
                 id,
                 "sim-T0x",
                 at,
                 None,
-                &format!("scripts/cargo-slot cargo test -p p{id}"),
+                &format!("scripts/builder-slot builder test -p p{id}"),
             )
         };
         let rows = vec![
@@ -439,9 +442,9 @@ mod tests {
             started(3, "2026-10-04T10:02:00Z"),
             started(4, "2026-10-04T10:03:00Z"),
         ];
-        let three = waiting_uses(&rows, &wrappers(), 3);
+        let three = waiting_uses(&rows, &wrappers(), &slots(3));
         assert_eq!(three.into_iter().collect::<Vec<_>>(), vec![4]);
-        assert_eq!(waiting_uses(&rows, &wrappers(), 2).len(), 2);
+        assert_eq!(waiting_uses(&rows, &wrappers(), &slots(2)).len(), 2);
     }
 
     #[test]
@@ -451,13 +454,13 @@ mod tests {
             "sim-T02",
             "2026-10-04T10:00:00Z",
             Some("2026-10-04T10:02:00Z"),
-            "cargo check -p sim",
+            "builder check -p sim",
         );
         failed.is_error = Some(true);
         let ask = Ask {
-            command: "cargo check -p sim",
+            command: "builder check -p sim",
             wrappers: &[],
-            slots: 2,
+            execution: &slots(2),
         };
         let answer = decide(&ask, &[failed], &[]);
         assert_eq!(answer.answer, "unknown");
@@ -465,15 +468,15 @@ mod tests {
     }
     #[test]
     fn an_unconfirmed_background_result_is_unfinished_without_claiming_liveness() {
-        let mut pending = row(1, "worker-1", "2026-10-04T10:00:00Z", None, "cargo test");
+        let mut pending = row(1, "worker-1", "2026-10-04T10:00:00Z", None, "builder test");
         pending.is_error = None;
         pending.content = Some(serde_json::json!(
             "Command running in background with ID: pending"
         ));
         let ask = Ask {
-            command: "cargo test",
+            command: "builder test",
             wrappers: &[],
-            slots: 1,
+            execution: &slots(1),
         };
         let answer = decide(&ask, &[pending], &[]);
         assert_eq!(answer.answer, "unfinished");

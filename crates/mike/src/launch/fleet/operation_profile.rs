@@ -80,7 +80,7 @@ mod tests {
     use super::*;
 
     fn profile() -> Vec<u8> {
-        json!({"schema_version": 1, "execution": {"cargo": false, "operations": {
+        json!({"schema_version": 1, "execution": {"disabled_plugins": ["a@b"], "operations": {
             "types": {"command": "npm run typecheck", "purpose": "types", "resources": ["ts-cache"]}
         }}})
         .to_string()
@@ -95,16 +95,29 @@ mod tests {
             definition["execution"]["operations"]["types"]["resources"],
             json!(["ts-cache"])
         );
-        let mut override_def = json!({"execution":{"cargo":true,"operations":{"types":{
+        let mut override_def = json!({"execution":{"disabled_plugins":["c@d"],"operations":{"types":{
             "command":"python3 -m unittest", "purpose":"tests"
         }}}});
         apply_bytes(&profile(), &mut override_def).map_err(anyhow::Error::msg)?;
-        assert_eq!(override_def["execution"]["cargo"], true);
+        assert_eq!(
+            override_def["execution"]["disabled_plugins"],
+            json!(["c@d"])
+        );
         assert!(
             override_def["execution"]["operations"]["types"]
                 .get("resources")
                 .is_none()
         );
+        Ok(())
+    }
+
+    #[test]
+    fn an_older_profile_with_a_retired_setting_still_imports() -> anyhow::Result<()> {
+        let older = json!({"schema_version": 1, "execution": {"retired": true, "operations": {}}});
+        let mut definition = json!({});
+        apply_bytes(older.to_string().as_bytes(), &mut definition).map_err(anyhow::Error::msg)?;
+        let parsed = FleetDefinition::from_value(&definition).map_err(anyhow::Error::msg)?;
+        assert!(parsed.execution.timed_commands.is_empty());
         Ok(())
     }
 

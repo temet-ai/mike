@@ -5,7 +5,7 @@ use crate::launch::fleet::report_proof;
 use crate::store::persistence::fleet::{ChangedPathRow, TreeResultRow};
 
 fn output_reference(row: &TreeResultRow) -> Value {
-    let proof = report_proof::from_rows(std::slice::from_ref(row), None, &[]);
+    let proof = report_proof::from_rows(std::slice::from_ref(row), None);
     proof.receipts.into_iter().next().map_or_else(
         || json!({
             "tool": "list_session_tool_uses",

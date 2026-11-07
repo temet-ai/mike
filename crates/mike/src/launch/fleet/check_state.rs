@@ -60,7 +60,7 @@ pub async fn state_for(def: &FleetDefinition, rev: &str) -> Result<String, Strin
         check.paths.clone_from(&op.inputs);
     }
     let state = state_at(&def.repo, &check, rev).await?;
-    let policy = serde_json::to_string(&(def.execution.cargo, operation))
+    let policy = serde_json::to_string(&(def.execution.environment_policy(), operation))
         .map_err(|error| error.to_string())?;
     let state = command_state(&state, &policy);
     Ok(if super::operation::reusable(def) {

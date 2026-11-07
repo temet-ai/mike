@@ -16,6 +16,8 @@ const SLACK_SECONDS: i64 = 2;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Timing {
     pub session: Uuid,
+    #[serde(default)]
+    pub program: Option<String>,
     pub args: String,
     pub started_at: DateTime<Utc>,
     #[serde(default)]
@@ -32,7 +34,10 @@ impl Timing {
     }
 
     fn is_work(&self, work: &str) -> bool {
-        work == self.args || work.strip_prefix("cargo ") == Some(self.args.as_str())
+        work == self.args
+            || work.split_once(' ').is_some_and(|(program, rest)| {
+                rest == self.args && self.program.as_deref().is_none_or(|own| own == program)
+            })
     }
 }
 
@@ -70,12 +75,9 @@ pub fn read_run(dir: &Path, run: &str) -> Vec<Timing> {
 }
 
 pub(super) fn record(
+    program: &str,
     args: &[OsString],
-    (started_at, lock_acquired_at, admitted_at): (
-        DateTime<Utc>,
-        Option<DateTime<Utc>>,
-        DateTime<Utc>,
-    ),
+    (started_at, admitted_at): (DateTime<Utc>, DateTime<Utc>),
     exit: i32,
 ) {
     let (Some(dir), Ok(run)) = (std::env::var_os(DIR_ENV), std::env::var("MIKE_RUN_ID")) else {
@@ -92,15 +94,16 @@ pub(super) fn record(
     };
     let timing = Timing {
         session,
+        program: Some(program.to_string()),
         args: words.join(" "),
         started_at,
-        lock_acquired_at,
+        lock_acquired_at: None,
         admitted_at: Some(admitted_at),
         finished_at: Utc::now(),
         exit,
     };
     if let Err(err) = append(Path::new(&dir), &run, &timing) {
-        eprintln!("mike: could not record how long this cargo command took ({err})");
+        eprintln!("mike: could not record how long {program} took ({err})");
     }
 }
 

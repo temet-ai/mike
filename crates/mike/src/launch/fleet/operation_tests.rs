@@ -23,13 +23,100 @@ fn operation_matching_is_exact_and_unknown_commands_have_no_reuse() -> anyhow::R
     );
     def.check.command = "python3 -m unittest".into();
     assert!(!reusable(&def));
-    assert!(!def.execution.cargo);
-    assert!(!context(&def).contains("Cargo"));
+    assert!(!context(&def).contains("times your own runs"));
     assert!(validate(&def).is_empty());
     assert_eq!(adoption(&def)["check_declared"], true);
     assert_eq!(adoption(&def)["declared_operations"], 3);
-    assert_eq!(adoption(&def)["cargo_adapter"], false);
+    assert_eq!(adoption(&def)["timed_commands"], 0);
     Ok(())
+}
+
+#[test]
+fn a_stored_definition_with_retired_settings_parses_and_ignores_them() -> anyhow::Result<()> {
+    let stored = json!({"build_slots": 3, "execution": {"cargo": true, "operations": {}}});
+    let def = FleetDefinition::from_value(&stored).map_err(anyhow::Error::msg)?;
+    assert!(def.execution.timed_commands.is_empty());
+    assert!(def.execution.disabled_plugins.is_empty());
+    assert!(def.execution.strip_environment.is_empty());
+    assert!(validate(&def).is_empty());
+    assert_eq!(unread_warnings(&def).len(), 1);
+    assert_eq!(unread_warnings(&def)[0].item, "execution.cargo");
+    Ok(())
+}
+
+#[test]
+fn a_typo_in_an_execution_setting_warns_and_does_not_refuse() -> anyhow::Result<()> {
+    let def: FleetDefinition =
+        serde_json::from_value(json!({"execution": {"timed_comands": {"make": {}}}}))?;
+    assert!(def.execution.timed_commands.is_empty());
+    assert!(unread_warnings(&def)[0].problem.contains("`timed_comands`"));
+    Ok(())
+}
+
+#[test]
+fn a_timed_program_is_a_bare_name_and_agrees_on_shared_capacity() -> anyhow::Result<()> {
+    let def: FleetDefinition = serde_json::from_value(json!({"execution": {
+        "operations": {"a": {"command": "make all", "purpose": "builds",
+            "resources": [{"name": "build", "capacity": 2}]}},
+        "timed_commands": {
+            "make": {"resources": [{"name": "build", "capacity": 3}]},
+            "../evil": {},
+            "with space": {}
+        },
+        "strip_environment": ["BUILD_DIR", "MIKE_RUN_ID", "NOT VALID"],
+        "package_manifests": [{"file": "../manifest", "label": "unit"}]
+    }}))?;
+    let found = validate(&def);
+    for (item, text) in [
+        ("execution.timed_commands.../evil", "`../evil`"),
+        ("execution.timed_commands.with space", "`with space`"),
+        ("execution.timed_commands.make", "same capacity"),
+        ("execution.strip_environment", "`MIKE_RUN_ID`"),
+        ("execution.strip_environment", "`NOT VALID`"),
+        ("execution.package_manifests", "`../manifest`"),
+    ] {
+        assert!(
+            found
+                .iter()
+                .any(|p| p.item == item && p.problem.contains(text)),
+            "{item} {text}: {found:?}"
+        );
+    }
+    assert!(!found.iter().any(|p| p.problem.contains("BUILD_DIR")));
+    Ok(())
+}
+
+#[test]
+fn a_seat_is_told_what_the_project_times_and_backgrounds() -> anyhow::Result<()> {
+    let def: FleetDefinition = serde_json::from_value(json!({"execution": {
+        "timed_commands": {"make": {}},
+        "background_commands": ["make all"]
+    }}))?;
+    let told = context(&def);
+    assert!(told.contains("times your own runs of make"), "{told}");
+    assert!(told.contains("make all"), "{told}");
+    assert_eq!(adoption(&def)["timed_commands"], 1);
+    Ok(())
+}
+
+#[test]
+fn a_timed_command_covers_direct_and_wrapped_runs_of_its_subcommands() {
+    let timed = TimedCommand {
+        subcommands: vec!["check".into(), "test".into()],
+        through: vec!["scripts/cx".into()],
+        ..TimedCommand::default()
+    };
+    for command in [
+        "cargo check -p a",
+        "cd crates && cargo test 2>&1 | tail",
+        "scripts/cx check -p a",
+        "FOO=1 ./scripts/cx test",
+    ] {
+        assert!(timed.covers("cargo", command, &[]), "{command}");
+    }
+    for command in ["cargo fmt", "scripts/cx fmt", "make test", "git status"] {
+        assert!(!timed.covers("cargo", command, &[]), "{command}");
+    }
 }
 
 #[test]
@@ -54,14 +141,11 @@ fn invalid_operation_contracts_are_rejected() -> anyhow::Result<()> {
             "{text}: {found:?}"
         );
     }
-    assert!(
-        serde_json::from_value::<FleetDefinition>(json!({"execution": {"cargoo": true}})).is_err()
-    );
     Ok(())
 }
 
 #[test]
-fn gate_receipts_are_invalidated_by_environment_and_adapter_changes() -> anyhow::Result<()> {
+fn gate_receipts_are_invalidated_by_environment_and_strip_changes() -> anyhow::Result<()> {
     let mut def = declared()?;
     def.gate.command = "python3 -m unittest".into();
     let original = super::super::gate::ledger_for(&def, "run");
@@ -73,8 +157,22 @@ fn gate_receipts_are_invalidated_by_environment_and_adapter_changes() -> anyhow:
         .insert("MODE".into(), "changed".into());
     let changed = super::super::gate::ledger_for(&def, "run");
     assert_ne!(original, changed);
-    def.execution.cargo = true;
+    def.execution.strip_environment = vec!["BUILD_DIR".into()];
     assert_ne!(changed, super::super::gate::ledger_for(&def, "run"));
+    Ok(())
+}
+
+#[test]
+fn a_project_with_nothing_to_strip_keeps_the_ledger_it_had_before() -> anyhow::Result<()> {
+    let mut def = declared()?;
+    def.gate.command = "python3 -m unittest".into();
+    let operation = def.execution.operation(&def.gate.command);
+    let policy = json!([false, operation]).to_string();
+    let identity = super::super::check_state::command_state(&policy, &def.gate.command);
+    assert_eq!(
+        super::super::gate::ledger_for(&def, "run"),
+        format!("{}:{identity}", super::super::gate::ledger("run"))
+    );
     Ok(())
 }
 

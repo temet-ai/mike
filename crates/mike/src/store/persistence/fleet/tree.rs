@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use crate::launch::fleet::build_brake;
+use crate::launch::fleet::background_result;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -159,10 +159,14 @@ impl PersistHandle {
         .await?;
         let launched: Vec<i64> = rows
             .iter()
-            .filter(|r| build_brake::launched_in_background(r))
+            .filter(|r| background_result::launched_in_background(r))
             .map(|r| r.use_id)
             .collect();
         let ends = self.background_ends(&launched).await?;
-        Ok(build_brake::settle_background(rows, &ends, Utc::now()))
+        Ok(background_result::settle_background(
+            rows,
+            &ends,
+            Utc::now(),
+        ))
     }
 }

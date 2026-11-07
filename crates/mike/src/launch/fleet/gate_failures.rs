@@ -26,26 +26,26 @@ pub(super) fn inventory(output: &str) -> Vec<String> {
         pattern.replace_all(output, "")
     });
     let mut found = BTreeSet::new();
-    let mut cargo_list = false;
+    let mut in_failure_list = false;
     for raw in clean.lines() {
         let line = raw.trim();
         if line == "failures:" {
-            cargo_list = true;
+            in_failure_list = true;
             continue;
         }
         if let Some(failure) = marked(line) {
             found.insert(failure);
-        } else if cargo_list && raw.starts_with("    ") && cargo_name(line) {
+        } else if in_failure_list && raw.starts_with("    ") && test_name(line) {
             found.insert(format!("FAIL {line}"));
         } else if !line.is_empty() {
-            cargo_list = false;
+            in_failure_list = false;
         }
     }
     json_failures(&clean, &mut found);
     found.into_iter().collect()
 }
 
-fn cargo_name(line: &str) -> bool {
+fn test_name(line: &str) -> bool {
     !line.is_empty()
         && line
             .chars()

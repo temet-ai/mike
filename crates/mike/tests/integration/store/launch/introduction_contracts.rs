@@ -81,7 +81,7 @@ fn raw_capture_contract_preserves_output_access_without_proving_a_commit_or_test
     };
     assert_eq!(captured_result_validity(&row, None), None);
     assert_eq!(captured_result_validity(&row, Some(&[])), None);
-    let proof = from_rows(std::slice::from_ref(&row), Some(&[]), &[]);
+    let proof = from_rows(std::slice::from_ref(&row), Some(&[]));
     assert_eq!(proof.receipts[0].still_valid, None);
     assert_eq!(proof.receipts[0].full_output["find_use_id"], 1);
     assert!(proof.receipts[0].tool_verdict.contains("inspect output"));
@@ -114,7 +114,7 @@ fn bounded_handoff_pairs_each_command_excerpt_with_full_retrieval() -> anyhow::R
             is_error: None,
             content: Some(serde_json::json!({"text": "large captured output".repeat(1_000)})),
         };
-        let proof = from_rows(&vec![row; 200], Some(&[]), &[]);
+        let proof = from_rows(&vec![row; 200], Some(&[]));
         let body = mike::launch::fleet::test_seams::proof_handoff(&proof);
         assert!(body.len() < 12_000);
         assert!(!body.contains("large captured output"));

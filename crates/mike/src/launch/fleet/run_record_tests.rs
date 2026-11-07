@@ -4,7 +4,7 @@ use super::run_record::{
     GIT_READ, MEASURE_VERSION, difference, median, operation_pattern, summarise,
 };
 use crate::store::persistence::fleet::{
-    CargoMeasure, ForkMeasure, InterventionMeasure, MailPair, QuestionMeasure, ReportMeasure,
+    ForkMeasure, InterventionMeasure, MailPair, OperationMeasure, QuestionMeasure, ReportMeasure,
     RunMeasures, SeatMeasure, TimingMeasure, TokenMeasure,
 };
 
@@ -17,7 +17,7 @@ fn seat(name: &str, kind: &str, calls: i64, reads: i64, first_commit: Option<f64
         waiting_minutes: 2.0,
         tool_calls: calls,
         git_reads: reads,
-        cargo_commands: 1,
+        operation_commands: 1,
         minutes_to_first_commit: first_commit,
         calls_to_first_commit: first_commit.map(|_| 5),
         offered: vec!["Read".to_string(), "Bash".to_string()],
@@ -47,7 +47,7 @@ fn measures() -> RunMeasures {
             reached: 2,
             acknowledged: 1,
         }],
-        cargo: CargoMeasure {
+        operations: OperationMeasure {
             commands: 9,
             repeats: 3,
         },

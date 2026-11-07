@@ -6,10 +6,17 @@ use serde::{Deserialize, Serialize};
 use super::definition::FleetDefinition;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
 pub struct Execution {
-    pub cargo: bool,
     pub operations: BTreeMap<String, Operation>,
+    pub timed_commands: BTreeMap<String, TimedCommand>,
+    pub background_commands: Vec<String>,
+    pub strip_environment: Vec<String>,
+    pub disabled_plugins: Vec<String>,
+    pub build_directory_settings: Vec<String>,
+    pub package_manifests: Vec<PackageManifest>,
+    #[serde(flatten)]
+    pub unread: BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -126,7 +133,7 @@ pub fn adoption(def: &FleetDefinition) -> serde_json::Value {
         "declared_operations": def.execution.operations.len(),
         "check_declared": def.execution.operation(&def.check.command).is_some(),
         "gate_declared": def.execution.operation(&def.gate.command).is_some(),
-        "cargo_adapter": def.execution.cargo,
+        "timed_commands": def.execution.timed_commands.len(),
         "next_action": "Declare project-specific proof commands and route exact commands through fleet_check; wrapped and undeclared commands are outside bypass coverage."
     })
 }
@@ -162,14 +169,34 @@ pub fn context(def: &FleetDefinition) -> String {
         }
         lines.push(line);
     }
-    if def.execution.cargo {
-        lines.push("This project explicitly enables the Cargo adapter: Cargo policy and backgrounding apply. Use the project's declared cache and target-directory policy.".into());
+    if !def.execution.timed_commands.is_empty() {
+        let programs: Vec<&str> = def
+            .execution
+            .timed_commands
+            .keys()
+            .map(String::as_str)
+            .collect();
+        lines.push(format!(
+            "This project times your own runs of {} and queues them on the resources declared for them.",
+            programs.join(", ")
+        ));
+    }
+    if !def.execution.background_commands.is_empty() {
+        lines.push(format!(
+            "This project runs these in the background when you start them in the foreground: {}.",
+            def.execution.background_commands.join(", ")
+        ));
     }
     lines.join("\n")
 }
 
+#[path = "operation_settings.rs"]
+mod settings;
+pub use settings::{PackageManifest, TimedCommand};
+
 #[path = "operation_validation.rs"]
 mod validation;
+pub(crate) use validation::unread_warnings;
 pub(super) use validation::validate;
 
 #[cfg(test)]

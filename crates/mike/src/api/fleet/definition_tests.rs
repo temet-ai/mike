@@ -169,23 +169,11 @@ fn merged_names_a_top_level_item_with_the_wrong_type() {
 }
 
 #[test]
-fn merged_keeps_build_slots_and_refuses_a_count_outside_one_to_sixty_four() -> anyhow::Result<()> {
-    let (_, parsed) = merged(&json!({}), Some(&json!({"build_slots": 4})))?;
-    assert_eq!(parsed.build_slots, Some(4));
-    let (_, unset) = merged(&json!({}), None)?;
-    assert_eq!(unset.build_slots, None);
-    for wrong in [json!(0), json!(65)] {
-        let refused = merged(&json!({}), Some(&json!({"build_slots": wrong})));
-        assert!(
-            matches!(&refused, Err(DefinitionError::InvalidDefinition(m)) if m.contains("must be from 1 to 64")),
-            "{refused:?}"
-        );
-    }
-    let negative = merged(&json!({}), Some(&json!({"build_slots": -1})));
-    assert!(
-        matches!(&negative, Err(DefinitionError::InvalidDefinition(m)) if m.contains("build_slots")),
-        "{negative:?}"
-    );
+fn merged_accepts_a_stored_definition_carrying_retired_settings() -> anyhow::Result<()> {
+    let stored = json!({"build_slots": 65, "execution": {"cargo": true}});
+    let (kept, parsed) = merged(&stored, Some(&json!({"build_slots": -1})))?;
+    assert_eq!(kept["execution"]["cargo"], true);
+    assert!(parsed.execution.timed_commands.is_empty());
     Ok(())
 }
 

@@ -20,14 +20,10 @@ fn row(command: &str) -> TreeResultRow {
 }
 
 #[test]
-fn compile_checks_are_explicitly_not_test_proof() {
-    for command in [
-        "cargo check --all-targets",
-        "cargo test --no-run",
-        "cargo nextest run --no-run",
-    ] {
-        assert!(check_description(command, &[]).contains("no tests"));
-        let proof = from_rows(&[row(command)], Some(&[]), &[]);
+fn a_captured_command_is_never_read_as_test_proof() {
+    for command in ["cargo check --all-targets", "npm test", "pytest"] {
+        let proof = from_rows(&[row(command)], Some(&[]));
+        assert!(proof.receipts[0].kinds.is_empty());
         assert!(proof.body().contains("No currently valid tests run"));
     }
 }
@@ -35,7 +31,7 @@ fn compile_checks_are_explicitly_not_test_proof() {
 #[test]
 fn receipts_preserve_command_owner_and_full_output_access_without_claiming_commit_binding() {
     let result = row("cargo nextest run -p lib; cargo clippy -p lib");
-    let proof = from_rows(std::slice::from_ref(&result), Some(&[]), &[]);
+    let proof = from_rows(std::slice::from_ref(&result), Some(&[]));
     assert_eq!(
         proof.receipts[0].command,
         result.command.unwrap_or_default()
@@ -50,7 +46,6 @@ fn receipts_preserve_command_owner_and_full_output_access_without_claiming_commi
         true
     );
     assert_eq!(proof.receipts[0].seat.as_deref(), Some("predecessor-T1"));
-    assert_eq!(proof.receipts[0].kinds, ["tests", "clippy"]);
     assert!(proof.body().contains("Commit binding: unknown"));
     assert!(
         proof
@@ -66,7 +61,7 @@ fn changes_during_or_after_a_run_invalidate_receipts() {
             path: "src/lib.rs".into(),
             seen_at,
         }];
-        let proof = from_rows(&[row("cargo test")], Some(&changes), &[]);
+        let proof = from_rows(&[row("cargo test")], Some(&changes));
         assert_eq!(proof.receipts[0].still_valid, Some(false));
         assert_eq!(proof.receipts[0].paths_changed_since_started, 1);
         assert_eq!(
@@ -85,7 +80,7 @@ fn a_busy_shared_tree_does_not_copy_its_changed_paths_into_every_receipt() {
         })
         .collect();
     let rows: Vec<_> = (0..74).map(|_| row("cargo test")).collect();
-    let proof = from_rows(&rows, Some(&changes), &[]);
+    let proof = from_rows(&rows, Some(&changes));
     assert_eq!(proof.receipts[0].paths_changed_since_started, 2_000);
     let size = serde_json::to_string(&proof).map_or(usize::MAX, |text| text.len());
     assert!(size < 200_000, "{size} bytes for 74 receipts");
@@ -95,11 +90,11 @@ fn a_busy_shared_tree_does_not_copy_its_changed_paths_into_every_receipt() {
 fn unknown_history_running_and_failed_commands_never_hide_their_status() {
     let mut result = row("cargo test");
     result.is_error = Some(true);
-    let proof = from_rows(&[result.clone()], None, &[]);
+    let proof = from_rows(&[result.clone()], None);
     assert_eq!(proof.receipts[0].still_valid, None);
     assert_eq!(proof.receipts[0].tool_verdict, "failed");
     result.finished_at = None;
-    let proof = from_rows(&[result], Some(&[]), &[]);
+    let proof = from_rows(&[result], Some(&[]));
     assert_eq!(proof.receipts[0].still_valid, None);
     assert!(
         proof.receipts[0]
@@ -115,38 +110,15 @@ fn update_mode_runs_are_not_reusable_verification() {
         "cargo test -- --update",
         "INSTA_UPDATE=always cargo test",
     ] {
-        let proof = from_rows(&[row(command)], Some(&[]), &[]);
+        let proof = from_rows(&[row(command)], Some(&[]));
         assert!(proof.receipts[0].update_mode);
         assert_eq!(proof.receipts[0].still_valid, Some(false));
     }
 }
 
 #[test]
-fn quoted_command_mentions_have_no_inferred_proof_purpose() {
-    let proof = from_rows(
-        &[
-            row("echo 'cargo test'"),
-            row("gh issue create --body 'cargo nextest run -p lib'"),
-        ],
-        Some(&[]),
-        &[],
-    );
-    assert!(
-        proof
-            .receipts
-            .iter()
-            .all(|receipt| receipt.kinds.is_empty())
-    );
-}
-
-#[test]
-fn wrapped_commands_retain_full_command_and_are_classified() {
-    let proof = from_rows(
-        &[row("scripts/cargo-slot cargo clippy -p lib")],
-        Some(&[]),
-        &["scripts/cargo-slot".into()],
-    );
-    assert_eq!(proof.receipts[0].kinds, ["clippy"]);
+fn wrapped_commands_retain_full_command() {
+    let proof = from_rows(&[row("scripts/cargo-slot cargo clippy -p lib")], Some(&[]));
     assert_eq!(
         proof.receipts[0].command,
         "scripts/cargo-slot cargo clippy -p lib"
@@ -171,7 +143,7 @@ fn rework_receipts_include_predecessors_but_not_other_tasks() {
     let first = row("cargo nextest run -p lib");
     let mut other = row("cargo clippy -p other");
     other.seat = Some("worker-T10".into());
-    let mut proof = from_rows(&[first, other], Some(&[]), &[]);
+    let mut proof = from_rows(&[first, other], Some(&[]));
     proof.retain_task("T1");
     assert_eq!(proof.receipts.len(), 1);
     assert_eq!(proof.receipts[0].seat.as_deref(), Some("predecessor-T1"));
@@ -181,21 +153,10 @@ fn rework_receipts_include_predecessors_but_not_other_tasks() {
 fn missing_session_retains_full_output_instead_of_unusable_link() {
     let mut result = row("cargo test");
     result.session_uuid = None;
-    let proof = from_rows(std::slice::from_ref(&result), Some(&[]), &[]);
+    let proof = from_rows(std::slice::from_ref(&result), Some(&[]));
     assert_eq!(
         proof.receipts[0].full_output["captured_output"],
         result.content.unwrap_or_default()
-    );
-}
-
-#[test]
-fn command_help_does_not_count_as_a_test_run() {
-    let proof = from_rows(&[row("cargo test --help")], Some(&[]), &[]);
-    assert!(
-        proof
-            .receipts
-            .iter()
-            .all(|receipt| receipt.kinds.is_empty())
     );
 }
 
@@ -204,7 +165,7 @@ fn successor_handoff_bounds_receipts_and_never_embeds_captured_output() {
     let mut result = row(&format!("cargo test {}", "界".repeat(1_000)));
     result.session_uuid = None;
     result.content = Some(json!({"text": "large captured output".repeat(1_000)}));
-    let mut proof = from_rows(&vec![result; 200], Some(&[]), &[]);
+    let mut proof = from_rows(&vec![result; 200], Some(&[]));
     proof.unavailable = Some("unavailable details".repeat(1_000));
     let handoff = proof.handoff_body();
     assert!(handoff.len() < 12_000, "{} bytes", handoff.len());
@@ -223,7 +184,7 @@ fn successor_handoff_bounds_receipts_and_never_embeds_captured_output() {
 fn empty_or_missing_change_history_never_proves_a_captured_result_reusable() {
     let empty: &[ChangedPathRow] = &[];
     for history in [None, Some(empty)] {
-        let proof = from_rows(&[row("cargo test")], history, &[]);
+        let proof = from_rows(&[row("cargo test")], history);
         let receipt = &proof.receipts[0];
         assert_eq!(receipt.still_valid, None);
         assert_eq!(
@@ -237,7 +198,7 @@ fn empty_or_missing_change_history_never_proves_a_captured_result_reusable() {
 
 #[test]
 fn update_mode_invalidates_even_when_change_capture_is_unavailable() {
-    let proof = from_rows(&[row("GG_TS_UPDATE=1 cargo nextest run")], None, &[]);
+    let proof = from_rows(&[row("GG_TS_UPDATE=1 cargo nextest run")], None);
     assert_eq!(proof.receipts[0].still_valid, Some(false));
     assert!(proof.receipts[0].update_mode);
 }

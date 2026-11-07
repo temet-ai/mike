@@ -56,14 +56,14 @@ mod feature_toggles_service;
 #[path = "integration/filter_service.rs"]
 mod filter_service;
 #[cfg(unix)]
-#[path = "integration/fleet_cargo_policy.rs"]
-mod fleet_cargo_policy;
 #[path = "integration/fleet_criterion_paths.rs"]
 mod fleet_criterion_paths;
 #[path = "integration/fleet_environment.rs"]
 mod fleet_environment;
 #[path = "integration/fleet_run_record.rs"]
 mod fleet_run_record;
+#[path = "integration/fleet_timed_command.rs"]
+mod fleet_timed_command;
 #[path = "integration/guard_evidence.rs"]
 mod guard_evidence;
 #[path = "integration/guard_label_live_passes.rs"]

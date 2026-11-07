@@ -298,7 +298,7 @@ mod tests {
     fn def() -> FleetDefinition {
         changed(json!({
             "repo": "/srv/project",
-            "check": {"command": "cargo check --workspace --all-targets", "paths": ["crates"]},
+            "check": {"command": "builder check --workspace --all-targets", "paths": ["crates"]},
             "tasks": {
                 "P1": {"seat": "db-dev-P1", "session": Uuid::from_u128(11).to_string()},
                 "P2": {"seat": "frontend-developer-P2", "session": Uuid::from_u128(12).to_string()}
@@ -325,21 +325,21 @@ mod tests {
                 "db-dev-P1",
                 "2026-10-01T12:48:39Z",
                 true,
-                "python3 - <<'EOF'\nopen('a.rs','w')\nEOF\ncargo check -p sim 2>&1 | tail -5",
+                "python3 - <<'EOF'\nopen('a.rs','w')\nEOF\nbuilder check -p sim 2>&1 | tail -5",
             ),
             command(
                 2,
                 "frontend-developer-P2",
                 "2026-10-01T12:48:40Z",
                 true,
-                "cargo nextest run -p sim",
+                "builder nextest run -p sim",
             ),
             command(
                 3,
                 "acceptance",
                 "2026-10-01T12:48:41Z",
                 true,
-                "cargo check --workspace",
+                "builder check --workspace",
             ),
         ];
         let told = ran_the_check_itself(&def(), "fleet-id", &commands);
@@ -348,7 +348,7 @@ mod tests {
         assert!(
             told[0]
                 .body
-                .starts_with("[mike check] You ran `cargo check -p sim` yourself.")
+                .starts_with("[mike check] You ran `builder check -p sim` yourself.")
         );
         assert!(
             told[0]

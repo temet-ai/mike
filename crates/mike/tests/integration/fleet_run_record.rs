@@ -1,7 +1,7 @@
 use mike::launch::fleet::run_record::summarise;
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::fleet::{
-    CargoMeasure, ForkMeasure, InterventionMeasure, NewFleet, QuestionMeasure, ReportMeasure,
+    ForkMeasure, InterventionMeasure, NewFleet, OperationMeasure, QuestionMeasure, ReportMeasure,
     RunMeasures, RunPatterns, TimingMeasure,
 };
 use serde_json::json;
@@ -14,7 +14,7 @@ fn measures(time_to_done: f64) -> RunMeasures {
         seats: Vec::new(),
         reports: ReportMeasure::default(),
         mail: Vec::new(),
-        cargo: CargoMeasure::default(),
+        operations: OperationMeasure::default(),
         questions: QuestionMeasure::default(),
         forks: ForkMeasure::default(),
         timing: TimingMeasure {
@@ -96,7 +96,7 @@ async fn a_run_with_no_launches_measures_zero_without_failing() -> anyhow::Resul
     let handle = PersistHandle::connect(&db.database_url).await?;
     let run_id = format!("fleet-run-{}", Uuid::new_v4());
     let patterns = RunPatterns {
-        cargo: "a^",
+        operations: "a^",
         git_read: "a^",
         git_write: "a^",
     };

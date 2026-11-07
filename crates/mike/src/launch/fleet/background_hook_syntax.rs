@@ -95,7 +95,21 @@ fn skip_environment(words: &mut std::iter::Peekable<std::str::SplitWhitespace<'_
     }
 }
 
-fn invocation(segment: &str) -> bool {
+fn names_program(word: &str, wanted: &str) -> bool {
+    word == wanted || word.rsplit('/').next() == Some(wanted)
+}
+
+fn declared_by(words: &[&str], declared: &str) -> bool {
+    let wanted: Vec<&str> = declared.split_whitespace().collect();
+    match (words, wanted.as_slice()) {
+        ([program, rest @ ..], [named, subcommand @ ..]) => {
+            names_program(program, named) && rest.starts_with(subcommand)
+        }
+        _ => false,
+    }
+}
+
+fn invocation(segment: &str, declared: &[String]) -> bool {
     let mut words = segment.split_whitespace().peekable();
     skip_environment(&mut words);
     if words.peek() == Some(&"timeout") {
@@ -107,23 +121,11 @@ fn invocation(segment: &str) -> bool {
     if words.peek() == Some(&"command") {
         words.next();
     }
-    if words
-        .next()
-        .is_none_or(|word| word.rsplit('/').next() != Some("cargo"))
-    {
-        return false;
-    }
-    if words.peek().is_some_and(|word| word.starts_with('+')) {
-        words.next();
-    }
-    match words.next() {
-        Some("build" | "check" | "test") => true,
-        Some("nextest") => words.next() == Some("run"),
-        _ => false,
-    }
+    let words: Vec<&str> = words.collect();
+    declared.iter().any(|one| declared_by(&words, one))
 }
 
-pub(super) fn cargo_build(command: &str) -> bool {
+pub(super) fn declared_command(command: &str, declared: &[String]) -> bool {
     let Some(parts) = segments(command) else {
         return false;
     };
@@ -138,5 +140,5 @@ pub(super) fn cargo_build(command: &str) -> bool {
     }) {
         return false;
     }
-    parts.iter().any(|part| invocation(part))
+    parts.iter().any(|part| invocation(part, declared))
 }

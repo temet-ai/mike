@@ -4,7 +4,6 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 use super::definition::FleetDefinition;
-use super::work_of::work_through;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::{ChangedPathRow, TreeResultRow};
 
@@ -39,42 +38,6 @@ pub struct ProofReceipt {
     pub full_output: Value,
 }
 
-fn kind(work: &str) -> Option<&'static str> {
-    let words: Vec<_> = work.split_whitespace().collect();
-    if words
-        .iter()
-        .any(|word| matches!(*word, "--help" | "-h" | "--version"))
-    {
-        return None;
-    }
-    match words.as_slice() {
-        ["cargo", "check" | "build", ..] => Some("compile only (no tests)"),
-        ["cargo", "test", rest @ ..] | ["cargo", "nextest", "run", rest @ ..]
-            if rest.contains(&"--no-run") || rest.contains(&"--list") =>
-        {
-            Some("compile only (no tests)")
-        }
-        ["cargo", "test", ..] | ["cargo", "nextest", "run", ..] => Some("tests"),
-        ["cargo", "clippy", ..] => Some("clippy"),
-        ["sb-test", ..] | ["pytest", ..] | ["vitest", ..] => Some("tests"),
-        ["make", target, ..] if target.starts_with("test") => Some("tests"),
-        _ => None,
-    }
-}
-
-pub fn check_description(command: &str, wrappers: &[String]) -> String {
-    let work = work_through(command, wrappers);
-    if !work.is_empty()
-        && work
-            .iter()
-            .all(|w| kind(w) == Some("compile only (no tests)"))
-    {
-        format!("compile check (no tests): {command}")
-    } else {
-        format!("configured check, not independent test proof: {command}")
-    }
-}
-
 fn updates(command: &str) -> bool {
     command.split_whitespace().any(|word| {
         word == "--update"
@@ -100,16 +63,8 @@ pub fn captured_result_validity(
     (update_mode || invalidated).then_some(false)
 }
 
-fn receipt(
-    row: &TreeResultRow,
-    changed: Option<&[ChangedPathRow]>,
-    wrappers: &[String],
-) -> Option<ProofReceipt> {
+fn receipt(row: &TreeResultRow, changed: Option<&[ChangedPathRow]>) -> Option<ProofReceipt> {
     let command = row.command.as_deref()?;
-    let kinds: Vec<String> = work_through(command, wrappers)
-        .iter()
-        .filter_map(|work| kind(work).map(str::to_string))
-        .collect();
     let paths_changed_since_started = changed
         .unwrap_or_default()
         .iter()
@@ -130,7 +85,7 @@ fn receipt(
         session: row.session_uuid,
         seat: row.seat.clone(),
         command: command.to_string(),
-        kinds,
+        kinds: Vec::new(),
         started_at: row.started_at,
         finished_at: row.finished_at,
         tool_verdict: tool_verdict.to_string(),
@@ -187,17 +142,13 @@ pub async fn starting_prompt(
     )
 }
 
-pub fn from_rows(
-    rows: &[TreeResultRow],
-    changed: Option<&[ChangedPathRow]>,
-    wrappers: &[String],
-) -> ReportProof {
+pub fn from_rows(rows: &[TreeResultRow], changed: Option<&[ChangedPathRow]>) -> ReportProof {
     ReportProof {
         row_limit: ROWS_READ,
         limit_reached: rows.len() >= ROWS_READ as usize,
         receipts: rows
             .iter()
-            .filter_map(|row| receipt(row, changed, wrappers))
+            .filter_map(|row| receipt(row, changed))
             .collect(),
         ..ReportProof::default()
     }
@@ -225,7 +176,7 @@ pub async fn collect(persist: &PersistHandle, def: &FleetDefinition, run: &str) 
         }
         None => Ok(Vec::new()),
     };
-    let mut proof = from_rows(&rows, changed.as_deref().ok(), &def.wrappers);
+    let mut proof = from_rows(&rows, changed.as_deref().ok());
     for receipt in &mut proof.receipts {
         receipt.kinds = match def.execution.named(&receipt.command) {
             Some((name, op)) => vec![format!("declared operation {name}: {}", op.purpose)],
@@ -285,15 +236,7 @@ impl ReportProof {
         if !self.rulings.is_empty() || self.rulings_unavailable.is_some() {
             body.push_str("\nExecutable rulings are separate: only the exact acceptance-owned version run in mike's verified clean checkout can pass. Missing, failed, running or unverifiable required ruling proof blocks acceptance.");
         }
-        for wanted in ["tests", "clippy"] {
-            if !self
-                .receipts
-                .iter()
-                .any(|r| r.kinds.iter().any(|k| k == wanted) && r.still_valid == Some(true))
-            {
-                body.push_str(&format!("\nNo currently valid {wanted} run found in this captured window; proof at the reported commit is unknown."));
-            }
-        }
+        body.push_str("\nNo currently valid tests run found in this captured window; proof at the reported commit is unknown.");
         if let Ok(json) = serde_json::to_string(self) {
             body.push_str(
                 "\nEach receipt's full_output gives the retrieval call: advance offset through the session until find_use_id; input.command and result.content are the complete captured command and output. Each receipt's changed_paths gives the list_fleet_changes call that returns every path changed in the checkout from the command's start, with its seat and task.\nCaptured receipts, full-output retrieval references and query bounds:\n",

@@ -369,12 +369,15 @@ fn crate_manifest(root: &std::path::Path, dir: &str) -> anyhow::Result<()> {
 }
 
 #[test]
-fn two_tasks_in_one_cargo_package_get_a_warning() -> anyhow::Result<()> {
+fn two_tasks_in_one_declared_package_get_a_warning() -> anyhow::Result<()> {
     let root = tempfile::tempdir()?;
     crate_manifest(root.path(), "crates/a")?;
     crate_manifest(root.path(), "crates/b")?;
     let def = changed(json!({
         "repo": root.path().to_string_lossy(),
+        "execution": {"package_manifests": [
+            {"file": "Cargo.toml", "contains": "[package]", "label": "Cargo package"}
+        ]},
         "tasks": {
             "P1": {"files": ["crates/a/src/one.rs"]},
             "P2": {"files": ["crates/a/src/two/"], "new_files": ["crates/b/src/new.rs"]},
@@ -385,6 +388,21 @@ fn two_tasks_in_one_cargo_package_get_a_warning() -> anyhow::Result<()> {
     assert_eq!(found.len(), 1, "{found:?}");
     assert!(found[0].problem.contains("tasks P1, P2"));
     assert!(found[0].problem.contains("Cargo package `crates/a`"));
+    Ok(())
+}
+
+#[test]
+fn a_manifest_no_project_declared_makes_no_unit() -> anyhow::Result<()> {
+    let root = tempfile::tempdir()?;
+    crate_manifest(root.path(), "crates/a")?;
+    let def = changed(json!({
+        "repo": root.path().to_string_lossy(),
+        "tasks": {
+            "P1": {"files": ["crates/a/src/one.rs"]},
+            "P2": {"files": ["crates/a/src/two.rs"]}
+        }
+    }));
+    assert!(super::compile_unit_warnings(&def).is_empty());
     Ok(())
 }
 

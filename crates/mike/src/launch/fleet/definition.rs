@@ -30,7 +30,6 @@ pub struct FleetDefinition {
     pub template_limit_tokens: Option<i64>,
     pub seat_settings: Option<Value>,
     pub wrappers: Vec<String>,
-    pub build_slots: Option<usize>,
     pub execution: super::operation::Execution,
     pub briefs: BriefsDefinition,
     pub staffing: StaffingDefinition,

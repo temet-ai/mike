@@ -209,13 +209,12 @@ async fn spawn(context: &Context, command: &Command) -> Result<group::ChildGroup
         .stderr(std::process::Stdio::null())
         .kill_on_drop(true)
         .process_group(0);
-    if context.cargo {
-        process.env_remove("CARGO_TARGET_DIR");
+    for name in &context.strip_environment {
+        process.env_remove(name);
     }
     if let Some(operation) = &context.operation {
         process.envs(&operation.environment);
     }
-    super::cargo_policy::strip_managed(process.as_std_mut(), &command.slot)?;
     let child = process
         .spawn()
         .map_err(|error| format!("{} could not start: {error}", command.budget.1))?;

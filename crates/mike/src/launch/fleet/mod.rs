@@ -3,24 +3,14 @@ pub(crate) mod acceptance_artifacts;
 pub(crate) mod acceptance_register;
 #[cfg(test)]
 mod acceptance_tests;
+pub mod background_result;
 pub mod brief_delivery;
 pub mod brief_notes;
 pub mod brief_notes_sync;
 pub mod brief_version;
 pub(crate) mod browser_guard;
-pub(crate) mod cargo_policy;
-pub mod operation;
-mod operation_admission;
-pub mod operation_profile;
-#[cfg(test)]
-mod operation_runtime_tests;
-mod operation_timing;
-pub(crate) mod seat_helpers;
-pub use cargo_policy::dispatch as cargo_policy_dispatch;
-pub mod build_brake;
-mod build_lock;
-mod build_slot;
 mod build_timing;
+mod build_waits;
 pub mod bundle;
 pub mod carry;
 pub mod check;
@@ -71,6 +61,12 @@ pub mod introduce;
 pub mod issue_close;
 pub mod leaves;
 pub mod locate;
+pub mod operation;
+mod operation_admission;
+pub mod operation_profile;
+#[cfg(test)]
+mod operation_runtime_tests;
+mod operation_timing;
 pub mod plan;
 mod plan_briefs;
 pub mod problems;
@@ -97,6 +93,7 @@ pub mod ruling_notice;
 pub mod ruling_proof;
 pub mod run_record;
 mod seat;
+pub(crate) mod seat_helpers;
 pub(crate) mod seat_settings;
 pub mod seated;
 mod shared_tree;
@@ -119,6 +116,7 @@ pub mod tell_digest;
 pub mod tell_reference;
 mod tell_tripwires;
 mod tick;
+mod timed_command;
 pub mod told;
 mod tool_examples;
 mod wake;
@@ -127,11 +125,11 @@ pub mod watch;
 pub mod work_of;
 
 #[cfg(test)]
+mod background_result_tests;
+#[cfg(test)]
 mod brief_delivery_tests;
 #[cfg(test)]
 mod brief_notes_tests;
-#[cfg(test)]
-mod build_brake_tests;
 #[cfg(test)]
 mod carry_tests;
 #[cfg(test)]
@@ -171,10 +169,10 @@ mod seated_tests;
 #[cfg(test)]
 mod tests;
 
-pub use build_slot::run as build_slot;
-pub use seat_settings::cargo_background::run as cargo_background_hook;
+pub use seat_settings::background_hook::run as background_hook;
 pub use seat_settings::receipt_hook::run as receipt_hook;
 pub(crate) use seat_settings::{PROFILE_ENV, profile_for};
+pub use timed_command::run as timed_run;
 
 pub use checks::{Missing, check_definition};
 pub use command::{FleetArgs, FleetCommand, run};

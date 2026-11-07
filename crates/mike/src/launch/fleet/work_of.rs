@@ -240,20 +240,20 @@ mod tests {
 
     #[test]
     fn a_command_through_a_wrapper_is_told_from_one_that_only_names_it() {
-        let wrappers = vec!["scripts/cargo-slot".to_string()];
+        let wrappers = vec!["scripts/builder-slot".to_string()];
         assert!(through_wrapper(
-            "cd /repo && scripts/cargo-slot cargo check -p sim 2>&1 | tail",
+            "cd /repo && scripts/builder-slot builder check -p sim 2>&1 | tail",
             &wrappers
         ));
         assert!(through_wrapper(
-            "FOO=1 /repo/scripts/cargo-slot cargo test",
+            "FOO=1 /repo/scripts/builder-slot builder test",
             &wrappers
         ));
         assert!(!through_wrapper(
-            "cat scripts/cargo-slot; cargo check",
+            "cat scripts/builder-slot; builder check",
             &wrappers
         ));
-        assert!(!through_wrapper("cargo check", &[]));
+        assert!(!through_wrapper("builder check", &[]));
     }
 
     #[test]
@@ -262,16 +262,16 @@ mod tests {
             "python3 - <<'EOF'
 open('a.rs','w')
 EOF
-cargo check -p sim",
-            "sed -i 's/a/b/' x.rs && cargo check",
-            "mv a.rs b.rs; cargo check",
-            "python3 -c 'open(1)' && cargo check",
+builder check -p sim",
+            "sed -i 's/a/b/' x.rs && builder check",
+            "mv a.rs b.rs; builder check",
+            "python3 -c 'open(1)' && builder check",
         ] {
             assert!(edits_files(command), "{command}");
         }
         for command in [
-            "cd /repo && cargo check -p sim 2>&1 | tail -5",
-            "cargo nextest run -p sim > /tmp/out.log 2>&1; sed -n 1,5p /tmp/out.log",
+            "cd /repo && builder check -p sim 2>&1 | tail -5",
+            "builder nextest run -p sim > /tmp/out.log 2>&1; sed -n 1,5p /tmp/out.log",
             "python3 scripts/build.py --all",
         ] {
             assert!(!edits_files(command), "{command}");
@@ -293,8 +293,10 @@ cargo check -p sim",
             vec!["scripts/cx check -p mike --lib"]
         );
         assert_eq!(
-            work_of("RUST_LOG=debug  cargo   test -p core > /tmp/out.log 2>&1; tail /tmp/out.log"),
-            vec!["cargo test -p core"]
+            work_of(
+                "RUST_LOG=debug  builder   test -p core > /tmp/out.log 2>&1; tail /tmp/out.log"
+            ),
+            vec!["builder test -p core"]
         );
         assert_eq!(
             work_of("npm run build && npm test"),
@@ -326,9 +328,9 @@ cargo check -p sim",
     fn a_pattern_in_quotes_is_not_cut_into_programs() {
         assert_eq!(
             work_of(
-                "cargo nextest run -p sim -E 'test(/telling::/)' 2>&1 | grep -E \"error|left|right|Summary\""
+                "builder nextest run -p sim -E 'test(/telling::/)' 2>&1 | grep -E \"error|left|right|Summary\""
             ),
-            vec!["cargo nextest run -p sim -E 'test(/telling::/)'"]
+            vec!["builder nextest run -p sim -E 'test(/telling::/)'"]
         );
         assert!(work_of("until grep -q 'Summary\\|error' out.log; do sleep 5; done").is_empty());
         assert!(work_of("sed -n 1,19p tests/it/core/a.rs; break").is_empty());
@@ -338,21 +340,21 @@ cargo check -p sim",
     #[test]
     fn work_inside_a_loop_or_after_an_inline_file_is_still_work() {
         assert_eq!(
-            work_of("for i in 1 2 3; do cargo nextest run -p sim; done"),
-            vec!["cargo nextest run -p sim"]
+            work_of("for i in 1 2 3; do builder nextest run -p sim; done"),
+            vec!["builder nextest run -p sim"]
         );
         assert_eq!(
-            work_of("if ! cargo check -p sim; then echo no; fi"),
-            vec!["cargo check -p sim"]
+            work_of("if ! builder check -p sim; then echo no; fi"),
+            vec!["builder check -p sim"]
         );
         assert_eq!(
             work_of(
-                "python3 - <<'EOF'\nopen('a.rs', 'w').write('x')\nEOF\ncargo check -p sim 2>&1 | tail -5"
+                "python3 - <<'EOF'\nopen('a.rs', 'w').write('x')\nEOF\nbuilder check -p sim 2>&1 | tail -5"
             ),
-            vec!["cargo check -p sim"]
+            vec!["builder check -p sim"]
         );
         assert_eq!(
-            work_of("cat > a.rs <<EOF\nfn main() { cargo(); }\nEOF\n"),
+            work_of("cat > a.rs <<EOF\nfn main() { builder(); }\nEOF\n"),
             Vec::<String>::new()
         );
     }
@@ -380,7 +382,7 @@ cargo check -p sim",
     #[test]
     fn a_command_that_only_writes_a_file_with_a_heredoc_is_not_work() {
         for command in [
-            "gh issue comment 5 --body-file - <<'EOF'\nthe cargo check passed\nEOF",
+            "gh issue comment 5 --body-file - <<'EOF'\nthe builder check passed\nEOF",
             "scripts/render --out a.md <<EOF\nmake test\nEOF\n",
             "tee notes.md <<'EOF'\nrun make test\nEOF",
         ] {

@@ -1,10 +1,8 @@
-use std::ffi::OsString;
-
 use chrono::{DateTime, Duration, Utc};
 use serde_json::json;
 use uuid::Uuid;
 
-use super::{BuildWaits, add_to_record, build_waits, held, profile_directory};
+use super::{BuildWaits, add_to_record, build_waits};
 use crate::launch::fleet::build_timing::Timing;
 
 fn at(minute: i64) -> DateTime<Utc> {
@@ -15,6 +13,7 @@ fn at(minute: i64) -> DateTime<Utc> {
 fn a_command_splits_into_lock_wait_unit_wait_and_compile_time() {
     let waited = Timing {
         session: Uuid::nil(),
+        program: None,
         args: "test -p mike --lib launch".into(),
         started_at: at(0),
         lock_acquired_at: Some(at(9)),
@@ -43,41 +42,4 @@ fn a_command_splits_into_lock_wait_unit_wait_and_compile_time() {
     assert_eq!(record["fault_minutes"]["resource_wait"], json!(12.0));
     assert_eq!(record["fault_minutes"]["total"], json!(13.5));
     assert_eq!(record["build_waits"]["lock_wait_minutes"], json!(9.0));
-}
-
-fn args(words: &[&str]) -> Vec<OsString> {
-    words.iter().map(OsString::from).collect()
-}
-
-#[test]
-fn the_profile_names_the_build_directory_cargo_locks() {
-    assert_eq!(profile_directory(&args(&["test", "-p", "mike"])), "debug");
-    assert_eq!(profile_directory(&args(&["build", "--release"])), "release");
-    assert_eq!(
-        profile_directory(&args(&["nextest", "run", "--profile", "ci"])),
-        "ci"
-    );
-    assert_eq!(
-        profile_directory(&args(&["build", "--profile=dev"])),
-        "debug"
-    );
-    assert_eq!(
-        profile_directory(&args(&["test", "--", "--release"])),
-        "debug"
-    );
-}
-
-#[test]
-fn a_lock_another_process_holds_is_seen_and_a_free_or_missing_one_is_not() -> anyhow::Result<()> {
-    let root = tempfile::tempdir()?;
-    assert!(!held(root.path()));
-    let lock = std::fs::File::create(root.path().join(".cargo-build-lock"))?;
-    assert!(!held(root.path()));
-    let holder = std::fs::File::open(root.path().join(".cargo-build-lock"))?;
-    holder.lock()?;
-    assert!(held(root.path()));
-    holder.unlock()?;
-    assert!(!held(root.path()));
-    drop(lock);
-    Ok(())
 }

@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::checks::{Missing, normal};
 use super::definition::{FleetDefinition, TaskDefinition};
+use super::operation::PackageManifest;
 
 type Overlap = (String, String, String);
 
@@ -178,20 +179,32 @@ fn done_path(task: &TaskDefinition, id: &str, item: &str, path: &str, found: &mu
     }
 }
 
-fn manifest_unit(dir: &std::path::Path, root: &std::path::Path) -> Option<&'static str> {
-    let cargo = std::fs::read_to_string(dir.join("Cargo.toml")).ok();
-    if cargo.is_some_and(|text| text.contains("[package]")) {
-        return Some("Cargo package");
+fn manifest_unit(
+    dir: &std::path::Path,
+    root: &std::path::Path,
+    manifests: &[PackageManifest],
+) -> Option<String> {
+    let declared = manifests.iter().find(|manifest| {
+        std::fs::read_to_string(dir.join(&manifest.file))
+            .is_ok_and(|text| text.contains(&manifest.contains))
+    });
+    if let Some(manifest) = declared {
+        return Some(manifest.label.clone());
     }
     let package = std::fs::read_to_string(dir.join("package.json")).ok()?;
-    (dir != root || !package.contains("\"workspaces\"")).then_some("package.json workspace member")
+    (dir != root || !package.contains("\"workspaces\""))
+        .then(|| "package.json workspace member".to_string())
 }
 
-fn compile_unit(root: &std::path::Path, path: &str) -> Option<(String, &'static str)> {
+fn compile_unit(
+    root: &std::path::Path,
+    path: &str,
+    manifests: &[PackageManifest],
+) -> Option<(String, String)> {
     let mut dir = root.join(normal(path));
     while dir.starts_with(root) {
         if dir.is_dir()
-            && let Some(kind) = manifest_unit(&dir, root)
+            && let Some(kind) = manifest_unit(&dir, root, manifests)
         {
             let relative = dir.strip_prefix(root).ok()?.to_string_lossy().to_string();
             return Some((
@@ -212,10 +225,11 @@ fn compile_unit(root: &std::path::Path, path: &str) -> Option<(String, &'static 
 
 pub fn compile_unit_warnings(def: &FleetDefinition) -> Vec<Missing> {
     let root = std::path::Path::new(&def.repo);
-    let mut units: BTreeMap<(String, &'static str), BTreeSet<&str>> = BTreeMap::new();
+    let manifests = &def.execution.package_manifests;
+    let mut units: BTreeMap<(String, String), BTreeSet<&str>> = BTreeMap::new();
     for (id, task) in def.tasks.iter() {
         for path in task.files.iter().chain(&task.new_files) {
-            if let Some(unit) = compile_unit(root, path) {
+            if let Some(unit) = compile_unit(root, path, manifests) {
                 units.entry(unit).or_default().insert(id.as_str());
             }
         }

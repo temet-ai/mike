@@ -368,10 +368,7 @@ mod tests {
             .and_then(|i| args.get(i + 1))
             .and_then(|text| serde_json::from_str(text).ok())
             .unwrap_or(Value::Null);
-        assert_eq!(
-            launched["enabledPlugins"]["rust-analyzer-lsp@claude-plugins-official"],
-            Value::Null
-        );
+        assert_eq!(launched["enabledPlugins"], Value::Null);
         assert_eq!(launched["env"]["EXTRA"], json!("1"));
     }
 
@@ -455,10 +452,7 @@ mod tests {
             .and_then(|i| args.get(i + 1))
             .ok_or_else(|| anyhow::anyhow!("no --settings value in {args:?}"))?;
         let settings: Value = serde_json::from_str(text)?;
-        assert_eq!(
-            settings["enabledPlugins"]["rust-analyzer-lsp@claude-plugins-official"],
-            Value::Null
-        );
+        assert_eq!(settings["enabledPlugins"], Value::Null);
         assert!(
             settings["env"]["TMPDIR"]
                 .as_str()

@@ -205,10 +205,10 @@ pub fn summarise(m: &RunMeasures) -> Value {
         "worker_tool_calls": worker_calls,
         "worker_git_reads": worker_reads,
         "git_reads_per_100_calls": per_100(worker_reads, worker_calls),
-        "operation_commands": m.cargo.commands,
-        "operation_repeats_across_seats": m.cargo.repeats,
-        "direct_operation_bypasses": m.cargo.commands,
-        "operation_adoption_action": if m.cargo.commands > 0 { "Route exact declared commands through fleet_check to share admission, completion and eligible receipts." } else { "No exact declared operation bypass observed; wrapped or undeclared commands are outside this measure." },
+        "operation_commands": m.operations.commands,
+        "operation_repeats_across_seats": m.operations.repeats,
+        "direct_operation_bypasses": m.operations.commands,
+        "operation_adoption_action": if m.operations.commands > 0 { "Route exact declared commands through fleet_check to share admission, completion and eligible receipts." } else { "No exact declared operation bypass observed; wrapped or undeclared commands are outside this measure." },
         "operation_coverage": "exact declared commands observed in session tools; managed receipt executions are recorded separately in tree_checks",
         "questions_asked": m.questions.asked,
         "questions_answered": m.questions.answered,
@@ -227,16 +227,16 @@ async fn measured_document(
     run_id: &str,
 ) -> Result<Value, PersistError> {
     let def = super::definition::FleetDefinition::from_value(&row.definition).unwrap_or_default();
-    let cargo = operation_pattern(&def);
+    let operations = operation_pattern(&def);
     let patterns = RunPatterns {
-        cargo: &cargo,
+        operations: &operations,
         git_read: GIT_READ,
         git_write: GIT_WRITE,
     };
     let measures = persist.run_measures(run_id, patterns).await?;
     let mut document = summarise(&measures);
     let timings = super::build_timing::read_run(&super::seat_settings::timings_dir(&def), run_id);
-    super::build_lock::add_to_record(&mut document, super::build_lock::build_waits(&timings));
+    super::build_waits::add_to_record(&mut document, super::build_waits::build_waits(&timings));
     Ok(document)
 }
 

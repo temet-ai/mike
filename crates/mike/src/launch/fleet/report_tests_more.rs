@@ -66,7 +66,7 @@ fn acceptance_receipt_mail_is_bounded_and_points_to_durable_note() {
         seat: Some("db-dev-P1".into()),
         session_uuid: Some(id(WORKER)),
         command: Some(format!(
-            "cargo test {}",
+            "builder test {}",
             "large-private-test-name".repeat(1_000)
         )),
         started_at: Some(at(1)),
@@ -74,7 +74,7 @@ fn acceptance_receipt_mail_is_bounded_and_points_to_durable_note() {
         is_error: Some(false),
         content: None,
     };
-    let mut proof = crate::launch::fleet::report_proof::from_rows(&[row], Some(&[]), &[]);
+    let mut proof = crate::launch::fleet::report_proof::from_rows(&[row], Some(&[]));
     proof.limit_reached = true;
     proof.unavailable = Some("history unavailable".repeat(1_000));
     let facts = CommitFacts {
@@ -82,7 +82,7 @@ fn acceptance_receipt_mail_is_bounded_and_points_to_durable_note() {
         check: CHECK_NOT_YET.into(),
         checked_after_last_change: None,
         brief_version: None,
-        check_command: "cargo check".into(),
+        check_command: "builder check".into(),
         proof,
     };
     let text = acceptance_mail(

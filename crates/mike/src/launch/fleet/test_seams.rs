@@ -22,7 +22,6 @@ pub fn prepared_seat_settings(
     std::fs::create_dir_all(scratch).map_err(|error| error.to_string())?;
     let settings = super::seat_settings::effective(def, scratch, seat);
     super::browser_guard::prepare(&settings)?;
-    super::cargo_policy::prepare(&settings)?;
     Ok(settings)
 }
 
@@ -35,7 +34,6 @@ pub mod browser_receipts {
     pub use crate::launch::herdr::browser_guard::cases::{
         activation_waits_for_exact_receipt_and_submits_only_once,
         busy_prompt_times_out_without_submitting_activation,
-        combined_helpers_share_one_activation_and_require_both,
         missing_or_mismatched_activation_refuses_without_starting_an_agent,
         ordinary_launches_never_call_the_backend_for_browser_setup,
         receipt_io_failures_and_nonmatching_content_are_not_success,
@@ -58,6 +56,3 @@ pub use super::gate_failures::test_seams as gate_failures;
 pub fn proof_handoff(proof: &super::report_proof::ReportProof) -> String {
     proof.handoff_body()
 }
-
-#[cfg(unix)]
-pub use super::cargo_policy::test_seams as cargo_policy;

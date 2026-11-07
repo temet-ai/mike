@@ -27,6 +27,7 @@ fn row(
 fn timing(session: u128, args: &str, from: i64, to: i64, exit: i32) -> Timing {
     Timing {
         session: Uuid::from_u128(session),
+        program: None,
         args: args.into(),
         started_at: at(from),
         lock_acquired_at: None,
@@ -94,7 +95,30 @@ fn a_background_call_with_two_candidate_runs_stays_unmeasured() {
 }
 
 #[test]
-fn a_wrapper_that_stands_for_cargo_matches_its_arguments() {
+fn a_recorded_program_matches_its_own_work_and_no_other() {
+    let rows = [row(6, 1, 0, 100, false, "make all -j2")];
+    let mut recorded = timing(1, "all -j2", 1, 90, 0);
+    recorded.program = Some("make".into());
+    let (_, timings) = matched(&rows, std::slice::from_ref(&recorded), &[]);
+    assert_eq!(timings.len(), 1);
+    recorded.program = Some("ninja".into());
+    let (_, timings) = matched(&rows, &[recorded], &[]);
+    assert!(timings.is_empty());
+}
+
+#[test]
+fn a_line_recorded_before_programs_were_named_still_reads_and_matches() -> anyhow::Result<()> {
+    let line = r#"{"session":"00000000-0000-0000-0000-000000000001","args":"check -p a","started_at":"2023-11-14T22:13:21Z","finished_at":"2023-11-14T22:13:31Z","exit":0}"#;
+    let timing: Timing = serde_json::from_str(line)?;
+    assert_eq!(timing.program, None);
+    assert!(timing.is_work("cargo check -p a"));
+    assert!(timing.is_work("check -p a"));
+    assert!(!timing.is_work("cargo check -p b"));
+    Ok(())
+}
+
+#[test]
+fn a_wrapper_that_stands_for_the_program_matches_its_arguments() {
     let wrappers = vec!["scripts/cx".to_string()];
     let rows = [row(
         5,

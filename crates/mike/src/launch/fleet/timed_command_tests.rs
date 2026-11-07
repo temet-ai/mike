@@ -1,11 +1,10 @@
 use super::*;
 use std::os::unix::fs::PermissionsExt;
+use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::Duration;
 
-fn args(words: &[&str]) -> Vec<OsString> {
-    words.iter().map(OsString::from).collect()
-}
+use crate::launch::fleet::operation::CountedResource;
 
 fn private_root() -> anyhow::Result<tempfile::TempDir> {
     let root = tempfile::tempdir()?;
@@ -13,70 +12,74 @@ fn private_root() -> anyhow::Result<tempfile::TempDir> {
     Ok(root)
 }
 
-fn resource(capacity: u32) -> CargoResource {
-    CargoResource {
-        name: "mike-rust-build".into(),
+fn resource(capacity: u32) -> ResourceClaim {
+    ResourceClaim::Counted(CountedResource {
+        name: "shared-build".into(),
         capacity,
+    })
+}
+
+fn declared() -> TimedCommand {
+    TimedCommand {
+        subcommands: vec!["build".into(), "test".into(), "nextest".into()],
+        ..TimedCommand::default()
     }
 }
 
 #[test]
-fn builds_tests_and_lints_are_timed_and_quick_commands_are_not() {
+fn declared_subcommands_are_timed_and_every_other_run_is_not() {
     for words in [
         &["build", "-p", "app"][..],
         &["+nightly", "test"],
-        &["--manifest-path", "a/Cargo.toml", "check"],
+        &["--manifest-path", "a/manifest", "build"],
         &["nextest", "run", "-p", "gg"],
-        &["clippy", "--all-targets"],
     ] {
-        assert!(heavy(&args(words)), "{words:?}");
+        assert!(declared().measures(words.iter().copied()), "{words:?}");
     }
     for words in [
         &["metadata", "--format-version", "1"][..],
-        &["fmt", "--", "--check"],
         &["--version"],
-        &["install", "cargo-nextest"],
         &["fmt", "--", "test"],
     ] {
-        assert!(!heavy(&args(words)), "{words:?}");
+        assert!(!declared().measures(words.iter().copied()), "{words:?}");
     }
 }
 
 #[test]
-fn the_shim_folder_is_taken_off_path_so_cargo_resolves_to_the_real_one() {
+fn a_program_declared_without_subcommands_is_timed_on_every_run() {
+    assert!(TimedCommand::default().measures(["anything"]));
+    assert!(TimedCommand::default().measures([]));
+}
+
+#[test]
+fn the_declaration_comes_from_the_seat_environment_and_only_for_that_program() {
+    let text = r#"{"make": {"subcommands": ["all"]}}"#;
+    let found = declared_in(text, OsStr::new("make"));
+    assert_eq!(
+        found.map(|timed| timed.subcommands),
+        Some(vec!["all".to_string()])
+    );
+    assert!(declared_in(text, OsStr::new("npm")).is_none());
+    assert!(declared_in("not json", OsStr::new("make")).is_none());
+}
+
+#[test]
+fn the_shim_folder_is_taken_off_path_so_the_program_resolves_to_the_real_one() {
     let path =
-        std::env::join_paths(["/shims", "/usr/bin", "/home/me/.cargo/bin"]).unwrap_or_default();
+        std::env::join_paths(["/shims", "/usr/bin", "/home/me/.local/bin"]).unwrap_or_default();
     let clean = path_without(&path, Path::new("/shims"));
     let entries: Vec<PathBuf> = std::env::split_paths(&clean).collect();
     assert_eq!(
         entries,
         [
             PathBuf::from("/usr/bin"),
-            PathBuf::from("/home/me/.cargo/bin")
+            PathBuf::from("/home/me/.local/bin")
         ]
     );
 }
 
 #[test]
-fn the_declared_cargo_resource_is_the_one_cargo_operations_share() -> anyhow::Result<()> {
-    let profile = serde_json::json!({"schema_version": 1, "execution": {"cargo": true, "operations": {
-        "check": {"command": "scripts/cx check -p mike", "resources": [{"name": "mike-rust-build", "capacity": 3}]},
-        "gate": {"command": "scripts/gate check", "resources": [{"name": "mike-rust-build", "capacity": 3}, "mike-test-database"]},
-        "frontend": {"command": "scripts/sb-test", "resources": ["mike-frontend-tests"]}
-    }}});
-    let found = cargo_resource(profile.to_string().as_bytes()).ok_or(anyhow::anyhow!("none"))?;
-    assert_eq!(
-        (found.name.as_str(), found.capacity),
-        ("mike-rust-build", 3)
-    );
-    let off = serde_json::json!({"schema_version": 1, "execution": {"cargo": false}});
-    assert!(cargo_resource(off.to_string().as_bytes()).is_none());
-    assert!(cargo_resource(b"{}").is_none());
-    Ok(())
-}
-
-#[test]
-fn at_capacity_one_a_second_wrapped_command_waits_until_the_first_releases() -> anyhow::Result<()> {
+fn at_capacity_one_a_second_timed_command_waits_until_the_first_releases() -> anyhow::Result<()> {
     let root = private_root()?;
     let first = admit(root.path(), &resource(1), |_| {}).map_err(anyhow::Error::msg)?;
     let (waiting_tx, waiting_rx) = mpsc::channel();
@@ -116,12 +119,16 @@ fn units_up_to_the_capacity_are_taken_without_waiting() -> anyhow::Result<()> {
 }
 
 #[test]
-fn a_command_that_is_not_heavy_takes_no_unit() -> anyhow::Result<()> {
+fn a_timed_command_without_resources_takes_no_unit() {
+    assert!(admit_declared(&declared()).is_empty());
+}
+
+#[test]
+fn a_run_outside_the_declaration_leaves_the_units_as_they_were() -> anyhow::Result<()> {
     let root = private_root()?;
     let held = admit(root.path(), &resource(1), |_| {}).map_err(anyhow::Error::msg)?;
-    let quick = args(&["metadata", "--format-version", "1"]);
-    assert!(!heavy(&quick));
-    let directory = super::super::operation_admission::directory(root.path(), "mike-rust-build")
+    assert!(!declared().measures(["metadata", "--format-version", "1"]));
+    let directory = super::super::operation_admission::directory(root.path(), "shared-build")
         .map_err(anyhow::Error::msg)?;
     let probe = Pending::open_slot(&directory, 0)?;
     assert!(!probe.try_take(&CancellationToken::new())?);

@@ -112,7 +112,7 @@ impl Execution {
             resources: Default::default(),
             held_resources: Vec::new(),
             operation: None,
-            cargo: false,
+            strip_environment: Vec::new(),
         };
         Ok(Self {
             context,

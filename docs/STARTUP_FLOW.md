@@ -18,7 +18,7 @@ summary: Symbol-cited startup sequence for the mike and mike-mcp binaries — CL
 
 **A bare `mike` is not always a server.** With no subcommand, `cli::bare_dispatch_target(std::io::stdout().is_terminal())` decides: a TTY stdout opens the ratatui TUI (`mike::tui::run`), a non-TTY stdout serves headless (`mike::serve::run`). `mike serve` always serves regardless of the terminal. The remaining subcommands short-circuit before any of the server sequence:
 
-Before `Cli::parse()`, `main()` also answers `--version`, `--build-info`, and the `fleet cargo-background-hook`, `fleet receipt-hook` and `fleet build-slot` invocations, then sets `umask(0o077)`.
+Before `Cli::parse()`, `main()` also answers `--version`, `--build-info`, and the `fleet background-hook`, `fleet receipt-hook` and `fleet timed-run` invocations (plus `fleet cargo-background-hook` and `fleet build-slot`, which seats started by older binaries still call), then sets `umask(0o077)`.
 
 | Subcommand | Goes to | Notes |
 |---|---|---|

@@ -14,7 +14,7 @@ use crate::launch::fleet::commit::{
 };
 use crate::launch::fleet::commit_note;
 use crate::launch::fleet::commit_verify::Verifier;
-use crate::launch::fleet::reuse::{slots, waiting_uses};
+use crate::launch::fleet::reuse::waiting_uses;
 use crate::launch::fleet::seated::Seated;
 use crate::launch::fleet::{FleetDefinition, checks::normal};
 use crate::store::persistence::fleet::{FleetRow, TreeResultRow};
@@ -173,7 +173,7 @@ async fn waiting_for_slot(
         return Ok(BTreeSet::new());
     }
     let open = persist.tree_results(run, None, window, OPEN_READ).await?;
-    Ok(waiting_uses(&open, &def.wrappers, slots(def)))
+    Ok(waiting_uses(&open, &def.wrappers, &def.execution))
 }
 
 impl ResultView {
@@ -209,7 +209,7 @@ pub(crate) fn result_view(
     let still_valid =
         crate::launch::fleet::report_proof::captured_result_validity(&row, Some(changed));
     changed_since.truncate(CHANGED_SHOWN);
-    let completion_unknown = crate::launch::fleet::build_brake::completion_unknown(&row);
+    let completion_unknown = crate::launch::fleet::background_result::completion_unknown(&row);
     let running = row.finished_at.is_none() && !completion_unknown;
     ResultView {
         seat: row.seat,

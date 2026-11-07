@@ -91,10 +91,10 @@ pub fn ledger(run: &str) -> String {
 
 pub fn ledger_for(def: &FleetDefinition, run: &str) -> String {
     let operation = def.execution.operation(&def.gate.command);
-    if operation.is_none() && !def.execution.cargo {
+    if operation.is_none() && def.execution.strip_environment.is_empty() {
         return ledger(run);
     }
-    let policy = serde_json::json!([def.execution.cargo, operation]).to_string();
+    let policy = serde_json::json!([def.execution.environment_policy(), operation]).to_string();
     let identity = super::check_state::command_state(&policy, &def.gate.command);
     format!("{}:{identity}", ledger(run))
 }

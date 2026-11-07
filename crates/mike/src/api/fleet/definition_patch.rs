@@ -6,7 +6,6 @@ use serde_json::{Map, Value, json};
 
 use super::definition_view::DefinitionError;
 use crate::config::AppState;
-use crate::launch::fleet::reuse::check_slots;
 use crate::launch::fleet::{
     FleetDefinition, Missing, check_definition, check_environment, gather, merge, starts,
 };
@@ -72,13 +71,10 @@ pub(super) fn merged_done(
         merge(&mut definition, patch);
     }
     match FleetDefinition::from_value(&definition) {
-        Ok(parsed) => match check_slots(&parsed) {
-            Ok(()) => {
-                check_changed_overlaps(stored, &parsed, done)?;
-                Ok((definition, parsed))
-            }
-            Err(problem) => Err(DefinitionError::InvalidDefinition(problem)),
-        },
+        Ok(parsed) => {
+            check_changed_overlaps(stored, &parsed, done)?;
+            Ok((definition, parsed))
+        }
         Err(problem) => Err(DefinitionError::InvalidDefinition(shape_message(
             &definition,
             &problem,

@@ -17,8 +17,7 @@ pub struct SeatMeasure {
     pub waiting_minutes: f64,
     pub tool_calls: i64,
     pub git_reads: i64,
-    #[serde(rename = "operation_commands")]
-    pub cargo_commands: i64,
+    pub operation_commands: i64,
     pub minutes_to_first_commit: Option<f64>,
     pub calls_to_first_commit: Option<i64>,
     pub offered: Vec<String>,
@@ -74,7 +73,7 @@ pub struct MailPair {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub struct CargoMeasure {
+pub struct OperationMeasure {
     pub commands: i64,
     pub repeats: i64,
 }
@@ -96,7 +95,7 @@ pub struct RunMeasures {
     pub seats: Vec<SeatMeasure>,
     pub reports: ReportMeasure,
     pub mail: Vec<MailPair>,
-    pub cargo: CargoMeasure,
+    pub operations: OperationMeasure,
     pub questions: QuestionMeasure,
     pub forks: ForkMeasure,
     pub timing: TimingMeasure,
@@ -106,7 +105,7 @@ pub struct RunMeasures {
 
 #[derive(Debug, Clone, Copy)]
 pub struct RunPatterns<'a> {
-    pub cargo: &'a str,
+    pub operations: &'a str,
     pub git_read: &'a str,
     pub git_write: &'a str,
 }
@@ -121,7 +120,7 @@ impl PersistHandle {
             let seats = self.seat_measures(run_id, patterns).await?;
             let reports = self.report_measure(run_id).await?;
             let mail = self.mail_pairs(run_id).await?;
-            let cargo = self.cargo_measure(run_id, patterns.cargo).await?;
+            let operations = self.operation_measure(run_id, patterns.operations).await?;
             let questions = self.question_measure(run_id).await?;
             let forks = self.fork_measure(run_id).await?;
             let timing = self.timing_measure(run_id).await?;
@@ -131,7 +130,7 @@ impl PersistHandle {
                 seats,
                 reports,
                 mail,
-                cargo,
+                operations,
                 questions,
                 forks,
                 timing,
@@ -214,7 +213,7 @@ impl PersistHandle {
         let rows = sqlx::query_file!(
             "src/store/persistence/fleet/run_record_sql/seats.sql",
             run_id,
-            patterns.cargo,
+            patterns.operations,
             patterns.git_read,
             patterns.git_write,
         )
@@ -230,7 +229,7 @@ impl PersistHandle {
                 waiting_minutes: r.waiting_minutes,
                 tool_calls: r.tool_calls,
                 git_reads: r.git_reads,
-                cargo_commands: r.cargo_commands,
+                operation_commands: r.cargo_commands,
                 minutes_to_first_commit: r.minutes_to_first_commit,
                 calls_to_first_commit: r.calls_to_first_commit,
                 offered: r.offered,
@@ -274,19 +273,19 @@ impl PersistHandle {
             .collect())
     }
 
-    async fn cargo_measure(
+    async fn operation_measure(
         &self,
         run_id: &str,
-        cargo_pattern: &str,
-    ) -> Result<CargoMeasure, PersistError> {
+        operation_pattern: &str,
+    ) -> Result<OperationMeasure, PersistError> {
         let row = sqlx::query_file!(
             "src/store/persistence/fleet/run_record_sql/cargo_repeats.sql",
             run_id,
-            cargo_pattern,
+            operation_pattern,
         )
         .fetch_one(&self.pool)
         .await?;
-        Ok(CargoMeasure {
+        Ok(OperationMeasure {
             commands: row.commands,
             repeats: row.repeats,
         })

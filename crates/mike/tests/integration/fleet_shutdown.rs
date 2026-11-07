@@ -405,8 +405,8 @@ async fn owned_root_fixture(
     session: Uuid,
 ) -> anyhow::Result<tokio::process::Child> {
     let child = tokio::process::Command::new(env!("CARGO_BIN_EXE_mike"))
-        .args(["fleet", "cargo-background-hook"])
-        .env("MIKE_FLEET_CARGO_BACKGROUND", "1")
+        .args(["fleet", "background-hook"])
+        .env("MIKE_FLEET_BACKGROUND_COMMANDS", r#"["slow"]"#)
         .env_remove("CLAUDE_CODE_DISABLE_BACKGROUND_TASKS")
         .env("MIKE_SESSION_ID", session.to_string())
         .env("MIKE_RUN_ID", &f.run.run_id)

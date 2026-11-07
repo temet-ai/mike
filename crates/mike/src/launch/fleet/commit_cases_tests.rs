@@ -240,7 +240,7 @@ async fn state_with(repo: &str, def: &FleetDefinition, path: &str) -> anyhow::Re
     let updated = format!("{prefix} {}", String::from_utf8_lossy(&blob).trim());
     files.insert(path.to_string(), updated);
     let policy = serde_json::to_string(&(
-        def.execution.cargo,
+        def.execution.environment_policy(),
         def.execution.operation(&def.check.command),
     ))?;
     state_of(&files, &def.check.covered())

@@ -25,7 +25,7 @@ pub(super) struct Context {
     pub resources: Resources,
     pub held_resources: Vec<Resource>,
     pub operation: Option<super::operation::Operation>,
-    pub cargo: bool,
+    pub strip_environment: Vec<String>,
 }
 
 pub(super) struct Receipt<'a> {
@@ -96,7 +96,7 @@ pub(super) async fn begin(
             resources: Resources::default(),
             held_resources: Vec::new(),
             operation: None,
-            cargo: false,
+            strip_environment: Vec::new(),
         },
     })
 }
@@ -320,7 +320,9 @@ pub(super) fn configure(
     command: &str,
 ) {
     context.operation = def.execution.operation(command).cloned();
-    context.cargo = def.execution.cargo;
+    context
+        .strip_environment
+        .clone_from(&def.execution.strip_environment);
 }
 
 pub(super) async fn begin_gate(

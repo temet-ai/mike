@@ -312,28 +312,31 @@ fn the_queue_counts_the_wrapped_commands_past_the_definitions_slot_count() {
         content: None,
     };
     let commands = vec![open(1, 1), open(2, 2), open(3, 3), open(4, 4)];
-    let mut def = FleetDefinition {
+    let fleet = |capacity: u32| FleetDefinition {
         wrappers: vec!["scripts/cargo-slot".into()],
-        execution: super::super::operation::Execution {
-            cargo: true,
-            ..Default::default()
-        },
+        execution: serde_json::from_value(serde_json::json!({"timed_commands": {"cargo": {
+            "resources": [{"name": "build", "capacity": capacity}]
+        }}}))
+        .unwrap_or_default(),
         ..FleetDefinition::default()
     };
     assert_eq!(
-        queue_of(&def, &commands),
+        queue_of(&fleet(2), &commands),
         SlotQueue {
             waiting: 2,
             slots: 2
         }
     );
-    def.build_slots = Some(3);
     assert_eq!(
-        queue_of(&def, &commands),
+        queue_of(&fleet(3), &commands),
         SlotQueue {
             waiting: 1,
             slots: 3
         }
+    );
+    assert_eq!(
+        queue_of(&FleetDefinition::default(), &commands),
+        SlotQueue::default()
     );
 }
 

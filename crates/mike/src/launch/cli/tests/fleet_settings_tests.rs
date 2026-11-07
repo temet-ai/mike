@@ -34,7 +34,7 @@ async fn successor_inherits_the_same_full_effective_settings_as_a_fleet_seat() -
 {
     let definition = json!({
         "repo": "/work/ink-migration",
-        "execution": {"cargo": true},
+        "execution": {"disabled_plugins": ["one@plugins"], "timed_commands": {"make": {}}},
         "seat_settings": {
             "env": {"EXTRA": "1", "TMPDIR": "/operator/tmp"},
             "enabledPlugins": {"other@plugins": false},
@@ -69,10 +69,7 @@ async fn successor_inherits_the_same_full_effective_settings_as_a_fleet_seat() -
         assert_eq!(inherited["env"]["TMPDIR"], "/operator/tmp");
         assert!(inherited["env"]["XDG_CONFIG_HOME"].as_str().is_some());
         assert!(inherited["env"]["CLAUDE_CODE_TMPDIR"].as_str().is_some());
-        assert_eq!(
-            inherited["enabledPlugins"]["rust-analyzer-lsp@claude-plugins-official"],
-            false
-        );
+        assert_eq!(inherited["enabledPlugins"]["one@plugins"], false);
         assert_eq!(&split.claude_args[2..], &["--model", "opus"]);
         let inherited_split = split.clone();
         assert!(inherit(&ledger, &mut split).await?.is_none());

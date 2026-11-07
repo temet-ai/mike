@@ -28,7 +28,7 @@ pub use checks::TreeCheckRow;
 pub use introductions::SlowCommandRow;
 pub use retrospective::FleetCheckoutUser;
 pub use run_record::{
-    CargoMeasure, ForkMeasure, InterventionMeasure, MailPair, QuestionMeasure, ReportMeasure,
+    ForkMeasure, InterventionMeasure, MailPair, OperationMeasure, QuestionMeasure, ReportMeasure,
     RunMeasures, RunPatterns, SeatMeasure, TimingMeasure, TokenMeasure,
 };
 pub use tree::{BackgroundEnd, ChangedPathRow, NewTreeChange, TreeChangeRow, TreeResultRow};

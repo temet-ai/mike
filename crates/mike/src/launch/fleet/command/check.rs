@@ -166,10 +166,13 @@ mod tests {
     #[test]
     fn explicit_commands_and_zero_wait_are_preserved_and_long_waits_are_capped() {
         let mut ask = args(None, None);
-        ask.command = Some("cargo nextest run -p gg --test mix".into());
+        ask.command = Some("builder nextest run -p gg --test mix".into());
         ask.wait = 0;
         let body = check_body(Uuid::nil(), &ask);
-        assert_eq!(body["command"], json!("cargo nextest run -p gg --test mix"));
+        assert_eq!(
+            body["command"],
+            json!("builder nextest run -p gg --test mix")
+        );
         assert_eq!(body["wait_seconds"], json!(0));
         ask.wait = 1700;
         assert_eq!(check_body(Uuid::nil(), &ask)["wait_seconds"], json!(90));

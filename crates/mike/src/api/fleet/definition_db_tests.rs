@@ -443,7 +443,7 @@ async fn new_fleet_imports_project_operations_without_starting_seats() -> anyhow
     std::fs::create_dir_all(project.path().join(".claude/fleet"))?;
     std::fs::write(
         project.path().join(".claude/fleet/operations.json"),
-        r#"{"schema_version": 1, "execution": {"cargo": true, "operations": {"frontend": {
+        r#"{"schema_version": 1, "execution": {"strip_environment": ["BUILD_DIR"], "operations": {"frontend": {
             "command": "scripts/sb-test",
             "purpose": "Frontend type, logic and browser checks",
             "resources": ["mike-frontend-tests"]}}}}"#,
@@ -458,7 +458,10 @@ async fn new_fleet_imports_project_operations_without_starting_seats() -> anyhow
         .await?;
     assert_eq!(status, StatusCode::CREATED, "{view}");
     assert_eq!(view["state"], "draft");
-    assert_eq!(view["definition"]["execution"]["cargo"], true);
+    assert_eq!(
+        view["definition"]["execution"]["strip_environment"],
+        json!(["BUILD_DIR"])
+    );
     assert_eq!(
         view["definition"]["execution"]["operations"]["frontend"]["command"],
         "scripts/sb-test"

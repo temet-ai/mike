@@ -45,9 +45,7 @@ pub fn check_definition(def: &FleetDefinition) -> Vec<Missing> {
     found.extend(super::checks_order::long_chain(def));
     found.extend(super::checks_scope::scope(def));
     found.extend(super::operation::validate(def));
-    if def.execution.cargo {
-        found.extend(super::checks_target::per_task_targets(def));
-    }
+    found.extend(super::checks_target::per_task_targets(def));
     found
 }
 

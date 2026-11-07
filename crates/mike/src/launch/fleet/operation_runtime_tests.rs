@@ -9,11 +9,11 @@ use super::managed_test_support::Execution;
 async fn execute(
     root: &Path,
     command: &str,
-    cargo: bool,
+    strip: &[&str],
     timeout: Option<u64>,
 ) -> anyhow::Result<(Option<i32>, String)> {
     let def: FleetDefinition = serde_json::from_value(json!({"execution": {
-        "cargo": cargo,
+        "strip_environment": strip,
         "operations": {"verify": {"command": command, "purpose": "fixture assertions",
             "resources": [], "environment": {"FLEET_FIXTURE": "ready"}, "timeout_seconds": timeout}}
     }}))?;
@@ -41,7 +41,7 @@ async fn declared_environment_and_failure_status_reach_the_managed_runner() -> a
     let (code, output) = execute(
         root.path(),
         "test \"$FLEET_FIXTURE\" = ready && printf 'observed'; exit 7",
-        false,
+        &[],
         None,
     )
     .await?;
@@ -51,16 +51,23 @@ async fn declared_environment_and_failure_status_reach_the_managed_runner() -> a
 }
 
 #[tokio::test]
+async fn a_declared_variable_is_stripped_from_the_managed_runner_and_only_that_one()
+-> anyhow::Result<()> {
+    let root = tempfile::tempdir()?;
+    let command = "printf '%s' \"${PATH:+path}:${HOME:+home}\"";
+    let (_, kept) = execute(root.path(), command, &[], None).await?;
+    assert_eq!(kept, "path:home");
+    let (_, stripped) = execute(root.path(), command, &["HOME"], None).await?;
+    assert_eq!(stripped, "path:");
+    Ok(())
+}
+
+#[tokio::test]
 async fn operation_timeout_stops_the_managed_process() -> anyhow::Result<()> {
     let root = tempfile::tempdir()?;
     let (code, output) = tokio::time::timeout(
         Duration::from_secs(5),
-        execute(
-            root.path(),
-            "sleep 20; touch should-not-run",
-            false,
-            Some(1),
-        ),
+        execute(root.path(), "sleep 20; touch should-not-run", &[], Some(1)),
     )
     .await??;
     assert_eq!(code, None);
@@ -79,28 +86,25 @@ async fn real_rust_typescript_python_and_no_build_operations() -> anyhow::Result
             "main.rs",
             "fn main() { assert_eq!(std::env::var(\"FLEET_FIXTURE\").ok().as_deref(), Some(\"ready\")); println!(\"rust passed\"); }",
             "rustc main.rs -o verify && ./verify",
-            true,
         ),
         (
             "python",
             "verify.py",
             "import os\nassert os.environ['FLEET_FIXTURE'] == 'ready'\nprint('python passed')\n",
             "python3 verify.py",
-            false,
         ),
         (
             "docs",
             "README.md",
             "# Project\nA task without a compiler.\n",
             "test -s README.md && grep -q '^# Project' README.md && printf 'docs passed\\n'",
-            false,
         ),
     ];
-    for (name, file, source, command, cargo) in cases {
+    for (name, file, source, command) in cases {
         let cwd = root.path().join(name);
         std::fs::create_dir(&cwd)?;
         std::fs::write(cwd.join(file), source)?;
-        let (code, output) = execute(&cwd, command, cargo, None).await?;
+        let (code, output) = execute(&cwd, command, &[], None).await?;
         assert_eq!(code, Some(0), "{name}: {output}");
         assert!(output.contains(&format!("{name} passed")), "{output}");
     }
@@ -120,14 +124,14 @@ async fn real_rust_typescript_python_and_no_build_operations() -> anyhow::Result
             .join("../../frontend/node_modules/@types")
             .display()
     );
-    let (code, output) = execute(&cwd, &command, false, None).await?;
+    let (code, output) = execute(&cwd, &command, &[], None).await?;
     assert_eq!(code, Some(0), "typescript: {output}");
     assert!(output.contains("typescript passed"));
     std::fs::write(
         cwd.join("verify.ts"),
         "const total: number = 'incorrect';\n",
     )?;
-    let (code, output) = execute(&cwd, &command, false, None).await?;
+    let (code, output) = execute(&cwd, &command, &[], None).await?;
     assert!(code.is_some_and(|code| code != 0), "{output}");
     assert!(output.contains("not assignable"), "{output}");
     Ok(())

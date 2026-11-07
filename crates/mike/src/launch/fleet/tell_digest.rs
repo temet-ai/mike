@@ -6,7 +6,7 @@ use uuid::Uuid;
 use super::definition::FleetDefinition;
 use super::plan::ControlSeats;
 use super::report::Waiting;
-use super::reuse::{slots, waiting_uses};
+use super::reuse::waiting_uses;
 use super::status::FleetStatus;
 use super::status_types::AcceptanceObligation;
 use super::tell::Notice;
@@ -47,12 +47,15 @@ pub struct SlotQueue {
 }
 
 pub fn queue_of(def: &FleetDefinition, rows: &[TreeResultRow]) -> SlotQueue {
-    if !def.execution.cargo {
-        return SlotQueue::default();
-    }
+    let slots = def
+        .execution
+        .shared_resources()
+        .values()
+        .map(|(capacity, _)| *capacity)
+        .sum();
     SlotQueue {
-        waiting: waiting_uses(rows, &def.wrappers, slots(def)).len(),
-        slots: slots(def),
+        waiting: waiting_uses(rows, &def.wrappers, &def.execution).len(),
+        slots,
     }
 }
 

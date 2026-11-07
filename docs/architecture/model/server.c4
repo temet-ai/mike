@@ -221,10 +221,14 @@ model {
         shared check, commits a seat\'s work for it, and resolves each seat\'s
         completion condition from the definition\'s goals for the fleet-comms mod
         to arm as Claude Code\'s /goal.
+        Assumes no build tool: seats get the timed commands, background commands,
+        stripped variables and disabled plugins the project declares under execution.
         On close, saves an opted-in retrospective job with the final definition
         and roster, retaining the checkout for its independent run.
       '''
       link https://github.com/temet-ai/mike/tree/main/crates/mike/src/launch/fleet 'crates/mike/src/launch/fleet'
+      link https://github.com/temet-ai/mike/blob/main/crates/mike/src/launch/fleet/operation.rs 'crates/mike/src/launch/fleet/operation.rs'
+      link https://github.com/temet-ai/mike/blob/main/crates/mike/src/launch/fleet/timed_command.rs 'crates/mike/src/launch/fleet/timed_command.rs'
       link https://github.com/temet-ai/mike/blob/main/crates/mike/src/launch/fleet/shutdown.rs 'crates/mike/src/launch/fleet/shutdown.rs'
       link https://github.com/temet-ai/mike/blob/main/crates/mike/src/launch/fleet/retrospective.rs 'crates/mike/src/launch/fleet/retrospective.rs'
 

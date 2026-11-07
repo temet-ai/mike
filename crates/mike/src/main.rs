@@ -6,6 +6,7 @@ use mike::config::CliOverrides;
 
 #[path = "../../build_info.rs"]
 mod build_info;
+mod fleet_invocation;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -23,10 +24,6 @@ struct Cli {
 }
 
 fn main() -> anyhow::Result<()> {
-    let arguments: Vec<_> = std::env::args_os().collect();
-    if let Some(code) = mike::launch::fleet::cargo_policy_dispatch(&arguments) {
-        std::process::exit(code);
-    }
     let arguments: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
     if mike::cli::is_version_request(&arguments) {
         println!("{}", mike::cli::version_line());
@@ -40,14 +37,14 @@ fn main() -> anyhow::Result<()> {
     unsafe {
         libc::umask(0o077);
     }
-    if cargo_background_hook_invocation(std::env::args_os().skip(1)) {
-        std::process::exit(mike::launch::fleet::cargo_background_hook());
+    if fleet_invocation::background_hook(std::env::args_os().skip(1)) {
+        std::process::exit(mike::launch::fleet::background_hook());
     }
-    if receipt_hook_invocation(std::env::args_os().skip(1)) {
+    if fleet_invocation::receipt_hook(std::env::args_os().skip(1)) {
         std::process::exit(mike::launch::fleet::receipt_hook());
     }
-    if let Some(args) = build_slot_invocation(std::env::args_os().skip(1)) {
-        std::process::exit(mike::launch::fleet::build_slot(args));
+    if let Some((program, args)) = fleet_invocation::timed_run(std::env::args_os().skip(1)) {
+        std::process::exit(mike::launch::fleet::timed_run(program, args));
     }
     let cli = Cli::parse();
     mike::user_config::observe_selected(cli.overrides.config.as_deref())?;
@@ -56,12 +53,6 @@ fn main() -> anyhow::Result<()> {
         anyhow::bail!("private boot snapshots are accepted only by the owned serve launch");
     }
     run(cli)
-}
-
-fn build_slot_invocation(
-    mut args: impl Iterator<Item = std::ffi::OsString>,
-) -> Option<Vec<std::ffi::OsString>> {
-    (args.next()? == "fleet" && args.next()? == "build-slot").then(|| args.collect())
 }
 
 #[tokio::main]
@@ -119,36 +110,11 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
     }
 }
 
-fn cargo_background_hook_invocation(args: impl Iterator<Item = std::ffi::OsString>) -> bool {
-    args.eq(["fleet", "cargo-background-hook"])
-}
-
-fn receipt_hook_invocation(args: impl Iterator<Item = std::ffi::OsString>) -> bool {
-    args.eq(["fleet", "receipt-hook"])
-}
-
 #[cfg(test)]
 mod tests {
     use super::Cli;
     use clap::Parser;
     use mike::cli::Command;
-
-    #[test]
-    fn cargo_background_hook_fastpath_accepts_only_the_exact_local_command() {
-        for args in [
-            vec!["fleet", "cargo-background-hook"],
-            vec!["fleet", "cargo-background-hook", "extra"],
-            vec!["fleet", "status"],
-            vec!["--help", "fleet", "cargo-background-hook"],
-            vec![],
-        ] {
-            let expected = args == ["fleet", "cargo-background-hook"];
-            assert_eq!(
-                super::cargo_background_hook_invocation(args.into_iter().map(Into::into)),
-                expected,
-            );
-        }
-    }
 
     #[test]
     fn bare_invocation_has_no_subcommand() -> anyhow::Result<()> {

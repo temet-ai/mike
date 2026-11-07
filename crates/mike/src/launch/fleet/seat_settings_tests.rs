@@ -1,23 +1,56 @@
 use super::*;
 
-fn cargo_fleet() -> FleetDefinition {
+const PLUGIN: &str = "language-server@plugins";
+
+fn declared_fleet() -> FleetDefinition {
     FleetDefinition {
-        execution: super::super::operation::Execution {
-            cargo: true,
-            ..Default::default()
+        execution: Execution {
+            timed_commands: [(
+                "make".to_string(),
+                super::super::operation::TimedCommand::default(),
+            )]
+            .into_iter()
+            .collect(),
+            background_commands: vec!["make all".into()],
+            disabled_plugins: vec![PLUGIN.into()],
+            ..Execution::default()
         },
         ..Default::default()
     }
 }
 
 #[test]
-fn generic_fleets_do_not_install_cargo_or_language_server_policy() {
+fn a_fleet_that_declares_nothing_gets_no_build_settings() {
     let settings = effective(&FleetDefinition::default(), &scratch(), "worker");
-    assert!(settings["env"].get(cargo_background::ENABLED_ENV).is_none());
-    assert!(settings["env"].get(cargo_policy::ENABLED_ENV).is_none());
-    assert!(settings["env"].get(build_slot::SHIMS_ENV).is_none());
+    assert!(settings["env"].get(background_hook::COMMANDS_ENV).is_none());
+    assert!(settings["env"].get(timed_command::SHIMS_ENV).is_none());
+    assert!(settings["env"].get(timed_command::DECLARED_ENV).is_none());
     assert!(settings.get("enabledPlugins").is_none());
-    assert!(!settings["hooks"].to_string().contains("cargo"));
+    assert!(!settings["hooks"].to_string().contains("background-hook"));
+}
+
+#[test]
+fn a_stored_definition_with_the_retired_setting_gets_no_build_settings() -> anyhow::Result<()> {
+    let def = FleetDefinition::from_value(&json!({"execution": {"cargo": true}}))
+        .map_err(anyhow::Error::msg)?;
+    let settings = effective(&def, &scratch(), "worker");
+    assert!(settings["env"].get(timed_command::SHIMS_ENV).is_none());
+    assert!(settings.get("enabledPlugins").is_none());
+    Ok(())
+}
+
+#[test]
+fn the_seat_environment_carries_the_declarations_its_helpers_read() -> anyhow::Result<()> {
+    let settings = effective(&declared_fleet(), &scratch(), "worker-1");
+    let timed = settings["env"][timed_command::DECLARED_ENV]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("no declaration in {settings}"))?;
+    assert!(timed_command::declared_in(timed, std::ffi::OsStr::new("make")).is_some());
+    assert_eq!(
+        settings["env"][background_hook::COMMANDS_ENV],
+        json!(["make all"]).to_string()
+    );
+    Ok(())
 }
 
 fn scratch() -> PathBuf {
@@ -43,28 +76,22 @@ fn every_seat_gets_a_scratch_folder_and_config_home_outside_tmp_and_the_operator
 }
 
 #[test]
-fn the_language_server_is_off_for_every_seat() {
-    let settings = effective(&cargo_fleet(), &scratch(), "worker-1");
-    assert_eq!(
-        settings["enabledPlugins"]["rust-analyzer-lsp@claude-plugins-official"],
-        json!(false)
-    );
+fn a_declared_plugin_is_off_for_every_seat() {
+    let settings = effective(&declared_fleet(), &scratch(), "worker-1");
+    assert_eq!(settings["enabledPlugins"][PLUGIN], json!(false));
 }
 
 #[test]
 fn the_definitions_seat_settings_win_over_the_defaults() {
     let def = FleetDefinition {
         seat_settings: Some(json!({
-            "enabledPlugins": {"rust-analyzer-lsp@claude-plugins-official": true},
+            "enabledPlugins": {PLUGIN: true},
             "env": {"TMPDIR": "/mine", "EXTRA": "1"},
         })),
-        ..FleetDefinition::default()
+        ..declared_fleet()
     };
     let settings = effective(&def, &scratch(), "worker-1");
-    assert_eq!(
-        settings["enabledPlugins"]["rust-analyzer-lsp@claude-plugins-official"],
-        json!(true)
-    );
+    assert_eq!(settings["enabledPlugins"][PLUGIN], json!(true));
     assert_eq!(settings["env"]["TMPDIR"], "/mine");
     assert_eq!(settings["env"]["EXTRA"], "1");
     assert_eq!(
@@ -108,15 +135,14 @@ fn fleet_defaults_keep_operator_guards_and_add_the_background_hook() {
     let operator = json!({"matcher": "Edit", "hooks": [{"type": "command", "command": "guard"}]});
     let def = FleetDefinition {
         seat_settings: Some(json!({"hooks": {"PreToolUse": [operator.clone()]}})),
-        ..cargo_fleet()
+        ..declared_fleet()
     };
     let settings = effective(&def, &scratch(), "worker-1");
-    assert_eq!(settings["env"][cargo_background::ENABLED_ENV], "1");
     assert_eq!(settings["hooks"]["PreToolUse"][0], operator);
     assert_eq!(settings["hooks"]["PreToolUse"][1]["matcher"], "Bash");
     let disabled = FleetDefinition {
-        seat_settings: Some(json!({"env": {cargo_background::ENABLED_ENV: "0"}})),
-        ..cargo_fleet()
+        seat_settings: Some(json!({"env": {background_hook::COMMANDS_ENV: "[]"}})),
+        ..declared_fleet()
     };
     let hooks = effective(&disabled, &scratch(), "worker-1")["hooks"]["PreToolUse"].clone();
     let commands: Vec<String> = hooks
@@ -132,10 +158,10 @@ fn fleet_defaults_keep_operator_guards_and_add_the_background_hook() {
     assert!(commands[0].ends_with("fleet receipt-hook"), "{hooks}");
     let silent = FleetDefinition {
         seat_settings: Some(json!({"env": {
-            cargo_background::ENABLED_ENV: "0",
+            background_hook::COMMANDS_ENV: "[]",
             receipt_hook::ENABLED_ENV: "0",
         }})),
-        ..cargo_fleet()
+        ..declared_fleet()
     };
     assert!(
         effective(&silent, &scratch(), "worker-1")["hooks"]
@@ -166,62 +192,63 @@ fn fleet_roles_and_successors_suppress_browser_helpers_by_default() {
 
 #[test]
 fn seats_share_no_machine_wide_build_queue_and_get_no_build_settings_mike_chose() {
-    let settings = effective(&cargo_fleet(), &scratch(), "worker-T1");
+    let settings = effective(&declared_fleet(), &scratch(), "worker-T1");
     assert_eq!(
-        settings["env"][build_slot::SHIMS_ENV],
+        settings["env"][timed_command::SHIMS_ENV],
         "/state/mike/seats/holdfast/bin"
     );
     let env = settings["env"].as_object().cloned().unwrap_or_default();
     for name in [
         "MIKE_FLEET_BUILD_SLOTS",
         "MIKE_FLEET_BUILD_SLOT_DIR",
-        "CARGO_BUILD_JOBS",
+        "BUILD_JOBS",
     ] {
         assert!(!env.contains_key(name), "{name}");
     }
     let def = FleetDefinition {
-        seat_settings: Some(json!({"env": {"CARGO_BUILD_JOBS": "6"}})),
-        ..cargo_fleet()
+        seat_settings: Some(json!({"env": {"BUILD_JOBS": "6"}})),
+        ..declared_fleet()
     };
     let settings = effective(&def, &scratch(), "worker-T1");
-    assert_eq!(settings["env"]["CARGO_BUILD_JOBS"], "6");
+    assert_eq!(settings["env"]["BUILD_JOBS"], "6");
 }
 
 #[test]
-fn the_cargo_wrapper_never_names_a_deleted_binary() -> std::io::Result<()> {
+fn a_timed_shim_never_names_a_deleted_binary() -> std::io::Result<()> {
     let scratch = tempfile::tempdir()?;
     let deployed = scratch.path().join("mike.deployed");
     std::fs::write(&deployed, "binary")?;
     let unlinked = PathBuf::from(format!("{}{DELETED_SUFFIX}", deployed.display()));
-    write_shims(scratch.path(), &unlinked)?;
-    let cargo = std::fs::read_to_string(scratch.path().join("bin/cargo"))?;
+    write_shims(scratch.path(), &unlinked, &["make"])?;
+    let shim = std::fs::read_to_string(scratch.path().join("bin/make"))?;
     assert_eq!(
-        cargo,
+        shim,
         format!(
-            "#!/bin/sh\nexec '{}' fleet build-slot \"$@\"\n",
+            "#!/bin/sh\nexec '{}' fleet timed-run 'make' \"$@\"\n",
             deployed.display()
         )
     );
     std::fs::remove_file(&deployed)?;
-    assert!(write_shims(scratch.path(), &unlinked).is_err());
+    assert!(write_shims(scratch.path(), &unlinked, &["make"]).is_err());
     assert_eq!(
-        std::fs::read_to_string(scratch.path().join("bin/cargo"))?,
-        cargo
+        std::fs::read_to_string(scratch.path().join("bin/make"))?,
+        shim
     );
     Ok(())
 }
 
 #[test]
-fn seat_commands_get_a_queued_cargo_first_on_path() -> std::io::Result<()> {
+fn every_declared_program_gets_a_shim_first_on_path() -> std::io::Result<()> {
     let scratch = tempfile::tempdir()?;
     let exe = scratch.path().join("it's mike");
     std::fs::write(&exe, "binary")?;
-    write_shims(scratch.path(), &exe)?;
-    let cargo = std::fs::read_to_string(scratch.path().join("bin/cargo"))?;
+    write_shims(scratch.path(), &exe, &["make", "npm"])?;
+    assert!(scratch.path().join("bin/npm").is_file());
+    let shim = std::fs::read_to_string(scratch.path().join("bin/make"))?;
     assert_eq!(
-        cargo,
+        shim,
         format!(
-            "#!/bin/sh\nexec '{}' fleet build-slot \"$@\"\n",
+            "#!/bin/sh\nexec '{}' fleet timed-run 'make' \"$@\"\n",
             exe.display().to_string().replace('\'', "'\\''")
         )
     );

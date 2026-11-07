@@ -84,6 +84,7 @@ fn warnings(def: &FleetDefinition, starts: &Starts) -> Vec<ReadyWarning> {
     found.extend(
         crate::launch::fleet::checks_paths::compile_unit_warnings(def)
             .into_iter()
+            .chain(crate::launch::fleet::operation::unread_warnings(def))
             .map(|warning| ReadyWarning {
                 item: warning.item,
                 problem: warning.problem,

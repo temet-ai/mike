@@ -3,19 +3,24 @@ use std::path::Path;
 
 use serde_json::{Value, json};
 
-#[path = "cargo_background_syntax.rs"]
+#[path = "background_hook_syntax.rs"]
 mod syntax;
 #[cfg(test)]
-#[path = "cargo_background_tests.rs"]
+#[path = "background_hook_tests.rs"]
 mod tests;
 
-pub(super) const ENABLED_ENV: &str = "MIKE_FLEET_CARGO_BACKGROUND";
+pub(super) const COMMANDS_ENV: &str = "MIKE_FLEET_BACKGROUND_COMMANDS";
 const BACKGROUND_DISABLED: &str = "CLAUDE_CODE_DISABLE_BACKGROUND_TASKS";
 const MAX_INPUT_BYTES: u64 = 4 * 1024 * 1024;
 
+fn declared(text: Option<&str>) -> Vec<String> {
+    text.and_then(|text| serde_json::from_str(text).ok())
+        .unwrap_or_default()
+}
+
 pub(in crate::launch::fleet) fn append_hook(settings: &mut Value, executable: &Path) {
     if settings["disableAllHooks"] == true
-        || settings["env"][ENABLED_ENV] != "1"
+        || declared(settings["env"][COMMANDS_ENV].as_str()).is_empty()
         || settings["env"][BACKGROUND_DISABLED] == "1"
     {
         return;
@@ -42,7 +47,7 @@ pub(in crate::launch::fleet) fn append_hook(settings: &mut Value, executable: &P
         "matcher": "Bash",
         "hooks": [{
             "type": "command",
-            "command": format!("'{escaped}' fleet cargo-background-hook"),
+            "command": format!("'{escaped}' fleet background-hook"),
             "timeout": 5,
         }],
     });
@@ -51,7 +56,7 @@ pub(in crate::launch::fleet) fn append_hook(settings: &mut Value, executable: &P
     }
 }
 
-fn response(event: &Value) -> Option<Value> {
+fn response(event: &Value, commands: &[String]) -> Option<Value> {
     if event["hook_event_name"] != "PreToolUse" || event["tool_name"] != "Bash" {
         return None;
     }
@@ -60,7 +65,7 @@ fn response(event: &Value) -> Option<Value> {
         return None;
     }
     let command = input.get("command")?.as_str()?;
-    if !syntax::cargo_build(command) {
+    if !syntax::declared_command(command, commands) {
         return None;
     }
     input.insert("run_in_background".into(), json!(true));
@@ -73,7 +78,7 @@ fn response(event: &Value) -> Option<Value> {
     }))
 }
 
-fn process(input: impl Read, mut output: impl Write) -> Result<(), String> {
+fn process(input: impl Read, mut output: impl Write, commands: &[String]) -> Result<(), String> {
     let mut bytes = Vec::new();
     input
         .take(MAX_INPUT_BYTES + 1)
@@ -83,28 +88,28 @@ fn process(input: impl Read, mut output: impl Write) -> Result<(), String> {
         return Err("hook input exceeded 4 MiB; no tool input was changed".into());
     }
     let event: Value = serde_json::from_slice(&bytes).map_err(|error| error.to_string())?;
-    let response = response(&event).unwrap_or_else(|| json!({}));
+    let response = response(&event, commands).unwrap_or_else(|| json!({}));
     serde_json::to_writer(&mut output, &response).map_err(|error| error.to_string())
 }
 
 pub fn run() -> i32 {
     let run = std::env::var("MIKE_RUN_ID").ok();
-    let enabled = std::env::var(ENABLED_ENV).ok();
+    let commands = declared(std::env::var(COMMANDS_ENV).ok().as_deref());
     let disabled = std::env::var(BACKGROUND_DISABLED).ok();
-    if !fleet_enabled(run.as_deref(), enabled.as_deref(), disabled.as_deref()) {
+    if !fleet_enabled(run.as_deref(), &commands, disabled.as_deref()) {
         return 0;
     }
-    match process(std::io::stdin().lock(), std::io::stdout().lock()) {
+    match process(std::io::stdin().lock(), std::io::stdout().lock(), &commands) {
         Ok(()) => 0,
         Err(error) => {
-            eprintln!("mike fleet cargo background hook: {error}");
+            eprintln!("mike fleet background hook: {error}");
             1
         }
     }
 }
 
-fn fleet_enabled(run: Option<&str>, enabled: Option<&str>, disabled: Option<&str>) -> bool {
+fn fleet_enabled(run: Option<&str>, commands: &[String], disabled: Option<&str>) -> bool {
     run.is_some_and(|run| run.starts_with("fleet-") && run.len() > "fleet-".len())
-        && enabled == Some("1")
+        && !commands.is_empty()
         && disabled != Some("1")
 }

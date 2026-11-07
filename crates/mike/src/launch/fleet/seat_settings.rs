@@ -3,16 +3,14 @@ use std::path::{Path, PathBuf};
 use serde_json::{Value, json};
 
 use super::definition::{FleetDefinition, merge};
-use super::{browser_guard, bundle, cargo_policy};
+use super::operation::Execution;
+use super::{browser_guard, bundle, timed_command};
 
-#[path = "cargo_background.rs"]
-pub(super) mod cargo_background;
+#[path = "background_hook.rs"]
+pub(super) mod background_hook;
 #[path = "receipt_hook.rs"]
 pub(super) mod receipt_hook;
 
-use super::build_slot;
-
-const LSP_PLUGINS: [&str; 1] = ["rust-analyzer-lsp@claude-plugins-official"];
 const SHIMS: &str = "bin";
 const ACTIVATE: &str = "activate";
 const TIMINGS: &str = "timings";
@@ -68,23 +66,17 @@ pub(super) fn effective(def: &FleetDefinition, scratch: &Path, seat: &str) -> Va
         settings["env"][crate::config::paths::CONFIG_HOME_ENV] =
             Value::String(home.to_string_lossy().into_owned());
     }
-    if def.execution.cargo {
-        cargo_defaults(&mut settings, scratch);
-    }
+    declared_defaults(&mut settings, &def.execution, scratch);
     if let Some(operator) = def.seat_settings.as_ref().filter(|s| !s.is_null()) {
         merge(&mut settings, operator);
     }
     browser_guard::configure(&mut settings, scratch);
-    let executable = seat_executable().ok();
-    if def.execution.cargo {
+    if !def.execution.timed_commands.is_empty() {
         append_session_start(&mut settings, &scratch.join(SHIMS).join(ACTIVATE));
-        cargo_policy::configure(&mut settings, scratch);
-        if let Some(executable) = &executable {
-            cargo_background::append_hook(&mut settings, executable);
-        }
     }
-    if let Some(executable) = &executable {
-        receipt_hook::append_hook(&mut settings, executable);
+    if let Ok(executable) = seat_executable() {
+        background_hook::append_hook(&mut settings, &executable);
+        receipt_hook::append_hook(&mut settings, &executable);
     }
     settings
 }
@@ -100,21 +92,33 @@ fn operator_config_home() -> Option<PathBuf> {
         .or_else(|| absolute("HOME").map(|home| home.join(".config")))
 }
 
-fn cargo_defaults(settings: &mut Value, scratch: &Path) {
-    settings["enabledPlugins"] = LSP_PLUGINS
-        .iter()
-        .map(|id| ((*id).to_string(), json!(false)))
-        .collect::<serde_json::Map<String, Value>>()
-        .into();
-    merge(
-        settings,
-        &json!({"env": {
-            build_slot::SHIMS_ENV: scratch.join(SHIMS).to_string_lossy(),
-            super::build_timing::DIR_ENV: scratch.join(TIMINGS).to_string_lossy(),
-            cargo_policy::ENABLED_ENV: cargo_policy::DEFAULT_POLICY,
-            cargo_background::ENABLED_ENV: "1",
-        }}),
-    );
+fn declared_defaults(settings: &mut Value, execution: &Execution, scratch: &Path) {
+    if !execution.disabled_plugins.is_empty() {
+        settings["enabledPlugins"] = execution
+            .disabled_plugins
+            .iter()
+            .map(|id| (id.clone(), json!(false)))
+            .collect::<serde_json::Map<String, Value>>()
+            .into();
+    }
+    if !execution.timed_commands.is_empty() {
+        merge(
+            settings,
+            &json!({"env": {
+                timed_command::SHIMS_ENV: scratch.join(SHIMS).to_string_lossy(),
+                timed_command::DECLARED_ENV: json!(execution.timed_commands).to_string(),
+                super::build_timing::DIR_ENV: scratch.join(TIMINGS).to_string_lossy(),
+            }}),
+        );
+    }
+    if !execution.background_commands.is_empty() {
+        merge(
+            settings,
+            &json!({"env": {
+                background_hook::COMMANDS_ENV: json!(execution.background_commands).to_string(),
+            }}),
+        );
+    }
 }
 
 pub(crate) fn for_seat(def: &FleetDefinition, seat: &str) -> Value {
@@ -131,19 +135,19 @@ pub(crate) fn prepare(def: &FleetDefinition) -> Result<(), String> {
     let state = bundle::default_state_dir(&bundle::home());
     let scratch = scratch_dir(&state, &def.repo);
     create_folders(&scratch);
-    if def.execution.cargo {
-        let written = seat_executable().and_then(|exe| write_shims(&scratch, &exe));
+    let programs: Vec<&str> = def
+        .execution
+        .timed_commands
+        .keys()
+        .map(String::as_str)
+        .collect();
+    if !programs.is_empty() {
+        let written = seat_executable().and_then(|exe| write_shims(&scratch, &exe, &programs));
         if let Err(err) = written {
-            tracing::warn!(scratch = %scratch.display(), %err, "mike could not write the seats' build slot shim");
+            tracing::warn!(scratch = %scratch.display(), %err, "mike could not write the seats' timed command shims");
         }
     }
-    let settings = effective(def, &scratch, "worker");
-    browser_guard::prepare(&settings)?;
-    if def.execution.cargo {
-        cargo_policy::prepare(&settings)
-    } else {
-        Ok(())
-    }
+    browser_guard::prepare(&effective(def, &scratch, "worker"))
 }
 
 fn create_folders(scratch: &Path) {
@@ -212,16 +216,22 @@ fn stable_executable(running: &Path) -> std::io::Result<PathBuf> {
     }
 }
 
-pub(super) fn write_shims(scratch: &Path, exe: &Path) -> std::io::Result<()> {
+pub(super) fn write_shims(scratch: &Path, exe: &Path, programs: &[&str]) -> std::io::Result<()> {
     let exe = stable_executable(exe)?;
     let shims = scratch.join(SHIMS);
     std::fs::create_dir_all(&shims)?;
-    let cargo = shims.join("cargo");
-    std::fs::write(
-        &cargo,
-        format!("#!/bin/sh\nexec {} fleet build-slot \"$@\"\n", quoted(&exe)),
-    )?;
-    executable(&cargo)?;
+    for program in programs {
+        let shim = shims.join(program);
+        std::fs::write(
+            &shim,
+            format!(
+                "#!/bin/sh\nexec {} fleet timed-run {} \"$@\"\n",
+                quoted(&exe),
+                quoted(Path::new(program))
+            ),
+        )?;
+        executable(&shim)?;
+    }
     let dir = quoted(&shims);
     std::fs::write(
         shims.join(ACTIVATE),
