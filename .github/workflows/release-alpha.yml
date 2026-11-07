@@ -35,7 +35,9 @@ jobs:
             test "${GITHUB_REF_NAME#v}" = "$actual"
           fi
       - name: Formula renderer and release tooling contracts
-        run: python3 -m unittest discover -s scripts/release -p 'test_homebrew*.py'
+        run: |
+          python3 -m unittest discover -s scripts/release -p 'test_homebrew*.py'
+          python3 -m unittest discover -s scripts/release -p 'test_targets.py'
 
   build:
     needs: validate
@@ -46,10 +48,10 @@ jobs:
           # ubuntu-22.04 is the glibc 2.35 floor: the archive is built where it must run.
           - runner: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-          # macos-15 is the oldest Apple Silicon image GitHub still hosts.
           # The arm64 runner has the same Ubuntu 22.04 base, so the same floor.
           - runner: ubuntu-22.04-arm
             target: aarch64-unknown-linux-gnu
+          # macos-15 is the oldest Apple Silicon image GitHub still hosts.
           - runner: macos-15
             target: aarch64-apple-darwin
           # scripts/release.sh builds natively and supports these three targets only:

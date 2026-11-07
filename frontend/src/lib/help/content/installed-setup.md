@@ -1,6 +1,6 @@
 ## Install, set up and capture
 
-This help is bundled into mike. Reading it needs no source checkout, Rust, Node, or repository access. mike ships for Linux on x86_64 (glibc 2.35 or newer) and Apple Silicon macOS. Do not assume another platform works.
+This help is bundled into mike. Reading it needs no source checkout, Rust, Node, or repository access. mike ships for Linux on x86_64 or ARM64 (glibc 2.35 or newer) and Apple Silicon macOS. Do not assume another platform works.
 
 Claude Code must already be installed and authenticated for a real capture; `claude --version` checks installation but does not send a request.
 

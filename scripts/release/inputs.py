@@ -105,7 +105,7 @@ def snapshot_inputs(candidate, destination, *, max_total_bytes=None):
     # Do not construct a path from unchecked manifest strings.
     if not isinstance(version, str) or not re.fullmatch(r"[0-9A-Za-z.+-]+", version):
         raise ReleaseError("invalid candidate version")
-    if target not in TARGETS:
+    if not isinstance(target, str) or target not in TARGETS:
         raise ReleaseError("unsupported candidate platform")
     expected = {"manifest.json"}
     for binary in BINARIES:

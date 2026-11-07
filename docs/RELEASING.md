@@ -123,7 +123,8 @@ secret is read.
 
 **Scope.** Only the three targets `scripts/release.sh` can build natively. There is no
 Intel macOS archive until the script supports it. The workflow
-does not run the acceptance matrix: a published archive is an alpha, not a
+publishes only when every target builds, so a failure on one holds the alpha for all
+three. It does not run the acceptance matrix: a published archive is an alpha, not a
 qualified release, and the tap formulas are not the qualified `homebrew.py`
 route below. The three real tag runs so far are described under
 [Where things stand](#where-things-stand-2026-11-06); alpha.3 is the first to reach `publish`.
@@ -187,7 +188,7 @@ native `aarch64-unknown-linux-gnu` the same on Linux ARM64. The reliability jour
 and isolated acceptance runner remain x86_64 only.
 Cross-compilation and Intel macOS are unsupported by this script.
 The macOS path's fixture tests do not qualify a real Mac archive or its install
-channel. Both scoped platforms need their own real artifact and clean-account
+channel. All three scoped platforms need their own real artifact and clean-account
 observations.
 
 Mike archives also carry the tracked runtime files from `mods/` under

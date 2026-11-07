@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import archive
 import common
+import notice_inventory
 from common import ReleaseError, TARGETS
 
 
@@ -29,6 +30,11 @@ class TargetTableTests(unittest.TestCase):
         for host in (("Darwin", "x86_64"), ("Linux", "armv7l"), ("FreeBSD", "aarch64")):
             with self.assertRaisesRegex(ReleaseError, "unsupported native host"):
                 self.native(*host)
+
+    def test_a_malformed_notice_target_refuses_as_invalid(self):
+        pins = ("0" * 40, "0.1.0-alpha.1", ["x86_64-unknown-linux-gnu"], "0" * 64, "0" * 64, {})
+        with self.assertRaisesRegex(ReleaseError, "invalid source, version, target"):
+            notice_inventory.binding(*pins)
 
     def test_linux_arm64_binaries_are_inspected_with_readelf(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -98,7 +98,8 @@ def validate_doctor(value, manifest, *, persistent=False, stopped=False):
             and value["read_only"] is True and value["product"] == "mike", "DOCTOR_IDENTITY")
     require(value["source_sha"] == manifest["source_commit"] and value["version"] == manifest["version"]
             and value["source_dirty"] is False, "DOCTOR_BUILD_MISMATCH")
-    host = TARGETS.get(manifest["target"])
+    target = manifest["target"]
+    host = TARGETS.get(target) if isinstance(target, str) else None
     require(host is not None and (value["os"], value["architecture"]) == host[2:], "DOCTOR_PLATFORM_MISMATCH")
     require(value["config_source"] == "selected_file", "DOCTOR_CONFIG_SOURCE")
     expected = {

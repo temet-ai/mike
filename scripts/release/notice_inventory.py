@@ -224,7 +224,7 @@ def validate_inventory(inventory):
 def binding(source_commit, version, target, cargo_sha, pnpm_sha, assets):
     require(isinstance(source_commit, str) and re.fullmatch(r"[0-9a-f]{40}(?:[0-9a-f]{24})?", source_commit)
             and text_field(version, 256) and re.fullmatch(r"[0-9A-Za-z.+-]+", version)
-            and target in TARGETS and all(isinstance(s, str) and HEX.fullmatch(s) for s in (cargo_sha, pnpm_sha)),
+            and isinstance(target, str) and target in TARGETS and all(isinstance(s, str) and HEX.fullmatch(s) for s in (cargo_sha, pnpm_sha)),
             "invalid source, version, target or lockfile binding")
     return {"source_commit": source_commit, "version": version, "target": target,
             "cargo_lock_sha256": cargo_sha, "pnpm_lock_sha256": pnpm_sha,
