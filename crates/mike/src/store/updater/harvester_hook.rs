@@ -3,13 +3,40 @@ use crate::store::models::RequestId;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::lessons::harvest_runs::NewHarvestRun;
 
+pub(super) struct HarvestScope {
+    project_path: String,
+    session_uuid: String,
+}
+
+pub(super) async fn read_harvest_scope(ctx: &UpdaterLoopCtx<'_>) -> HarvestScope {
+    let request_id = ctx.block_target.request_id;
+    let s = ctx.block_target.store.read().await;
+    let request = s.get(&request_id);
+    HarvestScope {
+        project_path: request
+            .and_then(|r| r.project.clone())
+            .unwrap_or_else(|| crate::store::persistence::SENTINEL_PROJECT_PATH.to_string()),
+        session_uuid: request.map(|r| r.session_id.clone()).unwrap_or_default(),
+    }
+}
+
 pub(super) async fn run_harvester_hook(
     ctx: &UpdaterLoopCtx<'_>,
     persist: &PersistHandle,
     text_for_analysis: &str,
+    scope: HarvestScope,
 ) {
     let request_id = ctx.block_target.request_id;
-    let (project_path, session_uuid, session_db_id) = resolve_harvest_scope(ctx).await;
+    let HarvestScope {
+        project_path,
+        session_uuid,
+    } = scope;
+    let session_db_id = ctx
+        .block_target
+        .store
+        .read()
+        .await
+        .session_id(&session_uuid);
     match persist
         .resolve_lesson_project(&session_uuid, &project_path)
         .await
@@ -34,21 +61,6 @@ pub(super) async fn run_harvester_hook(
             );
         }
     }
-}
-
-async fn resolve_harvest_scope(ctx: &UpdaterLoopCtx<'_>) -> (String, String, Option<i64>) {
-    let request_id = ctx.block_target.request_id;
-    let s = ctx.block_target.store.read().await;
-    let project_path = s
-        .get(&request_id)
-        .and_then(|r| r.project.clone())
-        .unwrap_or_else(|| crate::store::persistence::SENTINEL_PROJECT_PATH.to_string());
-    let session_uuid = s
-        .get(&request_id)
-        .map(|r| r.session_id.clone())
-        .unwrap_or_default();
-    let session_db_id = s.session_id(&session_uuid);
-    (project_path, session_uuid, session_db_id)
 }
 
 async fn harvest_and_log(

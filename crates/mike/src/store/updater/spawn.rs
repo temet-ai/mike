@@ -180,12 +180,13 @@ async fn handle_terminal(
         text_for_analysis,
     )
     .await;
+    let harvest_scope = super::harvester_hook::read_harvest_scope(ctx).await;
     RequestStore::snapshot_terminal(ctx.block_target.store, ctx.block_target.request_id).await;
 
     if ctx.harvester_cfg.enabled
         && let Some(p) = ctx.block_target.persist.as_ref()
     {
-        super::harvester_hook::run_harvester_hook(ctx, p, text_for_analysis).await;
+        super::harvester_hook::run_harvester_hook(ctx, p, text_for_analysis, harvest_scope).await;
     }
 
     evict_to_byte_budget_and_log(ctx.block_target.store, ctx.block_target.request_id).await;
