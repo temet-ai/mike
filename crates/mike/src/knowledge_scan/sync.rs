@@ -151,7 +151,7 @@ async fn record_missing_roots(
     }
     for (location, spec) in missing {
         memo.submitted.remove(&(*location, spec.name.clone()));
-        tracing::warn!(root = %spec.root.display(), source = %spec.name,
+        tracing::debug!(root = %spec.root.display(), source = %spec.name,
             "knowledge_scan: source root does not exist; the earlier index is kept");
     }
     let declared = source_inputs(missing.iter().filter(|(_, spec)| spec.declared));
