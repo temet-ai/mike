@@ -67,14 +67,15 @@
 #
 # EXIT CODE
 #   Non-zero if typecheck, any unit/integration test, or any Storybook run fails.
-#   Stops at the first failure, except that every Storybook batch runs: one bad
-#   area does not hide the others.
+#   Nothing stops early: every tier, theme and batch runs, and the run ends with one
+#   list of every failed test, every typecheck problem and every stalled file.
 #
 # STORYBOOK LOGS AND STALLS
-#   Each batch streams test by test to frontend/test-results/sb-test/<time>/ and
-#   prints its duration when it ends. Follow a running batch with tail -f. A batch
-#   silent for SB_STALL_SECONDS (default 180) is killed and reported with the last
-#   test it reached.
+#   Storybook streams test by test to frontend/test-results/sb-test/<time>/ and
+#   prints its duration when it ends. Follow a running pass with tail -f. A pass
+#   silent for SB_STALL_SECONDS (default 180) is killed. The tests it finished
+#   still count, and the batch's unfinished files then run one at a time, so the
+#   stuck file is named and the rest of the batch still reports.
 #
 # EXAMPLES
 #   scripts/sb-test                                     # typecheck + logic + storybook
@@ -165,6 +166,65 @@ run_watched() {
   done
   wait "$pid" || status=$?
   return "$status"
+}
+
+# Every story file in a batch, from its space-separated path filters.
+batch_files() {
+  local path
+  for path in $1; do
+    ( cd "$FRONTEND" && find src -type f -name '*.stories.*' ) | grep -aF "$path" || true
+  done | LC_ALL=C sort -u
+}
+
+# Adds a pass's failed tests and passed count to the end-of-run list.
+record_results() { # $1 = clean log
+  local count
+  grep -aE '^ *(×|FAIL) ' "$1" | sed -E 's/^ *(×|FAIL) +//; s/ +[0-9]+ms$//' >>"$FAILED_LIST" || true
+  count="$(grep -aE '^ +Tests +[0-9]' "$1" | tail -1 | sed -nE 's/.* ([0-9]+) passed.*/\1/p' || true)"
+  TOTAL_PASSED=$(( TOTAL_PASSED + ${count:-0} ))
+}
+
+# After a stall: counts what the pass finished, then runs what it did not, file by
+# file. The file it stopped in runs again, since it may have tests left.
+retry_unfinished() { # $1 = suffix, $2 = theme, $3 = batch name, $4 = paths
+  local suffix="$1" theme="$2" name="$3" paths="$4" file last="" n=0 finished
+  local log="$LOG_DIR/storybook-$suffix-$name.log"
+  local clean reached
+  clean="$(mktemp "${TMPDIR:-/tmp}/sb-test-stall.XXXXXX")"
+  reached="$(mktemp "${TMPDIR:-/tmp}/sb-test-reached.XXXXXX")"
+  perl -pe 's/\e\[[0-9;]*[A-Za-z]//g' "$log" >"$clean"
+  grep -aE '^ *(✓|×) ' "$clean" | sed -E 's/^ *(✓|×) \|[^|]*\| ([^ ]+) > .*/\2/' >"$reached" || true
+  last="$(tail -1 "$reached")"
+  if [[ -n "$last" ]]; then
+    finished="$(grep -aE '^ *✓ ' "$clean" | grep -avcF " $last > " || true)"
+  else
+    finished="$(grep -acE '^ *✓ ' "$clean" || true)"
+  fi
+  TOTAL_PASSED=$(( TOTAL_PASSED + ${finished:-0} ))
+  FIRST_ATTEMPT=0
+  while IFS= read -r file; do
+    [[ "$file" != "$last" ]] && grep -qxF "$file" "$reached" && continue
+    n=$(( n + 1 ))
+    BATCH_FILTERS=("$file")
+    run_vitest "storybook:$suffix:$name:retry-$n" "$theme" "${browser_args[@]}" || true
+  done < <(batch_files "$paths")
+  FIRST_ATTEMPT=1
+  rm -f "$clean" "$reached"
+}
+
+print_summary() {
+  local failed stalled
+  failed="$(LC_ALL=C sort -u "$FAILED_LIST" | wc -l | tr -d ' ')"
+  stalled="$(LC_ALL=C sort -u "$STALLED_LIST" | wc -l | tr -d ' ')"
+  echo "sb-test: summary: $TOTAL_PASSED tests passed, $failed failed, $stalled stalled"
+  if (( failed )); then
+    echo "sb-test: every failure:"
+    LC_ALL=C sort -u "$FAILED_LIST" | sed 's/^/  × /'
+  fi
+  if (( stalled )); then
+    echo "sb-test: every stall:"
+    LC_ALL=C sort -u "$STALLED_LIST" | sed 's/^/  ⏱ /'
+  fi
 }
 
 vitest_in_frontend() { # Remaining args: env assignments, then --, then vitest args.
@@ -260,6 +320,13 @@ if (( JSON )); then
   JSON_LOG="$(mktemp "${TMPDIR:-/tmp}/sb-test-json.XXXXXX")"
 fi
 
+TOTAL_PASSED=0
+TC_RC=0
+FIRST_ATTEMPT=1
+FAILED_LIST="$(mktemp "${TMPDIR:-/tmp}/sb-test-failed.XXXXXX")"
+STALLED_LIST="$(mktemp "${TMPDIR:-/tmp}/sb-test-stalled.XXXXXX")"
+trap 'rm -f "$FAILED_LIST" "$STALLED_LIST"' EXIT
+
 # Appends a labelled copy of $1 (a phase log file) into the combined JSON_LOG,
 # used only when --json is set (JSON_LOG is empty/unset otherwise).
 append_json_log() {
@@ -306,6 +373,7 @@ run_vitest() { # $1 = label, $2 = theme, remaining args = vitest args.
 
   clean_log="$(mktemp "${TMPDIR:-/tmp}/sb-test-clean.XXXXXX")"
   perl -pe 's/\e\[[0-9;]*[A-Za-z]//g' "$log" >"$clean_log"
+  record_results "$clean_log"
 
   local files tests
   files="$(grep -aE '^ Test Files +' "$clean_log" | tail -1 | sed 's/^ *//' || true)"
@@ -324,6 +392,9 @@ run_vitest() { # $1 = label, $2 = theme, remaining args = vitest args.
     printf '  [%s] ✗ STALLED: no output for %ds, stopped after %ds\n' "$label" "$STALL_SECONDS" "$(( SECONDS - started ))"
     tail -n 3 "$clean_log" | sed 's/^/    last: /'
     echo "    (full log: $log)"
+    if (( ! FIRST_ATTEMPT )) || [[ ${#BATCH_FILTERS[@]} -eq 0 ]]; then
+      printf '%s: %s\n' "$label" "${BATCH_FILTERS[*]:-${FILTERS[*]}}" >>"$STALLED_LIST"
+    fi
     append_json_log "$clean_log" "vitest:$label" "$rc"
     rm -f "$clean_log"
     return "$rc"
@@ -342,7 +413,7 @@ run_vitest() { # $1 = label, $2 = theme, remaining args = vitest args.
   # The lines an agent needs to act: failing files, failed-test names, assertions.
   if (( ! RAW )); then
     grep -aE '❯|×| FAIL |✗|AssertionError|Error:|Expected|Received|No test files found' "$clean_log" \
-      | grep -avE '✓|passed' | head -40 | sed 's/^/    /' || true
+      | grep -avE '✓|passed' | sed 's/^/    /' || true
     echo "    (full log: $log — re-run with --raw for live output)"
   fi
   append_json_log "$clean_log" "vitest:$label" "$rc"
@@ -378,7 +449,7 @@ run_typecheck() {
     printf '  [typecheck] ✗ FAIL (exit %d)\n' "$rc"
     # Warnings fail this step too, so the summary has to show Warn: lines as well
     # as errors, or a --fail-on-warnings failure prints an empty reason.
-    grep -aE 'Error:|error TS|^Warn:' "$log" | head -30 | sed 's/^/    /' || true
+    grep -aE 'Error:|error TS|^Warn:' "$log" | sed 's/^/typecheck: /' >>"$FAILED_LIST" || true
     echo "    (full log: $log — re-run with: cd frontend && pnpm exec svelte-kit sync && pnpm exec svelte-check --fail-on-warnings)"
     append_json_log "$log" "typecheck" "$rc"
   fi
@@ -393,10 +464,17 @@ run_typecheck() {
 emit_json() {
   local exit_code="$1" verdict="pass"
   (( exit_code != 0 )) && verdict="fail"
-  python3 - "$JSON_LOG" "$verdict" "$exit_code" <<'PYEOF'
+  python3 - "$JSON_LOG" "$verdict" "$exit_code" "$FAILED_LIST" "$STALLED_LIST" <<'PYEOF'
 import json, re, sys
 
 log_path, verdict, exit_code = sys.argv[1], sys.argv[2], int(sys.argv[3])
+
+
+def listed(path):
+    with open(path, encoding="utf-8", errors="replace") as lines:
+        return sorted({line.rstrip("\n") for line in lines if line.strip()})
+
+
 try:
     text = open(log_path, encoding="utf-8", errors="replace").read()
 except OSError:
@@ -413,7 +491,7 @@ for line in re.findall(r"^\s*Tests\s+.*$", text, re.MULTILINE):
             skipped += int(count)
 
 failed_files = []
-for m in re.findall(r"^\s*FAIL\s+(\S+)", text, re.MULTILINE):
+for m in re.findall(r"^\s*FAIL\s+(?:\|[^|]*\|\s+)?(\S+)", text, re.MULTILINE):
     path = m.split(" > ")[0]
     if path not in failed_files:
         failed_files.append(path)
@@ -438,6 +516,8 @@ print(json.dumps({
     "exit_code": exit_code,
     "failed_files": failed_files,
     "failed_stories": failed_stories,
+    "failures": listed(sys.argv[4]),
+    "stalled": listed(sys.argv[5]),
     "unhandled_errors": unhandled_errors,
     "counts": {"passed": passed, "failed": failed, "skipped": skipped},
     "raw_log": log_path,
@@ -455,26 +535,22 @@ if (( SKIP_TYPECHECK )); then
   echo "sb-test: typecheck skipped (--skip-typecheck; not a gate)"
 else
   echo "sb-test: typecheck"
-  tc_rc=0; run_typecheck || tc_rc=$?
-  if (( tc_rc != 0 )); then
-    echo "sb-test: FAIL — typecheck failed"
-    (( JSON )) && emit_json "$tc_rc"
-    exit "$tc_rc"
-  fi
+  run_typecheck || TC_RC=$?
 fi
 
 # A filtered pass is one vitest run. A whole-suite pass or --batch runs by batch.
 run_storybook_pass() { # $1 = label suffix, $2 = theme
   local suffix="$1" theme="$2" line name count paths matched=0 status=0 failed=0
+  LOG_DIR="$FRONTEND/test-results/sb-test/$(date +%Y%m%d-%H%M%S)-$suffix"
+  mkdir -p "$LOG_DIR"
+  echo "sb-test: logs in $LOG_DIR"
   if (( ${#FILTERS[@]} )); then
-    run_vitest "storybook:$suffix" "$theme" "${browser_args[@]}"
-    return
+    run_vitest "storybook:$suffix" "$theme" "${browser_args[@]}" || failed=$?
+    LOG_DIR=""
+    return "$failed"
   fi
   local -a batches=()
-  mapfile -t batches < <(storybook_batches)
-  LOG_DIR="$FRONTEND/test-results/sb-test/$(date +%Y%m%d-%H%M%S)"
-  mkdir -p "$LOG_DIR"
-  echo "sb-test: ${#batches[@]} batches, logs in $LOG_DIR"
+  while IFS= read -r line; do batches+=("$line"); done < <(storybook_batches)
   for line in "${batches[@]}"; do
     IFS=$'\t' read -r name count paths <<<"$line"
     [[ -n "$ONLY_BATCH" && "$name" != "$ONLY_BATCH" ]] && continue
@@ -482,6 +558,7 @@ run_storybook_pass() { # $1 = label suffix, $2 = theme
     read -r -a BATCH_FILTERS <<<"$paths"
     status=0
     run_vitest "storybook:$suffix:$name" "$theme" "${browser_args[@]}" || status=$?
+    (( status == 124 )) && retry_unfinished "$suffix" "$theme" "$name" "$paths"
     (( status == 0 )) || failed=$status
   done
   BATCH_FILTERS=()
@@ -493,7 +570,7 @@ run_storybook_pass() { # $1 = label suffix, $2 = theme
   return "$failed"
 }
 
-rc=0
+rc=$TC_RC
 declare -a node_projects=()
 (( RUN_UNIT )) && node_projects+=(--project unit)
 (( RUN_INTEGRATION )) && node_projects+=(--project integration)
@@ -502,7 +579,7 @@ if (( ${#node_projects[@]} )); then
   run_vitest "logic" "" "${node_projects[@]}" || rc=$?
 fi
 
-if (( rc == 0 && RUN_STORYBOOK )); then
+if (( RUN_STORYBOOK )); then
   declare -a browser_args=(--project storybook)
   if (( SERIAL )); then
     browser_args+=(--no-file-parallelism)
@@ -516,11 +593,7 @@ if (( rc == 0 && RUN_STORYBOOK )); then
   else
     echo "sb-test: storybook | themes: ${THEMES[*]} | filters: ${FILTERS[*]:-<all>}"
     for theme in "${THEMES[@]}"; do
-      if ! run_storybook_pass "$theme" "$theme"; then
-        rc=1
-        echo "sb-test: FAIL — stopped at theme: $theme (themes before it passed)"
-        break
-      fi
+      run_storybook_pass "$theme" "$theme" || rc=1
     done
   fi
 fi
@@ -530,6 +603,7 @@ if (( rc == 0 && ${#FILTERS[@]} > 0 && MATCHED_PHASES == 0 )); then
   echo "sb-test: FAIL — no selected tier collected tests for filters: ${FILTERS[*]}"
 fi
 
+print_summary
 (( rc == 0 )) && echo "sb-test: PASS" || echo "sb-test: FAIL (exit $rc)"
 (( JSON )) && emit_json "$rc"
 exit "$rc"
