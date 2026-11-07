@@ -8,8 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { FRONTEND_ROOT } from './graph.mjs';
 import { computeAffectedAtCommit } from './affected-at.mjs';
 
-const git = (cwd, ...args) =>
-	execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
 
 async function put(repo, rel, text) {
 	const file = path.join(repo, rel);

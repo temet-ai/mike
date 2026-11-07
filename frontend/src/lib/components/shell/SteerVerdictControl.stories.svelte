@@ -34,8 +34,12 @@
 	play={async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole('button', { name: 'Wrong' }));
-		await waitFor(() => expect(canvasElement.querySelector('[data-steer-verdict="wrong"]')).not.toBeNull());
-		await expect(posted).toContain('/api/steering/evaluations/0b6f3c1e-0000-4000-8000-000000000001/label');
+		await waitFor(() =>
+			expect(canvasElement.querySelector('[data-steer-verdict="wrong"]')).not.toBeNull()
+		);
+		await expect(posted).toContain(
+			'/api/steering/evaluations/0b6f3c1e-0000-4000-8000-000000000001/label'
+		);
 		await expect(canvasElement.textContent).toContain('A pending wake for this fire is cancelled.');
 	}}
 >

@@ -10,7 +10,11 @@
 		memberDisplayLabel,
 		perCallLabel
 	} from '$lib/api/llmSpend';
-	import type { LlmSpendCallerDto, LlmSpendCallerGroup, LlmSpendCallerSortKey } from '$lib/api/llmSpend';
+	import type {
+		LlmSpendCallerDto,
+		LlmSpendCallerGroup,
+		LlmSpendCallerSortKey
+	} from '$lib/api/llmSpend';
 
 	interface Props {
 		callers: LlmSpendCallerDto[];
@@ -82,7 +86,8 @@
 		{
 			key: 'cost',
 			label: 'Cost',
-			tooltip: 'Total US dollars this caller (or group) spent through OpenRouter in the selected window.'
+			tooltip:
+				'Total US dollars this caller (or group) spent through OpenRouter in the selected window.'
 		},
 		{
 			key: 'share',
@@ -175,10 +180,20 @@
 										<span class="ct-caller-plain">{member?.label}</span>
 									{/if}
 								</td>
-								<td class="ct-td ct-td--num">{costLabel(group.cost_usd, group.call_count, group.subscription_call_count)}</td>
+								<td class="ct-td ct-td--num"
+									>{costLabel(group.cost_usd, group.call_count, group.subscription_call_count)}</td
+								>
 								<td class="ct-td ct-td--num">{formatShare(group.cost_usd)}</td>
-								<td class="ct-td ct-td--num">{callsLabel(group.call_count, group.subscription_call_count)}</td>
-								<td class="ct-td ct-td--num">{perCallLabel(group.avg_cost_per_call, group.call_count, group.subscription_call_count)}</td>
+								<td class="ct-td ct-td--num"
+									>{callsLabel(group.call_count, group.subscription_call_count)}</td
+								>
+								<td class="ct-td ct-td--num"
+									>{perCallLabel(
+										group.avg_cost_per_call,
+										group.call_count,
+										group.subscription_call_count
+									)}</td
+								>
 								<td class="ct-td ct-td--num"
 									>{Math.round(group.avg_prompt_tokens).toLocaleString()}</td
 								>
@@ -203,10 +218,20 @@
 										<span class="ct-group-label">{group.groupLabel}</span>
 									{/if}
 								</td>
-								<td class="ct-td ct-td--num">{costLabel(group.cost_usd, group.call_count, group.subscription_call_count)}</td>
+								<td class="ct-td ct-td--num"
+									>{costLabel(group.cost_usd, group.call_count, group.subscription_call_count)}</td
+								>
 								<td class="ct-td ct-td--num">{formatShare(group.cost_usd)}</td>
-								<td class="ct-td ct-td--num">{callsLabel(group.call_count, group.subscription_call_count)}</td>
-								<td class="ct-td ct-td--num">{perCallLabel(group.avg_cost_per_call, group.call_count, group.subscription_call_count)}</td>
+								<td class="ct-td ct-td--num"
+									>{callsLabel(group.call_count, group.subscription_call_count)}</td
+								>
+								<td class="ct-td ct-td--num"
+									>{perCallLabel(
+										group.avg_cost_per_call,
+										group.call_count,
+										group.subscription_call_count
+									)}</td
+								>
 								<td class="ct-td ct-td--num"
 									>{Math.round(group.avg_prompt_tokens).toLocaleString()}</td
 								>
@@ -226,10 +251,24 @@
 												<span class="ct-caller-plain">{memberDisplayLabel(member)}</span>
 											{/if}
 										</td>
-										<td class="ct-td ct-td--num">{costLabel(member.cost_usd, member.call_count, member.subscription_call_count)}</td>
+										<td class="ct-td ct-td--num"
+											>{costLabel(
+												member.cost_usd,
+												member.call_count,
+												member.subscription_call_count
+											)}</td
+										>
 										<td class="ct-td ct-td--num">{formatShare(member.cost_usd)}</td>
-										<td class="ct-td ct-td--num">{callsLabel(member.call_count, member.subscription_call_count)}</td>
-										<td class="ct-td ct-td--num">{perCallLabel(member.avg_cost_per_call, member.call_count, member.subscription_call_count)}</td>
+										<td class="ct-td ct-td--num"
+											>{callsLabel(member.call_count, member.subscription_call_count)}</td
+										>
+										<td class="ct-td ct-td--num"
+											>{perCallLabel(
+												member.avg_cost_per_call,
+												member.call_count,
+												member.subscription_call_count
+											)}</td
+										>
 										<td class="ct-td ct-td--num"
 											>{Math.round(member.avg_prompt_tokens).toLocaleString()}</td
 										>

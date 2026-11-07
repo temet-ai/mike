@@ -219,7 +219,8 @@
 										{/each}
 									</svg>
 								</div>
-								<span class="sc-col-label">{i % labelStep === 0 ? shortDayLabel(bar.day) : ''}</span>
+								<span class="sc-col-label">{i % labelStep === 0 ? shortDayLabel(bar.day) : ''}</span
+								>
 							</div>
 						{/snippet}
 					</TooltipTrigger>

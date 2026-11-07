@@ -46,7 +46,11 @@ See design-spec.md §6.
 	// re-deriving from `data` would overwrite the operator's edit.
 	// svelte-ignore state_referenced_locally
 	let editedText = $state(data.lesson?.text ?? '');
-	let open = $state<Record<OpenKey, boolean>>({ rationale: false, similar: true, reinforcing: true });
+	let open = $state<Record<OpenKey, boolean>>({
+		rationale: false,
+		similar: true,
+		reinforcing: true
+	});
 	let rejecting = $state(false);
 	let showOtherNote = $state(false);
 	let otherNote = $state('');
@@ -109,7 +113,11 @@ See design-spec.md §6.
 		saving = reason;
 		decisionError = null;
 		try {
-			await rejectLessonCandidate(data.lesson.id, reason, reason === 'other' ? otherNote : undefined);
+			await rejectLessonCandidate(
+				data.lesson.id,
+				reason,
+				reason === 'other' ? otherNote : undefined
+			);
 			decided = 'rejected';
 			rejecting = false;
 			showOtherNote = false;
@@ -124,7 +132,6 @@ See design-spec.md §6.
 		return e.turnHref + e.createdAt;
 	}
 </script>
-
 
 <svelte:head><title>{title} — Sessions — mike</title></svelte:head>
 
@@ -156,7 +163,8 @@ See design-spec.md §6.
 							{#if ev.existingLessonText}
 								<p class="les-note">
 									Already a lesson:
-									<a class="les-link" href={ev.existingLessonHref ?? '#'}>{ev.existingLessonText}</a>
+									<a class="les-link" href={ev.existingLessonHref ?? '#'}>{ev.existingLessonText}</a
+									>
 								</p>
 							{/if}
 						</div>
@@ -212,7 +220,8 @@ See design-spec.md §6.
 								<p class="les-quote">{lesson.assistantEndingText}</p>
 							</EvalQuote>
 							<EvalQuote who="you" key heading="Your correction">
-								{#snippet meta()}<a class="les-link" href={lesson.sessionHref}>{lesson.sessionTitle}</a
+								{#snippet meta()}<a class="les-link" href={lesson.sessionHref}
+										>{lesson.sessionTitle}</a
 									>{/snippet}
 								<p class="les-quote">{lesson.correctingQuote}</p>
 							</EvalQuote>
@@ -244,7 +253,11 @@ See design-spec.md §6.
 					</section>
 
 					{#if lesson.similarCorrections.length > 0}
-						{@render evidenceBand('similar', 'Similar earlier corrections', lesson.similarCorrections)}
+						{@render evidenceBand(
+							'similar',
+							'Similar earlier corrections',
+							lesson.similarCorrections
+						)}
 					{/if}
 
 					{#if lesson.evidenceCount > 1 && lesson.reinforcingCorrections.length > 0}
@@ -262,7 +275,9 @@ See design-spec.md §6.
 							</div>
 							<div class="band-body les-live">
 								<p class="les-note les-note--strong">
-									Sent to {lesson.injectionCount ?? 0} session{lesson.injectionCount === 1 ? '' : 's'}
+									Sent to {lesson.injectionCount ?? 0} session{lesson.injectionCount === 1
+										? ''
+										: 's'}
 									since it went live on {lesson.wentLiveAt ?? 'an unrecorded date'}.
 								</p>
 								{#if lesson.effect}
@@ -284,8 +299,7 @@ See design-spec.md §6.
 									<textarea
 										class="les-textarea"
 										aria-labelledby="les-rule-hd"
-										bind:value={editedText}
-									></textarea>
+										bind:value={editedText}></textarea>
 									<button
 										type="button"
 										class="les-reset"
@@ -307,8 +321,9 @@ See design-spec.md §6.
 									<p class="les-note">Saved. You can leave this page.</p>
 								{:else if isEditable}
 									<p class="les-note" data-testid="lesson-action-effect">
-										Approve sends this rule to later sessions of its project, starting with their next
-										message. Reject keeps it from ever being sent, and saves the reason you pick.
+										Approve sends this rule to later sessions of its project, starting with their
+										next message. Reject keeps it from ever being sent, and saves the reason you
+										pick.
 									</p>
 									<div class="les-actions">
 										<Button

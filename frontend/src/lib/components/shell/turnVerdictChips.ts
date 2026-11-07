@@ -1,12 +1,7 @@
 import type { OperatorTurnDto } from '$lib/types';
 
 export type VerdictSource =
-	| 'judge'
-	| 'operator'
-	| 'frustration close'
-	| 'no verdict'
-	| 'legacy'
-	| 'pending';
+	'judge' | 'operator' | 'frustration close' | 'no verdict' | 'legacy' | 'pending';
 
 type ProjectionFields = Pick<
 	OperatorTurnDto,

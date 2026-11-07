@@ -3,11 +3,7 @@
 	import { expect, userEvent, waitFor, within } from 'storybook/test';
 	import SkillsPage from './+page.svelte';
 	import type { SkillsPageData } from './+page';
-	import {
-		PROJECT_SKILLS,
-		PROJECT_UUID,
-		SKILL_PROJECTS
-	} from '$lib/test-support/skillsFixtures';
+	import { PROJECT_SKILLS, PROJECT_UUID, SKILL_PROJECTS } from '$lib/test-support/skillsFixtures';
 	import { stubFetchJsonRouter, typed, type TypedBody } from '$lib/test-support/storyFetchStubs';
 
 	const DATA: SkillsPageData = {
@@ -60,8 +56,6 @@
 		await expect(canvas.getByRole('link', { name: 'checkout-flow' })).toBeInTheDocument();
 		await expect(canvas.getByText('Did not pass review')).toBeInTheDocument();
 		await userEvent.click(canvas.getByRole('radio', { name: /Ship when it passes review/ }));
-		await waitFor(() =>
-			expect(policyBody).toEqual({ project: PROJECT_UUID, mode: 'auto' })
-		);
+		await waitFor(() => expect(policyBody).toEqual({ project: PROJECT_UUID, mode: 'auto' }));
 	}}
 />

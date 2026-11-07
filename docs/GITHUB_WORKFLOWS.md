@@ -43,16 +43,22 @@ through `release-alpha.yml`, `workflow_dispatch` and `workflow_call`.
 
 | Where | What |
 |---|---|
-| Before a commit | `scripts/rule-checks/rust-staged-lint.sh`: formatting and the 500-line limit on the staged Rust files |
-| Before a push | `scripts/pre-push-check`: fmt, clippy, structural lint, secret scan, cargo-deny when the lockfile changed |
-| While working | `scripts/test-area`: the tests of the areas the branch changed |
-| Push to `main` | Jobs `lint` and `fast`, side by side |
-| Pull request, nightly, release tag, manual | Those two plus `integration`, the DB tier in three shards, and `cargo sqlx prepare --check` on shard 1 |
-| Release tag | All of the above plus E2E, before publishing |
+| Before a commit | The staged files: secret scan, Rust and frontend formatting (fixed for you), the 500-line limit, ESLint errors on added lines |
+| Before a push | `scripts/pre-push-check`, for what changed: secret scan, SAST, clippy and structural lint, fast Rust tests, `scripts/test-area`, frontend typecheck and unit tests, cargo-deny when the lockfile changed |
+| Push to `main` | Rust `lint` and `fast`; frontend `checks` |
+| Pull request | Those plus `integration`, the DB tier in three shards with `cargo sqlx prepare --check` on shard 1, and frontend `storybook` |
+| Nightly | Rust `lint`, `fast` and `integration` |
+| Release tag | Rust `lint`, `fast` and `integration`, then E2E, before publishing |
 
-A failure in `lint` no longer stops the tests, and the reverse. Commits pushed straight to
-`main` get their integration result from the next nightly run. Setup shared by the jobs is
+A failure in `lint` does not stop the tests, and the reverse. Setup shared by the jobs is
 in `.github/actions/rust-setup`.
+
+Rust and frontend changes land through a pull request; docs and scripts may be pushed
+directly. GitHub cannot require a pull request for some paths only, and requiring checks on
+`main` would block every direct push, so the hook refuses a direct Rust or frontend push and
+the `direct` job fails and runs the integration shards on any Rust commit that gets past it.
+Fleet pushes skip the hook, because they have a 20 second limit and their own gates. ESLint
+is checked on added lines only, because the frontend has 823 older errors.
 
 **Concurrency:** `rust-quality-${{ github.workflow }}-${{ github.ref }}` with `cancel-in-progress` set for pull requests only. On a pull request only the latest push runs. On `main` a running job finishes and the newest push queues behind it, so a busy branch still gets a verdict (the caller's workflow name is in the group so a candidate run cannot cancel a main run).
 

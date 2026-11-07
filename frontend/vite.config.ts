@@ -8,9 +8,8 @@ const assistantBackend = process.env.PROMPT_ASSISTANT_BACKEND ?? 'http://127.0.0
 
 const frontendPortRaw = process.env.MIKE_FRONTEND_PORT ?? '';
 const parsedFrontendPort = Number.parseInt(frontendPortRaw, 10);
-const frontendPort = Number.isFinite(parsedFrontendPort) && parsedFrontendPort > 0
-	? parsedFrontendPort
-	: 9990;
+const frontendPort =
+	Number.isFinite(parsedFrontendPort) && parsedFrontendPort > 0 ? parsedFrontendPort : 9990;
 
 const frontendHost = (process.env.MIKE_FRONTEND_HOST ?? '').trim() || '127.0.0.1';
 

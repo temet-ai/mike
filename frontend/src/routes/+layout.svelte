@@ -250,10 +250,7 @@
 					</span>
 				</button>
 			{:else}
-				<div
-					class="dn-retract"
-					out:fly={{ x: -24, duration: 180, easing: cubicIn }}
-				>
+				<div class="dn-retract" out:fly={{ x: -24, duration: 180, easing: cubicIn }}>
 					<DestinationNav />
 				</div>
 			{/if}

@@ -52,8 +52,8 @@
 					The settings catalogue shows <code>{backend}</code> because nothing has been written
 					through <code>/settings</code> for this key yet, but the backend actually running right
 					now — and the one just validated — is <code>{report.backend}</code> (set via
-					<code>MIKE_LAUNCH_BACKEND</code> or a CLI flag). Editing the field above only takes effect
-					after a restart; it will not change which backend the check above just ran against.
+					<code>MIKE_LAUNCH_BACKEND</code> or a CLI flag). Editing the field above only takes effect after
+					a restart; it will not change which backend the check above just ran against.
 				</p>
 			{/if}
 

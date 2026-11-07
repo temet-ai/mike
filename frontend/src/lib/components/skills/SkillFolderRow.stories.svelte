@@ -4,7 +4,7 @@
 	import SkillFolderRow from './SkillFolderRow.svelte';
 	import {
 		FOLDER_COVERED,
-	FOLDER_FAILED,
+		FOLDER_FAILED,
 		FOLDER_GENERATED,
 		FOLDER_RETIRED,
 		FOLDER_SHIPPED,
@@ -60,10 +60,9 @@
 			canvas.getByText('mike does not yet move these lessons into invoice-rounding by itself.')
 		).toBeInTheDocument();
 		await expect(canvas.getAllByText("The reviewer's advice")).toHaveLength(2);
-		await expect(canvas.getAllByRole('link', { name: /Decide on the skill page/ })[1]).toHaveAttribute(
-			'href',
-			'/skills/44'
-		);
+		await expect(
+			canvas.getAllByRole('link', { name: /Decide on the skill page/ })[1]
+		).toHaveAttribute('href', '/skills/44');
 		await expect(canvas.getAllByText('holds this draft').length).toBeGreaterThan(0);
 		await expect(canvas.getByText('holds an earlier revision')).toBeInTheDocument();
 		await expect(canvas.getByText("holds mike's generated list of lessons")).toBeInTheDocument();

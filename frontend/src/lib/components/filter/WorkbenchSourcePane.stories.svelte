@@ -168,9 +168,7 @@
 		// G9: a rule landing in the SESSION MESSAGE (the last user message, not a system block)
 		// gets its own diffed section, at the end — same word-level diff and margin treatment.
 		await expect(await canvas.findByText('Session message')).toBeInTheDocument();
-		await expect(
-			await canvas.findByText(/Run it three times to confirm\.$/)
-		).toBeInTheDocument();
+		await expect(await canvas.findByText(/Run it three times to confirm\.$/)).toBeInTheDocument();
 	}}
 >
 	{#snippet template()}

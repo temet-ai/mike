@@ -44,12 +44,52 @@
 
 	const RATES: EvalRateDto[] = [
 		rate({ id: 1 }),
-		rate({ id: 2, metric: 'recall', k: 14, n: 52, value: 0.0682, weighted: true, n_effective: 31.4, ci_low: 0.02, ci_high: 0.19 })
+		rate({
+			id: 2,
+			metric: 'recall',
+			k: 14,
+			n: 52,
+			value: 0.0682,
+			weighted: true,
+			n_effective: 31.4,
+			ci_low: 0.02,
+			ci_high: 0.19
+		})
 	];
 	const MIX: EvalRateDto[] = [
-		rate({ id: 3, family: 'label_mix', metric: 'share', window_days: 7, label_tier: null, class: 'corrected', k: 6, n: 190, value: 0.0316 }),
-		rate({ id: 4, family: 'label_mix', metric: 'share', window_days: 28, label_tier: null, class: 'corrected', k: 150, n: 760, value: 0.197 }),
-		rate({ id: 5, family: 'label_mix', metric: 'share', window_days: 7, population: 'replied_real_turns', class: 'corrected', k: 4, n: 120, value: 0.033 })
+		rate({
+			id: 3,
+			family: 'label_mix',
+			metric: 'share',
+			window_days: 7,
+			label_tier: null,
+			class: 'corrected',
+			k: 6,
+			n: 190,
+			value: 0.0316
+		}),
+		rate({
+			id: 4,
+			family: 'label_mix',
+			metric: 'share',
+			window_days: 28,
+			label_tier: null,
+			class: 'corrected',
+			k: 150,
+			n: 760,
+			value: 0.197
+		}),
+		rate({
+			id: 5,
+			family: 'label_mix',
+			metric: 'share',
+			window_days: 7,
+			population: 'replied_real_turns',
+			class: 'corrected',
+			k: 4,
+			n: 120,
+			value: 0.033
+		})
 	];
 
 	const { Story } = defineMeta({

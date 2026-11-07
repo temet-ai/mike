@@ -411,7 +411,9 @@
 	);
 
 	const timelineBuild = $derived(buildTimelineRows(bands, findTurnForId));
-	const mailboxMerge = $derived(mergeMailboxRows(timelineBuild.rows, inboxMessages, findTurnForId, bands));
+	const mailboxMerge = $derived(
+		mergeMailboxRows(timelineBuild.rows, inboxMessages, findTurnForId, bands)
+	);
 	const anchorForRequestId = $derived(timelineBuild.anchorForRequestId);
 	const steerMerge = $derived(mergeSteerRows(mailboxMerge.rows, firedSteers, anchorForRequestId));
 	const timelineRows = $derived(steerMerge.rows);
@@ -466,7 +468,10 @@
 					break;
 				case 'turn': {
 					const calls = toolUsesByTurnId.get(row.turn.turn_id) ?? [];
-					if (turnVisible(row.turn, calls, role, tool, lowerQuery) && turnMatchesRequestFilter(row.turn))
+					if (
+						turnVisible(row.turn, calls, role, tool, lowerQuery) &&
+						turnMatchesRequestFilter(row.turn)
+					)
 						out.push(row);
 					break;
 				}

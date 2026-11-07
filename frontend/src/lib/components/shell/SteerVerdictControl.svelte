@@ -19,11 +19,17 @@
 </script>
 
 <span class="inline-flex flex-wrap items-center gap-2" data-steer-verdict={saved ?? 'unset'}>
-	<button type="button" class="text-micro font-semibold" aria-pressed={saved === 'right'} onclick={() => void mark('right')}
-		>Right</button
+	<button
+		type="button"
+		class="text-micro font-semibold"
+		aria-pressed={saved === 'right'}
+		onclick={() => void mark('right')}>Right</button
 	>
-	<button type="button" class="text-micro font-semibold" aria-pressed={saved === 'wrong'} onclick={() => void mark('wrong')}
-		>Wrong</button
+	<button
+		type="button"
+		class="text-micro font-semibold"
+		aria-pressed={saved === 'wrong'}
+		onclick={() => void mark('wrong')}>Wrong</button
 	>
 	<input
 		class="border border-[var(--border-subtle)] bg-[var(--surface-bg)] px-2 py-1 text-micro"

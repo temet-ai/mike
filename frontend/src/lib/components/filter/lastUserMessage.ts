@@ -43,7 +43,10 @@ function extractTextFromContent(content: unknown): string {
 	if (typeof content === 'string') return content;
 	if (Array.isArray(content)) {
 		return content
-			.filter((block): block is { text: string } => isRecord(block) && block.type === 'text' && typeof block.text === 'string')
+			.filter(
+				(block): block is { text: string } =>
+					isRecord(block) && block.type === 'text' && typeof block.text === 'string'
+			)
 			.map((block) => block.text)
 			.join('');
 	}

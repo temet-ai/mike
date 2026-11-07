@@ -71,10 +71,9 @@
 		await expect(await canvas.findByText(/must be incorporated/)).toBeInTheDocument();
 
 		// Similar earlier corrections: open by default.
-		await expect(canvas.getByRole('button', { name: /Similar earlier corrections/ })).toHaveAttribute(
-			'aria-expanded',
-			'true'
-		);
+		await expect(
+			canvas.getByRole('button', { name: /Similar earlier corrections/ })
+		).toHaveAttribute('aria-expanded', 'true');
 		await expect(canvas.getByText('Fix the capture-DB retry loop')).toBeInTheDocument();
 
 		// Not yet live: no "Since it went live" band.

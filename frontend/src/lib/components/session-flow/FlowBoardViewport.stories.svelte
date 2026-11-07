@@ -88,7 +88,9 @@
 				>
 					{#each Array.from({ length: 8 }, (_, i) => i) as i (i)}
 						<div
-							style="position: absolute; left: {40 + i * 160}px; top: {40 + (i % 3) * 140}px; width: 140px; height: 40px; background: var(--surface-card); box-shadow: inset 0 0 0 1px var(--border-default); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 11px; color: var(--text-1);"
+							style="position: absolute; left: {40 + i * 160}px; top: {40 +
+								(i % 3) *
+									140}px; width: 140px; height: 40px; background: var(--surface-card); box-shadow: inset 0 0 0 1px var(--border-default); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 11px; color: var(--text-1);"
 						>
 							Node {i + 1}
 						</div>

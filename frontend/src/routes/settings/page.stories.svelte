@@ -333,9 +333,9 @@
 		await expect(shell).not.toBeNull();
 		await expect(shell?.textContent).toContain('Off');
 		await expect(shell?.textContent).toContain('Shell-output compression is off');
-		await expect(
-			canvasElement.querySelector('#file-read-compression')?.textContent
-		).toContain('Sampled forwarding: 20% of new sessions');
+		await expect(canvasElement.querySelector('#file-read-compression')?.textContent).toContain(
+			'Sampled forwarding: 20% of new sessions'
+		);
 	}}
 >
 	{#snippet template(args)}

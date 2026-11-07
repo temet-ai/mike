@@ -26,9 +26,7 @@
 	const collapseStore = getContext<CollapseStore | undefined>(COLLAPSE_STORE_KEY);
 	const sectionKey = $derived(`session:${sessionId}:notebook-open`);
 	let localExpanded = $state(false);
-	const expanded = $derived(
-		collapseStore ? collapseStore.isExpanded(sectionKey) : localExpanded
-	);
+	const expanded = $derived(collapseStore ? collapseStore.isExpanded(sectionKey) : localExpanded);
 
 	function toggle(): void {
 		if (collapseStore) collapseStore.toggle(sectionKey);
@@ -231,11 +229,12 @@
 								bind:value={draftBody}
 								rows="3"
 								placeholder="the detail — full text, never trimmed"
-								disabled={submitting}
-							></textarea>
+								disabled={submitting}></textarea>
 						</label>
 						<label class="snb-field">
-							<span class="snb-label">Tags <span class="snb-hint">(optional, comma-separated)</span></span>
+							<span class="snb-label"
+								>Tags <span class="snb-hint">(optional, comma-separated)</span></span
+							>
 							<input
 								class="snb-input"
 								type="text"
@@ -277,7 +276,11 @@
 			{#if loading && notes.length === 0}
 				<p class="snb-status">Loading notebook</p>
 			{:else if loadError}
-				<LoadErrorBanner title="Couldn't load this session's notebook" detail={loadError} onRetry={retry} />
+				<LoadErrorBanner
+					title="Couldn't load this session's notebook"
+					detail={loadError}
+					onRetry={retry}
+				/>
 			{:else if notes.length === 0}
 				<p class="snb-status">No notes recorded yet.</p>
 			{:else}

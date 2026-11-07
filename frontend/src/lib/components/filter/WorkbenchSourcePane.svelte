@@ -3,11 +3,7 @@
 	import { diffBlocks, type DiffRow } from '$lib/utils/blockDiff';
 	import { diffText, diffTextWithPreview, type DiffSegment } from './promptDiff';
 	import { splitBlockIntoDisplayParagraphs } from './blockParagraphs';
-	import {
-		deriveRuleTitle,
-		paragraphIndicesTouchedByRule,
-		ruleBeforeAfter
-	} from './rule-matching';
+	import { deriveRuleTitle, paragraphIndicesTouchedByRule, ruleBeforeAfter } from './rule-matching';
 	import { classifySystemBlock } from '$lib/components/shell/systemBlockKinds';
 
 	export type PromptLens = 'source' | 'changes' | 'result';
@@ -174,7 +170,8 @@
 
 	function segmentClass(seg: DiffSegment): string {
 		if (seg.status === 'removed') return 'wb-diff-removed';
-		if (seg.status === 'added') return seg.preview === true ? 'wb-diff-added-preview' : 'wb-diff-added';
+		if (seg.status === 'added')
+			return seg.preview === true ? 'wb-diff-added-preview' : 'wb-diff-added';
 		return '';
 	}
 
@@ -403,7 +400,9 @@
 		return rows.map((row, i) => changeGroupFor(row, i));
 	});
 
-	const groups = $derived(lens === 'source' ? sourceGroups : lens === 'result' ? resultGroups : changeGroups);
+	const groups = $derived(
+		lens === 'source' ? sourceGroups : lens === 'result' ? resultGroups : changeGroups
+	);
 	const showMargin = $derived(lens === 'changes');
 
 	let scrolledToBlock = $state<number | null>(null);
@@ -439,8 +438,8 @@
 
 {#snippet paraBody(item: ParaItem)}
 	{#if item.status === 'replaced' && item.segments !== null}
-		<pre class="wb-para-text">{#each item.segments as seg, si (si)}<span
-					class={segmentClass(seg)}>{seg.text}</span
+		<pre class="wb-para-text">{#each item.segments as seg, si (si)}<span class={segmentClass(seg)}
+					>{seg.text}</span
 				>{/each}</pre>
 	{:else}
 		<pre
@@ -507,7 +506,9 @@
 		{/each}
 		{#if groups.length === 0}
 			<p class="wb-empty-hint">
-				{lens === 'result' ? 'Nothing is sent — every block was dropped.' : 'No system prompt on this request.'}
+				{lens === 'result'
+					? 'Nothing is sent — every block was dropped.'
+					: 'No system prompt on this request.'}
 			</p>
 		{/if}
 	</div>

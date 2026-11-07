@@ -81,7 +81,11 @@ describe('parseSimpleMarkdown', () => {
 	});
 
 	it('keeps a link with an unsafe or relative target as literal text', () => {
-		for (const source of ['[click](javascript:alert(1))', '[x](data:text/html,hi)', '[rel](/filter)']) {
+		for (const source of [
+			'[click](javascript:alert(1))',
+			'[x](data:text/html,hi)',
+			'[rel](/filter)'
+		]) {
 			expect(parseSimpleMarkdown(source)).toEqual([
 				{ kind: 'paragraph', segments: [{ text: source, bold: false, code: false, href: null }] }
 			]);
@@ -103,7 +107,10 @@ describe('parseSimpleMarkdown', () => {
 		expect(() => parseSimpleMarkdown(partial)).not.toThrow();
 		const blocks = parseSimpleMarkdown(partial);
 		expect(blocks).toEqual([
-			{ kind: 'paragraph', segments: [{ text: 'Here is a snippet:', bold: false, code: false, href: null }] },
+			{
+				kind: 'paragraph',
+				segments: [{ text: 'Here is a snippet:', bold: false, code: false, href: null }]
+			},
 			{ kind: 'code', text: 'const x = 1;\nfunction f() {' }
 		]);
 	});

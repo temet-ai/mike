@@ -24,10 +24,7 @@ so an alarm sits next to the thing it is about. Renders nothing when this page h
 
 	async function load() {
 		try {
-			const [open, list] = await Promise.all([
-				getEvalAlarms({ state: 'open' }),
-				listEvalBundles()
-			]);
+			const [open, list] = await Promise.all([getEvalAlarms({ state: 'open' }), listEvalBundles()]);
 			alarms = open.alarms;
 			bundles = list.bundles;
 			error = null;

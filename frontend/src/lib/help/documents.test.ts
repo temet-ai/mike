@@ -42,7 +42,14 @@ describe('packaged user documentation', () => {
 		expect(recovery).toContain('mike-maintenance.pyz');
 		expect(recovery).toContain('Bash and Python 3.11+');
 		expect(recovery).toContain('If you have no kit installed');
-		for (const command of ['backup', 'verify', 'restore', 'upgrade-check', 'install', 'uninstall']) {
+		for (const command of [
+			'backup',
+			'verify',
+			'restore',
+			'upgrade-check',
+			'install',
+			'uninstall'
+		]) {
 			expect(recovery).toContain(`"$MAINTENANCE" ${command}`);
 		}
 		expect(recovery).toContain('--confirm-stopped-writers');

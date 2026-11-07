@@ -38,7 +38,8 @@ class SourceGateRoutingTests(unittest.TestCase):
                     self.assertIn("    paths:", block(events, "pull_request", 2))
                     push = block(events, "push", 2)
                     self.assertIn("branches: [main]", push)
-                    self.assertIn("paths-ignore:", push)
+                    self.assertIn("paths:", push)
+                    self.assertNotIn("docs/", push)
                 self.assertNotIn("continue-on-error:", text)
                 self.assertEqual(block(text, "permissions").strip(), "contents: read")
                 # Direct and called workflows must not cancel each other.
@@ -50,9 +51,15 @@ class SourceGateRoutingTests(unittest.TestCase):
         for job in ("lint", "fast"):
             self.assertNotRegex(block(jobs, job, 2), r"(?m)^    if:")
         integration = block(jobs, "integration", 2)
-        self.assertIn("if: github.event_name != 'push' || github.ref_type == 'tag'", integration)
+        self.assertIn("github.event_name != 'push' || github.ref_type == 'tag'", integration)
+        self.assertIn("needs.direct.outputs.direct == 'true'", integration)
         self.assertIn("--partition count:${{ matrix.shard }}/3", integration)
         self.assertIn("--profile db", integration)
+
+    def test_storybook_runs_on_pull_requests_and_not_on_a_push(self):
+        jobs = block((WORKFLOWS / "storybook.yml").read_text(), "jobs")
+        self.assertNotRegex(block(jobs, "checks", 2), r"(?m)^    if:")
+        self.assertIn("if: github.event_name != 'push'", block(jobs, "storybook", 2))
 
     def test_a_release_waits_for_the_rust_gates_and_e2e(self):
         release = (WORKFLOWS / "release-alpha.yml").read_text()

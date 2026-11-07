@@ -1,12 +1,25 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import type { Component } from 'svelte';
-	import { Bot, Monitor, Wrench, Server, Globe, Terminal, ArrowUpRight, Maximize2 } from '@lucide/svelte';
+	import {
+		Bot,
+		Monitor,
+		Wrench,
+		Server,
+		Globe,
+		Terminal,
+		ArrowUpRight,
+		Maximize2
+	} from '@lucide/svelte';
 	import CopyIconButton from '$lib/components/shared/CopyIconButton.svelte';
 	import FlowPromptModal from './FlowPromptModal.svelte';
 	import { loadSessionToolUses } from '$lib/stores/cache/sessionToolUses.svelte';
 	import { getAccumulatedText } from '$lib/api';
-	import { toolInputText, toolResultText, toolTarget } from '$lib/components/shell/timelineTurnView';
+	import {
+		toolInputText,
+		toolResultText,
+		toolTarget
+	} from '$lib/components/shell/timelineTurnView';
 	import {
 		buildAgentIdentities,
 		buildGroups,
@@ -331,7 +344,10 @@
 							lastAccumulatedText = detail.accumulated_text ?? null;
 							lastHumanPrompt = detail.human_prompt ?? null;
 						}
-						if (detail.stop_reason === 'end_turn' && (answerRequestId === null || detail.id > answerRequestId))
+						if (
+							detail.stop_reason === 'end_turn' &&
+							(answerRequestId === null || detail.id > answerRequestId)
+						)
 							answerRequestId = detail.id;
 					}
 					usageInfo = {
@@ -394,7 +410,8 @@
 	const liveStatus = $derived.by((): AgentLiveStatus | null => {
 		if (!selectedIdentity) return null;
 		if (selectedIdentity.pending) return 'not_matched';
-		if (dispatchInfo.status === 'loaded' && dispatchInfo.resultRow?.result?.is_error) return 'failed';
+		if (dispatchInfo.status === 'loaded' && dispatchInfo.resultRow?.result?.is_error)
+			return 'failed';
 		if (span.open) return 'active';
 		if (dispatchInfo.status === 'loaded' && dispatchInfo.resultRow?.result) return 'finished';
 		return 'idle';
@@ -409,7 +426,8 @@
 		if (status === 'not_matched')
 			return 'The dispatch was captured but none of its requests were matched to it.';
 		if (span.startMs === null) return '';
-		if (status === 'active') return `running ${formatDuration(Date.now() - span.startMs)} · started ${clockOf(span.startMs)}`;
+		if (status === 'active')
+			return `running ${formatDuration(Date.now() - span.startMs)} · started ${clockOf(span.startMs)}`;
 		if (span.endMs === null) return `started ${clockOf(span.startMs)}`;
 		return `took ${formatDuration(span.endMs - span.startMs)} · ${clockOf(span.startMs)} → ${clockOf(span.endMs)}`;
 	}
@@ -519,7 +537,12 @@
 			rows.push({ key: 'tokens', label: 'Tokens', value: '', detail: 'loading tokens' });
 		}
 		if (costUsd !== null)
-			rows.push({ key: 'cost', label: 'Cost', value: `$${costUsd.toFixed(2)}`, detail: 'at list price' });
+			rows.push({
+				key: 'cost',
+				label: 'Cost',
+				value: `$${costUsd.toFixed(2)}`,
+				detail: 'at list price'
+			});
 		return fillTrailingSpan(rows);
 	});
 
@@ -544,7 +567,12 @@
 			}
 		];
 		if (errors > 0)
-			rows.push({ key: 'errors', label: 'Errors', value: formatCount(errors), detail: 'non-zero exit or refused' });
+			rows.push({
+				key: 'errors',
+				label: 'Errors',
+				value: formatCount(errors),
+				detail: 'non-zero exit or refused'
+			});
 		return fillTrailingSpan(rows);
 	});
 
@@ -556,7 +584,11 @@
 	});
 	const finalAnswerText = $derived.by((): string | null => {
 		if (dispatchResultText !== null) return dispatchResultText;
-		if (liveStatus === 'finished' && usageInfo.status === 'loaded' && usageInfo.lastAccumulatedText) {
+		if (
+			liveStatus === 'finished' &&
+			usageInfo.status === 'loaded' &&
+			usageInfo.lastAccumulatedText
+		) {
 			return usageInfo.lastAccumulatedText;
 		}
 		return null;
@@ -610,7 +642,8 @@
 			return {
 				family,
 				icon: ICON_OF[family] ?? Globe,
-				kindLabel: kind === 'service' ? 'Mike proxy' : kind === 'outside' ? 'Outside service' : 'Local tool',
+				kindLabel:
+					kind === 'service' ? 'Mike proxy' : kind === 'outside' ? 'Outside service' : 'Local tool',
 				name: selectedActor.label,
 				desc: roleDescription(selectedRole)
 			};
@@ -647,9 +680,13 @@
 		return '';
 	});
 
-	const promptChars = $derived(dispatchInfo.status === 'loaded' ? (dispatchInfo.prompt?.length ?? 0) : 0);
+	const promptChars = $derived(
+		dispatchInfo.status === 'loaded' ? (dispatchInfo.prompt?.length ?? 0) : 0
+	);
 	const dispatchActivity = $derived(
-		selectedIdentity?.dispatchActorId ? dispatchActivityOf(dataset, selectedIdentity.dispatchActorId) : undefined
+		selectedIdentity?.dispatchActorId
+			? dispatchActivityOf(dataset, selectedIdentity.dispatchActorId)
+			: undefined
 	);
 	const dispatchRequestId = $derived(dispatchActivity?.source.request_id ?? null);
 
@@ -765,7 +802,8 @@
 	{:else if selectedActivity}
 		<div class="fdb-event">
 			<span class="fdb-event__kind"
-				>{ACTIVITY_KIND_LABEL[selectedActivity.kind] ?? selectedActivity.kind.replaceAll('_', ' ')}</span
+				>{ACTIVITY_KIND_LABEL[selectedActivity.kind] ??
+					selectedActivity.kind.replaceAll('_', ' ')}</span
 			>
 			<span class="fdb-name"
 				>{#if selectedActivity.kind === 'tools'}{selectedActivity.metadata.tool_name ??
@@ -798,11 +836,11 @@
 				</div>
 				{#if activityToolRow.result}
 					<div class="fdb-text">
-						<div class="fdb-text__head"
-							><span class="fdb-text__title"
+						<div class="fdb-text__head">
+							<span class="fdb-text__title"
 								>{activityToolRow.result.is_error ? 'Result (error)' : 'Result'}</span
-							></div
-						>
+							>
+						</div>
 						<pre class="fdb-event__pre">{toolResultText(activityToolRow)}</pre>
 					</div>
 				{/if}
@@ -901,15 +939,16 @@
 						: 'Calls'}</span
 			>
 			<div class="fdb-usage__grid">
-				{#each (selectedIdentity ? agentUsageRows : isCoordinator ? mainUsageRows : groupUsageRows) as row (row.key)}
-					<div class="fdb-usage__cell" style={row.span ? `grid-column: span ${row.span};` : undefined}>
+				{#each selectedIdentity ? agentUsageRows : isCoordinator ? mainUsageRows : groupUsageRows as row (row.key)}
+					<div
+						class="fdb-usage__cell"
+						style={row.span ? `grid-column: span ${row.span};` : undefined}
+					>
 						<span class="fdb-usage__k">{row.label}</span>
 						<span class="fdb-usage__v {row.valueClass ?? ''}">{row.value}</span>
 						<span class="fdb-usage__d">{row.detail}</span>
 						{#if row.meterPct !== undefined}
-							<span class="fdb-usage__meter"
-								><span style="width: {row.meterPct}%;"></span></span
-							>
+							<span class="fdb-usage__meter"><span style="width: {row.meterPct}%;"></span></span>
 						{/if}
 					</div>
 				{/each}
@@ -922,7 +961,10 @@
 					<span class="fdb-text__title">{promptPanel.title}</span>
 					{#if promptPanel.note}<span class="fdb-text__note">{promptPanel.note}</span>{/if}
 					<span class="fdb-spacer"></span>
-					<CopyIconButton getText={() => promptPanel!.text} label="Copy {promptPanel.title.toLowerCase()}" />
+					<CopyIconButton
+						getText={() => promptPanel!.text}
+						label="Copy {promptPanel.title.toLowerCase()}"
+					/>
 				</div>
 				<button
 					type="button"
@@ -931,7 +973,8 @@
 					aria-label="Open the full {promptPanel.title}"
 				>
 					<pre class="fdb-text__pre">{promptPanel.text}</pre>
-					<span class="fdb-text__readfull"><Maximize2 size={10} aria-hidden="true" />Read full</span>
+					<span class="fdb-text__readfull"><Maximize2 size={10} aria-hidden="true" />Read full</span
+					>
 				</button>
 			</div>
 		{/if}

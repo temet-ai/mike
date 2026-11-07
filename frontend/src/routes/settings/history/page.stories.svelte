@@ -47,7 +47,10 @@
 		})
 	];
 
-	const OLDER_PAGE: ChangeLogRow[] = [row(27, { via: 'api' }), row(26, { op: 'insert', old_value: null })];
+	const OLDER_PAGE: ChangeLogRow[] = [
+		row(27, { via: 'api' }),
+		row(26, { op: 'insert', old_value: null })
+	];
 
 	function buildData(): HistoryPageData {
 		return { page: { changes: FIRST_PAGE, next_before_id: 28 }, loadError: null };
@@ -55,7 +58,11 @@
 
 	function fetchStub(input: RequestInfo | URL): Promise<Response> {
 		const url =
-			typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url;
+			typeof input === 'string'
+				? input
+				: input instanceof URL
+					? input.href
+					: (input as Request).url;
 		const body = url.includes('before_id=28')
 			? { changes: OLDER_PAGE, next_before_id: null }
 			: { changes: FIRST_PAGE, next_before_id: 28 };
@@ -79,7 +86,8 @@
 	name="Default"
 	loaders={[
 		async () => {
-			globalThis.fetch = ((input: RequestInfo | URL) => fetchStub(input)) as typeof globalThis.fetch;
+			globalThis.fetch = ((input: RequestInfo | URL) =>
+				fetchStub(input)) as typeof globalThis.fetch;
 			return {};
 		}
 	]}
@@ -95,9 +103,7 @@
 		);
 		await expect(before).toEqual(['30', '29', '28']);
 		await userEvent.click(canvas.getByRole('button', { name: 'Load older' }));
-		await waitFor(() =>
-			expect(canvasElement.querySelectorAll('[data-change-id]').length).toBe(5)
-		);
+		await waitFor(() => expect(canvasElement.querySelectorAll('[data-change-id]').length).toBe(5));
 		const after = [...canvasElement.querySelectorAll('[data-change-id]')].map((el) =>
 			el.getAttribute('data-change-id')
 		);

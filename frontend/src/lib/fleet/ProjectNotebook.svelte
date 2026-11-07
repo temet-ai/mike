@@ -132,7 +132,6 @@
 		tagFilter = '';
 		qFilter = '';
 	}
-
 </script>
 
 <section class="pnb" data-slot="project-notebook" aria-label="Project notebook">
@@ -155,12 +154,7 @@
 		>
 			Open tasks
 		</button>
-		<button
-			type="button"
-			class="pnb-preset"
-			data-slot="preset-clear"
-			onclick={clearFilters}
-		>
+		<button type="button" class="pnb-preset" data-slot="preset-clear" onclick={clearFilters}>
 			All notes
 		</button>
 	</div>
@@ -226,7 +220,11 @@
 	</div>
 
 	{#if loadError}
-		<LoadErrorBanner title="Couldn't load the project notebook" detail={loadError} onRetry={retry} />
+		<LoadErrorBanner
+			title="Couldn't load the project notebook"
+			detail={loadError}
+			onRetry={retry}
+		/>
 	{:else if !loading && notes.length === 0}
 		<p class="pnb-empty">
 			{hasActiveFilter ? 'No notes match these filters.' : 'No notes recorded in this project yet.'}

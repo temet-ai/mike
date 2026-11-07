@@ -63,7 +63,9 @@
 		);
 		await expect(canvasElement.textContent).toContain('86 times in 100 (needs 85)');
 		await expect(
-			c.getByRole('link', { name: /^Labelling accuracy, .* configuration 19 \(gemini-3\.8-flash\)$/ })
+			c.getByRole('link', {
+				name: /^Labelling accuracy, .* configuration 19 \(gemini-3\.8-flash\)$/
+			})
 		).toBeInTheDocument();
 		await expect(canvasElement.textContent).not.toMatch(/\brun [0-9]/i);
 

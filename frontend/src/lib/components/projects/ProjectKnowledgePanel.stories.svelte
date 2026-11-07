@@ -173,9 +173,7 @@
 		await expect(canvas.getByText('turn')).toBeInTheDocument();
 		await expect(canvas.queryByRole('dialog')).toBeNull();
 
-		await userEvent.click(
-			canvas.getByRole('button', { name: `Read ${SEARCH.items[0]!.title}` })
-		);
+		await userEvent.click(canvas.getByRole('button', { name: `Read ${SEARCH.items[0]!.title}` }));
 
 		const dialog = await canvas.findByRole('dialog', { name: 'Project knowledge source' });
 		await waitFor(() => expect(dialog.querySelector('pre')?.textContent).toBe(READ_BODY));
@@ -226,9 +224,15 @@
 		await expect(moreRequests[0]).toContain('offset=3');
 		await expect(canvas.queryByRole('button', { name: 'Load more' })).toBeNull();
 		await expect(canvas.getAllByRole('listitem')).toHaveLength(5);
-		await expect(canvas.getByRole('button', { name: `Read ${SEARCH.items[0]!.title}` })).toBeInTheDocument();
-		await expect(canvas.getByRole('button', { name: `Read ${PAGE_TWO.items[1]!.title}` })).toBeInTheDocument();
-		await expect(canvas.getByRole('dialog', { name: 'Project knowledge source' })).toBeInTheDocument();
+		await expect(
+			canvas.getByRole('button', { name: `Read ${SEARCH.items[0]!.title}` })
+		).toBeInTheDocument();
+		await expect(
+			canvas.getByRole('button', { name: `Read ${PAGE_TWO.items[1]!.title}` })
+		).toBeInTheDocument();
+		await expect(
+			canvas.getByRole('dialog', { name: 'Project knowledge source' })
+		).toBeInTheDocument();
 	}}
 >
 	{#snippet template(args)}

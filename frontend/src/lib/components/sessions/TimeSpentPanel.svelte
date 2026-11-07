@@ -164,11 +164,15 @@
 		const all = data.totals.model_seconds + data.totals.wait_seconds;
 		return all > 0 ? (data.totals.wait_seconds / all) * 100 : 0;
 	});
-	const builds = $derived(data ? [...data.builds_running_at_once].sort((a, b) => a.sort_key - b.sort_key) : []);
+	const builds = $derived(
+		data ? [...data.builds_running_at_once].sort((a, b) => a.sort_key - b.sort_key) : []
+	);
 	const alone = $derived(builds.find((b) => b.running_at_once === 'none'));
 	const worst = $derived(builds.find((b) => b.running_at_once === '6 or more'));
 	const maxBuild = $derived(builds.reduce((m, b) => Math.max(m, b.p50_seconds), 0));
-	const slowdown = $derived(alone && worst && alone.p50_seconds > 0 ? worst.p50_seconds / alone.p50_seconds : 0);
+	const slowdown = $derived(
+		alone && worst && alone.p50_seconds > 0 ? worst.p50_seconds / alone.p50_seconds : 0
+	);
 	const leftOut = $derived(kinds.filter((k) => k.answers_over_an_hour > 0));
 	const leftOutTotal = $derived(leftOut.reduce((n, k) => n + k.answers_over_an_hour, 0));
 
@@ -276,7 +280,9 @@
 									{#if alone && worst}
 										<p class="tsp-lead">
 											{#if slowdown >= 2}
-												A build or test run took <strong>{Math.round(slowdown)} times as long</strong>
+												A build or test run took <strong
+													>{Math.round(slowdown)} times as long</strong
+												>
 												with 6 or more others running: {unbroken(worst.p50_seconds)} against
 												{unbroken(alone.p50_seconds)} with none.
 											{:else}
@@ -292,7 +298,8 @@
 									</div>
 									<ul class="tsp-list">
 										{#each builds as row (row.running_at_once)}
-											{@const slow = alone !== undefined && row.p50_seconds >= alone.p50_seconds * 2}
+											{@const slow =
+												alone !== undefined && row.p50_seconds >= alone.p50_seconds * 2}
 											<li class="tsp-build">
 												<span class="tsp-label">{buildLabel(row.running_at_once)}</span>
 												<ShareBar
@@ -388,11 +395,15 @@
 											<tr>
 												<td class="tsp-cmd"><code>{row.command}</code></td>
 												<td data-label="Kind">{kindLabel(row.kind)}</td>
-												<td class="tsp-num" data-label="Runs">{row.calls.toLocaleString('en-US')}</td>
+												<td class="tsp-num" data-label="Runs"
+													>{row.calls.toLocaleString('en-US')}</td
+												>
 												<td class="tsp-num tsp-strong" data-label="Total">
 													{formatTimeSpent(row.seconds)}
 												</td>
-												<td class="tsp-num" data-label="Typical">{formatTimeSpent(row.p50_seconds)}</td>
+												<td class="tsp-num" data-label="Typical"
+													>{formatTimeSpent(row.p50_seconds)}</td
+												>
 												{#if hasPeriod}
 													<td class="tsp-num" data-label="Sessions">{row.sessions}</td>
 												{/if}
@@ -450,12 +461,12 @@
 	<span class="tsp-num tsp-strong">{formatTimeSpent(row.wait_seconds)}</span>
 	<span class="tsp-stats">
 		<span class="tsp-num"
-			>{row.answers.toLocaleString('en-US')}<span class="tsp-inline-label"
-				>{' answers'}</span
-			></span
+			>{row.answers.toLocaleString('en-US')}<span class="tsp-inline-label">{' answers'}</span></span
 		>
 		<span class="tsp-num"
-			><span class="tsp-inline-label">{'typical '}</span>{formatTimeSpent(row.p50_wait_seconds)}</span
+			><span class="tsp-inline-label">{'typical '}</span>{formatTimeSpent(
+				row.p50_wait_seconds
+			)}</span
 		>
 		<span class="tsp-num"
 			><span class="tsp-inline-label">{'1 in 10 over '}</span>{formatTimeSpent(

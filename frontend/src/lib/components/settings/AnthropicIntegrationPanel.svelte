@@ -295,8 +295,7 @@
 			<h2 class="ani-title" id="ani-title">Anthropic</h2>
 		</div>
 		<p class="ani-desc">
-			Credentials for the Claude Agent SDK-powered assistants — currently just the prompt
-			assistant.
+			Credentials for the Claude Agent SDK-powered assistants — currently just the prompt assistant.
 		</p>
 
 		{#if statusUnavailable}
@@ -392,8 +391,7 @@
 								class="ani-clear"
 								data-augmented-ui="tr-clip bl-clip border"
 								disabled={clearing}
-								onclick={() => void clearKey()}
-								>{clearing ? 'Clearing...' : 'Clear'}</button
+								onclick={() => void clearKey()}>{clearing ? 'Clearing...' : 'Clear'}</button
 							></span
 						>
 					</div>
@@ -429,8 +427,7 @@
 								{#if cliStatus.logged_in}
 									<p class="ani-cli-status-line">
 										Signed in as <strong>{cliStatus.email ?? 'unknown account'}</strong>
-										{#if cliStatus.org_name}<span class="ani-cli-dim"
-												>· {cliStatus.org_name}</span
+										{#if cliStatus.org_name}<span class="ani-cli-dim">· {cliStatus.org_name}</span
 											>{/if}
 										{#if cliStatus.subscription_type}<span class="ani-badge"
 												>{cliStatus.subscription_type}</span
@@ -514,8 +511,8 @@
 								<p class="ani-plain-msg" aria-busy="true">Starting sign-in...</p>
 							{:else if cliLogin.state === 'awaiting_code'}
 								<p class="ani-cli-login-msg">
-									Open the sign-in page, finish it in the browser, then paste the code it gives
-									you back here.
+									Open the sign-in page, finish it in the browser, then paste the code it gives you
+									back here.
 								</p>
 								<a
 									class="ani-cli-open-link"

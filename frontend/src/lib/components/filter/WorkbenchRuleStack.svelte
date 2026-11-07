@@ -177,11 +177,7 @@
 	const changeCount = $derived(firingRules.length);
 </script>
 
-<section
-	class="wb-pane wb-edits-pane"
-	aria-label="Your edits"
-	data-slot="workbench-edits-panel"
->
+<section class="wb-pane wb-edits-pane" aria-label="Your edits" data-slot="workbench-edits-panel">
 	<header class="wb-pane-head">
 		<!-- A real heading, not just a styled span — this column collapses independently of the
 		     outline, so its own h2 -> the group headings below (h3) can't rely on the outline

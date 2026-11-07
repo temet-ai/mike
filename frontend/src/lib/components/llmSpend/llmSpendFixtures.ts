@@ -1,4 +1,9 @@
-import type { LlmSpendCallerDto, LlmSpendDayCallerDto, LlmSpendResponse, LlmSpendTodayDto } from '$lib/api/llmSpend';
+import type {
+	LlmSpendCallerDto,
+	LlmSpendDayCallerDto,
+	LlmSpendResponse,
+	LlmSpendTodayDto
+} from '$lib/api/llmSpend';
 import type { OpenRouterUsageDto } from '$lib/api/usage';
 
 export const FIXTURE_DAYS = [

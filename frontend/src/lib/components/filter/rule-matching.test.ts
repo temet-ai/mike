@@ -505,7 +505,9 @@ describe('deriveRuleTitle', () => {
 
 	it('derives "Reminds" for inject_reminder regardless of action', () => {
 		expect(
-			deriveRuleTitle(rule({ title: null, kind: 'inject_reminder', action: 'replace', value: 'browser-guidance' }))
+			deriveRuleTitle(
+				rule({ title: null, kind: 'inject_reminder', action: 'replace', value: 'browser-guidance' })
+			)
 		).toBe('Reminds “browser-guidance”');
 	});
 
@@ -527,9 +529,9 @@ describe('paragraphContainsRule', () => {
 		expect(
 			paragraphContainsRule('This paragraph mentions Ast-Grep tools.', rule({ value: 'ast-grep' }))
 		).toBe(true);
-		expect(paragraphContainsRule('This paragraph has nothing relevant.', rule({ value: 'ast-grep' }))).toBe(
-			false
-		);
+		expect(
+			paragraphContainsRule('This paragraph has nothing relevant.', rule({ value: 'ast-grep' }))
+		).toBe(false);
 	});
 
 	it('attributes an append-type rule to the paragraph containing the anchor (rule.value)', () => {
@@ -549,13 +551,19 @@ describe('paragraphContainsRule', () => {
 			)
 		).toBe(true);
 		expect(
-			paragraphContainsRule('a paragraph with no tags at all', rule({ kind: 'xml_tag', value: 'system-reminder' }))
+			paragraphContainsRule(
+				'a paragraph with no tags at all',
+				rule({ kind: 'xml_tag', value: 'system-reminder' })
+			)
 		).toBe(false);
 	});
 
 	it('never attributes an inject_reminder rule to a source paragraph', () => {
 		expect(
-			paragraphContainsRule('any paragraph text at all', rule({ kind: 'inject_reminder', value: 'label' }))
+			paragraphContainsRule(
+				'any paragraph text at all',
+				rule({ kind: 'inject_reminder', value: 'label' })
+			)
 		).toBe(false);
 	});
 
@@ -614,7 +622,7 @@ describe('ruleLandingLabel', () => {
 		expect(ruleLandingLabel(rule({ value: 'needle' }), [block])).toBe('Memory');
 	});
 
-	it('never reaches back into an EARLIER block for a heading — falls to that block\'s own classification instead (round-4 defect #5 regression)', () => {
+	it("never reaches back into an EARLIER block for a heading — falls to that block's own classification instead (round-4 defect #5 regression)", () => {
 		const blocks = ['# Harness\nintro line', 'more harness content, with needle here, no heading'];
 		expect(ruleLandingLabel(rule({ value: 'needle' }), blocks)).toBe('Main prompt');
 	});

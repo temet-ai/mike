@@ -11,9 +11,7 @@ const item = (projectLabel: string, sessionHref: string, id: number) => ({
 
 describe('projectLabelOf', () => {
 	it('takes the last folder of the path', () => {
-		expect(projectLabelOf('/mnt/data/projects/work/ankh-morpork/night-watch/')).toBe(
-			'night-watch'
-		);
+		expect(projectLabelOf('/mnt/data/projects/work/ankh-morpork/night-watch/')).toBe('night-watch');
 	});
 
 	it('names a missing project', () => {

@@ -137,7 +137,11 @@ just applied, narrow width.
 				{ kind: 'problem', text: 'Mail sent to a closed seat', href: '#wright-action-a5' },
 				{ kind: 'action', text: 'Bounced 1 mail', href: '#wright-action-a5' },
 				{ kind: 'undo', text: 'None: mail cannot be unsent' },
-				{ kind: 'measure', text: '0 of 41 left waiting, 9 of 12 without the fix', href: '#wright-fix-k1' }
+				{
+					kind: 'measure',
+					text: '0 of 41 left waiting, 9 of 12 without the fix',
+					href: '#wright-fix-k1'
+				}
 			]
 		},
 		{
@@ -160,10 +164,18 @@ just applied, narrow width.
 				]
 			],
 			links: [
-				{ kind: 'problem', text: 'Mail tools failing when the sender is left out', href: '#wright-action-a6' },
+				{
+					kind: 'problem',
+					text: 'Mail tools failing when the sender is left out',
+					href: '#wright-action-a6'
+				},
 				{ kind: 'action', text: 'Landed 4c1e9a2 on main', href: '#wright-action-a6' },
 				{ kind: 'undo', text: 'Revert 4c1e9a2', href: '#wright-action-a6' },
-				{ kind: 'measure', text: '65 failures before, 0 since', href: '/tools?tool_name=send_session_message' }
+				{
+					kind: 'measure',
+					text: '65 failures before, 0 since',
+					href: '/tools?tool_name=send_session_message'
+				}
 			]
 		},
 		{
@@ -191,7 +203,9 @@ just applied, narrow width.
 				title: 'Opened: Forks start without a warm cache',
 				detail: 'You asked at 10:12'
 			},
-			links: [{ kind: 'problem', text: 'Forks start without a warm cache', href: '#wright-problem-p1' }]
+			links: [
+				{ kind: 'problem', text: 'Forks start without a warm cache', href: '#wright-problem-p1' }
+			]
 		}
 	];
 
@@ -287,7 +301,9 @@ just applied, narrow width.
 			openedBy: 'you',
 			status: 'working',
 			detail: ['31 of the last 40 forks read less than a fifth of their start from the cache.'],
-			links: [{ kind: 'evidence', text: "The engineer's session", href: `/sessions/${ENGINEER_FORKS}` }]
+			links: [
+				{ kind: 'evidence', text: "The engineer's session", href: `/sessions/${ENGINEER_FORKS}` }
+			]
 		},
 		{
 			id: 'p2',
@@ -298,7 +314,9 @@ just applied, narrow width.
 			detail: [
 				'212 subagents in 14 days were told they were isolated in a worktree under a Mac home folder, on this Linux machine. The cause is not known yet.'
 			],
-			links: [{ kind: 'evidence', text: "The engineer's session", href: `/sessions/${ENGINEER_PATHS}` }]
+			links: [
+				{ kind: 'evidence', text: "The engineer's session", href: `/sessions/${ENGINEER_PATHS}` }
+			]
 		},
 		{
 			id: 'p3',
@@ -309,7 +327,9 @@ just applied, narrow width.
 			detail: [
 				'121 launches. The fix to the part that should close them is written and waiting for the gate.'
 			],
-			links: [{ kind: 'evidence', text: "The engineer's session", href: `/sessions/${ENGINEER_LAUNCHES}` }]
+			links: [
+				{ kind: 'evidence', text: "The engineer's session", href: `/sessions/${ENGINEER_LAUNCHES}` }
+			]
 		}
 	];
 
@@ -357,7 +377,9 @@ just applied, narrow width.
 			at: '10:12',
 			what: ['Opened a problem, as you asked: forks start without a warm cache.'],
 			undo: 'Undo',
-			links: [{ kind: 'problem', text: 'Forks start without a warm cache', href: '#wright-problem-p1' }]
+			links: [
+				{ kind: 'problem', text: 'Forks start without a warm cache', href: '#wright-problem-p1' }
+			]
 		},
 		{
 			id: 'a3',
@@ -402,7 +424,13 @@ just applied, narrow width.
 				' on main: send_session_message fills in who the mail is from when the call leaves it out. 65 calls had failed on that in two weeks.'
 			],
 			undo: 'Revert',
-			links: [{ kind: 'measure', text: '65 failures before, 0 since', href: '/tools?tool_name=send_session_message' }]
+			links: [
+				{
+					kind: 'measure',
+					text: '65 failures before, 0 since',
+					href: '/tools?tool_name=send_session_message'
+				}
+			]
 		}
 	];
 
@@ -424,7 +452,9 @@ just applied, narrow width.
 			id: 'k5',
 			name: 'Clear an alarm whose condition has ended, with a note',
 			verdict: 'better',
-			measure: ['Alarms left open after their condition ended: 0 of 17 with this fix, 6 of 6 without.'],
+			measure: [
+				'Alarms left open after their condition ended: 0 of 17 with this fix, 6 of 6 without.'
+			],
 			since: 'On since 14 Oct'
 		},
 		{
@@ -646,7 +676,11 @@ just applied, narrow width.
 
 {#snippet changeCard(change: Change)}
 	{@const Icon = CHANGE_ICON[change.icon]}
-	<div class="edge wr-change" class:wr-change--undone={undone[change.actionId]} data-slot="wright-change">
+	<div
+		class="edge wr-change"
+		class:wr-change--undone={undone[change.actionId]}
+		data-slot="wright-change"
+	>
 		<div class="wr-change__row">
 			<Icon size={16} aria-hidden="true" class="wr-change__icon" />
 			<div class="wr-change__text">

@@ -9,8 +9,14 @@
 </script>
 
 {#if label}
-	<span class="inline-flex items-center gap-1" data-wake-state={fields.wake_state ?? fields.delivery_channel}>
+	<span
+		class="inline-flex items-center gap-1"
+		data-wake-state={fields.wake_state ?? fields.delivery_channel}
+	>
 		<Badge variant="chip-muted" data-wake-axis="channel">{fields.delivery_channel}</Badge>
-		<Badge variant={fields.wake_state === 'pushed' ? 'chip-active' : 'chip-muted'} data-wake-axis="state">{label}</Badge>
+		<Badge
+			variant={fields.wake_state === 'pushed' ? 'chip-active' : 'chip-muted'}
+			data-wake-axis="state">{label}</Badge
+		>
 	</span>
 {/if}

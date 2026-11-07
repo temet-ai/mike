@@ -94,7 +94,10 @@ should and did load the skill.
 		>
 			<table class="sev-table">
 				<thead>
-					<tr><th scope="col">Request</th><th scope="col">Should load</th><th scope="col">Loaded</th></tr>
+					<tr
+						><th scope="col">Request</th><th scope="col">Should load</th><th scope="col">Loaded</th
+						></tr
+					>
 				</thead>
 				<tbody>
 					{#each test.results as result, i (i)}

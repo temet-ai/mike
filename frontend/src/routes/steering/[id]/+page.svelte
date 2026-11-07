@@ -842,7 +842,7 @@
 							id="gf-intent"
 							class="se-textarea gf-intent"
 							rows={4}
-							placeholder='e.g. "Implement the steering backend. Do not refactor unrelated files."'
+							placeholder="e.g. &quot;Implement the steering backend. Do not refactor unrelated files.&quot;"
 							bind:value={intentText}></textarea>
 						<p class="gf-intent-hint">
 							This will be used as the steerer's prompt anchor. When the session's turns diverge

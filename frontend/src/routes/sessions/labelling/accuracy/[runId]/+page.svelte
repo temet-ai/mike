@@ -29,9 +29,7 @@
 	const keys: QuestionKey[] = ['reaction', 'delivery'];
 
 	function runHref(id: number): string {
-		return resolve(
-			`sessions/labelling/accuracy/${id}` as `sessions/labelling/accuracy/${string}`
-		);
+		return resolve(`sessions/labelling/accuracy/${id}` as `sessions/labelling/accuracy/${string}`);
 	}
 
 	const useHref = $derived(

@@ -70,14 +70,21 @@
 	]}
 	play={async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await waitFor(() => expect(canvas.getByText(/4 corrections in 3 sessions/)).toBeInTheDocument());
-		await expect(canvas.getByText('run the real suite, not the one you edited')).toBeInTheDocument();
+		await waitFor(() =>
+			expect(canvas.getByText(/4 corrections in 3 sessions/)).toBeInTheDocument()
+		);
+		await expect(
+			canvas.getByText('run the real suite, not the one you edited')
+		).toBeInTheDocument();
 		await userEvent.click(canvas.getByRole('button', { name: 'Every member' }));
 		await expect(canvas.getByText('item 14 is gone')).toBeInTheDocument();
 		await userEvent.click(canvas.getByRole('button', { name: 'Name' }));
 		await expect(canvas.getByRole('alert')).toHaveTextContent(/3 to 64 lowercase/);
 		await userEvent.type(canvas.getByLabelText('Pattern name for candidate 7'), 'ran-wrong-suite');
-		await userEvent.type(canvas.getByLabelText('Description for candidate 7'), 'Ran a different test suite than the gate runs.');
+		await userEvent.type(
+			canvas.getByLabelText('Description for candidate 7'),
+			'Ran a different test suite than the gate runs.'
+		);
 		await userEvent.click(canvas.getByRole('button', { name: 'Name' }));
 		await waitFor(() => expect(canvas.getByText('No open candidates.')).toBeInTheDocument());
 	}}

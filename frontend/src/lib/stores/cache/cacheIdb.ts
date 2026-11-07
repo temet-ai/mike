@@ -520,10 +520,7 @@ interface StoredApiResponse extends IdbEnvelope<unknown> {
  * Reads a stored answer. With `maxAgeMs`, an answer stored longer ago than that reads as
  * absent; it stays in the store until the next write for the path replaces it.
  */
-export async function idbGetApiResponse(
-	path: string,
-	maxAgeMs?: number
-): Promise<unknown | null> {
+export async function idbGetApiResponse(path: string, maxAgeMs?: number): Promise<unknown | null> {
 	if (typeof indexedDB === 'undefined') return null;
 	try {
 		const db = await openCacheDb();

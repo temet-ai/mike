@@ -81,9 +81,11 @@ in the [official audit reference](https://pnpm.io/cli/audit).
 ## Hosted routing contract
 
 `rust-quality.yml` and `storybook.yml` run on pull requests with domain path filters and
-on pushes to `main` that touch their domain. A push to `main` runs Rust lint and fast
-tests only; the integration shards run on pull requests, nightly and on a release tag.
-`e2e.yml` runs only on a release tag or on request. Manual `workflow_dispatch` and reusable
+on pushes to `main` that touch their domain. A push to `main` from a merged pull request
+runs Rust lint and fast tests, and frontend typecheck, unit tests and formatting. The Rust
+integration shards and Storybook run on pull requests, and the shards nightly and on a
+release tag. A Rust commit that reached `main` without a pull request fails the `direct` job
+and gets the integration shards. `e2e.yml` runs only on a release tag or on request. Manual `workflow_dispatch` and reusable
 `workflow_call` entrypoints are unfiltered. Checkout uses the event's selected ref, never a
 hardcoded `main`.
 

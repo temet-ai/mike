@@ -106,7 +106,10 @@ export function lastRanText(job: ScheduledJob, now: number): string {
 /** A run is in progress, or has been asked for and not yet picked up. */
 export function isBusy(job: ScheduledJob, queuedHere: boolean): boolean {
 	return (
-		queuedHere || job.state === 'running' || job.running_since !== null || job.run_requested_at !== null
+		queuedHere ||
+		job.state === 'running' ||
+		job.running_since !== null ||
+		job.run_requested_at !== null
 	);
 }
 

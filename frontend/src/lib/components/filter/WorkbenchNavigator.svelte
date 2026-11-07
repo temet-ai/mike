@@ -162,7 +162,10 @@
 						>
 							<span class="wbn-outline-item__title">{heading.title}</span>
 							{#if heading.hasEdits}
-								<span class="wbn-outline-item__marker" title="You have edits here" aria-hidden="true"
+								<span
+									class="wbn-outline-item__marker"
+									title="You have edits here"
+									aria-hidden="true"
 								></span>
 							{/if}
 						</button>

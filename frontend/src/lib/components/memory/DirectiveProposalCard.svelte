@@ -88,11 +88,15 @@ sits inside `LessonCandidateList`, so this reads as one family with those cards 
 	}
 </script>
 
-<article class="dpc band-body" data-proposal-id={proposal.id} aria-label="Standing directive proposal">
+<article
+	class="dpc band-body"
+	data-proposal-id={proposal.id}
+	aria-label="Standing directive proposal"
+>
 	<div class="dpc-body">
 		<p class="dpc-meta">
-			<span class="machine">{sourceLabel(proposal.source)}</span> — {proposal.evidence_count} times
-			in {proposal.session_count} sessions{evidenceWindow}
+			<span class="machine">{sourceLabel(proposal.source)}</span> — {proposal.evidence_count} times in
+			{proposal.session_count} sessions{evidenceWindow}
 		</p>
 		<p class="dpc-text" data-proposal-text>{proposal.proposed_text}</p>
 
@@ -121,8 +125,7 @@ sits inside `LessonCandidateList`, so this reads as one family with those cards 
 					id={`dpc-approve-${proposal.id}`}
 					class="dpc-approve-text"
 					bind:value={approveText}
-					rows={3}
-				></textarea>
+					rows={3}></textarea>
 				<div class="dpc-actions">
 					<Button size="sm" disabled={busy} onclick={() => void confirmApprove()}>
 						{busy ? 'Saving' : 'Confirm approve'}

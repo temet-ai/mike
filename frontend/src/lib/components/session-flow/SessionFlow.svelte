@@ -167,7 +167,15 @@
 			</div>
 
 			<div class="flow-selected-pane">
-				<FlowDetailBand {dataset} {selection} {title} {followId} {onSelect} {onFollow} {onOpenDrawer} />
+				<FlowDetailBand
+					{dataset}
+					{selection}
+					{title}
+					{followId}
+					{onSelect}
+					{onFollow}
+					{onOpenDrawer}
+				/>
 			</div>
 		</div>
 

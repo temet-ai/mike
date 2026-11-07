@@ -10,17 +10,27 @@
 	});
 
 	const ROWS = [
-		{ delivery_channel: 'wake' as const, wake_state: 'pending', deliver_after: '2026-09-25T14:02:31Z' },
+		{
+			delivery_channel: 'wake' as const,
+			wake_state: 'pending',
+			deliver_after: '2026-09-25T14:02:31Z'
+		},
 		{ delivery_channel: 'wake' as const, wake_state: 'pushed' },
 		{ delivery_channel: 'append' as const, delivered_request_id: 431907 },
-		{ delivery_channel: 'wake' as const, reverted_at: '2026-09-25T14:05:00Z', revert_reason: 'expired_ttl' }
+		{
+			delivery_channel: 'wake' as const,
+			reverted_at: '2026-09-25T14:05:00Z',
+			revert_reason: 'expired_ttl'
+		}
 	];
 </script>
 
 <Story
 	name="WakeStateChip"
 	play={async ({ canvasElement }) => {
-		const states = [...canvasElement.querySelectorAll('[data-wake-axis="state"]')].map((el) => el.textContent?.trim());
+		const states = [...canvasElement.querySelectorAll('[data-wake-axis="state"]')].map((el) =>
+			el.textContent?.trim()
+		);
 		await expect(states).toEqual([
 			'pending until 14:02:31Z',
 			'pushed',

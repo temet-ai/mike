@@ -202,9 +202,7 @@
 		await expect(position(title, quota) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
 		const link = canvas.getByRole('link', { name: '#708246' });
-		await expect(link.getAttribute('href')).toContain(
-			`/sessions/${SESSION_ID}/requests/708246`
-		);
+		await expect(link.getAttribute('href')).toContain(`/sessions/${SESSION_ID}/requests/708246`);
 		await expect(canvas.getAllByRole('link')).toHaveLength(11);
 		await expect(canvas.getByText('689')).toBeInTheDocument();
 		await expect(canvas.getByText('31,218')).toBeInTheDocument();

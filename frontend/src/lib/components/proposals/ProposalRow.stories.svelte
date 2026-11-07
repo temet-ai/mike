@@ -44,7 +44,9 @@
 
 		const agent = within(canvas.getByTestId('agent'));
 		await expect(agent.getByText('.claude/agents/release-reviewer.md')).toBeInTheDocument();
-		await expect(agent.getByText(/never changes an agent definition on its own/)).toBeInTheDocument();
+		await expect(
+			agent.getByText(/never changes an agent definition on its own/)
+		).toBeInTheDocument();
 	}}
 >
 	{#snippet template()}

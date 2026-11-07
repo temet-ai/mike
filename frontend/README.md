@@ -11,8 +11,7 @@ Two ways serve it:
   change never touches the proxy.
 - **Installed or plain `mike` launch**: `mike` serves `frontend/build/` itself on the
   SPA bind, embedded into the binary with `rust-embed` (`crates/mike/src/spa.rs`). Run
-  `make spa` (or `pnpm build` here) before building `mike`, or the SPA bind answers
-  503.
+  `make spa` (or `pnpm build` here) before building `mike`, or the SPA bind answers 503.
 
 ## Style guide
 
@@ -73,18 +72,18 @@ INSPECT_BACKEND=http://inspect-host.example.com:9989 pnpm run dev
 
 ## Scripts
 
-| Script | What it does |
-| --- | --- |
-| `pnpm run dev` / `pnpm run start` | Vite dev server with HMR (`:9990`) and the `/api` proxies |
-| `pnpm run build` | Build the static SPA into `build/` (adapter-static) |
-| `pnpm run preview` | `vite preview` of `build/` |
-| `pnpm run check` | `../scripts/sb-test`: type-check, unit and Storybook tests |
-| `pnpm run test` | Unit tests only, through `../scripts/sb-test --unit` |
-| `pnpm run storybook` | Storybook dev server on `:6006` (the stack runs it as `mike-stack-storybook`) |
-| `pnpm run storybook:build` | Build static Storybook |
-| `pnpm run storybook:test` | Storybook a11y and interaction tests |
-| `pnpm run lint` | ESLint |
-| `pnpm run format` | Prettier write |
+| Script                            | What it does                                                                  |
+| --------------------------------- | ----------------------------------------------------------------------------- |
+| `pnpm run dev` / `pnpm run start` | Vite dev server with HMR (`:9990`) and the `/api` proxies                     |
+| `pnpm run build`                  | Build the static SPA into `build/` (adapter-static)                           |
+| `pnpm run preview`                | `vite preview` of `build/`                                                    |
+| `pnpm run check`                  | `../scripts/sb-test`: type-check, unit and Storybook tests                    |
+| `pnpm run test`                   | Unit tests only, through `../scripts/sb-test --unit`                          |
+| `pnpm run storybook`              | Storybook dev server on `:6006` (the stack runs it as `mike-stack-storybook`) |
+| `pnpm run storybook:build`        | Build static Storybook                                                        |
+| `pnpm run storybook:test`         | Storybook a11y and interaction tests                                          |
+| `pnpm run lint`                   | ESLint                                                                        |
+| `pnpm run format`                 | Prettier write                                                                |
 
 Run frontend tests through `scripts/sb-test` (for example
 `scripts/sb-test --skip-typecheck <filter>`), not raw `vitest`.

@@ -280,7 +280,13 @@ export const JUDGE_SETTINGS: SettingMeta[] = [
 		'You label a finished turn: what was delivered, and how the operator reacted.',
 		'Instructions.'
 	),
-	setting('judge_worker.batch_size', 'int', 'Turns per sweep', 50, 'How many turns one sweep claims.'),
+	setting(
+		'judge_worker.batch_size',
+		'int',
+		'Turns per sweep',
+		50,
+		'How many turns one sweep claims.'
+	),
 	setting(
 		'judge_worker.confidence_threshold',
 		'float',
@@ -288,7 +294,13 @@ export const JUDGE_SETTINGS: SettingMeta[] = [
 		0.5,
 		'Below this the answer is recorded as unknown.'
 	),
-	setting('judge_worker.interval_secs', 'int', 'Seconds between sweeps', 60, 'Wait between sweeps.'),
+	setting(
+		'judge_worker.interval_secs',
+		'int',
+		'Seconds between sweeps',
+		60,
+		'Wait between sweeps.'
+	),
 	setting('turn_judge.live_bundle_id', 'int', 'Configuration in use', 14, 'In use.'),
 	setting(
 		'turn_judge.immediate',

@@ -44,9 +44,7 @@ export interface ProjectPromptLookupError {
 }
 
 export type ProjectPromptLookupResult =
-	| ProjectPromptFound
-	| ProjectPromptNoCapture
-	| ProjectPromptLookupError;
+	ProjectPromptFound | ProjectPromptNoCapture | ProjectPromptLookupError;
 
 async function fallbackToProjectClasses(
 	projectPath: string,
@@ -76,7 +74,10 @@ export async function findLatestCaptureInProject(
 		if (latest === undefined) return fallbackToProjectClasses(projectPath, fetchers);
 		const requestId = Number.parseInt(latest.request_id, 10);
 		if (!Number.isFinite(requestId)) {
-			return { kind: 'error', message: `malformed request_id "${latest.request_id}" in observation` };
+			return {
+				kind: 'error',
+				message: `malformed request_id "${latest.request_id}" in observation`
+			};
 		}
 		return { kind: 'found', requestId };
 	} catch (err) {

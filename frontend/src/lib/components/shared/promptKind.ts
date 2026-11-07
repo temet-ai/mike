@@ -76,18 +76,14 @@ export const KIND_TIP: Record<KnownPromptKind, string> = {
 		'An automated analysis or judge probe run over the session transcript, not operator-typed.',
 	'loop-wakeup':
 		'A scheduled loop or fleet-cycle wake prompt, or a message the session sent repeatedly on a steady cadence, not operator-typed.',
-	'channel-wake':
-		'A wake delivered over a Claude Code channel, not operator-typed.',
+	'channel-wake': 'A wake delivered over a Claude Code channel, not operator-typed.',
 	'task-notification':
 		'A background task-completion notification injected by the harness, not operator-typed.',
-	'tool-loaded':
-		'The harness confirmation that a deferred tool was loaded, not operator-typed.',
+	'tool-loaded': 'The harness confirmation that a deferred tool was loaded, not operator-typed.',
 	'mailbox-delivery':
 		'A cross-session mailbox message delivered into this session, not operator-typed.',
-	'steering-payload':
-		'A steering note the proxy delivered into this session, not operator-typed.',
-	'harness-authored':
-		'A machine-authored prompt on the main lane, not operator-typed.',
+	'steering-payload': 'A steering note the proxy delivered into this session, not operator-typed.',
+	'harness-authored': 'A machine-authored prompt on the main lane, not operator-typed.',
 	'agent-lineage':
 		'A prompt that belongs to a subagent or workflow agent, attached to this session, not operator-typed.'
 };

@@ -3,7 +3,9 @@ import { fixSegments } from './fixLinks';
 
 describe('fixSegments', () => {
 	it('turns an external URL into a link and keeps the sentence full stop as text', () => {
-		expect(fixSegments('Add credit at https://openrouter.ai/settings/credits. Workers resume.')).toEqual([
+		expect(
+			fixSegments('Add credit at https://openrouter.ai/settings/credits. Workers resume.')
+		).toEqual([
 			{ kind: 'text', text: 'Add credit at ' },
 			{
 				kind: 'link',

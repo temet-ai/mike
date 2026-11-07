@@ -141,8 +141,10 @@
 			localStorage.clear();
 			__resetApiCacheForTests();
 			stubFetchJsonRouter((method, url) => {
-				if (url.includes('/api/recall/project-context')) return typed<RecallProjectContextDto>(RECALL);
-				if (url.includes('/api/lessons/archived')) return typed<ArchivedLesson[]>([ARCHIVED_LESSON]);
+				if (url.includes('/api/recall/project-context'))
+					return typed<RecallProjectContextDto>(RECALL);
+				if (url.includes('/api/lessons/archived'))
+					return typed<ArchivedLesson[]>([ARCHIVED_LESSON]);
 				if (url.includes('/restore')) {
 					const restored: LessonDto = {
 						id: 68,
@@ -265,7 +267,9 @@
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole('button', { expanded: false }));
 
-		await waitFor(() => expect(canvas.getByText("Couldn't load project memory")).toBeInTheDocument());
+		await waitFor(() =>
+			expect(canvas.getByText("Couldn't load project memory")).toBeInTheDocument()
+		);
 		await waitFor(() =>
 			expect(canvas.getByText("Couldn't load archived lessons")).toBeInTheDocument()
 		);

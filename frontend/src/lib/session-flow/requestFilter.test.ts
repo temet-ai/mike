@@ -13,7 +13,11 @@ function baseDataset() {
 		sessionId: FLOW_SESSION_ID,
 		actors: [
 			flowActor(coordinatorId, { kind: 'session', label: 'Session', producer_id: null }),
-			flowActor(dispatchId, { kind: 'unresolved_dispatch', label: 'Dispatch 1', producer_id: null }),
+			flowActor(dispatchId, {
+				kind: 'unresolved_dispatch',
+				label: 'Dispatch 1',
+				producer_id: null
+			}),
 			flowActor(workerId, {
 				kind: 'worker',
 				label: 'Agent 1',
@@ -146,6 +150,8 @@ describe('buildFlowRequestFilter', () => {
 				})
 			]
 		});
-		expect(buildFlowRequestFilter(dataset, { kind: 'activity', id: 'messages:m1:queued' })).toBeNull();
+		expect(
+			buildFlowRequestFilter(dataset, { kind: 'activity', id: 'messages:m1:queued' })
+		).toBeNull();
 	});
 });

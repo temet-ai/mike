@@ -60,9 +60,7 @@ in the URL. Used on Labelling accuracy (one card per run) and at the top of a ru
 	const questions: QuestionKey[] = ['reaction', 'delivery'];
 
 	function runHref(id: number): string {
-		return resolve(
-			`sessions/labelling/accuracy/${id}` as `sessions/labelling/accuracy/${string}`
-		);
+		return resolve(`sessions/labelling/accuracy/${id}` as `sessions/labelling/accuracy/${string}`);
 	}
 
 	function reviewHref(key: QuestionKey): string {

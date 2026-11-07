@@ -7,7 +7,8 @@ type StaticRouteId = {
 }[RouteId];
 
 /** A parameterless route, optionally followed by a search string or hash. */
-export type StaticHref = StaticRouteId | `${StaticRouteId}?${string}` | `${StaticRouteId}#${string}`;
+export type StaticHref =
+	StaticRouteId | `${StaticRouteId}?${string}` | `${StaticRouteId}#${string}`;
 
 /**
  * Resolve a link that is one of many parameterless routes.

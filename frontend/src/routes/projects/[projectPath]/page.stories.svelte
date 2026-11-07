@@ -83,7 +83,8 @@
 						total_count: 1
 					});
 				}
-				if (url.includes('/api/knowledge/search')) return typed<KnowledgeSearchResponse>(KNOWLEDGE_SEARCH);
+				if (url.includes('/api/knowledge/search'))
+					return typed<KnowledgeSearchResponse>(KNOWLEDGE_SEARCH);
 				if (method === 'PATCH' && url.includes('/name')) {
 					const sent = (body ?? {}) as { custom_name?: string | null };
 					return typed<{ project_path: string; custom_name: string | null }>({
@@ -91,7 +92,8 @@
 						custom_name: sent.custom_name ?? null
 					});
 				}
-				if (url.includes('/api/projects/by-path/')) return typed<FleetProjectWithCounts>(PROJECTS[0]!);
+				if (url.includes('/api/projects/by-path/'))
+					return typed<FleetProjectWithCounts>(PROJECTS[0]!);
 				return typed<FleetProjectWithCounts[]>(PROJECTS);
 			});
 			return {};

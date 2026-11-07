@@ -36,7 +36,9 @@ function reconstruct(segments: readonly DiffSegment[], side: 'before' | 'after')
 
 describe('diffWords', () => {
 	it('returns a single unchanged segment for identical text', () => {
-		expect(diffWords('same text', 'same text')).toEqual([{ text: 'same text', status: 'unchanged' }]);
+		expect(diffWords('same text', 'same text')).toEqual([
+			{ text: 'same text', status: 'unchanged' }
+		]);
 	});
 
 	it('returns nothing for two empty strings', () => {

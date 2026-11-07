@@ -21,9 +21,7 @@ real use, and why mike removed it when it did.
 	let { skill }: { skill: SkillFolder } = $props();
 
 	const href = $derived(
-		skill.draft_id === null
-			? null
-			: resolve(`skills/${skill.draft_id}` as `skills/${string}`)
+		skill.draft_id === null ? null : resolve(`skills/${skill.draft_id}` as `skills/${string}`)
 	);
 
 	const trigger = $derived.by(() => {

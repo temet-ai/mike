@@ -43,7 +43,13 @@
 	let rows = $derived.by(() => {
 		const byKey = new Map<string, SliceRow>();
 		for (const rate of rates.filter((r) => r.role === role && r.window_days === null)) {
-			const key = [group(rate), rate.class, rate.label_tier, rate.label_split, rate.label_source].join('|');
+			const key = [
+				group(rate),
+				rate.class,
+				rate.label_tier,
+				rate.label_split,
+				rate.label_source
+			].join('|');
 			const row = byKey.get(key) ?? {
 				key,
 				group: group(rate),
@@ -70,7 +76,8 @@
 
 	function cell(rate: EvalRateDto | null): string {
 		if (!rate) return '—';
-		const interval = rate.ci_low === null ? '' : ` [${formatShare(rate.ci_low)}, ${formatShare(rate.ci_high)}]`;
+		const interval =
+			rate.ci_low === null ? '' : ` [${formatShare(rate.ci_low)}, ${formatShare(rate.ci_high)}]`;
 		const size = rate.weighted
 			? `weighted, n_eff ≈ ${rate.n_effective?.toFixed(1) ?? '—'}`
 			: `${rate.k}/${rate.n}`;
@@ -85,8 +92,8 @@
 		<p class="error" role="alert">Could not load accuracy: {error}</p>
 	{:else if rows.length === 0}
 		<p class="empty">
-			No labelled turns for this judge yet. Labels come from the gold control on turns (operator), relayed
-			corrections, and imported seed sets.
+			No labelled turns for this judge yet. Labels come from the gold control on turns (operator),
+			relayed corrections, and imported seed sets.
 		</p>
 	{:else}
 		<table>
@@ -123,13 +130,17 @@
 				<div class="mix-row">
 					<span class="mix-class">{rate.class}</span>
 					<span class="bar" style:width="{Math.round((rate.value ?? 0) * 100)}%"></span>
-					<span>{formatShare(rate.value)} ({rate.k}/{rate.n}) against {formatShare(baselineOf(rate.class)?.value ?? null)}</span>
+					<span
+						>{formatShare(rate.value)} ({rate.k}/{rate.n}) against {formatShare(
+							baselineOf(rate.class)?.value ?? null
+						)}</span
+					>
 				</div>
 			{/each}
 			{#if band}
 				<p class="band">
-					Corrected on replied real turns: {formatShare(band.value)} ({band.k}/{band.n}), against the operator's
-					32-49% band.
+					Corrected on replied real turns: {formatShare(band.value)} ({band.k}/{band.n}), against
+					the operator's 32-49% band.
 				</p>
 			{/if}
 		</div>

@@ -41,8 +41,26 @@
 			return typed<ProposalDetail>({
 				proposal: PROPOSAL,
 				evidence: [
-					{ kind: 'dossier_entry', ref_id: 11, operator_turn_id: 90, session_id: 1, observed_at: PROPOSAL.first_evidence_at, detail: {}, message_text: 'just commit it', gone: false },
-					{ kind: 'dossier_entry', ref_id: 12, operator_turn_id: null, session_id: 2, observed_at: PROPOSAL.last_evidence_at, detail: {}, message_text: null, gone: true }
+					{
+						kind: 'dossier_entry',
+						ref_id: 11,
+						operator_turn_id: 90,
+						session_id: 1,
+						observed_at: PROPOSAL.first_evidence_at,
+						detail: {},
+						message_text: 'just commit it',
+						gone: false
+					},
+					{
+						kind: 'dossier_entry',
+						ref_id: 12,
+						operator_turn_id: null,
+						session_id: 2,
+						observed_at: PROPOSAL.last_evidence_at,
+						detail: {},
+						message_text: null,
+						gone: true
+					}
 				]
 			});
 		}
@@ -73,10 +91,18 @@
 	]}
 	play={async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await waitFor(() => expect(canvasElement.querySelector('[data-proposal-id="4"]')).not.toBeNull());
-		await expect(canvasElement.querySelector('[data-proposal-text]')?.textContent).toBe(PROPOSAL.proposed_text);
+		await waitFor(() =>
+			expect(canvasElement.querySelector('[data-proposal-id="4"]')).not.toBeNull()
+		);
+		await expect(canvasElement.querySelector('[data-proposal-text]')?.textContent).toBe(
+			PROPOSAL.proposed_text
+		);
 		await userEvent.click(canvas.getByRole('button', { name: 'Every piece of evidence' }));
-		await waitFor(() => expect(canvasElement.querySelector('[data-evidence-ref="12"]')?.textContent).toContain('is gone'));
+		await waitFor(() =>
+			expect(canvasElement.querySelector('[data-evidence-ref="12"]')?.textContent).toContain(
+				'is gone'
+			)
+		);
 		await userEvent.click(canvas.getByRole('button', { name: 'Reject' }));
 		await waitFor(() => expect(canvas.getByText('No open proposals.')).toBeTruthy());
 	}}

@@ -311,7 +311,8 @@
 					quote: sentQuote ?? undefined,
 					edit_id: editIdForThisMessage ?? undefined,
 					scope: workbenchScope,
-					project_path: workbenchScope === 'project' ? (workbenchProjectPath ?? undefined) : undefined
+					project_path:
+						workbenchScope === 'project' ? (workbenchProjectPath ?? undefined) : undefined
 				},
 				(event) => {
 					if (event.type === 'text') {
@@ -412,11 +413,7 @@
 	);
 </script>
 
-<section
-	class="wb-assistant"
-	aria-label="Prompt assistant"
-	data-slot="workbench-assistant-panel"
->
+<section class="wb-assistant" aria-label="Prompt assistant" data-slot="workbench-assistant-panel">
 	<header class="wb-assistant__head">
 		<!-- A real heading (h2), matching WorkbenchNavigator/WorkbenchRuleStack's own column
 		     titles — see their comments for why each column needs its own heading rather than
@@ -465,9 +462,8 @@
 		<p class="wb-assistant__status">Checking the prompt assistant…</p>
 	{:else if serviceDown}
 		<p class="wb-assistant__status wb-assistant__status--down">
-			Prompt assistant is unreachable{healthError !== null ? ` (${healthError})` : ''}. <a
-				href={resolve('/settings/assistants')}>Check settings</a
-			>
+			Prompt assistant is unreachable{healthError !== null ? ` (${healthError})` : ''}.
+			<a href={resolve('/settings/assistants')}>Check settings</a>
 			or
 			<button type="button" class="wb-assistant__retry" onclick={() => void loadHealth()}>
 				Retry
@@ -609,8 +605,7 @@
 						placeholder="Ask to reword, shorten, or check a part of the prompt…"
 						bind:value={draft}
 						bind:this={composerTextarea}
-						onkeydown={onComposerKeydown}
-					></textarea>
+						onkeydown={onComposerKeydown}></textarea>
 				</label>
 				<button type="submit" class="wb-composer__send" disabled={sending}>
 					{sending ? 'Sending…' : 'Send'}

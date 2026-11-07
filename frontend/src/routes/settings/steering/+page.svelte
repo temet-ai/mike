@@ -75,7 +75,7 @@
 		if (data.modelsLoadError !== null) void loadModels();
 		void loadOpenRouterUsage();
 		void loadProviders();
-		const a =onApiCacheUpdate(
+		const a = onApiCacheUpdate(
 			'/api/settings/features',
 			() => {
 				void loadFeatures();
@@ -387,32 +387,32 @@
 	<GuardCalibrationPanel />
 
 	{#if usesOpenRouter}
-	<div class="st-env" data-augmented-ui="tl-clip br-clip border">
-		<div class="st-env-status" aria-live="polite">
-			<span class="st-env-dot" class:st-env-dot--ok={openrouterConfigured} aria-hidden="true"
-			></span>
-			<span class="st-env-label"
-				>OpenRouter API key:
-				{#if openrouterUsageError !== null}
-					<span class="st-env-missing">could not check ({openrouterUsageError})</span>
-				{:else if openrouterUsage === null}
-					<span class="st-env-missing">checking…</span>
-				{:else if openrouterConfigured}
-					<span class="st-env-ok"
-						>configured — <a href={resolve('/settings/integrations')} class="st-env-link"
-							>manage in Integrations</a
-						></span
-					>
-				{:else}
-					<span class="st-env-missing"
-						>not configured — <a href={resolve('/settings/integrations')} class="st-env-link"
-							>set it up in Integrations</a
-						></span
-					>
-				{/if}
-			</span>
+		<div class="st-env" data-augmented-ui="tl-clip br-clip border">
+			<div class="st-env-status" aria-live="polite">
+				<span class="st-env-dot" class:st-env-dot--ok={openrouterConfigured} aria-hidden="true"
+				></span>
+				<span class="st-env-label"
+					>OpenRouter API key:
+					{#if openrouterUsageError !== null}
+						<span class="st-env-missing">could not check ({openrouterUsageError})</span>
+					{:else if openrouterUsage === null}
+						<span class="st-env-missing">checking…</span>
+					{:else if openrouterConfigured}
+						<span class="st-env-ok"
+							>configured — <a href={resolve('/settings/integrations')} class="st-env-link"
+								>manage in Integrations</a
+							></span
+						>
+					{:else}
+						<span class="st-env-missing"
+							>not configured — <a href={resolve('/settings/integrations')} class="st-env-link"
+								>set it up in Integrations</a
+							></span
+						>
+					{/if}
+				</span>
+			</div>
 		</div>
-	</div>
 	{/if}
 
 	{#if steererFeature !== null}
@@ -459,7 +459,9 @@
 							? 'Checking the providers on this machine…'
 							: `Could not load the providers on this machine: ${providersError}`}
 					</p>
-					{#if storedModel !== ''}<p class="st-model-why">Current model: <code>{storedModel}</code></p>{/if}
+					{#if storedModel !== ''}<p class="st-model-why">
+							Current model: <code>{storedModel}</code>
+						</p>{/if}
 				{:else}
 					<div class="st-model-pickers">
 						<Select

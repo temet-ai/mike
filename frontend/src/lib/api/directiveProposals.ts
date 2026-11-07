@@ -55,7 +55,9 @@ async function send<T>(method: string, path: string, body?: unknown): Promise<T>
 	return (await res.json()) as T;
 }
 
-export function listProposals(status = 'open'): Promise<{ proposals: DirectiveProposal[]; next_cursor: number | null }> {
+export function listProposals(
+	status = 'open'
+): Promise<{ proposals: DirectiveProposal[]; next_cursor: number | null }> {
 	return send('GET', `/api/directive-proposals?status=${status}`);
 }
 

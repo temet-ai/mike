@@ -34,7 +34,9 @@
 			usage.usage_monthly !== null &&
 			usage.usage_monthly !== undefined
 	);
-	const unrecordedHighlighted = $derived(hasRecordedSplit && (usage?.unrecorded_month_usd ?? 0) > 0.5);
+	const unrecordedHighlighted = $derived(
+		hasRecordedSplit && (usage?.unrecorded_month_usd ?? 0) > 0.5
+	);
 
 	const UNRECORDED_TOOLTIP =
 		'Spend OpenRouter billed that no mike call record explains — another instance or tool using the same key, or days the ledger missed.';
@@ -44,7 +46,8 @@
 		"What mike's own ledger of LLM calls sums to for this calendar month — every steerer, judge, and eval call the proxy made and recorded a cost for.";
 	const CEILING_TOOLTIP =
 		"The most background LLM workers may spend today. Once today's recorded spend passes this, the proxy refuses further calls from these workers until the day rolls over. No ceiling means unlimited daily spend.";
-	const TODAY_TOOLTIP = "How much has been spent so far today, and how that compares to the daily ceiling in Settings › Workers.";
+	const TODAY_TOOLTIP =
+		'How much has been spent so far today, and how that compares to the daily ceiling in Settings › Workers.';
 </script>
 
 {#if usage !== null && usage.configured}

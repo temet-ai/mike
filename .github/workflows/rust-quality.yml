@@ -1,8 +1,9 @@
 name: Rust quality
 
 # Lint and the fast tests run on every Rust push, side by side. The DB-backed
-# integration tests run on pull requests, each night, on a release tag and on
-# request, split into three shards. Local checks are in scripts/pre-push-check.
+# integration tests run on pull requests, each night, on a release tag, on
+# request, and on a commit that reached main without a pull request, which also
+# fails the `direct` job. Local checks are in scripts/pre-push-check.
 on:
   pull_request:
     paths:
@@ -28,10 +29,19 @@ on:
       - '.github/workflows/rust-quality.yml'
   push:
     branches: [main]
-    paths-ignore:
-      - 'docs/**'
-      - 'frontend/**'
-      - '**/*.md'
+    paths:
+      - 'crates/**'
+      - 'scripts/capture-db/Dockerfile.pg19'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.sqlx/**'
+      - 'deny.toml'
+      - 'clippy.toml'
+      - 'rust-toolchain.toml'
+      - 'rustfmt.toml'
+      - '.cargo/config.toml'
+      - '.github/actions/rust-setup/action.yml'
+      - '.github/workflows/rust-quality.yml'
   schedule:
     - cron: "17 2 * * *"
   workflow_dispatch:
@@ -83,9 +93,34 @@ jobs:
           scripts/check-test-tiers
           cargo nextest run --all
 
+  direct:
+    name: Landed through a pull request
+    if: github.event_name == 'push' && github.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      direct: ${{ steps.pulls.outputs.direct }}
+    steps:
+      - id: pulls
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          count=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq length)
+          if [ "$count" = 0 ]; then echo direct=true; else echo direct=false; fi >> "$GITHUB_OUTPUT"
+      - name: Rust reaches main through a pull request
+        if: steps.pulls.outputs.direct == 'true'
+        run: |
+          echo "::error::$GITHUB_SHA reached main without a pull request; the integration tests run on it now"
+          exit 1
+
   integration:
     name: Rust integration tests ${{ matrix.shard }}/3
-    if: github.event_name != 'push' || github.ref_type == 'tag'
+    needs: direct
+    if: >-
+      !cancelled() && (github.event_name != 'push' || github.ref_type == 'tag'
+      || needs.direct.outputs.direct == 'true')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

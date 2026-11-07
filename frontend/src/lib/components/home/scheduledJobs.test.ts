@@ -84,7 +84,10 @@ describe('lastRanText and nextText', () => {
 	it('adds by hand only for a manual run', () => {
 		expect(lastRanText(job({ last_trigger: 'manual' }), NOW)).toBe('last ran 5m ago, by hand');
 		expect(
-			lastRanText(job({ state: 'running', last_trigger: 'manual', last_started_at: at(-5_000) }), NOW)
+			lastRanText(
+				job({ state: 'running', last_trigger: 'manual', last_started_at: at(-5_000) }),
+				NOW
+			)
 		).toBe('started 5s ago, by hand');
 		expect(lastRanText(job({ last_trigger: null }), NOW)).toBe('last ran 5m ago');
 	});

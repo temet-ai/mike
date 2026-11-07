@@ -18,12 +18,16 @@
 <span class="inline-flex items-center gap-1" data-verdict-source={source}>
 	{#if turn.reaction}
 		<Tooltip text={reactionTip(turn.reaction)}>
-			<Badge variant="chip-muted" data-verdict-axis="reaction">{turn.reaction.replaceAll('_', ' ')}</Badge>
+			<Badge variant="chip-muted" data-verdict-axis="reaction"
+				>{turn.reaction.replaceAll('_', ' ')}</Badge
+			>
 		</Tooltip>
 	{/if}
 	{#if turn.delivery}
 		<Tooltip text={deliveryTip(turn.delivery)}>
-			<Badge variant="chip-muted" data-verdict-axis="delivery">{turn.delivery.replaceAll('_', ' ')}</Badge>
+			<Badge variant="chip-muted" data-verdict-axis="delivery"
+				>{turn.delivery.replaceAll('_', ' ')}</Badge
+			>
 		</Tooltip>
 	{/if}
 	<Tooltip text={sourceTip(source)}>

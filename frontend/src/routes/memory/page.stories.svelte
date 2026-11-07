@@ -59,7 +59,7 @@
 		project_id: 3,
 		project_path: '/Users/dev/temet-proxy',
 		session_id: 501,
-		session_uuid: '01j9x4qf7h8k2n3p5r6t7v8w9a',
+		session_uuid: '00000000-0000-4000-8000-000000000001',
 		source_turn_id: 812,
 		files_touched: ['crates/mike/src/store/persistence/lessons.rs'],
 		agent_id: 4,
@@ -92,7 +92,7 @@
 		project_id: 3,
 		project_path: '/Users/dev/temet-proxy',
 		session_id: 502,
-		session_uuid: '01j9x4qf7h8k2n3p5r6t7v8w9b',
+		session_uuid: '00000000-0000-4000-8000-000000000002',
 		source_turn_id: 820,
 		files_touched: null,
 		agent_id: null,
@@ -446,7 +446,9 @@
 		await waitFor(() => expect(canvas.getByText(PROMOTED_ACTION.lesson_text)).toBeInTheDocument());
 
 		await userEvent.selectOptions(projectSelect, '__other__');
-		const otherProjectInput = canvas.getByPlaceholderText('/exact/project/path') as HTMLInputElement;
+		const otherProjectInput = canvas.getByPlaceholderText(
+			'/exact/project/path'
+		) as HTMLInputElement;
 		await expect(otherProjectInput).toHaveValue('');
 
 		await userEvent.type(otherProjectInput, '/mnt/data/projects/temet/temet-proxy');

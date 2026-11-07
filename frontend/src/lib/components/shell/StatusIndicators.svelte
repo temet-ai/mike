@@ -103,7 +103,6 @@
 					: 'status-chip--ok';
 		return `status-chip-trigger status-chip ${tone}`;
 	});
-
 </script>
 
 <div class="status-cluster" data-slot="status-cluster">

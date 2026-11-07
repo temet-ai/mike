@@ -15,8 +15,10 @@
 
 	const TIPS: Record<string, string> = {
 		done: 'The operator got what they asked for and stopped.',
-		closed_in_frustration: 'The operator closed the session unhappy; its final turn counts as a correction.',
-		cut_off_neutral: 'The session stopped for a reason outside the work, such as a limit or a restart.',
+		closed_in_frustration:
+			'The operator closed the session unhappy; its final turn counts as a correction.',
+		cut_off_neutral:
+			'The session stopped for a reason outside the work, such as a limit or a restart.',
 		fleet_seat: 'A fleet seat that ran its brief; its end says nothing about the operator.',
 		unclear: 'The evidence does not say why the session ended.'
 	};

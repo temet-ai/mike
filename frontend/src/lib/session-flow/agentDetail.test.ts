@@ -75,9 +75,15 @@ describe('agentModels', () => {
 			sessionId: FLOW_SESSION_ID,
 			actors: [flowActor('worker:1')],
 			activities: [
-				requestActivity('201', { metadata: { ...flowActivity().metadata, model: 'claude-opus-5' } }),
-				requestActivity('202', { metadata: { ...flowActivity().metadata, model: 'claude-opus-5' } }),
-				requestActivity('203', { metadata: { ...flowActivity().metadata, model: 'claude-haiku-5' } })
+				requestActivity('201', {
+					metadata: { ...flowActivity().metadata, model: 'claude-opus-5' }
+				}),
+				requestActivity('202', {
+					metadata: { ...flowActivity().metadata, model: 'claude-opus-5' }
+				}),
+				requestActivity('203', {
+					metadata: { ...flowActivity().metadata, model: 'claude-haiku-5' }
+				})
 			]
 		});
 		expect(agentModels(dataset, ['worker:1'])).toEqual(['claude-haiku-5', 'claude-opus-5']);

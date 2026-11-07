@@ -95,13 +95,15 @@
 		const scopeBtn = await canvas.findByRole('button', { name: 'Only Picker target' });
 		await userEvent.click(scopeBtn);
 		await expect(rule.project_path).toBe('/mnt/data/projects/picker-target');
-		await expect(await canvas.findByTitle('Scoped to project: /mnt/data/projects/picker-target')).toHaveTextContent(
-			'Picker target'
-		);
+		await expect(
+			await canvas.findByTitle('Scoped to project: /mnt/data/projects/picker-target')
+		).toHaveTextContent('Picker target');
 		const unscopeBtn = await canvas.findByRole('button', { name: 'Make global' });
 		await userEvent.click(unscopeBtn);
 		await expect(rule.project_path).toBeNull();
-		await expect(await canvas.findByRole('button', { name: 'Only Picker target' })).toBeInTheDocument();
+		await expect(
+			await canvas.findByRole('button', { name: 'Only Picker target' })
+		).toBeInTheDocument();
 
 		// Delete asks for inline confirmation — no browser confirm(), no modal — and Cancel
 		// backs out without touching the store. Scoped to the confirm group itself: the

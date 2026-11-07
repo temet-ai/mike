@@ -34,7 +34,10 @@
 	args={{ revisions: REVISIONS, current: 41 }}
 	play={async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await expect(canvas.getByRole('link', { name: /Revision 2/ })).toHaveAttribute('href', '/skills/52');
+		await expect(canvas.getByRole('link', { name: /Revision 2/ })).toHaveAttribute(
+			'href',
+			'/skills/52'
+		);
 		await expect(canvas.getByText(/passed review, approved by you/)).toBeInTheDocument();
 		await expect(canvas.getByText(/did not pass review/).closest('li')).toHaveAttribute(
 			'aria-current',

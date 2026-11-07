@@ -39,12 +39,7 @@ export interface LlmSpendTotalsDto {
 }
 
 export type LlmSpendCallerRole =
-	| 'steerer'
-	| 'judge_worker'
-	| 'session_judge'
-	| 'eval'
-	| 'lesson_relations'
-	| string;
+	'steerer' | 'judge_worker' | 'session_judge' | 'eval' | 'lesson_relations' | string;
 
 export interface LlmSpendCallerDto {
 	key: string;
@@ -157,12 +152,7 @@ export function memberDisplayLabel(caller: Pick<LlmSpendCallerDto, 'role' | 'lab
 }
 
 export type LlmSpendCallerSortKey =
-	| 'cost'
-	| 'calls'
-	| 'share'
-	| 'cost_per_call'
-	| 'avg_input'
-	| 'failed';
+	'cost' | 'calls' | 'share' | 'cost_per_call' | 'avg_input' | 'failed';
 
 export const CALLER_SORT_ACCESSOR: Record<LlmSpendCallerSortKey, (c: LlmSpendCallerDto) => number> =
 	{

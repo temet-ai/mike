@@ -150,9 +150,10 @@ export function paragraphIndicesTouchedByRule(
 }
 
 /** The before/after pair shown when an edit row is open (spec 4.3). */
-export function ruleBeforeAfter(
-	rule: Pick<FilterRuleDto, 'kind' | 'action' | 'value' | 'text'>
-): { before: string; after: string } {
+export function ruleBeforeAfter(rule: Pick<FilterRuleDto, 'kind' | 'action' | 'value' | 'text'>): {
+	before: string;
+	after: string;
+} {
 	if (rule.kind === 'inject_reminder') return { before: '', after: rule.text ?? '' };
 	if (rule.action === 'drop') return { before: rule.value, after: '' };
 	if (rule.action === 'replace') return { before: rule.value, after: rule.text ?? '' };

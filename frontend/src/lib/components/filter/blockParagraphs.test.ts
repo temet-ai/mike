@@ -122,9 +122,7 @@ describe('splitBlockIntoDisplayParagraphs', () => {
 			expect(result).toHaveLength(2);
 			expect(result[0]?.text).toBe('# Session-specific guidance');
 			expect(result[0]?.isHeading).toBe(true);
-			expect(result[1]?.text).toBe(
-				text.split('\n').slice(1).join('\n')
-			);
+			expect(result[1]?.text).toBe(text.split('\n').slice(1).join('\n'));
 			expect(result[1]?.isHeading).toBe(false);
 		});
 	});
@@ -164,7 +162,7 @@ describe('splitBlockIntoDisplayParagraphs', () => {
 	});
 
 	describe('start/end offsets (round-4 defect #2: offset-based rule attribution)', () => {
-		it('every paragraph\'s [start, end) slice of the normalised block text equals its own text', () => {
+		it("every paragraph's [start, end) slice of the normalised block text equals its own text", () => {
 			const block = [
 				"You are Claude Code, Anthropic's official CLI for Claude.",
 				'',
@@ -205,9 +203,9 @@ describe('splitBlockIntoDisplayParagraphs', () => {
 
 describe('buildPromptOutline', () => {
 	it('returns [] when there are no headings', () => {
-		expect(buildPromptOutline([{ index: 0, text: 'plain prose, no headings here' }], () => false)).toEqual(
-			[]
-		);
+		expect(
+			buildPromptOutline([{ index: 0, text: 'plain prose, no headings here' }], () => false)
+		).toEqual([]);
 	});
 
 	it('lists every heading in source order with block/paragraph indices', () => {

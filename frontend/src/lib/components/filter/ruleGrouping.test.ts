@@ -89,7 +89,11 @@ describe('groupOtherPromptRules', () => {
 						model: 'claude-opus-5',
 						unscoped: false,
 						windowedCount: 3,
-						latestObservation: { requestId: '501', sessionId: 's1', createdAt: '2026-09-20T00:00:00Z' },
+						latestObservation: {
+							requestId: '501',
+							sessionId: 's1',
+							createdAt: '2026-09-20T00:00:00Z'
+						},
 						sampleBlocks: [{ type: 'text', text: 'has anchor text right here' }],
 						observationsTotalCount: 3,
 						status: 'ready',
@@ -106,7 +110,11 @@ describe('groupOtherPromptRules', () => {
 						model: 'claude-haiku-4-5',
 						unscoped: false,
 						windowedCount: 1,
-						latestObservation: { requestId: '502', sessionId: 's2', createdAt: '2026-09-19T00:00:00Z' },
+						latestObservation: {
+							requestId: '502',
+							sessionId: 's2',
+							createdAt: '2026-09-19T00:00:00Z'
+						},
 						sampleBlocks: [{ type: 'text', text: 'no relevant text here' }],
 						observationsTotalCount: 1,
 						status: 'ready',

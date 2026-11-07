@@ -1,9 +1,7 @@
 import type { SystemPromptSource } from '$lib/types';
 
 export type SystemPromptPlaceholder =
-	| { kind: 'none' }
-	| { kind: 'not_captured' }
-	| { kind: 'no_blocks' };
+	{ kind: 'none' } | { kind: 'not_captured' } | { kind: 'no_blocks' };
 
 /**
  * Which placeholder (if any) the workbench's prompt pane shows in place of the real
@@ -27,6 +25,9 @@ export function systemPromptPlaceholder(
  * main-lane system prompt (a legitimate share, unlike the sidecar/subagent borrowing the fix
  * closes off).
  */
-export function showsSessionMainNote(blockCount: number, source: SystemPromptSource | null): boolean {
+export function showsSessionMainNote(
+	blockCount: number,
+	source: SystemPromptSource | null
+): boolean {
 	return blockCount > 0 && source === 'session_main';
 }

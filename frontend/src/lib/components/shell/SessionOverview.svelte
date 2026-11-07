@@ -505,12 +505,7 @@
 			onJumpTo={jumpToRequest}
 		/>
 
-		<TimeSpentPanel
-			grouped
-			scope="session"
-			{sessionId}
-			sessionFrom={summary.first_seen}
-		/>
+		<TimeSpentPanel grouped scope="session" {sessionId} sessionFrom={summary.first_seen} />
 
 		<AnalysisToolsCard
 			grouped

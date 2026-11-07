@@ -219,8 +219,7 @@ See artifacts/2026-09-29/judge-pages-redesign/SPEC.md §2.
 								lead={false}
 								error={wakesLoadError}
 								emptyText="This question has not sent a nudge yet."
-								onLabel={(evaluationUuid, label) =>
-									labelWake(question.key, evaluationUuid, label)}
+								onLabel={(evaluationUuid, label) => labelWake(question.key, evaluationUuid, label)}
 								onRetry={retryWakes}
 							/>
 						</Tabs.Content>

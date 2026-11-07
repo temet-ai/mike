@@ -52,7 +52,10 @@
 			{ label: 'Sessions', id: data.liveSession }
 		].map((c) => ({
 			...c,
-			model: c.id > 0 ? (modelOf(data.bundles.find((b) => b.id === c.id)) ?? 'model not recorded') : 'none set'
+			model:
+				c.id > 0
+					? (modelOf(data.bundles.find((b) => b.id === c.id)) ?? 'model not recorded')
+					: 'none set'
 		}))
 	);
 	const latestTurn = $derived(turnRuns.find((r) => r.status === 'complete') ?? null);
@@ -158,16 +161,17 @@
 				<div class="er-how-body" id="er-how-body" transition:disclose>
 					<div class="er-how-inner">
 						<p class="er-how-p">
-							How often the judge's answer matches the label. In each accuracy run the judge labels a
-							fixed set of turns that were labelled beforehand, and every answer is compared with that
-							label. Most of those labels were made by AI too: two AI models labelled each turn separately
-							and a third settled where they differed. The rest are labels you chose. A score here is
-							agreement with those labels, not proof the judge is right.
+							How often the judge's answer matches the label. In each accuracy run the judge labels
+							a fixed set of turns that were labelled beforehand, and every answer is compared with
+							that label. Most of those labels were made by AI too: two AI models labelled each turn
+							separately and a third settled where they differed. The rest are labels you chose. A
+							score here is agreement with those labels, not proof the judge is right.
 						</p>
 						<p class="er-how-p">
-							Use this page to compare configurations, and open Review labels on a run to go through the
-							turns where the judge's answer and the label differ and say which is right. Your answer
-							becomes the turn's label, so it counts in every accuracy run that includes that turn.
+							Use this page to compare configurations, and open Review labels on a run to go through
+							the turns where the judge's answer and the label differ and say which is right. Your
+							answer becomes the turn's label, so it counts in every accuracy run that includes that
+							turn.
 						</p>
 						<p class="er-how-p">
 							Accuracy runs are started from the command line with <code class="er-cmd"

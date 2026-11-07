@@ -1,13 +1,7 @@
 import { ApiError } from '$lib/api';
 
 export type ScheduledJobState =
-	| 'ok'
-	| 'failing'
-	| 'overdue'
-	| 'never_run'
-	| 'off'
-	| 'running'
-	| 'unavailable';
+	'ok' | 'failing' | 'overdue' | 'never_run' | 'off' | 'running' | 'unavailable';
 
 export type ScheduledJobScope = 'this_machine' | 'one_machine';
 

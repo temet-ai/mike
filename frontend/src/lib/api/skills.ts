@@ -237,7 +237,10 @@ export function getSkillDraft(id: number): Promise<SkillDraftResponse> {
 	return send('GET', `/api/skills/drafts/${id}`);
 }
 
-export function reviewSkillDraft(id: number, decision: 'approve' | 'reject' | 'clear'): Promise<unknown> {
+export function reviewSkillDraft(
+	id: number,
+	decision: 'approve' | 'reject' | 'clear'
+): Promise<unknown> {
 	return send('POST', `/api/skills/drafts/${id}/review`, { decision });
 }
 

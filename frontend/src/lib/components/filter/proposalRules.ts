@@ -17,7 +17,11 @@ export function resolveProposalRuleText(
 ): string | null {
 	if (proposal.action === 'drop') return null;
 	if (proposal.rule_text !== undefined && proposal.rule_text !== null) return proposal.rule_text;
-	if (proposal.action === 'append' && proposal.match.length > 0 && proposal.after.startsWith(proposal.match)) {
+	if (
+		proposal.action === 'append' &&
+		proposal.match.length > 0 &&
+		proposal.after.startsWith(proposal.match)
+	) {
 		return proposal.after.slice(proposal.match.length);
 	}
 	return proposal.after;
@@ -106,7 +110,9 @@ export function planApplyProposal(
 			title: proposal.title
 		};
 		const projectPath =
-			options.workbenchProjectPath !== undefined ? options.workbenchProjectPath : proposal.project_path;
+			options.workbenchProjectPath !== undefined
+				? options.workbenchProjectPath
+				: proposal.project_path;
 		if (projectPath) {
 			body.project_path = projectPath;
 		}

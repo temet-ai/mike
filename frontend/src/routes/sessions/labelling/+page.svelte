@@ -26,8 +26,8 @@
 		{#snippet head()}
 			<PageIntro level="h1" title="Judge">
 				An AI model, the judge, labels your finished turns and sessions. Here you see whether it is
-				working and how accurate it is, and change how it runs. Its labels lead to lessons and nudges
-				in <a class="lb-link" href={resolve('/sessions/improvement')}>What the judge did</a>.
+				working and how accurate it is, and change how it runs. Its labels lead to lessons and
+				nudges in <a class="lb-link" href={resolve('/sessions/improvement')}>What the judge did</a>.
 			</PageIntro>
 			<Tabs.Root value={tab} onValueChange={pick}>
 				<Tabs.List aria-label="What is labelled">

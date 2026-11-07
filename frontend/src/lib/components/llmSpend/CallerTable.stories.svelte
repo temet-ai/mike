@@ -62,8 +62,7 @@
 		);
 		await expect(turnJudgeRow?.querySelector('.ct-group-toggle')).toBeNull();
 		const turnJudgeLink = turnJudgeRow?.querySelector('.ct-caller-link') as
-			| HTMLAnchorElement
-			| undefined;
+			HTMLAnchorElement | undefined;
 		await expect(turnJudgeLink?.getAttribute('href')).toBe('/sessions/labelling');
 
 		// Collapsing the Steerers group hides its member rows without disturbing other groups.
@@ -86,8 +85,8 @@
 		await userEvent.click(callsHeader);
 		await waitFor(() => expect(rowLabels(canvasElement)[0]).toBe('Turn judge'));
 
-		const failedCell = Array.from(canvasElement.querySelectorAll('.ct-td--danger')).find((el) =>
-			el.textContent?.trim() === '12'
+		const failedCell = Array.from(canvasElement.querySelectorAll('.ct-td--danger')).find(
+			(el) => el.textContent?.trim() === '12'
 		);
 		await expect(failedCell).toBeTruthy();
 	}}

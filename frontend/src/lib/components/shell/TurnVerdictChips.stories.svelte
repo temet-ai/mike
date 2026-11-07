@@ -40,12 +40,27 @@
 	}
 
 	const TURNS = [
-		turn(1, { outcome: 'corrected', outcome_source: 'judge', reaction: 'corrected', delivery: 'partial' }),
-		turn(2, { outcome: 'shipped', outcome_source: 'operator', reaction: 'accepted', delivery: 'shipped' }),
+		turn(1, {
+			outcome: 'corrected',
+			outcome_source: 'judge',
+			reaction: 'corrected',
+			delivery: 'partial'
+		}),
+		turn(2, {
+			outcome: 'shipped',
+			outcome_source: 'operator',
+			reaction: 'accepted',
+			delivery: 'shipped'
+		}),
 		turn(3, { outcome: 'unknown', outcome_source: 'no_verdict' }),
 		turn(4, { outcome: 'abandoned', outcome_source: null, legacy: true }),
 		turn(5, { outcome: 'unknown', outcome_source: null, pending: true }),
-		turn(6, { outcome: 'accepted', outcome_source: 'judge', reaction: 'redirected', delivery: 'not_applicable' })
+		turn(6, {
+			outcome: 'accepted',
+			outcome_source: 'judge',
+			reaction: 'redirected',
+			delivery: 'not_applicable'
+		})
 	];
 </script>
 
@@ -55,7 +70,14 @@
 		const sources = [...canvasElement.querySelectorAll('[data-verdict-source]')].map((el) =>
 			el.getAttribute('data-verdict-source')
 		);
-		await expect(sources).toEqual(['judge', 'operator', 'no verdict', 'legacy', 'pending', 'judge']);
+		await expect(sources).toEqual([
+			'judge',
+			'operator',
+			'no verdict',
+			'legacy',
+			'pending',
+			'judge'
+		]);
 		const first = canvasElement.querySelector('[data-verdict-source="judge"]');
 		await expect(first?.querySelector('[data-verdict-axis="reaction"]')?.textContent?.trim()).toBe(
 			'corrected'

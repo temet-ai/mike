@@ -1,6 +1,5 @@
 export type FixSegment =
-	| { kind: 'text'; text: string }
-	| { kind: 'link'; text: string; href: string; external: boolean };
+	{ kind: 'text'; text: string } | { kind: 'link'; text: string; href: string; external: boolean };
 
 const LINK = /https?:\/\/[^\s]+|(?<=^|\s)\/[a-z][\w\-/]*/g;
 const TRAILING = /[.,;:)]+$/;
