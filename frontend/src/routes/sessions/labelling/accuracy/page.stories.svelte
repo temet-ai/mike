@@ -33,8 +33,7 @@
 	}
 
 	function fetchStub(input: RequestInfo | URL): Promise<Response> {
-		const url =
-			typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+		const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
 		if (url.includes('/api/eval/runs/') && url.includes('/items'))
 			return json({ items: [], total: 40, reviewed: 0, limit: 1, offset: 0 });
 		return Promise.resolve(

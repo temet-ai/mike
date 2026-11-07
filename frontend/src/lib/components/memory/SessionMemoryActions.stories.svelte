@@ -11,7 +11,7 @@
 		tags: ['autodocs']
 	});
 
-	const SESSION_ID = '01j9x4qf7h8k2n3p5r6t7v8w9a';
+	const SESSION_ID = '00000000-0000-4000-8000-000000000001';
 
 	const ACTIONS: ConsolidationAction[] = [
 		{
@@ -171,7 +171,9 @@
 		const canvas = within(canvasElement);
 		await userEvent.click(canvas.getByRole('button', { name: /memory actions/i }));
 
-		await waitFor(() => expect(canvas.getByText("Couldn't load memory actions")).toBeInTheDocument());
+		await waitFor(() =>
+			expect(canvas.getByText("Couldn't load memory actions")).toBeInTheDocument()
+		);
 		await new Promise((resolve) => setTimeout(resolve, 1200));
 		await expect(calls).toBe(1);
 

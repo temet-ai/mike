@@ -4,9 +4,15 @@ import type { RejudgeRunDto } from './evalMetrics';
 
 describe('evalMetrics', () => {
 	it('builds a sorted query string and skips undefined values', () => {
-		expect(queryString({ role: 'turn_judge', family: 'accuracy', label_tier: undefined, latest: true, window_days: 0 })).toBe(
-			'?family=accuracy&latest=true&role=turn_judge&window_days=0'
-		);
+		expect(
+			queryString({
+				role: 'turn_judge',
+				family: 'accuracy',
+				label_tier: undefined,
+				latest: true,
+				window_days: 0
+			})
+		).toBe('?family=accuracy&latest=true&role=turn_judge&window_days=0');
 		expect(queryString({})).toBe('');
 	});
 

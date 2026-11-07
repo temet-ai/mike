@@ -14,7 +14,9 @@ function caller(o: Partial<LlmSpendCallerDto>): Pick<LlmSpendCallerDto, 'role' |
 	return { role: o.role ?? 'steerer', steerer_id: o.steerer_id ?? null };
 }
 
-function fullCaller(o: Partial<LlmSpendCallerDto> & Pick<LlmSpendCallerDto, 'key' | 'role'>): LlmSpendCallerDto {
+function fullCaller(
+	o: Partial<LlmSpendCallerDto> & Pick<LlmSpendCallerDto, 'key' | 'role'>
+): LlmSpendCallerDto {
 	return {
 		steerer_id: null,
 		label: o.key,
@@ -177,10 +179,7 @@ describe('groupCallers', () => {
 		// cost/call = group cost ÷ group calls, not an average of the members' own cost/call.
 		expect(steererGroup.avg_cost_per_call).toBeCloseTo(45.0 / 1070, 6);
 		// avg input tokens weighted by calls = total prompt tokens ÷ total calls.
-		expect(steererGroup.avg_prompt_tokens).toBeCloseTo(
-			(106_400_000 + 960_000) / 1070,
-			2
-		);
+		expect(steererGroup.avg_prompt_tokens).toBeCloseTo((106_400_000 + 960_000) / 1070, 2);
 	});
 
 	it('collapses a single-member non-steerer group to one row, never a multi-member steerer group', () => {
@@ -241,7 +240,12 @@ describe('groupCallers', () => {
 
 	it('breaks ties on a stable key (role for groups, caller key for members)', () => {
 		const tiedA = fullCaller({ key: 'eval', role: 'eval', label: 'Eval runs', cost_usd: 1 });
-		const tiedB = fullCaller({ key: 'lesson_relations', role: 'lesson_relations', label: 'Lesson relations', cost_usd: 1 });
+		const tiedB = fullCaller({
+			key: 'lesson_relations',
+			role: 'lesson_relations',
+			label: 'Lesson relations',
+			cost_usd: 1
+		});
 		const groups = groupCallers([tiedB, tiedA], 'cost', true);
 		expect(groups.map((g) => g.groupKey)).toEqual(['eval', 'lesson_relations']);
 	});
@@ -266,8 +270,19 @@ describe('subscription pricing labels', () => {
 	});
 
 	it('adds subscription calls across the members of a group', () => {
-		const a = fullCaller({ key: 'judge_worker', role: 'judge_worker', call_count: 10, subscription_call_count: 10 });
-		const b = fullCaller({ key: 'steerer:x', role: 'steerer', steerer_id: 1, call_count: 5, subscription_call_count: 2 });
+		const a = fullCaller({
+			key: 'judge_worker',
+			role: 'judge_worker',
+			call_count: 10,
+			subscription_call_count: 10
+		});
+		const b = fullCaller({
+			key: 'steerer:x',
+			role: 'steerer',
+			steerer_id: 1,
+			call_count: 5,
+			subscription_call_count: 2
+		});
 		const groups = groupCallers([a, b], 'cost', true);
 		expect(groups.find((g) => g.groupKey === 'steerer')?.subscription_call_count).toBe(2);
 		expect(groups.find((g) => g.groupKey === 'judge_worker')?.subscription_call_count).toBe(10);

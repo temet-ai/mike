@@ -47,7 +47,8 @@ export interface LabelListResponse {
 	verdict_now: Record<string, unknown> | null;
 }
 
-export type LabelSubject = { kind: 'turn'; turnId: number } | { kind: 'session_end'; sessionId: string };
+export type LabelSubject =
+	{ kind: 'turn'; turnId: number } | { kind: 'session_end'; sessionId: string };
 
 export class LabelWriteError extends Error {
 	constructor(

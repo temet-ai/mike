@@ -45,7 +45,9 @@ Every button is always present and is disabled when it does not apply, so the ro
 <article class="pr" data-slot="proposal-row" data-decision={proposal.decision ?? 'none'}>
 	<header class="pr-head">
 		<Badge variant="tag-default">{kindWord}</Badge>
-		<h3 class="pr-title">Lesson {proposal.lesson_id}{proposal.topic ? `, ${proposal.topic}` : ''}</h3>
+		<h3 class="pr-title">
+			Lesson {proposal.lesson_id}{proposal.topic ? `, ${proposal.topic}` : ''}
+		</h3>
 		<Badge variant={stateVariant}>{stateText}</Badge>
 	</header>
 

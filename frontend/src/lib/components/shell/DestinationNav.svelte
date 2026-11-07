@@ -75,7 +75,6 @@
 		| '/settings/integrations'
 		| '/help';
 
-
 	interface NavItem {
 		label: string;
 		href: NavHref;

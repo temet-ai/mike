@@ -4,7 +4,9 @@
 	import WorkbenchProjectPicker from './WorkbenchProjectPicker.svelte';
 	import type { ProjectSummaryDto } from '$lib/types';
 
-	function project(overrides: Partial<ProjectSummaryDto> & { project_path: string }): ProjectSummaryDto {
+	function project(
+		overrides: Partial<ProjectSummaryDto> & { project_path: string }
+	): ProjectSummaryDto {
 		return {
 			project_id: 1,
 			project_uuid: 'uuid',
@@ -20,7 +22,12 @@
 
 	// 12 projects — over PROJECT_PICKER_SEARCH_THRESHOLD (10), so the filter input shows.
 	const PROJECTS: ProjectSummaryDto[] = [
-		project({ project_id: 1, project_path: '/mnt/data/projects/temet/temet-proxy', custom_name: 'temet-proxy', session_count: 120 }),
+		project({
+			project_id: 1,
+			project_path: '/mnt/data/projects/temet/temet-proxy',
+			custom_name: 'temet-proxy',
+			session_count: 120
+		}),
 		project({ project_id: 2, project_path: '/mnt/data/projects/alpha', custom_name: 'Alpha' }),
 		project({ project_id: 3, project_path: '/mnt/data/projects/beta' }),
 		project({ project_id: 4, project_path: '/mnt/data/projects/gamma' }),

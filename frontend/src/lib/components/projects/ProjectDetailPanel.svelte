@@ -11,12 +11,7 @@
 		hideIdentity?: boolean;
 	}
 
-	const {
-		project,
-		onRenameProject,
-		nested = false,
-		hideIdentity = false
-	}: Props = $props();
+	const { project, onRenameProject, nested = false, hideIdentity = false }: Props = $props();
 </script>
 
 <div class="flex flex-col gap-0" data-slot="project-detail-panel">

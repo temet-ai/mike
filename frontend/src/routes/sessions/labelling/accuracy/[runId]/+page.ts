@@ -35,7 +35,9 @@ export const load: PageLoad = async ({ params }): Promise<TestRunPageData> => {
 		listEvalBundles(),
 		listEvalGates(),
 		getSettings(),
-		role === 'turn_judge' && run.report?.reaction ? disagreementCounts(runId) : Promise.resolve(null)
+		role === 'turn_judge' && run.report?.reaction
+			? disagreementCounts(runId)
+			: Promise.resolve(null)
 	]);
 	return {
 		runId,

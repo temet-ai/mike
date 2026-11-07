@@ -14,8 +14,28 @@ describe('directive proposal helpers', () => {
 				settings: { input_mode: 'off', threshold_mode: 'off', calibration_min_labelled: 20 },
 				rollup: null,
 				rows: [
-					{ family: 'steer_calibration', question: 'relapse', scope_kind: 'global', dimension: 'all', dimension_value: 'all', k: 1, n: 2, ci_low: null, ci_high: null },
-					{ family: 'steer_calibration', question: 'relapse', scope_kind: 'global', dimension: 'confidence_bin_05', dimension_value: '0.90', k: 1, n: 1, ci_low: null, ci_high: null }
+					{
+						family: 'steer_calibration',
+						question: 'relapse',
+						scope_kind: 'global',
+						dimension: 'all',
+						dimension_value: 'all',
+						k: 1,
+						n: 2,
+						ci_low: null,
+						ci_high: null
+					},
+					{
+						family: 'steer_calibration',
+						question: 'relapse',
+						scope_kind: 'global',
+						dimension: 'confidence_bin_05',
+						dimension_value: '0.90',
+						k: 1,
+						n: 1,
+						ci_low: null,
+						ci_high: null
+					}
 				],
 				thresholds: []
 			},

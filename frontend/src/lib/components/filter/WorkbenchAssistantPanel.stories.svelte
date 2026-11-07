@@ -126,13 +126,20 @@
 					headers: { 'content-type': 'application/json' }
 				});
 			}
-			if (url.includes(`/api/assistant/conversations/conv-1`) && (init?.method ?? 'GET') === 'GET') {
+			if (
+				url.includes(`/api/assistant/conversations/conv-1`) &&
+				(init?.method ?? 'GET') === 'GET'
+			) {
 				return new Response(JSON.stringify(PERSISTED_CONVERSATION), {
 					status: 200,
 					headers: { 'content-type': 'application/json' }
 				});
 			}
-			if (url.includes('/api/assistant/conversations') && init?.method === 'POST' && !url.includes('/messages')) {
+			if (
+				url.includes('/api/assistant/conversations') &&
+				init?.method === 'POST' &&
+				!url.includes('/messages')
+			) {
 				return new Response(JSON.stringify({ id: 'conv-1' }), {
 					status: 200,
 					headers: { 'content-type': 'application/json' }
@@ -183,7 +190,9 @@
 		const canvas = within(canvasElement);
 
 		await expect(await canvas.findByText('Prompt assistant')).toBeInTheDocument();
-		await expect(await canvas.findByText(/claude-sonnet-5 · medium · suggests only/)).toBeInTheDocument();
+		await expect(
+			await canvas.findByText(/claude-sonnet-5 · medium · suggests only/)
+		).toBeInTheDocument();
 		await expect(
 			await canvas.findByRole('button', { name: 'Does this fit my other projects?' })
 		).toBeInTheDocument();
@@ -205,8 +214,12 @@
 		// The streamed reply renders as markdown, not as raw asterisks and backticks; the user's
 		// own message stays plain text.
 		await expect(await canvas.findByText('Why:', { selector: 'strong' })).toBeInTheDocument();
-		await expect(await canvas.findByText('security note', { selector: 'code' })).toBeInTheDocument();
-		await expect(await canvas.findByText('keep secrets out of logs', { selector: 'pre' })).toBeInTheDocument();
+		await expect(
+			await canvas.findByText('security note', { selector: 'code' })
+		).toBeInTheDocument();
+		await expect(
+			await canvas.findByText('keep secrets out of logs', { selector: 'pre' })
+		).toBeInTheDocument();
 		const docsLink = await canvas.findByRole('link', { name: 'the docs' });
 		await expect(docsLink).toHaveAttribute('href', 'https://docs.anthropic.com/en/docs');
 		await expect(canvas.queryByText(/\*\*Why/)).toBeNull();
@@ -223,9 +236,7 @@
 		// (edit_id: null) with no existing title to prefer, so its own title shows as-is.
 		await expect(canvas.queryByText('Rewords the security note')).toBeNull();
 		await expect(await canvas.findByText('Removes the pronoun guidance')).toBeInTheDocument();
-		await expect(
-			await canvas.findByText('Adds a clickable-path note')
-		).toBeInTheDocument();
+		await expect(await canvas.findByText('Adds a clickable-path note')).toBeInTheDocument();
 		await expect(await canvas.findByText('New text')).toBeInTheDocument();
 		await expect(
 			await canvas.findByText('absolute_file_path — clickable in most terminals.')

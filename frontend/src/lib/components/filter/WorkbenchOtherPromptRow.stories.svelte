@@ -53,7 +53,10 @@
 		await expect(canvas.getByText(/^last fired /)).toBeInTheDocument();
 
 		const jump = await canvas.findByRole('link', { name: /Open in workbench:/ });
-		await expect(jump).toHaveAttribute('href', '/filter/workbench?from=request:9001&rule=other-row-1');
+		await expect(jump).toHaveAttribute(
+			'href',
+			'/filter/workbench?from=request:9001&rule=other-row-1'
+		);
 
 		// Delete asks for inline confirmation — no browser confirm(), no modal — and Cancel backs
 		// out without touching the store.

@@ -46,7 +46,13 @@
 
 	function router(method: string, url: string, body: unknown): TypedBody {
 		if (method === 'POST' && url.includes('/notes')) {
-			const b = body as { kind?: string; title: string; body?: string; status?: string; tags?: string[] };
+			const b = body as {
+				kind?: string;
+				title: string;
+				body?: string;
+				status?: string;
+				tags?: string[];
+			};
 			const created = makeNote({
 				note_uuid: `generated-${notes.length}`,
 				kind: b.kind ?? 'note',
@@ -93,9 +99,7 @@
 
 		await userEvent.click(toggle);
 		await waitFor(() => expect(toggle).toHaveAttribute('aria-expanded', 'true'));
-		await waitFor(() =>
-			expect(canvas.getByText(/Mailbox fan-out drops/)).toBeInTheDocument()
-		);
+		await waitFor(() => expect(canvas.getByText(/Mailbox fan-out drops/)).toBeInTheDocument());
 		await expect(canvas.getByText('finding')).toBeInTheDocument();
 		await expect(canvas.getByText('done')).toBeInTheDocument();
 

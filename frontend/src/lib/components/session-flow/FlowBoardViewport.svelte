@@ -142,13 +142,24 @@
 	}
 
 	const DRAG_THRESHOLD_PX = 4;
-	let dragState: { pointerId: number; startX: number; startY: number; panX0: number; panY0: number } | null =
-		null;
+	let dragState: {
+		pointerId: number;
+		startX: number;
+		startY: number;
+		panX0: number;
+		panY0: number;
+	} | null = null;
 	let dragging = $state(false);
 
 	function handlePointerDown(event: PointerEvent): void {
 		if (event.button !== 0) return;
-		dragState = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, panX0: panX, panY0: panY };
+		dragState = {
+			pointerId: event.pointerId,
+			startX: event.clientX,
+			startY: event.clientY,
+			panX0: panX,
+			panY0: panY
+		};
 	}
 	function handlePointerMove(event: PointerEvent): void {
 		if (!dragState || dragState.pointerId !== event.pointerId) return;
@@ -188,7 +199,8 @@
 		<div class="fbv-dots" aria-hidden="true"></div>
 		<div
 			class="fbv-inner"
-			style="transform: translate({panX + fitOffsetX}px, {panY}px) scale({zoom}); transform-origin: 0 0;"
+			style="transform: translate({panX +
+				fitOffsetX}px, {panY}px) scale({zoom}); transform-origin: 0 0;"
 		>
 			<div class="fbv-measure" bind:this={measureEl}>
 				{@render children()}

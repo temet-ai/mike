@@ -166,9 +166,7 @@ describe('defaultNavOpen / defaultAssistantOpen', () => {
 describe('occupiedSideWidth', () => {
 	it('sums all three open columns plus one divider each', () => {
 		const layout: WorkbenchLayout = { navWidth: 220, editsWidth: 380, assistantWidth: 420 };
-		expect(occupiedSideWidth(layout, ALL_OPEN)).toBe(
-			220 + 380 + 420 + WORKBENCH_DIVIDER_WIDTH * 3
-		);
+		expect(occupiedSideWidth(layout, ALL_OPEN)).toBe(220 + 380 + 420 + WORKBENCH_DIVIDER_WIDTH * 3);
 	});
 
 	it('uses the rail width and no divider for a collapsed column', () => {

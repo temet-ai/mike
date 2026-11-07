@@ -256,7 +256,11 @@ function finalizeSegments(segments: readonly DiffSegment[]): DiffSegment[] {
 export function diffText(before: string, after: string): DiffSegment[] {
 	if (before === after) return before.length > 0 ? [{ text: before, status: 'unchanged' }] : [];
 
-	const sentenceOps = lcsDiff(tokenizeSentences(before), tokenizeSentences(after), (a, b) => a === b);
+	const sentenceOps = lcsDiff(
+		tokenizeSentences(before),
+		tokenizeSentences(after),
+		(a, b) => a === b
+	);
 
 	const merged: DiffSegment[] = [];
 	let k = 0;
@@ -343,7 +347,11 @@ function mergeAdjacentPreviewAware(segments: readonly DiffSegment[]): DiffSegmen
  * preview yet, or the proposal doesn't change this text) so the non-preview render path is
  * untouched.
  */
-export function diffTextWithPreview(source: string, result: string, preview: string): DiffSegment[] {
+export function diffTextWithPreview(
+	source: string,
+	result: string,
+	preview: string
+): DiffSegment[] {
 	if (result === preview) return diffText(source, result);
 
 	const diffA = diffText(source, result);

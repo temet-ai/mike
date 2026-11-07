@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError } from '$lib/api';
 import type { PromptClassDetailDto, PromptClassDto } from '$lib/types';
-import { findLatestCaptureInProject, type ProjectPromptLookupFetchers } from './projectPromptLookup';
+import {
+	findLatestCaptureInProject,
+	type ProjectPromptLookupFetchers
+} from './projectPromptLookup';
 
 function detail(overrides: Partial<PromptClassDetailDto> = {}): PromptClassDetailDto {
 	return {
@@ -12,7 +15,13 @@ function detail(overrides: Partial<PromptClassDetailDto> = {}): PromptClassDetai
 		last_seen: '2026-09-20T00:00:00Z',
 		model_breakdown: [],
 		sample_blocks: null,
-		registration: { registered: false, composition_id: null, label: null, mode: null, agent_definition_path: null },
+		registration: {
+			registered: false,
+			composition_id: null,
+			label: null,
+			mode: null,
+			agent_definition_path: null
+		},
 		recent_observations: [],
 		observations_total_count: 0,
 		observations_offset: 0,
@@ -29,13 +38,21 @@ function classDto(overrides: Partial<PromptClassDto> = {}): PromptClassDto {
 		first_seen: '2026-09-01T00:00:00Z',
 		last_seen: '2026-09-20T00:00:00Z',
 		block_count: 4,
-		registration: { registered: false, composition_id: null, label: null, mode: null, agent_definition_path: null },
+		registration: {
+			registered: false,
+			composition_id: null,
+			label: null,
+			mode: null,
+			agent_definition_path: null
+		},
 		model_breakdown: [],
 		...overrides
 	};
 }
 
-function fetchers(overrides: Partial<ProjectPromptLookupFetchers> = {}): ProjectPromptLookupFetchers {
+function fetchers(
+	overrides: Partial<ProjectPromptLookupFetchers> = {}
+): ProjectPromptLookupFetchers {
 	return {
 		loadMainDetail: vi.fn(),
 		loadSubagentDetail: vi.fn(),
@@ -46,9 +63,22 @@ function fetchers(overrides: Partial<ProjectPromptLookupFetchers> = {}): Project
 
 describe('findLatestCaptureInProject', () => {
 	it('resolves the latest observation as the found request id (main lane)', async () => {
-		const loadMainDetail = vi.fn().mockResolvedValue(
-			detail({ recent_observations: [{ request_id: '99001', session_id: 's1', created_at: 'x', content_sha256: 'a', altered: false, model: 'claude-sonnet-5' }] })
-		);
+		const loadMainDetail = vi
+			.fn()
+			.mockResolvedValue(
+				detail({
+					recent_observations: [
+						{
+							request_id: '99001',
+							session_id: 's1',
+							created_at: 'x',
+							content_sha256: 'a',
+							altered: false,
+							model: 'claude-sonnet-5'
+						}
+					]
+				})
+			);
 		const result = await findLatestCaptureInProject(
 			{ lane: 'main', persona: null },
 			'claude-sonnet-5',
@@ -64,9 +94,24 @@ describe('findLatestCaptureInProject', () => {
 	});
 
 	it('routes a subagent class through loadSubagentDetail with the persona', async () => {
-		const loadSubagentDetail = vi.fn().mockResolvedValue(
-			detail({ lane: 'subagent', subagent_persona: 'code-reviewer', recent_observations: [{ request_id: '77', session_id: 's2', created_at: 'x', content_sha256: 'b', altered: false, model: null }] })
-		);
+		const loadSubagentDetail = vi
+			.fn()
+			.mockResolvedValue(
+				detail({
+					lane: 'subagent',
+					subagent_persona: 'code-reviewer',
+					recent_observations: [
+						{
+							request_id: '77',
+							session_id: 's2',
+							created_at: 'x',
+							content_sha256: 'b',
+							altered: false,
+							model: null
+						}
+					]
+				})
+			);
 		const result = await findLatestCaptureInProject(
 			{ lane: 'subagent', persona: 'code-reviewer' },
 			null,
@@ -74,10 +119,11 @@ describe('findLatestCaptureInProject', () => {
 			fetchers({ loadSubagentDetail })
 		);
 		expect(result).toEqual({ kind: 'found', requestId: 77 });
-		expect(loadSubagentDetail).toHaveBeenCalledWith(
-			'code-reviewer',
-			{ model: undefined, project_path: '/mnt/data/projects/other', limit: 1 }
-		);
+		expect(loadSubagentDetail).toHaveBeenCalledWith('code-reviewer', {
+			model: undefined,
+			project_path: '/mnt/data/projects/other',
+			limit: 1
+		});
 	});
 
 	it('falls back to the project class listing when there are no observations', async () => {

@@ -475,9 +475,9 @@
 		const canvas = within(canvasElement);
 		await expect(canvas.getByRole('heading', { name: 'Requests' })).toBeVisible();
 		await waitFor(() =>
-			expect(
-				canvasElement.querySelector('[data-slot="time-spent-summary"]')?.textContent
-			).toBe('108 h model · 116 h waiting')
+			expect(canvasElement.querySelector('[data-slot="time-spent-summary"]')?.textContent).toBe(
+				'108 h model · 116 h waiting'
+			)
 		);
 		await expect(
 			canvas.getByText('Session Flow loads once this section scrolls into view.')

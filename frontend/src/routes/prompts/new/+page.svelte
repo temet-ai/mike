@@ -600,7 +600,11 @@
 						data-slot="prompt-new-bound-identity"
 					>
 						<span>Registering for</span>
-						<ClassChip label={boundIdentityLabel} href={boundIdentityPath === undefined ? undefined : resolveClassPath(boundIdentityPath)}
+						<ClassChip
+							label={boundIdentityLabel}
+							href={boundIdentityPath === undefined
+								? undefined
+								: resolveClassPath(boundIdentityPath)}
 							isActive
 						/>
 						<Tooltip

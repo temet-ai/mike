@@ -16,13 +16,9 @@ export interface AssistantsPageData {
 }
 
 export const load: PageLoad = async (): Promise<AssistantsPageData> => {
-	const [featuresResult, settingsResult, healthResult, modelUsageResult] =
-		await Promise.allSettled([
-			getFeatures(),
-			getSettings(),
-			getAssistantHealth(),
-			getModelUsage(USAGE_MODELS_DAYS)
-		]);
+	const [featuresResult, settingsResult, healthResult, modelUsageResult] = await Promise.allSettled(
+		[getFeatures(), getSettings(), getAssistantHealth(), getModelUsage(USAGE_MODELS_DAYS)]
+	);
 
 	const features = featuresResult.status === 'fulfilled' ? featuresResult.value : null;
 	const loadError =

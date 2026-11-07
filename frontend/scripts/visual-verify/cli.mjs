@@ -154,11 +154,11 @@ async function removeCheckout(scratch) {
 	} catch (err) {
 		log(`worktree remove failed for ${scratch}: ${err.message}; deleting the directory`);
 	}
-	await fs.rm(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 }).catch(
-		(err) => log(`could not delete ${scratch}: ${err.message}`)
-	);
-	await execFileP('git', ['worktree', 'prune'], { cwd: REPO_ROOT }).catch(
-		(err) => log(`git worktree prune failed: ${err.message}`)
+	await fs
+		.rm(scratch, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 })
+		.catch((err) => log(`could not delete ${scratch}: ${err.message}`));
+	await execFileP('git', ['worktree', 'prune'], { cwd: REPO_ROOT }).catch((err) =>
+		log(`git worktree prune failed: ${err.message}`)
 	);
 }
 

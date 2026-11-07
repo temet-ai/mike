@@ -82,8 +82,7 @@ function backlogSentence(d: Detail): string {
 		typeof d['oldest_closed_at'] === 'string' ? d['oldest_closed_at'] : null
 	);
 	const calls = obj(d['calls']);
-	const failed =
-		(num(calls?.['http_error']) ?? 0) + (num(calls?.['transport_error']) ?? 0);
+	const failed = (num(calls?.['http_error']) ?? 0) + (num(calls?.['transport_error']) ?? 0);
 	const ok = num(calls?.['ok']) ?? 0;
 	const parts = [`${stale.toLocaleString('en-US')} finished turns have not been judged.`];
 	if (oldest) parts.push(`The oldest finished on ${oldest}.`);
@@ -132,8 +131,7 @@ export interface AlarmWords {
 
 function backlogHelp(d: Detail): Pick<AlarmWords, 'advice' | 'actions'> {
 	const calls = obj(d['calls']);
-	const failed =
-		(num(calls?.['http_error']) ?? 0) + (num(calls?.['transport_error']) ?? 0);
+	const failed = (num(calls?.['http_error']) ?? 0) + (num(calls?.['transport_error']) ?? 0);
 	const settings: AlarmAction[] = [
 		{
 			label: 'Turns per sweep',

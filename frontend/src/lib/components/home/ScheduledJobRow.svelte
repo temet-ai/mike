@@ -30,8 +30,16 @@
 		onRun?: () => void;
 	}
 
-	const { job, machineUuid, now, open, onToggle, queued = false, runError = null, onRun }: Props =
-		$props();
+	const {
+		job,
+		machineUuid,
+		now,
+		open,
+		onToggle,
+		queued = false,
+		runError = null,
+		onRun
+	}: Props = $props();
 
 	const view = $derived(stateView(job.state));
 	const remote = $derived(runsOnAnotherMachine(job, machineUuid));

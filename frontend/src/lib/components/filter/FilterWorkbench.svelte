@@ -23,7 +23,9 @@
 	import WorkbenchRuleStack from './WorkbenchRuleStack.svelte';
 	import WorkbenchLanding from './WorkbenchLanding.svelte';
 	import WorkbenchNavigator from './WorkbenchNavigator.svelte';
-	import WorkbenchAssistantPanel, { type AssistantDraftHint } from './WorkbenchAssistantPanel.svelte';
+	import WorkbenchAssistantPanel, {
+		type AssistantDraftHint
+	} from './WorkbenchAssistantPanel.svelte';
 	import WorkbenchDivider from './WorkbenchDivider.svelte';
 	import WorkbenchRail from './WorkbenchRail.svelte';
 	import WorkbenchProjectPicker from './WorkbenchProjectPicker.svelte';
@@ -273,7 +275,10 @@
 	 * so this resolves it lazily on click (the same lookup driving the main redirect) rather
 	 * than eagerly N+1-fetching every fallback row just to render the list.
 	 */
-	async function openAvailableClassInProject(cls: { lane: 'main' | 'subagent'; subagent_persona: string | null }): Promise<void> {
+	async function openAvailableClassInProject(cls: {
+		lane: 'main' | 'subagent';
+		subagent_persona: string | null;
+	}): Promise<void> {
 		if (pickedProject === null) return;
 		const result = await findLatestCaptureInProject(
 			{ lane: cls.lane, persona: cls.subagent_persona },
@@ -281,7 +286,11 @@
 			pickedProject
 		);
 		if (result.kind !== 'found') return;
-		void goto(resolve(`/filter/workbench?from=request:${result.requestId}&project=${encodeURIComponent(pickedProject)}`));
+		void goto(
+			resolve(
+				`/filter/workbench?from=request:${result.requestId}&project=${encodeURIComponent(pickedProject)}`
+			)
+		);
 	}
 
 	const blocks = $derived<SystemBlock[]>(effectiveDetail?.system_blocks?.blocks ?? []);
@@ -545,9 +554,10 @@
 		} catch (err) {
 			if (token !== dryRunToken) return;
 			dryRunResult = null;
-			dryRunStatus = err instanceof ApiError && (err.status === 404 || err.status === 405)
-				? 'unavailable'
-				: 'error';
+			dryRunStatus =
+				err instanceof ApiError && (err.status === 404 || err.status === 405)
+					? 'unavailable'
+					: 'error';
 		}
 	}
 
@@ -728,13 +738,21 @@
 					style="width: {layout.navWidth}px"
 				>
 					{#if effectiveLoading && effectiveDetail === null}
-						<section class="wb-pane wb-pane--placeholder" data-augmented-ui="tl-clip bl-clip border" aria-label="Prompt navigator">
+						<section
+							class="wb-pane wb-pane--placeholder"
+							data-augmented-ui="tl-clip bl-clip border"
+							aria-label="Prompt navigator"
+						>
 							<div class="wb-placeholder" aria-live="polite">
 								<p class="wb-placeholder__title">Loading…</p>
 							</div>
 						</section>
 					{:else if effectiveError !== null}
-						<section class="wb-pane wb-pane--placeholder" data-augmented-ui="tl-clip bl-clip border" aria-label="Prompt navigator">
+						<section
+							class="wb-pane wb-pane--placeholder"
+							data-augmented-ui="tl-clip bl-clip border"
+							aria-label="Prompt navigator"
+						>
 							<div class="wb-placeholder" role="alert">
 								<p class="wb-placeholder__title">Could not load the prompt</p>
 								<p class="wb-placeholder__hint">{effectiveError}</p>
@@ -758,7 +776,11 @@
 							onToggleCollapse={() => (navOpen = false)}
 						/>
 					{:else if noCaptureInProject !== null}
-						<section class="wb-pane wb-pane--placeholder" data-augmented-ui="tl-clip bl-clip border" aria-label="Prompt navigator">
+						<section
+							class="wb-pane wb-pane--placeholder"
+							data-augmented-ui="tl-clip bl-clip border"
+							aria-label="Prompt navigator"
+						>
 							<div class="wb-placeholder">
 								<p class="wb-placeholder__title">No capture in {pickedProjectName}</p>
 							</div>
@@ -820,9 +842,9 @@
 						<div class="wb-placeholder" data-slot="system-prompt-not-captured-notice">
 							<p class="wb-placeholder__title">System prompt not captured for this request</p>
 							<p class="wb-placeholder__hint">
-								Request #{effectiveRequestId} has no system-prompt capture of its own, so nothing
-								is shown here — never another request's prompt. Pick a request with a system
-								prompt (most primary-turn requests have one).
+								Request #{effectiveRequestId} has no system-prompt capture of its own, so nothing is shown
+								here — never another request's prompt. Pick a request with a system prompt (most primary-turn
+								requests have one).
 							</p>
 						</div>
 					</section>
@@ -832,8 +854,8 @@
 							<p class="wb-placeholder__title">No system prompt on this request</p>
 							<p class="wb-placeholder__hint">
 								Request #{effectiveRequestId} carries no <code>system_blocks</code>
-								projection — there is nothing to filter. Pick a request with a system prompt (most
-								primary-turn requests have one).
+								projection — there is nothing to filter. Pick a request with a system prompt (most primary-turn
+								requests have one).
 							</p>
 						</div>
 					</section>
@@ -883,7 +905,11 @@
 					max={WORKBENCH_LAYOUT_BOUNDS.editsWidth.max}
 					onResize={resizeEdits}
 				/>
-				<aside class="wb-edits-slot" aria-label="Filter workbench edits" style="width: {layout.editsWidth}px">
+				<aside
+					class="wb-edits-slot"
+					aria-label="Filter workbench edits"
+					style="width: {layout.editsWidth}px"
+				>
 					<WorkbenchRuleStack
 						{orderedRules}
 						{blockTexts}

@@ -29,10 +29,7 @@
 	<title>Filter workbench — mike</title>
 </svelte:head>
 
-<div
-	class="wb-page-shell flex min-h-0 flex-col overflow-hidden"
-	data-slot="filter-workbench-page"
->
+<div class="wb-page-shell flex min-h-0 flex-col overflow-hidden" data-slot="filter-workbench-page">
 	<div class="min-h-0 flex-1">
 		<FilterWorkbench {requestId} {blockParam} {prefillParam} {ruleParam} />
 	</div>

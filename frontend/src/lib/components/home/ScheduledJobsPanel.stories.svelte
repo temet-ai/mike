@@ -371,7 +371,9 @@
 		await expect(button).toHaveAttribute('aria-busy', 'true');
 		await expect(button).toHaveTextContent('Run now');
 		await expect(button.querySelector('[data-motion~="wait-spin"]')).not.toBeNull();
-		await expect(canvas.getByRole('button', { name: 'Run Capture database backup now' })).toBeEnabled();
+		await expect(
+			canvas.getByRole('button', { name: 'Run Capture database backup now' })
+		).toBeEnabled();
 		await expect(args.runJob).not.toHaveBeenCalled();
 	}}
 >

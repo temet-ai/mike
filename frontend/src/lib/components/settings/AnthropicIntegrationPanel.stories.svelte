@@ -63,7 +63,9 @@
 			org_id: server.cliLoggedIn ? 'org-story-fixture' : null,
 			org_name: server.cliOrgName,
 			subscription_type: server.cliSubscription,
-			error: server.cliInstalled ? null : 'claude CLI not found on PATH — install it, or set MIKE_CLAUDE_CLI_BIN'
+			error: server.cliInstalled
+				? null
+				: 'claude CLI not found on PATH — install it, or set MIKE_CLAUDE_CLI_BIN'
 		};
 	}
 
@@ -74,7 +76,10 @@
 		json: (body: unknown, status?: number) => Response
 	): Response | null {
 		if (url.endsWith('/cli-login') && init?.method === 'POST') {
-			if (server.cliLogin && !['succeeded', 'failed', 'cancelled'].includes(server.cliLogin.state)) {
+			if (
+				server.cliLogin &&
+				!['succeeded', 'failed', 'cancelled'].includes(server.cliLogin.state)
+			) {
 				return json(
 					{ ok: false, login: server.cliLogin, error: 'a sign-in is already in progress' },
 					409

@@ -71,7 +71,6 @@
 		<Select label="Review status" {options} bind:value={status} />
 		<Field label="Review note" multiline bind:value={note} required />
 		{#if error}<LoadErrorBanner title="Review was not saved" detail={error} />{/if}
-		<Button type="submit" disabled={busy || !note.trim()}>{busy ? 'Saving' : 'Save review'}</Button
-		>
+		<Button type="submit" disabled={busy || !note.trim()}>{busy ? 'Saving' : 'Save review'}</Button>
 	</form>
 </article>

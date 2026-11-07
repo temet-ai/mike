@@ -26,12 +26,7 @@ reviewer's evidence, loads since it was written, and the user's decision.
 		placementAdvice,
 		retirementSentence
 	} from '$lib/components/skills/skillEvidenceText';
-	import {
-		editSkillDraft,
-		restoreSkill,
-		retireSkill,
-		reviewSkillDraft
-	} from '$lib/api/skills';
+	import { editSkillDraft, restoreSkill, retireSkill, reviewSkillDraft } from '$lib/api/skills';
 	import type { SkillDraftPageData } from './+page';
 
 	const { data }: { data: SkillDraftPageData } = $props();
@@ -59,9 +54,7 @@ reviewer's evidence, loads since it was written, and the user's decision.
 		const hit = name
 			? data.skills?.skills.find((s) => s.folder === name && s.draft_id !== null)
 			: undefined;
-		return hit?.draft_id == null
-			? null
-			: resolve(`skills/${hit.draft_id}` as `skills/${string}`);
+		return hit?.draft_id == null ? null : resolve(`skills/${hit.draft_id}` as `skills/${string}`);
 	});
 
 	const outcome = $derived(
@@ -96,7 +89,8 @@ reviewer's evidence, loads since it was written, and the user's decision.
 			return;
 		}
 		if (decision === 'retire') void act(decision, () => retireSkill(d.project_uuid, d.folder));
-		else if (decision === 'restore') void act(decision, () => restoreSkill(d.project_uuid, d.folder));
+		else if (decision === 'restore')
+			void act(decision, () => restoreSkill(d.project_uuid, d.folder));
 		else void act(decision, () => reviewSkillDraft(d.id, decision));
 	}
 
@@ -198,7 +192,8 @@ reviewer's evidence, loads since it was written, and the user's decision.
 						{#if detail.folder.first_written === null}
 							This skill has not been written into any checkout.
 						{:else if use === null}
-							First written {detail.folder.first_written}. The promoter has not measured its use yet.
+							First written {detail.folder.first_written}. The promoter has not measured its use
+							yet.
 						{:else}
 							First written {detail.folder.first_written}. {liveUseSentence(use)}
 						{/if}

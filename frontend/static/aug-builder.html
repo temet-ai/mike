@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="en" data-theme="forge">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>augmented-ui Component Builder</title>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>augmented-ui Component Builder</title>
 
-<!--
+		<!--
   Standalone WYSIWYG builder for augmented-ui shapes, frames and motion.
 
   Serve it from a running dev server so it can reach the INSTALLED augmented-ui
@@ -18,1303 +18,1924 @@
                                                 cross-origin: wrapper mode only
 -->
 
-<link rel="stylesheet" href="/node_modules/augmented-ui/augmented-ui.min.css" id="aug-css" />
+		<link rel="stylesheet" href="/node_modules/augmented-ui/augmented-ui.min.css" id="aug-css" />
 
-<style>
-/* ── Tool chrome. Deliberately its own skin so it never competes with the
+		<style>
+			/* ── Tool chrome. Deliberately its own skin so it never competes with the
       component under design; the STAGE is where project tokens rule. ── */
-:root {
-	--ui-bg: #0d1014;
-	--ui-panel: #141920;
-	--ui-panel-2: #1b222b;
-	--ui-line: #2a3441;
-	--ui-line-2: #3b4a5c;
-	--ui-t1: #dce3ec;
-	--ui-t2: #94a3b5;
-	--ui-t3: #64748b;
-	--ui-accent: #7dd3c0;
-	--ui-accent-2: #f0b866;
-	--ui-danger: #f08a8a;
-	--ui-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-}
+			:root {
+				--ui-bg: #0d1014;
+				--ui-panel: #141920;
+				--ui-panel-2: #1b222b;
+				--ui-line: #2a3441;
+				--ui-line-2: #3b4a5c;
+				--ui-t1: #dce3ec;
+				--ui-t2: #94a3b5;
+				--ui-t3: #64748b;
+				--ui-accent: #7dd3c0;
+				--ui-accent-2: #f0b866;
+				--ui-danger: #f08a8a;
+				--ui-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+			}
 
-* { box-sizing: border-box; }
+			* {
+				box-sizing: border-box;
+			}
 
-html, body {
-	height: 100%;
-	margin: 0;
-}
+			html,
+			body {
+				height: 100%;
+				margin: 0;
+			}
 
-body {
-	background: var(--ui-bg);
-	color: var(--ui-t1);
-	font: 12px/1.5 var(--ui-mono);
-	overflow: hidden;
-}
+			body {
+				background: var(--ui-bg);
+				color: var(--ui-t1);
+				font: 12px/1.5 var(--ui-mono);
+				overflow: hidden;
+			}
 
-button, input, select, textarea {
-	font: inherit;
-	color: inherit;
-}
+			button,
+			input,
+			select,
+			textarea {
+				font: inherit;
+				color: inherit;
+			}
 
-/* ── Layout skeleton ─────────────────────────────────────────────── */
-#app {
-	display: grid;
-	grid-template-rows: auto 1fr auto;
-	grid-template-columns: 260px 1fr 330px;
-	grid-template-areas:
-		'head head head'
-		'rail stage insp'
-		'out  out   out';
-	height: 100%;
-}
+			/* ── Layout skeleton ─────────────────────────────────────────────── */
+			#app {
+				display: grid;
+				grid-template-rows: auto 1fr auto;
+				grid-template-columns: 260px 1fr 330px;
+				grid-template-areas:
+					'head head head'
+					'rail stage insp'
+					'out  out   out';
+				height: 100%;
+			}
 
-header {
-	grid-area: head;
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	padding: 0 12px;
-	height: 42px;
-	background: var(--ui-panel);
-	border-bottom: 1px solid var(--ui-line);
-}
+			header {
+				grid-area: head;
+				display: flex;
+				align-items: center;
+				gap: 12px;
+				padding: 0 12px;
+				height: 42px;
+				background: var(--ui-panel);
+				border-bottom: 1px solid var(--ui-line);
+			}
 
-header h1 {
-	font-size: 12px;
-	font-weight: 700;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	margin: 0;
-	color: var(--ui-accent);
-}
+			header h1 {
+				font-size: 12px;
+				font-weight: 700;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+				margin: 0;
+				color: var(--ui-accent);
+			}
 
-.spacer { flex: 1; }
+			.spacer {
+				flex: 1;
+			}
 
-#rail {
-	grid-area: rail;
-	background: var(--ui-panel);
-	border-right: 1px solid var(--ui-line);
-	display: flex;
-	flex-direction: column;
-	min-height: 0;
-}
+			#rail {
+				grid-area: rail;
+				background: var(--ui-panel);
+				border-right: 1px solid var(--ui-line);
+				display: flex;
+				flex-direction: column;
+				min-height: 0;
+			}
 
-#stagewrap {
-	grid-area: stage;
-	position: relative;
-	overflow: auto;
-	min-height: 0;
-}
+			#stagewrap {
+				grid-area: stage;
+				position: relative;
+				overflow: auto;
+				min-height: 0;
+			}
 
-#insp {
-	grid-area: insp;
-	background: var(--ui-panel);
-	border-left: 1px solid var(--ui-line);
-	display: flex;
-	flex-direction: column;
-	min-height: 0;
-}
+			#insp {
+				grid-area: insp;
+				background: var(--ui-panel);
+				border-left: 1px solid var(--ui-line);
+				display: flex;
+				flex-direction: column;
+				min-height: 0;
+			}
 
-#out {
-	grid-area: out;
-	background: var(--ui-panel);
-	border-top: 1px solid var(--ui-line);
-	display: flex;
-	flex-direction: column;
-	max-height: 46vh;
-}
+			#out {
+				grid-area: out;
+				background: var(--ui-panel);
+				border-top: 1px solid var(--ui-line);
+				display: flex;
+				flex-direction: column;
+				max-height: 46vh;
+			}
 
-#out.collapsed .out-body { display: none; }
+			#out.collapsed .out-body {
+				display: none;
+			}
 
-/* ── Controls ────────────────────────────────────────────────────── */
-.btn {
-	background: var(--ui-panel-2);
-	border: 1px solid var(--ui-line-2);
-	color: var(--ui-t1);
-	padding: 4px 9px;
-	cursor: pointer;
-	border-radius: 2px;
-	white-space: nowrap;
-	transition: background 120ms ease, border-color 120ms ease;
-}
+			/* ── Controls ────────────────────────────────────────────────────── */
+			.btn {
+				background: var(--ui-panel-2);
+				border: 1px solid var(--ui-line-2);
+				color: var(--ui-t1);
+				padding: 4px 9px;
+				cursor: pointer;
+				border-radius: 2px;
+				white-space: nowrap;
+				transition:
+					background 120ms ease,
+					border-color 120ms ease;
+			}
 
-.btn:hover { background: #232c38; border-color: var(--ui-accent); }
-.btn:active { background: #2b3644; }
-.btn.on { background: var(--ui-accent); color: #0d1014; border-color: var(--ui-accent); font-weight: 700; }
-.btn.sm { padding: 2px 6px; font-size: 11px; }
-.btn.danger:hover { border-color: var(--ui-danger); color: var(--ui-danger); }
+			.btn:hover {
+				background: #232c38;
+				border-color: var(--ui-accent);
+			}
+			.btn:active {
+				background: #2b3644;
+			}
+			.btn.on {
+				background: var(--ui-accent);
+				color: #0d1014;
+				border-color: var(--ui-accent);
+				font-weight: 700;
+			}
+			.btn.sm {
+				padding: 2px 6px;
+				font-size: 11px;
+			}
+			.btn.danger:hover {
+				border-color: var(--ui-danger);
+				color: var(--ui-danger);
+			}
 
-input[type=text], input[type=number], select, textarea {
-	background: #0f141a;
-	border: 1px solid var(--ui-line);
-	border-radius: 2px;
-	padding: 3px 6px;
-	width: 100%;
-	min-width: 0;
-}
+			input[type='text'],
+			input[type='number'],
+			select,
+			textarea {
+				background: #0f141a;
+				border: 1px solid var(--ui-line);
+				border-radius: 2px;
+				padding: 3px 6px;
+				width: 100%;
+				min-width: 0;
+			}
 
-input:focus-visible, select:focus-visible, textarea:focus-visible, .btn:focus-visible {
-	outline: 2px solid var(--ui-accent);
-	outline-offset: 1px;
-}
+			input:focus-visible,
+			select:focus-visible,
+			textarea:focus-visible,
+			.btn:focus-visible {
+				outline: 2px solid var(--ui-accent);
+				outline-offset: 1px;
+			}
 
-input[type=range] { width: 100%; accent-color: var(--ui-accent); }
-input[type=color] { width: 30px; height: 22px; padding: 0; border: 1px solid var(--ui-line); background: none; }
-input[type=checkbox] { accent-color: var(--ui-accent); }
+			input[type='range'] {
+				width: 100%;
+				accent-color: var(--ui-accent);
+			}
+			input[type='color'] {
+				width: 30px;
+				height: 22px;
+				padding: 0;
+				border: 1px solid var(--ui-line);
+				background: none;
+			}
+			input[type='checkbox'] {
+				accent-color: var(--ui-accent);
+			}
 
-label.row {
-	display: grid;
-	grid-template-columns: 92px 1fr;
-	gap: 6px;
-	align-items: center;
-	margin-bottom: 5px;
-}
+			label.row {
+				display: grid;
+				grid-template-columns: 92px 1fr;
+				gap: 6px;
+				align-items: center;
+				margin-bottom: 5px;
+			}
 
-label.row > span:first-child { color: var(--ui-t2); font-size: 11px; }
+			label.row > span:first-child {
+				color: var(--ui-t2);
+				font-size: 11px;
+			}
 
-.rowflex { display: flex; gap: 5px; align-items: center; }
-.rowflex > * { min-width: 0; }
+			.rowflex {
+				display: flex;
+				gap: 5px;
+				align-items: center;
+			}
+			.rowflex > * {
+				min-width: 0;
+			}
 
-.sec {
-	border-bottom: 1px solid var(--ui-line);
-	padding: 9px 10px;
-}
+			.sec {
+				border-bottom: 1px solid var(--ui-line);
+				padding: 9px 10px;
+			}
 
-.sec > h3 {
-	margin: 0 0 8px;
-	font-size: 10px;
-	letter-spacing: 0.1em;
-	text-transform: uppercase;
-	color: var(--ui-accent-2);
-	font-weight: 700;
-}
+			.sec > h3 {
+				margin: 0 0 8px;
+				font-size: 10px;
+				letter-spacing: 0.1em;
+				text-transform: uppercase;
+				color: var(--ui-accent-2);
+				font-weight: 700;
+			}
 
-.hint { color: var(--ui-t3); font-size: 10.5px; line-height: 1.45; }
+			.hint {
+				color: var(--ui-t3);
+				font-size: 10.5px;
+				line-height: 1.45;
+			}
 
-.scroll { overflow-y: auto; min-height: 0; flex: 1; }
-.scroll::-webkit-scrollbar { width: 9px; height: 9px; }
-.scroll::-webkit-scrollbar-thumb { background: var(--ui-line-2); border-radius: 5px; }
-.scroll::-webkit-scrollbar-track { background: transparent; }
+			.scroll {
+				overflow-y: auto;
+				min-height: 0;
+				flex: 1;
+			}
+			.scroll::-webkit-scrollbar {
+				width: 9px;
+				height: 9px;
+			}
+			.scroll::-webkit-scrollbar-thumb {
+				background: var(--ui-line-2);
+				border-radius: 5px;
+			}
+			.scroll::-webkit-scrollbar-track {
+				background: transparent;
+			}
 
-/* ── Left rail: source browser ───────────────────────────────────── */
-.tabs { display: flex; border-bottom: 1px solid var(--ui-line); }
+			/* ── Left rail: source browser ───────────────────────────────────── */
+			.tabs {
+				display: flex;
+				border-bottom: 1px solid var(--ui-line);
+			}
 
-.tab {
-	flex: 1;
-	padding: 7px 4px;
-	text-align: center;
-	cursor: pointer;
-	color: var(--ui-t2);
-	border-bottom: 2px solid transparent;
-	font-size: 11px;
-	background: none;
-	border-top: 0; border-left: 0; border-right: 0;
-}
+			.tab {
+				flex: 1;
+				padding: 7px 4px;
+				text-align: center;
+				cursor: pointer;
+				color: var(--ui-t2);
+				border-bottom: 2px solid transparent;
+				font-size: 11px;
+				background: none;
+				border-top: 0;
+				border-left: 0;
+				border-right: 0;
+			}
 
-.tab.on { color: var(--ui-accent); border-bottom-color: var(--ui-accent); background: var(--ui-panel-2); }
+			.tab.on {
+				color: var(--ui-accent);
+				border-bottom-color: var(--ui-accent);
+				background: var(--ui-panel-2);
+			}
 
-.grp { margin-bottom: 2px; }
+			.grp {
+				margin-bottom: 2px;
+			}
 
-.grp > summary {
-	cursor: pointer;
-	padding: 3px 8px;
-	color: var(--ui-t2);
-	list-style: none;
-	font-size: 11px;
-	border-left: 2px solid transparent;
-}
+			.grp > summary {
+				cursor: pointer;
+				padding: 3px 8px;
+				color: var(--ui-t2);
+				list-style: none;
+				font-size: 11px;
+				border-left: 2px solid transparent;
+			}
 
-.grp > summary:hover { background: var(--ui-panel-2); color: var(--ui-t1); border-left-color: var(--ui-accent); }
-.grp > summary::-webkit-details-marker { display: none; }
+			.grp > summary:hover {
+				background: var(--ui-panel-2);
+				color: var(--ui-t1);
+				border-left-color: var(--ui-accent);
+			}
+			.grp > summary::-webkit-details-marker {
+				display: none;
+			}
 
-.story {
-	display: flex;
-	align-items: center;
-	gap: 4px;
-	padding: 2px 8px 2px 18px;
-	color: var(--ui-t3);
-	cursor: default;
-	font-size: 11px;
-}
+			.story {
+				display: flex;
+				align-items: center;
+				gap: 4px;
+				padding: 2px 8px 2px 18px;
+				color: var(--ui-t3);
+				cursor: default;
+				font-size: 11px;
+			}
 
-.story:hover { background: var(--ui-panel-2); color: var(--ui-t1); }
-.story .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.story .pick { opacity: 0; }
-.story:hover .pick { opacity: 1; }
+			.story:hover {
+				background: var(--ui-panel-2);
+				color: var(--ui-t1);
+			}
+			.story .nm {
+				flex: 1;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.story .pick {
+				opacity: 0;
+			}
+			.story:hover .pick {
+				opacity: 1;
+			}
 
-/* ── Stage ───────────────────────────────────────────────────────── */
-#stage {
-	min-height: 100%;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 40px;
-	background-color: var(--stage-bg, #12161c);
-}
+			/* ── Stage ───────────────────────────────────────────────────────── */
+			#stage {
+				min-height: 100%;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				padding: 40px;
+				background-color: var(--stage-bg, #12161c);
+			}
 
-#stage.grid {
-	background-image:
-		linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
-		linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px);
-	background-size: 16px 16px;
-}
+			#stage.grid {
+				background-image:
+					linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+					linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+				background-size: 16px 16px;
+			}
 
-#comp {
-	display: flex;
-	transform: scale(var(--zoom, 1));
-	transform-origin: center center;
-}
+			#comp {
+				display: flex;
+				transform: scale(var(--zoom, 1));
+				transform-origin: center center;
+			}
 
-/* Node shells. The aug attribute + custom props land on `.augnode`, which is
+			/* Node shells. The aug attribute + custom props land on `.augnode`, which is
    the element the exported CSS describes — what you see is what you export. */
-.nodewrap { position: relative; }
+			.nodewrap {
+				position: relative;
+			}
 
-.nodewrap.sel::after {
-	content: '';
-	position: absolute;
-	inset: -6px;
-	border: 1px dashed var(--ui-accent);
-	pointer-events: none;
-	opacity: 0.7;
-}
+			.nodewrap.sel::after {
+				content: '';
+				position: absolute;
+				inset: -6px;
+				border: 1px dashed var(--ui-accent);
+				pointer-events: none;
+				opacity: 0.7;
+			}
 
-.nodewrap .tagchip {
-	position: absolute;
-	top: -20px;
-	left: 0;
-	font-size: 9.5px;
-	letter-spacing: 0.08em;
-	color: var(--ui-accent);
-	pointer-events: none;
-	text-transform: uppercase;
-}
+			.nodewrap .tagchip {
+				position: absolute;
+				top: -20px;
+				left: 0;
+				font-size: 9.5px;
+				letter-spacing: 0.08em;
+				color: var(--ui-accent);
+				pointer-events: none;
+				text-transform: uppercase;
+			}
 
-.augnode {
-	position: relative;
-	display: flex;
-	flex-direction: column;
-	overflow: hidden;
-}
+			.augnode {
+				position: relative;
+				display: flex;
+				flex-direction: column;
+				overflow: hidden;
+			}
 
-.augnode > iframe {
-	border: 0;
-	width: 100%;
-	display: block;
-	background: transparent;
-	flex: 1;
-}
+			.augnode > iframe {
+				border: 0;
+				width: 100%;
+				display: block;
+				background: transparent;
+				flex: 1;
+			}
 
-.mockbody {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-	justify-content: center;
-	height: 100%;
-}
+			.mockbody {
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+				justify-content: center;
+				height: 100%;
+			}
 
-.mockbody .mk-title { font-weight: 700; letter-spacing: 0.04em; }
-.mockbody .mk-sub { opacity: 0.72; font-size: 11px; }
+			.mockbody .mk-title {
+				font-weight: 700;
+				letter-spacing: 0.04em;
+			}
+			.mockbody .mk-sub {
+				opacity: 0.72;
+				font-size: 11px;
+			}
 
-.mockbody .mk-bar {
-	height: 6px;
-	background: currentColor;
-	opacity: 0.25;
-}
+			.mockbody .mk-bar {
+				height: 6px;
+				background: currentColor;
+				opacity: 0.25;
+			}
 
-.connector {
-	align-self: center;
-	background: var(--conn-color, #7dd3c0);
-	opacity: 0.55;
-}
+			.connector {
+				align-self: center;
+				background: var(--conn-color, #7dd3c0);
+				opacity: 0.55;
+			}
 
-/* ── Inspector ───────────────────────────────────────────────────── */
-.regionpad {
-	display: grid;
-	grid-template-columns: repeat(3, 1fr);
-	gap: 3px;
-	margin-bottom: 8px;
-}
+			/* ── Inspector ───────────────────────────────────────────────────── */
+			.regionpad {
+				display: grid;
+				grid-template-columns: repeat(3, 1fr);
+				gap: 3px;
+				margin-bottom: 8px;
+			}
 
-.rgn {
-	background: var(--ui-panel-2);
-	border: 1px solid var(--ui-line);
-	color: var(--ui-t3);
-	padding: 7px 2px;
-	cursor: pointer;
-	font-size: 10px;
-	border-radius: 2px;
-	text-align: center;
-}
+			.rgn {
+				background: var(--ui-panel-2);
+				border: 1px solid var(--ui-line);
+				color: var(--ui-t3);
+				padding: 7px 2px;
+				cursor: pointer;
+				font-size: 10px;
+				border-radius: 2px;
+				text-align: center;
+			}
 
-.rgn:hover { border-color: var(--ui-accent); color: var(--ui-t1); }
-.rgn.set { color: var(--ui-accent); border-color: var(--ui-accent); background: #16292a; }
-.rgn.on { outline: 2px solid var(--ui-accent-2); outline-offset: -2px; color: var(--ui-t1); }
-.rgn .mx { display: block; font-size: 8.5px; opacity: 0.75; margin-top: 2px; min-height: 10px; }
-.rgn.mid { background: none; border-style: dashed; cursor: default; }
-.rgn.mid:hover { border-color: var(--ui-line); color: var(--ui-t3); }
+			.rgn:hover {
+				border-color: var(--ui-accent);
+				color: var(--ui-t1);
+			}
+			.rgn.set {
+				color: var(--ui-accent);
+				border-color: var(--ui-accent);
+				background: #16292a;
+			}
+			.rgn.on {
+				outline: 2px solid var(--ui-accent-2);
+				outline-offset: -2px;
+				color: var(--ui-t1);
+			}
+			.rgn .mx {
+				display: block;
+				font-size: 8.5px;
+				opacity: 0.75;
+				margin-top: 2px;
+				min-height: 10px;
+			}
+			.rgn.mid {
+				background: none;
+				border-style: dashed;
+				cursor: default;
+			}
+			.rgn.mid:hover {
+				border-color: var(--ui-line);
+				color: var(--ui-t3);
+			}
 
-.augstr {
-	background: #0f141a;
-	border: 1px solid var(--ui-line);
-	padding: 5px 6px;
-	font-size: 10.5px;
-	color: var(--ui-accent);
-	word-break: break-word;
-	border-radius: 2px;
-	user-select: all;
-}
+			.augstr {
+				background: #0f141a;
+				border: 1px solid var(--ui-line);
+				padding: 5px 6px;
+				font-size: 10.5px;
+				color: var(--ui-accent);
+				word-break: break-word;
+				border-radius: 2px;
+				user-select: all;
+			}
 
-.pill {
-	display: inline-block;
-	padding: 1px 5px;
-	border: 1px solid var(--ui-line-2);
-	border-radius: 2px;
-	color: var(--ui-t2);
-	font-size: 10px;
-}
+			.pill {
+				display: inline-block;
+				padding: 1px 5px;
+				border: 1px solid var(--ui-line-2);
+				border-radius: 2px;
+				color: var(--ui-t2);
+				font-size: 10px;
+			}
 
-.warn {
-	border-left: 2px solid var(--ui-accent-2);
-	background: #241f13;
-	padding: 5px 7px;
-	color: #e9d3a8;
-	font-size: 10.5px;
-	margin-bottom: 8px;
-}
+			.warn {
+				border-left: 2px solid var(--ui-accent-2);
+				background: #241f13;
+				padding: 5px 7px;
+				color: #e9d3a8;
+				font-size: 10.5px;
+				margin-bottom: 8px;
+			}
 
-.err {
-	border-left: 2px solid var(--ui-danger);
-	background: #2a1a1a;
-	padding: 5px 7px;
-	color: #f0c0c0;
-	font-size: 10.5px;
-}
+			.err {
+				border-left: 2px solid var(--ui-danger);
+				background: #2a1a1a;
+				padding: 5px 7px;
+				color: #f0c0c0;
+				font-size: 10.5px;
+			}
 
-/* ── Output drawer ───────────────────────────────────────────────── */
-.out-head {
-	display: flex;
-	gap: 6px;
-	align-items: center;
-	padding: 5px 10px;
-	border-bottom: 1px solid var(--ui-line);
-}
+			/* ── Output drawer ───────────────────────────────────────────────── */
+			.out-head {
+				display: flex;
+				gap: 6px;
+				align-items: center;
+				padding: 5px 10px;
+				border-bottom: 1px solid var(--ui-line);
+			}
 
-.out-body { overflow: auto; padding: 8px 10px; }
+			.out-body {
+				overflow: auto;
+				padding: 8px 10px;
+			}
 
-pre.code {
-	margin: 0;
-	white-space: pre;
-	font-size: 11px;
-	line-height: 1.55;
-	color: #cfe3dd;
-	tab-size: 2;
-}
+			pre.code {
+				margin: 0;
+				white-space: pre;
+				font-size: 11px;
+				line-height: 1.55;
+				color: #cfe3dd;
+				tab-size: 2;
+			}
 
-.toast {
-	position: fixed;
-	bottom: 14px;
-	left: 50%;
-	transform: translateX(-50%) translateY(8px);
-	background: var(--ui-accent);
-	color: #0d1014;
-	padding: 6px 14px;
-	border-radius: 2px;
-	font-weight: 700;
-	opacity: 0;
-	pointer-events: none;
-	transition: opacity 160ms ease, transform 160ms ease;
-	z-index: 50;
-}
+			.toast {
+				position: fixed;
+				bottom: 14px;
+				left: 50%;
+				transform: translateX(-50%) translateY(8px);
+				background: var(--ui-accent);
+				color: #0d1014;
+				padding: 6px 14px;
+				border-radius: 2px;
+				font-weight: 700;
+				opacity: 0;
+				pointer-events: none;
+				transition:
+					opacity 160ms ease,
+					transform 160ms ease;
+				z-index: 50;
+			}
 
-.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+			.toast.show {
+				opacity: 1;
+				transform: translateX(-50%) translateY(0);
+			}
 
-/* Element-picker highlight injected into same-origin story iframes. */
-.hide { display: none !important; }
-</style>
-</head>
+			/* Element-picker highlight injected into same-origin story iframes. */
+			.hide {
+				display: none !important;
+			}
+		</style>
+	</head>
 
-<body>
-<div id="app">
+	<body>
+		<div id="app">
+			<header>
+				<h1>augmented&#8209;ui builder</h1>
+				<span class="pill" id="originbadge">checking…</span>
+				<span class="pill" id="tokenbadge">tokens…</span>
+				<div class="rowflex">
+					<span class="hint">theme</span>
+					<select id="theme" style="width: auto">
+						<option value="forge">forge</option>
+						<option value="glacier">glacier</option>
+						<option value="void">void</option>
+						<option value="phosphor">phosphor</option>
+						<option value="crimson">crimson</option>
+						<option value="funk">funk</option>
+					</select>
+				</div>
+				<div class="rowflex">
+					<span class="hint">zoom</span>
+					<input
+						type="range"
+						id="zoom"
+						min="0.4"
+						max="2.5"
+						step="0.05"
+						value="1"
+						style="width: 96px"
+					/>
+					<span class="hint" id="zoomv">100%</span>
+				</div>
+				<label class="rowflex hint"><input type="checkbox" id="grid" checked /> grid</label>
+				<div class="rowflex">
+					<span class="hint">stage bg</span>
+					<input type="color" id="stagebg" value="#12161c" />
+				</div>
+				<div class="spacer"></div>
+				<button class="btn sm" id="savePreset">Save preset</button>
+				<select id="presets" style="width: 130px">
+					<option value="">— presets —</option>
+				</select>
+				<button class="btn sm danger" id="delPreset">Del</button>
+				<button class="btn sm" id="exportJson">Export .json</button>
+				<button class="btn sm" id="importJson">Import</button>
+				<input type="file" id="fileIn" accept="application/json" class="hide" />
+			</header>
 
-	<header>
-		<h1>augmented&#8209;ui builder</h1>
-		<span class="pill" id="originbadge">checking…</span>
-		<span class="pill" id="tokenbadge">tokens…</span>
-		<div class="rowflex">
-			<span class="hint">theme</span>
-			<select id="theme" style="width:auto">
-				<option value="forge">forge</option>
-				<option value="glacier">glacier</option>
-				<option value="void">void</option>
-				<option value="phosphor">phosphor</option>
-				<option value="crimson">crimson</option>
-				<option value="funk">funk</option>
-			</select>
-		</div>
-		<div class="rowflex">
-			<span class="hint">zoom</span>
-			<input type="range" id="zoom" min="0.4" max="2.5" step="0.05" value="1" style="width:96px" />
-			<span class="hint" id="zoomv">100%</span>
-		</div>
-		<label class="rowflex hint"><input type="checkbox" id="grid" checked /> grid</label>
-		<div class="rowflex">
-			<span class="hint">stage bg</span>
-			<input type="color" id="stagebg" value="#12161c" />
-		</div>
-		<div class="spacer"></div>
-		<button class="btn sm" id="savePreset">Save preset</button>
-		<select id="presets" style="width:130px"><option value="">— presets —</option></select>
-		<button class="btn sm danger" id="delPreset">Del</button>
-		<button class="btn sm" id="exportJson">Export .json</button>
-		<button class="btn sm" id="importJson">Import</button>
-		<input type="file" id="fileIn" accept="application/json" class="hide" />
-	</header>
+			<!-- ── LEFT RAIL ────────────────────────────────────────────── -->
+			<div id="rail">
+				<div class="tabs">
+					<button class="tab on" data-rail="stories">Storybook</button>
+					<button class="tab" data-rail="mocks">Mocks</button>
+				</div>
 
-	<!-- ── LEFT RAIL ────────────────────────────────────────────── -->
-	<div id="rail">
-		<div class="tabs">
-			<button class="tab on" data-rail="stories">Storybook</button>
-			<button class="tab" data-rail="mocks">Mocks</button>
-		</div>
+				<div class="sec" style="padding: 7px 8px">
+					<input type="text" id="q" placeholder="filter components…" />
+					<div class="rowflex" style="margin-top: 6px">
+						<span class="hint">add to</span>
+						<button class="btn sm on" id="slotA" data-slot="a">Slot A</button>
+						<button class="btn sm" id="slotB" data-slot="b">Slot B</button>
+					</div>
+				</div>
 
-		<div class="sec" style="padding:7px 8px">
-			<input type="text" id="q" placeholder="filter components…" />
-			<div class="rowflex" style="margin-top:6px">
-				<span class="hint">add to</span>
-				<button class="btn sm on" id="slotA" data-slot="a">Slot A</button>
-				<button class="btn sm" id="slotB" data-slot="b">Slot B</button>
+				<div class="scroll" id="raillist"></div>
+
+				<div class="sec" style="border-bottom: 0">
+					<div class="hint" id="railstatus">…</div>
+				</div>
+			</div>
+
+			<!-- ── STAGE ────────────────────────────────────────────────── -->
+			<div id="stagewrap">
+				<div id="stage" class="grid">
+					<div id="comp"></div>
+				</div>
+			</div>
+
+			<!-- ── INSPECTOR ────────────────────────────────────────────── -->
+			<div id="insp">
+				<div class="tabs">
+					<button class="tab on" data-node="a">Node A</button>
+					<button class="tab" data-node="b">Node B</button>
+					<button class="tab" data-node="comp">Together</button>
+				</div>
+				<div class="scroll" id="inspbody"></div>
+			</div>
+
+			<!-- ── OUTPUT ───────────────────────────────────────────────── -->
+			<div id="out" class="collapsed">
+				<div class="out-head">
+					<button class="btn sm" id="outToggle">▲ Code</button>
+					<button class="tab on" data-code="svelte" style="flex: 0 0 auto; padding: 4px 10px">
+						Svelte
+					</button>
+					<button class="tab" data-code="css" style="flex: 0 0 auto; padding: 4px 10px">CSS</button>
+					<button class="tab" data-code="html" style="flex: 0 0 auto; padding: 4px 10px">
+						HTML
+					</button>
+					<button class="tab" data-code="json" style="flex: 0 0 auto; padding: 4px 10px">
+						JSON
+					</button>
+					<div class="spacer"></div>
+					<span class="hint" id="codenote"></span>
+					<button class="btn sm" id="copyCode">Copy</button>
+				</div>
+				<div class="out-body"><pre class="code" id="code"></pre></div>
 			</div>
 		</div>
 
-		<div class="scroll" id="raillist"></div>
+		<div class="toast" id="toast"></div>
 
-		<div class="sec" style="border-bottom:0">
-			<div class="hint" id="railstatus">…</div>
-		</div>
-	</div>
-
-	<!-- ── STAGE ────────────────────────────────────────────────── -->
-	<div id="stagewrap">
-		<div id="stage" class="grid">
-			<div id="comp"></div>
-		</div>
-	</div>
-
-	<!-- ── INSPECTOR ────────────────────────────────────────────── -->
-	<div id="insp">
-		<div class="tabs">
-			<button class="tab on" data-node="a">Node A</button>
-			<button class="tab" data-node="b">Node B</button>
-			<button class="tab" data-node="comp">Together</button>
-		</div>
-		<div class="scroll" id="inspbody"></div>
-	</div>
-
-	<!-- ── OUTPUT ───────────────────────────────────────────────── -->
-	<div id="out" class="collapsed">
-		<div class="out-head">
-			<button class="btn sm" id="outToggle">▲ Code</button>
-			<button class="tab on" data-code="svelte" style="flex:0 0 auto;padding:4px 10px">Svelte</button>
-			<button class="tab" data-code="css" style="flex:0 0 auto;padding:4px 10px">CSS</button>
-			<button class="tab" data-code="html" style="flex:0 0 auto;padding:4px 10px">HTML</button>
-			<button class="tab" data-code="json" style="flex:0 0 auto;padding:4px 10px">JSON</button>
-			<div class="spacer"></div>
-			<span class="hint" id="codenote"></span>
-			<button class="btn sm" id="copyCode">Copy</button>
-		</div>
-		<div class="out-body"><pre class="code" id="code"></pre></div>
-	</div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script>
-/* ═══════════════════════════════════════════════════════════════════
+		<script>
+			/* ═══════════════════════════════════════════════════════════════════
    1. augmented-ui catalogue — generated from the INSTALLED
       node_modules/augmented-ui/augmented-ui.css, so every mixin offered
       here is one the shipped stylesheet actually implements.
    ═══════════════════════════════════════════════════════════════════ */
-const AUG_MIXINS = {
-	tl: ['tl-clip','tl-clip-x','tl-clip-y','tl-clip-inset','tl-rect','tl-rect-x','tl-rect-y','tl-round','tl-round-x','tl-round-y','tl-round-inset','tl-scoop','tl-scoop-x','tl-scoop-y','tl-scoop-inset','tl-step-inset','tl-2-clip-x','tl-2-clip-y','tl-2-clip-xy','tl-2-rect','tl-2-rect-x','tl-2-rect-y','tl-2-rect-xy','tl-2-rect-inset','tl-2-round','tl-2-round-x','tl-2-round-y','tl-2-round-xy','tl-2-round-inset','tl-2-scoop','tl-2-scoop-x','tl-2-scoop-y','tl-2-scoop-xy','tl-2-scoop-inset','tl-2-step-inset'],
-	tr: ['tr-clip','tr-clip-x','tr-clip-y','tr-clip-inset','tr-rect','tr-rect-x','tr-rect-y','tr-round','tr-round-x','tr-round-y','tr-round-inset','tr-scoop','tr-scoop-x','tr-scoop-y','tr-scoop-inset','tr-step-inset','tr-2-clip-x','tr-2-clip-y','tr-2-clip-xy','tr-2-rect','tr-2-rect-x','tr-2-rect-y','tr-2-rect-xy','tr-2-rect-inset','tr-2-round','tr-2-round-x','tr-2-round-y','tr-2-round-xy','tr-2-round-inset','tr-2-scoop','tr-2-scoop-x','tr-2-scoop-y','tr-2-scoop-xy','tr-2-scoop-inset','tr-2-step-inset'],
-	bl: ['bl-clip','bl-clip-x','bl-clip-y','bl-clip-inset','bl-rect','bl-rect-x','bl-rect-y','bl-round','bl-round-x','bl-round-y','bl-round-inset','bl-scoop','bl-scoop-x','bl-scoop-y','bl-scoop-inset','bl-step-inset','bl-2-clip-x','bl-2-clip-y','bl-2-clip-xy','bl-2-rect','bl-2-rect-x','bl-2-rect-y','bl-2-rect-xy','bl-2-rect-inset','bl-2-round','bl-2-round-x','bl-2-round-y','bl-2-round-xy','bl-2-round-inset','bl-2-scoop','bl-2-scoop-x','bl-2-scoop-y','bl-2-scoop-xy','bl-2-scoop-inset','bl-2-step-inset'],
-	br: ['br-clip','br-clip-x','br-clip-y','br-clip-inset','br-rect','br-rect-x','br-rect-y','br-round','br-round-x','br-round-y','br-round-inset','br-scoop','br-scoop-x','br-scoop-y','br-scoop-inset','br-step-inset','br-2-clip-x','br-2-clip-y','br-2-clip-xy','br-2-rect','br-2-rect-x','br-2-rect-y','br-2-rect-xy','br-2-rect-inset','br-2-round','br-2-round-x','br-2-round-y','br-2-round-xy','br-2-round-inset','br-2-scoop','br-2-scoop-x','br-2-scoop-y','br-2-scoop-xy','br-2-scoop-inset','br-2-step-inset'],
-	t: ['t-clip','t-clip-x','t-clip-y','t-clip-xy','t-rect','t-rect-x','t-rect-y','t-rect-xy','t-round-x','t-round-xy','t-scoop','t-scoop-x','t-scoop-y','t-scoop-xy','t-step-xy'],
-	r: ['r-clip','r-clip-x','r-clip-y','r-clip-xy','r-rect','r-rect-x','r-rect-y','r-rect-xy','r-round-y','r-round-xy','r-scoop','r-scoop-x','r-scoop-y','r-scoop-xy','r-step-xy'],
-	b: ['b-clip','b-clip-x','b-clip-y','b-clip-xy','b-rect','b-rect-x','b-rect-y','b-rect-xy','b-round-x','b-round-xy','b-scoop','b-scoop-x','b-scoop-y','b-scoop-xy','b-step-xy'],
-	l: ['l-clip','l-clip-x','l-clip-y','l-clip-xy','l-rect','l-rect-x','l-rect-y','l-rect-xy','l-round-y','l-round-xy','l-scoop','l-scoop-x','l-scoop-y','l-scoop-xy','l-step-xy']
-};
+			const AUG_MIXINS = {
+				tl: [
+					'tl-clip',
+					'tl-clip-x',
+					'tl-clip-y',
+					'tl-clip-inset',
+					'tl-rect',
+					'tl-rect-x',
+					'tl-rect-y',
+					'tl-round',
+					'tl-round-x',
+					'tl-round-y',
+					'tl-round-inset',
+					'tl-scoop',
+					'tl-scoop-x',
+					'tl-scoop-y',
+					'tl-scoop-inset',
+					'tl-step-inset',
+					'tl-2-clip-x',
+					'tl-2-clip-y',
+					'tl-2-clip-xy',
+					'tl-2-rect',
+					'tl-2-rect-x',
+					'tl-2-rect-y',
+					'tl-2-rect-xy',
+					'tl-2-rect-inset',
+					'tl-2-round',
+					'tl-2-round-x',
+					'tl-2-round-y',
+					'tl-2-round-xy',
+					'tl-2-round-inset',
+					'tl-2-scoop',
+					'tl-2-scoop-x',
+					'tl-2-scoop-y',
+					'tl-2-scoop-xy',
+					'tl-2-scoop-inset',
+					'tl-2-step-inset'
+				],
+				tr: [
+					'tr-clip',
+					'tr-clip-x',
+					'tr-clip-y',
+					'tr-clip-inset',
+					'tr-rect',
+					'tr-rect-x',
+					'tr-rect-y',
+					'tr-round',
+					'tr-round-x',
+					'tr-round-y',
+					'tr-round-inset',
+					'tr-scoop',
+					'tr-scoop-x',
+					'tr-scoop-y',
+					'tr-scoop-inset',
+					'tr-step-inset',
+					'tr-2-clip-x',
+					'tr-2-clip-y',
+					'tr-2-clip-xy',
+					'tr-2-rect',
+					'tr-2-rect-x',
+					'tr-2-rect-y',
+					'tr-2-rect-xy',
+					'tr-2-rect-inset',
+					'tr-2-round',
+					'tr-2-round-x',
+					'tr-2-round-y',
+					'tr-2-round-xy',
+					'tr-2-round-inset',
+					'tr-2-scoop',
+					'tr-2-scoop-x',
+					'tr-2-scoop-y',
+					'tr-2-scoop-xy',
+					'tr-2-scoop-inset',
+					'tr-2-step-inset'
+				],
+				bl: [
+					'bl-clip',
+					'bl-clip-x',
+					'bl-clip-y',
+					'bl-clip-inset',
+					'bl-rect',
+					'bl-rect-x',
+					'bl-rect-y',
+					'bl-round',
+					'bl-round-x',
+					'bl-round-y',
+					'bl-round-inset',
+					'bl-scoop',
+					'bl-scoop-x',
+					'bl-scoop-y',
+					'bl-scoop-inset',
+					'bl-step-inset',
+					'bl-2-clip-x',
+					'bl-2-clip-y',
+					'bl-2-clip-xy',
+					'bl-2-rect',
+					'bl-2-rect-x',
+					'bl-2-rect-y',
+					'bl-2-rect-xy',
+					'bl-2-rect-inset',
+					'bl-2-round',
+					'bl-2-round-x',
+					'bl-2-round-y',
+					'bl-2-round-xy',
+					'bl-2-round-inset',
+					'bl-2-scoop',
+					'bl-2-scoop-x',
+					'bl-2-scoop-y',
+					'bl-2-scoop-xy',
+					'bl-2-scoop-inset',
+					'bl-2-step-inset'
+				],
+				br: [
+					'br-clip',
+					'br-clip-x',
+					'br-clip-y',
+					'br-clip-inset',
+					'br-rect',
+					'br-rect-x',
+					'br-rect-y',
+					'br-round',
+					'br-round-x',
+					'br-round-y',
+					'br-round-inset',
+					'br-scoop',
+					'br-scoop-x',
+					'br-scoop-y',
+					'br-scoop-inset',
+					'br-step-inset',
+					'br-2-clip-x',
+					'br-2-clip-y',
+					'br-2-clip-xy',
+					'br-2-rect',
+					'br-2-rect-x',
+					'br-2-rect-y',
+					'br-2-rect-xy',
+					'br-2-rect-inset',
+					'br-2-round',
+					'br-2-round-x',
+					'br-2-round-y',
+					'br-2-round-xy',
+					'br-2-round-inset',
+					'br-2-scoop',
+					'br-2-scoop-x',
+					'br-2-scoop-y',
+					'br-2-scoop-xy',
+					'br-2-scoop-inset',
+					'br-2-step-inset'
+				],
+				t: [
+					't-clip',
+					't-clip-x',
+					't-clip-y',
+					't-clip-xy',
+					't-rect',
+					't-rect-x',
+					't-rect-y',
+					't-rect-xy',
+					't-round-x',
+					't-round-xy',
+					't-scoop',
+					't-scoop-x',
+					't-scoop-y',
+					't-scoop-xy',
+					't-step-xy'
+				],
+				r: [
+					'r-clip',
+					'r-clip-x',
+					'r-clip-y',
+					'r-clip-xy',
+					'r-rect',
+					'r-rect-x',
+					'r-rect-y',
+					'r-rect-xy',
+					'r-round-y',
+					'r-round-xy',
+					'r-scoop',
+					'r-scoop-x',
+					'r-scoop-y',
+					'r-scoop-xy',
+					'r-step-xy'
+				],
+				b: [
+					'b-clip',
+					'b-clip-x',
+					'b-clip-y',
+					'b-clip-xy',
+					'b-rect',
+					'b-rect-x',
+					'b-rect-y',
+					'b-rect-xy',
+					'b-round-x',
+					'b-round-xy',
+					'b-scoop',
+					'b-scoop-x',
+					'b-scoop-y',
+					'b-scoop-xy',
+					'b-step-xy'
+				],
+				l: [
+					'l-clip',
+					'l-clip-x',
+					'l-clip-y',
+					'l-clip-xy',
+					'l-rect',
+					'l-rect-x',
+					'l-rect-y',
+					'l-rect-xy',
+					'l-round-y',
+					'l-round-xy',
+					'l-scoop',
+					'l-scoop-x',
+					'l-scoop-y',
+					'l-scoop-xy',
+					'l-step-xy'
+				]
+			};
 
-const AUG_ALL_SHAPES = ['all-hex','all-hex-alt','all-hexangle-up','all-hexangle-down','all-hexangle-left','all-hexangle-right','all-hexangle-top','all-hexangle-bottom','all-triangle-up','all-triangle-down','all-triangle-left','all-triangle-right'];
+			const AUG_ALL_SHAPES = [
+				'all-hex',
+				'all-hex-alt',
+				'all-hexangle-up',
+				'all-hexangle-down',
+				'all-hexangle-left',
+				'all-hexangle-right',
+				'all-hexangle-top',
+				'all-hexangle-bottom',
+				'all-triangle-up',
+				'all-triangle-down',
+				'all-triangle-left',
+				'all-triangle-right'
+			];
 
-const CORNERS = ['tl','tr','bl','br'];
-const SIDES = ['t','r','b','l'];
-const REGIONS = ['tl','t','tr','r','br','b','bl','l'];
+			const CORNERS = ['tl', 'tr', 'bl', 'br'];
+			const SIDES = ['t', 'r', 'b', 'l'];
+			const REGIONS = ['tl', 't', 'tr', 'r', 'br', 'b', 'bl', 'l'];
 
-/* Project design tokens, offered wherever a colour is asked for. Values
+			/* Project design tokens, offered wherever a colour is asked for. Values
    resolve live from a story iframe when same-origin; the names are what the
    export emits, so generated CSS stays token-based and theme-portable. */
-const TOKENS = {
-	surface: ['--surface-card','--surface-2','--surface-3','--surface-bg','--surface-sidebar','--surface-code','--surface-shine','--surface-scaffold'],
-	border: ['--border-subtle','--border-default','--border-strong','--edge-line','--ring'],
-	text: ['--text-strong','--text-1','--text-2','--text-3','--text-faint'],
-	accent: ['--green-bright','--green-muted','--amber-bright','--amber-warm','--blue-bright','--blue-deep','--red-bright','--red-muted','--gold','--pine','--notice','--destructive','--primary'],
-	status: ['--status-success-fg','--status-success-border','--status-warning-fg','--status-warning-border','--status-danger-fg','--status-danger-border','--status-info-fg','--status-info-border','--status-steering-fg','--status-steering-border','--status-muted-fg'],
-	dataviz: ['--data-viz-1-fg','--data-viz-2-fg','--data-viz-3-fg','--data-viz-4-fg','--data-viz-5-fg','--data-viz-6-fg','--data-viz-7-fg']
-};
+			const TOKENS = {
+				surface: [
+					'--surface-card',
+					'--surface-2',
+					'--surface-3',
+					'--surface-bg',
+					'--surface-sidebar',
+					'--surface-code',
+					'--surface-shine',
+					'--surface-scaffold'
+				],
+				border: ['--border-subtle', '--border-default', '--border-strong', '--edge-line', '--ring'],
+				text: ['--text-strong', '--text-1', '--text-2', '--text-3', '--text-faint'],
+				accent: [
+					'--green-bright',
+					'--green-muted',
+					'--amber-bright',
+					'--amber-warm',
+					'--blue-bright',
+					'--blue-deep',
+					'--red-bright',
+					'--red-muted',
+					'--gold',
+					'--pine',
+					'--notice',
+					'--destructive',
+					'--primary'
+				],
+				status: [
+					'--status-success-fg',
+					'--status-success-border',
+					'--status-warning-fg',
+					'--status-warning-border',
+					'--status-danger-fg',
+					'--status-danger-border',
+					'--status-info-fg',
+					'--status-info-border',
+					'--status-steering-fg',
+					'--status-steering-border',
+					'--status-muted-fg'
+				],
+				dataviz: [
+					'--data-viz-1-fg',
+					'--data-viz-2-fg',
+					'--data-viz-3-fg',
+					'--data-viz-4-fg',
+					'--data-viz-5-fg',
+					'--data-viz-6-fg',
+					'--data-viz-7-fg'
+				]
+			};
 
-const ALL_TOKENS = Object.values(TOKENS).flat();
+			const ALL_TOKENS = Object.values(TOKENS).flat();
 
-/* Motion presets. Directional / progressive only — this project bans pulsing,
+			/* Motion presets. Directional / progressive only — this project bans pulsing,
    breathing and throbbing animation, so nothing here loops on opacity or
    scale about a rest state. See .claude rules + MEMORY feedback entry. */
-const MOTION = {
-	none:        { label: 'none',                    css: null },
-	'shape-morph': { label: 'shape morph (hover)',   css: 'shape' },
-	'edge-trace':  { label: 'edge trace (border sweep)', css: 'trace' },
-	'sweep-x':     { label: 'sweep across (hover)',  css: 'sweep' },
-	'scan-down':   { label: 'scan line down',        css: 'scan' },
-	'rise-in':     { label: 'rise in (entrance)',    css: 'rise' },
-	'slide-in-l':  { label: 'slide in from left',    css: 'slidel' },
-	'slide-in-r':  { label: 'slide in from right',   css: 'slider' },
-	'wipe-in':     { label: 'wipe in (entrance)',    css: 'wipe' },
-	'settle':      { label: 'settle in (entrance)',  css: 'settle' }
-};
+			const MOTION = {
+				none: { label: 'none', css: null },
+				'shape-morph': { label: 'shape morph (hover)', css: 'shape' },
+				'edge-trace': { label: 'edge trace (border sweep)', css: 'trace' },
+				'sweep-x': { label: 'sweep across (hover)', css: 'sweep' },
+				'scan-down': { label: 'scan line down', css: 'scan' },
+				'rise-in': { label: 'rise in (entrance)', css: 'rise' },
+				'slide-in-l': { label: 'slide in from left', css: 'slidel' },
+				'slide-in-r': { label: 'slide in from right', css: 'slider' },
+				'wipe-in': { label: 'wipe in (entrance)', css: 'wipe' },
+				settle: { label: 'settle in (entrance)', css: 'settle' }
+			};
 
-const EASINGS = ['ease','ease-out','ease-in','ease-in-out','linear','cubic-bezier(.2,.8,.2,1)','cubic-bezier(.4,0,.2,1)','cubic-bezier(.16,1,.3,1)'];
+			const EASINGS = [
+				'ease',
+				'ease-out',
+				'ease-in',
+				'ease-in-out',
+				'linear',
+				'cubic-bezier(.2,.8,.2,1)',
+				'cubic-bezier(.4,0,.2,1)',
+				'cubic-bezier(.16,1,.3,1)'
+			];
 
-const LAYOUTS = {
-	'single':  'Single node',
-	'row':     'Side by side',
-	'column':  'Stacked',
-	'overlap': 'Overlapping',
-	'nested':  'B nested inside A',
-	'connected': 'Joined by a connector'
-};
+			const LAYOUTS = {
+				single: 'Single node',
+				row: 'Side by side',
+				column: 'Stacked',
+				overlap: 'Overlapping',
+				nested: 'B nested inside A',
+				connected: 'Joined by a connector'
+			};
 
-const MOCKS = {
-	card:   { label: 'Card',        w: 280, h: 150 },
-	panel:  { label: 'Panel',       w: 380, h: 220 },
-	button: { label: 'Button',      w: 150, h: 40 },
-	chip:   { label: 'Chip / tag',  w: 96,  h: 24 },
-	kpi:    { label: 'KPI tile',    w: 180, h: 96 },
-	bar:    { label: 'Band / bar',  w: 460, h: 56 }
-};
+			const MOCKS = {
+				card: { label: 'Card', w: 280, h: 150 },
+				panel: { label: 'Panel', w: 380, h: 220 },
+				button: { label: 'Button', w: 150, h: 40 },
+				chip: { label: 'Chip / tag', w: 96, h: 24 },
+				kpi: { label: 'KPI tile', w: 180, h: 96 },
+				bar: { label: 'Band / bar', w: 460, h: 56 }
+			};
 
-/* ═══════════════════════════════════════════════════════════════════
+			/* ═══════════════════════════════════════════════════════════════════
    2. State
    ═══════════════════════════════════════════════════════════════════ */
-/* Storybook's port is whatever it was started on, so discover it rather than
+			/* Storybook's port is whatever it was started on, so discover it rather than
    assume: if the origin serving this file also serves a story index, the tool
    is inside Storybook and gets full DOM access to the stories it frames. */
-const SB_DEFAULT = 'http://localhost:6006';
-const APP_ORIGIN = 'http://localhost:9990';
-const AUG_CSS_HREF = document.getElementById('aug-css').getAttribute('href');
-let SB_ORIGIN = SB_DEFAULT;
-let sameOriginSB = false;
-let tokensLoaded = false;
+			const SB_DEFAULT = 'http://localhost:6006';
+			const APP_ORIGIN = 'http://localhost:9990';
+			const AUG_CSS_HREF = document.getElementById('aug-css').getAttribute('href');
+			let SB_ORIGIN = SB_DEFAULT;
+			let sameOriginSB = false;
+			let tokensLoaded = false;
 
-async function resolveStorybookOrigin() {
-	/* Probing the SPA origin would only ever log a 404, so skip straight to
+			async function resolveStorybookOrigin() {
+				/* Probing the SPA origin would only ever log a 404, so skip straight to
 	   Storybook's when this page is being served by the app dev server. */
-	const candidates = location.origin === APP_ORIGIN ? [SB_DEFAULT] : [location.origin, SB_DEFAULT];
-	for (const origin of candidates) {
-		if (!/^https?:/.test(origin)) continue;
-		try {
-			const r = await fetch(`${origin}/index.json`, { cache: 'no-store' });
-			if (!r.ok) continue;
-			SB_ORIGIN = origin;
-			sameOriginSB = origin === location.origin;
-			return true;
-		} catch (e) { /* try the next origin */ }
-	}
-	return false;
-}
+				const candidates =
+					location.origin === APP_ORIGIN ? [SB_DEFAULT] : [location.origin, SB_DEFAULT];
+				for (const origin of candidates) {
+					if (!/^https?:/.test(origin)) continue;
+					try {
+						const r = await fetch(`${origin}/index.json`, { cache: 'no-store' });
+						if (!r.ok) continue;
+						SB_ORIGIN = origin;
+						sameOriginSB = origin === location.origin;
+						return true;
+					} catch (e) {
+						/* try the next origin */
+					}
+				}
+				return false;
+			}
 
-function blankRegion() {
-	return { mixin: '', size: 12, size1: 0, size2: 0, inset1: 0, inset2: 0, extend1: 0, extend2: 0, center: 0, offset: 0 };
-}
+			function blankRegion() {
+				return {
+					mixin: '',
+					size: 12,
+					size1: 0,
+					size2: 0,
+					inset1: 0,
+					inset2: 0,
+					extend1: 0,
+					extend2: 0,
+					center: 0,
+					offset: 0
+				};
+			}
 
-function blankNode(name) {
-	const regions = {};
-	REGIONS.forEach(r => { regions[r] = blankRegion(); });
-	return {
-		name,
-		enabled: name === 'A',
-		source: { kind: 'mock', storyId: '', mock: 'card', label: name === 'A' ? 'Card' : 'Panel' },
-		selector: '',                       // direct-inject target inside the story
-		aug: { regions, allShape: '', mode: 'border' },
-		frame: {
-			borderAll: 1, borderTop: '', borderRight: '', borderBottom: '', borderLeft: '',
-			borderBg: 'var(--border-strong)', borderOpacity: 1,
-			inlayAll: 0, inlayBg: 'var(--surface-shine)', inlayOpacity: 1
-		},
-		fill: { bg: 'var(--surface-card)', color: 'var(--text-1)', gradient: '' },
-		text: { label: name === 'A' ? 'Component A' : 'Component B', sub: 'augmented-ui surface', size: 13, weight: 600, tracking: 0.02, transform: 'none', align: 'left' },
-		box: { width: 280, height: 150, autoHeight: true, padding: 16 },
-		shadow: { on: false, x: 0, y: 4, blur: 12, color: '#000000', a: 0.45, glowOn: false, glowColor: '#7dd3c0', glowBlur: 14, glowA: 0.35 },
-		motion: { preset: 'none', duration: 320, easing: 'cubic-bezier(.2,.8,.2,1)', delay: 0, loop: false, hoverSize: 22 }
-	};
-}
+			function blankNode(name) {
+				const regions = {};
+				REGIONS.forEach((r) => {
+					regions[r] = blankRegion();
+				});
+				return {
+					name,
+					enabled: name === 'A',
+					source: {
+						kind: 'mock',
+						storyId: '',
+						mock: 'card',
+						label: name === 'A' ? 'Card' : 'Panel'
+					},
+					selector: '', // direct-inject target inside the story
+					aug: { regions, allShape: '', mode: 'border' },
+					frame: {
+						borderAll: 1,
+						borderTop: '',
+						borderRight: '',
+						borderBottom: '',
+						borderLeft: '',
+						borderBg: 'var(--border-strong)',
+						borderOpacity: 1,
+						inlayAll: 0,
+						inlayBg: 'var(--surface-shine)',
+						inlayOpacity: 1
+					},
+					fill: { bg: 'var(--surface-card)', color: 'var(--text-1)', gradient: '' },
+					text: {
+						label: name === 'A' ? 'Component A' : 'Component B',
+						sub: 'augmented-ui surface',
+						size: 13,
+						weight: 600,
+						tracking: 0.02,
+						transform: 'none',
+						align: 'left'
+					},
+					box: { width: 280, height: 150, autoHeight: true, padding: 16 },
+					shadow: {
+						on: false,
+						x: 0,
+						y: 4,
+						blur: 12,
+						color: '#000000',
+						a: 0.45,
+						glowOn: false,
+						glowColor: '#7dd3c0',
+						glowBlur: 14,
+						glowA: 0.35
+					},
+					motion: {
+						preset: 'none',
+						duration: 320,
+						easing: 'cubic-bezier(.2,.8,.2,1)',
+						delay: 0,
+						loop: false,
+						hoverSize: 22
+					}
+				};
+			}
 
-const state = {
-	nodes: { a: blankNode('A'), b: blankNode('B') },
-	comp: {
-		layout: 'single', gap: 20, align: 'center', overlapX: -40, overlapY: 24,
-		nestPad: 18, connLen: 44, connThick: 2, connColor: 'var(--border-strong)', connVertical: false
-	},
-	stage: { theme: 'forge', bg: '#12161c', zoom: 1, grid: true },
-	ui: { activeNode: 'a', activeRegion: 'tl', slot: 'a', rail: 'stories', codeTab: 'svelte' }
-};
+			const state = {
+				nodes: { a: blankNode('A'), b: blankNode('B') },
+				comp: {
+					layout: 'single',
+					gap: 20,
+					align: 'center',
+					overlapX: -40,
+					overlapY: 24,
+					nestPad: 18,
+					connLen: 44,
+					connThick: 2,
+					connColor: 'var(--border-strong)',
+					connVertical: false
+				},
+				stage: { theme: 'forge', bg: '#12161c', zoom: 1, grid: true },
+				ui: { activeNode: 'a', activeRegion: 'tl', slot: 'a', rail: 'stories', codeTab: 'svelte' }
+			};
 
-let storyIndex = [];        // [{id,title,name}]
-let tokenValues = {};       // resolved token -> computed colour, when readable
+			let storyIndex = []; // [{id,title,name}]
+			let tokenValues = {}; // resolved token -> computed colour, when readable
 
-/* ═══════════════════════════════════════════════════════════════════
+			/* ═══════════════════════════════════════════════════════════════════
    3. Small helpers
    ═══════════════════════════════════════════════════════════════════ */
-const $ = sel => document.querySelector(sel);
-const $$ = sel => Array.from(document.querySelectorAll(sel));
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+			const $ = (sel) => document.querySelector(sel);
+			const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+			const esc = (s) =>
+				String(s).replace(
+					/[&<>"]/g,
+					(c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]
+				);
 
-/* augmented-ui does length maths on every size custom property, so a bare `0`
+			/* augmented-ui does length maths on every size custom property, so a bare `0`
    silently breaks the clip-path it builds. Always emit a unit. */
-const px = n => `${Number(n) || 0}px`;
+			const px = (n) => `${Number(n) || 0}px`;
 
-function toast(msg) {
-	const t = $('#toast');
-	t.textContent = msg;
-	t.classList.add('show');
-	clearTimeout(toast._t);
-	toast._t = setTimeout(() => t.classList.remove('show'), 1500);
-}
+			function toast(msg) {
+				const t = $('#toast');
+				t.textContent = msg;
+				t.classList.add('show');
+				clearTimeout(toast._t);
+				toast._t = setTimeout(() => t.classList.remove('show'), 1500);
+			}
 
-function rgba(hex, a) {
-	const h = hex.replace('#', '');
-	const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
-	return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
-}
+			function rgba(hex, a) {
+				const h = hex.replace('#', '');
+				const n = parseInt(
+					h.length === 3
+						? h
+								.split('')
+								.map((c) => c + c)
+								.join('')
+						: h,
+					16
+				);
+				return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+			}
 
-function node(which) { return which === 'b' ? state.nodes.b : state.nodes.a; }
-function activeNode() { return node(state.ui.activeNode === 'b' ? 'b' : 'a'); }
+			function node(which) {
+				return which === 'b' ? state.nodes.b : state.nodes.a;
+			}
+			function activeNode() {
+				return node(state.ui.activeNode === 'b' ? 'b' : 'a');
+			}
 
-/* ═══════════════════════════════════════════════════════════════════
+			/* ═══════════════════════════════════════════════════════════════════
    4. Style derivation — the single source of truth for both the live
       preview and the exported code. Preview and export can't drift
       because they are the same function.
    ═══════════════════════════════════════════════════════════════════ */
 
-/** The `data-augmented-ui` attribute value for a node. */
-function augAttr(n) {
-	const parts = [];
-	if (n.aug.allShape) {
-		parts.push(n.aug.allShape);
-	} else {
-		REGIONS.forEach(r => { if (n.aug.regions[r].mixin) parts.push(n.aug.regions[r].mixin); });
-	}
-	if (n.aug.mode) parts.push(n.aug.mode);
-	return parts.join(' ');
-}
+			/** The `data-augmented-ui` attribute value for a node. */
+			function augAttr(n) {
+				const parts = [];
+				if (n.aug.allShape) {
+					parts.push(n.aug.allShape);
+				} else {
+					REGIONS.forEach((r) => {
+						if (n.aug.regions[r].mixin) parts.push(n.aug.regions[r].mixin);
+					});
+				}
+				if (n.aug.mode) parts.push(n.aug.mode);
+				return parts.join(' ');
+			}
 
-/** Which `--aug-*` size properties a given mixin actually reads. */
-function sizeVarsFor(region, mixin) {
-	if (!mixin) return [];
-	const out = [];
-	const isCorner = CORNERS.includes(region);
-	const dbl = mixin.includes('-2-');
-	const inset = mixin.includes('inset');
-	const step = mixin.includes('step');
+			/** Which `--aug-*` size properties a given mixin actually reads. */
+			function sizeVarsFor(region, mixin) {
+				if (!mixin) return [];
+				const out = [];
+				const isCorner = CORNERS.includes(region);
+				const dbl = mixin.includes('-2-');
+				const inset = mixin.includes('inset');
+				const step = mixin.includes('step');
 
-	if (dbl || step) {
-		out.push({ key: 'size1', prop: `--aug-${region}1`, label: 'size 1' });
-		out.push({ key: 'size2', prop: `--aug-${region}2`, label: 'size 2' });
-	} else {
-		out.push({ key: 'size', prop: `--aug-${region}`, label: 'size' });
-	}
-	if (inset || step) {
-		out.push({ key: 'inset1', prop: `--aug-${region}-inset1`, label: 'inset 1' });
-		if (isCorner) out.push({ key: 'inset2', prop: `--aug-${region}-inset2`, label: 'inset 2' });
-	}
-	out.push({ key: 'extend1', prop: `--aug-${region}-extend1`, label: 'extend 1' });
-	if (isCorner) out.push({ key: 'extend2', prop: `--aug-${region}-extend2`, label: 'extend 2' });
-	if (!isCorner) {
-		out.push({ key: 'center', prop: `--aug-${region}-center`, label: 'center' });
-		out.push({ key: 'offset', prop: `--aug-${region}-offset`, label: 'offset' });
-	}
-	return out;
-}
+				if (dbl || step) {
+					out.push({ key: 'size1', prop: `--aug-${region}1`, label: 'size 1' });
+					out.push({ key: 'size2', prop: `--aug-${region}2`, label: 'size 2' });
+				} else {
+					out.push({ key: 'size', prop: `--aug-${region}`, label: 'size' });
+				}
+				if (inset || step) {
+					out.push({ key: 'inset1', prop: `--aug-${region}-inset1`, label: 'inset 1' });
+					if (isCorner)
+						out.push({ key: 'inset2', prop: `--aug-${region}-inset2`, label: 'inset 2' });
+				}
+				out.push({ key: 'extend1', prop: `--aug-${region}-extend1`, label: 'extend 1' });
+				if (isCorner)
+					out.push({ key: 'extend2', prop: `--aug-${region}-extend2`, label: 'extend 2' });
+				if (!isCorner) {
+					out.push({ key: 'center', prop: `--aug-${region}-center`, label: 'center' });
+					out.push({ key: 'offset', prop: `--aug-${region}-offset`, label: 'offset' });
+				}
+				return out;
+			}
 
-/**
- * Every CSS declaration for a node, as an ordered [prop, value] list.
- * `forExport` drops preview-only scaffolding (fixed pixel box, mock text).
- */
-function nodeDecls(n, forExport) {
-	const d = [];
+			/**
+			 * Every CSS declaration for a node, as an ordered [prop, value] list.
+			 * `forExport` drops preview-only scaffolding (fixed pixel box, mock text).
+			 */
+			function nodeDecls(n, forExport) {
+				const d = [];
 
-	/* -- aug sizes -- */
-	if (!n.aug.allShape) {
-		REGIONS.forEach(r => {
-			const rg = n.aug.regions[r];
-			if (!rg.mixin) return;
-			sizeVarsFor(r, rg.mixin).forEach(v => {
-				const val = rg[v.key];
-				if (val !== 0 && val !== '' && val != null) d.push([v.prop, px(val)]);
-			});
-		});
-	}
+				/* -- aug sizes -- */
+				if (!n.aug.allShape) {
+					REGIONS.forEach((r) => {
+						const rg = n.aug.regions[r];
+						if (!rg.mixin) return;
+						sizeVarsFor(r, rg.mixin).forEach((v) => {
+							const val = rg[v.key];
+							if (val !== 0 && val !== '' && val != null) d.push([v.prop, px(val)]);
+						});
+					});
+				}
 
-	/* -- border / inlay -- */
-	const f = n.frame;
-	if (n.aug.mode === 'border' || n.aug.mode === 'both') {
-		const perSide = [f.borderTop, f.borderRight, f.borderBottom, f.borderLeft].some(v => v !== '' && v != null);
-		if (perSide) {
-			if (f.borderTop !== '') d.push(['--aug-border-top', px(f.borderTop)]);
-			if (f.borderRight !== '') d.push(['--aug-border-right', px(f.borderRight)]);
-			if (f.borderBottom !== '') d.push(['--aug-border-bottom', px(f.borderBottom)]);
-			if (f.borderLeft !== '') d.push(['--aug-border-left', px(f.borderLeft)]);
-		} else {
-			d.push(['--aug-border-all', px(f.borderAll)]);
-		}
-		d.push(['--aug-border-bg', f.borderBg]);
-		if (f.borderOpacity !== 1) d.push(['--aug-border-opacity', String(f.borderOpacity)]);
-	}
-	if (n.aug.mode === 'inlay' || n.aug.mode === 'both') {
-		d.push(['--aug-inlay-all', px(f.inlayAll)]);
-		d.push(['--aug-inlay-bg', f.inlayBg]);
-		if (f.inlayOpacity !== 1) d.push(['--aug-inlay-opacity', String(f.inlayOpacity)]);
-	}
+				/* -- border / inlay -- */
+				const f = n.frame;
+				if (n.aug.mode === 'border' || n.aug.mode === 'both') {
+					const perSide = [f.borderTop, f.borderRight, f.borderBottom, f.borderLeft].some(
+						(v) => v !== '' && v != null
+					);
+					if (perSide) {
+						if (f.borderTop !== '') d.push(['--aug-border-top', px(f.borderTop)]);
+						if (f.borderRight !== '') d.push(['--aug-border-right', px(f.borderRight)]);
+						if (f.borderBottom !== '') d.push(['--aug-border-bottom', px(f.borderBottom)]);
+						if (f.borderLeft !== '') d.push(['--aug-border-left', px(f.borderLeft)]);
+					} else {
+						d.push(['--aug-border-all', px(f.borderAll)]);
+					}
+					d.push(['--aug-border-bg', f.borderBg]);
+					if (f.borderOpacity !== 1) d.push(['--aug-border-opacity', String(f.borderOpacity)]);
+				}
+				if (n.aug.mode === 'inlay' || n.aug.mode === 'both') {
+					d.push(['--aug-inlay-all', px(f.inlayAll)]);
+					d.push(['--aug-inlay-bg', f.inlayBg]);
+					if (f.inlayOpacity !== 1) d.push(['--aug-inlay-opacity', String(f.inlayOpacity)]);
+				}
 
-	/* -- fill + text -- */
-	d.push(['background', n.fill.gradient ? n.fill.gradient : n.fill.bg]);
-	d.push(['color', n.fill.color]);
-	d.push(['padding', px(n.box.padding)]);
-	if (n.text.size) d.push(['font-size', px(n.text.size)]);
-	if (n.text.weight !== 400) d.push(['font-weight', String(n.text.weight)]);
-	if (Number(n.text.tracking) !== 0) d.push(['letter-spacing', `${n.text.tracking}em`]);
-	if (n.text.transform !== 'none') d.push(['text-transform', n.text.transform]);
-	if (n.text.align !== 'left') d.push(['text-align', n.text.align]);
+				/* -- fill + text -- */
+				d.push(['background', n.fill.gradient ? n.fill.gradient : n.fill.bg]);
+				d.push(['color', n.fill.color]);
+				d.push(['padding', px(n.box.padding)]);
+				if (n.text.size) d.push(['font-size', px(n.text.size)]);
+				if (n.text.weight !== 400) d.push(['font-weight', String(n.text.weight)]);
+				if (Number(n.text.tracking) !== 0) d.push(['letter-spacing', `${n.text.tracking}em`]);
+				if (n.text.transform !== 'none') d.push(['text-transform', n.text.transform]);
+				if (n.text.align !== 'left') d.push(['text-align', n.text.align]);
 
-	/* -- box -- */
-	if (n.box.width) d.push(['width', px(n.box.width)]);
-	if (!n.box.autoHeight && n.box.height) d.push(['height', px(n.box.height)]);
+				/* -- box -- */
+				if (n.box.width) d.push(['width', px(n.box.width)]);
+				if (!n.box.autoHeight && n.box.height) d.push(['height', px(n.box.height)]);
 
-	/* -- shadow. clip-path removes the box-shadow, so depth has to come
+				/* -- shadow. clip-path removes the box-shadow, so depth has to come
 	      through filter: drop-shadow, which follows the clipped outline. -- */
-	const s = n.shadow;
-	const filters = [];
-	if (s.on) filters.push(`drop-shadow(${px(s.x)} ${px(s.y)} ${px(s.blur)} ${rgba(s.color, s.a)})`);
-	if (s.glowOn) filters.push(`drop-shadow(0 0 ${px(s.glowBlur)} ${rgba(s.glowColor, s.glowA)})`);
-	if (filters.length) d.push(['filter', filters.join(' ')]);
+				const s = n.shadow;
+				const filters = [];
+				if (s.on)
+					filters.push(`drop-shadow(${px(s.x)} ${px(s.y)} ${px(s.blur)} ${rgba(s.color, s.a)})`);
+				if (s.glowOn)
+					filters.push(`drop-shadow(0 0 ${px(s.glowBlur)} ${rgba(s.glowColor, s.glowA)})`);
+				if (filters.length) d.push(['filter', filters.join(' ')]);
 
-	/* -- motion -- */
-	const m = n.motion;
-	const kind = MOTION[m.preset]?.css;
-	if (kind === 'shape') {
-		const props = [];
-		REGIONS.forEach(r => {
-			const rg = n.aug.regions[r];
-			if (!rg.mixin) return;
-			sizeVarsFor(r, rg.mixin).forEach(v => { if (rg[v.key]) props.push(v.prop); });
-		});
-		if (props.length) d.push(['transition', props.map(p => `${p} ${m.duration}ms ${m.easing} ${m.delay}ms`).join(', ')]);
-	} else if (kind === 'trace') {
-		d.push(['--aug-border-bg', `linear-gradient(115deg, ${f.borderBg} 0 30%, color-mix(in oklab, ${f.borderBg}, white 55%) 45%, ${f.borderBg} 60% 100%)`]);
-		d.push(['background-size', '300% 100%']);
-		d.push(['animation', `aug-trace ${m.duration}ms ${m.easing} ${m.delay}ms ${m.loop ? 'infinite' : '1'}`]);
-	} else if (kind && kind !== 'sweep') {
-		const map = { scan: 'aug-scan', rise: 'aug-rise', slidel: 'aug-slide-l', slider: 'aug-slide-r', wipe: 'aug-wipe', settle: 'aug-settle' };
-		d.push(['animation', `${map[kind]} ${m.duration}ms ${m.easing} ${m.delay}ms ${m.loop ? 'infinite' : 'both'}`]);
-	}
+				/* -- motion -- */
+				const m = n.motion;
+				const kind = MOTION[m.preset]?.css;
+				if (kind === 'shape') {
+					const props = [];
+					REGIONS.forEach((r) => {
+						const rg = n.aug.regions[r];
+						if (!rg.mixin) return;
+						sizeVarsFor(r, rg.mixin).forEach((v) => {
+							if (rg[v.key]) props.push(v.prop);
+						});
+					});
+					if (props.length)
+						d.push([
+							'transition',
+							props.map((p) => `${p} ${m.duration}ms ${m.easing} ${m.delay}ms`).join(', ')
+						]);
+				} else if (kind === 'trace') {
+					d.push([
+						'--aug-border-bg',
+						`linear-gradient(115deg, ${f.borderBg} 0 30%, color-mix(in oklab, ${f.borderBg}, white 55%) 45%, ${f.borderBg} 60% 100%)`
+					]);
+					d.push(['background-size', '300% 100%']);
+					d.push([
+						'animation',
+						`aug-trace ${m.duration}ms ${m.easing} ${m.delay}ms ${m.loop ? 'infinite' : '1'}`
+					]);
+				} else if (kind && kind !== 'sweep') {
+					const map = {
+						scan: 'aug-scan',
+						rise: 'aug-rise',
+						slidel: 'aug-slide-l',
+						slider: 'aug-slide-r',
+						wipe: 'aug-wipe',
+						settle: 'aug-settle'
+					};
+					d.push([
+						'animation',
+						`${map[kind]} ${m.duration}ms ${m.easing} ${m.delay}ms ${m.loop ? 'infinite' : 'both'}`
+					]);
+				}
 
-	if (!forExport) {
-		d.push(['box-sizing', 'border-box']);
-		if (n.box.autoHeight) d.push(['min-height', px(n.box.height)]);
-	}
-	return d;
-}
+				if (!forExport) {
+					d.push(['box-sizing', 'border-box']);
+					if (n.box.autoHeight) d.push(['min-height', px(n.box.height)]);
+				}
+				return d;
+			}
 
-/** Hover-state declarations (shape morph and sweep both need a :hover rule). */
-function nodeHoverDecls(n) {
-	const kind = MOTION[n.motion.preset]?.css;
-	if (kind !== 'shape') return [];
-	const d = [];
-	REGIONS.forEach(r => {
-		const rg = n.aug.regions[r];
-		if (!rg.mixin) return;
-		sizeVarsFor(r, rg.mixin).forEach(v => {
-			if (rg[v.key]) d.push([v.prop, px(n.motion.hoverSize)]);
-		});
-	});
-	return d;
-}
+			/** Hover-state declarations (shape morph and sweep both need a :hover rule). */
+			function nodeHoverDecls(n) {
+				const kind = MOTION[n.motion.preset]?.css;
+				if (kind !== 'shape') return [];
+				const d = [];
+				REGIONS.forEach((r) => {
+					const rg = n.aug.regions[r];
+					if (!rg.mixin) return;
+					sizeVarsFor(r, rg.mixin).forEach((v) => {
+						if (rg[v.key]) d.push([v.prop, px(n.motion.hoverSize)]);
+					});
+				});
+				return d;
+			}
 
-/* Keyframes + @property registration the generated CSS depends on. Emitted
+			/* Keyframes + @property registration the generated CSS depends on. Emitted
    into the export only when the chosen motion preset actually uses them. */
-const KEYFRAMES = {
-	trace: '@keyframes aug-trace { from { background-position: 200% 0; } to { background-position: -100% 0; } }',
-	scan: '@keyframes aug-scan { from { background-position: 0 -120%; } to { background-position: 0 220%; } }',
-	rise: '@keyframes aug-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }',
-	slidel: '@keyframes aug-slide-l { from { opacity: 0; transform: translateX(-22px); } to { opacity: 1; transform: none; } }',
-	slider: '@keyframes aug-slide-r { from { opacity: 0; transform: translateX(22px); } to { opacity: 1; transform: none; } }',
-	wipe: '@keyframes aug-wipe { from { opacity: 0; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }',
-	settle: '@keyframes aug-settle { from { opacity: 0; transform: scale(0.975); } to { opacity: 1; transform: none; } }'
-};
+			const KEYFRAMES = {
+				trace:
+					'@keyframes aug-trace { from { background-position: 200% 0; } to { background-position: -100% 0; } }',
+				scan: '@keyframes aug-scan { from { background-position: 0 -120%; } to { background-position: 0 220%; } }',
+				rise: '@keyframes aug-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }',
+				slidel:
+					'@keyframes aug-slide-l { from { opacity: 0; transform: translateX(-22px); } to { opacity: 1; transform: none; } }',
+				slider:
+					'@keyframes aug-slide-r { from { opacity: 0; transform: translateX(22px); } to { opacity: 1; transform: none; } }',
+				wipe: '@keyframes aug-wipe { from { opacity: 0; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }',
+				settle:
+					'@keyframes aug-settle { from { opacity: 0; transform: scale(0.975); } to { opacity: 1; transform: none; } }'
+			};
 
-/**
- * Shape morphing interpolates custom properties, which only animate once the
- * browser knows their type — so register each aug size prop as a length.
- * Registration is global and one-way, hence the try/catch and the guard set.
- */
-const registered = new Set();
-function registerAugProps(n) {
-	if (MOTION[n.motion.preset]?.css !== 'shape') return [];
-	const emitted = [];
-	REGIONS.forEach(r => {
-		const rg = n.aug.regions[r];
-		if (!rg.mixin) return;
-		sizeVarsFor(r, rg.mixin).forEach(v => {
-			if (!rg[v.key] || registered.has(v.prop)) return;
-			registered.add(v.prop);
-			emitted.push(v.prop);
-			try {
-				CSS.registerProperty({ name: v.prop, syntax: '<length-percentage>', inherits: false, initialValue: '0px' });
-			} catch (e) { /* already registered by an earlier node — harmless */ }
-		});
-	});
-	return emitted;
-}
+			/**
+			 * Shape morphing interpolates custom properties, which only animate once the
+			 * browser knows their type — so register each aug size prop as a length.
+			 * Registration is global and one-way, hence the try/catch and the guard set.
+			 */
+			const registered = new Set();
+			function registerAugProps(n) {
+				if (MOTION[n.motion.preset]?.css !== 'shape') return [];
+				const emitted = [];
+				REGIONS.forEach((r) => {
+					const rg = n.aug.regions[r];
+					if (!rg.mixin) return;
+					sizeVarsFor(r, rg.mixin).forEach((v) => {
+						if (!rg[v.key] || registered.has(v.prop)) return;
+						registered.add(v.prop);
+						emitted.push(v.prop);
+						try {
+							CSS.registerProperty({
+								name: v.prop,
+								syntax: '<length-percentage>',
+								inherits: false,
+								initialValue: '0px'
+							});
+						} catch (e) {
+							/* already registered by an earlier node — harmless */
+						}
+					});
+				});
+				return emitted;
+			}
 
-/* ═══════════════════════════════════════════════════════════════════
+			/* ═══════════════════════════════════════════════════════════════════
    5. Stage rendering
    ═══════════════════════════════════════════════════════════════════ */
-const dynStyle = document.createElement('style');
-document.head.appendChild(dynStyle);
+			const dynStyle = document.createElement('style');
+			document.head.appendChild(dynStyle);
 
-function activeMotionKinds() {
-	const k = new Set();
-	['a', 'b'].forEach(w => {
-		const n = state.nodes[w];
-		if (!n.enabled) return;
-		const kind = MOTION[n.motion.preset]?.css;
-		if (kind && KEYFRAMES[kind]) k.add(kind);
-	});
-	return Array.from(k);
-}
+			function activeMotionKinds() {
+				const k = new Set();
+				['a', 'b'].forEach((w) => {
+					const n = state.nodes[w];
+					if (!n.enabled) return;
+					const kind = MOTION[n.motion.preset]?.css;
+					if (kind && KEYFRAMES[kind]) k.add(kind);
+				});
+				return Array.from(k);
+			}
 
-/* A story iframe reloads whenever it is detached, which would restart the
+			/* A story iframe reloads whenever it is detached, which would restart the
    component on every slider tick and throw away a picked element. So the stage
    is rebuilt only when its TOPOLOGY changes; everything else repaints in place. */
-let stageKey = null;
+			let stageKey = null;
 
-function topologyKey() {
-	const src = n => [n.source.kind, n.source.storyId, n.source.mock, n.text.label, n.text.sub, n.enabled].join('|');
-	const c = state.comp;
-	return [c.layout, c.connVertical, src(state.nodes.a), src(state.nodes.b)].join('~');
-}
-
-function buildStage() {
-	const comp = $('#comp');
-	const c = state.comp;
-	const single = c.layout === 'single' || !state.nodes.b.enabled;
-	comp.innerHTML = '';
-
-	const mk = which => {
-		const n = state.nodes[which];
-		const wrap = document.createElement('div');
-		wrap.className = 'nodewrap';
-		wrap.dataset.which = which;
-
-		const chip = document.createElement('div');
-		chip.className = 'tagchip';
-		chip.textContent = `node ${n.name}`;
-		wrap.appendChild(chip);
-
-		const el = document.createElement('div');
-		el.className = 'augnode';
-		el.dataset.which = which;
-
-		if (n.source.kind === 'story' && n.source.storyId) {
-			const f = document.createElement('iframe');
-			f.src = `${SB_ORIGIN}/iframe.html?id=${encodeURIComponent(n.source.storyId)}&viewMode=story&aug-transparent=1`;
-			f.title = n.source.label;
-			f.addEventListener('load', () => onStoryFrameLoad(f, which));
-			el.appendChild(f);
-		} else {
-			el.appendChild(mockBody(n));
-		}
-
-		wrap.appendChild(el);
-		wrap.addEventListener('mousedown', () => selectNode(which));
-		return wrap;
-	};
-
-	if (c.layout === 'nested' && state.nodes.b.enabled) {
-		const outer = mk('a');
-		const inner = mk('b');
-		const host = outer.querySelector('.augnode');
-		host.querySelector('.mockbody')?.remove();
-		inner.style.width = '100%';
-		host.appendChild(inner);
-		comp.appendChild(outer);
-	} else {
-		comp.appendChild(mk('a'));
-		if (!single && state.nodes.b.enabled) {
-			if (c.layout === 'connected') {
-				const conn = document.createElement('div');
-				conn.className = 'connector';
-				comp.appendChild(conn);
+			function topologyKey() {
+				const src = (n) =>
+					[
+						n.source.kind,
+						n.source.storyId,
+						n.source.mock,
+						n.text.label,
+						n.text.sub,
+						n.enabled
+					].join('|');
+				const c = state.comp;
+				return [c.layout, c.connVertical, src(state.nodes.a), src(state.nodes.b)].join('~');
 			}
-			comp.appendChild(mk('b'));
-		}
-	}
-}
 
-function paintStage() {
-	const comp = $('#comp');
-	const c = state.comp;
+			function buildStage() {
+				const comp = $('#comp');
+				const c = state.comp;
+				const single = c.layout === 'single' || !state.nodes.b.enabled;
+				comp.innerHTML = '';
 
-	comp.style.flexDirection = (c.layout === 'column' || (c.layout === 'connected' && c.connVertical)) ? 'column' : 'row';
-	comp.style.alignItems = c.align;
-	comp.style.gap = (c.layout === 'overlap' || c.layout === 'nested') ? '0px' : px(c.gap);
-	comp.style.setProperty('--zoom', state.stage.zoom);
+				const mk = (which) => {
+					const n = state.nodes[which];
+					const wrap = document.createElement('div');
+					wrap.className = 'nodewrap';
+					wrap.dataset.which = which;
 
-	comp.querySelectorAll('.nodewrap').forEach(wrap => {
-		const which = wrap.dataset.which;
-		const n = state.nodes[which];
-		wrap.classList.toggle('sel', state.ui.activeNode === which);
-		wrap.style.marginLeft = (which === 'b' && c.layout === 'overlap') ? px(c.overlapX) : '';
-		wrap.style.marginTop = (which === 'b' && c.layout === 'overlap') ? px(c.overlapY) : '';
-		wrap.style.zIndex = (which === 'b' && c.layout === 'overlap') ? '2' : '';
+					const chip = document.createElement('div');
+					chip.className = 'tagchip';
+					chip.textContent = `node ${n.name}`;
+					wrap.appendChild(chip);
 
-		const el = wrap.querySelector(':scope > .augnode');
-		const attr = augAttr(n);
-		if (attr) el.setAttribute('data-augmented-ui', attr);
-		else el.removeAttribute('data-augmented-ui');
-		el.removeAttribute('style');
-		nodeDecls(n, false).forEach(([p, v]) => el.style.setProperty(p, v));
-		if (which === 'a' && c.layout === 'nested') el.style.padding = px(c.nestPad);
+					const el = document.createElement('div');
+					el.className = 'augnode';
+					el.dataset.which = which;
 
-		const f = el.querySelector(':scope > iframe');
-		if (f && !n.box.autoHeight) f.style.height = px(n.box.height);
-	});
+					if (n.source.kind === 'story' && n.source.storyId) {
+						const f = document.createElement('iframe');
+						f.src = `${SB_ORIGIN}/iframe.html?id=${encodeURIComponent(n.source.storyId)}&viewMode=story&aug-transparent=1`;
+						f.title = n.source.label;
+						f.addEventListener('load', () => onStoryFrameLoad(f, which));
+						el.appendChild(f);
+					} else {
+						el.appendChild(mockBody(n));
+					}
 
-	const conn = comp.querySelector('.connector');
-	if (conn) {
-		conn.style.setProperty('--conn-color', c.connColor);
-		conn.style.width = c.connVertical ? px(c.connThick) : px(c.connLen);
-		conn.style.height = c.connVertical ? px(c.connLen) : px(c.connThick);
-	}
+					wrap.appendChild(el);
+					wrap.addEventListener('mousedown', () => selectNode(which));
+					return wrap;
+				};
 
-	/* Push the design onto any element picked inside a live story. */
-	['a', 'b'].forEach(w => {
-		const n = state.nodes[w];
-		if (!n.selector) return;
-		const f = comp.querySelector(`.augnode[data-which="${w}"] iframe`);
-		let doc;
-		try { doc = f && f.contentDocument; } catch (e) { return; }
-		if (doc) applyToRealElement(doc, n);
-	});
-}
+				if (c.layout === 'nested' && state.nodes.b.enabled) {
+					const outer = mk('a');
+					const inner = mk('b');
+					const host = outer.querySelector('.augnode');
+					host.querySelector('.mockbody')?.remove();
+					inner.style.width = '100%';
+					host.appendChild(inner);
+					comp.appendChild(outer);
+				} else {
+					comp.appendChild(mk('a'));
+					if (!single && state.nodes.b.enabled) {
+						if (c.layout === 'connected') {
+							const conn = document.createElement('div');
+							conn.className = 'connector';
+							comp.appendChild(conn);
+						}
+						comp.appendChild(mk('b'));
+					}
+				}
+			}
 
-function renderStage() {
-	const key = topologyKey();
-	if (key !== stageKey) { stageKey = key; buildStage(); }
-	paintStage();
+			function paintStage() {
+				const comp = $('#comp');
+				const c = state.comp;
 
-	/* Hover rules + keyframes for the live preview. */
-	const rules = [];
-	['a', 'b'].forEach(w => {
-		const n = state.nodes[w];
-		if (!n.enabled) return;
-		registerAugProps(n);
-		const hov = nodeHoverDecls(n);
-		if (hov.length) rules.push(`.augnode[data-which="${w}"]:hover{${hov.map(([p, v]) => `${p}:${v}`).join(';')}}`);
-		if (MOTION[n.motion.preset]?.css === 'sweep') {
-			rules.push(`.augnode[data-which="${w}"]{position:relative;overflow:hidden}`);
-			rules.push(`.augnode[data-which="${w}"]::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.16) 50%,transparent 70%);background-size:250% 100%;background-position:200% 0;transition:background-position ${n.motion.duration}ms ${n.motion.easing} ${n.motion.delay}ms}`);
-			rules.push(`.augnode[data-which="${w}"]:hover::after{background-position:-60% 0}`);
-		}
-		if (MOTION[n.motion.preset]?.css === 'scan') {
-			rules.push(`.augnode[data-which="${w}"]{background-image:linear-gradient(${n.fill.color} 0 2px, transparent 2px);background-repeat:no-repeat;background-size:100% 100%}`);
-		}
-	});
-	activeMotionKinds().forEach(k => rules.push(KEYFRAMES[k]));
-	dynStyle.textContent = rules.join('\n');
+				comp.style.flexDirection =
+					c.layout === 'column' || (c.layout === 'connected' && c.connVertical) ? 'column' : 'row';
+				comp.style.alignItems = c.align;
+				comp.style.gap = c.layout === 'overlap' || c.layout === 'nested' ? '0px' : px(c.gap);
+				comp.style.setProperty('--zoom', state.stage.zoom);
 
-	$('#stage').style.setProperty('--stage-bg', state.stage.bg);
-	$('#stage').classList.toggle('grid', state.stage.grid);
-	document.documentElement.setAttribute('data-theme', state.stage.theme);
-}
+				comp.querySelectorAll('.nodewrap').forEach((wrap) => {
+					const which = wrap.dataset.which;
+					const n = state.nodes[which];
+					wrap.classList.toggle('sel', state.ui.activeNode === which);
+					wrap.style.marginLeft = which === 'b' && c.layout === 'overlap' ? px(c.overlapX) : '';
+					wrap.style.marginTop = which === 'b' && c.layout === 'overlap' ? px(c.overlapY) : '';
+					wrap.style.zIndex = which === 'b' && c.layout === 'overlap' ? '2' : '';
 
-function mockBody(n) {
-	const b = document.createElement('div');
-	b.className = 'mockbody';
-	const kind = n.source.mock;
-	if (kind === 'chip' || kind === 'button') {
-		b.style.justifyContent = 'center';
-		b.style.alignItems = n.text.align === 'center' ? 'center' : 'flex-start';
-		b.innerHTML = `<div class="mk-title">${esc(n.text.label)}</div>`;
-	} else if (kind === 'kpi') {
-		b.innerHTML = `<div class="mk-sub">${esc(n.text.sub)}</div><div class="mk-title" style="font-size:1.9em">${esc(n.text.label)}</div>`;
-	} else if (kind === 'bar') {
-		b.style.flexDirection = 'row';
-		b.style.alignItems = 'center';
-		b.style.gap = '14px';
-		b.innerHTML = `<div class="mk-title">${esc(n.text.label)}</div><div class="mk-sub" style="flex:1">${esc(n.text.sub)}</div>`;
-	} else {
-		b.innerHTML = `<div class="mk-title">${esc(n.text.label)}</div>
+					const el = wrap.querySelector(':scope > .augnode');
+					const attr = augAttr(n);
+					if (attr) el.setAttribute('data-augmented-ui', attr);
+					else el.removeAttribute('data-augmented-ui');
+					el.removeAttribute('style');
+					nodeDecls(n, false).forEach(([p, v]) => el.style.setProperty(p, v));
+					if (which === 'a' && c.layout === 'nested') el.style.padding = px(c.nestPad);
+
+					const f = el.querySelector(':scope > iframe');
+					if (f && !n.box.autoHeight) f.style.height = px(n.box.height);
+				});
+
+				const conn = comp.querySelector('.connector');
+				if (conn) {
+					conn.style.setProperty('--conn-color', c.connColor);
+					conn.style.width = c.connVertical ? px(c.connThick) : px(c.connLen);
+					conn.style.height = c.connVertical ? px(c.connLen) : px(c.connThick);
+				}
+
+				/* Push the design onto any element picked inside a live story. */
+				['a', 'b'].forEach((w) => {
+					const n = state.nodes[w];
+					if (!n.selector) return;
+					const f = comp.querySelector(`.augnode[data-which="${w}"] iframe`);
+					let doc;
+					try {
+						doc = f && f.contentDocument;
+					} catch (e) {
+						return;
+					}
+					if (doc) applyToRealElement(doc, n);
+				});
+			}
+
+			function renderStage() {
+				const key = topologyKey();
+				if (key !== stageKey) {
+					stageKey = key;
+					buildStage();
+				}
+				paintStage();
+
+				/* Hover rules + keyframes for the live preview. */
+				const rules = [];
+				['a', 'b'].forEach((w) => {
+					const n = state.nodes[w];
+					if (!n.enabled) return;
+					registerAugProps(n);
+					const hov = nodeHoverDecls(n);
+					if (hov.length)
+						rules.push(
+							`.augnode[data-which="${w}"]:hover{${hov.map(([p, v]) => `${p}:${v}`).join(';')}}`
+						);
+					if (MOTION[n.motion.preset]?.css === 'sweep') {
+						rules.push(`.augnode[data-which="${w}"]{position:relative;overflow:hidden}`);
+						rules.push(
+							`.augnode[data-which="${w}"]::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.16) 50%,transparent 70%);background-size:250% 100%;background-position:200% 0;transition:background-position ${n.motion.duration}ms ${n.motion.easing} ${n.motion.delay}ms}`
+						);
+						rules.push(`.augnode[data-which="${w}"]:hover::after{background-position:-60% 0}`);
+					}
+					if (MOTION[n.motion.preset]?.css === 'scan') {
+						rules.push(
+							`.augnode[data-which="${w}"]{background-image:linear-gradient(${n.fill.color} 0 2px, transparent 2px);background-repeat:no-repeat;background-size:100% 100%}`
+						);
+					}
+				});
+				activeMotionKinds().forEach((k) => rules.push(KEYFRAMES[k]));
+				dynStyle.textContent = rules.join('\n');
+
+				$('#stage').style.setProperty('--stage-bg', state.stage.bg);
+				$('#stage').classList.toggle('grid', state.stage.grid);
+				document.documentElement.setAttribute('data-theme', state.stage.theme);
+			}
+
+			function mockBody(n) {
+				const b = document.createElement('div');
+				b.className = 'mockbody';
+				const kind = n.source.mock;
+				if (kind === 'chip' || kind === 'button') {
+					b.style.justifyContent = 'center';
+					b.style.alignItems = n.text.align === 'center' ? 'center' : 'flex-start';
+					b.innerHTML = `<div class="mk-title">${esc(n.text.label)}</div>`;
+				} else if (kind === 'kpi') {
+					b.innerHTML = `<div class="mk-sub">${esc(n.text.sub)}</div><div class="mk-title" style="font-size:1.9em">${esc(n.text.label)}</div>`;
+				} else if (kind === 'bar') {
+					b.style.flexDirection = 'row';
+					b.style.alignItems = 'center';
+					b.style.gap = '14px';
+					b.innerHTML = `<div class="mk-title">${esc(n.text.label)}</div><div class="mk-sub" style="flex:1">${esc(n.text.sub)}</div>`;
+				} else {
+					b.innerHTML = `<div class="mk-title">${esc(n.text.label)}</div>
 			<div class="mk-sub">${esc(n.text.sub)}</div>
 			<div class="mk-bar" style="width:70%"></div>
 			<div class="mk-bar" style="width:45%"></div>`;
-	}
-	return b;
-}
+				}
+				return b;
+			}
 
-/* When Storybook is same-origin the story document is fully reachable: make
+			/* When Storybook is same-origin the story document is fully reachable: make
    its background transparent so the aug frame reads, size the iframe to the
    real content, harvest live theme tokens, and let the picker target the real
    element rather than a wrapper. */
-function onStoryFrameLoad(frame, which) {
-	if (!sameOriginSB) return;
-	let doc;
-	try { doc = frame.contentDocument; } catch (e) { return; }
-	if (!doc) return;
+			function onStoryFrameLoad(frame, which) {
+				if (!sameOriginSB) return;
+				let doc;
+				try {
+					doc = frame.contentDocument;
+				} catch (e) {
+					return;
+				}
+				if (!doc) return;
 
-	doc.documentElement.setAttribute('data-theme', state.stage.theme);
+				doc.documentElement.setAttribute('data-theme', state.stage.theme);
 
-	/* Only src/routes/+layout.svelte imports augmented-ui, so a story document
+				/* Only src/routes/+layout.svelte imports augmented-ui, so a story document
 	   has no idea what a data-augmented-ui attribute means until we give it the
 	   stylesheet — without this the attribute lands but nothing is ever clipped. */
-	if (!doc.getElementById('aug-css-injected')) {
-		const link = doc.createElement('link');
-		link.id = 'aug-css-injected';
-		link.rel = 'stylesheet';
-		link.href = AUG_CSS_HREF;
-		link.addEventListener('load', () => { const n = state.nodes[which]; if (n.selector) applyToRealElement(doc, n); });
-		doc.head.appendChild(link);
-	}
+				if (!doc.getElementById('aug-css-injected')) {
+					const link = doc.createElement('link');
+					link.id = 'aug-css-injected';
+					link.rel = 'stylesheet';
+					link.href = AUG_CSS_HREF;
+					link.addEventListener('load', () => {
+						const n = state.nodes[which];
+						if (n.selector) applyToRealElement(doc, n);
+					});
+					doc.head.appendChild(link);
+				}
 
-	const st = doc.createElement('style');
-	st.textContent = `html,body,#storybook-root{background:transparent !important;margin:0}
+				const st = doc.createElement('style');
+				st.textContent = `html,body,#storybook-root{background:transparent !important;margin:0}
 		.__augpick{outline:2px solid #7dd3c0 !important;outline-offset:-2px !important;cursor:crosshair !important}`;
-	doc.head.appendChild(st);
+				doc.head.appendChild(st);
 
-	harvestTokens(doc);
+				harvestTokens(doc);
 
-	const n = state.nodes[which];
-	const root = doc.getElementById('storybook-root') || doc.body;
+				const n = state.nodes[which];
+				const root = doc.getElementById('storybook-root') || doc.body;
 
-	if (n.box.autoHeight) {
-		const fit = () => { frame.style.height = px(Math.max(root.scrollHeight, 24)); };
-		fit();
-		setTimeout(fit, 120);
-		new ResizeObserver(fit).observe(root);
-	}
+				if (n.box.autoHeight) {
+					const fit = () => {
+						frame.style.height = px(Math.max(root.scrollHeight, 24));
+					};
+					fit();
+					setTimeout(fit, 120);
+					new ResizeObserver(fit).observe(root);
+				}
 
-	/* Size the frame to the component the first time it lands, so a wide story
+				/* Size the frame to the component the first time it lands, so a wide story
 	   isn't cropped by a default width the operator never chose. */
-	if (!n._fitW) {
-		n._fitW = true;
-		setTimeout(() => {
-			const w = Math.ceil(root.scrollWidth);
-			if (!w) return;
-			n.box.width = Math.min(900, Math.max(80, w + n.box.padding * 2));
-			renderStage();
-			renderInspector();
-		}, 160);
-	}
+				if (!n._fitW) {
+					n._fitW = true;
+					setTimeout(() => {
+						const w = Math.ceil(root.scrollWidth);
+						if (!w) return;
+						n.box.width = Math.min(900, Math.max(80, w + n.box.padding * 2));
+						renderStage();
+						renderInspector();
+					}, 160);
+				}
 
-	if (n.selector) applyToRealElement(doc, n);
-	if (picking && picking.which === which) armPicker(doc, which);
-}
-
-/**
- * Load the project's real token values by fetching the COMPILED app.css off the
- * SPA dev server and keeping only its custom-property declarations. Tailwind's
- * reset and utilities are dropped — the tool wants the palette, not the
- * framework — and every theme block comes along, so switching `data-theme` on
- * this document re-themes the stage exactly the way the app does.
- */
-async function loadProjectTokens() {
-	let css;
-	for (const url of [`${APP_ORIGIN}/src/app.css?direct`, `${location.origin}/src/app.css?direct`]) {
-		try {
-			const r = await fetch(url, { cache: 'no-store' });
-			if (r.ok) { css = await r.text(); break; }
-		} catch (e) { /* try the next origin */ }
-	}
-	if (!css) return false;
-
-	/* Parse with the browser's own CSS engine rather than a regex — the compiled
-	   sheet nests the palette inside @layer blocks that no flat pattern survives. */
-	let sheet;
-	try {
-		sheet = new CSSStyleSheet();
-		sheet.replaceSync(css);
-	} catch (e) { return false; }
-
-	const out = [];
-	const walk = rules => {
-		for (const rule of rules) {
-			if (rule.cssRules && !rule.selectorText) { walk(rule.cssRules); continue; }
-			if (!rule.selectorText) continue;
-			const keep = rule.selectorText.split(',').map(s => s.trim())
-				.filter(s => s === ':root' || s.startsWith(':root ') || s.startsWith('[data-theme'));
-			if (!keep.length) continue;
-			const decls = [];
-			for (const prop of rule.style) {
-				if (prop.startsWith('--')) decls.push(`${prop}:${rule.style.getPropertyValue(prop)}`);
+				if (n.selector) applyToRealElement(doc, n);
+				if (picking && picking.which === which) armPicker(doc, which);
 			}
-			/* Scoped to this document's root, so the tool's own --ui-* chrome is safe. */
-			if (decls.length) out.push(`${keep.join(', ')}{${decls.join(';')}}`);
-		}
-	};
-	walk(sheet.cssRules);
-	if (!out.length) return false;
 
-	const st = document.createElement('style');
-	st.id = 'project-tokens';
-	st.textContent = out.join('\n');
-	document.head.appendChild(st);
-	return true;
-}
+			/**
+			 * Load the project's real token values by fetching the COMPILED app.css off the
+			 * SPA dev server and keeping only its custom-property declarations. Tailwind's
+			 * reset and utilities are dropped — the tool wants the palette, not the
+			 * framework — and every theme block comes along, so switching `data-theme` on
+			 * this document re-themes the stage exactly the way the app does.
+			 */
+			async function loadProjectTokens() {
+				let css;
+				for (const url of [
+					`${APP_ORIGIN}/src/app.css?direct`,
+					`${location.origin}/src/app.css?direct`
+				]) {
+					try {
+						const r = await fetch(url, { cache: 'no-store' });
+						if (r.ok) {
+							css = await r.text();
+							break;
+						}
+					} catch (e) {
+						/* try the next origin */
+					}
+				}
+				if (!css) return false;
 
-/** Read the real computed value of every project token, once, from a story. */
-function harvestTokens(doc) {
-	const cs = doc.defaultView.getComputedStyle(doc.documentElement);
-	let found = 0;
-	ALL_TOKENS.forEach(t => {
-		const v = cs.getPropertyValue(t).trim();
-		if (v) { tokenValues[t] = v; found++; }
-	});
-	/* Only mirror inline when the compiled stylesheet is missing — inline values
+				/* Parse with the browser's own CSS engine rather than a regex — the compiled
+	   sheet nests the palette inside @layer blocks that no flat pattern survives. */
+				let sheet;
+				try {
+					sheet = new CSSStyleSheet();
+					sheet.replaceSync(css);
+				} catch (e) {
+					return false;
+				}
+
+				const out = [];
+				const walk = (rules) => {
+					for (const rule of rules) {
+						if (rule.cssRules && !rule.selectorText) {
+							walk(rule.cssRules);
+							continue;
+						}
+						if (!rule.selectorText) continue;
+						const keep = rule.selectorText
+							.split(',')
+							.map((s) => s.trim())
+							.filter(
+								(s) => s === ':root' || s.startsWith(':root ') || s.startsWith('[data-theme')
+							);
+						if (!keep.length) continue;
+						const decls = [];
+						for (const prop of rule.style) {
+							if (prop.startsWith('--')) decls.push(`${prop}:${rule.style.getPropertyValue(prop)}`);
+						}
+						/* Scoped to this document's root, so the tool's own --ui-* chrome is safe. */
+						if (decls.length) out.push(`${keep.join(', ')}{${decls.join(';')}}`);
+					}
+				};
+				walk(sheet.cssRules);
+				if (!out.length) return false;
+
+				const st = document.createElement('style');
+				st.id = 'project-tokens';
+				st.textContent = out.join('\n');
+				document.head.appendChild(st);
+				return true;
+			}
+
+			/** Read the real computed value of every project token, once, from a story. */
+			function harvestTokens(doc) {
+				const cs = doc.defaultView.getComputedStyle(doc.documentElement);
+				let found = 0;
+				ALL_TOKENS.forEach((t) => {
+					const v = cs.getPropertyValue(t).trim();
+					if (v) {
+						tokenValues[t] = v;
+						found++;
+					}
+				});
+				/* Only mirror inline when the compiled stylesheet is missing — inline values
 	   beat any stylesheet, and would pin the stage to one theme forever. */
-	if (found && !tokensLoaded) {
-		Object.entries(tokenValues).forEach(([k, v]) => document.documentElement.style.setProperty(k, v));
-		tokensLoaded = true;
-	}
-}
+				if (found && !tokensLoaded) {
+					Object.entries(tokenValues).forEach(([k, v]) =>
+						document.documentElement.style.setProperty(k, v)
+					);
+					tokensLoaded = true;
+				}
+			}
 
-/** Paint the current node's aug + styles onto the picked element in the story. */
-function applyToRealElement(doc, n) {
-	let el;
-	try { el = doc.querySelector(n.selector); } catch (e) { return; }
-	if (!el) return;
-	const attr = augAttr(n);
-	if (attr) el.setAttribute('data-augmented-ui', attr);
-	else el.removeAttribute('data-augmented-ui');
-	/* Drop the previous pass's properties first, or a removed mixin would leave
+			/** Paint the current node's aug + styles onto the picked element in the story. */
+			function applyToRealElement(doc, n) {
+				let el;
+				try {
+					el = doc.querySelector(n.selector);
+				} catch (e) {
+					return;
+				}
+				if (!el) return;
+				const attr = augAttr(n);
+				if (attr) el.setAttribute('data-augmented-ui', attr);
+				else el.removeAttribute('data-augmented-ui');
+				/* Drop the previous pass's properties first, or a removed mixin would leave
 	   its sizes behind and keep shaping the element. */
-	(n._applied || []).forEach(p => el.style.removeProperty(p));
-	const decls = nodeDecls(n, true);
-	decls.forEach(([p, v]) => el.style.setProperty(p, v));
-	n._applied = decls.map(([p]) => p);
-}
+				(n._applied || []).forEach((p) => el.style.removeProperty(p));
+				const decls = nodeDecls(n, true);
+				decls.forEach(([p, v]) => el.style.setProperty(p, v));
+				n._applied = decls.map(([p]) => p);
+			}
 
-/* ═══════════════════════════════════════════════════════════════════
+			/* ═══════════════════════════════════════════════════════════════════
    6. Element picker (same-origin only)
    ═══════════════════════════════════════════════════════════════════ */
-let picking = null;
+			let picking = null;
 
-function cssPath(el, root) {
-	const parts = [];
-	let cur = el;
-	while (cur && cur !== root && cur.nodeType === 1 && parts.length < 6) {
-		let seg = cur.tagName.toLowerCase();
-		const cls = Array.from(cur.classList).filter(c => !c.startsWith('__aug') && !c.startsWith('svelte-'));
-		if (cur.dataset && cur.dataset.slot) seg += `[data-slot="${cur.dataset.slot}"]`;
-		else if (cls.length) seg += '.' + CSS.escape(cls[0]);
-		const par = cur.parentElement;
-		if (par) {
-			const sibs = Array.from(par.children).filter(s => s.tagName === cur.tagName);
-			if (sibs.length > 1) seg += `:nth-of-type(${sibs.indexOf(cur) + 1})`;
-		}
-		parts.unshift(seg);
-		cur = cur.parentElement;
-	}
-	return parts.join(' > ');
-}
+			function cssPath(el, root) {
+				const parts = [];
+				let cur = el;
+				while (cur && cur !== root && cur.nodeType === 1 && parts.length < 6) {
+					let seg = cur.tagName.toLowerCase();
+					const cls = Array.from(cur.classList).filter(
+						(c) => !c.startsWith('__aug') && !c.startsWith('svelte-')
+					);
+					if (cur.dataset && cur.dataset.slot) seg += `[data-slot="${cur.dataset.slot}"]`;
+					else if (cls.length) seg += '.' + CSS.escape(cls[0]);
+					const par = cur.parentElement;
+					if (par) {
+						const sibs = Array.from(par.children).filter((s) => s.tagName === cur.tagName);
+						if (sibs.length > 1) seg += `:nth-of-type(${sibs.indexOf(cur) + 1})`;
+					}
+					parts.unshift(seg);
+					cur = cur.parentElement;
+				}
+				return parts.join(' > ');
+			}
 
-function armPicker(doc, which) {
-	const root = doc.getElementById('storybook-root') || doc.body;
-	let last = null;
-	const over = e => {
-		if (last) last.classList.remove('__augpick');
-		last = e.target;
-		last.classList.add('__augpick');
-		e.stopPropagation();
-	};
-	const click = e => {
-		e.preventDefault();
-		e.stopPropagation();
-		const sel = cssPath(e.target, root);
-		state.nodes[which].selector = sel;
-		if (last) last.classList.remove('__augpick');
-		doc.removeEventListener('mouseover', over, true);
-		doc.removeEventListener('click', click, true);
-		picking = null;
-		applyToRealElement(doc, state.nodes[which]);
-		renderInspector();
-		toast('Target: ' + sel);
-	};
-	doc.addEventListener('mouseover', over, true);
-	doc.addEventListener('click', click, true);
-}
+			function armPicker(doc, which) {
+				const root = doc.getElementById('storybook-root') || doc.body;
+				let last = null;
+				const over = (e) => {
+					if (last) last.classList.remove('__augpick');
+					last = e.target;
+					last.classList.add('__augpick');
+					e.stopPropagation();
+				};
+				const click = (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					const sel = cssPath(e.target, root);
+					state.nodes[which].selector = sel;
+					if (last) last.classList.remove('__augpick');
+					doc.removeEventListener('mouseover', over, true);
+					doc.removeEventListener('click', click, true);
+					picking = null;
+					applyToRealElement(doc, state.nodes[which]);
+					renderInspector();
+					toast('Target: ' + sel);
+				};
+				doc.addEventListener('mouseover', over, true);
+				doc.addEventListener('click', click, true);
+			}
 
-function startPicking(which) {
-	if (!sameOriginSB) { toast('Open the tool from :6006 to pick real elements'); return; }
-	picking = { which };
-	const f = document.querySelector(`.augnode[data-which="${which}"] iframe`);
-	if (f && f.contentDocument) armPicker(f.contentDocument, which);
-	toast('Click an element inside the story');
-}
+			function startPicking(which) {
+				if (!sameOriginSB) {
+					toast('Open the tool from :6006 to pick real elements');
+					return;
+				}
+				picking = { which };
+				const f = document.querySelector(`.augnode[data-which="${which}"] iframe`);
+				if (f && f.contentDocument) armPicker(f.contentDocument, which);
+				toast('Click an element inside the story');
+			}
 
-/* ═══════════════════════════════════════════════════════════════════
+			/* ═══════════════════════════════════════════════════════════════════
    7. Inspector UI
    ═══════════════════════════════════════════════════════════════════ */
-function ctl(label, inner) {
-	return `<label class="row"><span>${label}</span><span class="rowflex">${inner}</span></label>`;
-}
+			function ctl(label, inner) {
+				return `<label class="row"><span>${label}</span><span class="rowflex">${inner}</span></label>`;
+			}
 
-function num(path, val, min, max, step) {
-	return `<input type="number" data-bind="${path}" value="${val}" min="${min ?? -400}" max="${max ?? 400}" step="${step ?? 1}" />`;
-}
+			function num(path, val, min, max, step) {
+				return `<input type="number" data-bind="${path}" value="${val}" min="${min ?? -400}" max="${max ?? 400}" step="${step ?? 1}" />`;
+			}
 
-function rng(path, val, min, max, step) {
-	return `<input type="range" data-bind="${path}" value="${val}" min="${min}" max="${max}" step="${step ?? 1}" />
+			function rng(path, val, min, max, step) {
+				return `<input type="range" data-bind="${path}" value="${val}" min="${min}" max="${max}" step="${step ?? 1}" />
 	        <input type="number" data-bind="${path}" value="${val}" style="width:56px" step="${step ?? 1}" />`;
-}
+			}
 
-function sel(path, val, opts) {
-	return `<select data-bind="${path}">${opts.map(o => {
-		const [v, l] = Array.isArray(o) ? o : [o, o];
-		return `<option value="${esc(v)}"${String(v) === String(val) ? ' selected' : ''}>${esc(l)}</option>`;
-	}).join('')}</select>`;
-}
+			function sel(path, val, opts) {
+				return `<select data-bind="${path}">${opts
+					.map((o) => {
+						const [v, l] = Array.isArray(o) ? o : [o, o];
+						return `<option value="${esc(v)}"${String(v) === String(val) ? ' selected' : ''}>${esc(l)}</option>`;
+					})
+					.join('')}</select>`;
+			}
 
-function colorCtl(path, val) {
-	const opts = [['', '— custom —']].concat(Object.entries(TOKENS).flatMap(([g, ts]) => ts.map(t => [`var(${t})`, `${g}: ${t.replace('--', '')}`])));
-	const isToken = /^var\(/.test(val);
-	/* Stacked, not side by side: a token name and a raw colour string are both
+			function colorCtl(path, val) {
+				const opts = [['', '— custom —']].concat(
+					Object.entries(TOKENS).flatMap(([g, ts]) =>
+						ts.map((t) => [`var(${t})`, `${g}: ${t.replace('--', '')}`])
+					)
+				);
+				const isToken = /^var\(/.test(val);
+				/* Stacked, not side by side: a token name and a raw colour string are both
 	   too long to read in half a column. */
-	return `<span style="display:grid;gap:3px;width:100%">
-		<select data-bind="${path}">${opts.map(([v, l]) =>
-			`<option value="${esc(v)}"${v === val ? ' selected' : ''}>${esc(l)}</option>`).join('')}
+				return `<span style="display:grid;gap:3px;width:100%">
+		<select data-bind="${path}">${opts
+			.map(
+				([v, l]) => `<option value="${esc(v)}"${v === val ? ' selected' : ''}>${esc(l)}</option>`
+			)
+			.join('')}
 			${!isToken && val ? `<option value="${esc(val)}" selected>${esc(val)}</option>` : ''}</select>
 		<input type="text" data-bind="${path}" value="${esc(val)}" placeholder="or any css colour" />
 	</span>`;
-}
+			}
 
-function renderInspector() {
-	const body = $('#inspbody');
-	body.innerHTML = state.ui.activeNode === 'comp' ? compInspector() : nodeInspector(state.ui.activeNode);
-	bindInputs(body);
-}
+			function renderInspector() {
+				const body = $('#inspbody');
+				body.innerHTML =
+					state.ui.activeNode === 'comp' ? compInspector() : nodeInspector(state.ui.activeNode);
+				bindInputs(body);
+			}
 
-function compInspector() {
-	const c = state.comp;
-	return `
+			function compInspector() {
+				const c = state.comp;
+				return `
 	<div class="sec">
 		<h3>Composition</h3>
 		<p class="hint" style="margin:0 0 8px">Design two components as a pair. Both nodes keep their own shape; this decides how they meet.</p>
@@ -1324,17 +1945,23 @@ function compInspector() {
 		${ctl('align', sel('comp.align', c.align, ['flex-start', 'center', 'flex-end', 'stretch']))}
 		${c.layout === 'overlap' ? ctl('overlap X', rng('comp.overlapX', c.overlapX, -300, 200)) + ctl('overlap Y', rng('comp.overlapY', c.overlapY, -200, 200)) : ''}
 		${c.layout === 'nested' ? ctl('nest padding', rng('comp.nestPad', c.nestPad, 0, 80)) : ''}
-		${c.layout === 'connected' ? `
+		${
+			c.layout === 'connected'
+				? `
 			${ctl('connector len', rng('comp.connLen', c.connLen, 0, 200))}
 			${ctl('thickness', rng('comp.connThick', c.connThick, 1, 20))}
 			${ctl('vertical', `<input type="checkbox" data-bind="comp.connVertical" ${c.connVertical ? 'checked' : ''}/>`)}
-			${ctl('colour', colorCtl('comp.connColor', c.connColor))}` : ''}
+			${ctl('colour', colorCtl('comp.connColor', c.connColor))}`
+				: ''
+		}
 	</div>
 	<div class="sec">
 		<h3>Pairing recipes</h3>
 		<p class="hint" style="margin:0 0 8px">Each applies a matched pair of shapes to A and B so the two read as one system.</p>
 		<div class="rowflex" style="flex-wrap:wrap;gap:4px">
-			${Object.keys(RECIPES).map(k => `<button class="btn sm" data-recipe="${k}">${esc(k)}</button>`).join('')}
+			${Object.keys(RECIPES)
+				.map((k) => `<button class="btn sm" data-recipe="${k}">${esc(k)}</button>`)
+				.join('')}
 		</div>
 	</div>
 	<div class="sec">
@@ -1342,80 +1969,134 @@ function compInspector() {
 		${ctl('theme', sel('stage.theme', state.stage.theme, ['forge', 'glacier', 'void', 'phosphor', 'crimson', 'funk']))}
 		<p class="hint">Theme drives the live token values in both the stage and any same-origin story frames.</p>
 	</div>`;
-}
-
-/* Matched shape pairs — the point of the "two components together" mode.
-   Each recipe writes both nodes so the seam between them is deliberate. */
-const RECIPES = {
-	'inline-seam': { a: { tl: 'tl-clip', br: '' , tr:'', bl:''}, b: { tl: '', tr: 'tr-clip', br: '', bl: '' }, layout: 'row', note: 'Outer corners cut, inner edge left square so the pair reads as one block.' },
-	'notch-join': { a: { tr: 'tr-clip', br: 'br-clip', tl:'', bl:'' }, b: { tl: 'tl-clip', bl: 'bl-clip', tr:'', br:'' }, layout: 'row', note: 'Facing corners cut toward each other — a visible seam.' },
-	'stack-shingle': { a: { bl: 'bl-clip', br: 'br-clip', tl:'', tr:'' }, b: { tl: 'tl-clip', tr: 'tr-clip', bl:'', br:'' }, layout: 'column', note: 'Stacked panels whose meeting edges mirror.' },
-	'header-body': { a: { tl: 'tl-clip', tr: 'tr-2-clip-y', bl:'', br:'' }, b: { bl: 'bl-clip', br: 'br-clip', tl:'', tr:'' }, layout: 'column', note: 'A caps the group, B closes it.' },
-	'badge-on-card': { a: { tl: 'tl-clip', br: 'br-clip', tr:'', bl:'' }, b: { tl: 'tl-clip', br: 'br-clip', tr:'', bl:'' }, layout: 'overlap', note: 'Small B overlapping A, same shape family at two scales.' },
-	'hex-pair': { a: { l: 'l-clip-y', r: 'r-clip-y', t:'', b:'' }, b: { l: 'l-clip-y', r: 'r-clip-y', t:'', b:'' }, layout: 'row', note: 'Two hex-sided tiles for a repeating strip.' }
-};
-
-function applyRecipe(key) {
-	const r = RECIPES[key];
-	if (!r) return;
-	['a', 'b'].forEach(w => {
-		const spec = r[w];
-		const n = state.nodes[w];
-		REGIONS.forEach(reg => { n.aug.regions[reg].mixin = ''; });
-		Object.entries(spec).forEach(([reg, mx]) => {
-			if (!mx) return;
-			n.aug.regions[reg].mixin = mx;
-			if (!n.aug.regions[reg].size) n.aug.regions[reg].size = 12;
-			if (mx.includes('-2-') || mx.includes('step')) {
-				n.aug.regions[reg].size1 = n.aug.regions[reg].size1 || 10;
-				n.aug.regions[reg].size2 = n.aug.regions[reg].size2 || 6;
 			}
-		});
-		n.aug.allShape = '';
-	});
-	state.nodes.b.enabled = true;
-	state.comp.layout = r.layout;
-	if (key === 'badge-on-card') {
-		state.nodes.b.box.width = 120;
-		state.nodes.b.box.height = 40;
-		state.comp.overlapX = -70;
-		state.comp.overlapY = -60;
-	}
-	renderAll();
-	toast(r.note);
-}
 
-function nodeInspector(which) {
-	const n = state.nodes[which];
-	const reg = state.ui.activeRegion;
-	const rg = n.aug.regions[reg];
-	const attr = augAttr(n) || '(none)';
-	const isStory = n.source.kind === 'story';
+			/* Matched shape pairs — the point of the "two components together" mode.
+   Each recipe writes both nodes so the seam between them is deliberate. */
+			const RECIPES = {
+				'inline-seam': {
+					a: { tl: 'tl-clip', br: '', tr: '', bl: '' },
+					b: { tl: '', tr: 'tr-clip', br: '', bl: '' },
+					layout: 'row',
+					note: 'Outer corners cut, inner edge left square so the pair reads as one block.'
+				},
+				'notch-join': {
+					a: { tr: 'tr-clip', br: 'br-clip', tl: '', bl: '' },
+					b: { tl: 'tl-clip', bl: 'bl-clip', tr: '', br: '' },
+					layout: 'row',
+					note: 'Facing corners cut toward each other — a visible seam.'
+				},
+				'stack-shingle': {
+					a: { bl: 'bl-clip', br: 'br-clip', tl: '', tr: '' },
+					b: { tl: 'tl-clip', tr: 'tr-clip', bl: '', br: '' },
+					layout: 'column',
+					note: 'Stacked panels whose meeting edges mirror.'
+				},
+				'header-body': {
+					a: { tl: 'tl-clip', tr: 'tr-2-clip-y', bl: '', br: '' },
+					b: { bl: 'bl-clip', br: 'br-clip', tl: '', tr: '' },
+					layout: 'column',
+					note: 'A caps the group, B closes it.'
+				},
+				'badge-on-card': {
+					a: { tl: 'tl-clip', br: 'br-clip', tr: '', bl: '' },
+					b: { tl: 'tl-clip', br: 'br-clip', tr: '', bl: '' },
+					layout: 'overlap',
+					note: 'Small B overlapping A, same shape family at two scales.'
+				},
+				'hex-pair': {
+					a: { l: 'l-clip-y', r: 'r-clip-y', t: '', b: '' },
+					b: { l: 'l-clip-y', r: 'r-clip-y', t: '', b: '' },
+					layout: 'row',
+					note: 'Two hex-sided tiles for a repeating strip.'
+				}
+			};
 
-	const padCell = r => {
-		const m = n.aug.regions[r].mixin;
-		return `<button class="rgn${m ? ' set' : ''}${reg === r ? ' on' : ''}" data-region="${r}">${r.toUpperCase()}<span class="mx">${esc(m ? m.replace(r + '-', '') : '—')}</span></button>`;
-	};
+			function applyRecipe(key) {
+				const r = RECIPES[key];
+				if (!r) return;
+				['a', 'b'].forEach((w) => {
+					const spec = r[w];
+					const n = state.nodes[w];
+					REGIONS.forEach((reg) => {
+						n.aug.regions[reg].mixin = '';
+					});
+					Object.entries(spec).forEach(([reg, mx]) => {
+						if (!mx) return;
+						n.aug.regions[reg].mixin = mx;
+						if (!n.aug.regions[reg].size) n.aug.regions[reg].size = 12;
+						if (mx.includes('-2-') || mx.includes('step')) {
+							n.aug.regions[reg].size1 = n.aug.regions[reg].size1 || 10;
+							n.aug.regions[reg].size2 = n.aug.regions[reg].size2 || 6;
+						}
+					});
+					n.aug.allShape = '';
+				});
+				state.nodes.b.enabled = true;
+				state.comp.layout = r.layout;
+				if (key === 'badge-on-card') {
+					state.nodes.b.box.width = 120;
+					state.nodes.b.box.height = 40;
+					state.comp.overlapX = -70;
+					state.comp.overlapY = -60;
+				}
+				renderAll();
+				toast(r.note);
+			}
 
-	const sizeRows = sizeVarsFor(reg, rg.mixin).map(v =>
-		ctl(v.label, rng(`nodes.${which}.aug.regions.${reg}.${v.key}`, rg[v.key], -60, 160))
-	).join('');
+			function nodeInspector(which) {
+				const n = state.nodes[which];
+				const reg = state.ui.activeRegion;
+				const rg = n.aug.regions[reg];
+				const attr = augAttr(n) || '(none)';
+				const isStory = n.source.kind === 'story';
 
-	return `
+				const padCell = (r) => {
+					const m = n.aug.regions[r].mixin;
+					return `<button class="rgn${m ? ' set' : ''}${reg === r ? ' on' : ''}" data-region="${r}">${r.toUpperCase()}<span class="mx">${esc(m ? m.replace(r + '-', '') : '—')}</span></button>`;
+				};
+
+				const sizeRows = sizeVarsFor(reg, rg.mixin)
+					.map((v) =>
+						ctl(v.label, rng(`nodes.${which}.aug.regions.${reg}.${v.key}`, rg[v.key], -60, 160))
+					)
+					.join('');
+
+				return `
 	<div class="sec">
 		<h3>Source</h3>
-		${ctl('kind', sel(`nodes.${which}.source.kind`, n.source.kind, [['mock', 'mock component'], ['story', 'storybook story']]))}
-		${isStory
-			? `<div class="hint" style="margin-bottom:6px">${esc(n.source.label || n.source.storyId || 'pick a story from the left rail')}</div>
-			   ${ctl('target', `<button class="btn sm" data-act="pick" data-which="${which}">Pick element</button>
-			         <button class="btn sm" data-act="unpick" data-which="${which}">Clear</button>`)}
+		${ctl(
+			'kind',
+			sel(`nodes.${which}.source.kind`, n.source.kind, [
+				['mock', 'mock component'],
+				['story', 'storybook story']
+			])
+		)}
+		${
+			isStory
+				? `<div class="hint" style="margin-bottom:6px">${esc(n.source.label || n.source.storyId || 'pick a story from the left rail')}</div>
+			   ${ctl(
+						'target',
+						`<button class="btn sm" data-act="pick" data-which="${which}">Pick element</button>
+			         <button class="btn sm" data-act="unpick" data-which="${which}">Clear</button>`
+					)}
 			   ${n.selector ? `<div class="augstr" style="margin-bottom:6px">${esc(n.selector)}</div>` : ''}
-			   ${sameOriginSB
-					? `<p class="hint">Picking paints the shape onto the real element inside the story. Without a pick, the shape wraps the whole story.</p>`
-					: `<div class="warn">Cross-origin: the story renders, but its DOM is out of reach. Open this tool at <b>${SB_ORIGIN}/aug-builder.html</b> to paint on the real element.</div>`}`
-			: `${ctl('mock', sel(`nodes.${which}.source.mock`, n.source.mock, Object.entries(MOCKS).map(([k, v]) => [k, v.label])))}
+			   ${
+						sameOriginSB
+							? `<p class="hint">Picking paints the shape onto the real element inside the story. Without a pick, the shape wraps the whole story.</p>`
+							: `<div class="warn">Cross-origin: the story renders, but its DOM is out of reach. Open this tool at <b>${SB_ORIGIN}/aug-builder.html</b> to paint on the real element.</div>`
+					}`
+				: `${ctl(
+						'mock',
+						sel(
+							`nodes.${which}.source.mock`,
+							n.source.mock,
+							Object.entries(MOCKS).map(([k, v]) => [k, v.label])
+						)
+					)}
 			   ${ctl('title', `<input type="text" data-bind="nodes.${which}.text.label" value="${esc(n.text.label)}" />`)}
-			   ${ctl('sub-text', `<input type="text" data-bind="nodes.${which}.text.sub" value="${esc(n.text.sub)}" />`)}`}
+			   ${ctl('sub-text', `<input type="text" data-bind="nodes.${which}.text.sub" value="${esc(n.text.sub)}" />`)}`
+		}
 		${which === 'b' ? ctl('on stage', `<input type="checkbox" data-bind="nodes.b.enabled" ${n.enabled ? 'checked' : ''}/>`) : ''}
 	</div>
 
@@ -1426,7 +2107,7 @@ function nodeInspector(which) {
 			${padCell('l')}<div class="rgn mid">shape</div>${padCell('r')}
 			${padCell('bl')}${padCell('b')}${padCell('br')}
 		</div>
-		${ctl(`${reg} mixin`, sel(`nodes.${which}.aug.regions.${reg}.mixin`, rg.mixin, [['', '— none —']].concat(AUG_MIXINS[reg].map(m => [m, m.replace(reg + '-', '')]))))}
+		${ctl(`${reg} mixin`, sel(`nodes.${which}.aug.regions.${reg}.mixin`, rg.mixin, [['', '— none —']].concat(AUG_MIXINS[reg].map((m) => [m, m.replace(reg + '-', '')]))))}
 		${sizeRows || '<p class="hint">Pick a mixin for this region to expose its size controls.</p>'}
 		<div class="rowflex" style="margin:8px 0">
 			<button class="btn sm" data-act="mirror" data-which="${which}">Mirror to all corners</button>
@@ -1440,8 +2121,18 @@ function nodeInspector(which) {
 
 	<div class="sec">
 		<h3>Frame</h3>
-		${ctl('render as', sel(`nodes.${which}.aug.mode`, n.aug.mode, [['', 'shape only'], ['border', 'border'], ['inlay', 'inlay'], ['both', 'both']]))}
-		${(n.aug.mode === 'border' || n.aug.mode === 'both') ? `
+		${ctl(
+			'render as',
+			sel(`nodes.${which}.aug.mode`, n.aug.mode, [
+				['', 'shape only'],
+				['border', 'border'],
+				['inlay', 'inlay'],
+				['both', 'both']
+			])
+		)}
+		${
+			n.aug.mode === 'border' || n.aug.mode === 'both'
+				? `
 			${ctl('border', rng(`nodes.${which}.frame.borderAll`, n.frame.borderAll, 0, 24, 0.5))}
 			${ctl('colour', colorCtl(`nodes.${which}.frame.borderBg`, n.frame.borderBg))}
 			${ctl('opacity', rng(`nodes.${which}.frame.borderOpacity`, n.frame.borderOpacity, 0, 1, 0.05))}
@@ -1451,11 +2142,17 @@ function nodeInspector(which) {
 				${ctl('bottom', num(`nodes.${which}.frame.borderBottom`, n.frame.borderBottom, 0, 40, 0.5))}
 				${ctl('left', num(`nodes.${which}.frame.borderLeft`, n.frame.borderLeft, 0, 40, 0.5))}
 				<p class="hint">Any per-side value replaces the single border width.</p>
-			</details>` : ''}
-		${(n.aug.mode === 'inlay' || n.aug.mode === 'both') ? `
+			</details>`
+				: ''
+		}
+		${
+			n.aug.mode === 'inlay' || n.aug.mode === 'both'
+				? `
 			${ctl('inlay', rng(`nodes.${which}.frame.inlayAll`, n.frame.inlayAll, 0, 40, 0.5))}
 			${ctl('inlay bg', colorCtl(`nodes.${which}.frame.inlayBg`, n.frame.inlayBg))}
-			${ctl('inlay α', rng(`nodes.${which}.frame.inlayOpacity`, n.frame.inlayOpacity, 0, 1, 0.05))}` : ''}
+			${ctl('inlay α', rng(`nodes.${which}.frame.inlayOpacity`, n.frame.inlayOpacity, 0, 1, 0.05))}`
+				: ''
+		}
 	</div>
 
 	<div class="sec">
@@ -1482,126 +2179,180 @@ function nodeInspector(which) {
 		<h3>Shadow</h3>
 		<p class="hint" style="margin:0 0 7px">A clipped shape drops its box-shadow, so depth here is built from <code>filter: drop-shadow</code>, which traces the real outline.</p>
 		${ctl('drop shadow', `<input type="checkbox" data-bind="nodes.${which}.shadow.on" ${n.shadow.on ? 'checked' : ''}/>`)}
-		${n.shadow.on ? `
+		${
+			n.shadow.on
+				? `
 			${ctl('offset x', rng(`nodes.${which}.shadow.x`, n.shadow.x, -40, 40))}
 			${ctl('offset y', rng(`nodes.${which}.shadow.y`, n.shadow.y, -40, 40))}
 			${ctl('blur', rng(`nodes.${which}.shadow.blur`, n.shadow.blur, 0, 60))}
 			${ctl('colour', `<input type="color" data-bind="nodes.${which}.shadow.color" value="${n.shadow.color}" />`)}
-			${ctl('opacity', rng(`nodes.${which}.shadow.a`, n.shadow.a, 0, 1, 0.05))}` : ''}
+			${ctl('opacity', rng(`nodes.${which}.shadow.a`, n.shadow.a, 0, 1, 0.05))}`
+				: ''
+		}
 		${ctl('glow', `<input type="checkbox" data-bind="nodes.${which}.shadow.glowOn" ${n.shadow.glowOn ? 'checked' : ''}/>`)}
-		${n.shadow.glowOn ? `
+		${
+			n.shadow.glowOn
+				? `
 			${ctl('glow colour', `<input type="color" data-bind="nodes.${which}.shadow.glowColor" value="${n.shadow.glowColor}" />`)}
 			${ctl('glow blur', rng(`nodes.${which}.shadow.glowBlur`, n.shadow.glowBlur, 0, 60))}
-			${ctl('glow α', rng(`nodes.${which}.shadow.glowA`, n.shadow.glowA, 0, 1, 0.05))}` : ''}
+			${ctl('glow α', rng(`nodes.${which}.shadow.glowA`, n.shadow.glowA, 0, 1, 0.05))}`
+				: ''
+		}
 	</div>
 
 	<div class="sec">
 		<h3>Motion</h3>
-		${ctl('preset', sel(`nodes.${which}.motion.preset`, n.motion.preset, Object.entries(MOTION).map(([k, v]) => [k, v.label])))}
-		${n.motion.preset !== 'none' ? `
+		${ctl(
+			'preset',
+			sel(
+				`nodes.${which}.motion.preset`,
+				n.motion.preset,
+				Object.entries(MOTION).map(([k, v]) => [k, v.label])
+			)
+		)}
+		${
+			n.motion.preset !== 'none'
+				? `
 			${ctl('duration', rng(`nodes.${which}.motion.duration`, n.motion.duration, 60, 3000, 10))}
 			${ctl('easing', sel(`nodes.${which}.motion.easing`, n.motion.easing, EASINGS))}
 			${ctl('delay', rng(`nodes.${which}.motion.delay`, n.motion.delay, 0, 2000, 10))}
 			${MOTION[n.motion.preset].css === 'shape' ? ctl('hover size', rng(`nodes.${which}.motion.hoverSize`, n.motion.hoverSize, 0, 120)) : ''}
 			${['trace', 'scan'].includes(MOTION[n.motion.preset].css) ? ctl('loop', `<input type="checkbox" data-bind="nodes.${which}.motion.loop" ${n.motion.loop ? 'checked' : ''}/>`) : ''}
-			<p class="hint">Hover the node on the stage to see hover-triggered motion.</p>` : ''}
+			<p class="hint">Hover the node on the stage to see hover-triggered motion.</p>`
+				: ''
+		}
 		<p class="hint">Presets are directional or progressive by design — this project bans pulsing / breathing loops, so none are offered.</p>
 	</div>`;
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   8. Binding
-   ═══════════════════════════════════════════════════════════════════ */
-function setPath(path, value) {
-	const keys = path.split('.');
-	let o = state;
-	for (let i = 0; i < keys.length - 1; i++) o = o[keys[i]];
-	o[keys[keys.length - 1]] = value;
-}
-
-function getPath(path) {
-	return path.split('.').reduce((o, k) => (o == null ? o : o[k]), state);
-}
-
-function bindInputs(root) {
-	root.querySelectorAll('[data-bind]').forEach(el => {
-		const path = el.dataset.bind;
-		const handler = () => {
-			let v;
-			if (el.type === 'checkbox') v = el.checked;
-			else if (el.type === 'number' || el.type === 'range') v = el.value === '' ? '' : Number(el.value);
-			else v = el.value;
-
-			/* The colour control pairs a token <select> with a free-text field;
-			   an empty select means "keep whatever the text field says". */
-			if (el.tagName === 'SELECT' && v === '' && root.querySelector(`input[type=text][data-bind="${path}"]`)) return;
-
-			setPath(path, v);
-
-			/* Choosing a mixin with no size yet would render an invisible shape. */
-			const mm = path.match(/^nodes\.(a|b)\.aug\.regions\.(\w+)\.mixin$/);
-			if (mm && v) {
-				const rg = state.nodes[mm[1]].aug.regions[mm[2]];
-				if (!rg.size) rg.size = 12;
-				if ((v.includes('-2-') || v.includes('step')) && !rg.size1 && !rg.size2) { rg.size1 = 10; rg.size2 = 6; }
 			}
 
-			const structural = /mixin|allShape|source|mode|preset|layout|enabled|autoHeight|shadow\.(on|glowOn)|comp\.|stage\.theme/.test(path);
-			if (structural) renderAll();
-			else { renderStage(); renderCode(); syncSiblings(root, path, el); }
-		};
-		el.addEventListener('input', handler);
-		el.addEventListener('change', handler);
-	});
+			/* ═══════════════════════════════════════════════════════════════════
+   8. Binding
+   ═══════════════════════════════════════════════════════════════════ */
+			function setPath(path, value) {
+				const keys = path.split('.');
+				let o = state;
+				for (let i = 0; i < keys.length - 1; i++) o = o[keys[i]];
+				o[keys[keys.length - 1]] = value;
+			}
 
-	root.querySelectorAll('[data-region]').forEach(b => b.addEventListener('click', () => {
-		state.ui.activeRegion = b.dataset.region;
-		renderInspector();
-	}));
+			function getPath(path) {
+				return path.split('.').reduce((o, k) => (o == null ? o : o[k]), state);
+			}
 
-	root.querySelectorAll('[data-recipe]').forEach(b => b.addEventListener('click', () => applyRecipe(b.dataset.recipe)));
+			function bindInputs(root) {
+				root.querySelectorAll('[data-bind]').forEach((el) => {
+					const path = el.dataset.bind;
+					const handler = () => {
+						let v;
+						if (el.type === 'checkbox') v = el.checked;
+						else if (el.type === 'number' || el.type === 'range')
+							v = el.value === '' ? '' : Number(el.value);
+						else v = el.value;
 
-	root.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
-		const w = b.dataset.which;
-		const n = state.nodes[w];
-		if (b.dataset.act === 'pick') startPicking(w);
-		if (b.dataset.act === 'unpick') { n.selector = ''; renderAll(); }
-		if (b.dataset.act === 'clearshape') { REGIONS.forEach(r => { n.aug.regions[r].mixin = ''; }); n.aug.allShape = ''; renderAll(); }
-		if (b.dataset.act === 'mirror') {
-			const src = n.aug.regions[state.ui.activeRegion];
-			const fam = src.mixin.replace(/^(tl|tr|bl|br|t|r|b|l)-/, '');
-			CORNERS.forEach(c => {
-				const cand = `${c}-${fam}`;
-				if (AUG_MIXINS[c].includes(cand)) n.aug.regions[c] = Object.assign({}, src, { mixin: cand });
-			});
-			renderAll();
-		}
-	}));
-}
+						/* The colour control pairs a token <select> with a free-text field;
+			   an empty select means "keep whatever the text field says". */
+						if (
+							el.tagName === 'SELECT' &&
+							v === '' &&
+							root.querySelector(`input[type=text][data-bind="${path}"]`)
+						)
+							return;
 
-/** Keep the range/number twins of one bound path in step without a re-render. */
-function syncSiblings(root, path, source) {
-	root.querySelectorAll(`[data-bind="${path}"]`).forEach(el => {
-		if (el === source) return;
-		if (el.type === 'checkbox') el.checked = source.checked;
-		else el.value = source.value;
-	});
-}
+						setPath(path, v);
 
-/* ═══════════════════════════════════════════════════════════════════
+						/* Choosing a mixin with no size yet would render an invisible shape. */
+						const mm = path.match(/^nodes\.(a|b)\.aug\.regions\.(\w+)\.mixin$/);
+						if (mm && v) {
+							const rg = state.nodes[mm[1]].aug.regions[mm[2]];
+							if (!rg.size) rg.size = 12;
+							if ((v.includes('-2-') || v.includes('step')) && !rg.size1 && !rg.size2) {
+								rg.size1 = 10;
+								rg.size2 = 6;
+							}
+						}
+
+						const structural =
+							/mixin|allShape|source|mode|preset|layout|enabled|autoHeight|shadow\.(on|glowOn)|comp\.|stage\.theme/.test(
+								path
+							);
+						if (structural) renderAll();
+						else {
+							renderStage();
+							renderCode();
+							syncSiblings(root, path, el);
+						}
+					};
+					el.addEventListener('input', handler);
+					el.addEventListener('change', handler);
+				});
+
+				root.querySelectorAll('[data-region]').forEach((b) =>
+					b.addEventListener('click', () => {
+						state.ui.activeRegion = b.dataset.region;
+						renderInspector();
+					})
+				);
+
+				root
+					.querySelectorAll('[data-recipe]')
+					.forEach((b) => b.addEventListener('click', () => applyRecipe(b.dataset.recipe)));
+
+				root.querySelectorAll('[data-act]').forEach((b) =>
+					b.addEventListener('click', () => {
+						const w = b.dataset.which;
+						const n = state.nodes[w];
+						if (b.dataset.act === 'pick') startPicking(w);
+						if (b.dataset.act === 'unpick') {
+							n.selector = '';
+							renderAll();
+						}
+						if (b.dataset.act === 'clearshape') {
+							REGIONS.forEach((r) => {
+								n.aug.regions[r].mixin = '';
+							});
+							n.aug.allShape = '';
+							renderAll();
+						}
+						if (b.dataset.act === 'mirror') {
+							const src = n.aug.regions[state.ui.activeRegion];
+							const fam = src.mixin.replace(/^(tl|tr|bl|br|t|r|b|l)-/, '');
+							CORNERS.forEach((c) => {
+								const cand = `${c}-${fam}`;
+								if (AUG_MIXINS[c].includes(cand))
+									n.aug.regions[c] = Object.assign({}, src, { mixin: cand });
+							});
+							renderAll();
+						}
+					})
+				);
+			}
+
+			/** Keep the range/number twins of one bound path in step without a re-render. */
+			function syncSiblings(root, path, source) {
+				root.querySelectorAll(`[data-bind="${path}"]`).forEach((el) => {
+					if (el === source) return;
+					if (el.type === 'checkbox') el.checked = source.checked;
+					else el.value = source.value;
+				});
+			}
+
+			/* ═══════════════════════════════════════════════════════════════════
    9. Code generation
    ═══════════════════════════════════════════════════════════════════ */
-function className(n) {
-	return 'aug-' + (n.name === 'A' ? 'a' : 'b');
-}
+			function className(n) {
+				return 'aug-' + (n.name === 'A' ? 'a' : 'b');
+			}
 
-function cssBlock(n, selector) {
-	const decls = nodeDecls(n, true).map(([p, v]) => `\t${p}: ${v};`).join('\n');
-	const hover = nodeHoverDecls(n);
-	let out = `${selector} {\n${decls}\n}`;
-	if (hover.length) out += `\n\n${selector}:hover {\n${hover.map(([p, v]) => `\t${p}: ${v};`).join('\n')}\n}`;
-	if (MOTION[n.motion.preset]?.css === 'sweep') {
-		out += `\n\n${selector} { position: relative; overflow: hidden; }
+			function cssBlock(n, selector) {
+				const decls = nodeDecls(n, true)
+					.map(([p, v]) => `\t${p}: ${v};`)
+					.join('\n');
+				const hover = nodeHoverDecls(n);
+				let out = `${selector} {\n${decls}\n}`;
+				if (hover.length)
+					out += `\n\n${selector}:hover {\n${hover.map(([p, v]) => `\t${p}: ${v};`).join('\n')}\n}`;
+				if (MOTION[n.motion.preset]?.css === 'sweep') {
+					out += `\n\n${selector} { position: relative; overflow: hidden; }
 ${selector}::after {
 \tcontent: '';
 \tposition: absolute;
@@ -1613,76 +2364,106 @@ ${selector}::after {
 \ttransition: background-position ${n.motion.duration}ms ${n.motion.easing} ${n.motion.delay}ms;
 }
 ${selector}:hover::after { background-position: -60% 0; }`;
-	}
-	return out;
-}
+				}
+				return out;
+			}
 
-function propertyBlock(n) {
-	if (MOTION[n.motion.preset]?.css !== 'shape') return '';
-	const props = [];
-	REGIONS.forEach(r => {
-		const rg = n.aug.regions[r];
-		if (!rg.mixin) return;
-		sizeVarsFor(r, rg.mixin).forEach(v => { if (rg[v.key] && !props.includes(v.prop)) props.push(v.prop); });
-	});
-	if (!props.length) return '';
-	return props.map(p =>
-		`@property ${p} {\n\tsyntax: '<length-percentage>';\n\tinherits: false;\n\tinitial-value: 0px;\n}`
-	).join('\n\n') + '\n\n';
-}
+			function propertyBlock(n) {
+				if (MOTION[n.motion.preset]?.css !== 'shape') return '';
+				const props = [];
+				REGIONS.forEach((r) => {
+					const rg = n.aug.regions[r];
+					if (!rg.mixin) return;
+					sizeVarsFor(r, rg.mixin).forEach((v) => {
+						if (rg[v.key] && !props.includes(v.prop)) props.push(v.prop);
+					});
+				});
+				if (!props.length) return '';
+				return (
+					props
+						.map(
+							(p) =>
+								`@property ${p} {\n\tsyntax: '<length-percentage>';\n\tinherits: false;\n\tinitial-value: 0px;\n}`
+						)
+						.join('\n\n') + '\n\n'
+				);
+			}
 
-function keyframeBlock(n) {
-	const k = MOTION[n.motion.preset]?.css;
-	return (k && KEYFRAMES[k]) ? KEYFRAMES[k].replace(/ \{ /g, ' {\n\t').replace(/; /g, ';\n\t').replace(/\} \}/g, '}\n}') + '\n\n' : '';
-}
+			function keyframeBlock(n) {
+				const k = MOTION[n.motion.preset]?.css;
+				return k && KEYFRAMES[k]
+					? KEYFRAMES[k]
+							.replace(/ \{ /g, ' {\n\t')
+							.replace(/; /g, ';\n\t')
+							.replace(/\} \}/g, '}\n}') + '\n\n'
+					: '';
+			}
 
-function activeNodes() {
-	return ['a', 'b'].filter(w => w === 'a' || state.nodes[w].enabled).map(w => state.nodes[w]);
-}
+			function activeNodes() {
+				return ['a', 'b']
+					.filter((w) => w === 'a' || state.nodes[w].enabled)
+					.map((w) => state.nodes[w]);
+			}
 
-function genCSS() {
-	const ns = activeNodes();
-	let out = '';
-	ns.forEach(n => { out += propertyBlock(n); });
-	ns.forEach(n => { out += keyframeBlock(n); });
-	ns.forEach(n => { out += cssBlock(n, '.' + className(n)) + '\n\n'; });
-	if (ns.length > 1) out += compCSS() + '\n';
-	return out.trimEnd();
-}
+			function genCSS() {
+				const ns = activeNodes();
+				let out = '';
+				ns.forEach((n) => {
+					out += propertyBlock(n);
+				});
+				ns.forEach((n) => {
+					out += keyframeBlock(n);
+				});
+				ns.forEach((n) => {
+					out += cssBlock(n, '.' + className(n)) + '\n\n';
+				});
+				if (ns.length > 1) out += compCSS() + '\n';
+				return out.trimEnd();
+			}
 
-function compCSS() {
-	const c = state.comp;
-	if (c.layout === 'nested') {
-		return `.aug-pair {\n\t/* node B lives inside node A */\n}\n.aug-a { padding: ${px(c.nestPad)}; }`;
-	}
-	const dir = (c.layout === 'column' || (c.layout === 'connected' && c.connVertical)) ? 'column' : 'row';
-	let out = `.aug-pair {\n\tdisplay: flex;\n\tflex-direction: ${dir};\n\talign-items: ${c.align};\n\tgap: ${px(c.layout === 'overlap' ? 0 : c.gap)};\n}`;
-	if (c.layout === 'overlap') out += `\n\n.aug-b {\n\tmargin-left: ${px(c.overlapX)};\n\tmargin-top: ${px(c.overlapY)};\n\tz-index: 2;\n}`;
-	if (c.layout === 'connected') {
-		out += `\n\n.aug-pair__connector {\n\talign-self: center;\n\tbackground: ${c.connColor};\n\topacity: .55;\n\t${c.connVertical ? `width: ${px(c.connThick)};\n\theight: ${px(c.connLen)};` : `height: ${px(c.connThick)};\n\twidth: ${px(c.connLen)};`}\n}`;
-	}
-	return out;
-}
+			function compCSS() {
+				const c = state.comp;
+				if (c.layout === 'nested') {
+					return `.aug-pair {\n\t/* node B lives inside node A */\n}\n.aug-a { padding: ${px(c.nestPad)}; }`;
+				}
+				const dir =
+					c.layout === 'column' || (c.layout === 'connected' && c.connVertical) ? 'column' : 'row';
+				let out = `.aug-pair {\n\tdisplay: flex;\n\tflex-direction: ${dir};\n\talign-items: ${c.align};\n\tgap: ${px(c.layout === 'overlap' ? 0 : c.gap)};\n}`;
+				if (c.layout === 'overlap')
+					out += `\n\n.aug-b {\n\tmargin-left: ${px(c.overlapX)};\n\tmargin-top: ${px(c.overlapY)};\n\tz-index: 2;\n}`;
+				if (c.layout === 'connected') {
+					out += `\n\n.aug-pair__connector {\n\talign-self: center;\n\tbackground: ${c.connColor};\n\topacity: .55;\n\t${c.connVertical ? `width: ${px(c.connThick)};\n\theight: ${px(c.connLen)};` : `height: ${px(c.connThick)};\n\twidth: ${px(c.connLen)};`}\n}`;
+				}
+				return out;
+			}
 
-function genHTML() {
-	const ns = activeNodes();
-	const one = n => `<div class="${className(n)}" data-augmented-ui="${augAttr(n)}">\n\t${esc(n.text.label)}\n</div>`;
-	if (ns.length === 1) return one(ns[0]);
-	if (state.comp.layout === 'nested') {
-		return `<div class="aug-a" data-augmented-ui="${augAttr(ns[0])}">\n\t<div class="aug-b" data-augmented-ui="${augAttr(ns[1])}">\n\t\t${esc(ns[1].text.label)}\n\t</div>\n</div>`;
-	}
-	const conn = state.comp.layout === 'connected' ? '\n\t<div class="aug-pair__connector" aria-hidden="true"></div>' : '';
-	return `<div class="aug-pair">\n\t${one(ns[0]).replace(/\n/g, '\n\t')}${conn}\n\t${one(ns[1]).replace(/\n/g, '\n\t')}\n</div>`;
-}
+			function genHTML() {
+				const ns = activeNodes();
+				const one = (n) =>
+					`<div class="${className(n)}" data-augmented-ui="${augAttr(n)}">\n\t${esc(n.text.label)}\n</div>`;
+				if (ns.length === 1) return one(ns[0]);
+				if (state.comp.layout === 'nested') {
+					return `<div class="aug-a" data-augmented-ui="${augAttr(ns[0])}">\n\t<div class="aug-b" data-augmented-ui="${augAttr(ns[1])}">\n\t\t${esc(ns[1].text.label)}\n\t</div>\n</div>`;
+				}
+				const conn =
+					state.comp.layout === 'connected'
+						? '\n\t<div class="aug-pair__connector" aria-hidden="true"></div>'
+						: '';
+				return `<div class="aug-pair">\n\t${one(ns[0]).replace(/\n/g, '\n\t')}${conn}\n\t${one(ns[1]).replace(/\n/g, '\n\t')}\n</div>`;
+			}
 
-function genSvelte() {
-	const ns = activeNodes();
-	const target = ns.map(n => {
-		const sel = n.source.kind === 'story' && n.selector ? n.selector : null;
-		return sel ? `  ${className(n)} → picked element: ${sel}` : `  ${className(n)} → ${n.source.kind === 'story' ? (n.source.label || n.source.storyId) : MOCKS[n.source.mock].label}`;
-	}).join('\n');
+			function genSvelte() {
+				const ns = activeNodes();
+				const target = ns
+					.map((n) => {
+						const sel = n.source.kind === 'story' && n.selector ? n.selector : null;
+						return sel
+							? `  ${className(n)} → picked element: ${sel}`
+							: `  ${className(n)} → ${n.source.kind === 'story' ? n.source.label || n.source.storyId : MOCKS[n.source.mock].label}`;
+					})
+					.join('\n');
 
-	return `<!--
+				return `<!--
   Generated by aug-builder. Targets:
 ${target}
 
@@ -1694,308 +2475,380 @@ ${target}
 ${genHTML()}
 
 <style>
-${genCSS().split('\n').map(l => l ? '\t' + l : l).join('\n')}
+${genCSS()
+	.split('\n')
+	.map((l) => (l ? '\t' + l : l))
+	.join('\n')}
 </style>`;
-}
+			}
 
-function renderCode() {
-	const tab = state.ui.codeTab;
-	let txt = '';
-	if (tab === 'svelte') txt = genSvelte();
-	else if (tab === 'css') txt = genCSS();
-	else if (tab === 'html') txt = genHTML();
-	else txt = JSON.stringify(snapshot(), null, 2);
-	$('#code').textContent = txt;
-	$('#codenote').textContent = `${txt.split('\n').length} lines`;
-}
+			function renderCode() {
+				const tab = state.ui.codeTab;
+				let txt = '';
+				if (tab === 'svelte') txt = genSvelte();
+				else if (tab === 'css') txt = genCSS();
+				else if (tab === 'html') txt = genHTML();
+				else txt = JSON.stringify(snapshot(), null, 2);
+				$('#code').textContent = txt;
+				$('#codenote').textContent = `${txt.split('\n').length} lines`;
+			}
 
-/* ═══════════════════════════════════════════════════════════════════
+			/* ═══════════════════════════════════════════════════════════════════
    10. Storybook index
    ═══════════════════════════════════════════════════════════════════ */
-async function loadStories() {
-	try {
-		const r = await fetch(`${SB_ORIGIN}/index.json`, { cache: 'no-store' });
-		if (!r.ok) throw new Error('HTTP ' + r.status);
-		const j = await r.json();
-		storyIndex = Object.values(j.entries)
-			.filter(e => e.type === 'story')
-			.map(e => ({ id: e.id, title: e.title, name: e.name }));
-		$('#railstatus').textContent = `${storyIndex.length} stories loaded`;
-	} catch (e) {
-		storyIndex = [];
-		$('#railstatus').innerHTML = `<div class="err">Storybook not reachable at ${SB_ORIGIN}.<br />Run <b>systemctl --user start mike-stack-storybook</b> (without systemd: <b>cd frontend &amp;&amp; pnpm run storybook</b>), then reload. Mock components still work.</div>`;
-	}
-	renderRail();
-}
+			async function loadStories() {
+				try {
+					const r = await fetch(`${SB_ORIGIN}/index.json`, { cache: 'no-store' });
+					if (!r.ok) throw new Error('HTTP ' + r.status);
+					const j = await r.json();
+					storyIndex = Object.values(j.entries)
+						.filter((e) => e.type === 'story')
+						.map((e) => ({ id: e.id, title: e.title, name: e.name }));
+					$('#railstatus').textContent = `${storyIndex.length} stories loaded`;
+				} catch (e) {
+					storyIndex = [];
+					$('#railstatus').innerHTML =
+						`<div class="err">Storybook not reachable at ${SB_ORIGIN}.<br />Run <b>systemctl --user start mike-stack-storybook</b> (without systemd: <b>cd frontend &amp;&amp; pnpm run storybook</b>), then reload. Mock components still work.</div>`;
+				}
+				renderRail();
+			}
 
-function renderRail() {
-	const list = $('#raillist');
-	const q = $('#q').value.trim().toLowerCase();
+			function renderRail() {
+				const list = $('#raillist');
+				const q = $('#q').value.trim().toLowerCase();
 
-	if (state.ui.rail === 'mocks') {
-		list.innerHTML = Object.entries(MOCKS).map(([k, v]) =>
-			`<div class="story"><span class="nm">${esc(v.label)}</span><button class="btn sm pick" data-mock="${k}">add</button></div>`
-		).join('');
-		list.querySelectorAll('[data-mock]').forEach(b => b.addEventListener('click', () => {
-			const n = state.nodes[state.ui.slot];
-			const m = MOCKS[b.dataset.mock];
-			n.source = { kind: 'mock', storyId: '', mock: b.dataset.mock, label: m.label };
-			n.box.width = m.w;
-			n.box.height = m.h;
-			n.enabled = true;
-			state.ui.activeNode = state.ui.slot;
-			renderAll();
-		}));
-		return;
-	}
+				if (state.ui.rail === 'mocks') {
+					list.innerHTML = Object.entries(MOCKS)
+						.map(
+							([k, v]) =>
+								`<div class="story"><span class="nm">${esc(v.label)}</span><button class="btn sm pick" data-mock="${k}">add</button></div>`
+						)
+						.join('');
+					list.querySelectorAll('[data-mock]').forEach((b) =>
+						b.addEventListener('click', () => {
+							const n = state.nodes[state.ui.slot];
+							const m = MOCKS[b.dataset.mock];
+							n.source = { kind: 'mock', storyId: '', mock: b.dataset.mock, label: m.label };
+							n.box.width = m.w;
+							n.box.height = m.h;
+							n.enabled = true;
+							state.ui.activeNode = state.ui.slot;
+							renderAll();
+						})
+					);
+					return;
+				}
 
-	const groups = new Map();
-	storyIndex.forEach(s => {
-		if (q && !(s.title + ' ' + s.name).toLowerCase().includes(q)) return;
-		if (!groups.has(s.title)) groups.set(s.title, []);
-		groups.get(s.title).push(s);
-	});
+				const groups = new Map();
+				storyIndex.forEach((s) => {
+					if (q && !(s.title + ' ' + s.name).toLowerCase().includes(q)) return;
+					if (!groups.has(s.title)) groups.set(s.title, []);
+					groups.get(s.title).push(s);
+				});
 
-	if (!groups.size) {
-		list.innerHTML = `<p class="hint" style="padding:10px">${storyIndex.length ? 'No component matches that filter.' : 'No stories loaded.'}</p>`;
-		return;
-	}
+				if (!groups.size) {
+					list.innerHTML = `<p class="hint" style="padding:10px">${storyIndex.length ? 'No component matches that filter.' : 'No stories loaded.'}</p>`;
+					return;
+				}
 
-	const open = q.length > 1;
-	list.innerHTML = Array.from(groups.entries()).map(([title, items]) =>
-		`<details class="grp"${open ? ' open' : ''}><summary>${esc(title)} <span class="hint">(${items.length})</span></summary>
-			${items.map(s => `<div class="story"><span class="nm" title="${esc(s.id)}">${esc(s.name)}</span><button class="btn sm pick" data-story="${esc(s.id)}" data-label="${esc(title + ' / ' + s.name)}">add</button></div>`).join('')}
-		</details>`).join('');
+				const open = q.length > 1;
+				list.innerHTML = Array.from(groups.entries())
+					.map(
+						([title, items]) =>
+							`<details class="grp"${open ? ' open' : ''}><summary>${esc(title)} <span class="hint">(${items.length})</span></summary>
+			${items.map((s) => `<div class="story"><span class="nm" title="${esc(s.id)}">${esc(s.name)}</span><button class="btn sm pick" data-story="${esc(s.id)}" data-label="${esc(title + ' / ' + s.name)}">add</button></div>`).join('')}
+		</details>`
+					)
+					.join('');
 
-	list.querySelectorAll('[data-story]').forEach(b => b.addEventListener('click', () => {
-		const n = state.nodes[state.ui.slot];
-		n.source = { kind: 'story', storyId: b.dataset.story, mock: n.source.mock, label: b.dataset.label };
-		n.selector = '';
-		n.enabled = true;
-		n.box.autoHeight = true;
-		n._fitW = false;
-		state.ui.activeNode = state.ui.slot;
-		if (state.ui.slot === 'b' && state.comp.layout === 'single') state.comp.layout = 'row';
-		renderAll();
-	}));
-}
+				list.querySelectorAll('[data-story]').forEach((b) =>
+					b.addEventListener('click', () => {
+						const n = state.nodes[state.ui.slot];
+						n.source = {
+							kind: 'story',
+							storyId: b.dataset.story,
+							mock: n.source.mock,
+							label: b.dataset.label
+						};
+						n.selector = '';
+						n.enabled = true;
+						n.box.autoHeight = true;
+						n._fitW = false;
+						state.ui.activeNode = state.ui.slot;
+						if (state.ui.slot === 'b' && state.comp.layout === 'single') state.comp.layout = 'row';
+						renderAll();
+					})
+				);
+			}
 
-/* ═══════════════════════════════════════════════════════════════════
+			/* ═══════════════════════════════════════════════════════════════════
    11. Presets & persistence
    ═══════════════════════════════════════════════════════════════════ */
-const LS_KEY = 'augbuilder.v1';
-const LS_PRESETS = 'augbuilder.presets.v1';
+			const LS_KEY = 'augbuilder.v1';
+			const LS_PRESETS = 'augbuilder.presets.v1';
 
-/* `_`-prefixed fields are live bookkeeping (e.g. which properties were last
+			/* `_`-prefixed fields are live bookkeeping (e.g. which properties were last
    pushed onto a picked element), never part of a saved design. */
-const omitInternal = (k, v) => (k.startsWith('_') ? undefined : v);
-function snapshot() { return JSON.parse(JSON.stringify({ nodes: state.nodes, comp: state.comp, stage: state.stage }, omitInternal)); }
+			const omitInternal = (k, v) => (k.startsWith('_') ? undefined : v);
+			function snapshot() {
+				return JSON.parse(
+					JSON.stringify({ nodes: state.nodes, comp: state.comp, stage: state.stage }, omitInternal)
+				);
+			}
 
-function restore(o) {
-	if (!o) return;
-	/* Merge onto fresh blanks so a preset saved before a field existed still loads. */
-	['a', 'b'].forEach(w => {
-		const base = blankNode(w.toUpperCase());
-		const got = o.nodes?.[w] || {};
-		state.nodes[w] = Object.assign(base, got, {
-			source: Object.assign(base.source, got.source),
-			aug: Object.assign(base.aug, got.aug, { regions: Object.assign(base.aug.regions, got.aug?.regions) }),
-			frame: Object.assign(base.frame, got.frame),
-			fill: Object.assign(base.fill, got.fill),
-			text: Object.assign(base.text, got.text),
-			box: Object.assign(base.box, got.box),
-			shadow: Object.assign(base.shadow, got.shadow),
-			motion: Object.assign(base.motion, got.motion)
-		});
-	});
-	Object.assign(state.comp, o.comp || {});
-	Object.assign(state.stage, o.stage || {});
-}
+			function restore(o) {
+				if (!o) return;
+				/* Merge onto fresh blanks so a preset saved before a field existed still loads. */
+				['a', 'b'].forEach((w) => {
+					const base = blankNode(w.toUpperCase());
+					const got = o.nodes?.[w] || {};
+					state.nodes[w] = Object.assign(base, got, {
+						source: Object.assign(base.source, got.source),
+						aug: Object.assign(base.aug, got.aug, {
+							regions: Object.assign(base.aug.regions, got.aug?.regions)
+						}),
+						frame: Object.assign(base.frame, got.frame),
+						fill: Object.assign(base.fill, got.fill),
+						text: Object.assign(base.text, got.text),
+						box: Object.assign(base.box, got.box),
+						shadow: Object.assign(base.shadow, got.shadow),
+						motion: Object.assign(base.motion, got.motion)
+					});
+				});
+				Object.assign(state.comp, o.comp || {});
+				Object.assign(state.stage, o.stage || {});
+			}
 
-function saveLocal() {
-	try { localStorage.setItem(LS_KEY, JSON.stringify(snapshot())); } catch (e) { /* private mode */ }
-}
+			function saveLocal() {
+				try {
+					localStorage.setItem(LS_KEY, JSON.stringify(snapshot()));
+				} catch (e) {
+					/* private mode */
+				}
+			}
 
-function loadPresets() {
-	try { return JSON.parse(localStorage.getItem(LS_PRESETS) || '{}'); } catch (e) { return {}; }
-}
+			function loadPresets() {
+				try {
+					return JSON.parse(localStorage.getItem(LS_PRESETS) || '{}');
+				} catch (e) {
+					return {};
+				}
+			}
 
-function renderPresets() {
-	const p = loadPresets();
-	$('#presets').innerHTML = '<option value="">— presets —</option>' +
-		Object.keys(p).map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
-}
+			function renderPresets() {
+				const p = loadPresets();
+				$('#presets').innerHTML =
+					'<option value="">— presets —</option>' +
+					Object.keys(p)
+						.map((k) => `<option value="${esc(k)}">${esc(k)}</option>`)
+						.join('');
+			}
 
-/* ═══════════════════════════════════════════════════════════════════
+			/* ═══════════════════════════════════════════════════════════════════
    12. Wiring
    ═══════════════════════════════════════════════════════════════════ */
-function selectNode(which) {
-	state.ui.activeNode = which;
-	$$('#insp .tab').forEach(t => t.classList.toggle('on', t.dataset.node === which));
-	renderInspector();
-	renderStage();
-}
+			function selectNode(which) {
+				state.ui.activeNode = which;
+				$$('#insp .tab').forEach((t) => t.classList.toggle('on', t.dataset.node === which));
+				renderInspector();
+				renderStage();
+			}
 
-function renderAll() {
-	renderStage();
-	renderInspector();
-	renderCode();
-	saveLocal();
-}
+			function renderAll() {
+				renderStage();
+				renderInspector();
+				renderCode();
+				saveLocal();
+			}
 
-function showOriginBadge() {
-	$('#originbadge').textContent = sameOriginSB ? 'same-origin · full control' : 'wrapper mode';
-	$('#originbadge').style.color = sameOriginSB ? 'var(--ui-accent)' : 'var(--ui-accent-2)';
-	$('#originbadge').title = sameOriginSB
-		? 'Stories are reachable: shapes can be painted onto the real component DOM'
-		: `Open ${SB_ORIGIN}/aug-builder.html for element-level control`;
-}
+			function showOriginBadge() {
+				$('#originbadge').textContent = sameOriginSB
+					? 'same-origin · full control'
+					: 'wrapper mode';
+				$('#originbadge').style.color = sameOriginSB ? 'var(--ui-accent)' : 'var(--ui-accent-2)';
+				$('#originbadge').title = sameOriginSB
+					? 'Stories are reachable: shapes can be painted onto the real component DOM'
+					: `Open ${SB_ORIGIN}/aug-builder.html for element-level control`;
+			}
 
-function init() {
-	showOriginBadge();
+			function init() {
+				showOriginBadge();
 
-	$$('#rail .tab').forEach(t => t.addEventListener('click', () => {
-		$$('#rail .tab').forEach(x => x.classList.remove('on'));
-		t.classList.add('on');
-		state.ui.rail = t.dataset.rail;
-		renderRail();
-	}));
+				$$('#rail .tab').forEach((t) =>
+					t.addEventListener('click', () => {
+						$$('#rail .tab').forEach((x) => x.classList.remove('on'));
+						t.classList.add('on');
+						state.ui.rail = t.dataset.rail;
+						renderRail();
+					})
+				);
 
-	$$('#insp .tab').forEach(t => t.addEventListener('click', () => {
-		$$('#insp .tab').forEach(x => x.classList.remove('on'));
-		t.classList.add('on');
-		state.ui.activeNode = t.dataset.node;
-		renderInspector();
-		renderStage();
-	}));
+				$$('#insp .tab').forEach((t) =>
+					t.addEventListener('click', () => {
+						$$('#insp .tab').forEach((x) => x.classList.remove('on'));
+						t.classList.add('on');
+						state.ui.activeNode = t.dataset.node;
+						renderInspector();
+						renderStage();
+					})
+				);
 
-	$$('[data-code]').forEach(t => t.addEventListener('click', () => {
-		$$('[data-code]').forEach(x => x.classList.remove('on'));
-		t.classList.add('on');
-		state.ui.codeTab = t.dataset.code;
-		$('#out').classList.remove('collapsed');
-		renderCode();
-	}));
+				$$('[data-code]').forEach((t) =>
+					t.addEventListener('click', () => {
+						$$('[data-code]').forEach((x) => x.classList.remove('on'));
+						t.classList.add('on');
+						state.ui.codeTab = t.dataset.code;
+						$('#out').classList.remove('collapsed');
+						renderCode();
+					})
+				);
 
-	$$('[data-slot]').forEach(b => b.addEventListener('click', () => {
-		$$('[data-slot]').forEach(x => x.classList.remove('on'));
-		b.classList.add('on');
-		state.ui.slot = b.dataset.slot;
-	}));
+				$$('[data-slot]').forEach((b) =>
+					b.addEventListener('click', () => {
+						$$('[data-slot]').forEach((x) => x.classList.remove('on'));
+						b.classList.add('on');
+						state.ui.slot = b.dataset.slot;
+					})
+				);
 
-	$('#q').addEventListener('input', renderRail);
+				$('#q').addEventListener('input', renderRail);
 
-	$('#zoom').addEventListener('input', e => {
-		state.stage.zoom = Number(e.target.value);
-		$('#zoomv').textContent = Math.round(state.stage.zoom * 100) + '%';
-		renderStage();
-	});
+				$('#zoom').addEventListener('input', (e) => {
+					state.stage.zoom = Number(e.target.value);
+					$('#zoomv').textContent = Math.round(state.stage.zoom * 100) + '%';
+					renderStage();
+				});
 
-	$('#grid').addEventListener('change', e => { state.stage.grid = e.target.checked; renderStage(); });
-	$('#stagebg').addEventListener('input', e => { state.stage.bg = e.target.value; renderStage(); });
-	$('#theme').addEventListener('change', e => { state.stage.theme = e.target.value; renderAll(); });
+				$('#grid').addEventListener('change', (e) => {
+					state.stage.grid = e.target.checked;
+					renderStage();
+				});
+				$('#stagebg').addEventListener('input', (e) => {
+					state.stage.bg = e.target.value;
+					renderStage();
+				});
+				$('#theme').addEventListener('change', (e) => {
+					state.stage.theme = e.target.value;
+					renderAll();
+				});
 
-	$('#outToggle').addEventListener('click', () => {
-		const o = $('#out');
-		o.classList.toggle('collapsed');
-		$('#outToggle').textContent = o.classList.contains('collapsed') ? '▲ Code' : '▼ Code';
-	});
+				$('#outToggle').addEventListener('click', () => {
+					const o = $('#out');
+					o.classList.toggle('collapsed');
+					$('#outToggle').textContent = o.classList.contains('collapsed') ? '▲ Code' : '▼ Code';
+				});
 
-	$('#copyCode').addEventListener('click', async () => {
-		try { await navigator.clipboard.writeText($('#code').textContent); toast('Copied'); }
-		catch (e) { toast('Clipboard blocked — select and copy'); }
-	});
+				$('#copyCode').addEventListener('click', async () => {
+					try {
+						await navigator.clipboard.writeText($('#code').textContent);
+						toast('Copied');
+					} catch (e) {
+						toast('Clipboard blocked — select and copy');
+					}
+				});
 
-	$('#savePreset').addEventListener('click', () => {
-		const name = prompt('Preset name');
-		if (!name) return;
-		const p = loadPresets();
-		p[name] = snapshot();
-		localStorage.setItem(LS_PRESETS, JSON.stringify(p));
-		renderPresets();
-		$('#presets').value = name;
-		toast('Saved: ' + name);
-	});
+				$('#savePreset').addEventListener('click', () => {
+					const name = prompt('Preset name');
+					if (!name) return;
+					const p = loadPresets();
+					p[name] = snapshot();
+					localStorage.setItem(LS_PRESETS, JSON.stringify(p));
+					renderPresets();
+					$('#presets').value = name;
+					toast('Saved: ' + name);
+				});
 
-	$('#presets').addEventListener('change', e => {
-		if (!e.target.value) return;
-		restore(loadPresets()[e.target.value]);
-		renderAll();
-		toast('Loaded: ' + e.target.value);
-	});
+				$('#presets').addEventListener('change', (e) => {
+					if (!e.target.value) return;
+					restore(loadPresets()[e.target.value]);
+					renderAll();
+					toast('Loaded: ' + e.target.value);
+				});
 
-	$('#delPreset').addEventListener('click', () => {
-		const k = $('#presets').value;
-		if (!k) return;
-		const p = loadPresets();
-		delete p[k];
-		localStorage.setItem(LS_PRESETS, JSON.stringify(p));
-		renderPresets();
-		toast('Deleted: ' + k);
-	});
+				$('#delPreset').addEventListener('click', () => {
+					const k = $('#presets').value;
+					if (!k) return;
+					const p = loadPresets();
+					delete p[k];
+					localStorage.setItem(LS_PRESETS, JSON.stringify(p));
+					renderPresets();
+					toast('Deleted: ' + k);
+				});
 
-	$('#exportJson').addEventListener('click', () => {
-		const blob = new Blob([JSON.stringify(snapshot(), null, 2)], { type: 'application/json' });
-		const a = document.createElement('a');
-		a.href = URL.createObjectURL(blob);
-		a.download = 'aug-composition.json';
-		a.click();
-		URL.revokeObjectURL(a.href);
-	});
+				$('#exportJson').addEventListener('click', () => {
+					const blob = new Blob([JSON.stringify(snapshot(), null, 2)], {
+						type: 'application/json'
+					});
+					const a = document.createElement('a');
+					a.href = URL.createObjectURL(blob);
+					a.download = 'aug-composition.json';
+					a.click();
+					URL.revokeObjectURL(a.href);
+				});
 
-	$('#importJson').addEventListener('click', () => $('#fileIn').click());
-	$('#fileIn').addEventListener('change', async e => {
-		const f = e.target.files[0];
-		if (!f) return;
-		try { restore(JSON.parse(await f.text())); renderAll(); toast('Imported'); }
-		catch (err) { toast('Could not read that file'); }
-		e.target.value = '';
-	});
+				$('#importJson').addEventListener('click', () => $('#fileIn').click());
+				$('#fileIn').addEventListener('change', async (e) => {
+					const f = e.target.files[0];
+					if (!f) return;
+					try {
+						restore(JSON.parse(await f.text()));
+						renderAll();
+						toast('Imported');
+					} catch (err) {
+						toast('Could not read that file');
+					}
+					e.target.value = '';
+				});
 
-	try {
-		const saved = localStorage.getItem(LS_KEY);
-		if (saved) restore(JSON.parse(saved));
-	} catch (e) { /* start fresh */ }
+				try {
+					const saved = localStorage.getItem(LS_KEY);
+					if (saved) restore(JSON.parse(saved));
+				} catch (e) {
+					/* start fresh */
+				}
 
-	$('#theme').value = state.stage.theme;
-	$('#stagebg').value = state.stage.bg;
-	$('#grid').checked = state.stage.grid;
-	$('#zoom').value = state.stage.zoom;
+				$('#theme').value = state.stage.theme;
+				$('#stagebg').value = state.stage.bg;
+				$('#grid').checked = state.stage.grid;
+				$('#zoom').value = state.stage.zoom;
 
-	renderPresets();
-	renderAll();
+				renderPresets();
+				renderAll();
 
-	loadProjectTokens().then(ok => {
-		tokensLoaded = ok;
-		$('#tokenbadge').textContent = ok ? 'project tokens live' : 'tokens unavailable';
-		$('#tokenbadge').style.color = ok ? 'var(--ui-accent)' : 'var(--ui-danger)';
-		if (!ok) $('#tokenbadge').title = `Start the SPA dev server (${APP_ORIGIN}) so token colours resolve`;
-		renderStage();
-	});
+				loadProjectTokens().then((ok) => {
+					tokensLoaded = ok;
+					$('#tokenbadge').textContent = ok ? 'project tokens live' : 'tokens unavailable';
+					$('#tokenbadge').style.color = ok ? 'var(--ui-accent)' : 'var(--ui-danger)';
+					if (!ok)
+						$('#tokenbadge').title =
+							`Start the SPA dev server (${APP_ORIGIN}) so token colours resolve`;
+					renderStage();
+				});
 
-	resolveStorybookOrigin().then(() => {
-		showOriginBadge();
-		renderInspector();
-		renderStage();
-		loadStories();
-	});
+				resolveStorybookOrigin().then(() => {
+					showOriginBadge();
+					renderInspector();
+					renderStage();
+					loadStories();
+				});
 
-	/* The stylesheet is the whole point of the tool — say so loudly if the
+				/* The stylesheet is the whole point of the tool — say so loudly if the
 	   dev server isn't there to serve it. */
-	setTimeout(() => {
-		const probe = document.createElement('div');
-		probe.setAttribute('data-augmented-ui', 'tl-clip border');
-		probe.style.cssText = 'position:absolute;left:-9999px;--aug-tl:8px;--aug-border-all:1px';
-		document.body.appendChild(probe);
-		const ok = getComputedStyle(probe).clipPath !== 'none';
-		probe.remove();
-		if (!ok) {
-			$('#railstatus').innerHTML = `<div class="err">augmented-ui CSS did not load. Open this file through a dev server (<b>${SB_ORIGIN}/aug-builder.html</b> or <b>http://localhost:9990/aug-builder.html</b>) — <code>file://</code> can't reach node_modules.</div>`;
-		}
-	}, 400);
-}
+				setTimeout(() => {
+					const probe = document.createElement('div');
+					probe.setAttribute('data-augmented-ui', 'tl-clip border');
+					probe.style.cssText = 'position:absolute;left:-9999px;--aug-tl:8px;--aug-border-all:1px';
+					document.body.appendChild(probe);
+					const ok = getComputedStyle(probe).clipPath !== 'none';
+					probe.remove();
+					if (!ok) {
+						$('#railstatus').innerHTML =
+							`<div class="err">augmented-ui CSS did not load. Open this file through a dev server (<b>${SB_ORIGIN}/aug-builder.html</b> or <b>http://localhost:9990/aug-builder.html</b>) — <code>file://</code> can't reach node_modules.</div>`;
+					}
+				}, 400);
+			}
 
-init();
-</script>
-</body>
+			init();
+		</script>
+	</body>
 </html>

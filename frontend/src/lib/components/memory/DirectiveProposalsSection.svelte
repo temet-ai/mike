@@ -24,8 +24,12 @@ has no page-level `load()` for this data and no layout-shift contract to keep.
 		onDecided?: () => void;
 	}
 
-	let { proposals: controlledProposals, error: controlledError, emptyText, onDecided }: Props =
-		$props();
+	let {
+		proposals: controlledProposals,
+		error: controlledError,
+		emptyText,
+		onDecided
+	}: Props = $props();
 
 	const controlled = $derived(controlledProposals !== undefined);
 

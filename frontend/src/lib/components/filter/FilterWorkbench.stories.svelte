@@ -203,7 +203,10 @@
 					{ status: 200, headers: { 'content-type': 'application/json' } }
 				);
 			}
-			if (url.pathname === '/api/prompts/classes/main' && url.searchParams.get('project_path') === ALPHA_PROJECT_PATH) {
+			if (
+				url.pathname === '/api/prompts/classes/main' &&
+				url.searchParams.get('project_path') === ALPHA_PROJECT_PATH
+			) {
 				return new Response(
 					JSON.stringify({
 						lane: 'main',
@@ -213,7 +216,13 @@
 						last_seen: '2026-09-20T00:00:00Z',
 						model_breakdown: [],
 						sample_blocks: null,
-						registration: { registered: false, composition_id: null, label: null, mode: null, agent_definition_path: null },
+						registration: {
+							registered: false,
+							composition_id: null,
+							label: null,
+							mode: null,
+							agent_definition_path: null
+						},
 						recent_observations: [
 							{
 								request_id: String(ALPHA_REQUEST_ID),
@@ -231,13 +240,19 @@
 					{ status: 200, headers: { 'content-type': 'application/json' } }
 				);
 			}
-			if (url.pathname === '/api/prompts/classes/main' && url.searchParams.get('project_path') === BETA_PROJECT_PATH) {
+			if (
+				url.pathname === '/api/prompts/classes/main' &&
+				url.searchParams.get('project_path') === BETA_PROJECT_PATH
+			) {
 				return new Response(JSON.stringify({ error: 'no prompt class observed' }), {
 					status: 404,
 					headers: { 'content-type': 'application/json' }
 				});
 			}
-			if (url.pathname === '/api/prompts/classes' && url.searchParams.get('project_path') === BETA_PROJECT_PATH) {
+			if (
+				url.pathname === '/api/prompts/classes' &&
+				url.searchParams.get('project_path') === BETA_PROJECT_PATH
+			) {
 				return new Response(JSON.stringify([]), {
 					status: 200,
 					headers: { 'content-type': 'application/json' }
@@ -256,7 +271,9 @@
 				});
 			}
 			if (url.pathname === '/api/filter/rules/dry-run') {
-				const body = init?.body ? (JSON.parse(init.body as string) as { request_id: number }) : { request_id: 0 };
+				const body = init?.body
+					? (JSON.parse(init.body as string) as { request_id: number })
+					: { request_id: 0 };
 				const blocks = body.request_id === ALPHA_REQUEST_ID ? [ALPHA_BLOCK_0] : [BLOCK_0, BLOCK_1];
 				return new Response(
 					JSON.stringify({
@@ -312,8 +329,12 @@
 		await expect(canvas.queryByRole('button', { name: 'Expand Outline' })).toBeNull();
 		await expect(canvas.queryByRole('button', { name: 'Expand Your edits' })).toBeNull();
 		await expect(canvas.queryByRole('button', { name: 'Expand Prompt assistant' })).toBeNull();
-		await expect(await canvas.findByRole('region', { name: 'Prompt navigator' })).toBeInTheDocument();
-		await expect(await canvas.findByRole('region', { name: 'Prompt assistant' })).toBeInTheDocument();
+		await expect(
+			await canvas.findByRole('region', { name: 'Prompt navigator' })
+		).toBeInTheDocument();
+		await expect(
+			await canvas.findByRole('region', { name: 'Prompt assistant' })
+		).toBeInTheDocument();
 
 		// The prompt pane's own per-paragraph quick-edit marker can carry this same derived
 		// title text, so this is found scoped to the edits sidebar section rather than via a
@@ -345,7 +366,9 @@
 		await userEvent.click(readOnly);
 		await expect(canvas.queryByRole('region', { name: 'Your edits' })).toBeNull();
 		await expect(canvas.queryByRole('region', { name: 'Prompt assistant' })).toBeNull();
-		await expect(await canvas.findByRole('button', { name: 'Expand Your edits' })).toBeInTheDocument();
+		await expect(
+			await canvas.findByRole('button', { name: 'Expand Your edits' })
+		).toBeInTheDocument();
 		await expect(
 			await canvas.findByRole('button', { name: 'Expand Prompt assistant' })
 		).toBeInTheDocument();
@@ -359,7 +382,12 @@
 >
 	{#snippet template()}
 		<div class="h-[820px] w-[1920px] overflow-hidden bg-[var(--surface-bg)]">
-			<FilterWorkbench requestId={REQUEST_ID} blockParam={null} prefillParam={null} ruleParam={null} />
+			<FilterWorkbench
+				requestId={REQUEST_ID}
+				blockParam={null}
+				prefillParam={null}
+				ruleParam={null}
+			/>
 		</div>
 	{/snippet}
 </Story>
@@ -383,7 +411,9 @@
 		// ...but 1440 is still at/above the 1280px assistant floor, so edits AND the assistant
 		// both start open.
 		await expect(await canvas.findByRole('region', { name: 'Your edits' })).toBeInTheDocument();
-		await expect(await canvas.findByRole('region', { name: 'Prompt assistant' })).toBeInTheDocument();
+		await expect(
+			await canvas.findByRole('region', { name: 'Prompt assistant' })
+		).toBeInTheDocument();
 		await expect(canvas.queryByRole('button', { name: 'Expand Prompt assistant' })).toBeNull();
 
 		// The prompt column keeps its 520px floor rather than being squeezed by the two open
@@ -395,7 +425,12 @@
 >
 	{#snippet template()}
 		<div class="h-[820px] w-[1440px] overflow-hidden bg-[var(--surface-bg)]">
-			<FilterWorkbench requestId={REQUEST_ID} blockParam={null} prefillParam={null} ruleParam={null} />
+			<FilterWorkbench
+				requestId={REQUEST_ID}
+				blockParam={null}
+				prefillParam={null}
+				ruleParam={null}
+			/>
 		</div>
 	{/snippet}
 </Story>
@@ -428,7 +463,12 @@
 >
 	{#snippet template()}
 		<div class="h-[820px] w-[1200px] overflow-hidden bg-[var(--surface-bg)]">
-			<FilterWorkbench requestId={REQUEST_ID} blockParam={null} prefillParam={null} ruleParam={null} />
+			<FilterWorkbench
+				requestId={REQUEST_ID}
+				blockParam={null}
+				prefillParam={null}
+				ruleParam={null}
+			/>
 		</div>
 	{/snippet}
 </Story>
@@ -449,13 +489,17 @@
 		// assistant floor (starts open), and edits has no responsive default (always open).
 		await expect(await canvas.findByRole('button', { name: 'Expand Outline' })).toBeInTheDocument();
 		await expect(await canvas.findByRole('region', { name: 'Your edits' })).toBeInTheDocument();
-		await expect(await canvas.findByRole('region', { name: 'Prompt assistant' })).toBeInTheDocument();
+		await expect(
+			await canvas.findByRole('region', { name: 'Prompt assistant' })
+		).toBeInTheDocument();
 
 		// Clicking a collapsed column's rail expands it (no caret, the rail itself is the
 		// control).
 		const outlineRail = await canvas.findByRole('button', { name: 'Expand Outline' });
 		await userEvent.click(outlineRail);
-		await expect(await canvas.findByRole('region', { name: 'Prompt navigator' })).toBeInTheDocument();
+		await expect(
+			await canvas.findByRole('region', { name: 'Prompt navigator' })
+		).toBeInTheDocument();
 		await expect(canvas.queryByRole('button', { name: 'Expand Outline' })).toBeNull();
 
 		// Clicking the section's own title (not a caret/chevron, not a "Hide" label) collapses
@@ -477,12 +521,16 @@
 		await expect(canvas.queryByRole('region', { name: 'Prompt assistant' })).toBeNull();
 		const assistantRail = await canvas.findByRole('button', { name: 'Expand Prompt assistant' });
 		await userEvent.click(assistantRail);
-		await expect(await canvas.findByRole('region', { name: 'Prompt assistant' })).toBeInTheDocument();
+		await expect(
+			await canvas.findByRole('region', { name: 'Prompt assistant' })
+		).toBeInTheDocument();
 
 		// Same round trip for "Your edits", which also starts open at 1440px.
 		const collapseEdits = await canvas.findByRole('button', { name: 'Collapse your edits' });
 		await userEvent.click(collapseEdits);
-		await expect(await canvas.findByRole('button', { name: 'Expand Your edits' })).toBeInTheDocument();
+		await expect(
+			await canvas.findByRole('button', { name: 'Expand Your edits' })
+		).toBeInTheDocument();
 		const editsRail = await canvas.findByRole('button', { name: 'Expand Your edits' });
 		await userEvent.click(editsRail);
 		await expect(await canvas.findByRole('region', { name: 'Your edits' })).toBeInTheDocument();
@@ -497,17 +545,22 @@
 		});
 		await userEvent.click(await canvas.findByRole('button', { name: 'Show edits' }));
 		await expect(await canvas.findByRole('region', { name: 'Your edits' })).toBeInTheDocument();
-		await expect(await canvas.findByRole('region', { name: 'Prompt assistant' })).toBeInTheDocument();
+		await expect(
+			await canvas.findByRole('region', { name: 'Prompt assistant' })
+		).toBeInTheDocument();
 	}}
 >
 	{#snippet template()}
 		<div class="h-[820px] w-[1440px] overflow-hidden bg-[var(--surface-bg)]">
-			<FilterWorkbench requestId={REQUEST_ID} blockParam={null} prefillParam={null} ruleParam={null} />
+			<FilterWorkbench
+				requestId={REQUEST_ID}
+				blockParam={null}
+				prefillParam={null}
+				ruleParam={null}
+			/>
 		</div>
 	{/snippet}
 </Story>
-
-
 
 <Story
 	name="ProjectPick"
@@ -539,7 +592,9 @@
 		await userEvent.click(await body.findByRole('option', { name: /Alpha/ }));
 
 		await expect(
-			await canvas.findByText(/Refuse destructive requests without asking first — Alpha's own capture\./)
+			await canvas.findByText(
+				/Refuse destructive requests without asking first — Alpha's own capture\./
+			)
 		).toBeInTheDocument();
 		await expect(
 			await canvas.findByRole('button', { name: 'Prompt project: Alpha' })
@@ -550,9 +605,7 @@
 		await userEvent.click(await canvas.findByRole('button', { name: 'Prompt project: Alpha' }));
 		await userEvent.click(await body.findByRole('option', { name: /Beta/ }));
 		await expect(await canvas.findByText(/No capture of .* in Beta/)).toBeInTheDocument();
-		await expect(
-			canvas.queryByText(/Refuse destructive requests without asking first/)
-		).toBeNull();
+		await expect(canvas.queryByText(/Refuse destructive requests without asking first/)).toBeNull();
 
 		// Back to Global restores the originally-opened request's own prompt.
 		await userEvent.click(await canvas.findByRole('button', { name: 'Prompt project: Beta' }));
@@ -566,7 +619,12 @@
 >
 	{#snippet template()}
 		<div class="h-[820px] w-[1920px] overflow-hidden bg-[var(--surface-bg)]">
-			<FilterWorkbench requestId={REQUEST_ID} blockParam={null} prefillParam={null} ruleParam={null} />
+			<FilterWorkbench
+				requestId={REQUEST_ID}
+				blockParam={null}
+				prefillParam={null}
+				ruleParam={null}
+			/>
 		</div>
 	{/snippet}
 </Story>

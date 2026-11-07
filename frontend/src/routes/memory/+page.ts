@@ -30,15 +30,21 @@ function errorMessage(reason: unknown): string {
 }
 
 export const load: PageLoad = async (): Promise<MemoryPageData> => {
-	const [runsResult, decisionsResult, relationsResult, outcomesResult, settingsResult, projectsResult] =
-		await Promise.allSettled([
-			getConsolidationRuns({ limit: RUNS_LOOKBACK }),
-			getMemoryDecisions({ limit: DECISIONS_PAGE_SIZE }),
-			getLessonRelations({ limit: RELATIONS_PAGE_SIZE }),
-			getLessonOutcomes(),
-			getSettings(),
-			getFleetProjects()
-		]);
+	const [
+		runsResult,
+		decisionsResult,
+		relationsResult,
+		outcomesResult,
+		settingsResult,
+		projectsResult
+	] = await Promise.allSettled([
+		getConsolidationRuns({ limit: RUNS_LOOKBACK }),
+		getMemoryDecisions({ limit: DECISIONS_PAGE_SIZE }),
+		getLessonRelations({ limit: RELATIONS_PAGE_SIZE }),
+		getLessonOutcomes(),
+		getSettings(),
+		getFleetProjects()
+	]);
 
 	const runs = runsResult.status === 'fulfilled' ? runsResult.value.items : null;
 	const runsLoadError = runsResult.status === 'rejected' ? errorMessage(runsResult.reason) : null;

@@ -102,6 +102,7 @@ export const load: PageLoad = async (): Promise<IntegrationsPageData> => {
 		codexUnavailable: codexFailure?.unavailable ?? false,
 		provider: providerSetting === 'codex' ? 'codex' : 'anthropic',
 		spend: spendResult.status === 'fulfilled' ? spendResult.value : null,
-		spendError: spendResult.status === 'rejected' ? describeFailure(spendResult.reason).message : null
+		spendError:
+			spendResult.status === 'rejected' ? describeFailure(spendResult.reason).message : null
 	};
 };

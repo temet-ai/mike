@@ -74,8 +74,7 @@
 		}));
 		const rank = (g: OriginGroup): number => (g.quiet ? 2 : g.origin === 'primary' ? 0 : 1);
 		return built.sort(
-			(a, b) =>
-				rank(a) - rank(b) || b.count - a.count || a.label.localeCompare(b.label)
+			(a, b) => rank(a) - rank(b) || b.count - a.count || a.label.localeCompare(b.label)
 		);
 	});
 

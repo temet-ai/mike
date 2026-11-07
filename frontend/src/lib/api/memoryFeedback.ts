@@ -4,12 +4,7 @@ import type { Paged } from './memoryDecisions';
 
 export type RelationKind = 'supersedes' | 'refines' | 'recurs' | 'contradicts';
 export type RelationMethod =
-	| 'declared'
-	| 'artifact_reference'
-	| 'adjudicated'
-	| 'operator'
-	| 'write_time'
-	| 'rewritten';
+	'declared' | 'artifact_reference' | 'adjudicated' | 'operator' | 'write_time' | 'rewritten';
 export type RelationStatus = 'proposed' | 'confirmed' | 'rejected' | 'contested';
 
 export interface LessonRelation {

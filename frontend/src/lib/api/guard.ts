@@ -21,8 +21,16 @@ export interface GuardSummary {
 	gate_version: string;
 	steering_facts_version: number;
 	labeller_version: string;
-	labeller: { state: 'ok' | 'backing_off' | 'breaker_open'; since: string | null; consecutive_failures: number };
-	settings: { max_calls_per_day: number; max_label_calls_per_day: number; recall_sample_pct: number };
+	labeller: {
+		state: 'ok' | 'backing_off' | 'breaker_open';
+		since: string | null;
+		consecutive_failures: number;
+	};
+	settings: {
+		max_calls_per_day: number;
+		max_label_calls_per_day: number;
+		recall_sample_pct: number;
+	};
 	questions: GuardQuestionDto[];
 }
 

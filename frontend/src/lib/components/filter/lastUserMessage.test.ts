@@ -55,7 +55,10 @@ describe('resolveDryRunSessionMessage', () => {
 	it('extracts the real filtered text when filtered_messages is present, even if empty', () => {
 		expect(resolveDryRunSessionMessage([], 'the source message')).toBe('');
 		expect(
-			resolveDryRunSessionMessage([{ role: 'user', content: 'filtered text' }], 'the source message')
+			resolveDryRunSessionMessage(
+				[{ role: 'user', content: 'filtered text' }],
+				'the source message'
+			)
 		).toBe('filtered text');
 	});
 });

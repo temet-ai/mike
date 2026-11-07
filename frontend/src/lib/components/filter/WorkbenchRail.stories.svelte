@@ -29,11 +29,7 @@
 >
 	{#snippet template()}
 		<div style="display: flex; height: 480px; background: var(--surface-bg);">
-			<WorkbenchRail
-				label="Prompt assistant"
-				{streaming}
-				onExpand={() => (expanded = true)}
-			/>
+			<WorkbenchRail label="Prompt assistant" {streaming} onExpand={() => (expanded = true)} />
 		</div>
 	{/snippet}
 </Story>

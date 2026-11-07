@@ -83,7 +83,8 @@
 				<span class="fpm-foot__note">{footerNote} · Esc or click outside to close</span>
 				{#if openLabel && onOpenDispatch}
 					<button type="button" class="fpm-btn" onclick={onOpenDispatch}>
-						Open {openLabel} <ArrowUpRight size={11} aria-hidden="true" />
+						Open {openLabel}
+						<ArrowUpRight size={11} aria-hidden="true" />
 					</button>
 				{/if}
 			</div>
@@ -100,7 +101,11 @@
 		flex-direction: column;
 		max-height: min(1100px, calc(100dvh - 2 * var(--space-4)));
 		background:
-			linear-gradient(105deg, color-mix(in oklab, var(--ident-fg) 10%, transparent), transparent 30%),
+			linear-gradient(
+				105deg,
+				color-mix(in oklab, var(--ident-fg) 10%, transparent),
+				transparent 30%
+			),
 			var(--surface-card);
 		--aug-tl: var(--edge-md, 10px);
 		--aug-br: var(--edge-md, 10px);

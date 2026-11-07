@@ -56,7 +56,9 @@
 		await expect(c.getByTestId('next-message').closest('.edge-blue')).toBeNull();
 		await expect(c.getAllByRole('link')).toHaveLength(1);
 		await expect(c.getByTestId('turn-link').getAttribute('href')).toBe(HREF);
-		await expect(canvasElement.textContent).not.toMatch(/characters|Everything the assistant wrote|answer key/);
+		await expect(canvasElement.textContent).not.toMatch(
+			/characters|Everything the assistant wrote|answer key/
+		);
 
 		await userEvent.click(c.getByRole('button', { name: /34 files read or edited/ }));
 		await expect(canvasElement.querySelectorAll('li')).toHaveLength(34);

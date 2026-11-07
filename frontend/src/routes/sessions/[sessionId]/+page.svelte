@@ -385,7 +385,9 @@
 	}
 
 	const flowRequestFilter = $derived(buildFlowRequestFilter(flowStore.dataset, flowSelection));
-	const totalRequestCount = $derived(detailStore.detail?.total_requests ?? detailStore.detail?.requests.length ?? 0);
+	const totalRequestCount = $derived(
+		detailStore.detail?.total_requests ?? detailStore.detail?.requests.length ?? 0
+	);
 
 	function clearRequestFilter(): void {
 		handleFlowSelect(null);

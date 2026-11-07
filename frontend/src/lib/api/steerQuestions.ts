@@ -64,10 +64,23 @@ export interface SteerQuestionStatus {
 	policy: { id: number; steerer_id: number; mode: string; holdback_pct: number | null };
 	effective_holdback_pct: number;
 	bar: { min_n: number; min_precision: number; targets: string[] };
-	gate: Record<string, { passes?: boolean; reasons?: string[]; bounds?: { precision: number | null; low: number | null; high: number | null; n: number } }>;
+	gate: Record<
+		string,
+		{
+			passes?: boolean;
+			reasons?: string[];
+			bounds?: { precision: number | null; low: number | null; high: number | null; n: number };
+		}
+	>;
 	live: { arms: { treated: number; holdback: number } };
 	effect: { status: string; primary: { rd: number | null; ci: [number, number] | null } };
-	promotions: { id: number; from_mode: string; to_mode: string; action: string; decided_at: string }[];
+	promotions: {
+		id: number;
+		from_mode: string;
+		to_mode: string;
+		action: string;
+		decided_at: string;
+	}[];
 }
 
 export interface SteerQuestionsResponse {
@@ -79,21 +92,42 @@ export function getSteerQuestions(): Promise<SteerQuestionsResponse> {
 	return send('GET', '/api/steering/questions');
 }
 
-export function promoteQuestion(steererId: number, question: string, toMode: string, overrideReason?: string): Promise<unknown> {
+export function promoteQuestion(
+	steererId: number,
+	question: string,
+	toMode: string,
+	overrideReason?: string
+): Promise<unknown> {
 	return send('POST', `/api/steering/questions/${steererId}/${question}/promote`, {
 		to_mode: toMode,
 		override_reason: overrideReason || undefined
 	});
 }
 
-export function demoteQuestion(steererId: number, question: string, toMode: string, reason: string): Promise<unknown> {
-	return send('POST', `/api/steering/questions/${steererId}/${question}/demote`, { to_mode: toMode, reason });
+export function demoteQuestion(
+	steererId: number,
+	question: string,
+	toMode: string,
+	reason: string
+): Promise<unknown> {
+	return send('POST', `/api/steering/questions/${steererId}/${question}/demote`, {
+		to_mode: toMode,
+		reason
+	});
 }
 
-export function setHoldback(steererId: number, question: string, pct: number | null): Promise<unknown> {
+export function setHoldback(
+	steererId: number,
+	question: string,
+	pct: number | null
+): Promise<unknown> {
 	return send('PATCH', `/api/steering/questions/${steererId}/${question}`, { holdback_pct: pct });
 }
 
-export function labelEvaluation(uuid: string, label: 'right' | 'wrong', note?: string): Promise<unknown> {
+export function labelEvaluation(
+	uuid: string,
+	label: 'right' | 'wrong',
+	note?: string
+): Promise<unknown> {
 	return send('POST', `/api/steering/evaluations/${uuid}/label`, { label, note });
 }

@@ -48,12 +48,21 @@ describe('resolveProposalRuleText', () => {
 	it('prefers rule_text when the service sends it, for every action', () => {
 		expect(
 			resolveProposalRuleText(
-				buildProposal({ action: 'append', match: '# Session-specific guidance', after: '# Session-specific guidance PROPOSAL_TAIL', rule_text: 'PROPOSAL_TAIL' })
+				buildProposal({
+					action: 'append',
+					match: '# Session-specific guidance',
+					after: '# Session-specific guidance PROPOSAL_TAIL',
+					rule_text: 'PROPOSAL_TAIL'
+				})
 			)
 		).toBe('PROPOSAL_TAIL');
 		expect(
 			resolveProposalRuleText(
-				buildProposal({ action: 'replace', after: '# Session guidance', rule_text: '# Session guidance' })
+				buildProposal({
+					action: 'replace',
+					after: '# Session guidance',
+					rule_text: '# Session guidance'
+				})
 			)
 		).toBe('# Session guidance');
 	});
@@ -132,7 +141,11 @@ describe('planApplyProposal', () => {
 
 	it('updates an existing rule WITHOUT touching its saved title', () => {
 		const rule = buildRule({ id: 'r1', title: 'Operator-picked title' });
-		const proposal = buildProposal({ edit_id: 'r1', title: "Model's own title", after: '# New text' });
+		const proposal = buildProposal({
+			edit_id: 'r1',
+			title: "Model's own title",
+			after: '# New text'
+		});
 		const plan = planApplyProposal(proposal, rule);
 		expect(plan.kind).toBe('update');
 		if (plan.kind === 'update') {

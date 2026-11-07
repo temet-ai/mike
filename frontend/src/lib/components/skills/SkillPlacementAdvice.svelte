@@ -42,7 +42,9 @@ life of the block and a button that cannot work is disabled, so nothing moves.
 
 	const advice = $derived(placementAdvice(review));
 	const name = $derived(review.overlap ? review.overlap : null);
-	const toExisting = $derived(review.decision === 'wrong_place' && review.belongs_in === 'existing_skill');
+	const toExisting = $derived(
+		review.decision === 'wrong_place' && review.belongs_in === 'existing_skill'
+	);
 	const toRule = $derived(review.decision === 'wrong_place' && review.belongs_in === 'rule');
 
 	const locked = $derived(busy !== null || editing || retired);

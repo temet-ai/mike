@@ -97,20 +97,28 @@
 	]}
 	play={async ({ canvasElement }) => {
 		const canvas = within(canvasElement);
-		await waitFor(() => expect(canvasElement.querySelectorAll('[data-guard-question]').length).toBe(4));
+		await waitFor(() =>
+			expect(canvasElement.querySelectorAll('[data-guard-question]').length).toBe(4)
+		);
 		await expect(canvas.getByText('waiting on live reaction verdicts (JC12)')).toBeTruthy();
-		const wakeOption = canvasElement.querySelector('[data-guard-question="relapse"] option[value="wake"]');
+		const wakeOption = canvasElement.querySelector(
+			'[data-guard-question="relapse"] option[value="wake"]'
+		);
 		await expect(wakeOption?.hasAttribute('disabled')).toBe(true);
 		await waitFor(() =>
-			expect(canvasElement.querySelector('[data-guard-audit]')?.textContent ?? '').toContain('0 would-fires')
+			expect(canvasElement.querySelector('[data-guard-audit]')?.textContent ?? '').toContain(
+				'0 would-fires'
+			)
 		);
-		await expect(canvasElement.querySelector('[data-guard-metric="unbacked_wait:turn_end"]')?.textContent ?? '').toContain(
-			'80%'
+		await expect(
+			canvasElement.querySelector('[data-guard-metric="unbacked_wait:turn_end"]')?.textContent ?? ''
+		).toContain('80%');
+		await waitFor(() =>
+			expect(canvasElement.querySelector('[data-guard-promotion="relapse"]')).not.toBeNull()
 		);
-		await waitFor(() => expect(canvasElement.querySelector('[data-guard-promotion="relapse"]')).not.toBeNull());
-		const promote = [...canvasElement.querySelectorAll('[data-guard-promotion="relapse"] button')].find((b) =>
-			b.textContent?.includes('Promote to wake')
-		);
+		const promote = [
+			...canvasElement.querySelectorAll('[data-guard-promotion="relapse"] button')
+		].find((b) => b.textContent?.includes('Promote to wake'));
 		await expect(promote?.hasAttribute('disabled')).toBe(true);
 	}}
 >

@@ -168,8 +168,8 @@
 			</p>
 			<article class="edge kv-thread">
 				<p class="kv-text">
-					The capture DB is dialled directly over the LAN at 192.168.1.20:5440; a Windows
-					portproxy rule pins the distro IP, so a WSL restart breaks the link.
+					The capture DB is dialled directly over the LAN at 192.168.1.20:5440; a Windows portproxy
+					rule pins the distro IP, so a WSL restart breaks the link.
 				</p>
 				<div class="kv-meta">
 					<span class="kv-ladder" data-stage="long_term" aria-hidden="true">
@@ -184,8 +184,8 @@
 					<div class="kv-prior">
 						<span class="machine kv-dim">Superseded 2026-08-20</span>
 						<p class="kv-text kv-text--prior">
-							The capture DB is reached through an SSH tunnel to omit; bulk pool timeouts mean
-							the tunnel died and needs re-establishing.
+							The capture DB is reached through an SSH tunnel to omit; bulk pool timeouts mean the
+							tunnel died and needs re-establishing.
 						</p>
 					</div>
 					<div class="kv-prior">

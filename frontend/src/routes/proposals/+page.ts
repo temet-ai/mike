@@ -24,7 +24,13 @@ export const load: PageLoad = async ({ url }): Promise<ProposalsPageData> => {
 	try {
 		projects = (await getProposalProjects()).projects;
 	} catch (e) {
-		return { projects: null, projectsError: message(e), selected: null, proposals: null, proposalsError: null };
+		return {
+			projects: null,
+			projectsError: message(e),
+			selected: null,
+			proposals: null,
+			proposalsError: null
+		};
 	}
 	const selected = pick(projects, url.searchParams.get('project'));
 	if (selected === null) {

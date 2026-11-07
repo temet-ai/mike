@@ -20,15 +20,7 @@ box with every character still reachable.
 		children: Snippet;
 	}
 
-	let {
-		who,
-		heading,
-		key = false,
-		scroll = false,
-		testid,
-		meta,
-		children
-	}: Props = $props();
+	let { who, heading, key = false, scroll = false, testid, meta, children }: Props = $props();
 </script>
 
 <figure class="eq edge" class:edge-blue={key} data-who={who}>
@@ -36,10 +28,7 @@ box with every character still reachable.
 		{#if who === 'you'}<User size={13} aria-hidden="true" />{:else if who === 'guard'}<BellRing
 				size={13}
 				aria-hidden="true"
-			/>{:else}<Bot
-				size={13}
-				aria-hidden="true"
-			/>{/if}
+			/>{:else}<Bot size={13} aria-hidden="true" />{/if}
 		<span class="machine eq-who">{heading}</span>
 		{#if meta}<span class="band-hd__meta eq-meta">{@render meta()}</span>{/if}
 	</figcaption>

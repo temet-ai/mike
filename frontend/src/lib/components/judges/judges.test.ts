@@ -148,25 +148,28 @@ describe('alarm sentences', () => {
 });
 
 describe('failed calls on the backlog alarm', () => {
-  it('counts transport failures as failed calls, alone and beside HTTP failures', () => {
-    const mixed = alarmWords(
-      alarm('unjudged_backlog', 'turn_judge', {
-        stale_turns: 3,
-        calls: { ok: 9, http_error: 1, transport_error: 2 }
-      })
-    );
-    expect(mixed.sentence).toBe(
-      '3 finished turns have not been judged. 3 of the last 12 calls to the model failed.'
-    );
-    expect(mixed.advice).toMatch(/^Calls to the model are failing/);
+	it('counts transport failures as failed calls, alone and beside HTTP failures', () => {
+		const mixed = alarmWords(
+			alarm('unjudged_backlog', 'turn_judge', {
+				stale_turns: 3,
+				calls: { ok: 9, http_error: 1, transport_error: 2 }
+			})
+		);
+		expect(mixed.sentence).toBe(
+			'3 finished turns have not been judged. 3 of the last 12 calls to the model failed.'
+		);
+		expect(mixed.advice).toMatch(/^Calls to the model are failing/);
 
-    const transportOnly = alarmWords(
-      alarm('unjudged_backlog', 'turn_judge', { stale_turns: 3, calls: { ok: 9, transport_error: 2 } })
-    );
-    expect(transportOnly.sentence).toBe(
-      '3 finished turns have not been judged. 2 of the last 11 calls to the model failed.'
-    );
-  });
+		const transportOnly = alarmWords(
+			alarm('unjudged_backlog', 'turn_judge', {
+				stale_turns: 3,
+				calls: { ok: 9, transport_error: 2 }
+			})
+		);
+		expect(transportOnly.sentence).toBe(
+			'3 finished turns have not been judged. 2 of the last 11 calls to the model failed.'
+		);
+	});
 });
 
 describe('configurations and accuracy runs in words', () => {

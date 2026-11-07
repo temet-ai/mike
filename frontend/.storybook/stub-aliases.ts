@@ -4,7 +4,10 @@ export function libStubAliases(root: string): { find: string | RegExp; replaceme
 	const stub = (file: string) => path.join(root, 'src/lib/__storybook-stubs__', file);
 	return [
 		{ find: '$lib/ws.svelte', replacement: stub('ws.svelte.ts') },
-		{ find: '$lib/stores/timelineScroll.svelte', replacement: stub('stores-timeline-scroll.svelte.ts') },
+		{
+			find: '$lib/stores/timelineScroll.svelte',
+			replacement: stub('stores-timeline-scroll.svelte.ts')
+		},
 		{ find: '$lib/stores/shellState.svelte', replacement: stub('stores-shell-state.svelte.ts') },
 		{ find: '$lib/stores/filterRules.svelte', replacement: stub('stores-filter.svelte.ts') },
 		{ find: '$lib/stores/diagnostics.svelte', replacement: stub('stores-diagnostics.svelte.ts') },

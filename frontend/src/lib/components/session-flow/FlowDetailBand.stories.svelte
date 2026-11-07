@@ -5,7 +5,12 @@
 	import { stubFetchJsonRouter, typed } from '$lib/test-support/storyFetchStubs';
 	import { buildRequestDetail } from '$lib/components/__fixtures__/request';
 	import type { RequestDetail, ToolUsesResponse } from '$lib/types';
-	import { flowActor, flowActivity, flowTime, FLOW_SESSION_ID } from '$lib/session-flow/__fixtures__/sessionFlow';
+	import {
+		flowActor,
+		flowActivity,
+		flowTime,
+		FLOW_SESSION_ID
+	} from '$lib/session-flow/__fixtures__/sessionFlow';
 	import { normalizeFlowDataset } from '$lib/session-flow/projection';
 	import type { FlowSelection } from '$lib/session-flow/types';
 
@@ -258,7 +263,8 @@
 					id: Number(match[1]),
 					session_id: FLOW_SESSION_ID,
 					human_prompt: 'Can you check the filter workbench is wired up for new models?',
-					accumulated_text: 'Checked — the workbench derives model ids at runtime, nothing hard-coded.',
+					accumulated_text:
+						'Checked — the workbench derives model ids at runtime, nothing hard-coded.',
 					stop_reason: null,
 					token_usage: {
 						input_tokens: 4200,
@@ -288,7 +294,11 @@
 
 		selection = { kind: 'actor', id: WORKER_ACTIVE_ID };
 		await waitFor(() => expect(canvas.getByText('Active')).toBeVisible());
-		await waitFor(() => expect(canvas.getByText('Still working · its answer lands here when it finishes')).toBeVisible());
+		await waitFor(() =>
+			expect(
+				canvas.getByText('Still working · its answer lands here when it finishes')
+			).toBeVisible()
+		);
 		await waitFor(() => expect(canvas.getByText('Prompt')).toBeVisible());
 
 		selection = { kind: 'actor', id: WORKER_DONE_ID };
@@ -305,9 +315,7 @@
 		).toBeInTheDocument();
 		await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
 		await waitFor(() => expect(body.queryByRole('dialog')).not.toBeInTheDocument());
-		await waitFor(() =>
-			expect(getComputedStyle(document.body).pointerEvents).not.toBe('none')
-		);
+		await waitFor(() => expect(getComputedStyle(document.body).pointerEvents).not.toBe('none'));
 
 		const openBtn = canvas.getByRole('button', { name: /^Open dispatch/ });
 		await userEvent.click(openBtn);
@@ -325,7 +333,9 @@
 		).toBeInTheDocument();
 
 		function gridSpanTotal(): number {
-			const grid = canvas.getByRole('region', { name: 'Selected' }).querySelector('.fdb-usage__grid')!;
+			const grid = canvas
+				.getByRole('region', { name: 'Selected' })
+				.querySelector('.fdb-usage__grid')!;
 			const cells = [...grid.querySelectorAll<HTMLElement>('.fdb-usage__cell')];
 			return cells.reduce((sum, cell) => {
 				const m = /span (\d+)/.exec(cell.style.gridColumn);

@@ -35,7 +35,8 @@ const MAINTAINED_CLAUDE_MODELS: MaintainedClaudeModel[] = [
 	},
 	{
 		id: 'claude-haiku-4-5',
-		description: 'An earlier Haiku build with the same fast, cheap profile as the dated build above.'
+		description:
+			'An earlier Haiku build with the same fast, cheap profile as the dated build above.'
 	},
 	{
 		id: 'claude-fable-5-1',

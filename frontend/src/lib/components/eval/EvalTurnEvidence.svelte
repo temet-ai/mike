@@ -99,7 +99,9 @@ the one link into the session, which lands on the session page scrolled to this 
 	</div>
 	<div class="band-body ete-body">
 		{#if !context}
-			<p class="ete-missing">The stored record of this turn is gone, so there is nothing to show.</p>
+			<p class="ete-missing">
+				The stored record of this turn is gone, so there is nothing to show.
+			</p>
 		{:else}
 			{#if context.prompt_state === 'present' && context.user_prompt}
 				<EvalQuote who="you" heading={at('You wrote', askedAt)} testid="operator-prompt">
@@ -146,14 +148,21 @@ the one link into the session, which lands on the session page scrolled to this 
 							{#if stopped}<span>{stopped}</span>{/if}
 							{#if running !== null}
 								<span class="ete-hot" data-testid="running-words"
-									>{running ? 'still running when you replied' : 'finished before you replied'}</span
+									>{running
+										? 'still running when you replied'
+										: 'finished before you replied'}</span
 								>
 							{/if}
 						{/if}
 					</div>
 					{#if filesOpen && known}
 						<!-- svelte-ignore a11y_no_noninteractive_tabindex -- a scroll container must take focus so the keyboard can scroll it -->
-						<div class="ete-files-list" tabindex="0" role="region" aria-label="Files read or edited">
+						<div
+							class="ete-files-list"
+							tabindex="0"
+							role="region"
+							aria-label="Files read or edited"
+						>
 							<ul>
 								{#each known.files_touched as file, i (i)}<li>{file}</li>{/each}
 							</ul>
@@ -203,10 +212,7 @@ the one link into the session, which lands on the session page scrolled to this 
 
 		{#if turnHref}
 			<a class="ete-link" href={turnHref} data-testid="turn-link"
-				>See every step of this turn in the session<ArrowUpRight
-					size={12}
-					aria-hidden="true"
-				/></a
+				>See every step of this turn in the session<ArrowUpRight size={12} aria-hidden="true" /></a
 			>
 		{/if}
 	</div>

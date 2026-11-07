@@ -8,8 +8,7 @@ export interface FeatureCopy {
 export const FEATURE_COPY: Record<string, FeatureCopy> = {
 	reminders: {
 		label: 'Project reminders',
-		description:
-			"Adds the project's lessons and reminders to the prompt at the start of each turn."
+		description: "Adds the project's lessons and reminders to the prompt at the start of each turn."
 	},
 	recall_injector: {
 		label: 'Recall from project memory',
@@ -145,8 +144,7 @@ export const FEATURE_COPY: Record<string, FeatureCopy> = {
 	},
 	dossier_builder: {
 		label: 'Dossier builder',
-		description:
-			'Builds the facts about each turn from captured data. Nothing leaves the machine.'
+		description: 'Builds the facts about each turn from captured data. Nothing leaves the machine.'
 	},
 	semantic_context: {
 		label: 'Semantic context',

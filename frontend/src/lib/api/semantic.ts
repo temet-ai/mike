@@ -70,7 +70,10 @@ async function send<T>(method: string, path: string, body?: unknown): Promise<T>
 }
 
 export async function listCandidates(status = 'open'): Promise<CandidatesResponse> {
-	const body = await send<CandidatesResponse>('GET', `/api/semantic/patterns/candidates?status=${status}`);
+	const body = await send<CandidatesResponse>(
+		'GET',
+		`/api/semantic/patterns/candidates?status=${status}`
+	);
 	if (!Array.isArray(body?.candidates)) {
 		throw new Error('the pattern candidates response has no candidates list');
 	}

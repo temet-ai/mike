@@ -2,11 +2,7 @@
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import { expect, fn, userEvent, within } from 'storybook/test';
 	import EvalSessionContext from './EvalSessionContext.svelte';
-	import {
-		SESSION_24369,
-		SUMMARY_24369,
-		TURNS_24369
-	} from '$lib/test-support/evalReviewFixtures';
+	import { SESSION_24369, SUMMARY_24369, TURNS_24369 } from '$lib/test-support/evalReviewFixtures';
 
 	const { Story } = defineMeta({
 		title: 'Eval/EvalSessionContext',
@@ -32,8 +28,12 @@
 		const c = within(canvasElement);
 		const band = c.getByTestId('session-band');
 		await expect(band.textContent).toMatch(/13 turns · 27 Jul 2026 \d\d:\d\d to \d\d:\d\d/);
-		await expect(c.getByRole('heading', { name: 'Review and refine the system prompt' })).toBeInTheDocument();
-		await expect(c.getByTestId('open-session').getAttribute('href')).toBe(`/sessions/${SESSION_24369}`);
+		await expect(
+			c.getByRole('heading', { name: 'Review and refine the system prompt' })
+		).toBeInTheDocument();
+		await expect(c.getByTestId('open-session').getAttribute('href')).toBe(
+			`/sessions/${SESSION_24369}`
+		);
 		await expect(c.getByTestId('session-overview').querySelectorAll('p')).toHaveLength(2);
 
 		const before = c.getByTestId('just-before');
@@ -50,7 +50,9 @@
 		await expect(c.getByTestId('earlier-turns').children).toHaveLength(7);
 		await userEvent.click(c.getByRole('button', { name: /The session/ }));
 		await expect(args.onToggle).toHaveBeenCalledWith(false);
-		await expect(canvasElement.textContent).not.toMatch(/\b(gold|answer key|seed|holdout)\b|\u2026/i);
+		await expect(canvasElement.textContent).not.toMatch(
+			/\b(gold|answer key|seed|holdout)\b|\u2026/i
+		);
 	}}
 >
 	{#snippet template(args)}

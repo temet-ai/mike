@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { KNOWN_KINDS } from './promptKind';
 
-
 	let { counts }: { counts: Record<string, number> } = $props();
 
 	const segments = $derived(

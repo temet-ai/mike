@@ -16,7 +16,9 @@ describe('placementAdvice', () => {
 		expect(a?.sentence).toBe(
 			'The reviewer advised against a new skill, because the skill invoice-rounding already covers these lessons.'
 		);
-		expect(a?.followUp).toBe('mike does not yet move these lessons into invoice-rounding by itself.');
+		expect(a?.followUp).toBe(
+			'mike does not yet move these lessons into invoice-rounding by itself.'
+		);
 	});
 
 	it('says an existing skill covers the lessons when no name is known', () => {
@@ -38,7 +40,9 @@ describe('placementAdvice', () => {
 	});
 
 	it('adds the overlap after a place that is not an existing skill', () => {
-		expect(placementAdvice(verdict('wrong_place', 'rule', '.claude/rules/changelog.md'))?.sentence).toBe(
+		expect(
+			placementAdvice(verdict('wrong_place', 'rule', '.claude/rules/changelog.md'))?.sentence
+		).toBe(
 			'The reviewer advised that these lessons work better as a rule in the project than as a skill. It overlaps with .claude/rules/changelog.md.'
 		);
 	});
@@ -69,7 +73,9 @@ describe('placementAdvice', () => {
 
 	it('says somewhere other than a skill when no place is given', () => {
 		const a = placementAdvice(verdict('wrong_place', null, null));
-		expect(a?.sentence).toBe('The reviewer advised that these lessons belong somewhere other than a skill.');
+		expect(a?.sentence).toBe(
+			'The reviewer advised that these lessons belong somewhere other than a skill.'
+		);
 		expect(a?.followUp).toBeNull();
 	});
 
@@ -96,8 +102,14 @@ describe('placementAdvice', () => {
 
 describe('installTextLabel', () => {
 	it('is quiet when the install holds the draft the row shows', () => {
-		expect(installTextLabel({ draft_id: 17 }, 17, false)).toEqual({ text: 'holds this draft', quiet: true });
-		expect(installTextLabel({ draft_id: 17 }, 17, true)).toEqual({ text: 'held this draft', quiet: true });
+		expect(installTextLabel({ draft_id: 17 }, 17, false)).toEqual({
+			text: 'holds this draft',
+			quiet: true
+		});
+		expect(installTextLabel({ draft_id: 17 }, 17, true)).toEqual({
+			text: 'held this draft',
+			quiet: true
+		});
 	});
 
 	it('names the generated list when the install has no draft', () => {

@@ -18,17 +18,116 @@ export const TIME_SPENT_NOTES: string[] = [
 /** Totals and build rows are the real figures (temet-proxy, last 14 days, main sessions). Per-kind
  *  answer counts, typical times and every command row are made up for the story. */
 export const TIME_SPENT_BY_KIND: TimeSpentKindDto[] = [
-	{ kind: 'other shell', answers: 14_205, answers_over_an_hour: 0, wait_seconds: 30.6 * H, p50_wait_seconds: 0.4, p90_wait_seconds: 9.3, model_seconds: 31 * H, sessions: 61 },
-	{ kind: 'rust tests', answers: 931, answers_over_an_hour: 1, wait_seconds: 24.8 * H, p50_wait_seconds: 2.9, p90_wait_seconds: 308, model_seconds: 3.1 * H, sessions: 38 },
-	{ kind: 'mcp tool', answers: 6_420, answers_over_an_hour: 0, wait_seconds: 14.7 * H, p50_wait_seconds: 1.1, p90_wait_seconds: 12, model_seconds: 17 * H, sessions: 70 },
-	{ kind: 'rust build', answers: 300, answers_over_an_hour: 0, wait_seconds: 10.5 * H, p50_wait_seconds: 68, p90_wait_seconds: 328, model_seconds: 1.2 * H, sessions: 29 },
-	{ kind: 'waiting on background', answers: 412, answers_over_an_hour: 3, wait_seconds: 10.4 * H, p50_wait_seconds: 31, p90_wait_seconds: 240, model_seconds: 1.4 * H, sessions: 22 },
-	{ kind: 'read, edit, search', answers: 21_880, answers_over_an_hour: 0, wait_seconds: 8.6 * H, p50_wait_seconds: 0.3, p90_wait_seconds: 2.1, model_seconds: 51 * H, sessions: 74 },
-	{ kind: 'frontend tests', answers: 118, answers_over_an_hour: 0, wait_seconds: 5.4 * H, p50_wait_seconds: 96, p90_wait_seconds: 410, model_seconds: 0.5 * H, sessions: 12 },
-	{ kind: 'lint', answers: 205, answers_over_an_hour: 0, wait_seconds: 5.1 * H, p50_wait_seconds: 41, p90_wait_seconds: 190, model_seconds: 0.7 * H, sessions: 25 },
-	{ kind: 'gate', answers: 22, answers_over_an_hour: 0, wait_seconds: 2.3 * H, p50_wait_seconds: 340, p90_wait_seconds: 720, model_seconds: 0.1 * H, sessions: 9 },
-	{ kind: 'database query', answers: 610, answers_over_an_hour: 0, wait_seconds: 2.1 * H, p50_wait_seconds: 3.2, p90_wait_seconds: 19, model_seconds: 1.6 * H, sessions: 19 },
-	{ kind: 'deploy', answers: 31, answers_over_an_hour: 0, wait_seconds: 1.7 * H, p50_wait_seconds: 140, p90_wait_seconds: 420, model_seconds: 0.1 * H, sessions: 8 }
+	{
+		kind: 'other shell',
+		answers: 14_205,
+		answers_over_an_hour: 0,
+		wait_seconds: 30.6 * H,
+		p50_wait_seconds: 0.4,
+		p90_wait_seconds: 9.3,
+		model_seconds: 31 * H,
+		sessions: 61
+	},
+	{
+		kind: 'rust tests',
+		answers: 931,
+		answers_over_an_hour: 1,
+		wait_seconds: 24.8 * H,
+		p50_wait_seconds: 2.9,
+		p90_wait_seconds: 308,
+		model_seconds: 3.1 * H,
+		sessions: 38
+	},
+	{
+		kind: 'mcp tool',
+		answers: 6_420,
+		answers_over_an_hour: 0,
+		wait_seconds: 14.7 * H,
+		p50_wait_seconds: 1.1,
+		p90_wait_seconds: 12,
+		model_seconds: 17 * H,
+		sessions: 70
+	},
+	{
+		kind: 'rust build',
+		answers: 300,
+		answers_over_an_hour: 0,
+		wait_seconds: 10.5 * H,
+		p50_wait_seconds: 68,
+		p90_wait_seconds: 328,
+		model_seconds: 1.2 * H,
+		sessions: 29
+	},
+	{
+		kind: 'waiting on background',
+		answers: 412,
+		answers_over_an_hour: 3,
+		wait_seconds: 10.4 * H,
+		p50_wait_seconds: 31,
+		p90_wait_seconds: 240,
+		model_seconds: 1.4 * H,
+		sessions: 22
+	},
+	{
+		kind: 'read, edit, search',
+		answers: 21_880,
+		answers_over_an_hour: 0,
+		wait_seconds: 8.6 * H,
+		p50_wait_seconds: 0.3,
+		p90_wait_seconds: 2.1,
+		model_seconds: 51 * H,
+		sessions: 74
+	},
+	{
+		kind: 'frontend tests',
+		answers: 118,
+		answers_over_an_hour: 0,
+		wait_seconds: 5.4 * H,
+		p50_wait_seconds: 96,
+		p90_wait_seconds: 410,
+		model_seconds: 0.5 * H,
+		sessions: 12
+	},
+	{
+		kind: 'lint',
+		answers: 205,
+		answers_over_an_hour: 0,
+		wait_seconds: 5.1 * H,
+		p50_wait_seconds: 41,
+		p90_wait_seconds: 190,
+		model_seconds: 0.7 * H,
+		sessions: 25
+	},
+	{
+		kind: 'gate',
+		answers: 22,
+		answers_over_an_hour: 0,
+		wait_seconds: 2.3 * H,
+		p50_wait_seconds: 340,
+		p90_wait_seconds: 720,
+		model_seconds: 0.1 * H,
+		sessions: 9
+	},
+	{
+		kind: 'database query',
+		answers: 610,
+		answers_over_an_hour: 0,
+		wait_seconds: 2.1 * H,
+		p50_wait_seconds: 3.2,
+		p90_wait_seconds: 19,
+		model_seconds: 1.6 * H,
+		sessions: 19
+	},
+	{
+		kind: 'deploy',
+		answers: 31,
+		answers_over_an_hour: 0,
+		wait_seconds: 1.7 * H,
+		p50_wait_seconds: 140,
+		p90_wait_seconds: 420,
+		model_seconds: 0.1 * H,
+		sessions: 8
+	}
 ];
 
 export const TIME_SPENT_BUILDS: TimeSpentBuildDto[] = [
@@ -52,14 +151,28 @@ function row(
 export const TIME_SPENT_COMMANDS: TimeSpentCommandDto[] = [
 	row('cargo nextest run --workspace', 'rust tests', 212, 9.8 * H, 161, 14),
 	row('scripts/cx nextest run -p mike', 'rust tests', 388, 7.1 * H, 38, 21),
-	row('scripts/task-wait <tmp>/tasks/b7.output --grade', 'waiting on background', 290, 6.2 * H, 41, 17),
+	row(
+		'scripts/task-wait <tmp>/tasks/b7.output --grade',
+		'waiting on background',
+		290,
+		6.2 * H,
+		41,
+		17
+	),
 	row('cargo build -p mike', 'rust build', 140, 4.6 * H, 70, 18),
 	row('scripts/sb-test', 'frontend tests', 96, 4.3 * H, 109, 11),
 	row('make test', 'rust tests', 120, 4.0 * H, 72, 13),
 	row('make lint', 'lint', 160, 3.9 * H, 52, 22),
 	row('scripts/gate', 'gate', 22, 2.3 * H, 340, 9),
 	row('./scripts/start-proxy.sh', 'deploy', 31, 1.7 * H, 140, 8),
-	row('docker exec armitage-pg psql -U devuser -d claude_proxy -X -At -c "select count(*) from requests.requests where created_at > now() - interval \'1 day\'"', 'database query', 410, 1.6 * H, 4.1, 16),
+	row(
+		'docker exec armitage-pg psql -U devuser -d claude_proxy -X -At -c "select count(*) from requests.requests where created_at > now() - interval \'1 day\'"',
+		'database query',
+		410,
+		1.6 * H,
+		4.1,
+		16
+	),
 	row('scripts/cx clippy --workspace --all-targets', 'lint', 88, 1.5 * H, 58, 12),
 	row('git push origin main', 'git', 74, 1.4 * H, 6.2, 19),
 	row('scripts/cx build --release -p mike', 'rust build', 41, 1.3 * H, 96, 9),
@@ -71,7 +184,14 @@ export const TIME_SPENT_COMMANDS: TimeSpentCommandDto[] = [
 	row('rg -n "time_spent" crates frontend/src', 'other shell', 902, 0.7 * H, 0.9, 40),
 	row('make fmt', 'lint', 66, 0.6 * H, 21, 12),
 	row('find . -name "*.sql" -newer Cargo.lock', 'other shell', 310, 0.5 * H, 1.2, 22),
-	row('psql -U devuser -d claude_proxy -c "\\d requests.requests"', 'database query', 52, 0.4 * H, 2.1, 8),
+	row(
+		'psql -U devuser -d claude_proxy -c "\\d requests.requests"',
+		'database query',
+		52,
+		0.4 * H,
+		2.1,
+		8
+	),
 	row('scripts/test-commit-gates', 'gate', 12, 0.3 * H, 80, 5),
 	row('git log --oneline -20', 'git', 411, 0.2 * H, 0.5, 31)
 ];
@@ -118,7 +238,8 @@ export function timeSpentFromUrl(url: string): TimeSpentDto {
 export function stubTimeSpentFetch(): void {
 	const inner = globalThis.fetch;
 	globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-		const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+		const url =
+			typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
 		if (url.includes('/api/time_spent')) {
 			return new Response(JSON.stringify(timeSpentFromUrl(url)), {
 				status: 200,

@@ -667,7 +667,7 @@ export const TURN_10695: EvalRunItemDto = {
 		model: 'google/gemini-3.8-flash',
 		bundle_id: 14,
 		input_text:
-			'OPERATOR REQUEST (user prompt):\nplease tell me the fourth copy is not still in place.\n\nASSISTANT TURN TEXT (whole turn, in order; cut at the front when long):\nwhen you asked. It is not now: the list is gone and the reader uses the one the project already had.\n\nTOOL USE SUMMARY:\ntool_call_count = 107  tool_error_count = 0\n\nOPERATOR\'S NEXT GENUINE MESSAGE (automated events removed):\nensure it is done and working properly'
+			"OPERATOR REQUEST (user prompt):\nplease tell me the fourth copy is not still in place.\n\nASSISTANT TURN TEXT (whole turn, in order; cut at the front when long):\nwhen you asked. It is not now: the list is gone and the reader uses the one the project already had.\n\nTOOL USE SUMMARY:\ntool_call_count = 107  tool_error_count = 0\n\nOPERATOR'S NEXT GENUINE MESSAGE (automated events removed):\nensure it is done and working properly"
 	}
 };
 
@@ -690,15 +690,24 @@ export const DETAIL_10695: EvalReviewDetailDto = {
 		next_genuine_text: 'ensure it is done and working properly'
 	}),
 	labels: {
-		run_gold: [LABEL_10695, label(10695, 'delivery', 'partial', { id: 5334, provenance: JC11_PROVENANCE })],
-		current: [LABEL_10695, label(10695, 'delivery', 'partial', { id: 5334, provenance: JC11_PROVENANCE })],
+		run_gold: [
+			LABEL_10695,
+			label(10695, 'delivery', 'partial', { id: 5334, provenance: JC11_PROVENANCE })
+		],
+		current: [
+			LABEL_10695,
+			label(10695, 'delivery', 'partial', { id: 5334, provenance: JC11_PROVENANCE })
+		],
 		reviews: []
 	}
 };
 
 export const HISTORY_10695: EvalLabelDto[] = [
 	LABEL_10695,
-	label(10695, 'fact_own_prompt_corrects_prior', 'true', { id: 5335, created_at: '2026-09-28T09:46:38Z' }),
+	label(10695, 'fact_own_prompt_corrects_prior', 'true', {
+		id: 5335,
+		created_at: '2026-09-28T09:46:38Z'
+	}),
 	label(10695, 'failure_tag', 'handed-back-actions-or-decisions', {
 		id: 4633,
 		method: 'single_model',
@@ -729,7 +738,11 @@ export const FACT_VOCABULARY: VocabularyAxis[] = [
 		axis: 'fact_own_prompt_corrects_prior',
 		subject_kinds: ['turn'],
 		labels: [
-			{ label: 'true', sort_order: 1, description: "This turn's own prompt corrects an earlier turn." },
+			{
+				label: 'true',
+				sort_order: 1,
+				description: "This turn's own prompt corrects an earlier turn."
+			},
 			{
 				label: 'false',
 				sort_order: 2,

@@ -44,13 +44,40 @@
 			over_alert_threshold: false,
 			over_ceiling: false
 		},
-		totals: { call_count: 21, cost_usd: 0.62, prompt_tokens: 0, completion_tokens: 0, reasoning_tokens: 0 },
+		totals: {
+			call_count: 21,
+			cost_usd: 0.62,
+			prompt_tokens: 0,
+			completion_tokens: 0,
+			reasoning_tokens: 0
+		},
 		by_day: [],
 		by_model: [],
 		by_role: [
-			{ key: 'judge_worker', call_count: 18, cost_usd: 0.5, prompt_tokens: 0, completion_tokens: 0, reasoning_tokens: 0 },
-			{ key: 'session_judge', call_count: 3, cost_usd: 0.12, prompt_tokens: 0, completion_tokens: 0, reasoning_tokens: 0 },
-			{ key: 'steerer', call_count: 40, cost_usd: 1.4, prompt_tokens: 0, completion_tokens: 0, reasoning_tokens: 0 }
+			{
+				key: 'judge_worker',
+				call_count: 18,
+				cost_usd: 0.5,
+				prompt_tokens: 0,
+				completion_tokens: 0,
+				reasoning_tokens: 0
+			},
+			{
+				key: 'session_judge',
+				call_count: 3,
+				cost_usd: 0.12,
+				prompt_tokens: 0,
+				completion_tokens: 0,
+				reasoning_tokens: 0
+			},
+			{
+				key: 'steerer',
+				call_count: 40,
+				cost_usd: 1.4,
+				prompt_tokens: 0,
+				completion_tokens: 0,
+				reasoning_tokens: 0
+			}
 		]
 	};
 
@@ -175,9 +202,7 @@
 		await expect(agreementText[0]).toContain('82%');
 		await expect(agreementText[0]).toContain('163 of 200 turns');
 		await expect(
-			strip
-				.getAllByRole('link', { name: 'latest accuracy run' })
-				.map((a) => a.getAttribute('href'))
+			strip.getAllByRole('link', { name: 'latest accuracy run' }).map((a) => a.getAttribute('href'))
 		).toEqual(['/sessions/labelling/accuracy/6', '/sessions/labelling/accuracy/6']);
 		await expect(strip.getByTestId('strip-alarms').textContent?.trim()).toBe('2');
 		await expect(strip.getByTestId('strip-alarms')).toHaveClass('page-strip__num--live');

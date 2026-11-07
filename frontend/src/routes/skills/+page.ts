@@ -24,7 +24,13 @@ export const load: PageLoad = async ({ url }): Promise<SkillsPageData> => {
 	try {
 		projects = (await getSkillProjects()).projects;
 	} catch (e) {
-		return { projects: null, projectsError: message(e), selected: null, skills: null, skillsError: null };
+		return {
+			projects: null,
+			projectsError: message(e),
+			selected: null,
+			skills: null,
+			skillsError: null
+		};
 	}
 	const selected = pick(projects, url.searchParams.get('project'));
 	if (selected === null) {

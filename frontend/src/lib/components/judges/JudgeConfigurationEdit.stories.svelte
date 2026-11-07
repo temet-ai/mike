@@ -41,9 +41,7 @@
 			).toBeInTheDocument()
 		);
 
-		const option19 = document.querySelector(
-			'input[type="radio"][value="19"]'
-		) as HTMLInputElement;
+		const option19 = document.querySelector('input[type="radio"][value="19"]') as HTMLInputElement;
 		await expect(option19.checked).toBe(true);
 
 		await expect(body.getByTestId('confirm-words').textContent).toContain(

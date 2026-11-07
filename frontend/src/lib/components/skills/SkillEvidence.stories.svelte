@@ -17,7 +17,8 @@
 				overlap: null,
 				belongs_in: null,
 				original_description: 'Checkout changes.',
-				original_skill_md: '---\nname: checkout-flow\n---\n\nRun the retry test. Always run the retry test.\n'
+				original_skill_md:
+					'---\nname: checkout-flow\n---\n\nRun the retry test. Always run the retry test.\n'
 			},
 			recheck: {
 				score: 0.9,
@@ -51,9 +52,13 @@
 		await expect(approved.getByText('19 of 20 (95%), needs 80%')).toBeInTheDocument();
 		await expect(approved.getByText('Approved')).toBeInTheDocument();
 		await expect(
-			approved.getByText(/The reviewer approved this draft as written\. The steps match the lessons/)
+			approved.getByText(
+				/The reviewer approved this draft as written\. The steps match the lessons/
+			)
 		).toBeInTheDocument();
-		await expect(approved.getByRole('region', { name: 'Would Claude load it?' })).toBeInTheDocument();
+		await expect(
+			approved.getByRole('region', { name: 'Would Claude load it?' })
+		).toBeInTheDocument();
 		await expect(approved.getByText('Update the README badges.')).toBeInTheDocument();
 		await expect(approved.getByText('yes, wrong')).toBeInTheDocument();
 

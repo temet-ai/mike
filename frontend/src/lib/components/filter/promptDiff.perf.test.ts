@@ -120,7 +120,11 @@ function oldUnconditionalDiffText(before: string, after: string): DiffSegment[] 
 	}
 
 	if (before === after) return before.length > 0 ? [{ text: before, status: 'unchanged' }] : [];
-	const sentenceOps = lcsDiff(tokenizeSentences(before), tokenizeSentences(after), (a, b) => a === b);
+	const sentenceOps = lcsDiff(
+		tokenizeSentences(before),
+		tokenizeSentences(after),
+		(a, b) => a === b
+	);
 	const merged: DiffSegment[] = [];
 	let k = 0;
 	while (k < sentenceOps.length) {

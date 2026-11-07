@@ -77,7 +77,9 @@
 		);
 		await expect(canvas.getAllByText('Waiting on you').length).toBeGreaterThan(0);
 		await expect(canvas.getByText(/only after you approve it/)).toBeInTheDocument();
-		await expect(canvas.getByText(/a rounding change once double-charged retries\.\s+Read/)).toBeInTheDocument();
+		await expect(
+			canvas.getByText(/a rounding change once double-charged retries\.\s+Read/)
+		).toBeInTheDocument();
 		await expect(canvas.getByRole('link', { name: 'Lesson 812' })).toBeInTheDocument();
 		await expect(
 			canvas.getByText(
@@ -103,9 +105,9 @@
 		await userEvent.type(field, 'Also run the tax test.');
 		await userEvent.click(canvas.getByRole('button', { name: 'Save SKILL.md' }));
 		await waitFor(() =>
-			expect(sent.some((s) => s.method === 'PATCH' && s.url === '/api/skills/drafts/41/content')).toBe(
-				true
-			)
+			expect(
+				sent.some((s) => s.method === 'PATCH' && s.url === '/api/skills/drafts/41/content')
+			).toBe(true)
 		);
 	}}
 />

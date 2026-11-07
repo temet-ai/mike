@@ -44,9 +44,10 @@
 			Filters rewrite <code>{'{type: "text"}'}</code> blocks — in both the
 			<code>system</code> array and every message's <code>content</code> array, not the
 			<code>system</code>
-			field alone. Tool calls, tool results, and any other non-text block always pass through
-			untouched, and so does the response side entirely — filters only ever act on the outbound
-			request. A string-shaped <code>system</code> field is left alone too. See
+			field alone. Tool calls, tool results, and any other non-text block always pass through untouched,
+			and so does the response side entirely — filters only ever act on the outbound request. A string-shaped
+			<code>system</code>
+			field is left alone too. See
 			<a href={resolve('/help/glossary#byte-identity-forwarding')}>byte-identity forwarding</a> for
 			what "outbound request" means here. One asymmetry worth knowing: blocks in <code>system</code> before
 			the last global cache-control boundary are protected from rules; message content carries no such

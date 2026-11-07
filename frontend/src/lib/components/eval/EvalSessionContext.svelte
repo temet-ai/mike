@@ -92,12 +92,7 @@ one frame with hairline seams.
 
 <section class="esc-band" aria-label="The session" data-testid="session-band">
 	<div class="band-hd-wrap">
-		<button
-			type="button"
-			class="band-hd"
-			aria-expanded={open}
-			onclick={() => onToggle(!open)}
-		>
+		<button type="button" class="band-hd" aria-expanded={open} onclick={() => onToggle(!open)}>
 			<DisclosureMarker {open} size={10} />
 			<span class="machine esc-label">The session</span>
 			{#if meta}<span class="band-hd__meta">{meta}</span>{/if}
@@ -163,7 +158,10 @@ one frame with hairline seams.
 									class="esc-toggle"
 									aria-expanded={lastOpen[turn.turn_id] ?? false}
 									onclick={() =>
-										(lastOpen = { ...lastOpen, [turn.turn_id]: !(lastOpen[turn.turn_id] ?? false) })}
+										(lastOpen = {
+											...lastOpen,
+											[turn.turn_id]: !(lastOpen[turn.turn_id] ?? false)
+										})}
 								>
 									<DisclosureMarker open={lastOpen[turn.turn_id] ?? false} size={10} /><span
 										>Its last message</span

@@ -105,11 +105,11 @@
 		<span>
 			Every fired steerer's message is delivered the same way today, regardless of authority:
 			wrapped as a labelled note ("Steering note from the operator's proxy: [the steerer's message].
-			If it is already done or does not apply, say so in a line.") and appended into the session's next turn.
-			Authority is recorded with the intervention for review, and it's what the guided create flow's
-			AI assist uses to decide how forceful the steerer's own prompt should read — treat the three
-			levels as instructions to yourself when writing that prompt, not as a guarantee the session
-			will honour a
+			If it is already done or does not apply, say so in a line.") and appended into the session's
+			next turn. Authority is recorded with the intervention for review, and it's what the guided
+			create flow's AI assist uses to decide how forceful the steerer's own prompt should read —
+			treat the three levels as instructions to yourself when writing that prompt, not as a
+			guarantee the session will honour a
 			<code>command</code> steer any differently than a <code>supply_context</code> one.
 		</span>
 	</div>
