@@ -53,10 +53,16 @@ pub(crate) fn cli_model_options(
     seeds: &[&str],
     configured: &[ModelRef],
 ) -> Vec<ProviderModel> {
-    let mut names: Vec<String> = seeds.iter().map(|s| (*s).to_owned()).collect();
-    for model_ref in configured.iter().filter(|m| m.provider == provider) {
-        if !names.contains(&model_ref.model) {
-            names.push(model_ref.model.clone());
+    let candidates = seeds.iter().map(|s| (*s).to_owned()).chain(
+        configured
+            .iter()
+            .filter(|m| m.provider == provider)
+            .map(|m| m.model.clone()),
+    );
+    let mut names: Vec<String> = Vec::new();
+    for name in candidates {
+        if !names.contains(&name) {
+            names.push(name);
         }
     }
     names
