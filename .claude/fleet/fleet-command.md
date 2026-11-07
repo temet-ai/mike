@@ -23,7 +23,7 @@ Write the definition with `define_fleet`; mike starts it. Do not coordinate, lau
 
 1. **Load the tools.** `ToolSearch select:mcp__mike__define_fleet,mcp__mike__get_fleet`.
 2. **Create the fleet.** `define_fleet` with `slug` (short, lower case, hyphens), `project_path` (the main checkout, never a linked worktree) and a `patch` with `goal` (one sentence, what is true when it is done), `ask` (the operator's words, verbatim), `repo` (the main checkout, a full path) and `branch` (the one branch every seat commits to).
-3. **Criteria.** `criteria.C1` and so on, three to seven. `text`: the operator's words; distinguish authorized amendments from interpretation. `check`: outcome evidence, including delivered behavior; label derived checks. Observe a served site's live page. `paths`: repository-relative files traced from caller through final implementation, across crates. Assign each to a task's `files` or `new_files`; mike checks declared coverage, never infers paths from prose.
+3. **Criteria.** `criteria.C1` and so on, three to seven. `text`: the operator's words; distinguish authorized amendments from interpretation. `check`: outcome evidence, including delivered behavior, and where it is observed (the judge reads only the report, the floor's output and this); label derived checks. Observe a served site's live page. `paths`: repository-relative files traced from caller through final implementation, across crates. Assign each to a task's `files` or `new_files`; mike checks declared coverage, never infers paths from prose.
 4. **Seats.** Workers use an appropriate model: fable for heavy complexity, opus for hard work, sonnet for day-to-day work, haiku for low-complexity tasks. A failed haiku task reruns on sonnet.
 
    | Item | `model` | `agent` | `contract` |
@@ -34,13 +34,10 @@ Write the definition with `define_fleet`; mike starts it. Do not coordinate, lau
 
    **Every discipline runs as the project's own specialist for that area** (`rust-developer`, `frontend-developer`), never a fleet-shaped worker. Once the tasks are written (step 6), dispatch one `fleet-capability-author` subagent (`model: "opus"`) with the project and the slug. It returns the project's areas, each task placed in one, and each area's specialist and skills, brought up to date or written and tested; set `workers` and each task's `discipline` from it. Never write them yourself.
 
-   The judge reads only the report, the floor's output and the criterion, so each criterion's `check` names the evidence that settles it and where it is observed.
-
    **Goals.** `{criteria}` means criterion ids and this task’s contribution, not fleet-wide completion. A worker with a goal (`goals.workers` with `{task}`, `{name}` and `{criteria}`; `tasks.<id>.goal` for one task) keeps working until it holds. A goal has four parts: one measurable end state; the check that shows it, which the seat must put in its own output because the judge reads only the conversation; the constraints on the way; and a bounded handoff. Use the worker's own `Fleet-Seat` SHA and `fleet_report`, never shared HEAD or a later verdict.
 5. **The check, the commit check and the gate.** Take all three from `.claude/fleet/project.md` when it names them. Leave `reference` alone.
    - `check.command`: the one command that says whether the tree is sound (`cargo check --workspace`, `npm run typecheck`); `check.paths`: what its answer depends on. The command owns its dependency setup and cache policy.
    - `commit_check.command` and `commit_check.files`: the project’s check-only formatter and file endings, only after the capability author proves the untouched owned files pass it. Config existence proves nothing; keep existing style when the baseline fails.
-   - New definitions inherit `.claude/fleet/operations.json`; to override or add a command under `execution.operations`, read its schema in `docs/LAUNCH_DOMAIN.md`.
    - `gate.command`: the quick form of the project's gate, since mike runs it on every pushed commit; the full gate runs once, at the close. It must not change files. Startup runs it on a clean checkout before opening seats; a verified red baseline starts only a nominated `baseline.repair_task`, until it fixes it.
 6. **Tasks,** a few to a call. `tasks.T1` and so on, each with:
    - `name`; `discipline` (a key under `workers`); `criteria` (the ids it serves);

@@ -30,4 +30,4 @@ Address a received FAIL before new work, then end the turn.
 
 ## Blocked work
 
-A `blocked: true` ask says what you tried. End only when nothing can move; mail wakes you. Act on a plan or promise before ending the turn.
+A `blocked: true` ask says what you tried. End only when nothing can move; mail wakes you.

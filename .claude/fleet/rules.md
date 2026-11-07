@@ -5,8 +5,8 @@ Every seat of a fleet works under these rules; your brief says what your seat do
 ## How the seats work together
 
 1. **One checkout, one branch.** Seats never add a checkout, worktree or branch. For a historical baseline, ask `fleet_check` with `commit`. Write tests so they never need the operator's files.
-2. **Nobody waits for permission.** No locks, lanes, turns, holds, quiet windows or limits on how many seats work, and no seat asks for, offers or gives a go-ahead before a build, a test or a check. After you report or ask something, do the next thing you can do.
-3. **Share what you run.** Project checks come from `.claude/fleet/project.md`. mike runs the project's check once per state of the tree, the quick gate on pushed commits (`mike fleet gate --status` reads it) and the full gate once at close; no seat runs them or waits for them before committing or reporting. Build and test only what tells you something new, once per state of the tree: the narrowest check that covers your change and the tests you changed, never the whole suite or the full lint. Fix a flaky test where it waits and show it by one run.
+2. **Nobody waits for permission.** No locks, lanes, turns, holds, quiet windows or limits on seats, and no go-ahead before a build, test or check. After you report or ask something, do the next thing you can do.
+3. **Share what you run.** mike runs the project's check once per state of the tree, the quick gate on pushed commits (`mike fleet gate --status` reads it) and the full gate at close; don't run them or wait for them. Run only the narrowest check that covers your change, once per state of the tree, never the whole suite or full lint. Fix a flaky test where it waits and show it by one run.
 4. **Ask the record what others changed; ask git only for your own.** `what_changed` replaces `git status`, `git log` and `git diff` for other seats' work; git stays right for your own diff, for history, and when the answer says `recording: false`.
 
 ## Mail
@@ -16,7 +16,7 @@ Every seat of a fleet works under these rules; your brief says what your seat do
 
 ## Notes
 
-`finding` is something established, `decision` a choice a later seat would otherwise reopen, with the reason, and `task` with a `status` work in flight; `fleet_commit` writes `result` notes. Paths, shas and numbers go in `data`. A note with `data.carry` true is offered to the operator as a lesson for that discipline's later templates; carry only what a later seat would otherwise find out the slow way.
+`finding` is something established, `decision` a choice a later seat would otherwise reopen, with the reason, and `task` with a `status` work in flight; `fleet_commit` writes `result` notes. Paths, shas and numbers go in `data`. A note with `data.carry` true is offered to the operator as a lesson for later templates; carry only what a later seat would find out the slow way.
 
 ## Committing
 
@@ -31,7 +31,7 @@ The tree and index are shared: commit only with `fleet_commit` (or `mike fleet c
 
 When your brief gives you a goal, Claude Code's `/goal` is armed with it after your first turn, and a model judges it after every turn from your conversation alone.
 
-- Name the one check you ran at your own SHA and its verdict in your output; never wait on shared HEAD, the judge or peers. A reported external blocker pauses the loop, not acceptance.
+- Name the one check you ran at your own SHA and its verdict in your output; never wait on shared HEAD, the judge or peers.
 - When its bound runs out with work left, end the turn and say where the task stands. Never run `/goal` or `/goal clear`.
 
 ## Context
