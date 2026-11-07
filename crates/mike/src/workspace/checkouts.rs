@@ -94,7 +94,3 @@ pub(crate) async fn record_origins(
     }
     Ok(())
 }
-
-#[cfg(test)]
-#[path = "checkouts_db_tests.rs"]
-mod tests;

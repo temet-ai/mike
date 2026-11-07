@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod checkouts_db_tests;
 mod documents;
 mod embeddings;
 mod guidance;

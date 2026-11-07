@@ -4,9 +4,9 @@ use std::process::Command;
 
 use uuid::Uuid;
 
-use super::{place_folder, record_origins};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::test_support::{acquire_ephemeral_db, seed_project};
+use crate::workspace::checkouts::{place_folder, record_origins};
 
 const REMOTE: &str = "github.com/temet-ai/tether";
 
