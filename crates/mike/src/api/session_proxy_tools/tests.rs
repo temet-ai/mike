@@ -1,9 +1,11 @@
+use std::sync::Arc;
+
 use axum::Json;
-use axum::extract::{Path, Query, State};
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use uuid::Uuid;
 
-use super::{CallQuery, get_proxy_tools, post_proxy_tool, post_weasel_guard};
+use super::{NO_PROJECT_ANSWER, get_proxy_tools, post_proxy_tool, post_weasel_guard};
 use crate::config::{AppState, ProxyConfig};
 use crate::feature_toggles::ResolvedToggles;
 use crate::proxy_tools::answer::{ProxyToolCall, answer_tool_call};
@@ -11,12 +13,6 @@ use crate::proxy_tools::{client, declare, roster};
 use crate::weasel_intercept::evidence::weasel_armed;
 
 const PROJECT: &str = "/tmp/session-proxy-tools-test";
-
-fn query() -> Query<CallQuery> {
-    Query(CallQuery {
-        project: PROJECT.to_owned(),
-    })
-}
 
 #[tokio::test]
 async fn non_uuid_session_is_400_on_every_route() -> anyhow::Result<()> {
@@ -31,7 +27,6 @@ async fn non_uuid_session_is_400_on_every_route() -> anyhow::Result<()> {
         post_proxy_tool(
             State(state.clone()),
             Path(("not-a-uuid".to_owned(), roster::TOOL_NAME.to_owned())),
-            query(),
             None
         )
         .await
@@ -65,10 +60,12 @@ async fn a_call_answers_what_the_in_stream_answer_would() -> anyhow::Result<()> 
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
     crate::feature_toggles::serve_every_stage_for_tests(&state);
     let id = Uuid::new_v4().to_string();
+    state.lesson_cache.rcu(|current| {
+        Arc::new(current.with_session_project(id.clone(), PROJECT.to_owned()))
+    });
     let Ok(Json(answer)) = post_proxy_tool(
         State(state.clone()),
         Path((id, roster::TOOL_NAME.to_owned())),
-        query(),
         None,
     )
     .await
@@ -88,13 +85,29 @@ async fn a_call_answers_what_the_in_stream_answer_would() -> anyhow::Result<()> 
 }
 
 #[tokio::test]
+async fn a_call_from_a_session_without_a_project_says_so() -> anyhow::Result<()> {
+    let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
+    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    let Ok(Json(answer)) = post_proxy_tool(
+        State(state),
+        Path((Uuid::new_v4().to_string(), roster::TOOL_NAME.to_owned())),
+        None,
+    )
+    .await
+    else {
+        anyhow::bail!("a session without a project must still be answered");
+    };
+    assert_eq!(answer.content, NO_PROJECT_ANSWER);
+    Ok(())
+}
+
+#[tokio::test]
 async fn an_unknown_tool_is_404() -> anyhow::Result<()> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
     crate::feature_toggles::serve_every_stage_for_tests(&state);
     let answer = post_proxy_tool(
         State(state),
         Path((Uuid::new_v4().to_string(), "mike_nope".to_owned())),
-        query(),
         None,
     )
     .await;

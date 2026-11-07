@@ -1,7 +1,7 @@
 use axum::Json;
-use axum::extract::{Path, Query, State};
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -12,11 +12,6 @@ use crate::proxy_tools::{client, declare, is_proxy_tool};
 #[derive(Debug, Serialize)]
 pub(crate) struct ToolsResponse {
     tools: Vec<Value>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct CallQuery {
-    project: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -45,7 +40,6 @@ pub(crate) async fn get_proxy_tools(
 pub(crate) async fn post_proxy_tool(
     State(state): State<AppState>,
     Path((id, name)): Path<(String, String)>,
-    Query(query): Query<CallQuery>,
     input: Option<Json<Value>>,
 ) -> Result<Json<CallResponse>, StatusCode> {
     parse_session(&id)?;
@@ -58,8 +52,26 @@ pub(crate) async fn post_proxy_tool(
         name,
         input_json,
     };
-    let content = answer_tool_call(&state, &call, &query.project).await;
+    let content = match session_project(&state, &id).await {
+        Some(project) => answer_tool_call(&state, &call, &project).await,
+        None => NO_PROJECT_ANSWER.to_owned(),
+    };
     Ok(Json(CallResponse { content }))
+}
+
+const NO_PROJECT_ANSWER: &str = "This session is not assigned to a project, so mike has no \
+                                 project roster to read for it.";
+
+async fn session_project(state: &AppState, session: &str) -> Option<String> {
+    let captured = state
+        .store
+        .read()
+        .await
+        .project_for_session(session)
+        .unwrap_or_default();
+    let snapshot = state.lesson_cache.load();
+    let project = snapshot.project_for_session(session, &captured);
+    (!project.is_empty()).then(|| project.to_owned())
 }
 
 pub(crate) async fn post_weasel_guard(
