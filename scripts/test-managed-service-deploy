@@ -1,0 +1,231 @@
+#!/usr/bin/env bash
+# Checks how the deploy finds and reads an installed mike service (scripts/lib/managed-service.sh)
+# without a build, a server, a database, launchctl or systemctl. Every case runs against a
+# temporary HOME; MANAGED_SERVICE_PLATFORM picks the launchd or the systemd branch on any machine.
+#
+# Usage: scripts/test-managed-service-deploy     Exit: 0 = no FAIL. A case missing a prerequisite
+# prints NOT RUN and is never counted as a pass (MANAGED_SERVICE_TEST_REQUIRES overrides "awk grep").
+# The subshells below set HOME and the platform on purpose; nothing is meant to leak out.
+# shellcheck disable=SC2030,SC2031
+set -uo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+pass=0 fail=0 notrun=0
+ok() { pass=$((pass+1)); echo "PASS: $1"; }
+bad() { fail=$((fail+1)); echo "FAIL: $1"; [[ -n "${2:-}" ]] && echo "  $2"; }
+eq() { if [[ "$3" == "$2" ]]; then ok "$1"; else bad "$1" "wanted [$2] got [$3]"; fi; }
+
+for need in ${MANAGED_SERVICE_TEST_REQUIRES:-awk grep}; do
+    if ! command -v "$need" >/dev/null 2>&1; then
+        echo "NOT RUN: every case ($need is missing)"
+        echo "managed service deploy: 0 passed, 0 failed, 1 not run"
+        exit 0
+    fi
+done
+
+lib="$root/scripts/lib/managed-service.sh"
+scratch="$(mktemp -d /tmp/ms.XXXXXX)"
+trap 'rm -rf "$scratch"' EXIT
+# shellcheck source=lib/managed-service.sh
+source "$lib"
+
+# Run a lib function in a subshell with its own HOME, platform and no inherited XDG paths.
+# $1 = home, $2 = platform, rest = the command.
+in_home() {
+    local home="$1" platform="$2"
+    shift 2
+    ( export HOME="$home" MANAGED_SERVICE_PLATFORM="$platform"; unset XDG_CONFIG_HOME XDG_STATE_HOME; "$@" )
+}
+
+# ── no definition file ───────────────────────────────────────────────────────
+home="$scratch/none"; mkdir -p "$home"
+for platform in launchd systemd; do
+    in_home "$home" "$platform" managed_service_installed
+    eq "$platform: no definition file is not installed" "1" "$?"
+done
+
+# ── file names and identifiers ───────────────────────────────────────────────
+eq "launchd: proxy definition path" "$home/Library/LaunchAgents/ai.temet.mike.proxy.plist" \
+    "$(in_home "$home" launchd managed_service_file proxy)"
+eq "launchd: forward definition path" "$home/Library/LaunchAgents/ai.temet.mike.forward.plist" \
+    "$(in_home "$home" launchd managed_service_file forward)"
+eq "systemd: proxy definition path" "$home/.config/systemd/user/mike.service" \
+    "$(in_home "$home" systemd managed_service_file proxy)"
+eq "systemd: forward definition path" "$home/.config/systemd/user/mike-forward.service" \
+    "$(in_home "$home" systemd managed_service_file forward)"
+eq "systemd: an absolute XDG_CONFIG_HOME is used" "/xdg/cfg/systemd/user/mike.service" \
+    "$( ( export HOME="$home" MANAGED_SERVICE_PLATFORM=systemd XDG_CONFIG_HOME=/xdg/cfg; managed_service_file proxy ) )"
+eq "systemd: a relative XDG_CONFIG_HOME is ignored, as mike ignores it" "$home/.config/systemd/user/mike.service" \
+    "$( ( export HOME="$home" MANAGED_SERVICE_PLATFORM=systemd XDG_CONFIG_HOME=relative/dir; managed_service_file proxy ) )"
+eq "launchd identifiers" "ai.temet.mike.proxy ai.temet.mike.forward" \
+    "$(in_home "$home" launchd managed_service_identifier proxy) $(in_home "$home" launchd managed_service_identifier forward)"
+eq "systemd identifiers" "mike.service mike-forward.service" \
+    "$(in_home "$home" systemd managed_service_identifier proxy) $(in_home "$home" systemd managed_service_identifier forward)"
+eq "the platform override wins" "systemd" "$(MANAGED_SERVICE_PLATFORM=systemd managed_service_platform)"
+
+# ── a launchd plist without the marker ───────────────────────────────────────
+home="$scratch/foreign-plist"
+mkdir -p "$home/Library/LaunchAgents"
+cat >"$home/Library/LaunchAgents/ai.temet.mike.proxy.plist" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict><key>Label</key><string>ai.temet.mike.proxy</string></dict></plist>
+EOF
+in_home "$home" launchd managed_service_installed
+eq "launchd: a plist without the marker is not installed" "1" "$?"
+
+# ── a marked launchd plist in the shape launchd.rs renders ───────────────────
+home="$scratch/launchd"
+mkdir -p "$home/Library/LaunchAgents"
+cat >"$home/Library/LaunchAgents/ai.temet.mike.proxy.plist" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Managed by mike service install. Run `mike service install` to regenerate this file and `mike service uninstall` to remove it. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ai.temet.mike.proxy</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/tmp/fake/bin/mike</string>
+    <string>serve</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/tmp/fake/state/mike</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/bin:/bin</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/tmp/fake/state/mike/logs/proxy.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/fake/state/mike/logs/proxy.log</string>
+</dict>
+</plist>
+EOF
+in_home "$home" launchd managed_service_installed
+eq "launchd: a marked plist is installed" "0" "$?"
+eq "launchd: the program is the first ProgramArguments string" "/tmp/fake/bin/mike" \
+    "$(in_home "$home" launchd managed_service_program)"
+eq "launchd: the log is StandardOutPath" "/tmp/fake/state/mike/logs/proxy.log" \
+    "$(in_home "$home" launchd managed_service_log)"
+# The sed/awk reader is what runs where plutil is missing, so check it on its own.
+eq "launchd: the fallback reader finds the program without plutil" "/tmp/fake/bin/mike" \
+    "$(_managed_service_plist_string ProgramArguments <"$home/Library/LaunchAgents/ai.temet.mike.proxy.plist")"
+eq "launchd: the fallback reader finds the log without plutil" "/tmp/fake/state/mike/logs/proxy.log" \
+    "$(_managed_service_plist_string StandardOutPath <"$home/Library/LaunchAgents/ai.temet.mike.proxy.plist")"
+# A program path with characters launchd.rs escapes comes back unescaped.
+printf '%s\n' '<key>ProgramArguments</key>' '<array>' '    <string>/tmp/a &amp; b/mike</string>' '</array>' >"$scratch/esc.plist"
+eq "launchd: the fallback reader undoes XML escapes" "/tmp/a & b/mike" \
+    "$(_managed_service_plist_string ProgramArguments <"$scratch/esc.plist")"
+# The marker counts only near the top of the file, as in files::is_ours.
+home="$scratch/late-marker"
+mkdir -p "$home/Library/LaunchAgents"
+{ for _ in $(seq 1 20); do echo "<!-- filler -->"; done; echo "<!-- Managed by mike service install -->"; } \
+    >"$home/Library/LaunchAgents/ai.temet.mike.proxy.plist"
+in_home "$home" launchd managed_service_installed
+eq "a marker beyond the first twelve lines does not count" "1" "$?"
+# Without StandardOutPath the log falls back to the state folder.
+home="$scratch/launchd-nolog"
+mkdir -p "$home/Library/LaunchAgents"
+printf '%s\n' '<!-- Managed by mike service install. -->' '<key>ProgramArguments</key>' '<array>' '<string>/tmp/fake/bin/mike</string>' '</array>' \
+    >"$home/Library/LaunchAgents/ai.temet.mike.proxy.plist"
+eq "launchd: a missing StandardOutPath falls back to the default log" "$home/.local/state/mike/logs/proxy.log" \
+    "$(in_home "$home" launchd managed_service_log)"
+
+# ── a systemd unit without, then with, the marker ────────────────────────────
+home="$scratch/systemd"
+mkdir -p "$home/.config/systemd/user"
+printf '%s\n' '[Service]' 'ExecStart=/tmp/fake/bin/mike serve' >"$home/.config/systemd/user/mike.service"
+in_home "$home" systemd managed_service_installed
+eq "systemd: a unit without the marker is not installed" "1" "$?"
+cat >"$home/.config/systemd/user/mike.service" <<'EOF'
+# Managed by mike service install. Run `mike service install` to regenerate this file and `mike service uninstall` to remove it.
+[Unit]
+Description=mike proxy
+
+[Service]
+Type=simple
+ExecStart=/tmp/fake/bin/mike serve
+WorkingDirectory=/tmp/fake/state/mike
+Environment="PATH=/usr/bin:/bin"
+Restart=on-failure
+RestartSec=3
+StandardOutput=append:/tmp/fake/state/mike/logs/proxy.log
+StandardError=append:/tmp/fake/state/mike/logs/proxy.log
+
+[Install]
+WantedBy=default.target
+EOF
+in_home "$home" systemd managed_service_installed
+eq "systemd: a marked unit is installed" "0" "$?"
+eq "systemd: the program is the first word of ExecStart" "/tmp/fake/bin/mike" \
+    "$(in_home "$home" systemd managed_service_program)"
+eq "systemd: the log is the file the unit appends to" "/tmp/fake/state/mike/logs/proxy.log" \
+    "$(in_home "$home" systemd managed_service_log)"
+sed 's|^ExecStart=.*|ExecStart="/tmp/my dir/mike" serve|' "$home/.config/systemd/user/mike.service" >"$scratch/q.service"
+mv "$scratch/q.service" "$home/.config/systemd/user/mike.service"
+eq "systemd: a quoted program path with a space is read whole" "/tmp/my dir/mike" \
+    "$(in_home "$home" systemd managed_service_program)"
+sed '/^StandardOutput=/d;/^StandardError=/d' "$home/.config/systemd/user/mike.service" >"$scratch/q.service"
+mv "$scratch/q.service" "$home/.config/systemd/user/mike.service"
+eq "systemd: a unit with no log file points at journalctl" "journalctl --user -u mike.service" \
+    "$(in_home "$home" systemd managed_service_log)"
+
+# ── the boot generation ──────────────────────────────────────────────────────
+gen="0357c195-fcdb-4b1b-83a0-269af2fce3cb"
+eq "boot generation from a compact body" "$gen" \
+    "$(printf '%s' '{"instance":{"instance_id":"65d5","boot_generation":"'"$gen"'"},"status":"ok"}' | parse_boot_generation)"
+eq "boot generation from a pretty-printed body" "$gen" \
+    "$(printf '{\n  "instance": {\n    "instance_id": "65d5",\n    "boot_generation" : "%s"\n  },\n  "status": "ok"\n}\n' "$gen" | parse_boot_generation)"
+eq "a body without a boot generation gives nothing" "" \
+    "$(printf '%s' '{"instance":{"instance_id":"65d5"},"status":"ok"}' | parse_boot_generation)"
+eq "an empty body gives nothing" "" "$(printf '' | parse_boot_generation)"
+
+# ── waiting for a new process, with a stand-in curl ──────────────────────────
+# The stand-in answers with the generation named in $scratch/answer, or fails when that file is absent.
+stub="$scratch/stub"; mkdir -p "$stub"
+cat >"$stub/curl" <<EOF
+#!/usr/bin/env bash
+[[ -f "$scratch/answer" ]] || exit 22
+printf '{"instance":{"boot_generation":"%s"},"status":"ok"}' "\$(cat "$scratch/answer")"
+EOF
+chmod +x "$stub/curl"
+wait_case() {   # $1 = answer ("" = none), $2 = old generation; prints the exit status
+    if [[ -n "$1" ]]; then printf '%s' "$1" >"$scratch/answer"; else rm -f "$scratch/answer"; fi
+    ( export PATH="$stub:$PATH" WAIT_MAX_SECONDS=1; wait_new_generation 127.0.0.1:1 "$2" "test proxy" >/dev/null 2>&1; echo $? )
+}
+eq "a new generation answering counts as a new process" "0" "$(wait_case new-gen old-gen)"
+eq "the old generation still answering is not a new process" "1" "$(wait_case old-gen old-gen)"
+eq "nothing answering is not a new process" "1" "$(wait_case "" old-gen)"
+eq "with no previous generation, any answer counts" "0" "$(wait_case any-gen "")"
+
+# ── the scripts parse, and detection comes before .env ───────────────────────
+for script in scripts/deploy-proxy.sh scripts/start-proxy.sh scripts/lib/managed-service.sh scripts/test-managed-service-deploy; do
+    if bash -n "$root/$script" 2>/dev/null; then ok "bash -n $script"; else bad "bash -n $script"; fi
+done
+order="$(awk '
+    /^[[:space:]]*#/ { next }
+    /managed_service_installed/ && !d { d = NR }
+    /^[[:space:]]*mike_source_env_preserving_exported[[:space:]]/ && !e { e = NR }
+    END { print (d && e && d < e) ? "ok" : "detect " d " env " e }
+' "$root/scripts/deploy-proxy.sh")"
+eq "deploy-proxy.sh looks for the installed service before it sources .env" "ok" "$order"
+# The service cutover restarts the service and waits for a new boot generation. It must free no
+# real port, kill no pid, start no process of its own and leave the sidecar alone.
+body="$(awk '/^cutover_via_service\(\) \{/ { in_fn = 1 } in_fn { print } in_fn && /^\}/ { exit }' "$root/scripts/deploy-proxy.sh" \
+    | grep -v '^[[:space:]]*#')"
+if [[ -z "$body" ]]; then
+    bad "deploy-proxy.sh has a cutover_via_service function"
+else
+    eq "the service cutover restarts the proxy service and waits for a new generation" "2" \
+        "$(printf '%s\n' "$body" | grep -c 'restart_service_and_wait')"
+    forbidden="$(printf '%s\n' "$body" | grep -E 'free_port|kill |nohup|ensure_proxy_forward|stop-proxy|systemctl|launchctl' || true)"
+    eq "the service cutover frees no port, kills nothing, starts nothing and leaves the sidecar alone" "" "$forbidden"
+fi
+
+echo "managed service deploy: $pass passed, $fail failed, $notrun not run"
+(( fail == 0 ))

@@ -2,7 +2,7 @@
 title: Troubleshooting
 status: active
 created: 2026-06-17
-updated: 2026-11-06
+updated: 2026-11-07
 summary: Fixes for common local build and runtime failures — build accelerators, linker errors, toolchain PATH, DB reachability, port conflicts, inspect-API Host/Origin 403s, MCP connection errors, and stale frontend state.
 ---
 
@@ -209,6 +209,17 @@ Or free the port manually:
 ```bash
 lsof -ti :9988 | xargs kill
 ```
+
+### `the selected installation already has a daemon owner; use its private control connection`
+
+`mike serve` takes a lock file, `daemon.lock` in the state folder (`~/.local/state/mike`), before it
+binds any port, so two proxies cannot run for one installation. This message means another process
+of the same installation holds that lock. When mike was set up with `mike service install`, that
+process is the installed background service: launchd or systemd restarts it within seconds of
+anything stopping it, and it takes the lock before a proxy you started yourself can. Run
+`mike service status` to see its process id. `./scripts/deploy-proxy.sh` detects the service and
+deploys through it (copy the binary, restart the proxy service), so only a proxy started by hand
+with `mike serve` or an older copy of the script runs into this.
 
 ### `403` from the inspect API with `{"error":"host not allowed"}` or `{"error":"origin not allowed"}`
 

@@ -215,6 +215,7 @@ ask_choice() {
 # shellcheck source=lib/proxy-runtime.sh
 source "${SCRIPT_DIR}/lib/proxy-runtime.sh"
 source "${SCRIPT_DIR}/lib/stack-units.sh"
+source "${SCRIPT_DIR}/lib/managed-service.sh"
 
 # ── Pre-flight: capture database reachability ────────────────────────────────
 # Builds use the committed .sqlx offline cache (no DB needed at build time), but
@@ -724,7 +725,13 @@ maybe_start_frontend() {   # $1=port  $2=label  $3=cmd (run via bash -c in front
     FOREGROUND_LABELS+=("${label%% (*}")
 }
 
-if stack_units_enabled && [[ "${SPA_PORT}" == "9990" ]]; then
+if managed_service_installed; then
+    # Under an installed service deploy-proxy.sh has deployed through it, and the web UI on this
+    # port is that service's own host, not vite. Freeing the port (maybe_start_frontend does under
+    # --force) would stop the proxy itself.
+    SPA_LOG_REL=""
+    echo "==> The web UI on :${SPA_PORT} is served by the installed service ($(managed_service_identifier proxy)) — not starting vite, leaving it alone"
+elif stack_units_enabled && [[ "${SPA_PORT}" == "9990" ]]; then
     install_stack_units
     if [[ "${FORCE}" == "true" ]] || ! unit_active mike-stack-spa; then
         systemctl --user stop mike-stack-spa.service 2>/dev/null || true
