@@ -154,12 +154,12 @@
 	$effect(() => {
 		const wantHash = errorsOnly ? '#errors' : '';
 		untrack(() => {
-			const url = new URL(page.url);
+			const url = new URL(page.url.href);
 			if (url.hash === wantHash) return;
 			url.hash = wantHash;
 			const target = `${url.pathname}${url.search}${url.hash}`;
 			// eslint-disable-next-line svelte/no-navigation-without-resolve -- rewriting the current page's own pathname/query with only the #errors fragment toggled; the combined search+hash shape isn't expressible as a single resolve() route-id cast (RouteIdWithSearchOrHash has no "?search#hash" member)
-			void goto(target, { replaceState: true, keepFocus: true, noScroll: true });
+			void goto(target, { replace: true, reset: false });
 		});
 	});
 

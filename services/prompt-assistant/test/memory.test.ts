@@ -7,7 +7,7 @@ import { memoryDirFor, projectSlug, readProjectMemory } from '../src/mcp/memory.
 describe('projectSlug', () => {
 	it('matches the convention verified against ~/.claude/projects/ on this machine: every / becomes -', () => {
 		expect(projectSlug('/mnt/data/projects/temet/temet-proxy')).toBe('-mnt-data-projects-temet-temet-proxy');
-		expect(projectSlug('/home/vimes/Work')).toBe('-home-unit-Work');
+		expect(projectSlug('/home/unit/Work')).toBe('-home-unit-Work');
 	});
 });
 

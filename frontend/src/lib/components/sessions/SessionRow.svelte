@@ -90,7 +90,7 @@
 	onfocusin={() => onHoverIntent(s.id)}
 >
 	<a
-		href={resolve(`/sessions/${encodeURIComponent(s.id)}` as const)}
+		href={resolve(`sessions/${encodeURIComponent(s.id)}` as const)}
 		class="ssn-row"
 		aria-label={`${headline}, ${status.label}, ${s.request_count} ${reqWord}, last active ${formatClockLabel(s.last_seen, now)}`}
 	>

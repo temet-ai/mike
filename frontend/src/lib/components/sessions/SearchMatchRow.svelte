@@ -11,9 +11,9 @@
 
 	let { sessionId, match }: Props = $props();
 
-	const sessionHref = $derived(`/sessions/${encodeURIComponent(sessionId)}` as const);
+	const sessionHref = $derived(`sessions/${encodeURIComponent(sessionId)}` as const);
 	const requestHref = $derived(
-		`/sessions/${encodeURIComponent(sessionId)}/requests/${match.request_id}` as const
+		`sessions/${encodeURIComponent(sessionId)}/requests/${match.request_id}` as const
 	);
 </script>
 

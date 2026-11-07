@@ -86,7 +86,7 @@ in use happens through the "In use now" panel's Edit, never from this list.
 									><a
 										class="jcf-link"
 										href={resolve(
-											`/sessions/labelling/accuracy/${run.id}` as `/sessions/labelling/accuracy/${string}`
+											`sessions/labelling/accuracy/${run.id}` as `sessions/labelling/accuracy/${string}`
 										)}>{runWhen(run)}</a
 									>{#if run.split !== 'holdout' && run.label_count > 1}, on turns used while
 										building the judge{/if}</td

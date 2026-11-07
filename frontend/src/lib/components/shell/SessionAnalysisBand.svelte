@@ -74,7 +74,7 @@
 									<span class="sab-analyzer">{checkLabel(finding.analyzer)}</span>
 									<a
 										href={resolve(
-											`/sessions/${encodeURIComponent(finding.session_id)}/requests/${finding.request_id}` as `/sessions/${string}/requests/${string}`
+											`sessions/${encodeURIComponent(finding.session_id)}/requests/${finding.request_id}` as `sessions/${string}/requests/${string}`
 										)}
 										class="sab-req-link"
 										aria-label="Go to request #{finding.request_id}"

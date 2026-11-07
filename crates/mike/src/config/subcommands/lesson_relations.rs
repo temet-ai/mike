@@ -5,6 +5,7 @@ use arc_swap::ArcSwap;
 use tokio_util::task::TaskTracker;
 
 use super::DetectLessonRelationsArgs;
+use crate::config::ProxyConfig;
 use crate::config::load;
 use crate::config::persist_bootstrap::PersistLlmUsageSink;
 use crate::llm::provider::ModelTier;
@@ -19,21 +20,28 @@ struct RelationSetup {
     overlay: SettingsOverlay,
 }
 
-async fn load_overlay(handle: &PersistHandle) -> SettingsOverlay {
+async fn stored_rows(handle: &PersistHandle) -> Vec<(String, serde_json::Value)> {
     match handle.fetch_settings().await {
-        Ok(rows) => crate::settings::apply_db_rows_to_overlay(rows),
+        Ok(rows) => rows,
         Err(e) => {
             tracing::warn!(err = %e, "detect-lesson-relations: could not read stored settings — using defaults");
-            SettingsOverlay::default()
+            Vec::new()
         }
     }
 }
 
-fn build_setup(
-    config: &crate::config::ProxyConfig,
-    overlay: SettingsOverlay,
-) -> Result<RelationSetup> {
-    let policy = overlay.llm_provider.clone();
+fn apply_stored(
+    config: &mut ProxyConfig,
+    rows: Vec<(String, serde_json::Value)>,
+) -> SettingsOverlay {
+    crate::config::apply_settings_overrides(config, &rows);
+    crate::settings::apply_db_rows_to_overlay(rows)
+}
+
+fn resolve_models(
+    config: &ProxyConfig,
+    policy: &crate::llm::provider::ProviderPolicy,
+) -> Result<(String, String)> {
     let proposer_model = policy.resolve(
         Some(ModelTier::Strong),
         &config.lesson_relations.proposer_model,
@@ -42,7 +50,21 @@ fn build_setup(
         Some(ModelTier::Fast),
         &config.lesson_relations.adjudicator_model,
     );
-    crate::lesson_relations::assert_models_differ(&proposer_model, &adjudicator_model)?;
+    crate::lesson_relations::assert_models_differ(&proposer_model, &adjudicator_model).map_err(
+        |error| {
+            anyhow::anyhow!(
+                "detect-lesson-relations: {error}. Change the stored setting lesson_relations.proposer_model (now {:?}) or lesson_relations.adjudicator_model (now {:?}) at /settings so the two differ",
+                config.lesson_relations.proposer_model,
+                config.lesson_relations.adjudicator_model
+            )
+        },
+    )?;
+    Ok((proposer_model, adjudicator_model))
+}
+
+fn build_setup(config: &ProxyConfig, overlay: SettingsOverlay) -> Result<RelationSetup> {
+    let policy = overlay.llm_provider.clone();
+    let (proposer_model, adjudicator_model) = resolve_models(config, &policy)?;
     let proposer_key = crate::llm::key::cli_api_key(
         config.steerer.openrouter_api_key.as_ref(),
         &policy,
@@ -74,18 +96,20 @@ pub(super) async fn detect_lesson_relations(
     args: DetectLessonRelationsArgs,
     cli: crate::config::CliOverrides,
 ) -> Result<()> {
-    let config = load::load(cli).context("failed to resolve config for detect-lesson-relations")?;
+    let mut config =
+        load::load(cli).context("failed to resolve config for detect-lesson-relations")?;
     let Some(database_url) = config.database_url.as_deref() else {
         anyhow::bail!("detect-lesson-relations requires a database_url");
     };
     let handle = PersistHandle::connect_existing(database_url)
         .await
         .context("could not connect to the target database")?;
+    let overlay = apply_stored(&mut config, stored_rows(&handle).await);
     if !config.lesson_relations.enabled {
         println!("lesson_relations.enabled is false — not running the detector.");
         return Ok(());
     }
-    let setup = build_setup(&config, load_overlay(&handle).await)?;
+    let setup = build_setup(&config, overlay)?;
 
     let tracker = TaskTracker::new();
     let sink: Arc<dyn LlmUsageSink> =
@@ -113,7 +137,7 @@ fn install_governor(stored: &SettingsOverlay, sink: &Arc<dyn LlmUsageSink>) {
 }
 
 async fn run_detection_with_clients(
-    config: &crate::config::ProxyConfig,
+    config: &ProxyConfig,
     handle: &PersistHandle,
     args: &DetectLessonRelationsArgs,
     sink: &Arc<dyn LlmUsageSink>,
@@ -171,3 +195,7 @@ async fn run_detection_with_clients(
     );
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "lesson_relations_tests.rs"]
+mod lesson_relations_tests;

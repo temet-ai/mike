@@ -235,7 +235,14 @@ async fn run_once(
 
     let output = tokio::time::timeout(req.timeout, child.wait_with_output())
         .await
-        .map_err(|_| LlmError::Timeout)?
+        .map_err(|_| {
+            tracing::warn!(
+                path = %resolved_path(bin),
+                timeout_ms = req.timeout.as_millis(),
+                "claude produced no result before the timeout"
+            );
+            LlmError::Timeout
+        })?
         .map_err(|e| transport(format!("claude: {e}")))?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);

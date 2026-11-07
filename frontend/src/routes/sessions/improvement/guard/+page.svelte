@@ -71,9 +71,8 @@ See artifacts/2026-09-29/judge-pages-redesign/SPEC.md §2.
 		tabParam = key;
 		if (page.url.searchParams.get('question') === key) return;
 		void goto(`${resolve('/sessions/improvement/guard')}?question=${encodeURIComponent(key)}`, {
-			replaceState: true,
-			noScroll: true,
-			keepFocus: true
+			replace: true,
+			reset: false
 		});
 	}
 

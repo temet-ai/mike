@@ -110,7 +110,7 @@
 								<span class="sm-steerer-label" style="color: var(--status-steering-fg);"
 									>Refocus</span
 								>
-								<a href={resolve('/sessions/abc123#steering')} class="sm-session-link">session →</a>
+								<a href={resolve('sessions/abc123#steering')} class="sm-session-link">session →</a>
 								<span class="sm-row-time">12s ago</span>
 								<span class="sm-expand-cue" aria-hidden="true">▼</span>
 							</div>
@@ -150,7 +150,7 @@
 								<span class="sm-steerer-label" style="color: var(--status-steering-fg);"
 									>Refocus</span
 								>
-								<a href={resolve('/sessions/def456#steering')} class="sm-session-link">session →</a>
+								<a href={resolve('sessions/def456#steering')} class="sm-session-link">session →</a>
 								<span class="sm-row-time">3m ago</span>
 								<span class="sm-expand-cue" aria-hidden="true">▼</span>
 							</div>
@@ -185,7 +185,7 @@
 								<span class="sm-steerer-label" style="color: var(--status-steering-fg);"
 									>Refocus</span
 								>
-								<a href={resolve('/sessions/ghi789#steering')} class="sm-session-link">session →</a>
+								<a href={resolve('sessions/ghi789#steering')} class="sm-session-link">session →</a>
 								<span class="sm-row-time">18m ago</span>
 								<span class="sm-expand-cue" aria-hidden="true">▼</span>
 							</div>
@@ -209,7 +209,7 @@
 									suppressed
 								</span>
 								<span class="sm-steerer-label" style="color: var(--text-2);">Refocus</span>
-								<a href={resolve('/sessions/abc123#steering')} class="sm-session-link">session →</a>
+								<a href={resolve('sessions/abc123#steering')} class="sm-session-link">session →</a>
 								<span class="sm-row-time">25m ago</span>
 								<span class="sm-expand-cue" aria-hidden="true">▼</span>
 							</div>
@@ -275,7 +275,7 @@
 								<span class="sm-steerer-label" style="color: var(--status-steering-fg);"
 									>MemoryKeeper</span
 								>
-								<a href={resolve('/sessions/abc123#steering')} class="sm-session-link">session →</a>
+								<a href={resolve('sessions/abc123#steering')} class="sm-session-link">session →</a>
 								<span class="sm-row-time">2m ago</span>
 								<span class="sm-expand-cue" aria-hidden="true">▼</span>
 							</div>
@@ -310,7 +310,7 @@
 								<span class="sm-steerer-label" style="color: var(--status-steering-fg);"
 									>Refocus</span
 								>
-								<a href={resolve('/sessions/def456#steering')} class="sm-session-link">session →</a>
+								<a href={resolve('sessions/def456#steering')} class="sm-session-link">session →</a>
 								<span class="sm-row-time">5m ago</span>
 								<span class="sm-expand-cue" aria-hidden="true">▼</span>
 							</div>
@@ -338,7 +338,7 @@
 									suppressed
 								</span>
 								<span class="sm-steerer-label" style="color: var(--text-2);">Refocus</span>
-								<a href={resolve('/sessions/ghi789#steering')} class="sm-session-link">session →</a>
+								<a href={resolve('sessions/ghi789#steering')} class="sm-session-link">session →</a>
 								<span class="sm-row-time">12m ago</span>
 								<span class="sm-expand-cue" aria-hidden="true">▼</span>
 							</div>
@@ -362,7 +362,7 @@
 									no-drift
 								</span>
 								<span class="sm-steerer-label" style="color: var(--text-2);">Refocus</span>
-								<a href={resolve('/sessions/abc123#steering')} class="sm-session-link">session →</a>
+								<a href={resolve('sessions/abc123#steering')} class="sm-session-link">session →</a>
 								<span class="sm-row-time">18m ago</span>
 								<span class="sm-expand-cue" aria-hidden="true">▼</span>
 							</div>
@@ -422,7 +422,7 @@
 								<span class="sm-steerer-label" style="color: var(--status-steering-fg);"
 									>Refocus</span
 								>
-								<a href={resolve('/sessions/abc123#steering')} class="sm-session-link">session →</a>
+								<a href={resolve('sessions/abc123#steering')} class="sm-session-link">session →</a>
 								<span class="sm-row-time">12s ago</span>
 								<span class="sm-expand-cue" aria-hidden="true">▲</span>
 							</div>
@@ -441,7 +441,7 @@
 The current task is: implement the `--dry-run` flag that prints the parsed config without writing any files. The user's last message was asking about error handling for malformed JSON.
 
 Please continue from where you left off with the Rust CLI implementation, specifically addressing the JSON parse error handling question.</pre>
-							<a href={resolve('/sessions/abc123#steering')} class="sm-full-record-link">
+							<a href={resolve('sessions/abc123#steering')} class="sm-full-record-link">
 								→ Full record in session view
 							</a>
 						</div>

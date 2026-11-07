@@ -17,7 +17,7 @@
 
 	const projectPath = $derived(page.params.projectPath ?? '');
 	const backHref = $derived(
-		resolve(`/projects/${encodeURIComponent(projectPath)}` as `/projects/${string}`)
+		resolve(`projects/${encodeURIComponent(projectPath)}` as `projects/${string}`)
 	);
 
 	let projects = $state<FleetProjectSummary[]>([]);
@@ -80,10 +80,10 @@
 	}
 
 	function goToSession(id: string): void {
-		void goto(resolve(`/sessions/${encodeURIComponent(id)}` as `/sessions/${string}`));
+		void goto(resolve(`sessions/${encodeURIComponent(id)}` as `sessions/${string}`));
 	}
 	function goToProject(path: string): void {
-		void goto(resolve(`/projects/${encodeURIComponent(path)}` as `/projects/${string}`));
+		void goto(resolve(`projects/${encodeURIComponent(path)}` as `projects/${string}`));
 	}
 </script>
 

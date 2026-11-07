@@ -240,7 +240,7 @@
 						<a
 							class="pnb-row__session"
 							href={resolve(
-								`/sessions/${encodeURIComponent(note.session_uuid)}` as `/sessions/${string}`
+								`sessions/${encodeURIComponent(note.session_uuid)}` as `sessions/${string}`
 							)}
 							style:color={tokens.fg}
 						>

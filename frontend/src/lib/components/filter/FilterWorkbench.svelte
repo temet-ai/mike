@@ -154,15 +154,14 @@
 	);
 
 	function writeProjectParam(next: string | null): void {
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		const formatted = formatProjectParam(next);
 		if (url.searchParams.get('project') === formatted) return;
 		url.searchParams.set('project', formatted);
 		const qs = url.searchParams.toString();
 		void goto(`${url.pathname}${qs ? `?${qs}` : ''}`, {
-			replaceState: true,
-			keepFocus: true,
-			noScroll: true
+			replace: true,
+			reset: false
 		});
 	}
 
@@ -661,7 +660,13 @@
 				<PanelLeftOpen size={14} aria-hidden="true" />
 			{/if}
 		</button>
-		<a href={resolve(backHref)} class="wb-back-link" aria-label="Back to request">
+		<a
+			href={detail !== null && requestId !== null
+				? resolve(`sessions/${detail.session_id}/requests/${requestId}`)
+				: resolve('/')}
+			class="wb-back-link"
+			aria-label="Back to request"
+		>
 			{#if requestId !== null}Request #{requestId}{:else}Home{/if}
 		</a>
 		<h1 class="wb-title">Filter workbench</h1>

@@ -16,46 +16,22 @@
 
 	const { data }: { data: EmbeddingPageData } = $props();
 
+	// The embedding columns are vector(768); only 768-dimension models can be stored.
+	// The host exposes no embedding-model listing, so the list is fixed to the models known to fit.
 	const MODELS: WorkerModel[] = [
 		{
 			id: 'nomic-embed-text-v1.5',
-			released: 'Feb 2024',
 			pricing: 'free · local',
 			context: '768 dim · 8K ctx',
 			description:
-				"Nomic's open embedding model, run locally via Ollama/Infinity. 768-dimension vectors, 8K-token input. The default here — no API cost and solid general-purpose retrieval quality."
+				"Nomic's open embedding model, served by the host's OpenAI-compatible embedding server. 768-dimension vectors, 8K-token input. The default here."
 		},
 		{
-			id: 'openai/text-embedding-3-small',
-			released: 'Jan 2024',
-			pricing: '$0.02 / 1M',
-			context: '1536 dim · 8K ctx',
-			description:
-				"OpenAI's small embedding model. Cheap and fast at 1536 dimensions; a strong hosted default when you want better quality than local models without paying for the large tier."
-		},
-		{
-			id: 'openai/text-embedding-3-large',
-			released: 'Jan 2024',
-			pricing: '$0.13 / 1M',
-			context: '3072 dim · 8K ctx',
-			description:
-				"OpenAI's large embedding model. 3072-dimension vectors give the best quality of the OpenAI tier at ~6× the price of 3-small — worth it when recall accuracy matters more than cost."
-		},
-		{
-			id: 'voyage-3',
-			released: 'Sep 2024',
-			pricing: '$0.06 / 1M',
-			context: '1024 dim · 32K ctx',
-			description:
-				"Voyage AI's general embedding model. 1024 dimensions with a large 32K-token context; strong on long-document and code retrieval, a mid-priced hosted alternative to OpenAI."
-		},
-		{
-			id: 'BAAI/bge-m3',
-			released: 'Jan 2024',
+			id: 'nomic-embed-text',
 			pricing: 'free · local',
-			context: '1024 dim · 8K ctx',
+			context: '768 dim',
 			description:
-				"BAAI's open multilingual embedding model. Runs locally, 1024 dimensions, strong cross-lingual retrieval — a good open option when your sessions span multiple languages."
+				'The same Nomic model under its unversioned name, as an Ollama-style server lists it. 768-dimension vectors.'
 		}
 	];
 
@@ -143,6 +119,20 @@
 		const s = byKey.get(key);
 		return typeof s?.value === 'string' ? s.value : '';
 	}
+	// A stored model outside the list keeps showing as the current one instead of vanishing.
+	const storedModel = $derived(settingStr('embedding.model'));
+	const modelChoices = $derived<WorkerModel[]>(
+		storedModel === '' || MODELS.some((m) => m.id === storedModel)
+			? MODELS
+			: [
+					{
+						id: storedModel,
+						description:
+							'Currently stored. It is not a 768-dimension model, so it does not fit the embedding columns.'
+					},
+					...MODELS
+				]
+	);
 	function settingBool(key: string): boolean {
 		return byKey.get(key)?.value === true;
 	}
@@ -173,8 +163,8 @@
 		error={settingRowError['embedding.enabled'] ?? settingRowError['embedding.model'] ?? null}
 		applies="next_cycle"
 		accent="info"
-		models={MODELS}
-		selectedModelId={settingStr('embedding.model')}
+		models={modelChoices}
+		selectedModelId={storedModel}
 		onSelectModel={(id) => void handleSettingSave('embedding.model', id)}
 	>
 		{#if disabling}

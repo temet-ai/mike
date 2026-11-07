@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
-	import { browser } from '$app/environment';
+	import { browser } from '$app/env';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
+	import { resolveStatic } from '$lib/resolveHref';
 	import {
 		AlertTriangle,
 		BookOpen,
@@ -71,8 +72,7 @@
 		| '/diagnostics/memory'
 		| '/prompts/volatile-lines'
 		| '/help/glossary'
-		| (typeof SETTINGS_DESTINATIONS)[number]['href']
-		| `/sessions/${string}`;
+		| (typeof SETTINGS_DESTINATIONS)[number]['href'];
 
 	type Entry =
 		| (BaseEntry & { kind: 'route'; href: KnownPathname })
@@ -570,8 +570,8 @@
 		shellState.commandPaletteOpen = false;
 
 		if (entry.kind === 'route') {
-			// eslint-disable-next-line svelte/no-navigation-without-resolve -- Resolve the route before appending its saved search parameters.
-			await goto(`${resolve(entry.href)}${entry.search ?? ''}`);
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- resolveStatic() resolves the route before its saved search parameters are appended.
+			await goto(`${resolveStatic(entry.href)}${entry.search ?? ''}`);
 		} else if (entry.kind === 'external') {
 			if (typeof window !== 'undefined') {
 				window.open(entry.href, '_blank', 'noopener,noreferrer');

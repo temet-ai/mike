@@ -88,7 +88,7 @@
 		{#if selectedProject}
 			<a
 				class="fleet-topbar__project-link"
-				href={resolve(`/projects/${encodeURIComponent(selectedProject)}` as const)}
+				href={resolve(`projects/${encodeURIComponent(selectedProject)}` as const)}
 				aria-label="View project page for {selectedProject}"
 				title="View project page"
 				data-slot="fleet-project-open"

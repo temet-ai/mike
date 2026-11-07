@@ -300,6 +300,22 @@ else
     else bad "a deploy-guard case missing a prerequisite is NOT RUN, never counted as a pass" "exit=$rc"; show "$out"; fi
 fi
 
+# ── the deploy through an installed service, and that a missing prerequisite is NOT RUN ──
+echo "deploy through an installed service (scripts/test-managed-service-deploy)"
+guard="$REPO/scripts/test-managed-service-deploy"
+if [[ ! -x "$guard" ]]; then
+    bad "scripts/test-managed-service-deploy is executable" "missing or not executable in $REPO/scripts"
+else
+    out="$("$guard" 2>&1)"; rc=$?
+    if [[ $rc -ne 0 ]]; then bad "the installed-service deploy checks pass" "exit=$rc"; show "$out"
+    elif [[ "$out" == *"NOT RUN"* ]]; then skip "the installed-service deploy checks pass" "a prerequisite is missing"
+    else ok "the installed-service deploy checks pass"; fi
+    out="$(MANAGED_SERVICE_TEST_REQUIRES=no-such-tool-for-the-drill "$guard" 2>&1)"; rc=$?
+    if [[ $rc -eq 0 && "$out" == *"NOT RUN"* && "$out" != *"PASS:"* ]]; then
+        ok "an installed-service deploy case missing a prerequisite is NOT RUN, never counted as a pass"
+    else bad "an installed-service deploy case missing a prerequisite is NOT RUN, never counted as a pass" "exit=$rc"; show "$out"; fi
+fi
+
 # ── one gate run reports every failure ───────────────────────────────────────
 echo "scripts/gate reports every failure, not the first"
 if grep -Eq '^[[:space:]]*make -k "\$\{TARGET\}"' "$REPO/scripts/gate" \

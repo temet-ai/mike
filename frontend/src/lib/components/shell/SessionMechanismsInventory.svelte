@@ -462,7 +462,7 @@
 					<div class="smi-section-footer">
 						<span class="smi-section-add-backing">
 							<a
-								href={resolve('/steering/new')}
+								href={resolve('steering/new')}
 								class="smi-section-add"
 								data-augmented-ui="tr-clip bl-clip border"
 								title="Create a new steerer rule"

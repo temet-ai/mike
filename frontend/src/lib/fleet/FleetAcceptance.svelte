@@ -271,7 +271,7 @@
 						<a
 							class="text-caption break-all text-[var(--interactive-active-fg)] underline"
 							href={resolve(
-								`/sessions/${encodeURIComponent(obligation.session_uuid)}/comms` as `/sessions/${string}/comms`
+								`sessions/${encodeURIComponent(obligation.session_uuid)}/comms` as `sessions/${string}/comms`
 							)}
 						>
 							Source note {obligation.note_id}

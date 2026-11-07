@@ -381,3 +381,93 @@ async fn closest_guidance_orders_by_vector_similarity_and_drops_unrelated_docume
     db.cleanup().await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn scan_machine_indexes_declared_sources_and_records_a_vanished_root() -> anyhow::Result<()> {
+    let db = acquire_ephemeral_db()
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    seed_project(handle.pool(), "/test/scan-declared").await?;
+    let home = tempfile::tempdir()?;
+    let repo = tempfile::tempdir()?;
+    let machine = Uuid::new_v4();
+    let location = register(&handle, "/test/scan-declared", machine, repo.path()).await?;
+    write(
+        &repo.path().join(".mike/knowledge.json"),
+        r#"{"version":1,"sources":[
+            {"name":"docs","path":"docs","exclude":["knowledge"]},
+            {"name":"artifacts","path":"artifacts"}]}"#,
+    )?;
+    write(
+        &repo.path().join("docs/CONFIGURATION.md"),
+        "---\ntitle: Configuration\nstatus: active\n---\nfirst text",
+    )?;
+    write(&repo.path().join("docs/knowledge/skip.md"), "excluded")?;
+    write(&repo.path().join("docs/notes.txt"), "not markdown")?;
+
+    let mut memo = ScanMemo::default();
+    let first = scan_machine(&handle, machine, home.path(), &mut memo).await?;
+    assert_eq!((first.scanned, first.updated, first.failed), (1, 1, 1));
+    assert_eq!(
+        live_documents(&handle, "docs").await?,
+        vec!["CONFIGURATION.md".to_owned()]
+    );
+    let failure = source_failure(&handle, location, "artifacts").await?;
+    assert!(
+        failure.is_some_and(|text| text.contains("does not exist")),
+        "a declared root that is absent records a failure"
+    );
+    assert_eq!(source_failure(&handle, location, "skills").await?, None);
+
+    let second = scan_machine(&handle, machine, home.path(), &mut memo).await?;
+    assert_eq!((second.updated, second.failed), (0, 0));
+
+    write(
+        &repo.path().join("docs/CONFIGURATION.md"),
+        "---\ntitle: Configuration\nstatus: active\n---\nfirst text, now much longer",
+    )?;
+    let third = scan_machine(&handle, machine, home.path(), &mut memo).await?;
+    assert_eq!(third.updated, 1);
+    let indexed: String = sqlx::query_scalar(
+        "SELECT r.body FROM memory.knowledge_revisions r
+           JOIN memory.knowledge_documents d ON d.current_revision = r.id
+           JOIN memory.knowledge_sources s ON s.source_uuid = d.source_uuid
+          WHERE s.location_uuid = $1 AND s.name = 'docs'",
+    )
+    .bind(location)
+    .fetch_one(handle.pool())
+    .await?;
+    assert!(indexed.ends_with("now much longer"));
+
+    fs::remove_dir_all(repo.path().join("docs"))?;
+    let fourth = scan_machine(&handle, machine, home.path(), &mut memo).await?;
+    assert_eq!(fourth.failed, 1);
+    assert!(
+        source_failure(&handle, location, "docs")
+            .await?
+            .is_some_and(|text| text.contains("does not exist"))
+    );
+    assert_eq!(
+        live_documents(&handle, "docs").await?,
+        vec!["CONFIGURATION.md".to_owned()]
+    );
+    db.cleanup().await?;
+    Ok(())
+}
+
+async fn source_failure(
+    handle: &PersistHandle,
+    location: Uuid,
+    name: &str,
+) -> anyhow::Result<Option<String>> {
+    Ok(sqlx::query_scalar::<_, Option<String>>(
+        "SELECT last_failure FROM memory.knowledge_sources
+          WHERE location_uuid = $1 AND name = $2 AND last_failure_generation = generation",
+    )
+    .bind(location)
+    .bind(name)
+    .fetch_optional(handle.pool())
+    .await?
+    .flatten())
+}

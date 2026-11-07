@@ -61,7 +61,7 @@ reviewer's evidence, loads since it was written, and the user's decision.
 			: undefined;
 		return hit?.draft_id == null
 			? null
-			: resolve(`/skills/${hit.draft_id}` as `/skills/${string}`);
+			: resolve(`skills/${hit.draft_id}` as `skills/${string}`);
 	});
 
 	const outcome = $derived(

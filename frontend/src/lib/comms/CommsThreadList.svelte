@@ -132,7 +132,7 @@
 							<a
 								class="thread-group__open"
 								href={resolve(
-									`/projects/${encodeURIComponent(group.path)}` as `/projects/${string}`
+									`projects/${encodeURIComponent(group.path)}` as `projects/${string}`
 								)}
 								aria-label={`Open project ${group.name}`}
 								title="Open the project"><ArrowUpRight size={12} aria-hidden="true" /></a

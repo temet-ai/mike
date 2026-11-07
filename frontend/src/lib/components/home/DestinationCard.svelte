@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { resolve } from '$app/paths';
+	import { resolveStatic } from '$lib/resolveHref';
 	import { ArrowRight } from '@lucide/svelte';
 
 	export type DestinationGroupAccent = 'levers' | 'insight' | 'system';
@@ -13,7 +13,6 @@
 		| '/tools'
 		| '/diagnostics'
 		| '/projects'
-		| '/filter'
 		| '/filter/workbench'
 		| '/memory'
 		| '/skills'
@@ -65,6 +64,11 @@
 		}
 	};
 	const accent = $derived(ACCENT_VAR[group]);
+
+	// The Diagnostics card links to `/diagnostics`, which has no page of its own (only
+	// `/diagnostics/memory`, `/agent-dispatches` and `/tool-errors` exist), so Kit 3's typed
+	// `resolve()` rejects it. It is left as it was, an unresolved link.
+	const openLink = $derived(openHref === '/diagnostics' ? openHref : resolveStatic(openHref));
 </script>
 
 <div
@@ -88,10 +92,11 @@
 		<p class="dc-stat"><strong>{stat.value}</strong> {stat.label}</p>
 	{/if}
 	<div class="dc-learn">
+		<!-- eslint-disable svelte/no-navigation-without-resolve -- both hrefs are parameterless routes (openLink is resolveStatic() of openHref, apart from the page-less /diagnostics); resolve() cannot take a union this wide -->
 		<a
 			class="dc-learn-link dc-learn-link--open"
 			data-motion="hover"
-			href={resolve(openHref)}
+			href={openLink}
 			aria-label={`Open ${tag}`}
 		>
 			Open <ArrowRight class="dc-open-arrow size-3" data-motion="hover" aria-hidden="true" />
@@ -100,10 +105,11 @@
 			<a
 				class="dc-learn-link"
 				data-motion="hover"
-				href={resolve(howItWorksHref)}
+				href={resolveStatic(howItWorksHref)}
 				aria-label={`How ${tag} works`}>How it works</a
 			>
 		{/if}
+		<!-- eslint-enable svelte/no-navigation-without-resolve -->
 	</div>
 </div>
 

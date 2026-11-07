@@ -1,0 +1,54 @@
+# One entry per folder, so a fix in one never waits on a break in another.
+# open-pull-requests-limit 0 turns off routine version updates and leaves
+# security updates on. Security fixes that stay inside a major arrive as one
+# PR per folder; a fix that needs a major arrives on its own.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      frontend-security:
+        applies-to: security-updates
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /services/prompt-assistant
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      prompt-assistant-security:
+        applies-to: security-updates
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /scripts/likec4
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      likec4-security:
+        applies-to: security-updates
+        update-types: [minor, patch]
+
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      cargo-security:
+        applies-to: security-updates
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

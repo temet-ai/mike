@@ -186,15 +186,15 @@
 		builtin: 'mode-builtin'
 	};
 
-	function sessionHref(sessionUuid: string): `/sessions/${string}` {
-		return `/sessions/${encodeURIComponent(sessionUuid)}`;
+	function sessionHref(sessionUuid: string): `sessions/${string}` {
+		return `sessions/${encodeURIComponent(sessionUuid)}`;
 	}
 
 	function requestHref(
 		sessionUuid: string,
 		requestId: number
-	): `/sessions/${string}/requests/${string}` {
-		return `/sessions/${encodeURIComponent(sessionUuid)}/requests/${requestId}`;
+	): `sessions/${string}/requests/${string}` {
+		return `sessions/${encodeURIComponent(sessionUuid)}/requests/${requestId}`;
 	}
 </script>
 

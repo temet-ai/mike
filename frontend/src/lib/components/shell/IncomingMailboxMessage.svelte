@@ -118,7 +118,7 @@
 				{@const fromUuid = message.from_session_uuid}
 				<a
 					class="im-sender-link"
-					href={resolve(`/sessions/${encodeURIComponent(fromUuid)}`)}
+					href={resolve(`sessions/${encodeURIComponent(fromUuid)}`)}
 					title="Open sender session"
 					aria-label={`Open sender session ${senderShort}`}
 					onclick={(e) => e.stopPropagation()}

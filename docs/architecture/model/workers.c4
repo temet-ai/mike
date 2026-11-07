@@ -257,7 +257,7 @@ model {
 
       channelLinkSweep = worker 'Channel linking' {
         #default-on
-        description 'Matches each session to its Remote Control channel, so a push can find it.'
+        description 'Matches each session to its Remote Control channel from Claude Code session files on this machine, so a push can find it.'
         metadata {
           gate 'channel_link_sweep toggle'
           default 'on'

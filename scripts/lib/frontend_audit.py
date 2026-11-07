@@ -8,6 +8,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
+PROJECTS = ("frontend", "services/prompt-assistant", "scripts/likec4")
 SEVERITIES = ("info", "low", "moderate", "high", "critical")
 BLOCKING = ("high", "critical")
 # No fix, ignored advisories, severity downgrade, or dependency-class exclusions.
@@ -44,19 +45,19 @@ def audit_counts(report):
     return {level: max(counts[level], observed[level]) for level in SEVERITIES}
 
 
-def run(root=ROOT):
-    frontend = root / "frontend"
-    lockfile = frontend / "pnpm-lock.yaml"
+def audit_project(root, name):
+    project = root / name
+    lockfile = project / "pnpm-lock.yaml"
     try:
         lock_hash = hashlib.sha256(lockfile.read_bytes()).hexdigest()
     except OSError:
-        return no_result("frontend lockfile unavailable")
+        return no_result(f"{name} lockfile unavailable")
     pnpm = shutil.which("pnpm")
     if pnpm is None:
         return no_result("pnpm unavailable; install the version declared in frontend/package.json")
-    print(f"Frontend lockfile sha256: {lock_hash}", flush=True)
+    print(f"{name} lockfile sha256: {lock_hash}", flush=True)
     try:
-        result = subprocess.run([pnpm, *AUDIT_ARGS], cwd=frontend, capture_output=True,
+        result = subprocess.run([pnpm, *AUDIT_ARGS], cwd=project, capture_output=True,
                                 text=True, timeout=TIMEOUT_SECONDS, check=False,
                                 env={**os.environ, "COREPACK_ENABLE_NETWORK": "0"})
     except subprocess.TimeoutExpired:
@@ -69,7 +70,7 @@ def run(root=ROOT):
         # Do not echo arbitrary registry/tool error bodies (which can contain
         # authenticated URLs). A successful exit alone is never audit evidence.
         return no_result(f"no valid complete audit report; pnpm exit {result.returncode}")
-    summary = ", ".join(f"{level}={counts[level]}" for level in SEVERITIES)
+    summary = name + ": " + ", ".join(f"{level}={counts[level]}" for level in SEVERITIES)
     if any(counts[level] for level in BLOCKING):
         print(f"FRONTEND-AUDIT: FAIL ({summary}; pnpm exit {result.returncode})",
               file=sys.stderr)
@@ -78,11 +79,17 @@ def run(root=ROOT):
         return no_result(f"pnpm exit {result.returncode} despite zero reported advisories")
     try:
         if hashlib.sha256(lockfile.read_bytes()).hexdigest() != lock_hash:
-            return no_result("frontend lockfile changed during the audit")
+            return no_result(f"{name} lockfile changed during the audit")
     except OSError:
-        return no_result("frontend lockfile became unavailable during the audit")
+        return no_result(f"{name} lockfile became unavailable during the audit")
     print(f"FRONTEND-AUDIT: PASS ({summary})")
     return 0
+
+
+def run(root=ROOT):
+    """Every project is audited: one failure must not hide another's result."""
+    verdicts = [audit_project(root, name) for name in PROJECTS]
+    return 1 if 1 in verdicts else max(verdicts)
 
 
 if __name__ == "__main__":

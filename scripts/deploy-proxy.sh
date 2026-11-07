@@ -70,9 +70,35 @@
 #                                              # ONLY; never touches the live proxy, and
 #                                              # skips the smoke boot when migrations are
 #                                              # pending, so it never migrates the DB
-#   ./scripts/deploy-proxy.sh --health-timeout=90   # override readiness wait (default 300s)
+#   ./scripts/deploy-proxy.sh --health-timeout=90   # override readiness wait (default 300s,
+#                                                   # 60s under an installed service)
 #
 # Stop the deployed proxy later with ./scripts/stop-proxy.sh (frees the ports).
+#
+# INSTALLED SERVICE — when `mike service install` has set mike up as a background service
+# ------------------------------------------------------------------------------------------
+# On a machine where the proxy runs as a launchd agent (macOS) or a systemd user unit (Linux)
+# written by `mike service install`, that supervisor owns the proxy process: it restarts a
+# killed proxy within seconds, and the new process takes the installation's owner lock before
+# it binds anything, so a proxy this script started itself would die with "the selected
+# installation already has a daemon owner". The script detects the service from its definition
+# file (scripts/lib/managed-service.sh) before it reads .env, then:
+#   - reads configuration the way the service does: .env is not loaded and every inherited
+#     MIKE_* variable is dropped, so print-config, migrate-check and the smoke boot resolve the
+#     per-user config file;
+#   - builds, runs migrate-check and the smoke boot on spare ports exactly as before;
+#   - copies the staged binary over the program the service file names (the previous one is
+#     kept in .deploy/mike.prev) and restarts the proxy service, or starts it when
+#     stop-proxy.sh unloaded it. No port is freed and no process is killed;
+#   - counts the cutover as done only when /api/health reports a boot generation different from
+#     the one that was answering before, because a pid is no handle once a supervisor restarts
+#     things and any 200 on the port could be the old process. That wait is 60 seconds, since
+#     the smoke boot has already migrated. A failed check puts the previous binary back and
+#     restarts again;
+#   - restarts the sidecar (`mike forward serve`) only when it is down or its own code changed,
+#     and only after the proxy is healthy. It is the failover layer that covers the proxy's
+#     restart, and a restart of it breaks every stream open through it. The web UI on :9990 is
+#     the service's own.
 
 set -euo pipefail
 
@@ -80,10 +106,37 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${PROJECT_ROOT}"
 
-# Load .env so MIKE_DATABASE_URL (and other dev-time vars) reach migrate-check,
-# the smoke instance, and the deployed proxy. No-op when .env is absent.
-source "${SCRIPT_DIR}/lib/source-env.sh"
-mike_source_env_preserving_exported "${PROJECT_ROOT}/.env"
+# Is mike installed as a background service here? Decided from HOME and the service
+# definition alone, before .env is read, because under the service the checkout's .env must
+# not reach any process this script starts.
+# shellcheck source=lib/managed-service.sh
+source "${SCRIPT_DIR}/lib/managed-service.sh"
+USE_SERVICE=false
+SERVICE_ID=""
+SERVICE_BIN=""
+if managed_service_installed; then
+    USE_SERVICE=true
+    SERVICE_ID="$(managed_service_identifier proxy)"
+    SERVICE_BIN="$(managed_service_program || true)"
+    if [[ "${SERVICE_BIN}" != /* ]]; then
+        echo "deploy-proxy.sh: mike is installed as ${SERVICE_ID}, but the program path could not be read from $(managed_service_file proxy)." >&2
+        echo "  Nothing was touched. Run 'mike service install' to rewrite the service file." >&2
+        exit 1
+    fi
+    echo "==> mike runs as an installed service (${SERVICE_ID}, program ${SERVICE_BIN}) — deploying through it; the checkout's .env is not used."
+    # The service's environment holds PATH and nothing else, so drop every MIKE_* variable the
+    # caller exported (start-proxy.sh exports several) and the database URL: the config file
+    # then decides, as it does for the service.
+    while IFS= read -r _name; do
+        unset "${_name}"
+    done < <(compgen -v | grep '^MIKE_' || true)
+    unset DATABASE_URL _name
+else
+    # Load .env so MIKE_DATABASE_URL (and other dev-time vars) reach migrate-check,
+    # the smoke instance, and the deployed proxy. No-op when .env is absent.
+    source "${SCRIPT_DIR}/lib/source-env.sh"
+    mike_source_env_preserving_exported "${PROJECT_ROOT}/.env"
+fi
 
 # mike IS the egress to api.anthropic.com — it must connect directly and
 # never route its own upstream through an ambient HTTP(S) proxy. A deploy run
@@ -115,19 +168,30 @@ BUILD_PROFILE="release"
 DRY_RUN="false"
 FORCE="false"
 WAIT_MAX_SECONDS=300
+SERVICE_WAIT_SECONDS=60
 for arg in "$@"; do
     case "${arg}" in
         --release)              RELEASE_FLAG="--release"; BUILD_PROFILE="release" ;;
         --debug)                RELEASE_FLAG=""; BUILD_PROFILE="debug" ;;
         --dry-run)              DRY_RUN="true" ;;
         --force)                FORCE="true" ;;
-        --health-timeout=*)     WAIT_MAX_SECONDS="${arg#*=}" ;;
+        --health-timeout=*)     WAIT_MAX_SECONDS="${arg#*=}"; SERVICE_WAIT_SECONDS="${arg#*=}" ;;
         *) echo "deploy-proxy.sh: unknown argument '${arg}' (expected --release, --debug, --dry-run, --force, or --health-timeout=N)" >&2; exit 2 ;;
     esac
 done
 
 DEPLOY_DIR="${PROJECT_ROOT}/.deploy"
 mkdir -p "${DEPLOY_DIR}"
+
+# A symbolic link is a package manager's stable path (Homebrew's $(brew --prefix)/bin/mike).
+# The cutover replaces the file at SERVICE_BIN, which would swap that link for a copy of this
+# checkout's build, so a real deploy stops here, before the build. --dry-run changes nothing.
+if ${USE_SERVICE} && [[ "${DRY_RUN}" == "false" && -L "${SERVICE_BIN}" ]]; then
+    echo "deploy-proxy.sh: the service runs ${SERVICE_BIN}, a symbolic link (a package manager's path)." >&2
+    echo "  Replacing it would swap the link for a copy of this build. Nothing was touched." >&2
+    echo "  Run 'mike service install' from the binary you want it to run, or deploy with --dry-run." >&2
+    exit 1
+fi
 
 # ── one deploy at a time ─────────────────────────────────────────────────────
 # Two deploys share .deploy/mike.staged, the smoke ports and the cutover. On
@@ -186,6 +250,12 @@ USE_UNITS=false
 if stack_units_enabled; then
     USE_UNITS=true
 fi
+# One supervisor only. mike refuses to install the service while mike-stack units are active,
+# so both being true is unexpected; the installed service is what the machine's sessions use.
+if ${USE_SERVICE} && ${USE_UNITS}; then
+    echo "==> mike-stack units are active beside the installed service ${SERVICE_ID} — deploying through the service and leaving the units alone."
+    USE_UNITS=false
+fi
 
 # Poll an inspect bind's /api/health until it answers 200 or we time out.
 # $1 = inspect addr (host:port), $2 = pid to watch (dies early => fail fast),
@@ -241,6 +311,9 @@ fi
 refresh_mike_cli() {
     local cli="${INSTALL_DIR:-${HOME}/.local/bin}/mike"
     [[ -f "${cli}" && -x "${DEPLOYED_BIN}" ]] || return 0
+    # Under the service the CLI is often the very file the service runs, and that file is
+    # already the live build; the deployed record must never overwrite it.
+    [[ -n "${SERVICE_BIN}" && "${cli}" -ef "${SERVICE_BIN}" ]] && return 0
     [[ "$(git -C "${PROJECT_ROOT}" rev-parse --git-dir 2>/dev/null)" \
         == "$(git -C "${PROJECT_ROOT}" rev-parse --git-common-dir 2>/dev/null)" ]] || return 0
     bins_differ "${DEPLOYED_BIN}" "${cli}" || return 0
@@ -333,8 +406,18 @@ MIKE_BIN="${TARGET_DIR}/${BUILD_PROFILE}/mike"
 # bootstrap fallback (first deploy on a machine). rm before cp: on macOS,
 # cp-ing over a file a live process is executing SIGKILLs that process — a
 # rolled-back proxy may be running the .prev inode right now.
-if [[ -x "${DEPLOYED_BIN}" ]]; then
-    rm -f "${PREV_BIN}"
+#
+# Under the installed service, what is live is the file the service runs, so that is what is
+# copied; .deploy/mike.deployed may be a stale record of an earlier deploy.
+rm -f "${PREV_BIN}"
+if ${USE_SERVICE}; then
+    if [[ -x "${SERVICE_BIN}" ]]; then
+        cp "${SERVICE_BIN}" "${PREV_BIN}"
+        echo "==> Snapshotted the installed service's binary ${SERVICE_BIN} -> ${PREV_BIN} (rollback copy)"
+    else
+        echo "==> ${SERVICE_BIN} is not an executable file — rollback will be unavailable"
+    fi
+elif [[ -x "${DEPLOYED_BIN}" ]]; then
     cp "${DEPLOYED_BIN}" "${PREV_BIN}"
     echo "==> Snapshotted last-deployed binary -> ${PREV_BIN} (rollback copy)"
 elif [[ -x "${MIKE_BIN}" ]]; then
@@ -384,7 +467,11 @@ eval "$("${STAGED_BIN}" print-config --shell)"
 SPA_PORT="${MIKE_SPA_BIND##*:}"
 if [[ "${MIKE_SPA_ENABLED}" != "0" && -n "${SPA_PORT}" ]] \
     && lsof -nP -iTCP:"${SPA_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
-    echo "==> SPA port ${SPA_PORT} is already served (vite dev) — launching with the SPA host off"
+    if ${USE_SERVICE}; then
+        echo "==> SPA port ${SPA_PORT} is already served (by the installed service) — launching with the SPA host off"
+    else
+        echo "==> SPA port ${SPA_PORT} is already served (vite dev) — launching with the SPA host off"
+    fi
     export MIKE_SPA_ENABLED=0
 fi
 
@@ -403,15 +490,23 @@ INSPECT_PORT="${INSPECT_ADDR##*:}"
 # DEPLOYED_BIN is written only after a cutover's own health check passes, so it
 # tracks exactly what is live; pairing the hash match with a live /api/health
 # probe guards against a stale record or a crashed proxy.
-if [[ "${DRY_RUN}" == "false" && "${FORCE}" == "false" && -x "${DEPLOYED_BIN}" ]] \
+#
+# Under the installed service the live binary is the file the service runs, not the record.
+LIVE_BIN="${DEPLOYED_BIN}"
+if ${USE_SERVICE}; then
+    LIVE_BIN="${SERVICE_BIN}"
+fi
+if [[ "${DRY_RUN}" == "false" && "${FORCE}" == "false" && -x "${LIVE_BIN}" ]] \
     && [[ -n "$(bin_sha "${STAGED_BIN}")" ]] \
-    && [[ "$(bin_sha "${STAGED_BIN}")" == "$(bin_sha "${DEPLOYED_BIN}")" ]] \
+    && [[ "$(bin_sha "${STAGED_BIN}")" == "$(bin_sha "${LIVE_BIN}")" ]] \
     && proxy_is_healthy "${INSPECT_ADDR}" \
     && { ! ${USE_UNITS} || unit_active mike-stack-proxy; }; then
     # Under the units the pid file is only as fresh as the last cutover: after a
     # reboot, or a restart by systemd, it names a process that is gone. Ask the
-    # unit, which is the one that knows.
-    if ${USE_UNITS}; then
+    # unit, which is the one that knows. The installed service is asked the same way.
+    if ${USE_SERVICE}; then
+        LIVE_PID="$(managed_service_pid)"
+    elif ${USE_UNITS}; then
         LIVE_PID="$(unit_main_pid mike-stack-proxy)"
     else
         LIVE_PID="$(cat "${PID_FILE}" 2>/dev/null || true)"
@@ -419,8 +514,19 @@ if [[ "${DRY_RUN}" == "false" && "${FORCE}" == "false" && -x "${DEPLOYED_BIN}" ]
     echo "==> mike is byte-identical to the running proxy${LIVE_PID:+ (pid ${LIVE_PID})} and /api/health is green."
     echo "==> No cutover needed — leaving the live proxy untouched (use --force to redeploy anyway)."
     CUTOVER_DONE="true"   # nothing to roll back; suppress the trap's abort notice
-    # Even when mike is unchanged, make sure the sidecar is up and current.
-    ensure_proxy_forward
+    if ${USE_SERVICE}; then
+        # The sidecar is the service's own `mike forward serve`; this checkout has no say in it.
+        # Keep the record of what is live true, so refresh_mike_cli never copies a stale one.
+        if bins_differ "${STAGED_BIN}" "${DEPLOYED_BIN}"; then
+            rm -f "${DEPLOYED_BIN}"
+            cp "${STAGED_BIN}" "${DEPLOYED_BIN}"
+        fi
+        rm -f "${PID_FILE}"
+        sync_service_sidecar || exit 1
+    else
+        # Even when mike is unchanged, make sure the sidecar is up and current.
+        ensure_proxy_forward
+    fi
     if ${USE_UNITS}; then
         ensure_stack_units_running
     fi
@@ -497,6 +603,15 @@ if [[ "${DRY_RUN}" == "true" ]]; then
 fi
 
 # ── 4. CUTOVER ───────────────────────────────────────────────────────────────
+if ${USE_SERVICE}; then
+    echo "==> Cutover: stopping smoke instance"
+    kill "${SMOKE_PID}" 2>/dev/null || true
+    wait "${SMOKE_PID}" 2>/dev/null || true
+    SMOKE_PID=""
+    free_port "${ALT_PROXY_PORT}"
+    free_port "${ALT_INSPECT_PORT}"
+    cutover_via_service
+fi
 # Bring the sidecar up FIRST so it covers the imminent :9988 gap (a Remote-Control
 # client keeps flowing DIRECT to Anthropic while the proxy swaps).
 ensure_proxy_forward

@@ -65,16 +65,16 @@
 
 	const graphHref = $derived(
 		resolve(
-			`/projects/${encodeURIComponent(project.project_path)}/graph` as `/projects/${string}/graph`
+			`projects/${encodeURIComponent(project.project_path)}/graph` as `projects/${string}/graph`
 		)
 	);
 
 	function goToSession(id: string): void {
-		void goto(resolve(`/sessions/${encodeURIComponent(id)}` as `/sessions/${string}`));
+		void goto(resolve(`sessions/${encodeURIComponent(id)}` as `sessions/${string}`));
 	}
 
 	function goToProject(path: string): void {
-		void goto(resolve(`/projects/${encodeURIComponent(path)}` as `/projects/${string}`));
+		void goto(resolve(`projects/${encodeURIComponent(path)}` as `projects/${string}`));
 	}
 </script>
 

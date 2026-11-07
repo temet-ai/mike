@@ -16,7 +16,7 @@ Every draft of one skill folder, newest first, each linking to its own page.
 	};
 
 	function href(id: number): string {
-		return resolve(`/skills/${id}` as `/skills/${string}`);
+		return resolve(`skills/${id}` as `skills/${string}`);
 	}
 </script>
 

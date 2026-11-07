@@ -1,6 +1,7 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
+import { kitConfig } from './kit.config';
 
 const inspectBackend = process.env.INSPECT_BACKEND ?? 'http://127.0.0.1:9989';
 const assistantBackend = process.env.PROMPT_ASSISTANT_BACKEND ?? 'http://127.0.0.1:9985';
@@ -32,7 +33,11 @@ const inspectProxy = {
 };
 
 export default defineConfig({
-	plugins: [tailwindcss(), sveltekit()],
+	plugins: [
+		tailwindcss(),
+		// SvelteKit 3 takes the Svelte and Kit configuration here; see kit.config.ts.
+		sveltekit(kitConfig)
+	],
 
 	server: {
 		host: frontendHost,

@@ -144,7 +144,7 @@ cannot work.
 								{#if run}Newest accuracy run, <a
 										class="jce-link"
 										href={resolve(
-											`/sessions/labelling/accuracy/${run.id}` as `/sessions/labelling/accuracy/${string}`
+											`sessions/labelling/accuracy/${run.id}` as `sessions/labelling/accuracy/${string}`
 										)}>{runWhen(run)}</a
 									>: {scoreWords(run)}.{:else}Accuracy not measured yet.{/if}
 							</p>

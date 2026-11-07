@@ -407,7 +407,7 @@
 						No enabled steerers available.
 						<a
 							href={resolve(
-								`/steering/new?mode=guided&session=${sessionId}` as `/steering/new?${string}`
+								`steering/new?mode=guided&session=${sessionId}` as `steering/new?${string}`
 							)}
 							class="sss-panel-link"
 						>
@@ -479,7 +479,7 @@
 						<span class="sss-panel-new-steerer-backing">
 							<a
 								href={resolve(
-									`/steering/new?mode=guided&session=${sessionId}` as `/steering/new?${string}`
+									`steering/new?mode=guided&session=${sessionId}` as `steering/new?${string}`
 								)}
 								class="sss-panel-new-steerer"
 								data-augmented-ui="tr-clip bl-clip border"

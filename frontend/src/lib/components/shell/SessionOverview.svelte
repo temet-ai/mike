@@ -41,7 +41,7 @@
 	function jumpToRequest(requestId: number): void {
 		goto(
 			resolve(
-				`/sessions/${encodeURIComponent(sessionId)}/requests/${requestId}` as `/sessions/${string}/requests/${string}`
+				`sessions/${encodeURIComponent(sessionId)}/requests/${requestId}` as `sessions/${string}/requests/${string}`
 			)
 		);
 	}
@@ -466,7 +466,7 @@
 												<div class="s-dispatch-item">
 													<a
 														href={resolve(
-															`/sessions/${encodeURIComponent(sessionId)}/requests/${event.requestId}` as `/sessions/${string}/requests/${string}`
+															`sessions/${encodeURIComponent(sessionId)}/requests/${event.requestId}` as `sessions/${string}/requests/${string}`
 														)}
 														class="s-dispatch-link"
 														aria-label="Go to dispatch request #{event.requestId}"

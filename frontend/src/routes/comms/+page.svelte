@@ -102,7 +102,7 @@
 
 	function syncUrl(): void {
 		if (!hydrated) return;
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		const trimmedQuery = projectQuery.trim();
 		if (trimmedQuery.length > 0) url.searchParams.set('project', trimmedQuery);
 		else url.searchParams.delete('project');
@@ -119,7 +119,7 @@
 		const next = resolve(`/comms?${url.searchParams.toString()}` as `/comms?${string}`);
 		const current = `${page.url.pathname}${page.url.search}`;
 		if (next === current) return;
-		void goto(next, { replaceState: true, keepFocus: true, noScroll: true });
+		void goto(next, { replace: true, reset: false });
 	}
 
 	function handleFilterTag(tag: string | null): void {

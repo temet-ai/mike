@@ -2,7 +2,7 @@
 title: Troubleshooting
 status: active
 created: 2026-06-17
-updated: 2026-11-06
+updated: 2026-11-07
 summary: Fixes for common local build and runtime failures — build accelerators, linker errors, toolchain PATH, DB reachability, port conflicts, inspect-API Host/Origin 403s, MCP connection errors, and stale frontend state.
 ---
 
@@ -210,6 +210,17 @@ Or free the port manually:
 lsof -ti :9988 | xargs kill
 ```
 
+### `the selected installation already has a daemon owner; use its private control connection`
+
+`mike serve` takes a lock file, `daemon.lock` in the state folder (`~/.local/state/mike`), before it
+binds any port, so two proxies cannot run for one installation. This message means another process
+of the same installation holds that lock. When mike was set up with `mike service install`, that
+process is the installed background service: launchd or systemd restarts it within seconds of
+anything stopping it, and it takes the lock before a proxy you started yourself can. Run
+`mike service status` to see its process id. `./scripts/deploy-proxy.sh` detects the service and
+deploys through it (copy the binary, restart the proxy service), so only a proxy started by hand
+with `mike serve` or an older copy of the script runs into this.
+
 ### `403` from the inspect API with `{"error":"host not allowed"}` or `{"error":"origin not allowed"}`
 
 There is no authentication on the inspect API. The only thing guarding it is a Host/Origin
@@ -328,6 +339,13 @@ page and in `/settings`): of the Remote Control channels first seen in the last 
 least five such channels and fewer than half are linked. That is what a protocol change looks like
 in practice: on 2026-09-10 Claude Code 2.1.272 stopped sending the events mike linked channels
 from, and no new channel was linked for six days (mike#268). On a normal day 85% to 99% link.
+
+mike learns the link in two main ways. `mike spawn` records it when it starts a session. For every
+other session, the channel-link sweep reads Claude Code's own session files,
+`~/.claude/sessions/<pid>.json`, once a minute: each running session's file holds its local session
+id and, under `bridgeSessionId`, its Remote Control id. If those files stop carrying
+`bridgeSessionId`, sessions started by hand stop linking while spawned ones carry on, so a day with
+only hand-started sessions shows the row as `degraded` although the protocol has not changed.
 
 To find what moved, run `make rc-protocol-check` by hand. It runs two scripts (mike#236), neither
 of which is part of lint:

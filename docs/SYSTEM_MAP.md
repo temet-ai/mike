@@ -373,8 +373,8 @@ narrative is [privacy](user-guide/privacy.md); the trust boundary is
 Facts a reader would otherwise rediscover the hard way.
 
 - `crates/mike/src/runtime/codex/` and the `runtime.codex_*` tables are
-  scaffolding for a managed Codex runtime with no production callers; fleets
-  hard-code the Claude runtime. The Codex CLI as an LLM provider
+  scaffolding for a managed Codex runtime with no production callers; fleet
+  definitions have a runtime selector that refuses Codex. The Codex CLI as an LLM provider
   (`llm/codex`) is live.
 - `composition_enabled` is read by the banner and `print-config` only; the
   composition stage does not consult it.

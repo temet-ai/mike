@@ -35,17 +35,26 @@ fn extract_tool_detail(tc: &ToolCall) -> String {
         return String::new();
     };
     match tc.name.as_str() {
-        "Bash" => v
-            .get("command")
-            .and_then(|c| c.as_str())
-            .map(|s| truncate_str(s, 200))
-            .unwrap_or_default(),
+        "Bash" => bash_detail(&v),
         "Read" | "Write" | "Edit" | "MultiEdit" => v
             .get("file_path")
             .and_then(|c| c.as_str())
             .map(|s| s.to_owned())
             .unwrap_or_default(),
         _ => String::new(),
+    }
+}
+
+fn bash_detail(input: &Value) -> String {
+    let command = input
+        .get("command")
+        .and_then(|c| c.as_str())
+        .map(|s| truncate_str(s, 200))
+        .unwrap_or_default();
+    if input.get("run_in_background").and_then(Value::as_bool) == Some(true) {
+        format!("[run_in_background] {command}")
+    } else {
+        command
     }
 }
 
@@ -82,6 +91,20 @@ mod tests {
         let summary = summarise_tool_calls(&[tc]);
         assert!(summary.contains("Bash"));
         assert!(summary.contains("cargo nextest run -p mike"));
+    }
+
+    #[test]
+    fn summary_bash_in_the_background_says_so() {
+        let background = make_tool_call(
+            "Bash",
+            r#"{"command":"sleep 60 && make test","run_in_background":true}"#,
+        );
+        let foreground = make_tool_call(
+            "Bash",
+            r#"{"command":"sleep 60 && make test","run_in_background":false}"#,
+        );
+        assert!(summarise_tool_calls(&[background]).contains("[run_in_background] sleep 60"));
+        assert!(!summarise_tool_calls(&[foreground]).contains("run_in_background"));
     }
 
     #[test]

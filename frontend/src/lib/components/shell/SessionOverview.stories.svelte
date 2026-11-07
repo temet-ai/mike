@@ -361,7 +361,7 @@ Prefer targeted, minimal changes. Do not refactor unless asked.`
 										<div class="s-dispatch-item">
 											<a
 												href={resolve(
-													`/sessions/${s.id}/requests/${dispatch.parent_request_id}` as `/sessions/${string}/requests/${string}`
+													`sessions/${s.id}/requests/${dispatch.parent_request_id}` as `sessions/${string}/requests/${string}`
 												)}
 												class="s-dispatch-link"
 												aria-label="Go to dispatch request #{dispatch.parent_request_id}"

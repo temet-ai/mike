@@ -12,6 +12,7 @@ const NO_CREDENTIALS: [&str; 3] = [
 const BEHIND_ORIGIN: [&str; 3] = ["fetch first", "non-fast-forward", "[rejected]"];
 
 const DRY_RUN_TIMEOUT: Duration = Duration::from_secs(15);
+const GH_STATUS_TIMEOUT: Duration = Duration::from_secs(10);
 const PUSHABLE_REMEMBERED_FOR: Duration = Duration::from_secs(60);
 const LOCAL_HELPER_KEY: &str = "credential.https://github.com.helper";
 const LOCAL_HELPER_VALUE: &str = "!gh auth git-credential";
@@ -106,13 +107,21 @@ pub async fn dry_run(repo: &str, branch: &str) -> Result<(), String> {
 }
 
 pub async fn gh_logged_in() -> bool {
-    tokio::process::Command::new("gh")
+    let status = tokio::process::Command::new("gh")
         .args(["auth", "status"])
         .stdin(std::process::Stdio::null())
         .kill_on_drop(true)
-        .output()
-        .await
-        .is_ok_and(|output| output.status.success())
+        .output();
+    match tokio::time::timeout(GH_STATUS_TIMEOUT, status).await {
+        Ok(output) => output.is_ok_and(|output| output.status.success()),
+        Err(_) => {
+            tracing::warn!(
+                timeout_ms = GH_STATUS_TIMEOUT.as_millis(),
+                "gh auth status timed out; check what gh resolves to on the proxy's PATH"
+            );
+            false
+        }
+    }
 }
 
 async fn set_local_helper(repo: &str) -> Result<(), String> {

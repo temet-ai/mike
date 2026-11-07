@@ -72,7 +72,7 @@
 		{#if lesson.project_path}
 			<a
 				class="alc-chip alc-chip--link"
-				href={resolve(`/projects/${encodeURIComponent(lesson.project_path)}` as const)}
+				href={resolve(`projects/${encodeURIComponent(lesson.project_path)}` as const)}
 				title={lesson.project_path}
 			>
 				{shortProject(lesson.project_path)}
@@ -81,7 +81,7 @@
 		{#if lesson.session_uuid}
 			<a
 				class="alc-chip alc-chip--link"
-				href={resolve(`/sessions/${encodeURIComponent(lesson.session_uuid)}` as const)}
+				href={resolve(`sessions/${encodeURIComponent(lesson.session_uuid)}` as const)}
 				aria-label="Open session {lesson.session_uuid}"
 			>
 				session {shortSessionId(lesson.session_uuid)}

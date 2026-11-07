@@ -689,7 +689,7 @@
 				<span class="se-slug-label">refocus</span>
 			</div>
 			<div class="se-header__actions">
-				<a href={resolve('/agents/42')} class="se-btn" target="_blank" rel="noopener">
+				<a href={resolve('agents/42')} class="se-btn" target="_blank" rel="noopener">
 					↗ Edit prompt
 				</a>
 				<button type="button" class="se-btn se-btn--danger"> Delete </button>
@@ -1649,7 +1649,7 @@
 					</p>
 				</div>
 				<div>
-					<a href={resolve('/steering/new')} class="st-btn--primary"> + New steerer </a>
+					<a href={resolve('steering/new')} class="st-btn--primary"> + New steerer </a>
 				</div>
 			</header>
 
@@ -1660,7 +1660,7 @@
 					A steerer is a lightweight LLM agent that monitors a live session for drift and can inject
 					corrective messages. Create one to get started.
 				</p>
-				<a href={resolve('/steering/new')} class="se-empty-state__action"> + New steerer </a>
+				<a href={resolve('steering/new')} class="se-empty-state__action"> + New steerer </a>
 			</div>
 		</section>
 	</div>
@@ -2059,7 +2059,7 @@
 				</div>
 
 				<div class="gf-footer">
-					<a href={resolve('/steering/new?mode=blank')} class="gf-escape-link">
+					<a href={resolve('steering/new?mode=blank')} class="gf-escape-link">
 						or create a blank steerer →
 					</a>
 					<button
@@ -4068,7 +4068,7 @@
 					</p>
 				</div>
 				<div>
-					<a href={resolve('/steering/new')} class="st-btn--primary">+ New steerer</a>
+					<a href={resolve('steering/new')} class="st-btn--primary">+ New steerer</a>
 				</div>
 			</header>
 
@@ -4079,7 +4079,7 @@
 					A steerer is a lightweight LLM agent that monitors a live session for drift and can inject
 					corrective messages when the session wanders off track.
 				</p>
-				<a href={resolve('/steering/new')} class="se-empty-state__action">+ New steerer</a>
+				<a href={resolve('steering/new')} class="se-empty-state__action">+ New steerer</a>
 				<a href={resolve('/help/guides/steering-concepts')} class="se-empty-state__guide-link">
 					How does steering work? ↗
 				</a>

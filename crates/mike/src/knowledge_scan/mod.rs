@@ -1,7 +1,10 @@
+mod declared;
 mod files;
 mod frontmatter;
 mod sync;
 
+#[cfg(test)]
+mod declared_tests;
 #[cfg(test)]
 mod files_tests;
 #[cfg(test)]

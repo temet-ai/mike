@@ -91,7 +91,7 @@
 			<span class="peer-row__links">
 				<a
 					class="peer-row__link"
-					href={resolve(`/sessions/${encodeURIComponent(peer.sessionId)}` as `/sessions/${string}`)}
+					href={resolve(`sessions/${encodeURIComponent(peer.sessionId)}` as `sessions/${string}`)}
 					aria-label={`Open session detail for ${peerLabel(peer)}`}
 					title="Session detail"
 				>
@@ -100,7 +100,7 @@
 				<a
 					class="peer-row__link"
 					href={resolve(
-						`/sessions/${encodeURIComponent(peer.sessionId)}/comms` as `/sessions/${string}/comms`
+						`sessions/${encodeURIComponent(peer.sessionId)}/comms` as `sessions/${string}/comms`
 					)}
 					aria-label={`Open comms for ${peerLabel(peer)}`}
 					title="Open comms"

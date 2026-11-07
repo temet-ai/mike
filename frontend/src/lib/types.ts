@@ -1332,6 +1332,7 @@ export interface KnowledgeReadResponse extends Record<string, unknown> {
 	kind?: string;
 	current?: boolean;
 	content_hash?: string;
+	freshness?: { state: 'fresh' | 'stale'; reasons: string[] };
 }
 
 export interface OperatorTurnOutcomeSummary {

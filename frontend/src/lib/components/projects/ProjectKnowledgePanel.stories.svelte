@@ -81,6 +81,64 @@
 		content_hash: CONTENT_HASH
 	};
 
+	const PAGE_ONE: KnowledgeSearchResponse = { ...SEARCH, has_more: true, next_offset: 3 };
+	const PAGE_TWO: KnowledgeSearchResponse = {
+		...SEARCH,
+		items: [
+			{
+				reference: 'note:77',
+				source_kind: 'note',
+				title: 'Embedding backend moved to the host server',
+				status: 'current',
+				path: null,
+				updated_at: '2026-09-20T09:00:00Z',
+				rank: 4,
+				lexical_rank: 3,
+				provenance: { collector: 'notes' }
+			},
+			{
+				reference: 'lesson:502',
+				source_kind: 'lesson',
+				title: 'Check the vector dimension before changing the model',
+				status: 'active',
+				path: null,
+				updated_at: '2026-09-21T09:00:00Z',
+				rank: 5,
+				semantic_rank: 3,
+				provenance: { collector: 'lessons' }
+			}
+		],
+		has_more: false,
+		next_offset: null
+	};
+
+	function jsonResponse(body: unknown, status = 200): Response {
+		return new Response(JSON.stringify(body), {
+			status,
+			statusText: status === 200 ? 'OK' : 'Bad Request',
+			headers: { 'content-type': 'application/json' }
+		});
+	}
+
+	let moreRequests: string[] = [];
+	let failMore = false;
+
+	function stubPaged(): void {
+		moreRequests = [];
+		globalThis.fetch = (async (input: RequestInfo | URL) => {
+			const url = typeof input === 'string' ? input : input.toString();
+			if (url.includes('/api/knowledge/search')) {
+				if (new URL(url, 'http://x').searchParams.get('offset') === '3') {
+					moreRequests.push(url);
+					return failMore ? jsonResponse({ error: 'index busy' }, 400) : jsonResponse(PAGE_TWO);
+				}
+				return jsonResponse(PAGE_ONE);
+			}
+			if (url.includes('/api/knowledge/read')) return jsonResponse(READ);
+			return jsonResponse({});
+		}) as typeof fetch;
+	}
+
 	const { Story } = defineMeta({
 		title: 'Projects/ProjectKnowledgePanel',
 		component: ProjectKnowledgePanel,
@@ -129,6 +187,87 @@
 
 		await userEvent.click(within(dialog).getByRole('button', { name: 'Close source' }));
 		await waitFor(() => expect(canvas.queryByRole('dialog')).toBeNull());
+	}}
+>
+	{#snippet template(args)}
+		<CollapseStoreProvider>
+			{#snippet children()}
+				<div class="w-[560px] bg-[var(--surface-bg)] p-6">
+					<ProjectKnowledgePanel {...args} />
+				</div>
+			{/snippet}
+		</CollapseStoreProvider>
+	{/snippet}
+</Story>
+
+<Story
+	name="LoadMore"
+	args={{ projectPath: PROJECT_PATH }}
+	loaders={[
+		async () => {
+			localStorage.clear();
+			failMore = false;
+			stubPaged();
+			return {};
+		}
+	]}
+	play={async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+
+		await waitFor(() => expect(canvas.getByText('3 results so far')).toBeInTheDocument());
+		await expect(canvas.queryByText('3 results')).toBeNull();
+
+		await userEvent.click(canvas.getByRole('button', { name: `Read ${SEARCH.items[0]!.title}` }));
+		await canvas.findByRole('dialog', { name: 'Project knowledge source' });
+
+		await userEvent.click(canvas.getByRole('button', { name: 'Load more' }));
+		await waitFor(() => expect(canvas.getByText('5 results')).toBeInTheDocument());
+		await expect(moreRequests).toHaveLength(1);
+		await expect(moreRequests[0]).toContain('offset=3');
+		await expect(canvas.queryByRole('button', { name: 'Load more' })).toBeNull();
+		await expect(canvas.getAllByRole('listitem')).toHaveLength(5);
+		await expect(canvas.getByRole('button', { name: `Read ${SEARCH.items[0]!.title}` })).toBeInTheDocument();
+		await expect(canvas.getByRole('button', { name: `Read ${PAGE_TWO.items[1]!.title}` })).toBeInTheDocument();
+		await expect(canvas.getByRole('dialog', { name: 'Project knowledge source' })).toBeInTheDocument();
+	}}
+>
+	{#snippet template(args)}
+		<CollapseStoreProvider>
+			{#snippet children()}
+				<div class="w-[560px] bg-[var(--surface-bg)] p-6">
+					<ProjectKnowledgePanel {...args} />
+				</div>
+			{/snippet}
+		</CollapseStoreProvider>
+	{/snippet}
+</Story>
+
+<Story
+	name="LoadMoreFails"
+	args={{ projectPath: `${PROJECT_PATH}-load-more-fails` }}
+	loaders={[
+		async () => {
+			localStorage.clear();
+			failMore = true;
+			stubPaged();
+			return {};
+		}
+	]}
+	play={async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+
+		await waitFor(() => expect(canvas.getByText('3 results so far')).toBeInTheDocument());
+		await userEvent.click(canvas.getByRole('button', { name: 'Load more' }));
+
+		const alert = await canvas.findByRole('alert');
+		await expect(alert.textContent).toContain('400 Bad Request');
+		await expect(canvas.getAllByRole('listitem')).toHaveLength(3);
+		await expect(canvas.getByText('3 results so far')).toBeInTheDocument();
+
+		failMore = false;
+		await userEvent.click(canvas.getByRole('button', { name: 'Load more' }));
+		await waitFor(() => expect(canvas.getByText('5 results')).toBeInTheDocument());
+		await expect(canvas.queryByRole('alert')).toBeNull();
 	}}
 >
 	{#snippet template(args)}

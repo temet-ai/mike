@@ -624,7 +624,7 @@ describe('compare_across_projects tool', () => {
 	}
 
 	it('excludes the current project and checks the remaining ones for the match text', async () => {
-		const now = new Date('2026-09-23T00:00:00Z');
+		const now = new Date();
 		const client = new InspectClient(
 			'http://inspect.local',
 			stubFetch({

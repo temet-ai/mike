@@ -445,14 +445,14 @@
 									<td>
 										<a
 											href={resolve(
-												`/sessions/${encodeURIComponent(entry.session_id)}/requests/${entry.id}`
+												`sessions/${encodeURIComponent(entry.session_id)}/requests/${entry.id}`
 											)}
 										>
 											{entry.id}
 										</a>
 									</td>
 									<td>
-										<a href={resolve(`/sessions/${encodeURIComponent(entry.session_id)}`)}>
+										<a href={resolve(`sessions/${encodeURIComponent(entry.session_id)}`)}>
 											{entry.session_id}
 										</a>
 									</td>

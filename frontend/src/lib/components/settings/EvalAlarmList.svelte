@@ -72,7 +72,7 @@ renders nothing, so an empty box never shows.
 						{#if words.sessionUuid}<a
 								class="eal-link"
 								href={resolve(
-									`/sessions/${encodeURIComponent(words.sessionUuid)}` as `/sessions/${string}`
+									`sessions/${encodeURIComponent(words.sessionUuid)}` as `sessions/${string}`
 								)}>Open the session</a
 							>{/if}
 					</p>

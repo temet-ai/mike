@@ -1,4 +1,5 @@
 pub mod link;
+pub mod local_registry;
 pub mod own_marker;
 pub mod sweep;
 

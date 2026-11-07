@@ -118,6 +118,22 @@ own source paths and revisions. Mike indexing does not transfer Git changes betw
 machines. An indexed revision can remain readable while its machine is offline;
 results include the last successful scan time.
 
+## Freshness
+
+The proxy's background scan also refreshes the sources a repository declares in
+`.mike/knowledge.json`, so no collector needs to keep running. A declared root
+that no longer exists is recorded as a failure.
+
+Search results carry `provenance.freshness` and read answers carry `freshness`:
+`state` is `fresh` or `stale`, with `reasons`, `last_scan_at` and
+`last_verified_at`. A source is stale when its latest scan failed, or when nothing
+has checked it for more than an hour. A read also compares the current revision
+with the file when its root is on this machine, reports `on_disk` (`matches`,
+`differs`, `missing`, `unreadable` or `not_checked`), and marks a differing or
+missing file stale. `current` means only that this is the index's newest revision,
+so read `freshness` to learn whether it is up to date. The web UI shows the reasons
+beside the source.
+
 ## Claude Code memory files and project skills
 
 The proxy indexes two further sources itself, with no collector run and no

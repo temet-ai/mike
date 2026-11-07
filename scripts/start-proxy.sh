@@ -215,6 +215,7 @@ ask_choice() {
 # shellcheck source=lib/proxy-runtime.sh
 source "${SCRIPT_DIR}/lib/proxy-runtime.sh"
 source "${SCRIPT_DIR}/lib/stack-units.sh"
+source "${SCRIPT_DIR}/lib/managed-service.sh"
 
 # ── Pre-flight: capture database reachability ────────────────────────────────
 # Builds use the committed .sqlx offline cache (no DB needed at build time), but
@@ -607,8 +608,13 @@ ensure_prompt_assistant() {
         return 0
     fi
 
-    local already_running=false
-    if stack_units_enabled; then
+    local already_running=false under_launchd=false
+    if managed_service_installed && [[ "$(managed_service_platform)" == "launchd" ]]; then
+        under_launchd=true
+    fi
+    if ${under_launchd}; then
+        [[ -n "$(managed_service_pid assistant)" ]] && already_running=true
+    elif stack_units_enabled; then
         unit_active mike-stack-assistant && already_running=true
     else
         lsof -ti ":${PROMPT_ASSISTANT_PORT}" -sTCP:LISTEN >/dev/null 2>&1 && already_running=true
@@ -634,6 +640,17 @@ ensure_prompt_assistant() {
         echo "==> prompt-assistant on :${PROMPT_ASSISTANT_PORT} needs restarting (${why})"
     fi
 
+    if ${under_launchd}; then
+        managed_service_stop assistant || true
+        free_port "${PROMPT_ASSISTANT_PORT}"
+        install_assistant_agent "$(cd "${PROJECT_ROOT}" && pwd -P)" "${PROMPT_ASSISTANT_PORT}" "${INSPECT_ADDR}"
+        [[ -s "${log}" ]] && mv -f "${log}" "${log}.1"
+        echo "==> Starting prompt-assistant under $(managed_service_identifier assistant) (log -> ${log#"${PROJECT_ROOT}/"})"
+        managed_service_restart assistant
+        STARTED_PORTS+="${PROMPT_ASSISTANT_PORT} "
+        printf '%s' "${new_sha}" > "${stamp}" 2>/dev/null || true
+        return 0
+    fi
     if stack_units_enabled; then
         install_stack_units
         systemctl --user stop mike-stack-assistant.service 2>/dev/null || true
@@ -724,7 +741,13 @@ maybe_start_frontend() {   # $1=port  $2=label  $3=cmd (run via bash -c in front
     FOREGROUND_LABELS+=("${label%% (*}")
 }
 
-if stack_units_enabled && [[ "${SPA_PORT}" == "9990" ]]; then
+if managed_service_installed; then
+    # Under an installed service deploy-proxy.sh has deployed through it, and the web UI on this
+    # port is that service's own host, not vite. Freeing the port (maybe_start_frontend does under
+    # --force) would stop the proxy itself.
+    SPA_LOG_REL=""
+    echo "==> The web UI on :${SPA_PORT} is served by the installed service ($(managed_service_identifier proxy)) — not starting vite, leaving it alone"
+elif stack_units_enabled && [[ "${SPA_PORT}" == "9990" ]]; then
     install_stack_units
     if [[ "${FORCE}" == "true" ]] || ! unit_active mike-stack-spa; then
         systemctl --user stop mike-stack-spa.service 2>/dev/null || true
@@ -820,16 +843,27 @@ add_service_row "  direct:" "ANTHROPIC_BASE_URL=http://${MIKE_ADDR} claude   (fe
     "ANTHROPIC_BASE_URL=$(hlink "http://${MIKE_ADDR}") claude   ${C_DIM}(feels a proxy swap)${C_RST}"
 
 # One row for the logs: every service that writes one, as a path the shell expands.
+SERVICE_INSTALLED=false
+managed_service_installed && SERVICE_INSTALLED=true
 LOG_NAMES="mike,smoke,proxy-forward,prompt-assistant"
+${SERVICE_INSTALLED} && LOG_NAMES="smoke,prompt-assistant"
 [[ -n "${SPA_LOG_REL}" ]] && LOG_NAMES+=",spa"
 [[ -n "${STORYBOOK_LOG_REL}" ]] && LOG_NAMES+=",storybook"
 [[ -n "${ARCH_LOG_REL}" ]] && LOG_NAMES+=",arch"
 add_row "Logs:"       ".deploy/{${LOG_NAMES}}.log"  ".deploy/{${LOG_NAMES}}.log"
-add_row "Tail proxy:" "tail -f ${MIKE_LOG_REL}"    "tail -f ${MIKE_LOG_REL}"
-if stack_units_enabled; then
-    add_row "Status:" "systemctl --user status 'mike-stack-*'" "systemctl --user status 'mike-stack-*'"
+if ${SERVICE_INSTALLED}; then
+    SERVICE_LOG_ROW="$(managed_service_log || true)"
+    [[ "${SERVICE_LOG_ROW}" == /* ]] && SERVICE_LOG_ROW="tail -f ${SERVICE_LOG_ROW}"
+    add_row "Tail proxy:" "${SERVICE_LOG_ROW}" "${SERVICE_LOG_ROW}"
+    add_row "Status:"  "mike service status"  "mike service status"
+    add_row "Restart:" "mike service restart" "mike service restart"
+else
+    add_row "Tail proxy:" "tail -f ${MIKE_LOG_REL}"    "tail -f ${MIKE_LOG_REL}"
+    if stack_units_enabled; then
+        add_row "Status:" "systemctl --user status 'mike-stack-*'" "systemctl --user status 'mike-stack-*'"
+    fi
+    add_row "Stop:"       "./scripts/stop-proxy.sh"     "./scripts/stop-proxy.sh"
 fi
-add_row "Stop:"       "./scripts/stop-proxy.sh"     "./scripts/stop-proxy.sh"
 
 echo
 print_box

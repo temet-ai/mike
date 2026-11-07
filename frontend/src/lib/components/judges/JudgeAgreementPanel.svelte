@@ -48,7 +48,7 @@ such run it says so and how to start one.
 
 	function runHref(id: number): string {
 		return resolve(
-			`/sessions/labelling/accuracy/${id}` as `/sessions/labelling/accuracy/${string}`
+			`sessions/labelling/accuracy/${id}` as `sessions/labelling/accuracy/${string}`
 		);
 	}
 </script>
@@ -112,7 +112,7 @@ such run it says so and how to start one.
 							variant="default"
 							size="sm"
 							href={resolve(
-								`/sessions/labelling/accuracy/${run.id}/review` as `/sessions/labelling/accuracy/${string}/review`
+								`sessions/labelling/accuracy/${run.id}/review` as `sessions/labelling/accuracy/${string}/review`
 							)}>Review labels</Button
 						>
 					{/if}

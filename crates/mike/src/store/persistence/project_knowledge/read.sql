@@ -1,13 +1,39 @@
+WITH source_freshness AS (
+    SELECT s.source_uuid, jsonb_build_object(
+               'state', CASE WHEN jsonb_array_length(fr.reasons) = 0 THEN 'fresh' ELSE 'stale' END,
+               'reasons', fr.reasons,
+               'last_scan_at', s.last_scan_at,
+               'last_verified_at', GREATEST(s.last_scan_at, s.last_heartbeat_at)) AS freshness
+      FROM memory.knowledge_sources s
+      JOIN projects.locations sl ON sl.location_uuid = s.location_uuid
+     CROSS JOIN LATERAL (
+        SELECT COALESCE(jsonb_agg(f.reason), '[]'::jsonb) AS reasons
+          FROM (VALUES
+            (CASE WHEN s.last_failure IS NOT NULL AND s.last_failure_generation = s.generation
+                  THEN 'the source''s latest scan failed: ' || s.last_failure END),
+            (CASE WHEN GREATEST(s.last_scan_at, s.last_heartbeat_at) IS NULL
+                  THEN 'the source has never been scanned'
+                  WHEN GREATEST(s.last_scan_at, s.last_heartbeat_at) < now() - interval '1 hour'
+                  THEN 'no scanner has checked the source since '
+                       || to_char(GREATEST(s.last_scan_at, s.last_heartbeat_at) AT TIME ZONE 'UTC',
+                                  'YYYY-MM-DD"T"HH24:MI:SS"Z"') END)
+          ) AS f(reason)
+         WHERE f.reason IS NOT NULL
+     ) fr
+     WHERE sl.project_id = $1
+)
 SELECT jsonb_build_object('reference', 'artifact:' || r.id, 'body', r.body,
     'title', r.title, 'status', r.status, 'kind', r.kind, 'metadata', r.metadata,
     'revision', r.id, 'content_hash', r.content_hash, 'observed_at', r.observed_at,
     'path', d.relative_path, 'root_path', s.root_path, 'last_scan_at', s.last_scan_at,
     'location_uuid', loc.location_uuid, 'machine_uuid', loc.machine_uuid,
-    'deleted', d.deleted_at IS NOT NULL, 'current', d.current_revision = r.id)
+    'deleted', d.deleted_at IS NOT NULL, 'current', d.current_revision = r.id,
+    'freshness', sf.freshness)
 FROM memory.knowledge_revisions r
 JOIN memory.knowledge_documents d ON d.document_uuid = r.document_uuid
 JOIN memory.knowledge_sources s ON s.source_uuid = d.source_uuid
 JOIN projects.locations loc ON loc.location_uuid = s.location_uuid
+JOIN source_freshness sf ON sf.source_uuid = s.source_uuid
 WHERE loc.project_id = $1 AND $2 = 'artifact' AND r.id = $3
 UNION ALL
 SELECT jsonb_build_object('reference', 'lesson:' || l.uuid, 'body', l.text,

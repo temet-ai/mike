@@ -273,7 +273,7 @@
 															{#if i > 0}<span aria-hidden="true">, </span>{/if}
 															<a
 																href={resolve(
-																	`/sessions/${encodeURIComponent(sessionId)}/requests/${rid}` as `/sessions/${string}/requests/${string}`
+																	`sessions/${encodeURIComponent(sessionId)}/requests/${rid}` as `sessions/${string}/requests/${string}`
 																)}
 																class="wf-req-link"
 																aria-label="Open request #{rid}">#{rid}</a

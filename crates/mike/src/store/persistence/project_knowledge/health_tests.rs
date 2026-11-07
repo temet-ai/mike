@@ -303,3 +303,122 @@ async fn lesson_health_counts_pending_and_conflicted_per_location() -> anyhow::R
     db.cleanup().await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn missing_root_is_recorded_once_and_ignored_for_unregistered_sources() -> anyhow::Result<()>
+{
+    let db = acquire_ephemeral_db()
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    seed_project(handle.pool(), "/test/health-missing").await?;
+    let loc = location(&handle, "/test/health-missing", "/work/missing").await?;
+    source(&handle, loc, "docs").await?;
+    let roots = [
+        SourceInput {
+            location_uuid: loc,
+            name: "docs".into(),
+            root_path: "/roots/docs".into(),
+        },
+        SourceInput {
+            location_uuid: loc,
+            name: "never-registered".into(),
+            root_path: "/roots/never-registered".into(),
+        },
+    ];
+    assert_eq!(handle.record_knowledge_roots_missing(&roots).await?, 1);
+    assert_eq!(handle.record_knowledge_roots_missing(&roots).await?, 0);
+    let health = handle
+        .knowledge_project_health("/test/health-missing")
+        .await?;
+    let sources = entry(&health, loc)?["sources"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    assert_eq!(sources.len(), 1);
+    let failure = sources[0]["last_failure"].as_str().unwrap_or_default();
+    assert!(failure.contains("/roots/docs does not exist"), "{failure}");
+    assert_eq!(
+        sources[0]["last_failure_generation"],
+        sources[0]["generation"]
+    );
+    db.cleanup().await?;
+    Ok(())
+}
+
+async fn freshness_of(handle: &PersistHandle, project: &str) -> anyhow::Result<(Value, Value)> {
+    let found = handle
+        .search_project_knowledge(&KnowledgeQuery {
+            project: project.into(),
+            ..KnowledgeQuery::default()
+        })
+        .await?;
+    let item = found["items"]
+        .as_array()
+        .and_then(|items| items.first())
+        .ok_or_else(|| anyhow::anyhow!("no indexed document for {project}"))?;
+    let reference = item["reference"].as_str().unwrap_or_default().to_owned();
+    let read = handle.read_project_knowledge(project, &reference).await?;
+    Ok((
+        item["provenance"]["freshness"].clone(),
+        read["freshness"].clone(),
+    ))
+}
+
+#[tokio::test]
+async fn search_and_read_report_freshness_from_the_source_scan_state() -> anyhow::Result<()> {
+    let db = acquire_ephemeral_db()
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    let project = "/test/health-freshness";
+    seed_project(handle.pool(), project).await?;
+    let loc = location(&handle, project, "/work/freshness").await?;
+    let src = source(&handle, loc, "docs").await?;
+    handle
+        .ingest_knowledge_scan(
+            src,
+            &ScanInput {
+                generation: 0,
+                documents: vec![document("indexed text", "accepted")],
+            },
+        )
+        .await?;
+
+    let (searched, read) = freshness_of(&handle, project).await?;
+    assert_eq!(searched["state"], "fresh");
+    assert_eq!(read["state"], "fresh");
+    assert_eq!(read["reasons"], json!([]));
+
+    sqlx::query(
+        "UPDATE memory.knowledge_sources SET last_scan_at = now() - interval '2 hours'
+         WHERE source_uuid = $1",
+    )
+    .bind(src)
+    .execute(handle.pool())
+    .await?;
+    let (searched, read) = freshness_of(&handle, project).await?;
+    for freshness in [searched, read] {
+        assert_eq!(freshness["state"], "stale");
+        let reasons = freshness["reasons"].to_string();
+        assert!(
+            reasons.contains("no scanner has checked the source since"),
+            "{reasons}"
+        );
+    }
+
+    handle
+        .record_knowledge_source_failure(src, "root vanished")
+        .await?;
+    let (searched, read) = freshness_of(&handle, project).await?;
+    for freshness in [searched, read] {
+        assert_eq!(freshness["state"], "stale");
+        let reasons = freshness["reasons"].to_string();
+        assert!(
+            reasons.contains("latest scan failed: root vanished"),
+            "{reasons}"
+        );
+    }
+    db.cleanup().await?;
+    Ok(())
+}

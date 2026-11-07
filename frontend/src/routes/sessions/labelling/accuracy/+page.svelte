@@ -28,7 +28,7 @@
 		const next = value === 'session_judge' ? 'session_judge' : 'turn_judge';
 		if (next === tab) return;
 		tab = next;
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		if (next === 'session_judge') url.searchParams.set('for', 'sessions');
 		else url.searchParams.delete('for');
 		try {
@@ -59,7 +59,7 @@
 	const latestHref = $derived(
 		latestTurn
 			? resolve(
-					`/sessions/labelling/accuracy/${latestTurn.id}` as `/sessions/labelling/accuracy/${string}`
+					`sessions/labelling/accuracy/${latestTurn.id}` as `sessions/labelling/accuracy/${string}`
 				)
 			: null
 	);

@@ -82,7 +82,7 @@
 	const peer = $derived([...dataset.actors.values()].find((actor) => actor.kind === 'peer'));
 	const agentIdentityCount = $derived(buildAgentIdentities(dataset).length);
 	const timelineHref = $derived.by(() => {
-		const params = new SvelteURLSearchParams(page.url.searchParams);
+		const params = new SvelteURLSearchParams(page.url.search);
 		params.set('view', 'requests');
 		const query = params.toString();
 		return query ? `${page.url.pathname}?${query}` : page.url.pathname;

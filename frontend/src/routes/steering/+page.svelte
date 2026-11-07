@@ -35,9 +35,8 @@
 
 	function selectTab(tab: 'monitor' | 'fleet'): void {
 		void goto(resolve(`/steering?tab=${tab}`), {
-			replaceState: true,
-			keepFocus: true,
-			noScroll: true
+			replace: true,
+			reset: false
 		});
 	}
 </script>

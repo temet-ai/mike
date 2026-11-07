@@ -314,11 +314,11 @@
 	function requestHref(
 		session: SessionGroup,
 		req: RequestGroup
-	): `/sessions/${string}/requests/${string}` {
-		return `/sessions/${encodeURIComponent(session.session_id)}/requests/${req.request_id}?drawer=findings`;
+	): `sessions/${string}/requests/${string}` {
+		return `sessions/${encodeURIComponent(session.session_id)}/requests/${req.request_id}?drawer=findings`;
 	}
-	function sessionHref(session: SessionGroup): `/sessions/${string}` {
-		return `/sessions/${encodeURIComponent(session.session_id)}`;
+	function sessionHref(session: SessionGroup): `sessions/${string}` {
+		return `sessions/${encodeURIComponent(session.session_id)}`;
 	}
 
 	function coerceStatus(status: string): 'Pending' | 'Streaming' | 'Complete' | { Error: string } {
@@ -627,7 +627,7 @@
 														>
 														{#if session.project}
 															<a
-																href={resolve(`/projects/${encodeURIComponent(session.project)}`)}
+																href={resolve(`projects/${encodeURIComponent(session.project)}`)}
 																class="text-label text-[var(--text-2)] whitespace-pre-wrap break-words underline decoration-[var(--border-default)] underline-offset-2 hover:text-[var(--text-strong)] hover:decoration-[var(--text-strong)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--interactive-focus-ring)]"
 																onclick={(e) => e.stopPropagation()}>{session.project}</a
 															>
@@ -748,7 +748,7 @@
 																				<div class="mt-2">
 																					<a
 																						href={resolve(
-																							`/sessions/${encodeURIComponent(session.session_id)}/requests/${req.request_id}?drawer=response`
+																							`sessions/${encodeURIComponent(session.session_id)}/requests/${req.request_id}?drawer=response`
 																						)}
 																						class="inline-flex items-center gap-1 text-label text-[var(--status-info-fg)] hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--interactive-focus-ring)]"
 																						aria-label={`Open full response for request #${req.request_id}`}

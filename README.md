@@ -1,10 +1,6 @@
 <h1 align="center"><img src="docs/assets/mike-badge.png" alt="mike" width="240"></h1>
 
 <p align="center">
-  <strong>See what Claude Code actually sent and what came back.</strong>
-</p>
-
-<p align="center">
   <a href="https://github.com/temet-ai/mike/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/temet-ai/mike?include_prereleases&amp;label=release&amp;color=eb300a&amp;labelColor=071c1e"></a>
   <img alt="Linux x86_64 and Apple Silicon macOS" src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-eb300a?labelColor=071c1e">
   <a href="./LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/license-MIT-eb300a?labelColor=071c1e"></a>
@@ -20,7 +16,7 @@
 
 mike is an inspector for Claude Code, written in Rust. It records every request and answer of your sessions on your own machine, so you can open any turn in a browser, search your history, and turn a correction into something the next session starts with. It is for people who use Claude Code every day and want to see inside it.
 
-**Status:** alpha, for Linux x86_64 and ARM64 and Apple Silicon macOS. The current release is [0.1.0-alpha.3](https://github.com/temet-ai/mike/releases). Expect rough edges and changes between alphas.
+**Status:** alpha, for Linux x86_64 and ARM64 and Apple Silicon macOS. The current release is [0.1.0-alpha.4](https://github.com/temet-ai/mike/releases). Expect rough edges and changes between alphas.
 
 ![A captured session in mike: the system prompt, the prompt you typed, and each tool call with its result](docs/user-guide/images/session-timeline.png)
 

@@ -14,8 +14,12 @@
 	import HelpHint from '$lib/components/shared/HelpHint.svelte';
 	import Tooltip from '$lib/components/shared/Tooltip.svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { Select, type SelectOption } from '$lib/components/ui/select';
 	import { Plus, TriangleAlert } from '@lucide/svelte';
 	import { ApiError } from '$lib/api';
+	import { getLlmProviders } from '$lib/api/setup';
+	import type { LlmProvider, LlmProvidersResponse } from '$lib/api/setup';
+	import { modelRefs, normalizeRef, providerOf, tierDefault } from '$lib/settings/setupModels';
 	import { getFeatures, getSettings, patchFeature, patchSetting } from '$lib/api/settings';
 	import type { FeatureDto, SettingMeta, SettingValue } from '$lib/api/settings';
 	import { getOpenRouterUsage } from '$lib/api/usage';
@@ -48,6 +52,10 @@
 	let models = $state<ModelEntry[]>([]);
 	let modelsLoading = $state(false);
 	let modelsLoadError = $state<string | null>(null);
+	let providers = $state<LlmProvidersResponse | null>(null);
+	let providersError = $state<string | null>(null);
+	// Set only by picking OpenRouter in the provider list. It shows the paid catalogue; nothing is saved until a row is chosen.
+	let openrouterBrowse = $state(false);
 
 	$effect(() => {
 		features = data.features ?? [];
@@ -66,7 +74,8 @@
 		if (data.steerersLoadError !== null) void loadFleet();
 		if (data.modelsLoadError !== null) void loadModels();
 		void loadOpenRouterUsage();
-		const a = onApiCacheUpdate(
+		void loadProviders();
+		const a =onApiCacheUpdate(
 			'/api/settings/features',
 			() => {
 				void loadFeatures();
@@ -143,6 +152,14 @@
 			models = [];
 		} finally {
 			modelsLoading = false;
+		}
+	}
+	async function loadProviders(): Promise<void> {
+		providersError = null;
+		try {
+			providers = await getLlmProviders();
+		} catch (err) {
+			providersError = err instanceof ApiError ? err.message : String(err);
 		}
 	}
 	async function loadOpenRouterUsage(): Promise<void> {
@@ -280,7 +297,64 @@
 		return features.find((f) => f.key === key)?.applies;
 	}
 	const openrouterConfigured = $derived(openrouterUsage?.configured === true);
-	const steererGated = $derived(!openrouterConfigured);
+	const storedModel = $derived(settingStr('steerer.model').trim());
+	const storedProvider = $derived(storedModel === '' ? '' : providerOf(storedModel));
+	const providerList = $derived(
+		(providers?.providers ?? []).filter((p): p is LlmProvider => p.available)
+	);
+	// The provider whose models are on show: the stored model's, unless OpenRouter was picked to browse.
+	const shownProvider = $derived(
+		openrouterBrowse ? 'openrouter' : storedProvider || (providerList[0]?.id ?? '')
+	);
+	const usesOpenRouter = $derived(shownProvider === 'openrouter');
+	// Only a stored OpenRouter model needs the OpenRouter key; claude/ and codex/ models run on the user's own plan.
+	const steererGated = $derived(storedProvider === 'openrouter' && !openrouterConfigured);
+	const tableGated = $derived(usesOpenRouter && !openrouterConfigured);
+	const providerOptions = $derived<SelectOption[]>([
+		...providerList.map((p) => ({ value: p.id, label: p.label })),
+		...(shownProvider !== '' && !providerList.some((p) => p.id === shownProvider)
+			? [{ value: shownProvider, label: `${shownProvider} (not available here)`, disabled: true }]
+			: [])
+	]);
+	const modelOptions = $derived.by<SelectOption[]>(() => {
+		const entry = providerList.find((p) => p.id === shownProvider);
+		const labels = new Map(entry?.models.map((m) => [m.ref, m.label]) ?? []);
+		const refs = modelRefs(entry);
+		const options = refs.map((ref) => ({ value: ref, label: labels.get(ref) ?? ref }));
+		return storedModel === '' || storedProvider !== shownProvider || refs.includes(storedModel)
+			? options
+			: [{ value: storedModel, label: storedModel }, ...options];
+	});
+	const providerLabel = $derived(
+		providerList.find((p) => p.id === shownProvider)?.label ?? shownProvider
+	);
+	const steererDescription = $derived(
+		storedProvider === 'openrouter'
+			? 'Checks each turn of an enrolled session and nudges it back while it is still running. Needs an OpenRouter key.'
+			: 'Checks each turn of an enrolled session and nudges it back while it is still running.'
+	);
+
+	function changeProvider(provider: string): void {
+		if (provider === 'openrouter') {
+			openrouterBrowse = true;
+			return;
+		}
+		openrouterBrowse = false;
+		if (provider === storedProvider) return;
+		const model = normalizeRef(
+			provider,
+			tierDefault(
+				providerList.find((p) => p.id === provider),
+				settings,
+				'strong'
+			)
+		);
+		if (model !== '') void handleSettingSave('steerer.model', model);
+	}
+	function selectOpenRouterModel(id: string): void {
+		openrouterBrowse = false;
+		void handleSettingSave('steerer.model', id);
+	}
 	const gateHint = $derived(
 		openrouterUsage === null && openrouterUsageError === null
 			? 'Checking your OpenRouter key…'
@@ -312,6 +386,7 @@
 	<GuardQuestionsPanel />
 	<GuardCalibrationPanel />
 
+	{#if usesOpenRouter}
 	<div class="st-env" data-augmented-ui="tl-clip br-clip border">
 		<div class="st-env-status" aria-live="polite">
 			<span class="st-env-dot" class:st-env-dot--ok={openrouterConfigured} aria-hidden="true"
@@ -338,12 +413,13 @@
 			</span>
 		</div>
 	</div>
+	{/if}
 
 	{#if steererFeature !== null}
 		<WorkerCard
 			name="steerer"
 			label="Steerer — acts on live sessions"
-			description="Checks each turn of an enrolled session and nudges it back while it is still running. Needs an OpenRouter key."
+			description={steererDescription}
 			applies={appliesFor('steerer')}
 			enabled={steererFeature.enabled}
 			disabled={steererGated}
@@ -368,17 +444,56 @@
 				<p class="st-model-why">
 					Every turn of an enrolled session is sent to this model. It decides whether the session
 					has drifted from what you asked for, and writes the nudge that gets injected back into the
-					session. It runs through OpenRouter and is billed per call, so the input and output prices
-					in the list are what each check costs you.
+					session.
+					{#if usesOpenRouter}
+						It runs through OpenRouter and is billed per call, so the input and output prices in the
+						list are what each check costs you. Choosing a model from the list moves the steerer to
+						OpenRouter.
+					{:else}
+						It runs on your own {providerLabel} plan, so it needs no OpenRouter key.
+					{/if}
 				</p>
-				<ModelTable
-					{models}
-					currentValue={settingStr('steerer.model')}
-					loading={modelsLoading}
-					saving={settingRowLoading['steerer.model'] ?? false}
-					disabled={steererGated}
-					onSelect={(id) => void handleSettingSave('steerer.model', id)}
-				/>
+				{#if providers === null}
+					<p class="st-model-err" role={providersError === null ? undefined : 'alert'}>
+						{providersError === null
+							? 'Checking the providers on this machine…'
+							: `Could not load the providers on this machine: ${providersError}`}
+					</p>
+					{#if storedModel !== ''}<p class="st-model-why">Current model: <code>{storedModel}</code></p>{/if}
+				{:else}
+					<div class="st-model-pickers">
+						<Select
+							label="Provider"
+							value={shownProvider}
+							options={providerOptions}
+							disabled={steererGated || (settingRowLoading['steerer.model'] ?? false)}
+							onchange={(event) => changeProvider((event.currentTarget as HTMLSelectElement).value)}
+						/>
+						{#if !usesOpenRouter}
+							<Select
+								label="Model"
+								value={storedProvider === shownProvider ? storedModel : ''}
+								options={modelOptions}
+								disabled={settingRowLoading['steerer.model'] ?? false}
+								onchange={(event) =>
+									void handleSettingSave(
+										'steerer.model',
+										normalizeRef(shownProvider, (event.currentTarget as HTMLSelectElement).value)
+									)}
+							/>
+						{/if}
+					</div>
+				{/if}
+				{#if usesOpenRouter}
+					<ModelTable
+						{models}
+						currentValue={storedProvider === 'openrouter' ? storedModel : ''}
+						loading={modelsLoading}
+						saving={settingRowLoading['steerer.model'] ?? false}
+						disabled={tableGated}
+						onSelect={selectOpenRouterModel}
+					/>
+				{/if}
 				{#if settingRowError['steerer.model']}
 					<p class="st-model-err" role="alert">
 						Could not save the model: {settingRowError['steerer.model']}
@@ -396,7 +511,7 @@
 				'steerer.refocus.confidence_threshold',
 				'steerer.refocus.debounce_turns'
 			])}
-			{@render cfg(['steerer.openrouter_api_key_env'])}
+			{#if usesOpenRouter}{@render cfg(['steerer.openrouter_api_key_env'])}{/if}
 		</WorkerCard>
 		{#if steererGated}<p class="st-gate" role="note">{gateHint}</p>{/if}
 	{/if}
@@ -405,7 +520,7 @@
 
 	<div class="st-fleet-header">
 		<h2 class="st-subhead">Steerer fleet<HelpHint slug="fleet" /></h2>
-		<a href={resolve('/steering/new?mode=blank')} class="st-fleet-create"
+		<a href={resolve('steering/new?mode=blank')} class="st-fleet-create"
 			><Plus size={12} aria-hidden="true" />Create steerer</a
 		>
 	</div>
@@ -446,7 +561,7 @@
 				No steerers registered yet. Each one you create will inherit the default model above until
 				you give it its own.
 			</p>
-			<Button variant="outline" href={resolve('/steering/new?mode=blank')}>
+			<Button variant="outline" href={resolve('steering/new?mode=blank')}>
 				<Plus class="size-3.5" aria-hidden="true" />
 				<span>Create steerer</span>
 			</Button>
@@ -506,7 +621,7 @@
 								<span class="st-ftoggle__thumb"></span>
 							</span>
 						</button>
-						<a href={resolve(`/steering/${s.id}`)} class="st-fleet-edit">Edit</a>
+						<a href={resolve(`steering/${s.id}`)} class="st-fleet-edit">Edit</a>
 					</div>
 				</div>
 			{/each}
@@ -647,6 +762,11 @@
 		font-size: 12px;
 		color: var(--text-2);
 		line-height: 1.6;
+	}
+	.st-model-pickers {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 12px;
 	}
 	.st-model-err {
 		margin: 0;
