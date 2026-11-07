@@ -126,7 +126,7 @@ produces a fully static site in `frontend/build/`:
 
 - `index.html` - the SPA fallback (all routes resolve to this)
 - `_app/` - hashed JS/CSS chunks
-- `favicon.svg`, etc.
+- `favicon.png`, etc.
 
 `mike` embeds this folder at compile time (`crates/mike/src/spa.rs`); the development
 stack ignores it and runs `vite dev` instead.
