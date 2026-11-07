@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use super::{Execution, ResourceClaim};
 use crate::launch::fleet::work_of::{through_wrapper, work_of};
 
+pub type SharedResource<'a> = (usize, Vec<(&'a str, &'a TimedCommand)>);
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct TimedCommand {
@@ -40,8 +42,8 @@ impl TimedCommand {
 }
 
 impl Execution {
-    pub fn shared_resources(&self) -> BTreeMap<&str, (usize, Vec<(&str, &TimedCommand)>)> {
-        let mut shared: BTreeMap<&str, (usize, Vec<(&str, &TimedCommand)>)> = BTreeMap::new();
+    pub fn shared_resources(&self) -> BTreeMap<&str, SharedResource<'_>> {
+        let mut shared: BTreeMap<&str, SharedResource<'_>> = BTreeMap::new();
         for (program, timed) in &self.timed_commands {
             for claim in &timed.resources {
                 let entry = shared

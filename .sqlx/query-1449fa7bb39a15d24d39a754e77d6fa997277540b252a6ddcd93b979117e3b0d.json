@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(p.merged_into_id, p.id) AS \"project_id!\"\n             FROM projects.locations l JOIN projects.projects p ON p.id = l.project_id\n             WHERE l.machine_uuid = $1\n               AND (rtrim(l.root_path, '/') = rtrim($2, '/')\n                    OR starts_with($2, rtrim(l.root_path, '/') || '/'))\n             ORDER BY length(l.root_path) DESC, l.location_uuid\n             LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "1449fa7bb39a15d24d39a754e77d6fa997277540b252a6ddcd93b979117e3b0d"
+}

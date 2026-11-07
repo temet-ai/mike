@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT COALESCE(p.merged_into_id, p.id) AS \"project_id!\"\n             FROM projects.locations l JOIN projects.projects p ON p.id = l.project_id\n             WHERE l.origin_url = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "eee7f9d9fe946380f19ebe287b4011b69a878ee14d27b50f72e44f4f7dc94396"
+}

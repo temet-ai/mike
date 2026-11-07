@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod checkouts_db_tests;
 mod documents;
 mod embeddings;
 mod guidance;
@@ -18,6 +20,7 @@ pub use documents::{DocumentInput, RegisteredSource, ScanInput, SourceInput};
 pub(crate) use guidance::{AGENTS_SOURCE, MEMORY_SOURCE, RULES_SOURCE, SKILLS_SOURCE};
 pub use guidance::{GuidanceRow, ShownGuidance};
 pub use lesson_sync::LessonImport;
+pub(crate) use location_view::is_scratch;
 pub use locations::{LocationInput, ProjectIdentity};
 pub(crate) use repo_adoption::RepoLocationAdoption;
 pub use search::KnowledgeQuery;

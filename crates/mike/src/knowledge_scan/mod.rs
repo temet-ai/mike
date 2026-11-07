@@ -80,6 +80,13 @@ async fn tick(
         Ok(report) => log_report(&report),
         Err(error) => tracing::warn!(%error, "knowledge_scan: cycle failed"),
     }
+    record_origins(persist, identity.machine_uuid).await;
+}
+
+async fn record_origins(persist: &PersistHandle, machine: uuid::Uuid) {
+    if let Err(error) = crate::workspace::checkouts::record_origins(persist, machine).await {
+        tracing::warn!(%error, "knowledge_scan: recording checkout remotes failed");
+    }
 }
 
 fn log_report(report: &ScanReport) {

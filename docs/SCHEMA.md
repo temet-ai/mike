@@ -138,6 +138,7 @@ queries, `mailbox.session_real_project_id()` (a session's project from its worki
 | `machine_uuid` | `UUID NOT NULL` | FK → `projects.machines(machine_uuid)` (no ON DELETE action) |
 | `root_path` | `TEXT NOT NULL` | The checkout's root on that machine; CHECK not blank |
 | `last_seen` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Last registration or knowledge write that named this location |
+| `origin_url` | `TEXT` | The checkout's normalized git remote, recorded by the machine that holds it (`workspace/checkouts.rs`, each knowledge scan); how a checkout on another machine finds its project. NULL for a folder that is not a checkout root |
 
 **Constraints:**
 - UNIQUE `(machine_uuid, root_path)`
@@ -145,6 +146,7 @@ queries, `mailbox.session_real_project_id()` (a session's project from its worki
 
 **Indexes:**
 - `locations_project`: `project_id` (BTree)
+- `locations_origin_url`: `origin_url` (BTree, partial: not null)
 
 ---
 
