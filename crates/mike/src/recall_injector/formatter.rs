@@ -34,7 +34,7 @@ pub fn format_recall_reminder(topics: &[String], rows: &[LessonRow]) -> Option<S
     Some(out)
 }
 
-pub(crate) const MEMORY_TAG_GRAMMAR: &str = "Write <mem:recall topic=\"X\"/> in a reply and topic X's stored text is added to your next turn; a topic made into a skill is also in this session's skill catalog. To record a rule for later sessions without a tool call, write <mem:update topic=\"X\" kind=\"correction|convention|warning|preference\">the rule</mem:update> in a reply; it is stored as a lesson on topic X.";
+pub(crate) const MEMORY_TAG_GRAMMAR: &str = "Write <mem:recall topic=\"X\"/> in the last reply of a turn and topic X's stored text is added to your next turn; a topic made into a skill is also in this session's skill catalog. To record a rule for later sessions without a tool call, write <mem:update topic=\"X\" kind=\"correction|convention|warning|preference\">the rule</mem:update> in the last reply of a turn; it is stored as a lesson on topic X. Both are read only from that reply: text before a tool call does not carry them.";
 
 pub fn format_topic_catalog(topics: &[String]) -> Option<String> {
     if topics.is_empty() {

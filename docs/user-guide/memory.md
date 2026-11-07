@@ -29,7 +29,8 @@ you tell Claude: "Put Homebrew first on the install page." You want the next ses
    from [mike's MCP companion](mcp.md), with a kind and the rule.
 2. Or let Claude write the rule at the end of an answer as
    `<mem:update topic="install-page" kind="correction">Put Homebrew first on the install page.</mem:update>`.
-   mike reads these tags out of finished turns and stores each as a lesson. `kind` is
+   mike reads these tags out of finished turns and stores each as a lesson. A tag only
+   counts in the turn's last reply, not in text written before a tool call. `kind` is
    `correction`, `convention`, `warning` or `preference`; a tag without one is stored as
    `convention`. This runs by default and makes no model call.
 3. Check it was stored. Ask Claude for `list_lessons` for the project, or open

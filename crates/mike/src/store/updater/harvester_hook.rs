@@ -31,12 +31,17 @@ pub(super) async fn run_harvester_hook(
         project_path,
         session_uuid,
     } = scope;
-    let session_db_id = ctx
-        .block_target
-        .store
-        .read()
+    let session_db_id = persist
+        .resolve_session_db_id(&session_uuid)
         .await
-        .session_id(&session_uuid);
+        .unwrap_or_else(|e| {
+            tracing::warn!(
+                request_id = %request_id,
+                error = %e,
+                "harvester: failed to resolve the session row"
+            );
+            None
+        });
     match persist
         .resolve_lesson_project(&session_uuid, &project_path)
         .await
