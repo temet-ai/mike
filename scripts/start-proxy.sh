@@ -827,16 +827,27 @@ add_service_row "  direct:" "ANTHROPIC_BASE_URL=http://${MIKE_ADDR} claude   (fe
     "ANTHROPIC_BASE_URL=$(hlink "http://${MIKE_ADDR}") claude   ${C_DIM}(feels a proxy swap)${C_RST}"
 
 # One row for the logs: every service that writes one, as a path the shell expands.
+SERVICE_INSTALLED=false
+managed_service_installed && SERVICE_INSTALLED=true
 LOG_NAMES="mike,smoke,proxy-forward,prompt-assistant"
+${SERVICE_INSTALLED} && LOG_NAMES="smoke,prompt-assistant"
 [[ -n "${SPA_LOG_REL}" ]] && LOG_NAMES+=",spa"
 [[ -n "${STORYBOOK_LOG_REL}" ]] && LOG_NAMES+=",storybook"
 [[ -n "${ARCH_LOG_REL}" ]] && LOG_NAMES+=",arch"
 add_row "Logs:"       ".deploy/{${LOG_NAMES}}.log"  ".deploy/{${LOG_NAMES}}.log"
-add_row "Tail proxy:" "tail -f ${MIKE_LOG_REL}"    "tail -f ${MIKE_LOG_REL}"
-if stack_units_enabled; then
-    add_row "Status:" "systemctl --user status 'mike-stack-*'" "systemctl --user status 'mike-stack-*'"
+if ${SERVICE_INSTALLED}; then
+    SERVICE_LOG_ROW="$(managed_service_log || true)"
+    [[ "${SERVICE_LOG_ROW}" == /* ]] && SERVICE_LOG_ROW="tail -f ${SERVICE_LOG_ROW}"
+    add_row "Tail proxy:" "${SERVICE_LOG_ROW}" "${SERVICE_LOG_ROW}"
+    add_row "Status:"  "mike service status"  "mike service status"
+    add_row "Restart:" "mike service restart" "mike service restart"
+else
+    add_row "Tail proxy:" "tail -f ${MIKE_LOG_REL}"    "tail -f ${MIKE_LOG_REL}"
+    if stack_units_enabled; then
+        add_row "Status:" "systemctl --user status 'mike-stack-*'" "systemctl --user status 'mike-stack-*'"
+    fi
+    add_row "Stop:"       "./scripts/stop-proxy.sh"     "./scripts/stop-proxy.sh"
 fi
-add_row "Stop:"       "./scripts/stop-proxy.sh"     "./scripts/stop-proxy.sh"
 
 echo
 print_box
