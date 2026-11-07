@@ -1,10 +1,6 @@
 <h1 align="center"><img src="docs/assets/mike-badge.png" alt="mike" width="240"></h1>
 
 <p align="center">
-  <strong>See what Claude Code actually sent and what came back.</strong>
-</p>
-
-<p align="center">
   <a href="https://github.com/temet-ai/mike/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/temet-ai/mike?include_prereleases&amp;label=release&amp;color=eb300a&amp;labelColor=071c1e"></a>
   <img alt="Linux x86_64 and Apple Silicon macOS" src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS-eb300a?labelColor=071c1e">
   <a href="./LICENSE"><img alt="MIT licence" src="https://img.shields.io/badge/license-MIT-eb300a?labelColor=071c1e"></a>
