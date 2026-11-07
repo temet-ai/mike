@@ -11,6 +11,7 @@ if [ -n "${MIKE_SEAT:-}" ]; then
 fi
 root=$(git rev-parse --show-toplevel)
 cd "$root" || exit 1
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR
 
 none=0000000000000000000000000000000000000000
 pr_only='^(crates/|frontend/|\.sqlx/|Cargo\.(toml|lock)$)'
