@@ -6,6 +6,9 @@ on:
       - 'frontend/src/lib/components/**'
       - '.github/workflows/storybook-coverage.yml'
 
+permissions:
+  contents: read
+
 jobs:
   check:
     name: New components must ship a story
