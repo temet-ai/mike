@@ -84,7 +84,7 @@ export function modelRefs(provider: LlmProvider | undefined): string[] {
 	if (!provider) return [];
 	const good = provider.models.filter((m) => m.known_good === true).map((m) => m.ref);
 	const rest = provider.models.filter((m) => m.known_good !== true).map((m) => m.ref);
-	return [...good, ...rest];
+	return [...new Set([...good, ...rest])];
 }
 
 export function tierDefault(
