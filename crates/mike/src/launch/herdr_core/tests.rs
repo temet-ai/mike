@@ -6,6 +6,7 @@ use uuid::Uuid;
 use super::close::session_mismatch;
 use super::open::{agent_command, run_argv, session_uuid_from_args, with_caller_path};
 use super::place::{Place, choose_space, run_space_id, spaces_matching};
+use super::probe::agent_ran;
 use super::prompt::turn_started;
 use super::terminal::{Terminal, live_addresses};
 
@@ -230,4 +231,16 @@ fn session_mismatch_names_the_other_session_or_a_missing_label() {
     assert!(session_mismatch(&t, expected).is_none());
     t.session = Some(Uuid::new_v4());
     assert!(session_mismatch(&t, expected).is_some_and(|d| d.contains("not")));
+}
+
+#[test]
+fn validation_fails_when_herdr_core_cannot_find_claude() {
+    let missing =
+        json!({"output": "env: 'claude': No such file or directory", "wait": {"exit_code": 127}});
+    let check = agent_ran(&missing);
+    assert!(!check.passed);
+    assert!(check.detail.contains("No such file"));
+    let found = json!({"output": "2.1.318 (Claude Code)", "wait": {"exit_code": 0}});
+    assert!(agent_ran(&found).passed);
+    assert!(!agent_ran(&json!({})).passed);
 }
