@@ -43,6 +43,7 @@ through `release-alpha.yml`, `workflow_dispatch` and `workflow_call`.
 
 | Where | What |
 |---|---|
+| Before a commit | `scripts/rule-checks/rust-staged-lint.sh`: formatting and the 500-line limit on the staged Rust files |
 | Before a push | `scripts/pre-push-check`: fmt, clippy, structural lint, secret scan, cargo-deny when the lockfile changed |
 | While working | `scripts/test-area`: the tests of the areas the branch changed |
 | Push to `main` | Jobs `lint` and `fast`, side by side |

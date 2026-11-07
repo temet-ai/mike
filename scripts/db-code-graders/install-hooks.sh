@@ -48,7 +48,7 @@ fi
 ln -sf "$PP_SOURCE" "$PP_TARGET"
 echo "✓ Installed: $PP_TARGET → $PP_SOURCE"
 echo ""
-echo "pre-commit: G8 + G3 + G7 + G1 + G4 before every git commit."
+echo "pre-commit: G8 + G9 + G3 + G7 + G1 + G4 before every git commit."
 echo "commit-msg: G6 perf-evidence gate (.claude/rules/rust-database-reliability.md)."
 echo "pre-push: fmt, clippy and structural lint, secret scan, cargo-deny (scripts/pre-push-check)."
 echo "G2 and G5 do not run at commit time; run scripts/db-code-graders/run_all_graders.sh for them."

@@ -38,6 +38,11 @@ if ! g8_out=$(bash "$REPO_ROOT/scripts/rule-checks/rust-no-comments.sh" --cached
     messages+=("G8 — comments added to Rust:"$'\n'"$(echo "$g8_out" | sed -n '1,10p')")
 fi
 
+if ! g9_out=$(bash "$REPO_ROOT/scripts/rule-checks/rust-staged-lint.sh" 2>&1); then
+    failures+=("G9")
+    messages+=("G9 — staged Rust fails lint:"$'\n'"$(echo "$g9_out" | sed -n '1,10p')")
+fi
+
 echo "🔍 Running DB↔Code graders before commit..."
 
 # ── G3: Untracked migration files ─────────────────────────────────────────────
