@@ -115,7 +115,10 @@ scripts/sb-test
 
 This is the single frontend gate: SvelteKit sync + svelte-check, then unit and
 integration tests with normal Node parallelism, then the Storybook browser
-tests serially. Logic tests run once even for a multi-theme Storybook pass, and
+tests serially, in batches by area (`--list-batches`, `--batch NAME`). Nothing
+stops early: the run ends with every failure and stall in one list, and logs stay
+in `frontend/test-results/sb-test/`. A pass silent for three minutes is stopped,
+and its unfinished files run one at a time so the stuck one is named. Logic tests run once even for a multi-theme Storybook pass, and
 only the browser tier pays the serialization cost. The package test scripts
 delegate to this runner; direct Vitest commands are reserved for watch mode.
 
