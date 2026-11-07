@@ -2,7 +2,7 @@
 title: Getting Started
 status: active
 created: 2026-07-07
-updated: 2026-11-06
+updated: 2026-11-07
 summary: One correct path from a fresh clone to a captured Claude Code request, with prerequisites, database options, security expectations, and what each process does once the stack is up.
 ---
 
@@ -260,6 +260,18 @@ to install while a developer stack is running: any `mike-stack-*` systemd unit t
 or any program already answering on the proxy, inspect, web UI or sidecar address. Nothing is
 written in that case. While the proxy runs as an installed service, `mike claude` starts that
 service when it is not answering and waits for it, and never starts a second proxy beside it.
+
+On a machine where the service is installed, `./scripts/start-proxy.sh` and `./scripts/deploy-proxy.sh`
+from a checkout deploy through it. They build mike, check which database migrations are pending,
+and start a trial copy of the new build on spare ports (a smoke boot) using the service's own
+configuration, not the checkout's `.env`. Only then do they copy the binary over the program the
+service file names and restart the proxy service. The sidecar is not restarted, because it keeps
+traffic flowing to Anthropic while the proxy restarts, so it keeps the previous build until you run
+`mike service restart`. The deploy counts the new build as live only when `/api/health` reports a
+boot generation, an identifier that changes each time the process starts, different from the one
+that was answering before. If that does not happen, it puts the previous binary back and restarts
+the proxy again. The web UI on port 9990 is the service's own, so `start-proxy.sh` does not start
+the development web server (vite) beside it.
 
 On Linux the user services stop when you log out unless lingering is on. mike does not run
 `sudo`; run `sudo loginctl enable-linger $USER` once if you want them to keep running.
