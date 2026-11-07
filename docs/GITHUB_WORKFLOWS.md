@@ -45,7 +45,7 @@ file, every push to `main` (unfiltered, documentation-only commits included),
 3. Installs `sccache` (required — `.cargo/config.toml` sets it as the rustc-wrapper; the build fails without it).
 4. Runs in order: `cargo fmt --check` → the Rust lint-policy self-test (`scripts/test-rust-lint-policy`) → size and complexity lint (`scripts/lint-rust`) → `scripts/check-test-tiers --require-db` and `cargo nextest` (fast and DB tiers) → `cargo sqlx prepare --check` → `cargo deny check`.
 
-**Concurrency:** `rust-quality-${{ github.workflow }}-${{ github.ref }}` with `cancel-in-progress: true`. Only the latest push to a given ref runs; earlier runs are cancelled (the caller's workflow name is in the group so a candidate run cannot cancel a main run).
+**Concurrency:** `rust-quality-${{ github.workflow }}-${{ github.ref }}` with `cancel-in-progress` set for pull requests only. On a pull request only the latest push runs. On `main` a running job finishes and the newest push queues behind it, so a busy branch still gets a verdict (the caller's workflow name is in the group so a candidate run cannot cancel a main run).
 
 **External actions used:** `actions/checkout`, `dtolnay/rust-toolchain`, `taiki-e/install-action` (sccache, nextest, cargo-deny), `Swatinem/rust-cache`.
 
