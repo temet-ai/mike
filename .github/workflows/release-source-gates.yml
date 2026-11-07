@@ -27,6 +27,9 @@ jobs:
           python3 -m unittest discover -s scripts/tests -p 'test_source_gate_routing.py' -v
           && python3 -m unittest discover -s scripts/tests -p 'test_frontend_audit.py' -v
   rust:
+    permissions:
+      contents: read
+      pull-requests: read
     uses: ./.github/workflows/rust-quality.yml
   frontend:
     uses: ./.github/workflows/storybook.yml
