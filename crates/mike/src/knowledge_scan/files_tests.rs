@@ -1,6 +1,11 @@
-use super::files::{ScanError, SourceKind, collect};
+use super::files::{ScanError, SourceKind, collect_excluding};
+use crate::store::persistence::project_knowledge::DocumentInput;
 use serde_json::json;
 use std::fs;
+
+fn collect(root: &std::path::Path, kind: SourceKind) -> Result<Vec<DocumentInput>, ScanError> {
+    collect_excluding(root, kind, &[])
+}
 
 fn write(root: &std::path::Path, relative: &str, text: &str) -> anyhow::Result<()> {
     let path = root.join(relative);

@@ -52,10 +52,6 @@ fn io_error(path: &Path) -> impl FnOnce(std::io::Error) -> ScanError + '_ {
     }
 }
 
-pub(super) fn collect(root: &Path, kind: SourceKind) -> Result<Vec<DocumentInput>, ScanError> {
-    collect_excluding(root, kind, &[])
-}
-
 pub(super) fn collect_excluding(
     root: &Path,
     kind: SourceKind,
