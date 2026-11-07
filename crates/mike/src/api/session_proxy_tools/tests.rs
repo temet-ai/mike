@@ -60,9 +60,9 @@ async fn a_call_answers_what_the_in_stream_answer_would() -> anyhow::Result<()> 
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
     crate::feature_toggles::serve_every_stage_for_tests(&state);
     let id = Uuid::new_v4().to_string();
-    state.lesson_cache.rcu(|current| {
-        Arc::new(current.with_session_project(id.clone(), PROJECT.to_owned()))
-    });
+    state
+        .lesson_cache
+        .rcu(|current| Arc::new(current.with_session_project(id.clone(), PROJECT.to_owned())));
     let Ok(Json(answer)) = post_proxy_tool(
         State(state.clone()),
         Path((id, roster::TOOL_NAME.to_owned())),

@@ -106,10 +106,7 @@ async fn open_resolves_the_claude_child_pid_one_level_below_the_window() -> anyh
         anyhow::ensure!(signed.status.success(), "{signed:?}");
     }
     let claude = bin_dir.path().join("claude");
-    std::fs::write(
-        &claude,
-        format!("#!/bin/sh\nexec '{}' 5\n", real.display()),
-    )?;
+    std::fs::write(&claude, format!("#!/bin/sh\nexec '{}' 5\n", real.display()))?;
     std::fs::set_permissions(&claude, std::fs::Permissions::from_mode(0o755))?;
 
     let mut req = request(folder.path(), vec![], "cc-z");
