@@ -1,8 +1,32 @@
 use super::*;
 use crate::launch::fleet::check::Asker;
 use crate::launch::fleet::check_run::baseline;
-use crate::launch::fleet::gate_slot::{isolated, slot_for};
+use crate::launch::fleet::gate_slot::{isolated, managed_directory, slot_for};
 use std::time::Duration;
+
+#[tokio::test]
+async fn a_new_slot_waits_while_another_run_is_adding_a_worktree() -> anyhow::Result<()> {
+    let root = tempfile::tempdir()?;
+    let (repo, mut def) = project(root.path()).await?;
+    def.check.command = "true".into();
+    let at = head(&def).await.map_err(anyhow::Error::msg)?;
+    let directory = managed_directory(&repo).map_err(anyhow::Error::msg)?;
+    let adding = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .read(true)
+        .open(directory.join("worktree-add.lock"))?;
+    adding.lock()?;
+    let check = managed::check(&def, &at, "fleet-add-lock");
+    tokio::pin!(check);
+    let waiting = tokio::time::timeout(Duration::from_millis(500), &mut check).await;
+    assert!(waiting.is_err());
+    assert!(!at.slot.exists());
+    adding.unlock()?;
+    assert_eq!(check.await?.0, Some(0));
+    assert!(at.slot.exists());
+    Ok(())
+}
 
 #[tokio::test]
 async fn configured_check_preserves_staged_unstaged_and_untracked_peer_files() -> anyhow::Result<()>

@@ -54,6 +54,9 @@ async fn write_log(run: &str, path: &Path, output: &str) {
     }
 }
 
+const WORKTREE_ADD_LOCK: &str = "worktree-add";
+const WORKTREE_ADD_WAIT: Duration = Duration::from_secs(60);
+
 pub(in crate::launch::fleet) async fn git(repo: &Path, args: &[&str]) -> Result<String, String> {
     crate::launch::fleet::owned_git::run(repo, args).await
 }
@@ -146,6 +149,21 @@ fn refusal(slot: &Path) -> String {
     )
 }
 
+async fn add_slot(repo: &str, slot: &Path, commit: &str) -> Result<(), String> {
+    let names = [WORKTREE_ADD_LOCK.to_string()];
+    let _adding = tokio::time::timeout(WORKTREE_ADD_WAIT, lock(repo, &names))
+        .await
+        .map_err(|_| "timed out waiting to add the isolated checkout".to_string())??;
+    git(Path::new(repo), &["worktree", "list", "--porcelain"]).await?;
+    let name = slot.to_string_lossy();
+    git(
+        Path::new(repo),
+        &["worktree", "add", "--detach", &name, commit],
+    )
+    .await?;
+    Ok(())
+}
+
 async fn checkout(repo: &str, at: &Target) -> Result<Option<String>, String> {
     crate::launch::fleet::managed_command::preparation_allowed()?;
     let slot = &at.slot;
@@ -172,13 +190,7 @@ async fn checkout(repo: &str, at: &Target) -> Result<Option<String>, String> {
         );
     }
     if !slot.exists() {
-        git(Path::new(repo), &["worktree", "list", "--porcelain"]).await?;
-        let name = slot.to_string_lossy();
-        git(
-            Path::new(repo),
-            &["worktree", "add", "--detach", &name, &at.commit],
-        )
-        .await?;
+        add_slot(repo, slot, &at.commit).await?;
     }
     let actual = std::fs::canonicalize(slot).map_err(|e| e.to_string())?;
     if actual != expected || !slot.join(".git").is_file() {
