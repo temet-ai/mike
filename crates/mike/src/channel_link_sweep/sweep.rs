@@ -4,6 +4,10 @@ use crate::store::persistence::remote_control::ChannelLinkSweepCandidate;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 pub async fn run_sweep_tick(persist: &PersistHandle, window_minutes: i64, batch_size: i64) {
+    let running = super::local_registry::link_running_sessions(persist).await;
+    if running > 0 {
+        tracing::info!(running, "channel_link_sweep: linked running sessions");
+    }
     let since = chrono::Utc::now() - chrono::Duration::minutes(window_minutes);
     let candidates = match persist
         .fetch_channel_link_sweep_candidates(since, batch_size)
