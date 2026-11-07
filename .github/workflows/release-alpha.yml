@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - name: Check tag and workspace version
@@ -61,7 +61,7 @@ jobs:
     timeout-minutes: 240
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       # The exact toolchain, Node and pnpm that scripts/release.sh insists on.
@@ -71,7 +71,7 @@ jobs:
           set -euo pipefail
           rustup toolchain install
           rustc -vV
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
       - uses: pnpm/action-setup@v6
@@ -111,7 +111,7 @@ jobs:
             "$candidate"/mike-mcp-v*.tar.gz "$candidate"/mike-mcp-v*.tar.gz.sha256 "$RUNNER_TEMP/dist/"
           cp "$candidate/manifest.json" "$RUNNER_TEMP/dist/manifest-${{ matrix.target }}.json"
           ls -l "$RUNNER_TEMP/dist"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: mike-${{ matrix.target }}
           path: ${{ runner.temp }}/dist/*
@@ -127,10 +127,10 @@ jobs:
       - uses: actions/checkout@v7
         with:
           path: src
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: mike-*
           path: dist

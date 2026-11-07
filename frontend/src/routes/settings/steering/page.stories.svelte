@@ -309,7 +309,10 @@
 			});
 		if (url.includes('/api/llm/providers')) {
 			const providers = buildProviders();
-			for (const p of providers.providers) if (p.id === 'openrouter') p.available = true;
+			for (const p of providers.providers) {
+				if (p.id === 'openrouter') p.available = true;
+				p.models = [...p.models, ...p.models];
+			}
 			return json(providers);
 		}
 		if (url.includes('/api/usage/openrouter'))
