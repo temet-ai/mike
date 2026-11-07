@@ -134,8 +134,14 @@ Apple Silicon build runs on `macos-15`, the oldest Apple Silicon image GitHub st
 `storybook.yml` and `e2e.yml` as reusable workflows on the selected ref. See
 [`RELEASE_SOURCE_GATES.md`](RELEASE_SOURCE_GATES.md#hosted-routing-contract).
 
-There is no Dependabot auto-merge workflow any more, and Dependabot version updates are
-disabled.
+`.github/dependabot.yml` turns routine npm and cargo version updates off and leaves security
+updates on, one entry per folder so a fix in one folder never waits on a break in another.
+Fixes within a major arrive as one PR per folder; a fix that needs a major arrives alone.
+GitHub Actions versions update weekly as one group. Nothing merges automatically.
+
+Code scanning is CodeQL default setup, configured in the repository's settings rather than a
+workflow file. `dependency-review.yml` fails a pull request that adds a high or critical
+advisory.
 
 ---
 

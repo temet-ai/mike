@@ -28,8 +28,9 @@ class FrontendAuditTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        (self.root / "frontend").mkdir()
-        (self.root / "frontend/pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n")
+        for name in AUDIT.PROJECTS:
+            (self.root / name).mkdir(parents=True)
+            (self.root / name / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n")
 
     def run_audit(self, value=None, exit_code=0, side_effect=None):
         result = subprocess.CompletedProcess([], exit_code, json.dumps(value), "")
@@ -44,13 +45,22 @@ class FrontendAuditTests(unittest.TestCase):
         code, output, run = self.run_audit(report())
         self.assertEqual(code, 0, output)
         self.assertIn("FRONTEND-AUDIT: PASS", output)
-        self.assertIn("Frontend lockfile sha256:", output)
+        self.assertIn("frontend lockfile sha256:", output)
         command = run.call_args.args[0]
         self.assertEqual(command, ["/offline/pnpm", "audit", "--json", "--audit-level=high",
                                    "--dev", "--prod", "--optional",
                                    "--ignore-registry-errors=false", "--pm-on-fail=error"])
-        self.assertEqual(run.call_args.kwargs["cwd"], self.root / "frontend")
+        self.assertEqual([call.kwargs["cwd"] for call in run.call_args_list],
+                         [self.root / name for name in AUDIT.PROJECTS])
         self.assertGreater(run.call_args.kwargs["timeout"], 0)
+
+    def test_one_project_failing_is_a_failure_and_the_rest_still_run(self):
+        replies = [report(), report(critical=1), {}]
+        results = [subprocess.CompletedProcess([], 0, json.dumps(reply), "") for reply in replies]
+        code, output, run = self.run_audit(side_effect=results)
+        self.assertEqual(code, 1, output)
+        self.assertEqual(run.call_count, len(AUDIT.PROJECTS))
+        self.assertIn("services/prompt-assistant: info=0", output)
 
     def test_high_and_critical_fail_even_when_pnpm_exits_zero(self):
         for severity in AUDIT.BLOCKING:
@@ -119,8 +129,9 @@ class FrontendAuditTests(unittest.TestCase):
                 contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(AUDIT.run(self.root), 2)
         (self.root / "frontend/pnpm-lock.yaml").unlink()
-        with contextlib.redirect_stderr(io.StringIO()):
-            self.assertEqual(AUDIT.run(self.root), 2)
+        code, output, _ = self.run_audit(report())
+        self.assertEqual(code, 2, output)
+        self.assertIn("frontend lockfile unavailable", output)
 
     def test_test_suite_propagates_audit_verdict_and_all_reaches_it(self):
         scripts = self.root / "scripts"

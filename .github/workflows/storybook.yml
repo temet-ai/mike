@@ -7,6 +7,8 @@ on:
       - '.github/workflows/release-source-gates.yml'
       - 'scripts/tests/test_source_gate_routing.py'
       - 'frontend/**'
+      - 'services/prompt-assistant/pnpm-lock.yaml'
+      - 'scripts/likec4/pnpm-lock.yaml'
       - 'scripts/sb-test'
       - 'scripts/frontend-audit'
       - 'scripts/lib/frontend_audit.py'
