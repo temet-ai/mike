@@ -147,9 +147,8 @@ See artifacts/2026-09-29/judge-pages-redesign/SPEC.md §1.
 		waitingTab = tab;
 		if (page.url.searchParams.get('waiting') === tab) return;
 		void goto(`${resolve('/sessions/improvement')}?waiting=${tab}`, {
-			replaceState: true,
-			noScroll: true,
-			keepFocus: true
+			replace: true,
+			reset: false
 		});
 	}
 
@@ -160,7 +159,7 @@ See artifacts/2026-09-29/judge-pages-redesign/SPEC.md §1.
 
 	function detailHrefFor(id: number): string {
 		return resolve(
-			`/sessions/improvement/lessons/${id}` as `/sessions/improvement/lessons/${string}`
+			`sessions/improvement/lessons/${id}` as `sessions/improvement/lessons/${string}`
 		);
 	}
 

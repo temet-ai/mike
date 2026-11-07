@@ -264,7 +264,7 @@
 				<div class="ag-rows" data-reveal data-slot="agents-rows">
 					{#each visibleAgents as a (a.id)}
 						<a
-							href={resolve(`/agents/${a.id}`)}
+							href={resolve(`agents/${a.id}`)}
 							class="ag-row-wrap"
 							data-slot="agent-row"
 							data-agent-id={a.id}

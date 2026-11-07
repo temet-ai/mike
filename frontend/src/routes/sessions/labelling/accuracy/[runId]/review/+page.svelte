@@ -100,7 +100,7 @@
 	};
 	const FOLD_KEY = 'judges:session-band';
 
-	const initialParams = page.url.searchParams;
+	const initialParams = new URLSearchParams(page.url.search);
 	let requestedTurn: number | null = Number(initialParams.get('turn')) || null;
 
 	let filters = $state<ReviewFilters>(filtersFromParams(initialParams));
@@ -211,7 +211,7 @@
 	);
 	const turnHref = $derived.by(() => {
 		if (!sessionUuid) return null;
-		const base = resolve(`/sessions/${encodeURIComponent(sessionUuid)}` as `/sessions/${string}`);
+		const base = resolve(`sessions/${encodeURIComponent(sessionUuid)}` as `sessions/${string}`);
 		const start = knownFacts?.start_request_id;
 		return start ? `${base}?request=${start}` : base;
 	});
@@ -640,7 +640,7 @@
 					From <a
 						class="jd-run-link"
 						href={resolve(
-							`/sessions/labelling/accuracy/${data.runId}` as `/sessions/labelling/accuracy/${string}`
+							`sessions/labelling/accuracy/${data.runId}` as `sessions/labelling/accuracy/${string}`
 						)}
 						data-testid="run-link">{runTitle}</a
 					>

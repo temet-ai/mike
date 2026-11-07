@@ -94,7 +94,7 @@
 							<a
 								class="thread-row__avatar-link"
 								href={resolve(
-									`/sessions/${encodeURIComponent(p)}/comms` as `/sessions/${string}/comms`
+									`sessions/${encodeURIComponent(p)}/comms` as `sessions/${string}/comms`
 								)}
 								aria-label={`Open comms for ${label}`}
 								title={label}

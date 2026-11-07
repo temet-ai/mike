@@ -23,7 +23,7 @@ real use, and why mike removed it when it did.
 	const href = $derived(
 		skill.draft_id === null
 			? null
-			: resolve(`/skills/${skill.draft_id}` as `/skills/${string}`)
+			: resolve(`skills/${skill.draft_id}` as `skills/${string}`)
 	);
 
 	const trigger = $derived.by(() => {

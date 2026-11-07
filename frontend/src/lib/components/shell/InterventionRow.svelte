@@ -296,7 +296,7 @@
 			<p class="iv-row__link-line">
 				→ steered request <a
 					href={resolve(
-						`${sessionBasePath}/requests/${row.sent_request_id}` as `/sessions/${string}/requests/${string}`
+						`${sessionBasePath.slice(1)}/requests/${row.sent_request_id}` as `sessions/${string}/requests/${string}`
 					)}
 					class="iv-row__link"
 					onclick={(e) => e.stopPropagation()}>#{row.sent_request_id}</a
@@ -304,7 +304,7 @@
 				{#if row.trigger_request_id !== null}
 					(triggered by <a
 						href={resolve(
-							`${sessionBasePath}/requests/${row.trigger_request_id}` as `/sessions/${string}/requests/${string}`
+							`${sessionBasePath.slice(1)}/requests/${row.trigger_request_id}` as `sessions/${string}/requests/${string}`
 						)}
 						class="iv-row__link"
 						onclick={(e) => e.stopPropagation()}>#{row.trigger_request_id}</a
@@ -377,7 +377,7 @@
 					<div class="iv-roundtrip">
 						<a
 							href={resolve(
-								`${sessionBasePath}/requests/${row.sent_request_id}` as `/sessions/${string}/requests/${string}`
+								`${sessionBasePath.slice(1)}/requests/${row.sent_request_id}` as `sessions/${string}/requests/${string}`
 							)}
 							class="iv-roundtrip__link"
 						>

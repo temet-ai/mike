@@ -174,7 +174,7 @@
 
 	function participantHref(uuid: string | null): string | null {
 		if (!uuid) return null;
-		return resolve(`/sessions/${encodeURIComponent(uuid)}/comms` as `/sessions/${string}/comms`);
+		return resolve(`sessions/${encodeURIComponent(uuid)}/comms` as `sessions/${string}/comms`);
 	}
 
 	interface MsgRenderMeta {
@@ -490,7 +490,7 @@
 						<a
 							class="transcript-msg__req"
 							href={resolve(
-								`/sessions/${encodeURIComponent(m.to_session_uuid)}/requests/${m.sent_request_id}` as `/sessions/${string}/requests/${string}`
+								`sessions/${encodeURIComponent(m.to_session_uuid)}/requests/${m.sent_request_id}` as `sessions/${string}/requests/${string}`
 							)}
 						>
 							#{m.sent_request_id}

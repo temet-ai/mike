@@ -70,7 +70,7 @@
 				{@const lastSeenIso = isoForLabel(session.last_seen)}
 				<li role="listitem">
 					<a
-						href={resolve(`/sessions/${encodeURIComponent(session.id)}` as const)}
+						href={resolve(`sessions/${encodeURIComponent(session.id)}` as const)}
 						class="ls-row"
 						class:ls-row--live={isLive}
 					>

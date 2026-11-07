@@ -88,7 +88,7 @@
 		{#if !group.isUngrouped && group.path}
 			<a
 				class="tpg-name tpg-name--link"
-				href={resolve(`/projects/${encodeURIComponent(group.path)}` as const)}
+				href={resolve(`projects/${encodeURIComponent(group.path)}` as const)}
 			>
 				{group.name}
 			</a>
@@ -165,7 +165,7 @@
 							<div class="tpg-row__meta">
 								<a
 									class="tpg-link"
-									href={resolve(`/sessions/${encodeURIComponent(row.session_id)}`)}
+									href={resolve(`sessions/${encodeURIComponent(row.session_id)}`)}
 									aria-label="Open session {row.session_id}"
 								>
 									{shortSessionId(row.session_id)}
@@ -173,7 +173,7 @@
 								<a
 									class="tpg-link"
 									href={resolve(
-										`/sessions/${encodeURIComponent(row.session_id)}/requests/${row.request_id}`
+										`sessions/${encodeURIComponent(row.session_id)}/requests/${row.request_id}`
 									)}
 									aria-label="Open source request #{row.request_id}"
 								>

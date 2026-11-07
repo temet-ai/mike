@@ -33,12 +33,12 @@ export function contextChipMode(itemOrKind: ContextItem | ContextItem['kind']): 
 export function contextChipHref(item: ContextItem, sessionId: string): string | null {
 	if (item.kind === 'request') {
 		return resolve(
-			`/sessions/${encodeURIComponent(sessionId)}/requests/${encodeURIComponent(item.value)}` as `/sessions/${string}/requests/${string}`
+			`sessions/${encodeURIComponent(sessionId)}/requests/${encodeURIComponent(item.value)}` as `sessions/${string}/requests/${string}`
 		);
 	}
 	if (item.kind === 'session') {
 		return resolve(
-			`/sessions/${encodeURIComponent(item.value)}/comms` as `/sessions/${string}/comms`
+			`sessions/${encodeURIComponent(item.value)}/comms` as `sessions/${string}/comms`
 		);
 	}
 	if (item.kind === 'url') {

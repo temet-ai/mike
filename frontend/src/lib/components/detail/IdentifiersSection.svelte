@@ -19,7 +19,7 @@
 	type Row = {
 		label: string;
 		value: string;
-		href: string | null;
+		href: `sessions/${string}` | null;
 		help: LabelHelp;
 	};
 
@@ -30,7 +30,7 @@
 			label: 'session_id',
 			value: detail.session_id,
 			href:
-				detail.session_id.length > 0 ? `/sessions/${encodeURIComponent(detail.session_id)}` : null,
+				detail.session_id.length > 0 ? `sessions/${encodeURIComponent(detail.session_id)}` : null,
 			help: { kind: 'hint', slug: 'session' }
 		},
 		{
@@ -101,7 +101,7 @@
 					<dd class="mt-0.5 break-all font-mono text-[var(--text-strong)]">
 						{#if row.href !== null}
 							<a
-								href={resolve(row.href as `/sessions/${string}`)}
+								href={resolve(row.href)}
 								class="hover:underline hover:text-[var(--status-info-fg)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--interactive-focus-ring)]"
 								data-slot="identifiers-link"
 							>

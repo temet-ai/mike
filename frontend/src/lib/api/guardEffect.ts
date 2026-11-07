@@ -156,13 +156,13 @@ function toGuardEffectEstimate(dto: EffectEstimateDto): GuardEffectEstimate {
 }
 
 function sessionHrefFor(sessionUuid: string): string {
-	return resolve(`/sessions/${encodeURIComponent(sessionUuid)}` as `/sessions/${string}`);
+	return resolve(`sessions/${encodeURIComponent(sessionUuid)}` as `sessions/${string}`);
 }
 
 function turnHrefFor(sessionUuid: string, deliveredRequestId: number | null): string {
 	if (deliveredRequestId === null) return sessionHrefFor(sessionUuid);
 	return resolve(
-		`/sessions/${encodeURIComponent(sessionUuid)}/requests/${deliveredRequestId}` as `/sessions/${string}/requests/${string}`
+		`sessions/${encodeURIComponent(sessionUuid)}/requests/${deliveredRequestId}` as `sessions/${string}/requests/${string}`
 	);
 }
 

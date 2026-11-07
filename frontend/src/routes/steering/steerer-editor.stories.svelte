@@ -267,7 +267,7 @@
 					<span class="se-slug">refocus</span>
 				</div>
 				<div class="se-header__actions">
-					<a href={resolve('/agents/3')} class="se-btn" target="_blank" rel="noopener"
+					<a href={resolve('agents/3')} class="se-btn" target="_blank" rel="noopener"
 						>↗ Edit prompt</a
 					>
 					<button type="button" class="se-btn se-btn--danger">🗑 Delete</button>
@@ -575,7 +575,7 @@
 					<span class="se-slug">override-agent</span>
 				</div>
 				<div class="se-header__actions">
-					<a href={resolve('/agents/7')} class="se-btn" target="_blank" rel="noopener"
+					<a href={resolve('agents/7')} class="se-btn" target="_blank" rel="noopener"
 						>↗ Edit prompt</a
 					>
 					<button type="button" class="se-btn se-btn--danger">🗑 Delete</button>

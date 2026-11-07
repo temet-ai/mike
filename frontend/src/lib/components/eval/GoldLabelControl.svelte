@@ -62,7 +62,7 @@
 	const notebookHref = $derived(
 		notebookId === undefined
 			? null
-			: resolve(`/sessions/${encodeURIComponent(notebookId)}/comms` as `/sessions/${string}/comms`)
+			: resolve(`sessions/${encodeURIComponent(notebookId)}/comms` as `sessions/${string}/comms`)
 	);
 	const holdout = $derived(labels.some((l) => l.split === 'holdout'));
 

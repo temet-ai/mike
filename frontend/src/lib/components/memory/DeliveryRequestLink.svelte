@@ -11,7 +11,7 @@
 
 	const href = $derived(
 		resolve(
-			`/sessions/${encodeURIComponent(sessionId)}/requests/${requestId}` as `/sessions/${string}/requests/${string}`
+			`sessions/${encodeURIComponent(sessionId)}/requests/${requestId}` as `sessions/${string}/requests/${string}`
 		)
 	);
 </script>

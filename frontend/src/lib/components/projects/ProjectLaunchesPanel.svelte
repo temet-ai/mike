@@ -230,7 +230,7 @@
 									{#if row.session_uuid}
 										<a
 											class="plp-link"
-											href={resolve(`/sessions/${encodeURIComponent(row.session_uuid)}`)}
+											href={resolve(`sessions/${encodeURIComponent(row.session_uuid)}`)}
 										>
 											{shortSessionId(row.session_uuid)}
 										</a>

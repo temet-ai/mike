@@ -43,7 +43,7 @@ one frame with hairline seams.
 	let lastOpen = $state<Record<number, boolean>>({});
 
 	const sessionHref = $derived(
-		resolve(`/sessions/${encodeURIComponent(sessionUuid)}` as `/sessions/${string}`)
+		resolve(`sessions/${encodeURIComponent(sessionUuid)}` as `sessions/${string}`)
 	);
 	const previous = $derived(
 		position && turns && position.index >= 2 ? (turns[position.index - 2] ?? null) : null

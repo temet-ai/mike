@@ -136,7 +136,7 @@
 	<header class="comms-header">
 		<span class="comms-back-backing">
 			<a
-				href={resolve(`/sessions/${encodeURIComponent(sessionId)}` as `/sessions/${string}`)}
+				href={resolve(`sessions/${encodeURIComponent(sessionId)}` as `sessions/${string}`)}
 				class="comms-back"
 				data-augmented-ui="tr-clip bl-clip border"
 				aria-label="Back to session"

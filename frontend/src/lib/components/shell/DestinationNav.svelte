@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { resolve } from '$app/paths';
+	import { resolveStatic } from '$lib/resolveHref';
 	import {
 		House,
 		Layers,
@@ -75,7 +75,6 @@
 		| '/settings/integrations'
 		| '/help';
 
-	type StaticHref = Extract<NavHref, '/'>;
 
 	interface NavItem {
 		label: string;
@@ -343,9 +342,10 @@
 						<li>
 							<Tooltip text={item.hint} placement="right">
 								{#snippet child({ props })}
+									<!-- eslint-disable svelte/no-navigation-without-resolve -- every NavHref is a parameterless route; resolveStatic() resolves it, because resolve() cannot take a union this wide -->
 									<a
 										{...props}
-										href={resolve(item.href as StaticHref)}
+										href={resolveStatic(item.href)}
 										class="dn-item"
 										class:dn-item--active={active}
 										class:dn-item--ancestor={ancestor}
@@ -359,6 +359,7 @@
 										</span>
 										<span class="dn-item-label">{item.label}</span>
 									</a>
+									<!-- eslint-enable svelte/no-navigation-without-resolve -->
 								{/snippet}
 							</Tooltip>
 						</li>

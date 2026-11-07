@@ -101,7 +101,7 @@
 					<a
 						class="sm-link"
 						href={resolve(
-							`${sessionBasePath}/requests/${intervention.sent_request_id}` as `/sessions/${string}/requests/${string}`
+							`${sessionBasePath.slice(1)}/requests/${intervention.sent_request_id}` as `sessions/${string}/requests/${string}`
 						)}
 					>
 						delivered to request #{intervention.sent_request_id}
@@ -111,7 +111,7 @@
 					<a
 						class="sm-link"
 						href={resolve(
-							`${sessionBasePath}/requests/${intervention.trigger_request_id}` as `/sessions/${string}/requests/${string}`
+							`${sessionBasePath.slice(1)}/requests/${intervention.trigger_request_id}` as `sessions/${string}/requests/${string}`
 						)}
 					>
 						triggered by request #{intervention.trigger_request_id}

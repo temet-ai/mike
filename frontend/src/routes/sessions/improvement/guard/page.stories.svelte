@@ -223,9 +223,8 @@ against the real landed API — see GuardQuestionPanel.svelte's own doc comment.
 		await expect(shipTab).toHaveAttribute('aria-selected', 'true');
 		await waitFor(() =>
 			expect(gotoSpy).toHaveBeenCalledWith('/sessions/improvement/guard?question=unobserved_done', {
-				replaceState: true,
-				noScroll: true,
-				keepFocus: true
+				replace: true,
+				reset: false
 			})
 		);
 		const shipPanel = within(canvas.getByRole('tabpanel'));

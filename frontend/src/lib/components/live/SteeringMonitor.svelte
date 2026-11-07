@@ -219,7 +219,7 @@
 							</span>
 
 							<a
-								href={resolve(`/sessions/${encodeURIComponent(ev.sessionId)}#steering` as const)}
+								href={resolve(`sessions/${encodeURIComponent(ev.sessionId)}#steering` as const)}
 								class="sm-session-link"
 							>
 								session →
@@ -246,7 +246,7 @@
 							<p class="sm-body-label">Injected payload</p>
 							<pre class="sm-body-pre">{ev.payloadText}</pre>
 							<a
-								href={resolve(`/sessions/${encodeURIComponent(ev.sessionId)}#steering` as const)}
+								href={resolve(`sessions/${encodeURIComponent(ev.sessionId)}#steering` as const)}
 								class="sm-full-record-link"
 							>
 								→ Full record in session view

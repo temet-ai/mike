@@ -24,8 +24,7 @@ would add, and accepts or declines it.
 
 	function choose(uuid: string): void {
 		void goto(`${resolve('/proposals')}?project=${encodeURIComponent(uuid)}`, {
-			keepFocus: true,
-			noScroll: true
+			reset: false
 		});
 	}
 

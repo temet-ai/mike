@@ -110,7 +110,7 @@
 
 	const collapseKey = $derived(`session:${sessionId}:mailbox-open`);
 	const commsHref = $derived(
-		resolve(`/sessions/${encodeURIComponent(sessionId)}/comms` as `/sessions/${string}/comms`)
+		resolve(`sessions/${encodeURIComponent(sessionId)}/comms` as `sessions/${string}/comms`)
 	);
 </script>
 

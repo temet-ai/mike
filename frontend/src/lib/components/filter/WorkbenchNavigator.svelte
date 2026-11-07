@@ -272,7 +272,12 @@
 				#{requestId} · session {sessionId} ·
 				{blockCount} block{blockCount === 1 ? '' : 's'} ·
 				{formatCount(totalChars)} chars ·
-				<a href={resolve(backHref)} class="wbn-request-link">open request</a>
+				<a
+					href={backHref === '/'
+						? resolve('/')
+						: resolve(backHref.slice(1) as `sessions/${string}/requests/${number}`)}
+					class="wbn-request-link">open request</a
+				>
 			</p>
 		</section>
 	</div>

@@ -294,13 +294,13 @@
 							{/if}
 						</button>
 						<div class="ad-row__meta">
-							<a class="ad-link" href={resolve(`/sessions/${encodeURIComponent(row.session_id)}`)}>
+							<a class="ad-link" href={resolve(`sessions/${encodeURIComponent(row.session_id)}`)}>
 								{shortSessionId(row.session_id)}
 							</a>
 							<a
 								class="ad-link"
 								href={resolve(
-									`/sessions/${encodeURIComponent(row.session_id)}/requests/${row.parent_request_id}`
+									`sessions/${encodeURIComponent(row.session_id)}/requests/${row.parent_request_id}`
 								)}
 								aria-label="Open parent request #{row.parent_request_id}"
 							>
@@ -331,7 +331,7 @@
 									<a
 										class="ad-brief-link"
 										href={resolve(
-											`/sessions/${encodeURIComponent(row.session_id)}/requests/${row.parent_request_id}?drawer=request`
+											`sessions/${encodeURIComponent(row.session_id)}/requests/${row.parent_request_id}?drawer=request`
 										)}
 										aria-label="View the full agent brief in the parent request body"
 									>

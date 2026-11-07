@@ -80,7 +80,7 @@
 		{#if !group.isUngrouped && group.path}
 			<a
 				class="ssn-project-name ssn-project-name--link"
-				href={resolve(`/projects/${encodeURIComponent(group.path)}` as const)}
+				href={resolve(`projects/${encodeURIComponent(group.path)}` as const)}
 			>
 				{group.name}
 			</a>

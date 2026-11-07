@@ -69,8 +69,8 @@
 	const toggleMode = $derived(rowMode === 'toggle');
 	let collapsedFolders = $state<Set<string>>(new Set());
 
-	function projectHref(path: string): `/projects/${string}` {
-		return `/projects/${encodeURIComponent(path)}`;
+	function projectHref(path: string): `projects/${string}` {
+		return `projects/${encodeURIComponent(path)}`;
 	}
 
 	function countLabel(count: number, noun: string): string {

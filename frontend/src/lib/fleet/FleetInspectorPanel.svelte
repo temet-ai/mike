@@ -231,13 +231,13 @@
 			<div class="fleet-inspector__foot">
 				<a
 					class="fleet-inspector__lnk"
-					href={resolve(`/sessions/${encodeURIComponent(node.sessionId)}` as const)}
+					href={resolve(`sessions/${encodeURIComponent(node.sessionId)}` as const)}
 				>
 					open captured traffic →
 				</a>
 				<a
 					class="fleet-inspector__lnk"
-					href={resolve(`/sessions/${encodeURIComponent(node.sessionId)}/comms` as const)}
+					href={resolve(`sessions/${encodeURIComponent(node.sessionId)}/comms` as const)}
 				>
 					open comms →
 				</a>

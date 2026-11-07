@@ -72,13 +72,13 @@
 	}
 
 	const graphHref = $derived(
-		resolve(`/sessions/${encodeURIComponent(sessionId)}/graph` as `/sessions/${string}/graph`)
+		resolve(`sessions/${encodeURIComponent(sessionId)}/graph` as `sessions/${string}/graph`)
 	);
 
 	const neighbourCount = $derived(data ? data.nodes.filter((n) => !n.is_centre).length : 0);
 
 	function goToSession(id: string): void {
-		void goto(resolve(`/sessions/${encodeURIComponent(id)}` as `/sessions/${string}`));
+		void goto(resolve(`sessions/${encodeURIComponent(id)}` as `sessions/${string}`));
 	}
 </script>
 

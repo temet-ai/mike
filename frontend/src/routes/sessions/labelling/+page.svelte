@@ -14,8 +14,7 @@
 		if (value === tab) return;
 		const base = resolve('/sessions/labelling');
 		void goto(value === 'sessions' ? `${base}?for=sessions` : base, {
-			noScroll: true,
-			keepFocus: true
+			reset: false
 		});
 	}
 </script>
