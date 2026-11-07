@@ -8,7 +8,7 @@ set -euo pipefail
 
 # Resolve repo root from the script's own location (works from any cwd, even outside the repo).
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repo_root="$(git -C "$script_dir" rev-parse --show-toplevel)"
+repo_root="$(env -u GIT_DIR -u GIT_WORK_TREE git -C "$script_dir" rev-parse --show-toplevel)"
 cd "$repo_root"
 
 # A managed fleet slot (a clean checkout under .claude/worktrees) has no ignored

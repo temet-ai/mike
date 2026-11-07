@@ -25,7 +25,8 @@ pub(super) async fn open(
     let folder = req.folder.to_string_lossy().into_owned();
     let placed = place::place(cli, caller, &folder, req.run.as_ref()).await;
     let session = session_uuid_from_args(&req.args);
-    let command = agent_command(&req.program, &req.args, &req.env)?;
+    let env = with_caller_path(&req.env, std::env::var("PATH").ok());
+    let command = agent_command(&req.program, &req.args, &env)?;
     let labels = agent_labels(&placed, req, session);
     let address = start(cli, &folder, &labels, &command).await?;
     if req
@@ -141,6 +142,17 @@ async fn start(
             command: "hc run".to_string(),
             detail: format!("no `address` in {started}"),
         })
+}
+
+pub(super) fn with_caller_path(
+    env: &BTreeMap<String, String>,
+    path: Option<String>,
+) -> BTreeMap<String, String> {
+    let mut env = env.clone();
+    if let Some(path) = path.filter(|p| !p.is_empty()) {
+        env.entry("PATH".to_string()).or_insert(path);
+    }
+    env
 }
 
 pub(super) fn agent_command(

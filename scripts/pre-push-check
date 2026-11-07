@@ -61,11 +61,14 @@ if [ -x "$semgrep_bin" ] && [ "${#scan_files[@]}" -gt 0 ]; then
 fi
 
 if printf '%s\n' "$changed" | grep -qE '\.rs$|(^|/)Cargo\.toml$|^Cargo\.lock$'; then
+  # Read before cx runs: cx creates target/, and a fresh checkout must stay on the CI path.
+  built=false
+  [ -d "$root/target" ] && built=true
   "$root/scripts/cx" fmt --check >/dev/null 2>&1 || {
     echo "pre-push: cargo fmt --check failed; run make fmt" >&2
     status=1
   }
-  if [ -d "$root/target" ]; then
+  if [ "$built" = true ]; then
     "$root/scripts/lint-rust" || status=1
     "$root/scripts/cx" nextest run --all --no-fail-fast || status=1
     "$root/scripts/test-area" || status=1

@@ -4,7 +4,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 use super::close::session_mismatch;
-use super::open::{agent_command, run_argv, session_uuid_from_args};
+use super::open::{agent_command, run_argv, session_uuid_from_args, with_caller_path};
 use super::place::{Place, choose_space, run_space_id, spaces_matching};
 use super::prompt::turn_started;
 use super::terminal::{Terminal, live_addresses};
@@ -110,6 +110,32 @@ fn live_addresses_skip_finished_terminals() {
         {"address": "t3"}
     ]});
     assert_eq!(live_addresses(&listed), vec!["t1", "t3"]);
+}
+
+#[test]
+fn a_seat_gets_the_callers_path_so_the_server_can_find_claude() -> anyhow::Result<()> {
+    let env = with_caller_path(
+        &BTreeMap::new(),
+        Some("/home/me/.local/bin:/usr/bin".into()),
+    );
+    let cmd = agent_command("claude", &[], &env)?;
+    assert_eq!(
+        cmd,
+        vec!["env", "PATH=/home/me/.local/bin:/usr/bin", "claude"]
+    );
+    Ok(())
+}
+
+#[test]
+fn a_path_the_launch_set_is_kept_and_no_path_adds_nothing() {
+    let mut set = BTreeMap::new();
+    set.insert("PATH".to_string(), "/seat".to_string());
+    assert_eq!(
+        with_caller_path(&set, Some("/caller".into()))["PATH"],
+        "/seat"
+    );
+    assert!(with_caller_path(&BTreeMap::new(), None).is_empty());
+    assert!(with_caller_path(&BTreeMap::new(), Some(String::new())).is_empty());
 }
 
 #[test]
