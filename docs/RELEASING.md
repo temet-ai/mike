@@ -20,8 +20,11 @@ the cases a candidate is judged on.
   is public and holds `Formula/` and a README.
 - **Current release.** `0.1.0-alpha.4` is published as a pre-release, with archives for
   Linux x86_64 and Apple Silicon, from the `Release alpha` run on its tag.
-- **The tap.** `HOMEBREW_TAP_TOKEN` is set. It was not when alpha.3 was tagged, so that
-  release's formulas were written by hand with `scripts/release/homebrew_alpha.py`.
+- **The tap.** `HOMEBREW_TAP_TOKEN` is set but cannot write to the tap: on alpha.4 the
+  push failed with 403, so `publish` shows as failed although the release itself was
+  published. The formulas of alpha.3 and alpha.4 were written by hand with
+  `scripts/release/homebrew_alpha.py`. A token with write access to `temet-ai/homebrew-mike`
+  ends this. A real install and `brew test` of both alpha.4 formulas pass on Apple Silicon.
 - **mise needs two tools.** The `github:` backend takes one archive per tool, so `mike`
   comes from `github:temet-ai/mike` and `mike-mcp` from
   `ubi:temet-ai/mike[matching=mike-mcp,exe=mike-mcp]`. `install.md` has the one line; it
