@@ -395,7 +395,8 @@ restart_service_and_wait() {
 warn_if_web_ui_is_stale() {
     local built changed
     built="$(date -r "${PROJECT_ROOT}/frontend/build/index.html" +%s 2>/dev/null || echo 0)"
-    changed="$(git -C "${PROJECT_ROOT}" log -1 --format=%ct -- frontend/src frontend/static 2>/dev/null || true)"
+    changed="$(git -C "${PROJECT_ROOT}" log -1 --format=%ct -- frontend/src frontend/static \
+        ':(exclude,glob)frontend/src/**/*.stories.*' ':(exclude,glob)frontend/src/**/*.test.*' 2>/dev/null || true)"
     if (( built < ${changed:-0} )); then
         echo "==> WARNING: frontend/build is older than the newest frontend commit, so this deploy" >&2
         echo "    carries an older web UI. Run 'make spa' and deploy again to bring it up to date." >&2
