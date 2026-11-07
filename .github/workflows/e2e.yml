@@ -1,15 +1,7 @@
 name: E2E
 
-# PR routing stays path-filtered; main and explicit candidate/manual runs do not.
+# Runs when a release is cut (release-alpha.yml), or on request.
 on:
-  pull_request:
-    paths:
-      - '.github/workflows/release-source-gates.yml'
-      - 'scripts/tests/test_source_gate_routing.py'
-      - 'frontend/**'
-      - '.github/workflows/e2e.yml'
-  push:
-    branches: [main]
   workflow_dispatch:
   workflow_call:
 

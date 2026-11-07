@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# The pre-push hook: formatting, clippy and the structural lint when Rust
+# changed, a secret scan of the pushed commits, and cargo-deny when the
+# lockfile changed. A checkout with no target/ leaves clippy to CI, since
+# that would be a cold build.
+set -uo pipefail
+root=$(git rev-parse --show-toplevel)
+cd "$root" || exit 1
+
+none=0000000000000000000000000000000000000000
+changed=""
+ranges=""
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  [ "$local_sha" = "$none" ] && continue
+  if [ "$remote_sha" = "$none" ]; then
+    range="origin/main..$local_sha"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+  ranges="$ranges $range"
+  changed="$changed
+$(git diff --name-only "$range" 2>/dev/null)"
+done
+
+status=0
+for range in $ranges; do
+  if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks git --no-banner --redact --log-opts="$range" . >/dev/null 2>&1 || {
+      echo "pre-push: gitleaks found a secret in $range; run: gitleaks git --redact --log-opts=$range ." >&2
+      status=1
+    }
+  fi
+done
+
+if printf '%s\n' "$changed" | grep -qE '\.rs$|(^|/)Cargo\.toml$|^Cargo\.lock$'; then
+  "$root/scripts/cx" fmt --check >/dev/null 2>&1 || {
+    echo "pre-push: cargo fmt --check failed; run make fmt" >&2
+    status=1
+  }
+  if [ -d "$root/target" ]; then
+    "$root/scripts/lint-rust" || status=1
+  else
+    echo "pre-push: no target/ in this checkout, CI lints this push"
+  fi
+fi
+
+if printf '%s\n' "$changed" | grep -qE '^Cargo\.lock$|^deny\.toml$' && command -v cargo-deny >/dev/null 2>&1; then
+  cargo deny check || status=1
+fi
+
+exit "$status"

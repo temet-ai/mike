@@ -80,13 +80,12 @@ in the [official audit reference](https://pnpm.io/cli/audit).
 
 ## Hosted routing contract
 
-`rust-quality.yml`, `storybook.yml` and `e2e.yml` have three equivalent routes to
-their existing jobs:
-
-- Pull requests retain domain path filters to avoid irrelevant expensive checks.
-- Pushes to `main` are unfiltered, including documentation-only source changes.
-- Manual `workflow_dispatch` and reusable `workflow_call` entrypoints are
-  unfiltered. Checkout uses the event's selected ref, never a hardcoded `main`.
+`rust-quality.yml` and `storybook.yml` run on pull requests with domain path filters and
+on pushes to `main` that touch their domain. A push to `main` runs Rust lint and fast
+tests only; the integration shards run on pull requests, nightly and on a release tag.
+`e2e.yml` runs only on a release tag or on request. Manual `workflow_dispatch` and reusable
+`workflow_call` entrypoints are unfiltered. Checkout uses the event's selected ref, never a
+hardcoded `main`.
 
 The explicit candidate route is `.github/workflows/release-source-gates.yml`
 ("Candidate source gates"). On a repository where Actions is enabled (the public one),

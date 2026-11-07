@@ -117,9 +117,17 @@ jobs:
           path: ${{ runner.temp }}/dist/*
           if-no-files-found: error
 
+  rust-gates:
+    if: startsWith(github.ref, 'refs/tags/')
+    uses: ./.github/workflows/rust-quality.yml
+
+  e2e:
+    if: startsWith(github.ref, 'refs/tags/')
+    uses: ./.github/workflows/e2e.yml
+
   publish:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [validate, build]
+    needs: [validate, build, rust-gates, e2e]
     runs-on: ubuntu-22.04
     permissions:
       contents: write

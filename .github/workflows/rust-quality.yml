@@ -1,6 +1,8 @@
 name: Rust quality
 
-# PR routing stays path-filtered; main and explicit candidate/manual runs do not.
+# Lint and the fast tests run on every Rust push, side by side. The DB-backed
+# integration tests run on pull requests, each night, on a release tag and on
+# request, split into three shards. Local checks are in scripts/pre-push-check.
 on:
   pull_request:
     paths:
@@ -22,9 +24,16 @@ on:
       - 'scripts/lint-rust-size'
       - 'scripts/lint-rust-suppressions'
       - 'scripts/test-rust-lint-policy'
+      - '.github/actions/rust-setup/action.yml'
       - '.github/workflows/rust-quality.yml'
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'frontend/**'
+      - '**/*.md'
+  schedule:
+    - cron: "17 2 * * *"
   workflow_dispatch:
   workflow_call:
 
@@ -35,27 +44,62 @@ concurrency:
   group: rust-quality-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+env:
+  SQLX_OFFLINE: "true"
+
 jobs:
-  check:
-    name: Rust quality gates
+  lint:
+    name: Rust lint and dependencies
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - uses: ./.github/actions/rust-setup
+
+      - name: cargo fmt --check
+        run: cargo fmt --check
+
+      - name: Rust lint-policy self-test
+        run: ./scripts/test-rust-lint-policy
+
+      - name: Rust size and complexity lint
+        run: ./scripts/lint-rust
+
+      - name: cargo deny check
+        run: cargo deny check
+
+  fast:
+    name: Rust fast tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - uses: ./.github/actions/rust-setup
+
+      - name: cargo nextest (fast tier)
+        run: |
+          scripts/check-test-tiers
+          cargo nextest run --all
+
+  integration:
+    name: Rust integration tests ${{ matrix.shard }}/3
+    if: github.event_name != 'push' || github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     env:
       DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/claude_proxy_ci
       MIKE_TEST_ADMIN_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
-      SQLX_OFFLINE: "true"
       PGPASSWORD: postgres
     steps:
-      - name: Free disk space
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-
       - name: Checkout
         uses: actions/checkout@v7
+
+      - uses: ./.github/actions/rust-setup
 
       - name: Start PostgreSQL 19 with pgvector
         run: |
@@ -71,33 +115,8 @@ jobs:
           docker logs mike-ci-pg
           exit 1
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.95.0"
-          components: rustfmt, clippy
-
-      # .cargo/config.toml sets `rustc-wrapper = "sccache"` as a build
-      # accelerator. CI must install sccache or every cargo step that invokes
-      # rustc (clippy, sqlx-cli build, nextest) dies with
-      # `could not execute process \`sccache ...\` (No such file or directory)`.
-      - name: Install sccache
-        uses: taiki-e/install-action@sccache
-
-      - name: Cache Rust artifacts
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install nextest
-        uses: taiki-e/install-action@nextest
-
-      - name: Install cargo-deny
-        uses: taiki-e/install-action@cargo-deny
-
       - name: Install sqlx-cli
         run: cargo install sqlx-cli --locked --no-default-features --features rustls,postgres
-
-      - name: Install ripgrep
-        run: sudo apt-get update && sudo apt-get install -y ripgrep
 
       - name: Create CI database
         run: |
@@ -107,22 +126,11 @@ jobs:
       - name: Run migrations for sqlx prepare check
         run: cargo sqlx migrate run --source crates/mike/src/store/persistence/migrations
 
-      - name: cargo fmt --check
-        run: cargo fmt --check
-
-      - name: Rust lint-policy self-test
-        run: ./scripts/test-rust-lint-policy
-
-      - name: Rust size and complexity lint
-        run: ./scripts/lint-rust
-
-      - name: cargo nextest (full — fast + DB tiers)
+      - name: cargo nextest (DB tier, this shard)
         run: |
           scripts/check-test-tiers --require-db
-          cargo nextest run --all --profile ci
+          cargo nextest run --all --profile db --partition count:${{ matrix.shard }}/3
 
       - name: cargo sqlx prepare --check
+        if: matrix.shard == 1
         run: cargo sqlx prepare --workspace --check -- --all-targets
-
-      - name: cargo deny check
-        run: cargo deny check

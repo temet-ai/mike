@@ -1,0 +1,38 @@
+name: Rust setup
+description: The pinned toolchain and the tools every Rust job uses.
+
+runs:
+  using: composite
+  steps:
+    - name: Free disk space
+      uses: jlumbroso/free-disk-space@main
+      with:
+        tool-cache: true
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: "1.95.0"
+        components: rustfmt, clippy
+
+    # .cargo/config.toml sets `rustc-wrapper = "sccache"`, so every cargo step
+    # that invokes rustc fails without it.
+    - name: Install sccache
+      uses: taiki-e/install-action@sccache
+
+    - name: Cache Rust artifacts
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install nextest
+      uses: taiki-e/install-action@nextest
+
+    - name: Install cargo-deny
+      uses: taiki-e/install-action@cargo-deny
+
+    - name: Install ripgrep
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y ripgrep

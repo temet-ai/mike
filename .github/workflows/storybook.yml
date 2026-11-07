@@ -1,6 +1,6 @@
 name: Frontend quality
 
-# PR routing stays path-filtered; main and explicit candidate/manual runs do not.
+# PR and main routing are path-filtered; explicit candidate/manual runs are not.
 on:
   pull_request:
     paths:
@@ -17,6 +17,11 @@ on:
       - '.github/workflows/storybook.yml'
   push:
     branches: [main]
+    paths-ignore:
+      - 'crates/**'
+      - '.sqlx/**'
+      - 'docs/**'
+      - '**/*.md'
   workflow_dispatch:
   workflow_call:
 

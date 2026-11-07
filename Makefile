@@ -1,4 +1,4 @@
-.PHONY: rc-protocol-record rc-protocol-check lint-mods test-mods bootstrap preflight build build-release test test-db test-all test-p test-t test-repo-fast test-frontend-fast test-frontend test-e2e test-scripts test-repo test-timing lint fmt fmt-check deny check install spa ast-grep-report mcp-fallback-report fidelity gate-tests doc-animations doc-recordings arch-check help
+.PHONY: test-area rc-protocol-recordrc-protocol-check lint-mods test-mods bootstrap preflight build build-release test test-db test-all test-p test-t test-repo-fast test-frontend-fast test-frontend test-e2e test-scripts test-repo test-timing lint fmt fmt-check deny check install spa ast-grep-report mcp-fallback-report fidelity gate-tests doc-animations doc-recordings arch-check help
 
 INSTALL_DIR     ?= $(HOME)/.local/bin
 CARGO_TARGET_DIR ?= $(CURDIR)/target
@@ -97,6 +97,10 @@ test-db:
 test-all: test-mods
 	./scripts/check-test-tiers --require-db
 	CARGO_TARGET_DIR=$(CARGO_TARGET_DIR) ./scripts/cx nextest run --all --profile ci
+
+## The tests of the areas this branch changed, in every tier.
+test-area:
+	./scripts/test-area
 
 test-p:
 	CARGO_TARGET_DIR=$(CARGO_TARGET_DIR) ./scripts/cx nextest run -p $(p)

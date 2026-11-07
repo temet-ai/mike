@@ -23,12 +23,12 @@ alpha build and a manual candidate source-gate run).
 
 | Workflow (display name) | Trigger | Purpose |
 |---|---|---|
-| `rust-quality.yml` ("Rust quality") | PR (Rust paths) + push to `main` + `workflow_dispatch` + `workflow_call` | Full Rust gate: fmt, lint policy, size and complexity lint, nextest, sqlx, cargo-deny |
-| `storybook.yml` ("Frontend quality") | PR (frontend paths) + push to `main` + `workflow_dispatch` + `workflow_call` | Frontend advisory audit, typecheck, unit/integration/Storybook tests, Storybook build |
+| `rust-quality.yml` ("Rust quality") | PR (Rust paths) + push to `main` (not docs or frontend only) + nightly + `workflow_dispatch` + `workflow_call` | Lint and fast tests side by side on every run; DB-backed integration tests in three shards everywhere except a push to `main` |
+| `storybook.yml` ("Frontend quality") | PR (frontend paths) + push to `main` (not Rust or docs only) + `workflow_dispatch` + `workflow_call` | Frontend advisory audit, typecheck, unit/integration/Storybook tests, Storybook build |
 | `storybook-coverage.yml` ("Storybook coverage") | PR (component paths) | Enforces every new component ships a `.stories.svelte` |
-| `e2e.yml` ("E2E") | PR (frontend paths) + push to `main` + `workflow_dispatch` + `workflow_call` | Playwright smoke tests |
+| `e2e.yml` ("E2E") | Called by `release-alpha.yml` on a tag + `workflow_dispatch` + `workflow_call` | Playwright smoke tests |
 | `ui-usability-review.yml` ("UI usability review") | PR (frontend UI paths) | Deterministic usability gate (svelte-check, layout-shift guard, grep self-checks) + advisory Claude-graded usability review |
-| `release-alpha.yml` ("Release alpha") | Push of a tag `v*-alpha.*` + `workflow_dispatch` | Builds the Linux and Apple Silicon archives with `scripts/release.sh`, publishes a pre-release and updates the Homebrew tap; see [`RELEASING.md`](RELEASING.md#the-tag-triggered-alpha-workflow) |
+| `release-alpha.yml` ("Release alpha") | Push of a tag `v*-alpha.*` + `workflow_dispatch` | Builds the archives with `scripts/release.sh`, and on a tag waits for the Rust gates and E2E, then publishes a pre-release and updates the Homebrew tap; see [`RELEASING.md`](RELEASING.md#the-tag-triggered-alpha-workflow) |
 | `release-source-gates.yml` ("Candidate source gates") | `workflow_dispatch` only | Offline routing regressions plus the three reusable gates on the selected ref; see [`RELEASE_SOURCE_GATES.md`](RELEASE_SOURCE_GATES.md) |
 
 ---
@@ -36,14 +36,22 @@ alpha build and a manual candidate source-gate run).
 ## `rust-quality.yml`
 
 **Triggers:** pull requests touching the Rust, SQLx, toolchain or lint paths listed in the
-file, every push to `main` (unfiltered, documentation-only commits included),
-`workflow_dispatch` and `workflow_call` (both unfiltered).
+file, pushes to `main` that touch more than docs and frontend, nightly, a release tag
+through `release-alpha.yml`, `workflow_dispatch` and `workflow_call`.
 
-**What it does:**
-1. Spins up a Postgres 19 service container (pgvector image) and creates the CI database.
-2. Installs the pinned Rust toolchain (`1.95.0`) with rustfmt + clippy.
-3. Installs `sccache` (required — `.cargo/config.toml` sets it as the rustc-wrapper; the build fails without it).
-4. Runs in order: `cargo fmt --check` → the Rust lint-policy self-test (`scripts/test-rust-lint-policy`) → size and complexity lint (`scripts/lint-rust`) → `scripts/check-test-tiers --require-db` and `cargo nextest` (fast and DB tiers) → `cargo sqlx prepare --check` → `cargo deny check`.
+**What runs when:**
+
+| Where | What |
+|---|---|
+| Before a push | `scripts/pre-push-check`: fmt, clippy, structural lint, secret scan, cargo-deny when the lockfile changed |
+| While working | `scripts/test-area`: the tests of the areas the branch changed |
+| Push to `main` | Jobs `lint` and `fast`, side by side |
+| Pull request, nightly, release tag, manual | Those two plus `integration`, the DB tier in three shards, and `cargo sqlx prepare --check` on shard 1 |
+| Release tag | All of the above plus E2E, before publishing |
+
+A failure in `lint` no longer stops the tests, and the reverse. Commits pushed straight to
+`main` get their integration result from the next nightly run. Setup shared by the jobs is
+in `.github/actions/rust-setup`.
 
 **Concurrency:** `rust-quality-${{ github.workflow }}-${{ github.ref }}` with `cancel-in-progress` set for pull requests only. On a pull request only the latest push runs. On `main` a running job finishes and the newest push queues behind it, so a busy branch still gets a verdict (the caller's workflow name is in the group so a candidate run cannot cancel a main run).
 

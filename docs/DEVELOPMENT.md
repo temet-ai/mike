@@ -14,9 +14,11 @@ the inspect API, and the SPA already run locally and covers the loop you use whi
 
 ## Dev loop
 
-Make the change, run one narrow check of what you changed, commit. The commit hooks and the
-landing gate run fmt, clippy, `scripts/lint-rust` and the suites; do not run them yourself per
-change.
+Make the change, run one narrow check of what you changed, commit. The pre-push hook runs
+fmt, clippy and `scripts/lint-rust`, so run `git push` in the background; CI grades the
+rest. Do not run them yourself per change. `scripts/test-area` runs the tests of every area
+your branch changed, and [`GITHUB_WORKFLOWS.md`](GITHUB_WORKFLOWS.md#rust-qualityyml) says
+what runs when.
 
 | Changed | The one check |
 |---|---|
