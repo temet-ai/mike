@@ -10,7 +10,7 @@ use crate::launch::fleet::definition::{recorded_task_of, with_task_seats};
 use crate::launch::fleet::events::{EventKind, FleetEvent};
 
 fn definition() -> anyhow::Result<FleetDefinition> {
-    Ok(FleetDefinition::from_value(&json!({
+    FleetDefinition::from_value(&json!({
         "coordinator": {"session": Uuid::from_u128(1).to_string()},
         "tasks": {
             "T1": {"files": ["crates/mike/src/owned/"]},
@@ -18,7 +18,7 @@ fn definition() -> anyhow::Result<FleetDefinition> {
             "T3": {"files": ["docs/T3.md"]}
         }
     }))
-    .map_err(anyhow::Error::msg)?)
+    .map_err(anyhow::Error::msg)
 }
 
 fn event(id: i64, task: &str, session: Uuid, kind: EventKind) -> FleetEvent {
