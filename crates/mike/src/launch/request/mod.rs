@@ -98,6 +98,7 @@ impl LaunchSpec {
             args.push("server:mike".to_string());
         }
         if let Some(staged) = brief.as_ref().filter(|b| b.mode != BriefMode::Note) {
+            args.extend(read_permission(staged));
             args.push(staged.delivered.clone());
         }
 
@@ -126,6 +127,16 @@ impl LaunchSpec {
             flags: split,
         })
     }
+}
+
+fn read_permission(staged: &StagedBrief) -> Option<String> {
+    let path = staged
+        .path
+        .as_ref()
+        .filter(|_| staged.mode == BriefMode::File)?;
+    let path = path.to_string_lossy();
+    let absolute = path.strip_prefix('/')?;
+    Some(format!("--allowedTools=Read(//{absolute})"))
 }
 
 fn with_acceptance_reference(
@@ -163,12 +174,11 @@ impl LaunchSpec {
                 .or(self.flags.seat.as_deref()),
         };
         let demoted = brief::demote_to_file(staged, prompt, &fallback)?;
-        if staged.mode == BriefMode::Note {
+        let typed = staged.mode != BriefMode::Note;
+        let changed = demoted.delivered != staged.delivered;
+        if !typed || (changed && self.args.pop().is_some()) {
+            self.args.extend(read_permission(&demoted));
             self.args.push(demoted.delivered.clone());
-        } else if demoted.delivered != staged.delivered
-            && let Some(typed) = self.args.last_mut()
-        {
-            *typed = demoted.delivered.clone();
         }
         self.brief = Some(demoted);
         Ok(())
