@@ -4,3 +4,4 @@ mod support;
 
 mod closed_fleet;
 mod sender_notified;
+mod task_seats;

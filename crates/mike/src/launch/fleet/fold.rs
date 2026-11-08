@@ -166,6 +166,14 @@ impl Folded {
         self.tasks.get(task)?.sessions.last().copied()
     }
 
+    pub(super) fn task_of(&self, session: Uuid) -> Option<&str> {
+        self.seats
+            .get(&session)?
+            .task
+            .as_deref()
+            .filter(|t| !t.is_empty())
+    }
+
     pub(super) fn live_seats(&self) -> impl Iterator<Item = (Uuid, Option<&str>)> {
         self.seats
             .iter()

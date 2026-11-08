@@ -349,6 +349,28 @@ pub async fn task_session(
     super::fold::fold(&events, DateTime::<Utc>::MAX_UTC).seat_of(task)
 }
 
+pub fn with_task_seats(
+    mut def: FleetDefinition,
+    events: &[super::events::FleetEvent],
+) -> FleetDefinition {
+    let folded = super::fold::fold(events, DateTime::<Utc>::MAX_UTC);
+    for (id, task) in &mut def.tasks {
+        if let Some(session) = folded.seat_of(id).or_else(|| folded.last_seat(id)) {
+            task.session = Some(session.to_string());
+        }
+    }
+    def
+}
+
+pub fn recorded_task_of(
+    events: &[super::events::FleetEvent],
+    session: uuid::Uuid,
+) -> Option<String> {
+    super::fold::fold(events, DateTime::<Utc>::MAX_UTC)
+        .task_of(session)
+        .map(str::to_string)
+}
+
 pub async fn task_sessions(
     persist: &crate::store::persistence::PersistHandle,
     run: &str,
