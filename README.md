@@ -16,7 +16,7 @@
 
 mike is an inspector for Claude Code, written in Rust. It records every request and answer of your sessions on your own machine, so you can open any turn in a browser, search your history, and turn a correction into something the next session starts with. It is for people who use Claude Code every day and want to see inside it.
 
-**Status:** alpha, for Linux x86_64 and Apple Silicon macOS, with Linux ARM64 from the next release. The current release is [0.1.0-alpha.4](https://github.com/temet-ai/mike/releases). Expect rough edges and changes between alphas.
+**Status:** alpha, for Linux x86_64, Linux ARM64 and Apple Silicon macOS. The current release is [0.1.0-alpha.5](https://github.com/temet-ai/mike/releases). Expect rough edges and changes between alphas.
 
 ![A captured session in mike: the system prompt, the prompt you typed, and each tool call with its result](docs/user-guide/images/session-timeline.png)
 
