@@ -2,6 +2,7 @@ pub(crate) mod client_served;
 mod judge;
 mod recap;
 mod reminder_dispatch;
+mod unqueued_mail;
 
 #[cfg(test)]
 mod drain_tests;
@@ -39,6 +40,7 @@ pub(crate) async fn drain(
     }
 
     let mailbox_served = client_served::mailbox_served(session_id);
+    unqueued_mail::queue_mail_from_the_record(state, session_id, mailbox_served).await;
     let pending = claim_pending(state, session_id, mailbox_served).await;
     let pending_count = pending.len();
     let mut gate_suppressed: Vec<&'static str> = Vec::new();
