@@ -249,7 +249,7 @@ told.
 ### `sessions.session_analyzer_overrides`
 
 Added in migration `20260712000001_session_analyzer_overrides.sql`. Backs `PATCH
-/api/sessions/{id}/analyzers/{name}` (issue #174): a per-session enable/disable override for one
+/api/sessions/{id}/analyzers/{name}` (issue temet-ai/mike-private#174): a per-session enable/disable override for one
 analyzer (a category analyzer or `weasel_intercept`), overlaid on top of
 `AnalyzerRegistry::snapshot()`'s global state by `GET /api/sessions/{id}/analyzers`. Many-per-session
 (one row per overridden analyzer), unlike the 1:1 `session_goals` shape — mirrors `steering.enrolments`.
@@ -837,7 +837,7 @@ Seeded: `primary` (1), `title_sidecar` (2), `subagent` (3), `advisor_sidecar` (4
 
 ### `requests.author_kinds` (vocab)
 
-Added by `20260811010000_requests_author_kind.sql` ([issue #105](https://github.com/temet-ai/mike/issues/105)):
+Added by `20260811010000_requests_author_kind.sql` ([issue #105](https://github.com/temet-ai/mike-private/issues/105)):
 who authored the turn — the operator, the Claude Code harness, or an agent. The same migration added
 `requests.requests.author_kind_id BIGINT NOT NULL DEFAULT 4` (FK `requests_author_kind_id_fkey`,
 added NOT VALID then validated; index `idx_requests_author_kind_id`), set in the same INSERT that
@@ -1006,7 +1006,7 @@ truncated.
 
 ### `requests.response_intercepts`
 
-Added by `20260921130000_response_intercepts.sql` ([issue #318](https://github.com/temet-ai/mike/issues/318)).
+Added by `20260921130000_response_intercepts.sql` ([issue #318](https://github.com/temet-ai/mike-private/issues/318)).
 Durable evidence that a response-replacing path ran: one row per decision, keyed by session so it
 survives a request row that was never persisted (fallback id), and by request when one exists.
 Before it, the only proof a weasel intercept fired was a log line. Written by
@@ -2781,7 +2781,7 @@ classified `operator` (`fetch_ask_ledger_for_model`); the inspection route retur
 
 ### `memory.acceptance_criteria_maps`
 
-Added in `20260820000002_acceptance_criteria_maps.sql` (GitHub issue #152). One authoring of a session's
+Added in `20260820000002_acceptance_criteria_maps.sql` (GitHub issue temet-ai/mike-private#152). One authoring of a session's
 acceptance criteria from the operator's accumulated words only, by a worker that never sees the session's
 own restatement of the ask (`crates/mike/src/steerer/intake_criteria/`, called from
 `steerer/fleet/ask_ledger.rs` after an ask-ledger entry when `should_reauthor` says the newest entry is
@@ -2810,10 +2810,10 @@ ask-ledger recount SQL (`ask_ledger_backfill/`).
 
 ### `memory.acceptance_criteria`
 
-Added in `20260820000002_acceptance_criteria_maps.sql` (issue #152). One criterion within a map, as a row
+Added in `20260820000002_acceptance_criteria_maps.sql` (issue temet-ai/mike-private#152). One criterion within a map, as a row
 rather than a jsonb entry because each carries its own provenance and must be individually addressable.
 `operator` restates something the operator said, with the words in `operator_span`; `inferred` came from
-repo context and is what an operator should look at first. Issue #153 requires each criterion to name the
+repo context and is what an operator should look at first. Issue temet-ai/mike-private#153 requires each criterion to name the
 state of the surface after the change, never the artifact added (`steerer/criteria_contract.rs` rejects
 artifact-scoped criteria before they are stored).
 
@@ -3633,7 +3633,7 @@ One row per primary-lane `user_prompt` request that carries a prompt (grain: one
 
 ## Domain: `session_judges`
 
-Added in migration `20260625000002_session_judge.sql` (GitHub issue #24). Per-session LLM-judge outcome and
+Added in migration `20260625000002_session_judge.sql` (GitHub issue temet-ai/mike-private#24). Per-session LLM-judge outcome and
 quality score, distinct from `memory.operator_turns.judge_model`/`judge_rubric_version` above (that pair
 labels one turn; this domain scores a whole session).
 
@@ -3875,7 +3875,7 @@ One row per steerer definition. Steerers are intervention agents that can be ena
 | `agent_id` | `BIGINT NOT NULL` | FK → `agents.agents(id)` ON DELETE RESTRICT; agent persona used for the tier-2 agent-composition prompt fallback (`resolve_verdict_system_prompt`) |
 | `authority_id` | `BIGINT NOT NULL` | FK → `steering.authorities(id)` ON DELETE RESTRICT |
 | `default_mode_id` | `BIGINT NOT NULL` | FK → `steering.modes(id)` ON DELETE RESTRICT |
-| `model` | `TEXT NOT NULL` | OpenRouter model id used for this steerer's judge call; empty string inherits the configured `steerer.model` fleet default (`SettingApplies::OnRestart` — a changed default takes effect on the next restart) (issue #125) |
+| `model` | `TEXT NOT NULL` | OpenRouter model id used for this steerer's judge call; empty string inherits the configured `steerer.model` fleet default (`SettingApplies::OnRestart` — a changed default takes effect on the next restart) (issue temet-ai/mike-private#125) |
 | `priority` | `INTEGER NOT NULL` | Ordering/tie-break among steerers (`steerers_priority_nonneg` CHECK, `>= 0`) |
 | `enabled` | `BOOLEAN NOT NULL DEFAULT FALSE` | User-facing disable toggle; does not delete the row |
 | `config` | `JSONB NOT NULL DEFAULT '{}'` | Per-steerer tunables (e.g. `debounce_turns`, `confidence_threshold`, `class`, `requires`) |
@@ -4007,7 +4007,7 @@ The delivery rate is exposed via `steering.verifier_rate_v`, which counts `deliv
 
 ### `steering.thread_acceptance_criteria`
 
-Added in migration `20260805300003_thread_acceptance_criteria.sql` ([issue #119](https://github.com/temet-ai/mike/issues/119)).
+Added in migration `20260805300003_thread_acceptance_criteria.sql` ([issue #119](https://github.com/temet-ai/mike-private/issues/119)).
 Bridges thread-worklog acceptance criteria into steering: one row per thread (`thread_slug` primary key),
 upserted on demand by `steerer::thread_criteria::discover_for_session_text` whenever the verifier judge's
 accumulated-ask text for a session plausibly mentions a registered `artifacts/threads/<slug>/worklog.md` —
@@ -4030,11 +4030,11 @@ directly instead of decomposing the accumulated ask into criteria itself (see `b
 
 **Generalised (JC14, migration `20260924220000_steering_evaluations_generalise.sql`).** Every steerer evaluated past its invocation gate now writes one row per question from `run_steerer_loop`, on every path (response, `turn_end`, `turn_closed`, quiescence), resolved with its verdict or abstention; the explicit verifier-only inserts in the same-request judge and the quiescence sweep are gone. New columns: `mode` (`live` or `shadow`; a shadow would-fire is `resolved_correction` with no intervention), `bundle_id` (no FK), `question`, `trigger_point`, `trigger_request_id` (no FK; `operator_turn_id` is its mapping: the request's own turn, else the latest turn of the session created at or before it), and the label columns `outcome_label`, `label_source`, `labelled_at`, `label_evidence`. CHECKs: the four label columns are all set or all NULL; a label needs a resolved row; `next_message` and `session_end` labels only on shadow rows. Indexes `(steerer_id, question, dispatched_at DESC)` and a partial `(dispatched_at)` over unlabelled resolved shadow rows. `steering.interventions` gains `delivery_channel` (NULL, `append`, `wake`) and `addressed_to` (NULL, `session`, `parent_for_actor`) in `20260924220100_steerer_delivery.sql`.
 
-Added in migration `20260805400001_steering_evaluations.sql` ([issue #117](https://github.com/temet-ai/mike/issues/117)).
+Added in migration `20260805400001_steering_evaluations.sql` ([issue #117](https://github.com/temet-ai/mike-private/issues/117)).
 `steering.interventions` records FIRES only — a "pass" verdict (the common case) is written nowhere else,
 so the SPA had no signal to show while a completion-claim is being checked or once it clears clean. This
 table records every `verifier` evaluation ATTEMPT, `dispatched` at the same drain-time/quiescence-sweep
-call sites that invoke `steerer::fleet::judge_turn_close_now` (issue #120 AC2/AC5), then resolved to
+call sites that invoke `steerer::fleet::judge_turn_close_now` (issue temet-ai/mike-private#120 AC2/AC5), then resolved to
 `resolved_pass` or `resolved_correction` once the judge call returns. `steering.interventions`'s
 fire-only semantics are unchanged — no columns added there, no rows implied.
 
@@ -4197,7 +4197,7 @@ Columns: `project_path`, `fires_count`, `corrected_count`, `delivered_count`, `c
 
 ### `steering.eir_timing_v`
 
-Added in migration `20260803000001_eir_timing_v.sql` ([issue #118](https://github.com/temet-ai/mike/issues/118)).
+Added in migration `20260803000001_eir_timing_v.sql` ([issue #118](https://github.com/temet-ai/mike-private/issues/118)).
 Companion to `verifier_rate_v` — that view answers "how often does a fire correlate with a correction";
 this one answers "how early or late, in operator-turn terms". One row per verifier fire and one row per
 corrected operator turn, discriminated by `row_kind` (`fire`/`correction`).
@@ -4228,7 +4228,7 @@ One row per inter-session message. States, in order: queued (`claimed_at IS NULL
 for injection (`claimed_at IS NOT NULL`) → sent (`sent_request_id IS NOT NULL`) → **consumed**
 (`consumed_at IS NOT NULL`, explicit ack) or **dead-lettered** (`dead_lettered_at IS NOT NULL`, redelivery
 cap reached without an ack). `consumed_at`/`dead_lettered_at`/`delivery_attempts` were added in migration
-`20260710000001_mailbox_redelivery.sql` ([issue #169](https://github.com/temet-ai/mike/issues/169)):
+`20260710000001_mailbox_redelivery.sql` ([issue #169](https://github.com/temet-ai/mike-private/issues/169)):
 a sent-but-unconsumed row is redelivered on later eligible primary turns rather than delivered exactly once,
 closing the gap where injected-on-the-wire content never enters the recipient's own conversation history and
 is gone from its context on the next turn.
@@ -4258,14 +4258,14 @@ sends and SET NULL if the sending session is deleted.
 - `idx_mailbox_messages_sender_unnotified`: `(queued_at) WHERE sender_notified_at IS NULL AND from_session_id IS NOT NULL AND to_session_id IS NOT NULL AND sent_at IS NULL` (BTree partial) — the mailbox reaper tells a sender once when its message was not delivered, and `sender_notified_at` records that it did
 - `idx_mailbox_messages_redelivery`: `(to_session_id, id) WHERE consumed_at IS NULL AND dead_lettered_at IS NULL AND sent_at IS NOT NULL` (BTree partial) — reload/drain lookup: already-sent, still-eligible rows for one recipient, oldest first
 
-**Staleness/dead-letter visibility** ([issue #166](https://github.com/temet-ai/mike/issues/166)):
+**Staleness/dead-letter visibility** ([issue #166](https://github.com/temet-ai/mike-private/issues/166)):
 `GET /api/sessions/{id}/messages` computes `pending_minutes` and `stale` at read time for any row
 with `status == "pending"` — no schema change, just a projection against `queued_at` and the
 `mailbox_stale_minutes` setting (default `10`, env `MIKE_MAILBOX_STALE_MINUTES`, `/api/settings`
 key `mailbox_stale_minutes`). Both fields are `null` for `claimed`/`delivered`/`consumed`/`dead_lettered` rows.
 `status` is derived most-terminal-first: `consumed` > `dead_lettered` > `delivered` > `claimed` > `pending`.
 
-**Redelivery** ([issue #169](https://github.com/temet-ai/mike/issues/169)): governed by the
+**Redelivery** ([issue #169](https://github.com/temet-ai/mike-private/issues/169)): governed by the
 session-scoped `mailbox_redelivery` feature toggle (default ON — OFF reverts to first-delivery-only, never
 zero delivery) and the `mailbox_redelivery_max_attempts` boot setting (default `5`, env
 `MIKE_MAILBOX_REDELIVERY_MAX_ATTEMPTS`; counts the first send as attempt 1). The envelope
@@ -4306,7 +4306,7 @@ a send); read back by `session_reads.rs` and `thread_reads.rs` into the message 
 
 ### `mailbox.failed_sends`
 
-Added in migration `20260709000001_mailbox_failed_sends.sql` ([issue #166](https://github.com/temet-ai/mike/issues/166)).
+Added in migration `20260709000001_mailbox_failed_sends.sql` ([issue #166](https://github.com/temet-ai/mike-private/issues/166)).
 Durable, queryable evidence for an unsuccessful `POST /api/sessions/{to}/message` — previously a
 wrong-recipient guess or malformed request left zero trace anywhere.
 
@@ -4322,7 +4322,7 @@ wrong-recipient guess or malformed request left zero trace anywhere.
 **Indexes:** partial BTree on both FKs (sparse columns, matching `mailbox.messages`' idiom); BRIN
 on `attempted_at` (append-mostly time series).
 
-**Verifier/unread-mail gate** ([issue #166](https://github.com/temet-ai/mike/issues/166)):
+**Verifier/unread-mail gate** ([issue #166](https://github.com/temet-ai/mike-private/issues/166)):
 the `verifier` steerer (`steering.steerers`, kind `verifier`) forces a fire — overriding the
 judge's "no intervention needed" verdict — when `PersistHandle::has_pending_inbound_mail` finds an
 unclaimed inbound row for the session under evaluation. Wired in `run_steerer_loop`
@@ -4423,12 +4423,12 @@ Added by `20260810100003_mailbox_tags.sql`. The many-to-many between threads and
 
 ## Domain: `remote_control`
 
-Added in migration `20260903000001_remote_control_channel.sql` ([issue #230](https://github.com/temet-ai/mike/issues/230)) —
+Added in migration `20260903000001_remote_control_channel.sql` ([issue #230](https://github.com/temet-ai/mike-private/issues/230)) —
 capture for the Remote Control channel every Claude Code session opens to `api.anthropic.com` under
 `/v1/code/sessions/<cse_id>/...`. These requests carry no `x-claude-code-session-id` header, so they
 are keyed on the `cse_` id parsed from the URL path instead. Each table has its own section at the
 end of this domain; the prose here covers what `20260908000003_remote_control_session_link.sql`
-([issues #231/#232](https://github.com/temet-ai/mike/issues/231)) added on top of it.
+([issues temet-ai/mike-private#231/#232](https://github.com/temet-ai/mike-private/issues/231)) added on top of it.
 
 **`remote_control.channels`** gained five columns and a channel-to-session link. `local_session_uuid`,
 `local_cwd` and `client_version` are read from the first kept `attachment` or `system` payload item
@@ -4654,7 +4654,7 @@ route reads it directly.
 ### `remote_control.injections`
 
 Added by `20260908000004_remote_control_injections.sql`; `source_kind`/`source_id` by
-`20260916020000_push_wake_injection_sources.sql` ([issue #255](https://github.com/temet-ai/mike/issues/255));
+`20260916020000_push_wake_injection_sources.sql` ([issue #255](https://github.com/temet-ai/mike-private/issues/255));
 `carried_request_id` by `20260923153500_injection_carried_request.sql`. The exact bytes of every
 mike-authored, id-less SSE frame pushed into a session's live Remote Control reply stream, including
 unsuccessful attempts: a database reservation (`reserve_injection.sql`,
@@ -4700,7 +4700,7 @@ mechanics.
 
 ## Domain: `workspace`
 
-Added in migration `20260707000001_workspace_core.sql` ([issue #148](https://github.com/temet-ai/mike/issues/148), session-coordination Phase 1).
+Added in migration `20260707000001_workspace_core.sql` ([issue #148](https://github.com/temet-ai/mike-private/issues/148), session-coordination Phase 1).
 Registration/liveness + the durable coordination-event ledger. Deliberately out of this migration (later
 phases): `area_claims`, locks, `project_docs`, `agent_queries`, NOTIFY triggers, and any
 `events_retention_days` settings column — Phase 1's roster is assembled handler-side over the two tables
@@ -4722,14 +4722,14 @@ genuinely be dead; `stale` is never a synonym for `ended`, which only ever comes
 
 The roster query (`fetch_workspace_roster`) additionally reads each row's most recent
 `requests.requests` activity via a `LEFT JOIN LATERAL` on `idx_requests_session_created_id`
-(`last_request_at`, `newest_request_number`; issue #129) — read-time activity truth from captured
+(`last_request_at`, `newest_request_number`; issue temet-ai/mike-private#129) — read-time activity truth from captured
 traffic, not a stored column, `NULL` for a registration with zero captured requests. The default
 (`Live`-scope) roster keeps any non-ended row whose activity lands within `HEARTBEAT_LEASE_MINUTES`
 even once its own lease has lapsed, so a session generating real traffic never drops off the default
 roster for want of a heartbeat; `liveness` itself is untouched by this — a row kept alive by activity
 alone still reads `stale`.
 
-**Channel-derived liveness** (issues #231/#234, migration `20260908000003_remote_control_session_link.sql`):
+**Channel-derived liveness** (issues temet-ai/mike-private#231/#234, migration `20260908000003_remote_control_session_link.sql`):
 `fetch_workspace_roster` runs a second query, `fetch_channel_snapshots` (see the `remote_control`
 domain below), against every roster row's session uuid and merges the result in
 (`store::persistence::workspace::roster::merge_channel_snapshot`) — not a JOIN in the lease query,
@@ -4765,7 +4765,7 @@ merge adds these fields to every roster row, all `None`/`false` when `channel_pr
 - `idx_session_registrations_project_lease`: `(project_id, lease_expires_at)` (BTree) — matches the roster query shape `WHERE project_id = $1 AND lease_expires_at > now()`
 - `idx_session_registrations_reapable`: `boot_id WHERE released_at IS NULL AND pid IS NOT NULL` (BTree partial) — staleness sweeper's per-boot scan
 
-**Heartbeat** ([issue #168](https://github.com/temet-ai/mike/issues/168)): `POST /api/workspace/heartbeat`
+**Heartbeat** ([issue #168](https://github.com/temet-ai/mike-private/issues/168)): `POST /api/workspace/heartbeat`
 (`{session_id}`) renews `lease_expires_at` on the caller's active registration and returns
 `mailbox.messages`' `unconsumed`/`unclaimed` inbox counts for that session in the same round-trip
 (one query per count, no correlated scalars) — `404` when the session has no active (non-released)
@@ -4773,7 +4773,7 @@ registration. The `workspace-heartbeat` Stop hook is the sole caller: it renews 
 turn boundary and blocks termination while `unconsumed > 0`, converging the instant the recipient
 acks (or the message is dead-lettered).
 
-**Project-identity unification** ([issue #148](https://github.com/temet-ai/mike/issues/148)):
+**Project-identity unification** ([issue #148](https://github.com/temet-ai/mike-private/issues/148)):
 registration keys `project_id` on the same trimmed display form captured requests already resolve
 to (`extract::request::project_display_name`, applied to the hook's cwd), not the caller's absolute
 path — so a repo has exactly one `projects.projects` row regardless of whether it was first seen via
@@ -4945,7 +4945,7 @@ escalation sweep), and one on each remaining foreign key (`project_id`, `asker_s
 ## Domain: `launch`
 
 Added in migrations `20260916000001_launch_domain.sql` and
-`20260916030000_launch_launches_row_changed_trigger.sql` ([issue #257](https://github.com/temet-ai/mike/issues/257),
+`20260916030000_launch_launches_row_changed_trigger.sql` ([issue #257](https://github.com/temet-ai/mike-private/issues/257),
 folding a standalone terminal-launcher process into mike as a native launch domain). Four
 tables: `templates` (warm sessions `mike spawn fork` starts from), `runs` (a run id's shared
 backend workspace/tab), `launches` (one row per launch attempt, whatever its outcome),
@@ -5252,10 +5252,10 @@ notice is retried, and `told_sql/recorded_introductions.sql` filters repeats alr
 
 ## Domain: `work`
 
-Added by `20260903000002_work_threads.sql` ([issue #243](https://github.com/temet-ai/mike/issues/243),
+Added by `20260903000002_work_threads.sql` ([issue #243](https://github.com/temet-ai/mike-private/issues/243),
 moving worklog thread state out of `artifacts/threads/*/worklog.md` and the session-start hook that
 pasted it into every session) and extended by `20261022120000_work_threads_direct_write.sql`
-([issue #658](https://github.com/temet-ai/mike/issues/658): a thread lives in mike's database, not
+([issue #67](https://github.com/temet-ai/mike/issues/67): a thread lives in mike's database, not
 in a file, so it can be created, checkpointed and given entries directly). Six tables: `threads`
 (identity and metadata), `thread_state` (the present tense, one row per thread, replaced whole on
 every checkpoint), `thread_acceptance_criteria`, `thread_log` (append-only history),
@@ -5915,7 +5915,7 @@ User prompt and concatenated assistant text per turn. Closed turns read
 
 ### `mike.session_quality_v`
 
-Added in migration `20260625000002_session_judge.sql` (GitHub issue #24). One row per session that has at
+Added in migration `20260625000002_session_judge.sql` (GitHub issue temet-ai/mike-private#24). One row per session that has at
 least one `session_judges.verdicts` row, carrying its **latest** verdict via `DISTINCT ON (v.session_id)
 ORDER BY v.session_id, v.judged_at DESC, v.id DESC` — set-based, no correlated scalar subquery. Sessions
 with no verdict row are excluded (`session_summary_v` LEFT JOINs this view to fill that gap with NULLs).

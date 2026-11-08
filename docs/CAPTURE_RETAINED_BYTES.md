@@ -9,7 +9,7 @@ summary: Where one streamed response's bytes are held between the upstream read 
 # Capture retained bytes
 
 One path: an incoming response chunk, through the client/parser tee, to parsed events, a
-persistence attempt, and the work retained for the terminal retry (#624). The plain tee is
+persistence attempt, and the work retained for the terminal retry (temet-ai/mike-private#624). The plain tee is
 `crates/mike/src/sse/tee.rs`; the gated forwarder (`weasel_intercept`) uses the same two
 channels and capacities.
 
@@ -28,7 +28,7 @@ shedding), not anything in this table.
 | 4 | Live broadcast | `ProxyEvent` clones for the inspect UI | 256 events, shared | owned clone per event | `AppState.event_tx` | each subscriber reads, or the ring overwrites it | slow subscribers lag and skip; capture is unaffected |
 | 5 | Store channel | `ProxyEvent` (deltas, block starts, stop) | 512 events | owned strings per event | parser → store updater | the updater handles the event | `try_send` full: counted (`store_event_backpressured_total`), a debounced `memory.shed` notice, then the parser waits |
 | 6 | Block accumulator | the open content block's text and signature | one block | owned `String` | store updater | the block is flushed to `responses.stream_blocks` (moved out with `mem::take`) | grows with the block; a block is what the model sent |
-| 7 | Failed block buffer | `FailedStreamBlock` copies of blocks whose insert failed | every failed block of the request | owned copy (content, signature, ids, sha) | the request's store entry | the terminal snapshot succeeds (`remove_entry`), or the entry is evicted | counted in the store's byte budget (since #624); evicting a terminal entry with failed blocks drops them and is counted as an eviction |
+| 7 | Failed block buffer | `FailedStreamBlock` copies of blocks whose insert failed | every failed block of the request | owned copy (content, signature, ids, sha) | the request's store entry | the terminal snapshot succeeds (`remove_entry`), or the entry is evicted | counted in the store's byte budget (since temet-ai/mike-private#624); evicting a terminal entry with failed blocks drops them and is counted as an eviction |
 | 8 | Terminal snapshot | a clone of the request for the terminal write | one request, transient | owned clone | snapshot task | the write returns | a failed write keeps the entry for the next terminal event |
 
 ## What bounds what
@@ -39,7 +39,7 @@ shedding), not anything in this table.
   allocation, so the two queues together never hold a byte twice.
 - Stages 3 to 6 are one event or one block deep, plus 512 parsed events of backlog.
 - Stage 7 is the only buffer that grows with persistence failure. During a database outage
-  every block of every streaming request lands here. Before #624 the store's byte budget
+  every block of every streaming request lands here. Before temet-ai/mike-private#624 the store's byte budget
   (`max_store_bytes`, default 3 GiB) and the cap manager's shed estimate did not count it;
   `store/eviction.rs` `entry_bytes` now does, so the budget evicts and sheds against the
   real retained bytes, and `/api/diagnostics/memory` reports them as

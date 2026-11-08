@@ -30,7 +30,7 @@ free_port() {
 
 # Pending-migration count from `mike migrate-check` output on stdin ("Migration
 # assessment — N pending, ..."). Prints the count; unreadable output prints 1, so a
-# caller that must not migrate treats it as pending (#671).
+# caller that must not migrate treats it as pending (temet-ai/mike-private#671).
 pending_migration_count() {
     local n
     n="$(awk '/^Migration assessment/ { for (i = 1; i < NF; i++) if ($(i+1) ~ /^pending/) { print $i; exit } }')"

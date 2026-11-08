@@ -122,7 +122,7 @@ _host_target_triple() {
 # build.incremental=false rides along whenever it's injected — which is why it
 # is opt-in (CX_SCCACHE=1): sccache can only hit on an unchanged crate, and
 # crates/mike is one 194k-line crate, so in the edit-build-test loop it turned
-# every edit into a full non-incremental recompile (issue #341). Turn it on for
+# every edit into a full non-incremental recompile (issue temet-ai/mike-private#341). Turn it on for
 # a fresh checkout whose dependencies are not built yet; leave it off to edit.
 compute_accelerator_cargo_args() {
   ACCELERATOR_CARGO_ARGS=()

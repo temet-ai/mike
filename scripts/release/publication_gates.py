@@ -1,4 +1,4 @@
-"""Reviewer acceptance contract, pinned to #270's stage-specific matrix.
+"""Reviewer acceptance contract, pinned to temet-ai/mike-private#270's stage-specific matrix.
 
 This validates attestations and evidence hashes; it is not an acceptance runner,
 security approval, or an authority to publish. Current local reports cannot pass.

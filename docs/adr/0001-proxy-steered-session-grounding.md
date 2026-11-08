@@ -11,7 +11,7 @@ summary: A proposal (steerer half shipped) for the system to act on sessions in 
 **Status: superseded.** The mechanism shipped differently: steerers append a `<system-reminder>` to the next request rather than sending a first-class user message. See [`STEERING_EXTENSION.md`](../STEERING_EXTENSION.md) and [`REQUEST_FLOW.md`](../REQUEST_FLOW.md). Kept as the record of the decision.
 
 > **Status: ACTIVE (operator-approved 2026-06-14).** This is an approved decision.
-> The steering feature is committed to build ([issue #163](https://github.com/temet-ai/mike/issues/163)); steerer-scope
+> The steering feature is committed to build ([issue #163](https://github.com/temet-ai/mike-private/issues/163)); steerer-scope
 > only (the post-session distiller is carved out to its own future feature). The
 > design below stands as the build reference. Sequencing: see
 > `artifacts/2026-06-13/integrated-sequencing-plan.md` §4.
@@ -284,7 +284,7 @@ cross-session memory, maintained automatically.
 
 ### Relation to the roadmap
 
-This generalises the planned memory-consolidation worker ([issue #159](https://github.com/temet-ai/mike/issues/159),
+This generalises the planned memory-consolidation worker ([issue #159](https://github.com/temet-ai/mike-private/issues/159),
 RAW → DAILY) from "lessons only" to "lessons + worklog + docs + agent proposals,"
 reusing the already-planned closed-session queue. It may graduate to its own ADR
 (0002) once fleshed out; recorded here because it is the out-of-band half of the
@@ -313,7 +313,7 @@ halves together.
 `active` frontmatter status above — reconciled 2026-07-07.) The mechanism
 described above — the steerer sends a first-class user message, mandatory
 bigbro attribution, per-steerer authority levels — is built and running
-([issue #163](https://github.com/temet-ai/mike/issues/163); VerifierSteerer shipped). Augment vs. drive is settled
+([issue #163](https://github.com/temet-ai/mike-private/issues/163); VerifierSteerer shipped). Augment vs. drive is settled
 (**both**, per steerer), the steerer model is settled
 (`google/gemini-2.5-flash-lite`), and delivery is settled (the steerer sends a
 user message, processed next if active or on return if idle). The *Open

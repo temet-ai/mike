@@ -304,7 +304,7 @@ fi
 # Keep the `mike` command on PATH on the build that is live. `make install`
 # installs only mike-mcp, so the CLI in ~/.local/bin stayed on whatever was last
 # copied there by hand; `mike spawn` then refuses to run, because a CLI whose
-# migration ledger differs from the database's will not connect (#359). Only an
+# migration ledger differs from the database's will not connect (temet-ai/mike-private#359). Only an
 # existing install is refreshed — nothing is put on PATH that was not there —
 # and only from the main checkout, never from a linked worktree's build. Never
 # fails a deploy: the proxy is already live when this runs.
@@ -556,7 +556,7 @@ if ! "${STAGED_BIN}" migrate-check | tee "${MIGRATE_CHECK_OUT}"; then
 fi
 
 # The smoke boot applies pending migrations to the live DB, so a dry run with any
-# pending stops here (#671): the live ledger moving ahead of the deployed binary
+# pending stops here (temet-ai/mike-private#671): the live ledger moving ahead of the deployed binary
 # makes that binary unrestartable until the next real deploy.
 if [[ "${DRY_RUN}" == "true" ]] \
     && (( $(pending_migration_count < "${MIGRATE_CHECK_OUT}") > 0 )); then
@@ -578,7 +578,7 @@ echo "    alt inspect bind: http://${ALT_INSPECT_ADDR}/api/"
 # is concurrency-safe, so two instances on one DB just take disjoint id batches.
 # env -u: a concurrent SessionEnd reaping this on an inherited session tag would
 # surface as a spurious SMOKE TEST FAILED and abort a healthy deploy.
-# MIKE_SMOKE_RUN=1 (issue #126): this instance boots against the LIVE
+# MIKE_SMOKE_RUN=1 (issue temet-ai/mike-private#126): this instance boots against the LIVE
 # capture DB just to prove the binary boots — it must never force-close
 # live in-flight rows, re-enqueue live mailbox mail, or spawn a background
 # worker that touches shared state or messages a live session. Set ONLY

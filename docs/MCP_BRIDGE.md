@@ -22,7 +22,7 @@ session-goal steering, cross-session mailbox send, workspace roster registration
 launching (`spawn_session`, backed by mike's own terminal launcher). The full (`--full`) profile
 adds prompt-composition mutations (create/update/delete) on top. Session/project pin+TTL
 lifecycle is SPA/operator-only via the REST API — no MCP tool wraps it (removed after zero usage
-ever, [issue #226](https://github.com/temet-ai/mike/issues/226)).
+ever, [issue #226](https://github.com/temet-ai/mike-private/issues/226)).
 
 ## 1. Build and install
 
@@ -514,7 +514,7 @@ routes do **not** require a matching MCP tool by default — see the MCP-tools p
 
 ## 7. Channel push (mailbox wake over MCP)
 
-`mike-mcp` is also a Claude Code **channel** (issue #352). It declares the
+`mike-mcp` is also a Claude Code **channel** (issue temet-ai/mike-private#352). It declares the
 experimental capability `claude/channel`. When a session is launched with
 `--dangerously-load-development-channels server:mike`, `mike-mcp` pushes that
 session's mailbox mail into it as `notifications/claude/channel`. An idle session

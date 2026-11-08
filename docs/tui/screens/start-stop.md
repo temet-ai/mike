@@ -3,7 +3,7 @@ title: mike TUI — Start / Stop screen spec
 status: active
 created: 2026-07-20
 updated: 2026-07-20
-summary: Layout, data sources, states, and keymap for the Start / Stop lifecycle screen — the TUI face of the #63 ensure-up/serve engine.
+summary: Layout, data sources, states, and keymap for the Start / Stop lifecycle screen — the TUI face of the temet-ai/mike-private#63 ensure-up/serve engine.
 ---
 
 # Start / Stop
@@ -14,7 +14,7 @@ in this repository; this spec is the readable version of it. Style rules: see
 
 ## Purpose
 
-Lifecycle without scripts — the TUI face of the #63 engine. One shared implementation;
+Lifecycle without scripts — the TUI face of the temet-ai/mike-private#63 engine. One shared implementation;
 the TUI adds no second lifecycle logic.
 
 ## Entry
@@ -48,7 +48,7 @@ Footer on `ports`: `KeyHint [⏎ open url]`.
 
 | Panel | Hotkey | Contents | Live data source |
 |---|---|---|---|
-| `lifecycle` (`tone="rust"`, grow) | `s` (fallback bracket form — "lifecycle" contains no `s`, see style guide §5) | state line `● running · since 14:32 · pid 48120 · uptime 2h14m`; interactive `List` of 2 actions: Stop, Start (dim, "already running") | current pid/uptime from the #63 engine |
+| `lifecycle` (`tone="rust"`, grow) | `s` (fallback bracket form — "lifecycle" contains no `s`, see style guide §5) | state line `● running · since 14:32 · pid 48120 · uptime 2h14m`; interactive `List` of 2 actions: Stop, Start (dim, "already running") | current pid/uptime from the temet-ai/mike-private#63 engine |
 
 Footer on `lifecycle`: note text "quitting the tui never stops the stack — the system
 just runs."

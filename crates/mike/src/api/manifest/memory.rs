@@ -35,14 +35,14 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         "GET",
         "/api/sessions/{id}/ask-ledger",
         Coverage::Exempt {
-            reason: "Ask-ledger read route (#113); demand-driven MCP policy — no tool until a named agent workflow needs it.",
+            reason: "Ask-ledger read route (temet-ai/mike-private#113); demand-driven MCP policy — no tool until a named agent workflow needs it.",
         },
     ),
     route(
         "GET",
         "/api/sessions/{id}/acceptance-criteria",
         Coverage::Exempt {
-            reason: "Acceptance-criteria read route (#152); demand-driven MCP policy — no tool until a named agent workflow needs it.",
+            reason: "Acceptance-criteria read route (temet-ai/mike-private#152); demand-driven MCP policy — no tool until a named agent workflow needs it.",
         },
     ),
     route(
@@ -125,91 +125,91 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         "GET",
         "/api/memory/consolidation/runs",
         Coverage::Exempt {
-            reason: "consolidation-audit read surface; no agent workflow needs it yet (#110)",
+            reason: "consolidation-audit read surface; no agent workflow needs it yet (temet-ai/mike-private#110)",
         },
     ),
     route(
         "GET",
         "/api/memory/consolidation/runs/{id}",
         Coverage::Exempt {
-            reason: "consolidation-audit read surface; no agent workflow needs it yet (#110)",
+            reason: "consolidation-audit read surface; no agent workflow needs it yet (temet-ai/mike-private#110)",
         },
     ),
     route(
         "GET",
         "/api/memory/decisions",
         Coverage::Exempt {
-            reason: "consolidation-audit read surface; no agent workflow needs it yet (#110)",
+            reason: "consolidation-audit read surface; no agent workflow needs it yet (temet-ai/mike-private#110)",
         },
     ),
     route(
         "GET",
         "/api/memory/lesson-outcomes",
         Coverage::Exempt {
-            reason: "observational lesson-outcome read surface; no agent workflow needs it yet, and MCP tools are demand-driven not parity-driven (#110)",
+            reason: "observational lesson-outcome read surface; no agent workflow needs it yet, and MCP tools are demand-driven not parity-driven (temet-ai/mike-private#110)",
         },
     ),
     route(
         "GET",
         "/api/lessons/{id}/history",
         Coverage::Exempt {
-            reason: "consolidation-audit read surface; no agent workflow needs it yet (#110)",
+            reason: "consolidation-audit read surface; no agent workflow needs it yet (temet-ai/mike-private#110)",
         },
     ),
     route(
         "GET",
         "/api/sessions/{id}/memory-actions",
         Coverage::Exempt {
-            reason: "consolidation-audit read surface; no agent workflow needs it yet (#110)",
+            reason: "consolidation-audit read surface; no agent workflow needs it yet (temet-ai/mike-private#110)",
         },
     ),
     route(
         "GET",
         "/api/sessions/{id}/lessons",
         Coverage::Exempt {
-            reason: "session-page read surface (which lessons were shown/recorded); no agent workflow needs it yet, and MCP tools are demand-driven not parity-driven (#110)",
+            reason: "session-page read surface (which lessons were shown/recorded); no agent workflow needs it yet, and MCP tools are demand-driven not parity-driven (temet-ai/mike-private#110)",
         },
     ),
     route(
         "POST",
         "/api/lessons/{id}/restore",
         Coverage::Exempt {
-            reason: "operator-only un-archive action; out of scope for MCP per #110",
+            reason: "operator-only un-archive action; out of scope for MCP per temet-ai/mike-private#110",
         },
     ),
     route(
         "GET",
         "/api/memory/relations",
         Coverage::Exempt {
-            reason: "lesson-relations read surface; no agent workflow needs it yet (#110)",
+            reason: "lesson-relations read surface; no agent workflow needs it yet (temet-ai/mike-private#110)",
         },
     ),
     route(
         "POST",
         "/api/memory/relations/{id}/confirm",
         Coverage::Exempt {
-            reason: "operator-only relation decision; out of scope for MCP per #110",
+            reason: "operator-only relation decision; out of scope for MCP per temet-ai/mike-private#110",
         },
     ),
     route(
         "POST",
         "/api/memory/relations/{id}/reject",
         Coverage::Exempt {
-            reason: "operator-only relation decision; out of scope for MCP per #110",
+            reason: "operator-only relation decision; out of scope for MCP per temet-ai/mike-private#110",
         },
     ),
     route(
         "GET",
         "/api/lessons/{id}/relations",
         Coverage::Exempt {
-            reason: "lesson-relations read surface; no agent workflow needs it yet (#110)",
+            reason: "lesson-relations read surface; no agent workflow needs it yet (temet-ai/mike-private#110)",
         },
     ),
     route(
         "GET",
         "/api/lessons/archived",
         Coverage::Exempt {
-            reason: "consolidation-audit read surface; no agent workflow needs it yet (#110)",
+            reason: "consolidation-audit read surface; no agent workflow needs it yet (temet-ai/mike-private#110)",
         },
     ),
 ];

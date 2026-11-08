@@ -59,6 +59,6 @@ the MCP tools in its own turn.
 
 ## Future work
 
-A purpose-built `watch_session` long-poll MCP tool (tracked in [issue #134](https://github.com/temet-ai/mike/issues/134), gap #4) would let a single agent turn subscribe to session events
+A purpose-built `watch_session` long-poll MCP tool (tracked in [issue #134](https://github.com/temet-ai/mike-private/issues/134), gap #4) would let a single agent turn subscribe to session events
 without re-invoking the agent on each tick. Until that tool exists, the
 re-invocation pattern above is the correct approach.

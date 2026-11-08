@@ -6,10 +6,10 @@ use crate::api::handlers;
 use crate::config::AppState;
 
 const OPERATOR_PROMPTS: Coverage = Coverage::Exempt {
-    reason: "operator-only prompt-class catalogue; SPA-driven, no MCP tool per issue #133 demand-driven policy",
+    reason: "operator-only prompt-class catalogue; SPA-driven, no MCP tool per issue temet-ai/mike-private#133 demand-driven policy",
 };
 const OPERATOR_PROMPT_DETAIL: Coverage = Coverage::Exempt {
-    reason: "operator-only prompt-class detail; SPA-driven, no MCP tool per issue #133 demand-driven policy",
+    reason: "operator-only prompt-class detail; SPA-driven, no MCP tool per issue temet-ai/mike-private#133 demand-driven policy",
 };
 const OPERATOR_AGENTS: Coverage = Coverage::Exempt {
     reason: "operator-only agent registry; SPA-driven, not surfaced via MCP V1",

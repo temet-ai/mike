@@ -40,7 +40,7 @@ bytes = { workspace = true }
 bytesize = { workspace = true }
 chrono = { workspace = true }
 clap = { version = "4", features = ["derive"] }
-# TUI control center (#50). Only mike consumes these, so they stay direct
+# TUI control center (temet-ai/mike-private#50). Only mike consumes these, so they stay direct
 # crate deps rather than a workspace.dependencies entry, matching rust-embed
 # below. ratatui and crossterm move together — ratatui re-exports the crossterm
 # event types the TUI matches on, so a mismatched pair compiles two crossterms

@@ -38,7 +38,7 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         "GET",
         "/api/sessions/{id}/validation-status",
         Coverage::Exempt {
-            reason: "issue #117 visible validation state: latest verifier evaluation attempt for the session's live 'being validated' indicator; SPA-driven, not surfaced via MCP per demand-driven policy",
+            reason: "issue temet-ai/mike-private#117 visible validation state: latest verifier evaluation attempt for the session's live 'being validated' indicator; SPA-driven, not surfaced via MCP per demand-driven policy",
         },
     ),
     route(

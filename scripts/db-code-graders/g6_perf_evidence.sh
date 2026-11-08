@@ -4,7 +4,7 @@
 # If the change being committed touches SQL (a query!/query_as!/query_scalar!
 # macro line, a raw sqlx::query(...) call, or a .sql migration), the commit
 # message MUST carry perf evidence that is BOUND to this commit — not just any
-# pasted `Perf-Verdict:` line (issue #192). For a passing verdict
+# pasted `Perf-Verdict:` line (issue temet-ai/mike-private#192). For a passing verdict
 # (improved | neutral | baseline), every `Perf-Label:` block must satisfy:
 #
 #   1. Committed evidence: the measured snapshot is part of the SAME commit as
@@ -70,7 +70,7 @@
 # FAIL-OPEN only for cases that cannot be attacked by tampering: no REPO_ROOT (not in a git
 # working tree — no commit is happening) and the fingerprint lib genuinely never existing in
 # the repo (a fresh clone predating it). Everything reachable by deleting, breaking, or
-# starving a dependency this gate relies on (issue #192) fails CLOSED instead — the caller
+# starving a dependency this gate relies on (issue temet-ai/mike-private#192) fails CLOSED instead — the caller
 # treats ANY non-zero exit as block (see commit-msg-hook.sh), so an internal crash here
 # blocks too, rather than being silently interpreted as a pass.
 set -uo pipefail
@@ -246,7 +246,7 @@ if ! grep -qE '^Perf-Verdict:[[:space:]]*(improved|neutral|baseline)' <<<"$msg";
     exit 1
 fi
 
-# ── Passing verdict: bind the cited evidence to THIS commit (issue #192) ──────
+# ── Passing verdict: bind the cited evidence to THIS commit (issue temet-ai/mike-private#192) ──────
 block() {
   {
     echo "G6 — perf evidence is not bound to this commit (issue #192):"
