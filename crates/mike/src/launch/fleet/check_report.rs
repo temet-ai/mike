@@ -162,14 +162,7 @@ pub(super) async fn task_sessions(
     def: &FleetDefinition,
     run: &str,
 ) -> BTreeMap<String, Uuid> {
-    let Ok(events) = persist.fleet_events_since(run, 0).await else {
-        return BTreeMap::new();
-    };
-    let folded = super::fold::fold(&events, chrono::Utc::now());
-    def.tasks
-        .keys()
-        .filter_map(|task| Some((task.clone(), folded.seat_of(task)?)))
-        .collect()
+    super::definition::task_sessions(persist, run, def).await
 }
 
 fn owner_mail(verdict: &Verdict, lines: &[&Blocking]) -> String {
