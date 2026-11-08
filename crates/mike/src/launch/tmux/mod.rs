@@ -4,6 +4,7 @@ mod close;
 mod open;
 mod probe;
 mod prompt;
+mod seat_line;
 mod surface;
 #[cfg(test)]
 mod tests;
