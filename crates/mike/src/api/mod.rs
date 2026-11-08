@@ -25,6 +25,7 @@ pub(crate) mod project_knowledge;
 pub(crate) mod prompt_shaping;
 pub(crate) mod proposals;
 pub(crate) mod questions;
+pub(crate) mod request_span;
 pub(crate) mod scheduled_job_run;
 pub(crate) mod search_window;
 pub(crate) mod semantic;

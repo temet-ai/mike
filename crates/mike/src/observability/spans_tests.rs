@@ -48,17 +48,3 @@ fn spawn_tracked_task_logs_inside_the_spawning_span() -> anyhow::Result<()> {
     );
     Ok(())
 }
-
-#[test]
-fn inspect_request_span_carries_the_request_id_header() -> anyhow::Result<()> {
-    let request = Request::builder()
-        .uri("/api/health")
-        .header("x-request-id", "abc-123")
-        .body(())?;
-    let subscriber = tracing_subscriber::registry();
-    with_default(subscriber, || {
-        let span = inspect_request_span(&request);
-        anyhow::ensure!(span.metadata().map(|m| m.name()) == Some("inspect_request"));
-        Ok(())
-    })
-}

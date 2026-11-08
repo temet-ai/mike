@@ -985,7 +985,7 @@ Configuration:
 Two request spans, both at `INFO`, so every log line inside them carries their fields and OTel exports one trace per request:
 
 - `proxy_request` ([`proxy/handler.rs`](../crates/mike/src/proxy/handler.rs)): `method`, `path`, then `session_id` once the request is accepted and `request_id` once the pipeline has stored it.
-- `inspect_request` ([`observability/spans.rs`](../crates/mike/src/observability/spans.rs)), made by the inspect router's `TraceLayer`: `method`, `path`, `request_id` from `x-request-id`.
+- `inspect_request` ([`api/request_span.rs`](../crates/mike/src/api/request_span.rs)), made by the inspect router's `TraceLayer`: `method`, `path`, `request_id` from `x-request-id`.
 
 Tasks a request starts (SSE tee and parser, store updater, attribution and push stamps, Remote Control capture, weasel follow-ups) spawn through `spawn_tracked` / `spawn_detached` in `observability/spans.rs`, which carry the request span into the task. Long-running workers have no span: OTel exports a span only when it closes, and the module path already names the worker. API keys logged as `sk-***{last4}` only.
 
