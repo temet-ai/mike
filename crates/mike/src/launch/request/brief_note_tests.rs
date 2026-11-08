@@ -123,8 +123,37 @@ fn demote_brief_to_file_puts_the_file_pointer_on_the_argv() {
     let brief = spec.brief.clone().unwrap();
     assert_eq!(brief.mode, BriefMode::File);
     assert_eq!(brief.note, None);
-    assert_eq!(spec.args.len(), before + 1);
+    assert_eq!(spec.args.len(), before + 2);
     assert_eq!(spec.args.last().unwrap(), &brief.delivered);
+    assert_eq!(
+        spec.args[spec.args.len() - 2],
+        format!(
+            "--allowedTools=Read(/{})",
+            brief.path.clone().unwrap().display()
+        )
+    );
     assert!(!spec.args.last().unwrap().contains("message_uuid="));
     assert_eq!(std::fs::read_to_string(brief.path.unwrap()).unwrap(), long);
+}
+
+#[test]
+fn a_file_brief_launch_allows_the_seat_to_read_that_file_whatever_its_permission_mode() {
+    let dir = tempfile::tempdir().unwrap();
+    let tokens = ["--permission-mode", "dontAsk", "--allowedTools", "Bash"];
+    let spec = spec_with(dir.path(), &tokens, Some(&"z".repeat(801)), false);
+    let path = spec.brief.unwrap().path.unwrap();
+    let n = spec.args.len();
+    assert_eq!(
+        spec.args[n - 2],
+        format!("--allowedTools=Read(/{})", path.display())
+    );
+    assert!(spec.args[n - 2].starts_with("--allowedTools=Read(//"));
+    assert!(spec.args[n - 1].starts_with("Your brief is saved at "));
+}
+
+#[test]
+fn an_inline_brief_launch_adds_no_read_rule() {
+    let dir = tempfile::tempdir().unwrap();
+    let spec = spec_with(dir.path(), &[], Some("short"), false);
+    assert!(!spec.args.iter().any(|a| a.starts_with("--allowedTools")));
 }
