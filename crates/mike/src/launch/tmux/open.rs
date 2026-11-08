@@ -6,6 +6,7 @@ use uuid::Uuid;
 use super::channels_dialog;
 use super::cli::{DEFAULT_TIMEOUT, TmuxCli, argv};
 use super::prompt;
+use super::seat_line;
 use super::surface::{self, session_name_from_agent};
 use crate::launch::backend::{BackendId, OpenRequest, Surface};
 use crate::launch::error::LaunchError;
@@ -38,7 +39,7 @@ pub(super) async fn open(cli: &TmuxCli, req: &OpenRequest) -> Result<Surface, La
         record_session_uuid(cli, &target.pane_id, id).await;
     }
 
-    send_command(cli, &target.pane_id, &req.program, &req.args).await?;
+    send_command(cli, &target.pane_id, req).await?;
     wait_ready(cli, &target.pane_id).await;
     if req
         .args
@@ -195,33 +196,9 @@ async fn record_session_uuid(cli: &TmuxCli, pane: &str, session: Uuid) {
     }
 }
 
-fn shell_quote(arg: &str) -> String {
-    let safe = arg
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || "-_./:=,@".contains(c));
-    if safe && !arg.is_empty() {
-        arg.to_string()
-    } else {
-        format!("'{}'", arg.replace('\'', "'\\''"))
-    }
-}
-
-async fn send_command(
-    cli: &TmuxCli,
-    pane: &str,
-    program: &str,
-    args: &[String],
-) -> Result<(), LaunchError> {
-    let mut line = shell_quote(program);
-    for arg in args {
-        line.push(' ');
-        line.push_str(&shell_quote(arg));
-    }
-    if let Some(setup) =
-        crate::launch::fleet::seat_helpers::setup(args).map_err(LaunchError::Failed)?
-    {
-        line = format!("{} && {line}", setup.command);
-    }
+async fn send_command(cli: &TmuxCli, pane: &str, req: &OpenRequest) -> Result<(), LaunchError> {
+    let env = seat_line::seat_env(|key| std::env::var(key).ok(), &req.env);
+    let line = seat_line::command_line(&req.program, &req.args, &env)?;
     cli.run_ok(
         &argv(&["send-keys", "-t", pane, &line, "Enter"]),
         SEND_TIMEOUT,
@@ -267,15 +244,6 @@ mod tests {
             Some(id)
         );
         assert_eq!(session_uuid_from_args(&["--resume".into()]), None);
-    }
-
-    #[test]
-    fn shell_quote_bare_tokens_pass_through_and_others_are_single_quoted() {
-        assert_eq!(shell_quote("--model"), "--model");
-        assert_eq!(shell_quote("/tmp/a.md"), "/tmp/a.md");
-        assert_eq!(shell_quote("hello world"), "'hello world'");
-        assert_eq!(shell_quote("it's"), "'it'\\''s'");
-        assert_eq!(shell_quote(""), "''");
     }
 
     #[test]
