@@ -271,7 +271,7 @@ async fn mail_refreshes(persist: &PersistHandle, run: &str, due: Vec<(String, Re
         {
             Ok(_) => super::told::mark(persist, run, &[key]).await,
             Err(err) => {
-                tracing::warn!(%run, %key, %err, "fleet: could not mail a seat its brief for the changed task list");
+                tracing::warn!(%run, %key, error = %err, "fleet: could not mail a seat its brief for the changed task list");
             }
         }
     }

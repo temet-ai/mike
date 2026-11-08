@@ -70,7 +70,7 @@ pub(crate) fn weasel_armed(toggles: &ResolvedToggles, session_id: &str) -> bool 
 pub(crate) fn spawn_record(state: &AppState, evidence: InterceptEvidence) {
     let state = state.clone();
     let tracker = state.tracker.clone();
-    tracker.spawn(async move {
+    crate::observability::spans::spawn_tracked(&tracker, async move {
         record(&state, &evidence).await;
     });
 }

@@ -409,7 +409,7 @@ async fn ask_owners(persist: &PersistHandle, fleet: Uuid, by: &str, p: &Proposal
             blocked: false,
         };
         if let Err(err) = super::questions::ask_and_mail(persist, &asked, None).await {
-            tracing::warn!(task = %owner.task, %err, "fleet: could not ask a task's seat about a proposal that names its files");
+            tracing::warn!(task = %owner.task, error = %err, "fleet: could not ask a task's seat about a proposal that names its files");
         }
     }
 }

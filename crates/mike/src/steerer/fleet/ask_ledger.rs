@@ -18,7 +18,7 @@ fn log_session_not_resolved_for_ledger_append(session_uuid: Uuid) {
 fn log_session_resolve_failed_for_ledger_append(session_uuid: Uuid, e: &PersistError) {
     warn!(
         session_id = %session_uuid,
-        err = %e,
+        error = %e,
         "steerer fleet: ask-ledger append — session resolve failed"
     );
 }
@@ -43,7 +43,7 @@ async fn is_first_ask_ledger_entry(ph: &PersistHandle, session_uuid: Uuid) -> bo
         Err(e) => {
             warn!(
                 session_id = %session_uuid,
-                err = %e,
+                error = %e,
                 "steerer fleet: ask-ledger append — existing-entries check failed, assuming not-first"
             );
             false
@@ -77,7 +77,7 @@ pub(super) async fn append_ask_ledger_entry_for_turn(
         warn!(
             session_id = %session_uuid,
             kind,
-            err = %e,
+            error = %e,
             "steerer fleet: ask-ledger append failed"
         );
     }
@@ -121,7 +121,7 @@ async fn fetch_ledger_for_reauthoring(
         Err(e) => {
             warn!(
                 session_id = %session_uuid,
-                err = %e,
+                error = %e,
                 "intake criteria: ask-ledger fetch failed — no re-author this turn"
             );
             None
@@ -139,7 +139,7 @@ async fn fetch_seen_for_reauthoring(
         Err(e) => {
             warn!(
                 session_id = %session_uuid,
-                err = %e,
+                error = %e,
                 "intake criteria: current-map lookup failed — no re-author this turn"
             );
             None
@@ -157,7 +157,7 @@ async fn count_older_asks_not_fetched(
         Err(e) => {
             warn!(
                 session_id = %session_uuid,
-                err = %e,
+                error = %e,
                 "intake criteria: ask-ledger count failed — no re-author this turn"
             );
             None
@@ -183,7 +183,7 @@ fn log_criteria_map_authored(
 fn log_criteria_map_store_failed(session_uuid: Uuid, e: &PersistError) {
     warn!(
         session_id = %session_uuid,
-        err = %e,
+        error = %e,
         "intake criteria: authored map could not be stored"
     );
 }

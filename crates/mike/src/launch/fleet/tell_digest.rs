@@ -67,7 +67,7 @@ pub async fn slot_queue(persist: &PersistHandle, def: &FleetDefinition, run: &st
     {
         Ok(rows) => queue_of(def, &rows),
         Err(err) => {
-            tracing::warn!(%run, %err, "fleet: could not read the seats' commands for the slot queue");
+            tracing::warn!(%run, error = %err, "fleet: could not read the seats' commands for the slot queue");
             SlotQueue::default()
         }
     }

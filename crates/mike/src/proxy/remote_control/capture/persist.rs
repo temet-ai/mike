@@ -41,7 +41,7 @@ pub(super) fn submit(
             let persist = persist.clone();
             async move { record_batch(&persist, batch).await }
         });
-        state.tracker.spawn(drain);
+        crate::observability::spans::spawn_tracked(&state.tracker, drain);
     }
 }
 
@@ -183,7 +183,7 @@ async fn warn_on_flapping_status(persist: &PersistHandle, call: &CapturedCall) {
     let boundary = history[FLAP_TRANSITION_THRESHOLD - 1].observed_at;
     if (newest.observed_at - boundary).num_seconds() <= FLAP_WINDOW_SECONDS {
         tracing::warn!(
-            session_uuid = %session_uuid,
+            session_id = %session_uuid,
             cse_id = %call.cse_id,
             channel_id = newest.channel_id,
             from_status = newest.from_status.as_deref().unwrap_or("<none>"),

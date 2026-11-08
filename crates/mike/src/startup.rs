@@ -302,7 +302,7 @@ async fn fetch_unclaimed_mailbox_rows_for(
         Err(e) => {
             tracing::warn!(
                 error = %e,
-                %session_uuid,
+                session_id = %session_uuid,
                 "first-seen mailbox reload: pending-unclaimed query failed"
             );
             Vec::new()
@@ -323,7 +323,7 @@ async fn fetch_stale_claimed_mailbox_rows_for(
         Err(e) => {
             tracing::warn!(
                 error = %e,
-                %session_uuid,
+                session_id = %session_uuid,
                 "first-seen mailbox reload: stale-claim query failed"
             );
             Vec::new()
@@ -343,7 +343,7 @@ async fn fetch_redelivery_mailbox_rows_for(
         Err(e) => {
             tracing::warn!(
                 error = %e,
-                %session_uuid,
+                session_id = %session_uuid,
                 "first-seen mailbox reload: pending-redelivery query failed"
             );
             Vec::new()

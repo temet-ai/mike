@@ -156,7 +156,7 @@ async fn record_launch(
         payload,
     };
     if let Err(err) = persist.append_fleet_event(&event).await {
-        tracing::warn!(%err, run = run_id, "fleet: a seat launch event could not be recorded");
+        tracing::warn!(error = %err, run = run_id, "fleet: a seat launch event could not be recorded");
     }
 }
 
@@ -268,7 +268,7 @@ pub async fn patch_definition_if(
 }
 
 async fn save_failed(fleet: Uuid, err: &str) {
-    tracing::warn!(%fleet, %err, "mike could not save a change to the fleet definition; trying again");
+    tracing::warn!(%fleet, error = %err, "mike could not save a change to the fleet definition; trying again");
     tokio::time::sleep(SAVE_RETRY).await;
 }
 

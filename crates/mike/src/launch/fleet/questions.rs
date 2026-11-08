@@ -64,7 +64,7 @@ pub async fn ask_and_mail(
     {
         Ok(inserted) => inserted.is_some(),
         Err(err) => {
-            tracing::warn!(%err, %to, "questions: could not mail a question's recipient");
+            tracing::warn!(error = %err, %to, "questions: could not mail a question's recipient");
             false
         }
     };
@@ -109,7 +109,7 @@ async fn append(persist: &PersistHandle, event: Option<NewFleetEvent>, what: &st
         return;
     };
     if let Err(err) = persist.append_fleet_event(&event).await {
-        tracing::warn!(%err, what, "fleet: could not record a question event");
+        tracing::warn!(error = %err, what, "fleet: could not record a question event");
     }
 }
 
@@ -167,7 +167,7 @@ pub async fn blocked_waiting_since(
             .filter(|q| q.blocked && waited_minutes(q, now) >= i64::from(minutes))
             .collect(),
         Err(err) => {
-            tracing::warn!(%run, %err, "fleet: could not read the run's open questions");
+            tracing::warn!(%run, error = %err, "fleet: could not read the run's open questions");
             Vec::new()
         }
     }
@@ -177,7 +177,7 @@ async fn claim_due(persist: &PersistHandle, run: &str, minutes: i32) -> Vec<Ques
     match persist.escalate_due_questions(run, minutes).await {
         Ok(due) => due,
         Err(err) => {
-            tracing::warn!(%run, %err, "fleet: could not claim the blocked questions due for the reference seat");
+            tracing::warn!(%run, error = %err, "fleet: could not claim the blocked questions due for the reference seat");
             Vec::new()
         }
     }
@@ -195,7 +195,7 @@ async fn mail_reference(
     {
         Ok(_) => Some(question.question_uuid),
         Err(err) => {
-            tracing::warn!(%err, question = %question.question_uuid, "fleet: could not mail the reference seat a blocked question");
+            tracing::warn!(error = %err, question = %question.question_uuid, "fleet: could not mail the reference seat a blocked question");
             None
         }
     }

@@ -153,14 +153,14 @@ async fn open_problem_on_repeated_fails(
     )
     .await
     {
-        tracing::warn!(%err, task = %report.task, "fleet judge: could not open the repeated-fail problem");
+        tracing::warn!(error = %err, task = %report.task, "fleet judge: could not open the repeated-fail problem");
     }
 }
 
 async fn record(persist: &PersistHandle, report: &ReportToJudge, answer: &JudgeAnswer) {
     for event in verdict_events(&report.run, &report.task, None, report.note, answer) {
         if let Err(err) = persist.append_fleet_event(&event).await {
-            tracing::warn!(%err, task = %report.task, "fleet judge: could not record a verdict");
+            tracing::warn!(error = %err, task = %report.task, "fleet judge: could not record a verdict");
         }
     }
     tell_seat(persist, report.seat, &verdict_mail(report, answer)).await;
@@ -171,7 +171,7 @@ pub async fn tell_seat(persist: &PersistHandle, seat: Uuid, body: &str) {
         .insert_message(Uuid::new_v4(), seat, None, body)
         .await
     {
-        tracing::warn!(%err, %seat, "fleet judge: could not mail the seat");
+        tracing::warn!(error = %err, %seat, "fleet judge: could not mail the seat");
     }
 }
 

@@ -19,18 +19,19 @@ pub(super) fn spawn_stitched_tee(
     let (parser_tx, parser_rx) = mpsc::channel::<Bytes>(64);
     let (store_event_tx, store_event_rx) = tokio::sync::mpsc::channel(512);
 
-    state.tracker.spawn(stitch_to_client_and_parser(
-        upstream_resp,
-        body_tx,
-        parser_tx,
-        next_index,
-    ));
-    state.tracker.spawn(crate::sse::parser::run_parser(
-        parser_rx,
-        request_id,
-        state.event_tx.clone(),
-        store_event_tx,
-    ));
+    crate::observability::spans::spawn_tracked(
+        &state.tracker,
+        stitch_to_client_and_parser(upstream_resp, body_tx, parser_tx, next_index),
+    );
+    crate::observability::spans::spawn_tracked(
+        &state.tracker,
+        crate::sse::parser::run_parser(
+            parser_rx,
+            request_id,
+            state.event_tx.clone(),
+            store_event_tx,
+        ),
+    );
     crate::store::updater::spawn_store_updater(
         crate::store::updater::StoreUpdaterSpawnArgs {
             store: state.store.clone(),

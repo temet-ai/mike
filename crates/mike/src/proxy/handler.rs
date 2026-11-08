@@ -11,6 +11,16 @@ pub(crate) const MAX_HEADERS: usize = 64;
 
 pub(crate) const MAX_HEADER_BYTES: usize = 8192;
 
+#[tracing::instrument(
+    name = "proxy_request",
+    skip_all,
+    fields(
+        method = %req.method(),
+        path = %req.uri().path(),
+        session_id = tracing::field::Empty,
+        request_id = tracing::field::Empty,
+    )
+)]
 pub(crate) async fn proxy_handler(
     State(state): State<AppState>,
     req: Request<Body>,
@@ -21,11 +31,13 @@ pub(crate) async fn proxy_handler(
         engine::AcceptOutcome::EarlyResponse(response) => return Ok(response),
         engine::AcceptOutcome::Accepted(accepted) => *accepted,
     };
+    tracing::Span::current().record("session_id", accepted.signals.session_id.as_str());
 
     let pipeline = match engine::run_request_pipeline(&state, accepted).await? {
         engine::PipelineOutcome::EarlyResponse(response) => return Ok(response),
         engine::PipelineOutcome::Continue(pipeline) => *pipeline,
     };
+    tracing::Span::current().record("request_id", tracing::field::display(&pipeline.request_id));
 
     let forwarded = engine::forward_to_upstream(
         &state,

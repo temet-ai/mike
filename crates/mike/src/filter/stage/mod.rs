@@ -131,7 +131,7 @@ async fn was_filtered_before(ctx: &StageContext<'_>) -> bool {
     match persist.session_system_prompt_is_filtered(session).await {
         Ok(filtered) => filtered,
         Err(err) => {
-            tracing::warn!(session_id = %ctx.session_id, %err, "filter: could not read whether this session's system prompt was rewritten before the restart");
+            tracing::warn!(session_id = %ctx.session_id, error = %err, "filter: could not read whether this session's system prompt was rewritten before the restart");
             false
         }
     }

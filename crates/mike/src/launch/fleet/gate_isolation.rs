@@ -50,7 +50,7 @@ impl Operation {
 
 async fn write_log(run: &str, path: &Path, output: &str) {
     if let Err(err) = tokio::fs::write(path, output).await {
-        tracing::warn!(%run, %err, path = %path.display(), "fleet: could not save the gate's final isolated log");
+        tracing::warn!(%run, error = %err, path = %path.display(), "fleet: could not save the gate's final isolated log");
     }
 }
 

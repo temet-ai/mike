@@ -43,7 +43,7 @@ fn apply_project_binding(
         Arc::new(current.with_session_project(session.to_string(), project.project_path.clone()))
     });
     tracing::info!(
-        %session,
+        session_id = %session,
         project_uuid = %project.project_uuid,
         cwd,
         "bound session to its knowledge location from the first captured request"
@@ -55,7 +55,7 @@ fn apply_project_binding(
 
 fn log_bind_failure(session: Uuid, cwd: &str, error: &PersistError) {
     tracing::warn!(
-        %session,
+        session_id = %session,
         cwd,
         %error,
         "could not bind session to a knowledge location from the first captured request"

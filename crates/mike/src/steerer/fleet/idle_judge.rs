@@ -31,9 +31,9 @@ async fn enrolment_for(
         Ok(rows) => Ok(rows.into_iter().find(|e| e.steerer_id == row.steerer_id)),
         Err(e) => {
             warn!(
-                session_uuid = %row.session_uuid,
+                session_id = %row.session_uuid,
                 steerer_id = row.steerer_id,
-                err = %e,
+                error = %e,
                 "idle judge: enrolment lookup failed — skipping"
             );
             Err(())

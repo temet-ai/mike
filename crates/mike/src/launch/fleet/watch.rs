@@ -114,7 +114,7 @@ async fn record(persist: &PersistHandle, run: &str, changes: &[NewTreeChange]) {
         return;
     }
     if let Err(err) = persist.insert_tree_changes(run, changes).await {
-        tracing::warn!(%run, %err, "fleet: could not record changes in the checkout");
+        tracing::warn!(%run, error = %err, "fleet: could not record changes in the checkout");
     }
 }
 

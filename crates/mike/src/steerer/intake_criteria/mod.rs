@@ -103,11 +103,11 @@ fn log_authoring_failure(e: &LlmError) {
 }
 
 fn log_authoring_refusal(e: &LlmError) {
-    debug!(err = %e, "intake criteria: call governor refused — no map this turn");
+    debug!(error = %e, "intake criteria: call governor refused — no map this turn");
 }
 
 fn log_authoring_error(e: &LlmError) {
-    warn!(err = %e, "intake criteria: authoring failed — session keeps its previous map");
+    warn!(error = %e, "intake criteria: authoring failed — session keeps its previous map");
 }
 
 pub(crate) async fn author(

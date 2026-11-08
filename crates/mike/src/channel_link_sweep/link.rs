@@ -95,7 +95,7 @@ pub async fn write_links(
                 }
                 tracing::warn!(
                     cse_id = %cse_id,
-                    session_uuid = %session_uuid,
+                    session_id = %session_uuid,
                     error = %err,
                     "failed to link remote control channel from request body"
                 );

@@ -104,7 +104,7 @@ async fn pending_briefs(persist: PersistHandle, session: Uuid) -> HashMap<Uuid, 
     match persist.claimable_launch_briefs(session).await {
         Ok(briefs) => briefs.into_iter().map(|b| (b.message_uuid, b)).collect(),
         Err(e) => {
-            tracing::warn!(%session, error = %e, "mail claim: reading launch briefs failed");
+            tracing::warn!(session_id = %session, error = %e, "mail claim: reading launch briefs failed");
             HashMap::new()
         }
     }

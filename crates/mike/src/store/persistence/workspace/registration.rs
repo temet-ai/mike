@@ -341,7 +341,7 @@ impl PersistHandle {
                 )
                 .await?;
                 tracing::debug!(
-                    %session_uuid,
+                    session_id = %session_uuid,
                     turn_id,
                     "closed the session's open operator turn on SessionEnd"
                 );

@@ -138,7 +138,7 @@ async fn fetch_session_steering_count(
         .map_err(|e| {
             tracing::warn!(
                 error = %e,
-                session_uuid = %session_uuid,
+                session_id = %session_uuid,
                 "get_session_steering: count query failed"
             );
             StatusCode::INTERNAL_SERVER_ERROR
@@ -168,7 +168,7 @@ pub(crate) async fn get_session_steering(
         .map_err(|e| {
             tracing::warn!(
                 error = %e,
-                session_uuid = %session_uuid,
+                session_id = %session_uuid,
                 "get_session_steering: DB query failed"
             );
             StatusCode::INTERNAL_SERVER_ERROR
@@ -276,7 +276,7 @@ pub(crate) async fn get_session_enrolments(
         Err(e) => {
             tracing::warn!(
                 error = %e,
-                session_uuid = %session_uuid,
+                session_id = %session_uuid,
                 "get_session_enrolments: DB query failed"
             );
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -302,7 +302,7 @@ pub(crate) async fn get_session_verifier_counts(
         Err(e) => {
             tracing::warn!(
                 error = %e,
-                session_uuid = %session_uuid,
+                session_id = %session_uuid,
                 "get_session_verifier_counts: DB query failed"
             );
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -351,7 +351,7 @@ pub(crate) async fn get_session_validation_status(
         Err(e) => {
             tracing::warn!(
                 error = %e,
-                session_uuid = %session_uuid,
+                session_id = %session_uuid,
                 "get_session_validation_status: DB query failed"
             );
             Err(StatusCode::INTERNAL_SERVER_ERROR)

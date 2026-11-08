@@ -177,7 +177,7 @@ async fn needs_relaunch(session: Uuid) -> bool {
         return false;
     }
     if !mcp_seen::reporting() {
-        tracing::warn!(%session, "no mike-mcp on this machine reports its tools yet; the seat's tools are not judged");
+        tracing::warn!(session_id = %session, "no mike-mcp on this machine reports its tools yet; the seat's tools are not judged");
         return false;
     }
     true
@@ -190,7 +190,7 @@ async fn after_relaunch(
 ) -> Option<(Option<i64>, String)> {
     match relaunched {
         Ok(id) if wait_for_tools(session, TOOLS_WAIT, TOOLS_POLL).await => {
-            tracing::info!(%session, ?id, "a seat without mike's tools was relaunched and now has them");
+            tracing::info!(session_id = %session, ?id, "a seat without mike's tools was relaunched and now has them");
             None
         }
         Ok(id) => Some((
@@ -288,12 +288,12 @@ fn note_unrecovered(relaunch: &Relaunch, session: Uuid, replaced: bool, tried: &
 }
 
 fn log_replaced(session: Uuid) {
-    tracing::info!(%session, "a seat without mike's tools was replaced meanwhile");
+    tracing::info!(session_id = %session, "a seat without mike's tools was replaced meanwhile");
 }
 
 fn log_undecided(relaunch: &Relaunch, session: Uuid, tried: &[String]) {
     let seat = relaunch.seat.as_deref().unwrap_or("-");
-    tracing::warn!(%session, seat, ?tried, "a seat has no mike tools: the fleet supervisor decides its replacement");
+    tracing::warn!(session_id = %session, seat, ?tried, "a seat has no mike tools: the fleet supervisor decides its replacement");
 }
 
 #[cfg(test)]

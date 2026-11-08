@@ -336,7 +336,7 @@ impl SteeringService {
             )
             .await
             .map_err(|e| {
-                tracing::error!(error = %e, session_uuid = %session_uuid, steerer_id, "enrolment insert failed");
+                tracing::error!(error = %e, session_id = %session_uuid, steerer_id, "enrolment insert failed");
                 SteeringServiceError::Persistence(e)
             })
     }

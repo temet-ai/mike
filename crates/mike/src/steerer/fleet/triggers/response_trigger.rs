@@ -23,7 +23,7 @@ fn log_operator_ask_lookup_failed(
     warn!(
         request_id = target.raw_id,
         session_id = %target.session_id,
-        err = %e,
+        error = %e,
         "steerer fleet: operator-turn ask lookup failed — judge sees no ask"
     );
 }

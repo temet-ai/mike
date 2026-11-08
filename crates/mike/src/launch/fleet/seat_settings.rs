@@ -144,7 +144,7 @@ pub(crate) fn prepare(def: &FleetDefinition) -> Result<(), String> {
     if !programs.is_empty() {
         let written = seat_executable().and_then(|exe| write_shims(&scratch, &exe, &programs));
         if let Err(err) = written {
-            tracing::warn!(scratch = %scratch.display(), %err, "mike could not write the seats' timed command shims");
+            tracing::warn!(scratch = %scratch.display(), error = %err, "mike could not write the seats' timed command shims");
         }
     }
     browser_guard::prepare(&effective(def, &scratch, "worker"))
@@ -153,7 +153,7 @@ pub(crate) fn prepare(def: &FleetDefinition) -> Result<(), String> {
 fn create_folders(scratch: &Path) {
     for folder in [scratch.join("tmp"), scratch.join("config")] {
         if let Err(err) = std::fs::create_dir_all(&folder) {
-            tracing::warn!(folder = %folder.display(), %err, "mike could not create a seat's scratch folder");
+            tracing::warn!(folder = %folder.display(), error = %err, "mike could not create a seat's scratch folder");
         }
     }
 }

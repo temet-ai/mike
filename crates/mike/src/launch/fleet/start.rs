@@ -53,7 +53,7 @@ async fn fail(state: &AppState, fleet: Uuid, problem: &str) {
         .transition_fleet_state(&row, "failed", None, Some(&report))
         .await
     {
-        tracing::error!(%fleet, %err, "mike could not record that the fleet failed to start");
+        tracing::error!(%fleet, error = %err, "mike could not record that the fleet failed to start");
     }
 }
 
@@ -109,7 +109,7 @@ async fn ensure_starting(persist: &PersistHandle, fleet: Uuid, run: &str) -> Res
 
 async fn open_comms_thread(persist: &PersistHandle, fleet: Uuid) {
     if let Err(err) = persist.ensure_fleet_comms_thread(fleet).await {
-        tracing::warn!(%fleet, %err, "mike could not open the fleet's comms thread; seat mail stays unthreaded");
+        tracing::warn!(%fleet, error = %err, "mike could not open the fleet's comms thread; seat mail stays unthreaded");
     }
 }
 

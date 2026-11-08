@@ -133,7 +133,7 @@ pub async fn ref_events(
                 seats.push(seat);
             }
             Err(err) => {
-                tracing::warn!(root = %checkout.root, %err, "change record: a ref move could not be read")
+                tracing::warn!(root = %checkout.root, error = %err, "change record: a ref move could not be read")
             }
         }
     }

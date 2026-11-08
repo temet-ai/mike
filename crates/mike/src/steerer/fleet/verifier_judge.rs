@@ -31,7 +31,7 @@ async fn fetch_ask_entries(ph: &PersistHandle, session_uuid: Uuid) -> Vec<AskLed
         Err(e) => {
             warn!(
                 session_id = %session_uuid,
-                err = %e,
+                error = %e,
                 "steerer fleet: ask-ledger fetch failed — judge sees no accumulated ask"
             );
             Vec::new()
@@ -42,7 +42,7 @@ async fn fetch_ask_entries(ph: &PersistHandle, session_uuid: Uuid) -> Vec<AskLed
 fn log_latest_turn_lookup_failed(session_uuid: Uuid, e: &PersistError) {
     warn!(
         session_id = %session_uuid,
-        err = %e,
+        error = %e,
         "steerer fleet: latest-turn lookup failed — judge sees no trajectory digest"
     );
 }
@@ -51,7 +51,7 @@ fn log_turn_tool_calls_fetch_failed(session_uuid: Uuid, turn_id: i64, e: &Persis
     warn!(
         session_id = %session_uuid,
         turn_id,
-        err = %e,
+        error = %e,
         "steerer fleet: turn tool-calls fetch failed — judge sees no trajectory digest"
     );
 }
@@ -103,7 +103,7 @@ async fn fetch_trajectory_digest(
 fn log_action_list_fetch_failed(session_uuid: Uuid, e: &PersistError) {
     warn!(
         session_id = %session_uuid,
-        err = %e,
+        error = %e,
         "steerer fleet: session action-list fetch failed — judge sees no session action list"
     );
 }
@@ -177,7 +177,7 @@ fn choose_action_source(
 fn log_action_counts_unavailable(session_uuid: Uuid, e: &PersistError) {
     warn!(
         session_id = %session_uuid,
-        err = %e,
+        error = %e,
         "steerer fleet: session action counts unavailable — loading the full action list for this evaluation so no omitted calls go unmarked"
     );
 }
@@ -205,7 +205,7 @@ async fn fetch_thread_criteria(
         Err(e) => {
             warn!(
                 session_id = %session_uuid,
-                err = %e,
+                error = %e,
                 "steerer fleet: work-thread criteria lookup failed — falling back to the generated checklist"
             );
             None
@@ -225,7 +225,7 @@ async fn fetch_intake_criteria(
         Err(e) => {
             warn!(
                 session_id = %session_uuid,
-                err = %e,
+                error = %e,
                 "steerer fleet: intake-criteria lookup failed — judge generates its own checklist"
             );
             None

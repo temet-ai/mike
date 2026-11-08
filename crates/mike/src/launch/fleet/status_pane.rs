@@ -79,7 +79,7 @@ pub(super) async fn close_with(backend: &dyn TerminalBackend, slug: &str, opened
         prompt_detail: None,
     };
     if let Err(err) = backend.close(&surface, CLOSE_WAIT).await {
-        tracing::warn!(fleet = slug, pane = %opened.surface, %err, "fleet: the status pane could not be closed");
+        tracing::warn!(fleet = slug, pane = %opened.surface, error = %err, "fleet: the status pane could not be closed");
         return;
     }
     close_created_workspace(backend, slug, opened).await;
@@ -90,7 +90,7 @@ async fn close_created_workspace(backend: &dyn TerminalBackend, slug: &str, open
         return;
     };
     if let Err(err) = backend.close_workspace(workspace).await {
-        tracing::warn!(fleet = slug, workspace, %err, "fleet: the run's workspace could not be closed");
+        tracing::warn!(fleet = slug, workspace, error = %err, "fleet: the run's workspace could not be closed");
     }
 }
 

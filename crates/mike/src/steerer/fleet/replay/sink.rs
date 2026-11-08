@@ -80,7 +80,7 @@ impl LlmUsageSink for FileSink {
         }
         let written = writeln!(state.writer, "{line}").and_then(|()| state.writer.flush());
         if let Err(e) = written {
-            warn!(err = %e, "verifier replay: could not write a call record");
+            warn!(error = %e, "verifier replay: could not write a call record");
         }
     }
 

@@ -18,6 +18,6 @@ pub(super) async fn record(
         }),
     };
     if let Err(err) = persist.append_fleet_event(&event).await {
-        tracing::warn!(%err, task, sha, "fleet commit: could not record the landed commit");
+        tracing::warn!(error = %err, task, sha, "fleet commit: could not record the landed commit");
     }
 }

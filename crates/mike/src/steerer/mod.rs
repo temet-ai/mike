@@ -68,7 +68,7 @@ fn build_openrouter_client(
                 )),
         ),
         Err(e) => {
-            tracing::warn!(err = %e, "steerer fleet: failed to build LLM client — not spawning");
+            tracing::warn!(error = %e, "steerer fleet: failed to build LLM client — not spawning");
             None
         }
     }

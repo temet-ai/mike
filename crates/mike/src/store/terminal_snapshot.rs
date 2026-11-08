@@ -161,7 +161,7 @@ impl RequestStore {
         match permits.try_acquire_owned() {
             Ok(permit) => {
                 let persist_for_embed = ctx.persist.clone();
-                tokio::spawn(async move {
+                crate::observability::spans::spawn_detached(async move {
                     let _permit = permit;
                     if let Err(e) =
                         operator_turns::embed_turn(&persist_for_embed, &service, turn_id).await

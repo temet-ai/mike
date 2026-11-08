@@ -222,7 +222,7 @@ async fn failed(persist: &PersistHandle, run: &str, p: &Pending, err: &LeafError
         .entry(p.note)
         .and_modify(|n| *n += 1)
         .or_insert(1);
-    tracing::warn!(run, task = %p.task, attempt = n, %err, "fleet judge: the report was not judged");
+    tracing::warn!(run, task = %p.task, attempt = n, error = %err, "fleet judge: the report was not judged");
     if n < GIVE_UP_AFTER {
         return;
     }

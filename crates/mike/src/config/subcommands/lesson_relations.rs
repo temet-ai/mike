@@ -24,7 +24,7 @@ async fn stored_rows(handle: &PersistHandle) -> Vec<(String, serde_json::Value)>
     match handle.fetch_settings().await {
         Ok(rows) => rows,
         Err(e) => {
-            tracing::warn!(err = %e, "detect-lesson-relations: could not read stored settings — using defaults");
+            tracing::warn!(error = %e, "detect-lesson-relations: could not read stored settings — using defaults");
             Vec::new()
         }
     }

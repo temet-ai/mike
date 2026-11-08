@@ -285,7 +285,7 @@ fn say_written(slug: &str, run_id: &str, fresh: bool) {
 }
 
 fn say_unwritten(run_id: &str, err: &PersistError) {
-    tracing::warn!(%err, run = %run_id, "fleet: the run record could not be written");
+    tracing::warn!(error = %err, run = %run_id, "fleet: the run record could not be written");
 }
 
 pub async fn close_record(persist: &PersistHandle, row: &FleetRow, run_id: &str) {

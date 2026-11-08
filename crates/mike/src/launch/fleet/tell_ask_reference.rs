@@ -247,7 +247,7 @@ pub async fn recent_reads(
             readings(def, &uses)
         }
         Err(err) => {
-            tracing::warn!(%err, "fleet: could not read the seats' reads for the reference seat");
+            tracing::warn!(error = %err, "fleet: could not read the seats' reads for the reference seat");
             Vec::new()
         }
     }

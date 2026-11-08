@@ -162,15 +162,15 @@ fn spawn_mail_consumption(state: &AppState, session_id: &str, request_body: byte
         return;
     };
     let persist = persist.clone();
-    state.tracker.spawn(async move {
+    crate::observability::spans::spawn_tracked(&state.tracker, async move {
         if let Err(e) = persist
             .consume_mail_carried_by(session, &request_body)
             .await
         {
-            tracing::warn!(%session, error = %e, "marking carried mail consumed failed");
+            tracing::warn!(session_id = %session, error = %e, "marking carried mail consumed failed");
         }
         if let Err(e) = persist.revive_undelivered_mail(session).await {
-            tracing::warn!(%session, error = %e, "reviving undelivered mail failed");
+            tracing::warn!(session_id = %session, error = %e, "reviving undelivered mail failed");
         }
     });
 }

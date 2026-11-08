@@ -108,7 +108,7 @@ async fn wait_for_sigterm() {
             sig.recv().await;
         }
         Err(e) => {
-            tracing::warn!("failed to install SIGTERM handler: {e}, relying on ctrl-c only");
+            tracing::warn!(error = %e, "failed to install SIGTERM handler; relying on ctrl-c only");
             std::future::pending::<()>().await;
         }
     }

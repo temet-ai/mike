@@ -167,7 +167,7 @@ impl LivePoll<'_> {
         e: &SessionJudgeFailure,
     ) -> bool {
         breaker.record(false, Instant::now());
-        tracing::warn!(session = %c.session_uuid, error = %e, "session judge v3: judging failed");
+        tracing::warn!(session_id = %c.session_uuid, error = %e, "session judge v3: judging failed");
         self.record(c.session_db_id, cfg, true).await;
         !breaker.should_skip(Instant::now())
     }

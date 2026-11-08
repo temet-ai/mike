@@ -31,11 +31,11 @@ pub(crate) fn close_later(state: &AppState, session: Uuid) {
         tokio::time::sleep(LAST_WORDS).await;
         match kill_for_server(&state, session).await {
             Ok(report) if report.closed => {
-                tracing::info!(%session, "a run seat ended its registration, so mike closed its pane");
+                tracing::info!(session_id = %session, "a run seat ended its registration, so mike closed its pane");
             }
             Ok(_) => {}
             Err(err) => {
-                tracing::warn!(%session, %err, "mike could not close the pane of a run seat that ended its registration");
+                tracing::warn!(session_id = %session, error = %err, "mike could not close the pane of a run seat that ended its registration");
             }
         }
     });

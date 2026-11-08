@@ -153,7 +153,7 @@ async fn tell_one(persist: &PersistHandle, verdict: &Verdict, session: Uuid, lin
         .insert_message(Uuid::new_v4(), session, None, &body)
         .await
     {
-        tracing::warn!(%seat, %err, "fleet: could not tell a seat its file fails the check");
+        tracing::warn!(%seat, error = %err, "fleet: could not tell a seat its file fails the check");
     }
 }
 
@@ -215,7 +215,7 @@ async fn mail_the_result(
         .insert_message(Uuid::new_v4(), session, None, &body)
         .await
     {
-        tracing::warn!(seat = %who.seat, %err, "fleet: could not mail a finished check to a seat waiting for it");
+        tracing::warn!(seat = %who.seat, error = %err, "fleet: could not mail a finished check to a seat waiting for it");
     }
 }
 
@@ -309,7 +309,7 @@ pub async fn record_finished(
         at: chrono::Utc::now(),
     };
     if let Err(err) = crate::change_record::writers::record_check(persist, facts).await {
-        tracing::warn!(%err, "change record: could not record a finished check");
+        tracing::warn!(error = %err, "change record: could not record a finished check");
     }
 }
 

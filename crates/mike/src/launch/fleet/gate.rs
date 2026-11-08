@@ -436,7 +436,7 @@ async fn tell_waiting(
             .insert_message(Uuid::new_v4(), session, None, &body)
             .await
         {
-            tracing::warn!(%session, %err, "fleet: could not mail the gate's verdict to the seat waiting for it");
+            tracing::warn!(session_id = %session, error = %err, "fleet: could not mail the gate's verdict to the seat waiting for it");
         }
     }
 }

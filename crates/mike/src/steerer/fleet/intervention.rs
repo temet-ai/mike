@@ -39,7 +39,7 @@ async fn mailbox_pending_override(
                     request_id = target.raw_id,
                     session_id = %target.session_id,
                     steerer_id = steerer.id,
-                    err = %e,
+                    error = %e,
                     "steerer fleet: mailbox pending check failed — skipping override (fail-open to verdict)"
                 );
                 false

@@ -144,12 +144,15 @@ fn spawn_intercepted_stream(setup: InterceptedStreamSetup<'_>) -> Body {
     let (parser_tx, parser_rx) = mpsc::channel::<Bytes>(64);
     let (store_event_tx, store_event_rx) = mpsc::channel(512);
 
-    state.tracker.spawn(crate::sse::parser::run_parser(
-        parser_rx,
-        request_id,
-        state.event_tx.clone(),
-        store_event_tx,
-    ));
+    crate::observability::spans::spawn_tracked(
+        &state.tracker,
+        crate::sse::parser::run_parser(
+            parser_rx,
+            request_id,
+            state.event_tx.clone(),
+            store_event_tx,
+        ),
+    );
 
     spawn_store_updater_for(state, request_id, store_event_rx);
 
@@ -190,12 +193,15 @@ fn spawn_plain_tee(
 
     let (store_event_tx, store_event_rx) = mpsc::channel(512);
 
-    state.tracker.spawn(crate::sse::parser::run_parser(
-        parser_rx,
-        request_id,
-        state.event_tx.clone(),
-        store_event_tx,
-    ));
+    crate::observability::spans::spawn_tracked(
+        &state.tracker,
+        crate::sse::parser::run_parser(
+            parser_rx,
+            request_id,
+            state.event_tx.clone(),
+            store_event_tx,
+        ),
+    );
 
     spawn_store_updater_for(state, request_id, store_event_rx);
     body

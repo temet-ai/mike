@@ -54,7 +54,7 @@ async fn trigger_turn(persist: &PersistHandle, target: &EvalTarget) -> Option<Tr
     {
         Ok(turn) => turn,
         Err(e) => {
-            debug!(request_id, err = %e, "steerer fleet: trigger turn lookup failed — not recording");
+            debug!(request_id, error = %e, "steerer fleet: trigger turn lookup failed — not recording");
             None
         }
     }
@@ -124,7 +124,7 @@ impl Recorder<'_> {
         {
             Ok(rows) => rows.into_iter().map(|(uuid, _)| uuid).collect(),
             Err(e) => {
-                warn!(steerer_id = steerer.id, err = %e, "steerer fleet: evaluation dispatch failed");
+                warn!(steerer_id = steerer.id, error = %e, "steerer fleet: evaluation dispatch failed");
                 Vec::new()
             }
         }
@@ -150,7 +150,7 @@ impl Recorder<'_> {
                 .resolve_evaluation(*uuid, fired, intervention, record)
                 .await
             {
-                warn!(evaluation = %uuid, err = %e, "steerer fleet: evaluation resolve failed");
+                warn!(evaluation = %uuid, error = %e, "steerer fleet: evaluation resolve failed");
             }
         }
     }

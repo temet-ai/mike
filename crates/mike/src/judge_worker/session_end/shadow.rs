@@ -78,7 +78,7 @@ fn log_not_spawning_no_persistence() {
 }
 
 fn log_client_build_failed(e: &crate::llm::LlmError) {
-    tracing::warn!(err = %e, "session_end_shadow: failed to build LLM client — not spawning");
+    tracing::warn!(error = %e, "session_end_shadow: failed to build LLM client — not spawning");
 }
 
 fn log_spawned() {
@@ -270,7 +270,7 @@ impl ShadowPoll<'_> {
             Err(SessionJudgeFailure::Refused) => false,
             Err(e) => {
                 breaker.record(false, Instant::now());
-                tracing::warn!(session = %c.session_uuid, error = %e, "session_end_shadow: judging failed");
+                tracing::warn!(session_id = %c.session_uuid, error = %e, "session_end_shadow: judging failed");
                 self.record(c.session_db_id, &shadow_key, true).await;
                 !breaker.should_skip(Instant::now())
             }

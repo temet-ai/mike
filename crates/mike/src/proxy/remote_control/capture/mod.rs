@@ -290,7 +290,7 @@ async fn read_response(
 fn stream_through(state: &AppState, call: CapturedCall, upstream_resp: reqwest::Response) -> Body {
     let (body_tx, body_rx) = tokio::sync::mpsc::channel::<Result<Bytes, std::io::Error>>(32);
     let state = state.clone();
-    state.clone().tracker.spawn(async move {
+    crate::observability::spans::spawn_tracked(&state.clone().tracker, async move {
         let cse_id = call.cse_id.clone();
         let opens_reply_stream = call.method == "GET"
             && call.path == "/worker/events/stream"

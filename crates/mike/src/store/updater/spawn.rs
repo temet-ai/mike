@@ -31,7 +31,7 @@ pub(super) struct UpdaterLoopCtx<'a> {
 }
 
 pub(crate) fn spawn_store_updater(args: StoreUpdaterSpawnArgs, tracker: &TaskTracker) {
-    tracker.spawn(async move {
+    crate::observability::spans::spawn_tracked(&tracker, async move {
         let StoreUpdaterSpawnArgs {
             store,
             mut event_rx,

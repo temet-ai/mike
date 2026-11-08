@@ -70,7 +70,7 @@ pub(crate) async fn seat_fact(persist: &PersistHandle, session: Uuid) -> SeatFac
             fact
         }
         Err(err) => {
-            tracing::warn!(%err, %session, "could not read the launch row of this session; treating it as a session outside any fleet for this call");
+            tracing::warn!(error = %err, session_id = %session, "could not read the launch row of this session; treating it as a session outside any fleet for this call");
             SeatFact::OUTSIDE_ANY_FLEET
         }
     }

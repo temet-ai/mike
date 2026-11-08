@@ -82,7 +82,7 @@ fn log_one_fire_check_failed(target: &EvalTarget, steerer_id: i64, turn_id: i64,
         session_id = %target.session_id,
         steerer_id,
         turn_id,
-        err = %e,
+        error = %e,
         "steerer fleet: one-fire-per-turn check failed — failing open to evaluate"
     );
 }

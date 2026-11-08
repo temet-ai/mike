@@ -116,11 +116,11 @@ async fn fresh_repeats(
 }
 
 fn note_unread(run: &str, err: &str) {
-    tracing::warn!(%run, %err, "fleet: could not read which seats repeated each other's commands");
+    tracing::warn!(%run, error = %err, "fleet: could not read which seats repeated each other's commands");
 }
 
 fn note_unsent(run: &str, err: &str) {
-    tracing::warn!(%run, %err, "fleet: could not tell the second seat that another seat ran the same command");
+    tracing::warn!(%run, error = %err, "fleet: could not tell the second seat that another seat ran the same command");
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -72,7 +72,10 @@ pub(crate) async fn run_gated_forwarder(
             Relayed::Cut(cut) => {
                 let stitch = gate.stitch_point();
                 let tracker = ctx.state.tracker.clone();
-                tracker.spawn(capture_the_rest(stream, parser_tx));
+                crate::observability::spans::spawn_tracked(
+                    &tracker,
+                    capture_the_rest(stream, parser_tx),
+                );
                 return answer_cut(cut, stitch, body_tx, ctx).await;
             }
         }

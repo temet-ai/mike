@@ -201,7 +201,7 @@ async fn mail_verdict(
     let closed = match persist.closed_fleet_seat(worker).await {
         Ok(closed) => closed,
         Err(err) => {
-            tracing::warn!(%err, "fleet verdict: could not verify the task seat's state");
+            tracing::warn!(error = %err, "fleet verdict: could not verify the task seat's state");
             return (None, None);
         }
     };
@@ -232,7 +232,7 @@ async fn send_verdict(
         Ok(Some(_)) => Some(to),
         Ok(None) => None,
         Err(err) => {
-            tracing::warn!(%err, "fleet verdict: could not mail the task's seat");
+            tracing::warn!(error = %err, "fleet verdict: could not mail the task's seat");
             None
         }
     }

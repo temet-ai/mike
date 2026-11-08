@@ -79,7 +79,7 @@ pub(crate) async fn judge_turn_close_now(
             warn!(
                 session_id,
                 open_turn_id,
-                err = %e,
+                error = %e,
                 "judge_turn_close_now: enrolment lookup failed — skipping"
             );
         })
@@ -211,7 +211,7 @@ pub(super) async fn confirm_quorum(
             }
             Err(e) => {
                 warn!(
-                    err = %e,
+                    error = %e,
                     "steerer fleet: quorum confirmation call failed — counted as no-fire"
                 );
             }

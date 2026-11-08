@@ -94,7 +94,7 @@ pub(super) async fn start_after_close(
             true
         }
         Err(err) => {
-            tracing::warn!(run = source_run, %err, "fleet: the rule audit did not start; retrying next tick");
+            tracing::warn!(run = source_run, error = %err, "fleet: the rule audit did not start; retrying next tick");
             false
         }
     }
@@ -125,11 +125,11 @@ async fn close_one(effects: &dyn Effects, shot: &OneShot) -> Option<i64> {
 }
 
 fn log_not_killed(shot: &OneShot, err: &dyn std::fmt::Display) {
-    tracing::warn!(session = %shot.session, err = %err, "fleet: could not close an idle one-shot launch");
+    tracing::warn!(session_id = %shot.session, error = %err, "fleet: could not close an idle one-shot launch");
 }
 
 fn log_not_recorded(shot: &OneShot, err: &dyn std::fmt::Display) {
-    tracing::warn!(launch = shot.launch_id, err = %err, "fleet: closed a one-shot launch but could not record it");
+    tracing::warn!(launch = shot.launch_id, error = %err, "fleet: closed a one-shot launch but could not record it");
 }
 
 struct Live<'a> {
@@ -258,7 +258,7 @@ pub(super) async fn close_finished(state: &AppState, persist: &PersistHandle) {
     {
         Ok(rows) => rows,
         Err(err) => {
-            tracing::warn!(%err, "fleet: could not list open launches for the one-shot close");
+            tracing::warn!(error = %err, "fleet: could not list open launches for the one-shot close");
             return;
         }
     };

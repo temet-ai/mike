@@ -140,7 +140,7 @@ pub async fn record(persist: &PersistHandle, session: Uuid, task: &str, sha: &st
         data: Some(&data),
     };
     if let Err(err) = persist.create_session_note(session, note).await {
-        tracing::warn!(%session, %err, "fleet: could not record the issues a commit refers to");
+        tracing::warn!(session_id = %session, error = %err, "fleet: could not record the issues a commit refers to");
     }
 }
 
@@ -174,7 +174,7 @@ async fn recorded_for(persist: &PersistHandle, session: Uuid) -> Vec<Recorded> {
     match persist.fetch_session_notes(session, filter).await {
         Ok(rows) => rows.iter().filter_map(recorded_of).collect(),
         Err(err) => {
-            tracing::warn!(%session, %err, "fleet: could not read the issues a seat's commits refer to");
+            tracing::warn!(session_id = %session, error = %err, "fleet: could not read the issues a seat's commits refer to");
             Vec::new()
         }
     }
@@ -232,6 +232,6 @@ async fn mark_closed(persist: &PersistHandle, note: Uuid) {
         ..SessionNoteUpdate::default()
     };
     if let Err(err) = persist.update_session_note(note, update).await {
-        tracing::warn!(%err, "fleet: could not mark a note's issues closed");
+        tracing::warn!(error = %err, "fleet: could not mark a note's issues closed");
     }
 }

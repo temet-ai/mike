@@ -56,7 +56,7 @@ pub(super) async fn read(
             .map(|attempt| closed_mail(attempt, coordinator))
             .collect(),
         Err(err) => {
-            tracing::warn!(%run, %err, "fleet: could not read closed-seat delivery refusals");
+            tracing::warn!(%run, error = %err, "fleet: could not read closed-seat delivery refusals");
             Vec::new()
         }
     }

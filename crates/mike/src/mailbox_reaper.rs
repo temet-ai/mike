@@ -29,7 +29,7 @@ pub fn spawn_mailbox_reaper(state: &AppState) {
                 _ = ticker.tick() => {
                     let notice_cutoff = chrono::Utc::now() - chrono::Duration::minutes(5);
                     if let Err(err) = persist.tell_inactive_senders(notice_cutoff).await {
-                        tracing::warn!(%err, "mailbox_reaper: could not notify waiting senders");
+                        tracing::warn!(error = %err, "mailbox_reaper: could not notify waiting senders");
                     }
                     let ttl_minutes = state.config().mailbox_delivery_ttl_minutes;
                     let cutoff = chrono::Utc::now() - chrono::Duration::minutes(ttl_minutes);

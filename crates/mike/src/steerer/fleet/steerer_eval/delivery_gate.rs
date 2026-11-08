@@ -31,7 +31,7 @@ async fn within_interval(
         Ok(Some(last)) => last.created_at > Utc::now() - window,
         Ok(None) => false,
         Err(e) => {
-            debug!(steerer_id = steerer.id, err = %e, "steerer fleet: last-fire lookup failed — not debouncing");
+            debug!(steerer_id = steerer.id, error = %e, "steerer fleet: last-fire lookup failed — not debouncing");
             false
         }
     }

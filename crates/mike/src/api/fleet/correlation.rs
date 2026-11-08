@@ -11,7 +11,7 @@ async fn resolve_actor_session_db_id(handle: &PersistHandle, session_uuid: &str)
         Ok(Some(id)) => Some(id),
         Ok(None) => None,
         Err(e) => {
-            tracing::warn!(error = %e, session_uuid = %session_uuid, "fleet join: session_db_id resolve failed");
+            tracing::warn!(error = %e, session_id = %session_uuid, "fleet join: session_db_id resolve failed");
             None
         }
     }
@@ -26,7 +26,7 @@ async fn fetch_actor_session_record(
         Ok(Some(row)) => Some(SessionSummary::from(&row)),
         Ok(None) => None,
         Err(e) => {
-            tracing::warn!(error = %e, session_uuid = %session_uuid, "fleet join: session summary fetch failed");
+            tracing::warn!(error = %e, session_id = %session_uuid, "fleet join: session summary fetch failed");
             None
         }
     }
@@ -40,7 +40,7 @@ async fn fetch_actor_enrichment_or_default(
     match handle.fetch_actor_enrichment(session_db_id).await {
         Ok(enrichment) => enrichment,
         Err(e) => {
-            tracing::warn!(error = %e, session_uuid = %session_uuid, "fleet join: actor enrichment fetch failed");
+            tracing::warn!(error = %e, session_id = %session_uuid, "fleet join: actor enrichment fetch failed");
             ActorEnrichment::default()
         }
     }
@@ -54,7 +54,7 @@ async fn fetch_registration_liveness(
     match handle.fetch_session_liveness(uuid).await {
         Ok(liveness) => liveness,
         Err(e) => {
-            tracing::warn!(error = %e, session_uuid = %session_uuid, "fleet join: registration liveness fetch failed");
+            tracing::warn!(error = %e, session_id = %session_uuid, "fleet join: registration liveness fetch failed");
             None
         }
     }

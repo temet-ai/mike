@@ -21,7 +21,7 @@ pub async fn load(persist: &PersistHandle, run: &str) -> Told {
             unavailable: false,
         },
         Err(err) => {
-            tracing::warn!(%run, %err, "fleet: could not read what was already said in this run; saying nothing this tick");
+            tracing::warn!(%run, error = %err, "fleet: could not read what was already said in this run; saying nothing this tick");
             Told {
                 keys: HashSet::new(),
                 unavailable: true,
@@ -34,7 +34,7 @@ pub async fn already(persist: &PersistHandle, run: &str, what: &str) -> bool {
     match persist.told_keys(run).await {
         Ok(keys) => keys.iter().any(|k| k == what),
         Err(err) => {
-            tracing::warn!(%run, %what, %err, "fleet: could not read what was already said in this run; treating it as said");
+            tracing::warn!(%run, %what, error = %err, "fleet: could not read what was already said in this run; treating it as said");
             true
         }
     }
@@ -42,7 +42,7 @@ pub async fn already(persist: &PersistHandle, run: &str, what: &str) -> bool {
 
 pub async fn mark(persist: &PersistHandle, run: &str, what: &[String]) {
     if let Err(err) = persist.mark_told(run, what).await {
-        tracing::warn!(%run, %err, "fleet: could not record what was said in this run; it may be said again");
+        tracing::warn!(%run, error = %err, "fleet: could not record what was said in this run; it may be said again");
     }
 }
 

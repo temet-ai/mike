@@ -294,7 +294,7 @@ async fn blob_text(git: &Git, sha: Option<&str>) -> Option<String> {
     match git.run(&["cat-file", "blob", sha]).await {
         Ok(raw) => Some(String::from_utf8_lossy(&raw).into_owned()),
         Err(err) => {
-            tracing::warn!(root = %git.root(), %err, "change record: a changed file's content could not be read");
+            tracing::warn!(root = %git.root(), error = %err, "change record: a changed file's content could not be read");
             None
         }
     }

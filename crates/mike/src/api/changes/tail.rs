@@ -83,7 +83,7 @@ pub(crate) async fn session_tail_lines(
     let caller = match resolve(persist, &query).await {
         Ok(resolved) => resolved.caller().ok()?,
         Err(error) => {
-            tracing::debug!(%error, %session, "no checkout for the lines since a session last looked");
+            tracing::debug!(%error, session_id = %session, "no checkout for the lines since a session last looked");
             return None;
         }
     };

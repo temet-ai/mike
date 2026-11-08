@@ -115,6 +115,6 @@ async fn record(
         after_sha: None,
     };
     if let Err(err) = persist.insert_change_events(&[event]).await {
-        tracing::warn!(%run, %err, "mike could not record a seat wake in the change record");
+        tracing::warn!(%run, error = %err, "mike could not record a seat wake in the change record");
     }
 }

@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Reject log fields that drift from the shared names: an error is `error = %e`,
+# a Claude session is `session_id`. JSON logs are searched by field name, so
+# `%err`, `err = ...`, `session_uuid = ...` and `%session` each split one
+# field into several.
+set -uo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(dirname "$SCRIPT_DIR")"
+SHORTHAND='(?<![\w=.] )(?<![\w=.:])[%?](e|err|session|session_uuid)\b(?=\s*[,)\n])'
+NAMED='(?<![\w.])(err|session|session_uuid)\s*=\s*[%?]'
+
+hits="$(rg -n -P --glob '*.rs' -e "$SHORTHAND" -e "$NAMED" "$REPO/crates" 2>&1)"
+status=$?
+case "$status" in
+  0)
+    echo "rust-log-fields: FAIL — log fields must use the shared names" >&2
+    printf '%s\n' "$hits" | sed "s#${REPO}/##" >&2
+    echo "Write errors as \`error = %e\` and sessions as \`session_id = %id\`." >&2
+    exit 1
+    ;;
+  1)
+    echo "rust-log-fields: PASS — log fields use the shared names"
+    exit 0
+    ;;
+  *)
+    echo "rust-log-fields: ERROR — source scan failed" >&2
+    printf '%s\n' "$hits" >&2
+    exit "$status"
+    ;;
+esac

@@ -198,7 +198,7 @@ pub async fn tell_coordinator(
     {
         Ok(_) => super::told::mark(persist, run, &[PUSH_FAILED_KEY.to_string()]).await,
         Err(err) => {
-            tracing::warn!(%run, %err, "fleet: could not tell the coordinator a push failed");
+            tracing::warn!(%run, error = %err, "fleet: could not tell the coordinator a push failed");
         }
     }
 }

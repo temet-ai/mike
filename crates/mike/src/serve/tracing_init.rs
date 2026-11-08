@@ -127,8 +127,8 @@ fn log_resolved_capture_database_target(config: &ProxyConfig) {
 
 fn log_anthropic_base_url_hint(config: &ProxyConfig) {
     info!(
-        "Set ANTHROPIC_BASE_URL=http://{} to route Claude through this proxy",
-        config.proxy_listen_addr
+        anthropic_base_url = %format_args!("http://{}", config.proxy_listen_addr),
+        "set ANTHROPIC_BASE_URL to this value to route Claude through this proxy"
     );
 }
 
@@ -171,7 +171,7 @@ pub(super) fn flush_otel(otel_provider: Option<opentelemetry_sdk::trace::SdkTrac
 }
 
 fn log_otel_shutdown_failed(message: &str) {
-    tracing::warn!("OpenTelemetry shutdown error: {message}");
+    tracing::warn!(error = %message, "OpenTelemetry shutdown failed");
 }
 
 fn log_otel_shutdown_ok() {

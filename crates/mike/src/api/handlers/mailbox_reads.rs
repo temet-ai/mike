@@ -71,7 +71,7 @@ async fn load_session_messages(
         .map_err(|e| {
             tracing::warn!(
                 error = %e,
-                %session_uuid,
+                session_id = %session_uuid,
                 "get_session_messages: DB query failed"
             );
             mailbox_error(
@@ -131,7 +131,7 @@ pub(crate) async fn get_session_message(
         Err(e) => {
             tracing::warn!(
                 error = %e,
-                %session_uuid,
+                session_id = %session_uuid,
                 %message_uuid,
                 "get_session_message: DB query failed"
             );
@@ -172,7 +172,7 @@ pub(crate) async fn get_session_message_receipt(
         Err(e) => {
             tracing::warn!(
                 error = %e,
-                %session_uuid,
+                session_id = %session_uuid,
                 %message_uuid,
                 "get_session_message_receipt: DB query failed"
             );
@@ -233,7 +233,7 @@ pub(crate) async fn ack_session_message(
         Err(e) => {
             tracing::warn!(
                 error = %e,
-                %session_uuid,
+                session_id = %session_uuid,
                 %message_uuid,
                 "ack_session_message: DB query failed"
             );

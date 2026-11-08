@@ -40,7 +40,7 @@ async fn check_session_matches_project(
             "unknown session",
         )),
         Err(e) => {
-            tracing::warn!(error = %e, session_uuid = %session_uuid, "enrol_session: session project lookup failed");
+            tracing::warn!(error = %e, session_id = %session_uuid, "enrol_session: session project lookup failed");
             Err(steerer_error_response(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "database error resolving session project",

@@ -270,7 +270,7 @@ async fn record_stop_requested(persist: &PersistHandle, row: &FleetRow) {
         return;
     };
     if let Err(err) = persist.append_fleet_event(&stop_requested_event(run)).await {
-        tracing::warn!(%err, %run, "fleet: could not record the stop request");
+        tracing::warn!(error = %err, %run, "fleet: could not record the stop request");
     }
 }
 

@@ -128,7 +128,7 @@ pub fn start(
         match checkout::Watch::open(persist, checkout, config, task_stats, deltas).await {
             Ok(watch) => watch.run(task_token).await,
             Err(err) => {
-                tracing::warn!(%root, %err, "change record: the checkout could not be read, so it is not watched");
+                tracing::warn!(%root, error = %err, "change record: the checkout could not be read, so it is not watched");
             }
         }
         feeds().remove_if(&root, |_, feed| feed.generation == generation);

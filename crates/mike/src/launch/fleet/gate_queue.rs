@@ -115,7 +115,7 @@ async fn queue_target(runner: &Runner<'_>, def: &FleetDefinition, target: &Targe
         return;
     }
     if let Err(err) = gate::start(runner, def, AUTOMATIC_SEAT, target).await {
-        tracing::warn!(run = runner.run, %err, "fleet: automatic gate was not queued");
+        tracing::warn!(run = runner.run, error = %err, "fleet: automatic gate was not queued");
     }
 }
 
@@ -292,7 +292,7 @@ fn missing_recipient(to: Uuid) {
 }
 
 fn failed_mail(to: Uuid, err: &crate::store::persistence::PersistError) {
-    tracing::warn!(%to, %err, "fleet: could not mail the gate's verdict");
+    tracing::warn!(%to, error = %err, "fleet: could not mail the gate's verdict");
 }
 
 async fn last_passing(

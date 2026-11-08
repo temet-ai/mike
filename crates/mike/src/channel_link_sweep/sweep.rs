@@ -83,7 +83,7 @@ async fn link_candidate(persist: &PersistHandle, candidate: &ChannelLinkSweepCan
             Err(e) => {
                 tracing::warn!(
                     cse_id = %cse_id,
-                    session_uuid = %candidate.session_uuid,
+                    session_id = %candidate.session_uuid,
                     error = %e,
                     "channel_link_sweep: link write failed"
                 );
