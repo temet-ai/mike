@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# Deploy the release build of a commit to this machine: the archive the
+# release-alpha workflow builds on this target's own runner, installed with
+# scripts/install-release, then the running mike restarted on it. The same
+# bytes a release would ship, so a deploy and a release never differ.
+#
+#   scripts/deploy-release-build            # origin/main
+#   scripts/deploy-release-build <sha>      # a commit with a finished build
+#   scripts/deploy-release-build --no-restart
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(dirname "$SCRIPT_DIR")"
+WORKFLOW=release-alpha.yml
+restart=1
+want=""
+for arg in "$@"; do
+  case "$arg" in
+    --no-restart) restart=0 ;;
+    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
+    *) want="$arg" ;;
+  esac
+done
+
+case "$(uname -s)/$(uname -m)" in
+  Linux/x86_64) target=x86_64-unknown-linux-gnu ;;
+  Linux/aarch64) target=aarch64-unknown-linux-gnu ;;
+  Darwin/arm64) target=aarch64-apple-darwin ;;
+  *) echo "deploy-release-build: no release archive is built for $(uname -s)/$(uname -m)" >&2; exit 1 ;;
+esac
+
+git -C "$REPO" fetch -q origin main
+main_sha="$(git -C "$REPO" rev-parse origin/main)"
+sha="$(git -C "$REPO" rev-parse "${want:-$main_sha}^{commit}")"
+short="$(git -C "$REPO" rev-parse --short=7 "$sha")"
+
+finished_run() {
+  gh run list --workflow "$WORKFLOW" --commit "$sha" --event workflow_dispatch \
+    --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty'
+}
+
+run_id="$(finished_run)"
+if [ -z "$run_id" ]; then
+  if [ "$sha" != "$main_sha" ]; then
+    echo "deploy-release-build: $short has no finished build and is not origin/main; the workflow builds a branch head only" >&2
+    exit 1
+  fi
+  echo "==> Starting the release build of $short"
+  gh workflow run "$WORKFLOW" --ref main
+  for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
+    run_id="$(gh run list --workflow "$WORKFLOW" --commit "$sha" --event workflow_dispatch \
+      --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+    [ -n "$run_id" ] && break
+    sleep 5
+  done
+  [ -n "$run_id" ] || { echo "deploy-release-build: the dispatched run did not appear" >&2; exit 1; }
+  echo "==> Waiting for run $run_id (about an hour)"
+  gh run watch "$run_id" --interval 120 --exit-status >/dev/null
+fi
+echo "==> Using run $run_id for $short ($target)"
+
+work="$(mktemp -d)"
+trap 'rm -rf -- "$work"' EXIT
+gh run download "$run_id" --name "mike-$target" --dir "$work/download"
+mkdir "$work/candidate"
+mv "$work/download/manifest-$target.json" "$work/candidate/manifest.json"
+mv "$work/download/"*.tar.gz "$work/download/"*.tar.gz.sha256 "$work/candidate/"
+
+"$SCRIPT_DIR/install-release" --candidate "$work/candidate"
+
+mike_bin="$HOME/.local/bin/mike"
+"$mike_bin" --version | grep -q "($short," || {
+  echo "deploy-release-build: installed mike reports $("$mike_bin" --version), not $short" >&2
+  exit 1
+}
+
+if [ "$restart" = 1 ]; then
+  if command -v systemctl >/dev/null 2>&1 && systemctl --user cat mike.service >/dev/null 2>&1; then
+    echo "==> Restarting mike.service"
+    systemctl --user restart mike.service
+    systemctl --user is-active --quiet mike.service || { echo "deploy-release-build: mike.service did not start" >&2; exit 1; }
+  else
+    echo "==> No mike.service here; restart mike yourself to run $short"
+  fi
+fi
+echo "deploy-release-build: $("$mike_bin" --version)"

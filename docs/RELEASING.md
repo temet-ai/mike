@@ -359,6 +359,9 @@ For explicitly trusted prepared bytes, the extracted archive's
 adjacent `mike-maintenance.pyz` file with its launcher; retain the original
 manifest and both archive/checksum pairs in the selected candidate directory.
 The development `scripts/install-release` entrypoint uses the same implementation.
+`scripts/deploy-release-build [sha]` deploys a machine from the same bytes: it reuses or
+starts the build-only `release-alpha.yml` run for the commit (default `origin/main`),
+installs this machine's archive with `scripts/install-release` and restarts `mike.service`.
 It validates the copied manifest, both archive/checksum pairs, native platform
 and binary versions before changing the prefix. Bash and Python 3.11+ are optional
 installation/maintenance prerequisites, not native runtime dependencies.
