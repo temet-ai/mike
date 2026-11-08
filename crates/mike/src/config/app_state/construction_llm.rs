@@ -32,7 +32,7 @@ pub(super) fn build_judge_llm(
 
 fn log_judge_client_build_failed(e: &crate::llm::LlmError) {
     tracing::warn!(
-        err = %e,
+        error = %e,
         "judge LLM: failed to build client — turn labeling disabled"
     );
 }

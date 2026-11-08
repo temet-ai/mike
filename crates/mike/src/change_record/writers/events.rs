@@ -71,7 +71,7 @@ async fn derived_paths(text: &str, checkout: &str) -> Vec<String> {
     match paths_named(text, Path::new(checkout)).await {
         Ok(found) => found,
         Err(err) => {
-            tracing::warn!(%err, checkout, "change record: could not work out paths, recording fewer");
+            tracing::warn!(error = %err, checkout, "change record: could not work out paths, recording fewer");
             Vec::new()
         }
     }
@@ -247,7 +247,7 @@ pub fn spawn_note_event(
     }
     tracker.spawn(async move {
         if let Err(err) = record_note(&persist, session, &facts).await {
-            tracing::warn!(%err, note = %facts.note_uuid, "change record: could not record a note");
+            tracing::warn!(error = %err, note = %facts.note_uuid, "change record: could not record a note");
         }
     });
 }
@@ -263,7 +263,7 @@ pub fn spawn_mail_event(
     }
     tracker.spawn(async move {
         if let Err(err) = record_mail(&persist, &facts).await {
-            tracing::warn!(%err, message = %facts.message_uuid, "change record: could not record a mail");
+            tracing::warn!(error = %err, message = %facts.message_uuid, "change record: could not record a mail");
         }
     });
 }

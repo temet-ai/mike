@@ -60,7 +60,7 @@ pub(crate) async fn deliver_launch_briefs(
                 reminder,
             );
         }
-        tracing::info!(session = %to, message_uuid = %brief.message_uuid, pushed = sent,
+        tracing::info!(session_id = %to, message_uuid = %brief.message_uuid, pushed = sent,
             "launch brief mailed to the spawned session");
     }
     pushed

@@ -317,7 +317,7 @@ pub(super) async fn queue(runner: &Runner<'_>, def: &FleetDefinition) {
         return;
     }
     if let Err(err) = join_or_start(runner, def, (AUTOMATIC_SEAT, &state, &at), None).await {
-        tracing::warn!(run = runner.run, %err, "fleet: automatic check was not queued");
+        tracing::warn!(run = runner.run, error = %err, "fleet: automatic check was not queued");
     }
 }
 

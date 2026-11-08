@@ -180,7 +180,7 @@ async fn push_batch(
             Ok(()) => {}
             Err(error) => {
                 tracing::warn!(
-                    %session_uuid,
+                    session_id = %session_uuid,
                     %error,
                     message_uuid = %message.message_uuid,
                     "mike-mcp: claude/channel notification failed; releasing the undelivered mail"
@@ -204,7 +204,7 @@ pub(crate) async fn release_unsent(
     let uuids: Vec<String> = unsent.iter().map(|m| m.message_uuid.clone()).collect();
     if let Err(error) = client.release_channel_messages(session_uuid, &uuids).await {
         tracing::warn!(
-            %session_uuid,
+            session_id = %session_uuid,
             %error,
             count = uuids.len(),
             "mike-mcp: could not release unsent channel mail; the mailbox reaper will surface it"
@@ -250,7 +250,7 @@ async fn poll_once(
 fn log_poll_failure(state: &PollState, session_uuid: &str, error: &crate::error::McpError) {
     if state.should_log_failure() {
         tracing::warn!(
-            %session_uuid,
+            session_id = %session_uuid,
             %error,
             "mike-mcp: channel claim poll failed, backing off and retrying"
         );
@@ -273,11 +273,11 @@ pub(crate) async fn run_channel_push_loop(
 }
 
 fn log_loop_started(session_uuid: &str) {
-    tracing::info!(%session_uuid, "mike-mcp: starting MCP-channel push loop");
+    tracing::info!(session_id = %session_uuid, "mike-mcp: starting MCP-channel push loop");
 }
 
 fn log_loop_stopped(session_uuid: &str) {
-    tracing::info!(%session_uuid, "mike-mcp: transport closed, stopping the channel push loop");
+    tracing::info!(session_id = %session_uuid, "mike-mcp: transport closed, stopping the channel push loop");
 }
 
 #[cfg(test)]

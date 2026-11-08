@@ -183,7 +183,10 @@ pub(crate) fn local_router(state: AppState, policy: host_guard::LocalAccessPolic
         .layer(cors)
         .layer(CompressionLayer::new())
         .layer(PropagateRequestIdLayer::new(REQUEST_ID_HEADER))
-        .layer(TraceLayer::new_for_http())
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(crate::api::request_span::inspect_request_span),
+        )
         .layer(SetRequestIdLayer::x_request_id(
             tower_http::request_id::MakeRequestUuid,
         ))

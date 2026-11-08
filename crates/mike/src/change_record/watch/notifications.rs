@@ -60,7 +60,7 @@ impl Notifier {
         for dir in dirs {
             let path = self.root.join(&dir);
             if let Err(err) = self.watcher.watch(&path, RecursiveMode::NonRecursive) {
-                tracing::debug!(dir = %dir, %err, "change record: a folder could not be watched");
+                tracing::debug!(dir = %dir, error = %err, "change record: a folder could not be watched");
             }
         }
     }

@@ -90,7 +90,7 @@ fn log_attempt_record_failed(session_id: &str, e: &PersistError) {
 fn log_poll_stopped_refused(session_id: &str, e: &crate::llm::LlmError) {
     tracing::warn!(
         session_id,
-        err = %e,
+        error = %e,
         "session_judge: poll cycle stopped — call governor refused (ceiling/rate limit)"
     );
 }

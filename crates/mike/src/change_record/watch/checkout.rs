@@ -216,7 +216,7 @@ impl Watch {
                 Some(ids)
             }
             Err(err) => {
-                tracing::warn!(root = %self.checkout.root, %err, "change record: events could not be stored");
+                tracing::warn!(root = %self.checkout.root, error = %err, "change record: events could not be stored");
                 None
             }
         }
@@ -255,7 +255,7 @@ impl Watch {
                 match record::name(&self.persist, &self.git, item).await {
                     Ok(retry) => again.extend(retry),
                     Err(err) => {
-                        tracing::warn!(root = %self.checkout.root, %err, "change record: an author could not be named");
+                        tracing::warn!(root = %self.checkout.root, error = %err, "change record: an author could not be named");
                     }
                 }
             }
@@ -267,7 +267,7 @@ impl Watch {
     }
 
     fn warn(&self, what: &str, err: &GitError) {
-        tracing::warn!(root = %self.checkout.root, %err, "change record: {what}");
+        tracing::warn!(root = %self.checkout.root, error = %err, "change record: {what}");
     }
 }
 
@@ -280,7 +280,7 @@ fn start_notifier(
     match Notifier::start(places, tree.directories(), tx, overflow) {
         Ok(notifier) => Some(notifier),
         Err(err) => {
-            tracing::warn!(root = %places.root.display(), %err, "change record: file notifications could not start; polling instead");
+            tracing::warn!(root = %places.root.display(), error = %err, "change record: file notifications could not start; polling instead");
             None
         }
     }

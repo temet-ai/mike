@@ -15,7 +15,7 @@ impl PersistHandle {
         .execute(&self.pool)
         .await;
         if let Err(err) = result {
-            tracing::warn!(%err, from, to, "mailbox: closed recipient was refused but its audit could not be saved");
+            tracing::warn!(error = %err, from, to, "mailbox: closed recipient was refused but its audit could not be saved");
         }
     }
 }

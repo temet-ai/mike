@@ -8,7 +8,7 @@ pub async fn change_record_enabled(persist: &PersistHandle) -> bool {
             .iter()
             .any(|(key, enabled, operator_set)| key == KEY && *enabled && *operator_set),
         Err(err) => {
-            tracing::warn!(%err, "change record: could not read the switch, writing nothing");
+            tracing::warn!(error = %err, "change record: could not read the switch, writing nothing");
             false
         }
     }

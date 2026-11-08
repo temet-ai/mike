@@ -148,7 +148,7 @@ async fn verdict_recorded(persist: &PersistHandle, acceptance: Uuid, task: &str)
     match persist.fetch_session_notes(acceptance, filter).await {
         Ok(notes) => notes.iter().any(|n| holds_verdict(&n.data, task)),
         Err(err) => {
-            tracing::warn!(%err, "fleet: could not read the acceptance seat's verdicts");
+            tracing::warn!(error = %err, "fleet: could not read the acceptance seat's verdicts");
             false
         }
     }
@@ -172,7 +172,7 @@ pub async fn tell_acceptance(
         .insert_message(Uuid::new_v4(), seats.acceptance, None, &body)
         .await
     {
-        tracing::warn!(%err, "fleet: could not tell the acceptance seat about a commit after its verdict");
+        tracing::warn!(error = %err, "fleet: could not tell the acceptance seat about a commit after its verdict");
     }
 }
 
@@ -200,7 +200,7 @@ pub(super) async fn store(persist: &PersistHandle, session: Uuid, note: &Draft) 
         data: Some(&note.data),
     };
     if let Err(err) = persist.create_session_note(session, new).await {
-        tracing::warn!(%session, %err, "fleet: could not write a result note for a seat");
+        tracing::warn!(session_id = %session, error = %err, "fleet: could not write a result note for a seat");
     }
 }
 

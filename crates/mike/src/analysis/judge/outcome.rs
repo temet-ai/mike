@@ -14,7 +14,7 @@ pub(super) fn log_and_refuse(turn_id: i64, attempt: u32, e: &LlmError) -> JudgeO
     tracing::warn!(
         turn_id,
         attempt,
-        err = %e,
+        error = %e,
         "judge: LLM call refused by our own call governor — not attempted, turn left untouched"
     );
     JudgeOutcome::Refused
@@ -24,7 +24,7 @@ pub(super) fn log_and_credential_failure(turn_id: i64, attempt: u32, e: &LlmErro
     tracing::warn!(
         turn_id,
         attempt,
-        err = %e,
+        error = %e,
         "judge: OpenRouter credential unusable — turn left untouched, not a fact about this turn"
     );
     JudgeOutcome::CredentialFailure
@@ -42,7 +42,7 @@ pub(super) async fn log_and_backoff(
         attempt,
         max_attempts = MAX_TRANSIENT_ATTEMPTS,
         delay_ms = delay.as_millis(),
-        err = %e,
+        error = %e,
         "judge: transient LLM error — retrying"
     );
     sleep(delay).await;
@@ -54,7 +54,7 @@ pub(super) fn log_and_fail(turn_id: i64, attempt: u32, e: &LlmError) -> JudgeOut
         turn_id,
         attempt,
         transient,
-        err = %e,
+        error = %e,
         "judge: LLM verdict failed — leaving outcome unknown"
     );
     JudgeOutcome::Failed(if transient {

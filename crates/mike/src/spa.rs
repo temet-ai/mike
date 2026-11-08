@@ -71,7 +71,7 @@ fn serve_embedded(path: &str, file: rust_embed::EmbeddedFile) -> Response {
     match builder.body(Body::from(file.data.into_owned())) {
         Ok(response) => response,
         Err(err) => {
-            tracing::error!(%err, path, "failed to build SPA asset response");
+            tracing::error!(error = %err, path, "failed to build SPA asset response");
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }

@@ -10,7 +10,7 @@ pub(super) async fn report(cli: &HerdrCli, kind: &str, target: &str, values: &[(
         args.push(format!("{name}={value}"));
     }
     if let Err(err) = cli.run_json(&args, DEFAULT_TIMEOUT).await {
-        tracing::debug!(%kind, %target, %err, "herdr did not take the fleet's display values");
+        tracing::debug!(%kind, %target, error = %err, "herdr did not take the fleet's display values");
     }
 }
 
@@ -28,6 +28,6 @@ pub(super) async fn notify(cli: &HerdrCli, notice: &Notice) {
         sound,
     ]);
     if let Err(err) = cli.run_json(&args, DEFAULT_TIMEOUT).await {
-        tracing::debug!(title = %notice.title, %err, "herdr did not show the fleet's notice");
+        tracing::debug!(title = %notice.title, error = %err, "herdr did not show the fleet's notice");
     }
 }

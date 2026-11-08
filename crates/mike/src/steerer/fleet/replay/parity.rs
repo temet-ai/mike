@@ -173,7 +173,7 @@ async fn dump_pair(dir: &Path, call_id: i64, recorded: &str, rebuilt: &str) {
     for (suffix, text) in [("recorded", recorded), ("rebuilt", rebuilt)] {
         let path = dir.join(format!("{call_id}.{suffix}.txt"));
         if let Err(e) = tokio::fs::write(&path, text).await {
-            tracing::warn!(path = %path.display(), err = %e, "parity dump: could not write");
+            tracing::warn!(path = %path.display(), error = %e, "parity dump: could not write");
         }
     }
 }

@@ -30,7 +30,7 @@ pub(crate) fn maybe_register_workspace_session(
     let session_id = session_id.to_owned();
     let project_path = project_path.to_owned();
     let tracker = state.tracker.clone();
-    tracker.spawn(async move {
+    crate::observability::spans::spawn_tracked(&tracker, async move {
         state.resolve_host_machine_uuid().await;
         register_via_cell(&state, &session_id, &project_path).await;
     });

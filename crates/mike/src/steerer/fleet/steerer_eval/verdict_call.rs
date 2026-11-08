@@ -19,7 +19,7 @@ pub(super) fn resolve_effective_client(
         match base_llm.with_model(steerer.model.clone()) {
             Ok(c) => c,
             Err(e) => {
-                warn!(err = %e, model = %steerer.model, "steerer fleet: model override failed — using fleet default");
+                warn!(error = %e, model = %steerer.model, "steerer fleet: model override failed — using fleet default");
                 base_llm.clone()
             }
         }
@@ -42,7 +42,7 @@ fn log_verdict_call_refused(target: &EvalTarget, steerer_id: i64, e: &LlmError) 
         request_id = target.raw_id,
         session_id = %target.session_id,
         steerer_id,
-        err = %e,
+        error = %e,
         "steerer fleet: evaluation window stopped — call governor refused (ceiling/rate limit)"
     );
 }
@@ -52,7 +52,7 @@ fn log_verdict_call_failed(target: &EvalTarget, steerer_id: i64, e: &LlmError) {
         request_id = target.raw_id,
         session_id = %target.session_id,
         steerer_id,
-        err = %e,
+        error = %e,
         "steerer fleet: LLM verdict error — skipping steerer (fail-closed)"
     );
 }

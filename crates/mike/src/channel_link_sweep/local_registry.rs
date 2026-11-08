@@ -75,7 +75,7 @@ pub async fn link_running_sessions(persist: &PersistHandle) -> usize {
             Err(e) => {
                 tracing::warn!(
                     cse_id = %channel.cse_id,
-                    session_uuid = %channel.session_uuid,
+                    session_id = %channel.session_uuid,
                     error = %e,
                     "channel_link_sweep: running-session link failed"
                 );

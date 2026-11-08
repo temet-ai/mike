@@ -115,12 +115,12 @@ fn spawn_push_carrier_stamp(
     let started_at = chrono::Utc::now()
         - chrono::Duration::from_std(handler_start.elapsed()).unwrap_or_default();
     let db_request_id = request_id.as_u64() as i64;
-    state.tracker.spawn(async move {
+    crate::observability::spans::spawn_tracked(&state.tracker, async move {
         if let Err(error) = persist
             .stamp_push_carriers(session_uuid, db_request_id, started_at)
             .await
         {
-            tracing::warn!(%error, %session_uuid, db_request_id, "failed to stamp the request that carried pushed items");
+            tracing::warn!(%error, session_id = %session_uuid, db_request_id, "failed to stamp the request that carried pushed items");
         }
     });
 }

@@ -234,7 +234,7 @@ pub(crate) async fn put_session_goal(
         Err(e) => {
             tracing::warn!(
                 error = %e,
-                session_uuid = %session_uuid,
+                session_id = %session_uuid,
                 "put_session_goal: DB write failed"
             );
             persist_error_response(e)
@@ -260,7 +260,7 @@ pub(crate) async fn get_session_goal(
         Err(e) => {
             tracing::warn!(
                 error = %e,
-                session_uuid = %session_uuid,
+                session_id = %session_uuid,
                 "get_session_goal: DB query failed"
             );
             Err(StatusCode::INTERNAL_SERVER_ERROR)

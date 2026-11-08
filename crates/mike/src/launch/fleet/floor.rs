@@ -322,7 +322,7 @@ async fn gather(persist: &PersistHandle, input: &FloorInput<'_>, done: &DoneWhen
 async fn record(persist: &PersistHandle, input: &FloorInput<'_>, outcome: &Outcome) {
     let new = event(input.run, input.task, input.seat, outcome);
     if let Err(err) = persist.append_fleet_event(&new).await {
-        tracing::warn!(%err, task = input.task, "fleet floor: could not record the floor event");
+        tracing::warn!(error = %err, task = input.task, "fleet floor: could not record the floor event");
     }
 }
 
@@ -334,7 +334,7 @@ async fn answer(persist: &PersistHandle, input: &FloorInput<'_>, outcome: &Outco
         .insert_message(Uuid::new_v4(), input.seat, None, &text)
         .await
     {
-        tracing::warn!(%err, task = input.task, "fleet floor: could not answer the seat");
+        tracing::warn!(error = %err, task = input.task, "fleet floor: could not answer the seat");
     }
 }
 

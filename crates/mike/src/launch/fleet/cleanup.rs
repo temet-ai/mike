@@ -99,7 +99,7 @@ pub(super) fn mark_run_clone(def: &FleetDefinition, project: &Path, slug: &str) 
     }
     let written = std::fs::write(&marker, format!("{known}{slug}\n"));
     if let Err(err) = written {
-        tracing::warn!(%err, repo = %def.repo, "fleet: the run's clone could not be marked");
+        tracing::warn!(error = %err, repo = %def.repo, "fleet: the run's clone could not be marked");
     }
 }
 
@@ -264,7 +264,7 @@ async fn leave_operator_note(
         data: None,
     };
     if let Err(err) = persist.create_session_note(coordinator, note).await {
-        tracing::warn!(%err, "fleet: could not leave the operator the note about the folders kept");
+        tracing::warn!(error = %err, "fleet: could not leave the operator the note about the folders kept");
     }
 }
 
@@ -307,7 +307,7 @@ async fn record_seats_closed(persist: &PersistHandle, def: &FleetDefinition, run
             }),
         };
         if let Err(err) = persist.append_fleet_event(&event).await {
-            tracing::warn!(%err, run, "fleet: a seat close could not be recorded");
+            tracing::warn!(error = %err, run, "fleet: a seat close could not be recorded");
         }
     }
 }

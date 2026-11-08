@@ -160,7 +160,7 @@ async fn fetch_live_text(persist: &PersistHandle, row: &QuiescentTurnRow) -> Str
 
 fn log_live_text_fetch_failed(row: &QuiescentTurnRow, e: &PersistError) {
     tracing::warn!(
-        session_uuid = %row.session_uuid,
+        session_id = %row.session_uuid,
         turn_id = row.turn_id,
         steerer_id = row.steerer_id,
         error = %e,
@@ -189,7 +189,7 @@ async fn handle_fire_outcome(
 
 fn log_fired(row: &QuiescentTurnRow) {
     tracing::info!(
-        session_uuid = %row.session_uuid,
+        session_id = %row.session_uuid,
         turn_id = row.turn_id,
         steerer_id = row.steerer_id,
         idle_seconds = row.idle_seconds,
@@ -199,7 +199,7 @@ fn log_fired(row: &QuiescentTurnRow) {
 
 fn log_no_fire(row: &QuiescentTurnRow) {
     tracing::debug!(
-        session_uuid = %row.session_uuid,
+        session_id = %row.session_uuid,
         turn_id = row.turn_id,
         steerer_id = row.steerer_id,
         idle_seconds = row.idle_seconds,
@@ -209,7 +209,7 @@ fn log_no_fire(row: &QuiescentTurnRow) {
 
 fn log_sweep_stopped_refused(row: &QuiescentTurnRow) {
     tracing::warn!(
-        session_uuid = %row.session_uuid,
+        session_id = %row.session_uuid,
         turn_id = row.turn_id,
         "quiescence_worker: sweep stopped — call governor refused (ceiling/rate limit), turn left for a later sweep"
     );
@@ -217,7 +217,7 @@ fn log_sweep_stopped_refused(row: &QuiescentTurnRow) {
 
 fn log_sweep_stopped_breaker(row: &QuiescentTurnRow) {
     tracing::warn!(
-        session_uuid = %row.session_uuid,
+        session_id = %row.session_uuid,
         turn_id = row.turn_id,
         "quiescence_worker: circuit breaker tripped — stopping sweep early"
     );

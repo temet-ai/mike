@@ -79,7 +79,7 @@ async fn check_word(
     {
         Ok(events) => check_at_commit(&events, sha).to_string(),
         Err(err) => {
-            tracing::warn!(%err, "fleet report: could not read the check events");
+            tracing::warn!(error = %err, "fleet report: could not read the check events");
             CHECK_RECORD_OFF.to_string()
         }
     }
@@ -151,7 +151,7 @@ pub(crate) async fn record(persist: &PersistHandle, session: Uuid, note: &Sessio
         at: Utc::now(),
     };
     if let Err(err) = record_note(persist, session, &facts).await {
-        tracing::warn!(%err, note = %note.note_uuid, "fleet: could not record a report or verdict in the change record");
+        tracing::warn!(error = %err, note = %note.note_uuid, "fleet: could not record a report or verdict in the change record");
     }
 }
 
@@ -191,7 +191,7 @@ pub(crate) fn verdict_events(
 pub(crate) async fn append_all(persist: &PersistHandle, events: Vec<NewFleetEvent>, what: &str) {
     for event in events {
         if let Err(err) = persist.append_fleet_event(&event).await {
-            tracing::warn!(%err, what, "fleet: could not record a fleet event");
+            tracing::warn!(error = %err, what, "fleet: could not record a fleet event");
         }
     }
 }
@@ -206,7 +206,7 @@ async fn tell_acceptance(
         Some(to) => persist
             .insert_message(Uuid::new_v4(), to, Some(from), shown)
             .await
-            .map_err(|err| tracing::warn!(%err, "fleet report: could not mail the acceptance seat"))
+            .map_err(|err| tracing::warn!(error = %err, "fleet report: could not mail the acceptance seat"))
             .is_ok(),
         None => false,
     }

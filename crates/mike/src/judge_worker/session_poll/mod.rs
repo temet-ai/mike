@@ -89,7 +89,7 @@ fn log_not_spawning_no_persistence() {
 }
 
 fn log_client_build_failed(e: &crate::llm::LlmError) {
-    tracing::warn!(err = %e, "session_judge: failed to build LLM client — not spawning");
+    tracing::warn!(error = %e, "session_judge: failed to build LLM client — not spawning");
 }
 
 fn log_spawned() {

@@ -56,7 +56,7 @@ async fn resolve_team_comms_session(
         Ok(Some((id, _))) => Ok(id),
         Ok(None) => Err((StatusCode::NOT_FOUND, "unknown session").into_response()),
         Err(e) => {
-            tracing::warn!(error = %e, %session_uuid, "get_session_team_comms: session lookup failed");
+            tracing::warn!(error = %e, session_id = %session_uuid, "get_session_team_comms: session lookup failed");
             Err(mailbox_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "database_error",
@@ -81,7 +81,7 @@ async fn fetch_team_comms_rows(
         .fetch_team_comms_dispatches(session_db_id)
         .await
         .map_err(|e| {
-            tracing::warn!(error = %e, %session_uuid, "get_session_team_comms: dispatches fetch failed");
+            tracing::warn!(error = %e, session_id = %session_uuid, "get_session_team_comms: dispatches fetch failed");
             mailbox_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "database_error",
@@ -92,7 +92,7 @@ async fn fetch_team_comms_rows(
         .fetch_team_comms_messages(session_db_id)
         .await
         .map_err(|e| {
-            tracing::warn!(error = %e, %session_uuid, "get_session_team_comms: messages fetch failed");
+            tracing::warn!(error = %e, session_id = %session_uuid, "get_session_team_comms: messages fetch failed");
             mailbox_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "database_error",

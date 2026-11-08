@@ -27,6 +27,6 @@ pub(super) fn unavailable() -> Response {
 }
 
 pub(super) fn database(err: impl std::fmt::Display) -> Response {
-    tracing::warn!(%err, "questions: database error");
+    tracing::warn!(error = %err, "questions: database error");
     problem(StatusCode::INTERNAL_SERVER_ERROR, "database error")
 }

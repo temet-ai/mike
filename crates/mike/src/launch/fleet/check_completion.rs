@@ -108,7 +108,7 @@ pub(in crate::launch::fleet) async fn record(
 async fn preserve_output(run: &str, repo: &str, captured: &Captured) {
     let log = save_output(Path::new(repo), captured).await;
     if let Err(err) = &log {
-        tracing::error!(%run, %err, "fleet: could not preserve the check's output log");
+        tracing::error!(%run, error = %err, "fleet: could not preserve the check's output log");
     }
     if let Some(mut item) = pending().get_mut(run) {
         item.log = log;
@@ -191,7 +191,7 @@ where
             Ok(row) => return Ok(row),
             Err(err) if transient(&err) => {
                 attempts = attempts.saturating_add(1);
-                tracing::warn!(%run, %err, attempts, ?backoff, "fleet: retrying check result persistence; command has ended");
+                tracing::warn!(%run, error = %err, attempts, ?backoff, "fleet: retrying check result persistence; command has ended");
                 pause(backoff).await?;
                 backoff = (backoff * 2).min(MAX_BACKOFF);
             }

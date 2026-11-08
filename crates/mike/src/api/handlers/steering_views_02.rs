@@ -10,7 +10,7 @@ async fn fetch_session_analyzer_overrides(
         .map_err(|e| {
             tracing::warn!(
                 error = %e,
-                session_uuid = %session_uuid,
+                session_id = %session_uuid,
                 "get_session_analyzers: analyzer-override query failed"
             );
             StatusCode::INTERNAL_SERVER_ERROR
@@ -28,7 +28,7 @@ async fn fetch_session_diagnostic_hit_count_map(
         .map_err(|e| {
             tracing::warn!(
                 error = %e,
-                session_uuid = %session_uuid,
+                session_id = %session_uuid,
                 "get_session_analyzers: diagnostic hit-count query failed"
             );
             StatusCode::INTERNAL_SERVER_ERROR
@@ -47,7 +47,7 @@ async fn fetch_weasel_intercept_row(
         .map_err(|e| {
             tracing::warn!(
                 error = %e,
-                session_uuid = %session_uuid,
+                session_id = %session_uuid,
                 "get_session_analyzers: weasel-intercept count query failed"
             );
             StatusCode::INTERNAL_SERVER_ERROR
@@ -135,7 +135,7 @@ pub(crate) async fn get_session_filter_rules(
         Err(e) => {
             tracing::warn!(
                 error = %e,
-                session_uuid = %session_uuid,
+                session_id = %session_uuid,
                 "get_session_filter_rules: DB query failed"
             );
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -184,7 +184,7 @@ pub(crate) async fn patch_session_analyzer(
         Err(e) => {
             tracing::warn!(
                 error = %e,
-                session_uuid = %session_uuid,
+                session_id = %session_uuid,
                 analyzer_name = %analyzer_name,
                 "patch_session_analyzer: DB write failed"
             );

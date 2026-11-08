@@ -59,7 +59,7 @@ async fn mark_suspect_criteria(persist: &PersistHandle, run: &str) {
     let events = match persist.fleet_events_since(run, 0).await {
         Ok(events) => events,
         Err(err) => {
-            tracing::warn!(%run, %err, "fleet: could not read the events to judge criteria");
+            tracing::warn!(%run, error = %err, "fleet: could not read the events to judge criteria");
             return;
         }
     };
@@ -79,7 +79,7 @@ async fn record_suspect(persist: &PersistHandle, run: &str, criterion: String, f
         }),
     };
     if let Err(err) = persist.append_fleet_event(&event).await {
-        tracing::warn!(%run, %criterion, %err, "fleet: could not record criterion_suspect");
+        tracing::warn!(%run, %criterion, error = %err, "fleet: could not record criterion_suspect");
     }
 }
 
@@ -133,7 +133,7 @@ pub async fn settle_held(persist: &PersistHandle, fleet: Uuid) {
     })
     .await;
     if let Err(err) = saved {
-        tracing::warn!(%fleet, %err, "fleet: could not settle the proposals waiting for an owner");
+        tracing::warn!(%fleet, error = %err, "fleet: could not settle the proposals waiting for an owner");
         return;
     }
     for (proposal, task) in added {
@@ -160,7 +160,7 @@ async fn tell_added(persist: &PersistHandle, fleet: Uuid, proposal: &str, task: 
         .insert_message(Uuid::new_v4(), to, None, &body)
         .await
     {
-        tracing::warn!(%proposal, %err, "fleet: could not tell the proposer its task was added");
+        tracing::warn!(%proposal, error = %err, "fleet: could not tell the proposer its task was added");
     }
 }
 
@@ -314,7 +314,7 @@ async fn still_uncommitted(persist: &PersistHandle, repo: &str, paths: Vec<Strin
             Ok(answer) if !answer.committed => kept.push(path),
             Ok(_) => {}
             Err(err) => {
-                tracing::warn!(%path, %err, "fleet: could not ask the change record whether a path is committed")
+                tracing::warn!(%path, error = %err, "fleet: could not ask the change record whether a path is committed")
             }
         }
     }
@@ -364,7 +364,9 @@ async fn propose_one(
 ) {
     match propose(persist, fleet, BY_MIKE, proposal, causes).await {
         Ok(answer) => tell_coordinator(persist, def, proposal, &answer).await,
-        Err(err) => tracing::warn!(%fleet, %err, "fleet: could not record mike's own proposal"),
+        Err(err) => {
+            tracing::warn!(%fleet, error = %err, "fleet: could not record mike's own proposal")
+        }
     }
 }
 
@@ -402,6 +404,6 @@ async fn tell_coordinator(
         .insert_message(Uuid::new_v4(), to, None, &body)
         .await
     {
-        tracing::warn!(%err, "fleet: could not tell the coordinator about mike's own proposal");
+        tracing::warn!(error = %err, "fleet: could not tell the coordinator about mike's own proposal");
     }
 }

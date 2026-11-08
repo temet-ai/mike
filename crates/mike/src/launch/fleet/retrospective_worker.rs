@@ -44,7 +44,7 @@ async fn tick(state: &AppState, persist: &PersistHandle, breaker: &mut CircuitBr
     let rows = match persist.pending_fleet_retrospectives().await {
         Ok(rows) => rows,
         Err(err) => {
-            tracing::warn!(%err, "fleet retrospective queue could not be read");
+            tracing::warn!(error = %err, "fleet retrospective queue could not be read");
             return;
         }
     };
@@ -74,7 +74,7 @@ async fn process_owned(
         return;
     }
     if let Err(err) = process(state, persist, row, breaker).await {
-        tracing::warn!(fleet = %row.slug, %err, "fleet retrospective remains pending");
+        tracing::warn!(fleet = %row.slug, error = %err, "fleet retrospective remains pending");
     }
 }
 

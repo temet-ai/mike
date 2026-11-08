@@ -19,7 +19,7 @@ pub(crate) fn spawn_repush_sweep(state: &AppState) {
     }
     let deps = state.push_deps();
     let shutdown = state.shutdown();
-    state.tracker.spawn(run(deps, shutdown));
+    crate::observability::spans::spawn_tracked(&state.tracker, run(deps, shutdown));
     log_spawned();
 }
 
@@ -36,7 +36,7 @@ fn log_spawned() {
 
 pub(super) fn spawn_repush_for_stream(state: &AppState, cse_id: String) {
     let deps = state.push_deps();
-    state.tracker.spawn(async move {
+    crate::observability::spans::spawn_tracked(&state.tracker, async move {
         repush_pending(&deps, Some(&cse_id)).await;
     });
 }

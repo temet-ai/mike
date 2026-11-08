@@ -286,7 +286,7 @@ async fn name_pane(cli: &HerdrCli, pane: &str, run: &RunSeat) {
 
 async fn quietly(cli: &HerdrCli, args: Vec<String>) {
     if let Err(err) = cli.run_json(&args, DEFAULT_TIMEOUT).await {
-        tracing::debug!(command = %args.join(" "), %err, "herdr refused a display-only change");
+        tracing::debug!(command = %args.join(" "), error = %err, "herdr refused a display-only change");
     }
 }
 

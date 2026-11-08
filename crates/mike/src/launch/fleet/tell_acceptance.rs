@@ -26,7 +26,7 @@ pub async fn read_waiting(
             waiting_reports(def, &notes)
         }
         Err(err) => {
-            tracing::warn!(%run, %err, "fleet: could not read the run's report notes");
+            tracing::warn!(%run, error = %err, "fleet: could not read the run's report notes");
             Vec::new()
         }
     }

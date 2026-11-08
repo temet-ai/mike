@@ -39,7 +39,7 @@ async fn append(persist: &PersistHandle, run: &str, payload: EventPayload) {
         payload,
     };
     if let Err(err) = persist.append_fleet_event(&event).await {
-        tracing::warn!(%err, run, "fleet: could not record a check event");
+        tracing::warn!(error = %err, run, "fleet: could not record a check event");
     }
 }
 

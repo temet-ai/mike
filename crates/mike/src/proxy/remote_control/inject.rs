@@ -219,7 +219,7 @@ fn spawn_push_ack_fallback(
     pushed_at: chrono::DateTime<chrono::Utc>,
     reminder: SystemReminder,
 ) {
-    tokio::spawn(async move {
+    crate::observability::spans::spawn_detached(async move {
         tokio::time::sleep(STEERER_PUSH_ACK_GRACE).await;
         let Some(handle) = deps.persist.as_ref() else {
             return;

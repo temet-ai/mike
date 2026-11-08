@@ -75,7 +75,7 @@ async fn unqueued(handle: &PersistHandle, ctx: &SendContext<'_>) -> Response {
     let exists = match handle.resolve_session_core(ctx.to_session_uuid).await {
         Ok(core) => core.is_some(),
         Err(err) => {
-            tracing::warn!(%err, to = %ctx.to_session_uuid, "mailbox: could not classify an unqueued delivery");
+            tracing::warn!(error = %err, to = %ctx.to_session_uuid, "mailbox: could not classify an unqueued delivery");
             return mailbox_error(
                 StatusCode::SERVICE_UNAVAILABLE,
                 "recipient_state_unavailable",

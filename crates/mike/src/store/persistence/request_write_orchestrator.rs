@@ -66,7 +66,7 @@ impl PersistHandle {
             {
                 tracing::warn!(
                     session_id = %req.session_id,
-                    err = %e,
+                    error = %e,
                     "insert_request_initial: auto-enrol failed (best-effort)"
                 );
             }
@@ -171,7 +171,7 @@ impl PersistHandle {
         if let Err(e) = result {
             tracing::warn!(
                 request_id = request_db_id,
-                err = %e,
+                error = %e,
                 "insert_request_initial: turn-attribution reconciliation failed (best-effort)"
             );
         }

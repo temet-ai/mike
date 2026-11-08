@@ -381,7 +381,7 @@ async fn send(persist: &PersistHandle, run: &str, notices: Vec<Notice>) {
 async fn record(persist: &PersistHandle, outcome: Outcome, run: &str) {
     for event in &outcome.events {
         if let Err(err) = persist.append_fleet_event(event).await {
-            tracing::warn!(%run, %err, "fleet: could not record who holds the tree broken");
+            tracing::warn!(%run, error = %err, "fleet: could not record who holds the tree broken");
         }
     }
     send(persist, run, outcome.notices).await;

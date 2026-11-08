@@ -183,7 +183,7 @@ fn log_closed(run: &str, state: &dyn std::fmt::Display) {
 }
 
 fn log_close_failed(run: &str, err: &dyn std::fmt::Display) {
-    tracing::warn!(run, err = %err, "fleet: every task is accepted but the close failed");
+    tracing::warn!(run, error = %err, "fleet: every task is accepted but the close failed");
 }
 
 #[cfg(test)]

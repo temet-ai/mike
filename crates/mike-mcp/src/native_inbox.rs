@@ -181,7 +181,7 @@ pub(crate) async fn push_native_batch(
     for (index, message) in messages.iter().enumerate() {
         if let Err(error) = inbox.deliver(message).await {
             tracing::warn!(
-                %session_uuid,
+                session_id = %session_uuid,
                 %error,
                 message_uuid = %message.message_uuid,
                 "mike-mcp: posting mail to the session's inbox socket failed; releasing it and \

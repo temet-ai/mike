@@ -115,7 +115,7 @@ pub(super) fn executing(context: &Context) {
     };
     context.tracker.spawn(async move {
         if let Err(err) = identity.persist.mark_tree_check_executing(receipt).await {
-            tracing::warn!(receipt, %err, "fleet: execution start was not recorded");
+            tracing::warn!(receipt, error = %err, "fleet: execution start was not recorded");
         }
     });
 }
@@ -220,7 +220,7 @@ pub(super) async fn measure(persist: &PersistHandle, command: &str) -> Option<Du
         }
         Ok(_) => measured(command),
         Err(err) => {
-            tracing::debug!(%err, "fleet: measured duration could not be read");
+            tracing::debug!(error = %err, "fleet: measured duration could not be read");
             measured(command)
         }
     }

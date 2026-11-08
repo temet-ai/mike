@@ -2,6 +2,7 @@ use bytes::Bytes;
 use futures::{Stream, StreamExt};
 use tokio::sync::mpsc;
 use tokio_util::task::TaskTracker;
+use tracing::Instrument;
 
 pub(crate) fn tee_sse_response(
     upstream: reqwest::Response,
@@ -21,7 +22,7 @@ where
     let (body_tx, body_rx) = mpsc::channel::<Result<Bytes, std::io::Error>>(32);
     let (parser_tx, parser_rx) = mpsc::channel::<Bytes>(64);
 
-    tracker.spawn(async move {
+    tracker.spawn(Instrument::in_current_span(async move {
         futures::pin_mut!(stream);
         let mut parser_alive = true;
         loop {
@@ -66,7 +67,7 @@ where
                 }
             }
         }
-    });
+    }));
 
     let body = axum::body::Body::from_stream(tokio_stream::wrappers::ReceiverStream::new(body_rx));
 

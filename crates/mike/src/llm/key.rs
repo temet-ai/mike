@@ -52,7 +52,7 @@ fn with_key(base: &OpenRouterClient, api_key: String) -> Option<OpenRouterClient
     match base.with_api_key(api_key) {
         Ok(client) => Some(client),
         Err(e) => {
-            tracing::warn!(err = %e, "openrouter: failed to apply current API key to client");
+            tracing::warn!(error = %e, "openrouter: failed to apply current API key to client");
             None
         }
     }
@@ -63,7 +63,7 @@ fn with_model_or_base(base: &OpenRouterClient, model: &str) -> OpenRouterClient 
         return base.clone();
     }
     base.with_model(model.to_owned()).unwrap_or_else(|e| {
-        tracing::warn!(err = %e, model, "llm: could not switch the client to the requested model");
+        tracing::warn!(error = %e, model, "llm: could not switch the client to the requested model");
         base.clone()
     })
 }

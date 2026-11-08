@@ -40,7 +40,7 @@ fn log_anchor_lookup_failed(target: &EvalTarget, e: &crate::store::persistence::
     warn!(
         request_id = target.raw_id,
         session_id = %target.session_id,
-        err = %e,
+        error = %e,
         "steerer fleet: anchor lookup failed — anchor unavailable"
     );
 }

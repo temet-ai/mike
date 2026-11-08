@@ -129,7 +129,7 @@ async fn commands(persist: &PersistHandle, run: &str) -> Option<Vec<TreeResultRo
     match persist.tree_results(run, None, since, COMMANDS_READ).await {
         Ok(rows) => Some(rows),
         Err(err) => {
-            tracing::warn!(%run, %err, "fleet: could not read the seats' commands");
+            tracing::warn!(%run, error = %err, "fleet: could not read the seats' commands");
             None
         }
     }
@@ -215,7 +215,7 @@ async fn send(persist: &PersistHandle, run: &str, notices: Vec<Notice>) {
             }
             Ok(None) => {}
             Err(err) => {
-                tracing::warn!(%run, key = %notice.key, %err, "fleet: could not mail a seat what mike saw");
+                tracing::warn!(%run, key = %notice.key, error = %err, "fleet: could not mail a seat what mike saw");
             }
         }
     }

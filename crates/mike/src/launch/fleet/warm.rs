@@ -238,7 +238,7 @@ async fn record(
 
 async fn close(state: &AppState, session: Uuid) {
     if let Err(err) = kill_for_server(state, session).await {
-        tracing::warn!(%session, %err, "mike could not close a template's pane after it loaded");
+        tracing::warn!(session_id = %session, error = %err, "mike could not close a template's pane after it loaded");
     }
 }
 
@@ -313,7 +313,7 @@ pub async fn retire(persist: &PersistHandle, def: &FleetDefinition, run_id: &str
             .close_template(&template_name(run_id, discipline))
             .await
         {
-            tracing::warn!(%err, run = %run_id, %discipline, "mike could not retire a fleet's template");
+            tracing::warn!(error = %err, run = %run_id, %discipline, "mike could not retire a fleet's template");
         }
     }
 }

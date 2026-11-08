@@ -106,7 +106,7 @@ fn usable(
 }
 
 fn lookup_failed(err: &str, seat: &SeatPlan) {
-    tracing::warn!(%err, seat = %seat.seat, "mike could not look up this run's warm template; the seat starts cold");
+    tracing::warn!(error = %err, seat = %seat.seat, "mike could not look up this run's warm template; the seat starts cold");
 }
 
 fn warmed_otherwise(row: &TemplateRow, seat: &SeatPlan) {

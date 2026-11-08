@@ -4,7 +4,7 @@ use crate::analysis::judge::JudgeLabel;
 use crate::store::persistence::PersistError;
 
 pub(super) fn log_turn_session_lookup_failed(turn_id: i64, e: &PersistError) {
-    tracing::warn!(turn_id, err = %e, "judge_worker: session lookup for llm call attribution failed");
+    tracing::warn!(turn_id, error = %e, "judge_worker: session lookup for llm call attribution failed");
 }
 
 pub(super) fn log_sweep_deferred(defer: Duration) {
@@ -37,7 +37,7 @@ pub(super) fn log_sweep_stopped_credential_failure(turn_id: i64) {
 }
 
 pub(super) fn log_mark_judge_failed_failed(turn_id: i64, e: &PersistError) {
-    tracing::warn!(turn_id, err = %e, "judge: mark_judge_failed failed");
+    tracing::warn!(turn_id, error = %e, "judge: mark_judge_failed failed");
 }
 
 pub(super) fn log_sweep_tripped(turn_id: i64) {
@@ -75,5 +75,5 @@ pub(super) fn log_already_stamped(turn_id: i64, verdict_id: i64) {
 }
 
 pub(super) fn log_stamp_failed(turn_id: i64, e: &PersistError) {
-    tracing::warn!(turn_id, err = %e, "judge: live verdict insert and stamp failed");
+    tracing::warn!(turn_id, error = %e, "judge: live verdict insert and stamp failed");
 }

@@ -22,7 +22,7 @@ pub(crate) fn maybe_link_channel(state: &AppState, session_id: &str, body: &[u8]
 
     let state = state.clone();
     let tracker = state.tracker.clone();
-    tracker.spawn(async move {
+    crate::observability::spans::spawn_tracked(&tracker, async move {
         let Some(persist) = state.persist() else {
             return;
         };

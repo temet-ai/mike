@@ -278,7 +278,7 @@ async fn close_late_pane(state: &AppState, session: Uuid) {
         Ok(report) => format!("closed: {}", report.closed),
         Err(e) => format!("closing failed: {e}"),
     };
-    tracing::warn!(%session, %outcome, "mike spawn: the seat's pane never opened; mike closed any late pane and does not relaunch the seat");
+    tracing::warn!(session_id = %session, %outcome, "mike spawn: the seat's pane never opened; mike closed any late pane and does not relaunch the seat");
 }
 
 pub(crate) async fn kill_for_server(

@@ -16,7 +16,7 @@ pub(super) fn spawn_mailbox_ack_fallback(
     event_id: Uuid,
     reminder: SystemReminder,
 ) {
-    tokio::spawn(async move {
+    crate::observability::spans::spawn_detached(async move {
         tokio::time::sleep(MAILBOX_PUSH_ACK_GRACE).await;
         release_if_unacked(&deps, recipient, event_id, reminder).await;
     });

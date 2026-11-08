@@ -220,7 +220,7 @@ async fn record_event(
         after_sha: None,
     };
     if let Err(err) = persist.insert_change_events(&[new]).await {
-        tracing::warn!(run = %facts.run_id, %err, "mike could not record a brief note in the change record");
+        tracing::warn!(run = %facts.run_id, error = %err, "mike could not record a brief note in the change record");
     }
 }
 
@@ -337,7 +337,7 @@ async fn mail_once(
     match persist.insert_message(Uuid::new_v4(), to, None, body).await {
         Ok(_) => super::told::mark(persist, &facts.run_id, &[key]).await,
         Err(err) => {
-            tracing::warn!(run = %facts.run_id, %key, %err, "mike could not mail a seat the lines of its brief that changed");
+            tracing::warn!(run = %facts.run_id, %key, error = %err, "mike could not mail a seat the lines of its brief that changed");
         }
     }
 }

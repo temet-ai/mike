@@ -34,7 +34,7 @@ impl Live<'_> {
             payload: body,
         };
         if let Err(err) = self.persist.append_fleet_event(&event).await {
-            tracing::warn!(%err, run = %self.run, "fleet supervisor: an event could not be recorded");
+            tracing::warn!(error = %err, run = %self.run, "fleet supervisor: an event could not be recorded");
         }
     }
 
@@ -46,7 +46,7 @@ impl Live<'_> {
     }
 
     async fn clear_seat(&self, task: &str, session: Uuid, state: String) -> Result<(), String> {
-        tracing::info!(task, %session, %state, "fleet supervisor: the seat is closed in the event record; staffing seats the task again");
+        tracing::info!(task, session_id = %session, %state, "fleet supervisor: the seat is closed in the event record; staffing seats the task again");
         Ok(())
     }
 

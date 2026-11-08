@@ -31,7 +31,7 @@ async fn seed_todays_spend(persist: &PersistHandle) -> RoleSpend {
         }
         Err(e) => {
             tracing::warn!(
-                err = %e,
+                error = %e,
                 "llm usage sink: failed to seed today's per-role spend from the database — starting at $0"
             );
             RoleSpend::default()
@@ -87,7 +87,7 @@ impl LlmUsageSink for PersistLlmUsageSink {
             };
             if let Err(e) = persist.insert_llm_call(insert).await {
                 tracing::warn!(
-                    err = %e,
+                    error = %e,
                     "llm usage sink: failed to record call — spend/usage tracking for this call is lost"
                 );
             }

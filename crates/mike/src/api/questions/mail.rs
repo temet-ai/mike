@@ -9,7 +9,7 @@ pub(super) async fn send(persist: &PersistHandle, from: Uuid, to: Uuid, body: &s
     {
         Ok(inserted) => inserted.is_some(),
         Err(err) => {
-            tracing::warn!(%err, %to, "questions: could not mail a question's recipient");
+            tracing::warn!(error = %err, %to, "questions: could not mail a question's recipient");
             false
         }
     }

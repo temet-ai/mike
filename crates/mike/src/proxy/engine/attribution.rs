@@ -15,7 +15,7 @@ pub(super) fn spawn_alter_decision_stamp(
     };
     let persist_for_alter = persist.clone();
     let session_id_for_alter = session_id.to_string();
-    tokio::spawn(async move {
+    crate::observability::spans::spawn_detached(async move {
         if let Err(e) = persist_for_alter
             .mark_session_prompt_altered(&session_id_for_alter)
             .await
@@ -46,7 +46,7 @@ pub(super) fn spawn_lesson_injection_attribution(
     let persist_for_lessons = persist.clone();
     let session_id_for_lessons = session_id.to_string();
     let db_request_id = request_id.as_u64() as i64;
-    tokio::spawn(async move {
+    crate::observability::spans::spawn_detached(async move {
         if let Err(e) = persist_for_lessons
             .record_lesson_injections(
                 db_request_id,
@@ -82,7 +82,7 @@ pub(super) fn spawn_mod_lesson_attribution(
     let persist = persist.clone();
     let session_id = session_id.to_string();
     let db_request_id = request_id.as_u64() as i64;
-    state.tracker.spawn(async move {
+    crate::observability::spans::spawn_tracked(&state.tracker, async move {
         if let Err(e) = persist
             .record_mod_lesson_injections(
                 db_request_id,

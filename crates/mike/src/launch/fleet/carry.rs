@@ -149,7 +149,7 @@ pub async fn after_note(
     match settle(persist, note_uuid, tags, data).await {
         Ok(outcome) => outcome,
         Err(err) => {
-            tracing::warn!(%err, %note_uuid, "carry: a note could not be carried or counted");
+            tracing::warn!(error = %err, %note_uuid, "carry: a note could not be carried or counted");
             CarryOutcome::Skipped
         }
     }
@@ -195,7 +195,7 @@ pub async fn warm_lines(
     match persist.carried_for_warmup(fleet, run_id, &names).await {
         Ok(lines) => lines,
         Err(err) => {
-            tracing::warn!(%err, run = %run_id, "carry: the carried lessons could not be read for a template");
+            tracing::warn!(error = %err, run = %run_id, "carry: the carried lessons could not be read for a template");
             Vec::new()
         }
     }

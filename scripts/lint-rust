@@ -9,6 +9,7 @@ status=0
 "$SCRIPT_DIR/lint-rust-size" || status=1
 "$SCRIPT_DIR/lint-rust-suppressions" || status=1
 "$SCRIPT_DIR/lint-rust-architecture" || status=1
+"$SCRIPT_DIR/lint-rust-log-fields" || status=1
 
 "$SCRIPT_DIR/cx" clippy --all-targets -- \
   -D warnings \

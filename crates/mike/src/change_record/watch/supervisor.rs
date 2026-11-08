@@ -88,7 +88,7 @@ impl Supervisor {
             }
             Err(err) => {
                 self.failures = self.failures.saturating_add(1);
-                tracing::warn!(%err, failures = self.failures, "change record: working checkouts could not be read");
+                tracing::warn!(error = %err, failures = self.failures, "change record: working checkouts could not be read");
                 backoff(self.failures)
             }
         }

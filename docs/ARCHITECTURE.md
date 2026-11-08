@@ -982,7 +982,18 @@ Configuration:
 
 ### Span Design
 
-One span per proxy request with fields: `request_id`, `method`, `path`, `model`, `stream`, `status`, `latency_ms`. API keys logged as `sk-***{last4}` only.
+Two request spans, both at `INFO`, so every log line inside them carries their fields and OTel exports one trace per request:
+
+- `proxy_request` ([`proxy/handler.rs`](../crates/mike/src/proxy/handler.rs)): `method`, `path`, then `session_id` once the request is accepted and `request_id` once the pipeline has stored it.
+- `inspect_request` ([`api/request_span.rs`](../crates/mike/src/api/request_span.rs)), made by the inspect router's `TraceLayer`: `method`, `path`, `request_id` from `x-request-id`.
+
+Tasks a request starts (SSE tee and parser, store updater, attribution and push stamps, Remote Control capture, weasel follow-ups) spawn through `spawn_tracked` / `spawn_detached` in `observability/spans.rs`, which carry the request span into the task. Long-running workers have no span: OTel exports a span only when it closes, and the module path already names the worker. API keys logged as `sk-***{last4}` only.
+
+### Log levels and fields
+
+- `error`: mike failed at its core job: forwarding, capture, startup. `warn`: a feature degraded and mike carried on; when the operator should know, it is also reported through `/api/capabilities` or `/api/health`. `info`: lifecycle. `debug`: expected fallbacks and routine decisions.
+- Values go in fields, not the message: errors as `error = %e`, sessions as `session_id`. `scripts/lint-rust-log-fields` rejects the drifting names (`%err`, `err =`, `session_uuid =`, `%session`).
+- Explicit `target:` names such as `mike::operator_notice` are stable filter names other docs refer to; everything else uses the module path.
 
 ### Prometheus
 

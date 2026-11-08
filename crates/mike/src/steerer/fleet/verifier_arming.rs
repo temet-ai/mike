@@ -19,7 +19,7 @@ async fn fetch_arming_history_or_default(
         Err(e) => {
             warn!(
                 session_db_id,
-                err = %e,
+                error = %e,
                 "steerer fleet: arming-history fetch failed — failing open to Calm"
             );
             ArmingHistoryRow {
@@ -44,7 +44,7 @@ async fn fetch_prior_fires_digest(
             warn!(
                 session_db_id,
                 steerer_id,
-                err = %e,
+                error = %e,
                 "steerer fleet: prior-fires fetch failed — judge sees no fire memory"
             );
             Vec::new()

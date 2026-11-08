@@ -62,7 +62,7 @@ async fn judge_one(
         Err(SessionJudgeFailure::Refused) => false,
         Err(e) => {
             breaker.record(false, Instant::now());
-            tracing::warn!(session = %c.session_uuid, error = %e, "session rejudge: judging failed");
+            tracing::warn!(session_id = %c.session_uuid, error = %e, "session rejudge: judging failed");
             poll.record(c.session_db_id, cfg, true).await;
             !breaker.should_skip(Instant::now())
         }
