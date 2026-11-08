@@ -17,6 +17,7 @@ mod open;
 mod open_gates;
 mod open_outcome;
 mod open_record;
+mod pinned_launch;
 mod prompt_turn;
 mod proxy_env;
 mod proxy_ledger;
@@ -76,12 +77,20 @@ async fn dispatch(args: SpawnArgs, overrides: CliOverrides) -> Result<i32, Launc
         return Ok(render::print_reap(&report, reap_args.json));
     }
 
+    let file = pinned_launch::named_file(&overrides);
+    let pinned = pinned_launch::PinnedLaunch::from_sources(
+        &overrides,
+        crate::config::env_text,
+        file.as_ref(),
+    );
+    let explicit: Option<BackendId> = pinned.asked.as_deref().map(str::parse).transpose()?;
     let mut config = crate::config::load(overrides)
         .map_err(|e| LaunchError::Failed(format!("failed to load configuration: {e:#}")))?;
     let reach = connect::reach(&config).await;
     connect::fold_settings(&mut config, &reach).await;
+    pinned.apply(&mut config.launch);
     let caller = CallerTerminal::from_env();
-    let (choice, backend) = backend_choice::resolve(&config.launch, None, &caller).await?;
+    let (choice, backend) = backend_choice::resolve(&config.launch, explicit, &caller).await?;
     tracing::debug!(backend = %choice.id, reason = %choice.reason, "mike spawn: chose the terminal backend");
     run_command(
         &config,
