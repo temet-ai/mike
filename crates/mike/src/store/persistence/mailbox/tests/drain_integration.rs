@@ -1,6 +1,6 @@
 use crate::store::persistence::PersistHandle;
 
-use super::support::seed_session;
+use super::support::{drain_primary_turn, seed_session};
 
 #[tokio::test]
 async fn drain_never_injects_a_dead_lettered_mailbox_row_regardless_of_redelivery_toggle()
@@ -58,27 +58,7 @@ async fn drain_never_injects_a_dead_lettered_mailbox_row_regardless_of_redeliver
             );
         }
 
-        let mut body = bytes::Bytes::from_static(
-                br#"{"model":"claude-sonnet-4","messages":[{"role":"user","content":[{"type":"text","text":"q"}]}]}"#,
-            );
-        let mut filtered_stored = None;
-        let mut filter_applied = false;
-        let mut manifest = crate::compress::manifest::ManifestBuilder::new("test".to_string());
-        let mut bk = crate::reminders::inject::InjectBookkeeping {
-            post_filter_body: &mut body,
-            filtered_stored: &mut filtered_stored,
-            filter_applied: &mut filter_applied,
-            request_id: crate::store::models::RequestId::next(),
-        };
-        let injected = crate::steerer::stage::drain(
-            &state,
-            &session_uuid_str,
-            &crate::extract::request::TurnOrigin::Primary,
-            "",
-            &mut bk,
-            &mut manifest,
-        )
-        .await;
+        let injected = drain_primary_turn(&state, &session_uuid_str).await;
 
         assert!(
             injected.is_empty(),

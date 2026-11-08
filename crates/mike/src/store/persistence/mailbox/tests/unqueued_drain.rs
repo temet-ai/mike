@@ -1,33 +1,14 @@
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::launch::NewLaunch;
 
-use super::support::seed_session;
+use super::support::{drain_primary_turn, seed_session};
 
 async fn drain_once(state: &crate::config::AppState, session: &str) -> Vec<String> {
-    let mut body = bytes::Bytes::from_static(
-        br#"{"model":"claude-sonnet-4","messages":[{"role":"user","content":[{"type":"text","text":"q"}]}]}"#,
-    );
-    let mut filtered_stored = None;
-    let mut filter_applied = false;
-    let mut manifest = crate::compress::manifest::ManifestBuilder::new("test".to_string());
-    let mut bk = crate::reminders::inject::InjectBookkeeping {
-        post_filter_body: &mut body,
-        filtered_stored: &mut filtered_stored,
-        filter_applied: &mut filter_applied,
-        request_id: crate::store::models::RequestId::next(),
-    };
-    crate::steerer::stage::drain(
-        state,
-        session,
-        &crate::extract::request::TurnOrigin::Primary,
-        "",
-        &mut bk,
-        &mut manifest,
-    )
-    .await
-    .into_iter()
-    .map(|r| r.payload)
-    .collect()
+    drain_primary_turn(state, session)
+        .await
+        .into_iter()
+        .map(|r| r.payload)
+        .collect()
 }
 
 async fn claimed(pool: &sqlx::PgPool, message: uuid::Uuid) -> anyhow::Result<bool> {
