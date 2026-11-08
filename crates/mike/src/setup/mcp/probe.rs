@@ -4,8 +4,10 @@ use std::time::Duration;
 
 use anyhow::{Context, Result};
 use serde_json::{Value, json};
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, ChildStdin, ChildStdout, Command};
+use tokio::io::{
+    AsyncBufRead, AsyncBufReadExt, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader,
+};
+use tokio::process::{Child, Command};
 
 use super::ProbeReport;
 
@@ -79,21 +81,25 @@ async fn verify_version(binary: &Path) -> Result<()> {
         stdout.take(4097).read_to_end(&mut bytes).await?;
         let status = child.wait().await?;
         anyhow::ensure!(status.success(), "MCP --version exited unsuccessfully");
-        anyhow::ensure!(
-            bytes.len() <= 4096,
-            "MCP --version returned an invalid response"
-        );
-        let expected = format!("mike-mcp {}", env!("CARGO_PKG_VERSION"));
-        anyhow::ensure!(
-            std::str::from_utf8(&bytes)?.trim() == expected,
-            "MCP companion version does not match mike {}; install the matching pair",
-            env!("CARGO_PKG_VERSION")
-        );
-        Ok(())
+        check_version_output(&bytes)
     })
     .await;
     stop(&mut child).await?;
     outcome.context("MCP --version timed out; companion was stopped")?
+}
+
+pub(super) fn check_version_output(bytes: &[u8]) -> Result<()> {
+    anyhow::ensure!(
+        bytes.len() <= 4096,
+        "MCP --version returned an invalid response"
+    );
+    let expected = format!("mike-mcp {}", env!("CARGO_PKG_VERSION"));
+    anyhow::ensure!(
+        std::str::from_utf8(bytes)?.trim() == expected,
+        "MCP companion version does not match mike {}; install the matching pair",
+        env!("CARGO_PKG_VERSION")
+    );
+    Ok(())
 }
 
 async fn stop(child: &mut Child) -> Result<()> {
@@ -118,17 +124,27 @@ async fn exchange(
     let Some(stdout) = child.stdout.take() else {
         return handshake_failed();
     };
-    let mut wire = Wire {
-        stdin,
-        stdout: BufReader::new(stdout),
-    };
+    converse(stdin, BufReader::new(stdout), instance_id, STEP_TIMEOUT).await
+}
+
+pub(super) async fn converse<W, R>(
+    stdin: W,
+    stdout: R,
+    instance_id: &str,
+    step: Duration,
+) -> (bool, bool, &'static str, &'static str)
+where
+    W: AsyncWrite + Unpin,
+    R: AsyncBufRead + Unpin,
+{
+    let mut wire = Wire { stdin, stdout };
     if !matches!(
-        tokio::time::timeout(STEP_TIMEOUT, wire.initialize()).await,
+        tokio::time::timeout(step, wire.initialize()).await,
         Ok(Ok(()))
     ) {
         return handshake_failed();
     }
-    match tokio::time::timeout(STEP_TIMEOUT, wire.read_backend(instance_id)).await {
+    match tokio::time::timeout(step, wire.read_backend(instance_id)).await {
         Ok(Ok(BackendRead::Verified)) => (
             true,
             true,
@@ -171,12 +187,12 @@ enum BackendRead {
     WrongInstance,
 }
 
-struct Wire {
-    stdin: ChildStdin,
-    stdout: BufReader<ChildStdout>,
+struct Wire<W, R> {
+    stdin: W,
+    stdout: R,
 }
 
-impl Wire {
+impl<W: AsyncWrite + Unpin, R: AsyncBufRead + Unpin> Wire<W, R> {
     async fn initialize(&mut self) -> Result<()> {
         self.send(
             json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{
