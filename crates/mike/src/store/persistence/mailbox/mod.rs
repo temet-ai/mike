@@ -15,6 +15,7 @@ mod thread_send;
 mod thread_types;
 mod types;
 mod undelivered;
+mod unqueued;
 
 #[cfg(test)]
 mod tests;
