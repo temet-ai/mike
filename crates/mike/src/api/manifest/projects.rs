@@ -28,21 +28,21 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         "PATCH",
         "/api/projects/{project_path}/pin",
         Coverage::Exempt {
-            reason: "pin/TTL lifecycle is SPA/operator-only; MCP tools removed after zero usage ever (#226)",
+            reason: "pin/TTL lifecycle is SPA/operator-only; MCP tools removed after zero usage ever (temet-ai/mike-private#226)",
         },
     ),
     route(
         "PATCH",
         "/api/projects/{project_path}/ttl",
         Coverage::Exempt {
-            reason: "pin/TTL lifecycle is SPA/operator-only; MCP tools removed after zero usage ever (#226)",
+            reason: "pin/TTL lifecycle is SPA/operator-only; MCP tools removed after zero usage ever (temet-ai/mike-private#226)",
         },
     ),
     route(
         "PATCH",
         "/api/projects/{project_path}/name",
         Coverage::Exempt {
-            reason: "friendly-name lifecycle is SPA/operator-only, same as pin/TTL (#226)",
+            reason: "friendly-name lifecycle is SPA/operator-only, same as pin/TTL (temet-ai/mike-private#226)",
         },
     ),
     route(

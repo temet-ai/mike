@@ -4,7 +4,7 @@
 # Answers, without a model in the loop, the questions that took a full
 # interactive session to re-derive on 2026-09-20:
 #   - where the week's tokens went, by session and by model seat
-#   - whether the #252 cache re-write fix is still holding
+#   - whether the temet-ai/mike-private#252 cache re-write fix is still holding
 #   - which steering rules have gone dead (anchored to text that changed)
 #   - which projects have accumulated turns but no reachable lessons
 #   - how much of the spend mike can actually attribute to an operator turn

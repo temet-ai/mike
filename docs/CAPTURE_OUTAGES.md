@@ -8,7 +8,7 @@ summary: What mike does when the database is down or the disk is full, how the p
 
 # Capture outages
 
-Operator decision, 2026-11-05 (#63): when the database is down or the disk is full, mike
+Operator decision, 2026-11-05 (temet-ai/mike-private#63): when the database is down or the disk is full, mike
 keeps forwarding so Claude keeps working, and tells the person there is a problem. Nothing
 is refused.
 

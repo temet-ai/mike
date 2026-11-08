@@ -39,7 +39,7 @@ Personas are the art's own lineup, not the codebase's:
 
 The sheet's last two personas (coordinator, documentor) differ from the token system's
 slots 4/5 (`db-dev`, `watchdog`). Binding them to real agent-types — or minting new
-slots — is an open decision (issues #176 / #178).
+slots — is an open decision (issues temet-ai/mike-private#176 / temet-ai/mike-private#178).
 
 ## State colour language
 

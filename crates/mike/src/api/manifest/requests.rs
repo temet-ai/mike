@@ -18,7 +18,7 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         "GET",
         "/api/capabilities",
         Coverage::Exempt {
-            reason: "AC6 (#52) capability panel; SPA-driven /settings honesty check, not needed via MCP",
+            reason: "AC6 (temet-ai/mike-private#52) capability panel; SPA-driven /settings honesty check, not needed via MCP",
         },
     ),
     route(

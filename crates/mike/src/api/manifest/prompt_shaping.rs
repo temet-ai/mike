@@ -9,7 +9,7 @@ pub(super) const ROUTES: &[RouteEntry] = &[route(
     "GET",
     "/api/sessions/{id}/prompt-shaping",
     Coverage::Exempt {
-        reason: "called by tether to take the filter rules, lazy sections and compositions the proxy would apply to the prompt, after which the proxy stands aside for that session (#442); a session investigating traffic has no use for it",
+        reason: "called by tether to take the filter rules, lazy sections and compositions the proxy would apply to the prompt, after which the proxy stands aside for that session (temet-ai/mike-private#442); a session investigating traffic has no use for it",
     },
 )];
 

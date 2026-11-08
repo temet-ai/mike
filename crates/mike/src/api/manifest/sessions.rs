@@ -22,14 +22,14 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         "PATCH",
         "/api/sessions/{id}/pin",
         Coverage::Exempt {
-            reason: "pin/TTL lifecycle is SPA/operator-only; MCP tools removed after zero usage ever (#226)",
+            reason: "pin/TTL lifecycle is SPA/operator-only; MCP tools removed after zero usage ever (temet-ai/mike-private#226)",
         },
     ),
     route(
         "PATCH",
         "/api/sessions/{id}/ttl",
         Coverage::Exempt {
-            reason: "pin/TTL lifecycle is SPA/operator-only; MCP tools removed after zero usage ever (#226)",
+            reason: "pin/TTL lifecycle is SPA/operator-only; MCP tools removed after zero usage ever (temet-ai/mike-private#226)",
         },
     ),
     route(
@@ -47,7 +47,7 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         "GET",
         "/api/sessions/{id}/dedup-stats",
         Coverage::Exempt {
-            reason: "shadow-mode measurement surface; demand-driven MCP exposure per issue #133 — no known agent workflow needs this yet",
+            reason: "shadow-mode measurement surface; demand-driven MCP exposure per issue temet-ai/mike-private#133 — no known agent workflow needs this yet",
         },
     ),
     route(
@@ -194,14 +194,14 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         "GET",
         "/api/sessions/{id}/delivery",
         Coverage::Exempt {
-            reason: "session-page panel joining the effective profile, delivered lessons, recalled topics and loaded skills (#601); SPA-driven, and the issue asks for no MCP tool — get_request_transformation_manifest and list_session_tool_uses already serve an investigating agent",
+            reason: "session-page panel joining the effective profile, delivered lessons, recalled topics and loaded skills (temet-ai/mike-private#601); SPA-driven, and the issue asks for no MCP tool — get_request_transformation_manifest and list_session_tool_uses already serve an investigating agent",
         },
     ),
     route(
         "POST",
         "/api/sessions/{id}/context",
         Coverage::Exempt {
-            reason: "called by tether at a prompt to take the identity, briefing and change-tail blocks the proxy would add, after which the proxy stands aside for that session (#442); a session investigating traffic has no use for it",
+            reason: "called by tether at a prompt to take the identity, briefing and change-tail blocks the proxy would add, after which the proxy stands aside for that session (temet-ai/mike-private#442); a session investigating traffic has no use for it",
         },
     ),
 ];

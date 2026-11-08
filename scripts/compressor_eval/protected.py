@@ -1,4 +1,4 @@
-"""Which of the compressor's protected-path globs would hide a trial's source file (#694)."""
+"""Which of the compressor's protected-path globs would hide a trial's source file (temet-ai/mike-private#694)."""
 from pathlib import Path
 import re
 

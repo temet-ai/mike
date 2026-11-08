@@ -30,21 +30,21 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         "POST",
         "/api/workspace/sessions/{id}/channel/claim",
         Coverage::Exempt {
-            reason: "mike-mcp's own ~2s background poll for MCP-channel push-wake (issue #352); a bridge-internal delivery mechanism, not an agent-facing investigation surface, so it is never a callable tool",
+            reason: "mike-mcp's own ~2s background poll for MCP-channel push-wake (issue temet-ai/mike-private#352); a bridge-internal delivery mechanism, not an agent-facing investigation surface, so it is never a callable tool",
         },
     ),
     route(
         "POST",
         "/api/workspace/sessions/{id}/channel/release",
         Coverage::Exempt {
-            reason: "mike-mcp hands back channel-claimed mail it could not push (issue #352); bridge-internal, never a callable tool",
+            reason: "mike-mcp hands back channel-claimed mail it could not push (issue temet-ai/mike-private#352); bridge-internal, never a callable tool",
         },
     ),
     route(
         "GET",
         "/api/workspace/projects/{project_path}/activity",
         Coverage::Exempt {
-            reason: "coordination_events ledger read (issue #217); SPA-driven project activity feed, no MCP tool until an agent workflow needs it",
+            reason: "coordination_events ledger read (issue temet-ai/mike-private#217); SPA-driven project activity feed, no MCP tool until an agent workflow needs it",
         },
     ),
     route(
@@ -63,14 +63,14 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         "GET",
         "/api/fleet/runs",
         Coverage::Exempt {
-            reason: "finite run-list passthrough (issue #148 seam S2); SPA-driven Runs view discovery, no MCP tool until an agent workflow needs it",
+            reason: "finite run-list passthrough (issue temet-ai/mike-private#148 seam S2); SPA-driven Runs view discovery, no MCP tool until an agent workflow needs it",
         },
     ),
     route(
         "GET",
         "/api/fleet/runs/{run_id}",
         Coverage::Exempt {
-            reason: "finite fleet-run correlation (issue #148 seam S2); SPA-driven Runs view, no MCP tool until an agent workflow needs it",
+            reason: "finite fleet-run correlation (issue temet-ai/mike-private#148 seam S2); SPA-driven Runs view, no MCP tool until an agent workflow needs it",
         },
     ),
     route("GET", "/api/fleet/graph", Coverage::Tool("get_fleet_graph")),

@@ -76,8 +76,8 @@ files ≤ 500 lines, functions ≤ 100 lines, cognitive complexity ≤ 15, ≤ 6
 arguments; `allow`/`expect` attributes that weaken these are rejected, so split
 by responsibility.
 
-**Gates report their own verdict.** Never pipe a gate (#136); read a background
-gate's verdict with `scripts/task-wait <output> --grade-only` (#182).
+**Gates report their own verdict.** Never pipe a gate (temet-ai/mike-private#136); read a background
+gate's verdict with `scripts/task-wait <output> --grade-only` (temet-ai/mike-private#182).
 
 **Long commands run in the background.** Use `run_in_background` and continue
 or end the turn; the harness re-invokes you on exit. Don't block on a running
@@ -133,9 +133,9 @@ Make small edits and subtle or cross-cutting changes yourself.
 - Test DB: container `mike-test-pg` (`scripts/test-db/`) on `127.0.0.1:6667`, `fsync=off`, via `MIKE_TEST_ADMIN_URL`.
   Tests never touch the capture DB.
 - Migrations: `crates/mike/src/store/persistence/migrations/`. Only `mike serve` applies them; other subcommands refuse
-  while the ledger differs from the binary (#359).
+  while the ledger differs from the binary (temet-ai/mike-private#359).
 - Use `scripts/sqlx-prepare`, never `cargo sqlx prepare` — the latter empties `.sqlx/` while it runs and breaks every
-  session in the checkout (#405).
+  session in the checkout (temet-ai/mike-private#405).
 - Read-only SQL:
   `PGOPTIONS='-c statement_timeout=5000 -c lock_timeout=2000' docker exec armitage-pg psql -U devuser -d claude_proxy -X -At -c "<select>"`,
   time-bounded on large tables. Prefer the `mike-mcp` read tools.

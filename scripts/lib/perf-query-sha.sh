@@ -1,4 +1,4 @@
-# perf-query-sha.sh — shared SQL fingerprint for the perf-evidence binding (#192).
+# perf-query-sha.sh — shared SQL fingerprint for the perf-evidence binding (temet-ai/mike-private#192).
 #
 # Sourced by scripts/db-perf-check (emits the `Perf-Query-SHA:` trailer for the
 # measured AFTER query) and by scripts/db-code-graders/g6_perf_evidence.sh

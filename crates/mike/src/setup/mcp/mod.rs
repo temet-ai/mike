@@ -158,12 +158,7 @@ pub async fn check(config: &ProxyConfig) -> Result<ProbeReport> {
 pub async fn register(plan: RegistrationPlan, replace: bool) -> Result<RegistrationReport> {
     let prepared = registration::prepare(&plan, replace)?;
     let probe = probe::run(&plan.binary, &plan.inspect_url, &plan.instance_id).await?;
-    anyhow::ensure!(
-        probe.handshake && (probe.backend_read || probe.code == "MCP_BACKEND_UNAVAILABLE"),
-        "{}: {}",
-        probe.code,
-        probe.detail
-    );
+    admit(&probe)?;
     let (changed, backup) = prepared.commit()?;
     Ok(RegistrationReport {
         client_config: plan.client_config,
@@ -171,6 +166,16 @@ pub async fn register(plan: RegistrationPlan, replace: bool) -> Result<Registrat
         backup,
         probe,
     })
+}
+
+fn admit(probe: &ProbeReport) -> Result<()> {
+    anyhow::ensure!(
+        probe.handshake && (probe.backend_read || probe.code == "MCP_BACKEND_UNAVAILABLE"),
+        "{}: {}",
+        probe.code,
+        probe.detail
+    );
+    Ok(())
 }
 
 pub fn unregister(plan: RegistrationPlan) -> Result<UnregistrationReport> {

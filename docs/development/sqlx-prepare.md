@@ -27,7 +27,7 @@ uncommitted queries. Its last line is `SQLX-PREPARE: PASS|FAIL new=<n> changed=<
 
 Never run raw `cargo sqlx prepare`: it empties `.sqlx/` while it runs, so every other
 session in the checkout sees hundreds of deleted files and cannot commit or build offline
-until it ends (AGENTS.md, #405).
+until it ends (AGENTS.md, temet-ai/mike-private#405).
 
 Migrations are applied only by `mike serve`; there is no `mike migrate` subcommand, and
 `mike migrate-check` only compares the ledger with the binary. For a query that reads a

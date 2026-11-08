@@ -52,5 +52,5 @@ a normalized fingerprint of the measured AFTER query (shared impl:
 commit message **and `git add` the snapshots it wrote in the same commit**: the
 G6 gate requires the staged snapshots, recomputes the fingerprint over the
 staged after-snapshot, and (for `.rs` query changes) checks the measured query
-against the SQL the commit actually ships (#192). See
+against the SQL the commit actually ships (temet-ai/mike-private#192). See
 `.claude/rules/db-performance-evaluation.md`.

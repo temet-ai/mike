@@ -69,7 +69,7 @@ wizard's backend list) with no adapter yet — it parses, but `backend_for(Backe
 returns `None`, and configuring it makes every `mike spawn` verb fail with
 `BackendUnavailable`.
 
-A launch opens where its caller runs (`crates/mike/src/launch/backend_choice.rs`, #691). A caller
+A launch opens where its caller runs (`crates/mike/src/launch/backend_choice.rs`, temet-ai/mike-private#691). A caller
 in a Herdr app terminal (`HC_TERMINAL_ID`) gets `herdr-core`; one in an old herdr pane
 (`HERDR_PANE_ID`) gets `herdr`; one in tmux gets `tmux`. `spawn_session` forwards those variables
 as `caller_env`. With no caller to go by (a fleet seat, a phone over Remote Control), the first of
