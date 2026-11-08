@@ -2,6 +2,7 @@ use uuid::Uuid;
 
 use super::fleet_target::seat_sessions;
 use crate::launch::fleet::FleetDefinition;
+use crate::launch::fleet::definition::{recorded_task_of, with_task_seats};
 use crate::store::persistence::{PersistError, PersistHandle};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -94,9 +95,9 @@ impl PersistHandle {
         let Some(launch) = self.latest_launch_seat(to).await? else {
             return Ok(None);
         };
-        if !launch.closed || launch.run_id.is_none() {
+        let (true, Some(run)) = (launch.closed, launch.run_id.as_deref()) else {
             return Ok(None);
-        }
+        };
         let unknown = ClosedSeat {
             task: None,
             successor: None,
@@ -111,7 +112,10 @@ impl PersistHandle {
         let Ok(definition) = FleetDefinition::from_value(&row.definition) else {
             return Ok(Some(unknown));
         };
-        let task = task_of_session(&definition, to, launch.seat.as_deref());
+        let events = self.fleet_events_since(run, 0).await?;
+        let definition = with_task_seats(definition, &events);
+        let task = task_of_session(&definition, to, launch.seat.as_deref())
+            .or_else(|| recorded_task_of(&events, to));
         let task_session = task
             .as_deref()
             .and_then(|id| definition.tasks.get(id))

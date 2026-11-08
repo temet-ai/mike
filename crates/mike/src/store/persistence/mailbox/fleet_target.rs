@@ -5,6 +5,7 @@ use uuid::Uuid;
 use crate::launch::fleet::FleetDefinition;
 use crate::launch::fleet::checks::normal;
 use crate::launch::fleet::commit::covers;
+use crate::launch::fleet::definition::with_task_seats;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -142,10 +143,14 @@ impl PersistHandle {
         let Some(row) = self.find_fleet_for_session(sender).await? else {
             return Ok(None);
         };
-        if row.run_id.is_none() {
+        let Some(run) = row.run_id.as_deref() else {
             return Ok(None);
-        }
-        Ok(FleetDefinition::from_value(&row.definition).ok())
+        };
+        let Ok(definition) = FleetDefinition::from_value(&row.definition) else {
+            return Ok(None);
+        };
+        let events = self.fleet_events_since(run, 0).await?;
+        Ok(Some(with_task_seats(definition, &events)))
     }
 
     pub(crate) async fn open_sessions_among(
