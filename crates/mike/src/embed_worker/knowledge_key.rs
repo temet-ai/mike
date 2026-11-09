@@ -1,3 +1,4 @@
+use crate::analysis::embeddings::prefixes_for;
 use crate::analysis::{EmbeddingConfig, EmbeddingService};
 use crate::store::persistence::{PersistError, PersistHandle};
 use sha2::{Digest, Sha256};
@@ -13,6 +14,14 @@ fn hex_digest(text: &str) -> String {
 }
 
 pub(crate) fn key_for(model: &str, chunk_max_chars: usize) -> String {
+    let prefix_version = prefixes_for(model).version;
+    hex_digest(&format!(
+        "knowledge-v2:{model}:{chunk_max_chars}:{prefix_version}"
+    ))
+}
+
+#[cfg(test)]
+pub(crate) fn unversioned_v2_key(model: &str, chunk_max_chars: usize) -> String {
     hex_digest(&format!("knowledge-v2:{model}:{chunk_max_chars}"))
 }
 
@@ -81,6 +90,22 @@ mod tests {
         let base = key_for("nomic-embed-text-v1.5", 1024);
         assert_ne!(base, key_for("other-model", 1024));
         assert_ne!(base, key_for("nomic-embed-text-v1.5", 512));
+    }
+
+    #[test]
+    fn key_includes_the_prefix_version_of_the_model() {
+        assert_eq!(
+            key_for("embeddinggemma", 1024),
+            hex_digest("knowledge-v2:embeddinggemma:1024:embeddinggemma-v1")
+        );
+        assert_ne!(
+            key_for("embeddinggemma", 1024),
+            unversioned_v2_key("embeddinggemma", 1024)
+        );
+        assert_ne!(
+            key_for("nomic-embed-text-v1.5", 1024),
+            unversioned_v2_key("nomic-embed-text-v1.5", 1024)
+        );
     }
 
     #[test]

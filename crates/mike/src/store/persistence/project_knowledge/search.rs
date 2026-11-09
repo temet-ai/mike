@@ -2,6 +2,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use super::invalid;
+use crate::store::persistence::recall_embedding::set_vector_scan_limits;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 #[derive(Default, Deserialize)]
@@ -32,6 +33,10 @@ impl PersistHandle {
         let project = self.resolve_knowledge_project(&input.project).await?;
         let limit = input.limit.unwrap_or(20).clamp(1, 100);
         let offset = input.offset.unwrap_or(0).max(0);
+        let mut tx = self.pool().begin().await?;
+        if vector.is_some() {
+            set_vector_scan_limits(&mut tx).await?;
+        }
         let rows = sqlx::query_file_scalar!(
             "src/store/persistence/project_knowledge/search.sql",
             project.id,
@@ -44,8 +49,9 @@ impl PersistHandle {
             vector.map(|v| v.1.as_str()),
             vector.map(|v| v.2.as_str()),
         )
-        .fetch_all(self.pool())
+        .fetch_all(&mut *tx)
         .await?;
+        tx.commit().await?;
         let has_more = rows.len() > limit as usize;
         let items: Vec<Value> = rows.into_iter().take(limit as usize).collect();
         Ok(serde_json::json!({"project_uuid": project.project_uuid,

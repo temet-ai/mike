@@ -182,11 +182,14 @@ pub(crate) async fn define_project(
 
 mod disk_check;
 mod health;
+mod query_vector_cache;
 mod retrieval;
 pub(crate) use health::embedding_capability;
 pub(crate) use retrieval::retrieve;
 
 #[cfg(test)]
 mod disk_check_tests;
+#[cfg(test)]
+mod query_vector_cache_tests;
 #[cfg(test)]
 mod registration_tests;

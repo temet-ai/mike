@@ -69,9 +69,9 @@ fn use_ollama_choice(inputs: &EmbedInputs) -> Choice<EmbedAction> {
         .is_some_and(|m| has_model(m, OLLAMA_MODEL));
     let mut choice = Choice::new(
         EmbedAction::UseOllama,
-        "Use Ollama with nomic-embed-text",
+        format!("Use Ollama with {OLLAMA_MODEL}"),
         format!(
-            "Pulls {OLLAMA_MODEL} (about 270 MB, skipped when it is already there), then sets embedding.url to {}/v1, embedding.model to {OLLAMA_MODEL} and embedding.enabled to true in the running proxy, and fetches one embedding to check it. The text being embedded stays on this machine.",
+            "Pulls {OLLAMA_MODEL} (about 620 MB, skipped when it is already there), then sets embedding.url to {}/v1, embedding.model to {OLLAMA_MODEL} and embedding.enabled to true in the running proxy, and fetches one embedding to check it. The text being embedded stays on this machine.",
             inputs.base
         ),
     )

@@ -20,11 +20,18 @@
 	// The host exposes no embedding-model listing, so the list is fixed to the models known to fit.
 	const MODELS: WorkerModel[] = [
 		{
+			id: 'embeddinggemma',
+			pricing: 'free · local',
+			context: '768 dim · 2K ctx',
+			description:
+				"Google's EmbeddingGemma-300M, served by the host's OpenAI-compatible embedding server. 768-dimension vectors, 2K-token input. The default here."
+		},
+		{
 			id: 'nomic-embed-text-v1.5',
 			pricing: 'free · local',
 			context: '768 dim · 8K ctx',
 			description:
-				"Nomic's open embedding model, served by the host's OpenAI-compatible embedding server. 768-dimension vectors, 8K-token input. The default here."
+				"Nomic's open embedding model, served by the host's OpenAI-compatible embedding server. 768-dimension vectors, 8K-token input."
 		},
 		{
 			id: 'nomic-embed-text',

@@ -177,7 +177,7 @@ mod tests {
             "embedding env vars must be ignored"
         );
         assert_eq!(config.embedding.url, "http://127.0.0.1:7997");
-        assert_eq!(config.embedding.model, "nomic-embed-text-v1.5");
+        assert_eq!(config.embedding.model, "embeddinggemma");
         assert_eq!(config.embedding.chunk_max_chars, 1500);
         Ok(())
     }

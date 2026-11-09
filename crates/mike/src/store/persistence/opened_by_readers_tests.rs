@@ -133,7 +133,7 @@ async fn recall_reads_skip_machine_rows() -> anyhow::Result<()> {
     let vector = format!("[{}]", vec!["0.1"; 768].join(","));
     let semantic = fx
         .handle
-        .recall_turns_by_embedding(PROJECT, &vector, 10)
+        .recall_turns_by_embedding(PROJECT, "test-model", &vector, 10)
         .await?;
     let semantic_ids: Vec<i64> = semantic.iter().flatten().map(|row| row.turn_id).collect();
     assert_eq!(semantic_ids, vec![fx.operator]);

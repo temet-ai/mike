@@ -1,3 +1,4 @@
+use super::recall_embedding::{by_embedding_query, set_vector_scan_limits};
 use super::{PersistError, PersistHandle};
 use sqlx::{Postgres, QueryBuilder};
 
@@ -28,7 +29,7 @@ pub(crate) struct RankedTurnRow {
     pub(crate) rank: f32,
 }
 
-const TURN_COLUMNS: &str =
+pub(super) const TURN_COLUMNS: &str =
     "t.turn_id, t.session_id, t.project_id, t.start_request_id, t.end_request_id,
                         t.user_prompt, t.final_assistant_text,
                         t.tool_call_count, t.tool_error_count,
@@ -67,59 +68,6 @@ fn by_file_query(project_path: &str, file: &str, limit: i64) -> QueryBuilder<Pos
       LIMIT ",
         )
         .push_bind(limit);
-    query
-}
-
-fn by_embedding_query(
-    project_path: &str,
-    query_vec_literal: &str,
-    limit: i64,
-) -> QueryBuilder<Postgres> {
-    let mut query = QueryBuilder::new(
-        "WITH chunk_distances AS (
-            SELECT
-                c.turn_id,
-                MIN(c.chunk_embedding <=> ",
-    );
-    query
-        .push_bind(query_vec_literal)
-        .push(
-            "::vector) AS min_distance
-            FROM memory.operator_turn_chunks c
-            JOIN memory.operator_turns ot ON c.turn_id = ot.id
-            JOIN projects.projects p ON p.id = ot.project_id
-            WHERE p.project_path = ",
-        )
-        .push_bind(project_path)
-        .push(
-            "
-              AND (ot.opened_by IS NULL OR ot.opened_by = 'operator')
-            GROUP BY c.turn_id
-         ),
-         ranked AS (
-            SELECT turn_id, min_distance
-              FROM chunk_distances
-             ORDER BY min_distance ASC
-             LIMIT ",
-        )
-        .push_bind(limit)
-        .push(
-            "
-         )
-         SELECT ",
-        )
-        .push(TURN_COLUMNS)
-        .push(
-            ",
-                (1.0 - ranked.min_distance)::real AS rank
-           FROM ranked
-           JOIN (",
-        )
-        .push(crate::store::operator_turns::TURN_SELECT_BASE)
-        .push(
-            ") t ON t.turn_id = ranked.turn_id
-          ORDER BY ranked.min_distance ASC, t.created_at DESC",
-        );
     query
 }
 
@@ -227,6 +175,7 @@ impl PersistHandle {
     pub(crate) async fn recall_turns_by_embedding(
         &self,
         project_path: &str,
+        embedding_model: &str,
         query_vec_literal: &str,
         limit: i64,
     ) -> Result<Option<Vec<RankedTurnRow>>, PersistError> {
@@ -242,7 +191,8 @@ impl PersistHandle {
             sqlx::query!("SET LOCAL statement_timeout = '12s'")
                 .execute(&mut *tx)
                 .await?;
-            let rows = by_embedding_query(&project_path, query_vec_literal, limit)
+            set_vector_scan_limits(&mut tx).await?;
+            let rows = by_embedding_query(&project_path, embedding_model, query_vec_literal, limit)
                 .build_query_as::<RankedTurnRow>()
                 .fetch_all(&mut *tx)
                 .await?;

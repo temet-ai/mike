@@ -20,11 +20,15 @@ pub(crate) use vectors::refresh_session_embedding;
 #[cfg(test)]
 mod knowledge_counts_tests;
 #[cfg(test)]
+mod knowledge_floor_tests;
+#[cfg(test)]
 mod knowledge_key_tests;
 #[cfg(test)]
 mod knowledge_report_tests;
 #[cfg(test)]
 mod knowledge_tests;
+#[cfg(test)]
+mod model_change_tests;
 
 const IDLE_TURN_THRESHOLD: Duration = Duration::from_secs(30 * 60);
 
@@ -99,6 +103,7 @@ async fn run(persist: PersistHandle, embedding: EmbeddingService, shutdown: Canc
     let mut turns = tokio::time::interval(TURN_INTERVAL);
     turns.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut breaker = new_breaker();
+    let mut requeued_for: Option<String> = None;
 
     loop {
         tokio::select! {
@@ -114,8 +119,37 @@ async fn run(persist: PersistHandle, embedding: EmbeddingService, shutdown: Canc
             }
 
             _ = turns.tick() => {
+                requeue_on_model_change(&persist, &embedding, &mut requeued_for).await;
                 drain_catchup(&persist, &embedding, &mut breaker, &shutdown).await;
             }
+        }
+    }
+}
+
+pub(crate) async fn requeue_on_model_change(
+    persist: &PersistHandle,
+    embedding: &EmbeddingService,
+    requeued_for: &mut Option<String>,
+) {
+    if !embedding.is_available() {
+        return;
+    }
+    let model = embedding.model_name();
+    if requeued_for.as_deref() == Some(model.as_str()) {
+        return;
+    }
+    match persist
+        .requeue_turns_embedded_with_other_model(&model)
+        .await
+    {
+        Ok(turns) => {
+            if turns > 0 {
+                tracing::info!(turns, model = %model, "embed_backfill: turns embedded with another model queued for re-embedding");
+            }
+            *requeued_for = Some(model);
+        }
+        Err(error) => {
+            tracing::warn!(%error, "embed_backfill: re-embedding queue after a model change failed; will retry next tick");
         }
     }
 }
