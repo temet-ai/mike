@@ -9,13 +9,13 @@ use uuid::Uuid;
 
 use crate::api::client_serves::by_deadline;
 use crate::config::AppState;
+use crate::launch::seat_fact::{SeatRole, seat_role};
 use crate::memory_keeper::deliver::{CardAsk, card_for, serves_cards};
 use crate::memory_keeper::supply::Carrier;
 use crate::reminders::client_context::{
     ContextBlock, findings_ready_within_budget, prompt_context,
 };
 use crate::reminders::git_read_hint;
-use crate::reminders::seat_role::{SeatRole, seat_role};
 
 const CARD_BUDGET: Duration = Duration::from_millis(200);
 

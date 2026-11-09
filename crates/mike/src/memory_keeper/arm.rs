@@ -9,6 +9,15 @@ pub(crate) enum KeeperArm {
     Control,
 }
 
+impl KeeperArm {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Keeper => "keeper",
+            Self::Control => "control",
+        }
+    }
+}
+
 pub(crate) fn arm_for(session: &str) -> KeeperArm {
     if bucket(KEEPER_ARM_SALT, session) < KEEPER_CONTROL_PERCENT {
         KeeperArm::Control
