@@ -20,7 +20,9 @@
 # The commit defaults to origin/main. It builds in the detached worktree
 # .claude/worktrees/release-<target>, which keeps its build directory between
 # runs. On Linux the build runs under `flock $MIKE_BUILD_LOCK nice -n 10`
-# (default /tmp/mike-omit-build.lock), so one heavy job runs at a time.
+# (default /tmp/mike-omit-build.lock), so one heavy job runs at a time. It
+# takes the lock itself, so it need not be wrapped in flock; when a parent
+# process already holds the lock (or MIKE_BUILD_LOCK_HELD=1), it builds under that.
 set -euo pipefail
 
 GLIBC_FLOOR=2.35
@@ -40,7 +42,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --sha) want="${2:?--sha needs a commit}"; shift 2 ;;
     --out) out="${2:?--out needs a directory}"; shift 2 ;;
-    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,25p' "$0"; exit 0 ;;
     -*) die "unknown option $1" ;;
     *) [ -z "$target" ] || die "one target at a time"; target="$1"; shift ;;
   esac
@@ -67,13 +69,31 @@ if [ -f "$dest/manifest-$target.json" ]; then
   exit 0
 fi
 
+lock="${MIKE_BUILD_LOCK:-/tmp/mike-omit-build.lock}"
+
+# True when a parent process is `flock <lock> ...`: that flock already holds the
+# lock, and a second flock on the same file would wait on it forever.
+lock_held_by_parent() {
+  [ "${MIKE_BUILD_LOCK_HELD:-}" = 1 ] && return 0
+  local pid=$PPID args
+  while [ "$pid" -gt 1 ] && [ -r "/proc/$pid/cmdline" ]; do
+    args="$(tr '\0' ' ' <"/proc/$pid/cmdline")"
+    case "$args" in flock\ *"$lock"*|*/flock\ *"$lock"*) return 0 ;; esac
+    pid="$(awk '/^PPid:/ {print $2}' "/proc/$pid/status")"
+  done
+  return 1
+}
+
 heavy() {
-  if [ "$(uname -s)" = Linux ]; then
-    flock "${MIKE_BUILD_LOCK:-/tmp/mike-omit-build.lock}" nice -n 10 "$@"
+  if [ "$(uname -s)" = Linux ] && ! lock_held_by_parent; then
+    flock "$lock" nice -n 10 "$@"
   else
     nice -n 10 "$@"
   fi
 }
+if [ "$(uname -s)" = Linux ] && lock_held_by_parent; then
+  echo "==> A parent process holds $lock; building under it"
+fi
 
 worktree="$root/.claude/worktrees/release-$target"
 if git -C "$worktree" rev-parse --git-dir >/dev/null 2>&1; then
