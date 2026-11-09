@@ -7,6 +7,11 @@
 #   scripts/deploy-release-build            # origin/main
 #   scripts/deploy-release-build <sha>      # a commit with a finished build
 #   scripts/deploy-release-build --no-restart
+#   scripts/deploy-release-build --local <dir>  # a build from scripts/build-local-release
+#
+# --local skips GitHub: <dir> holds manifest-<target>.json and the archives of
+# this machine's target, as build-local-release writes them; the commit is the
+# manifest's source_commit.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,13 +32,20 @@ if [ -z "${DEPLOY_RELEASE_BUILD_REPO:-}" ]; then
 fi
 restart=1
 want=""
-for arg in "$@"; do
-  case "$arg" in
+local_dir=""
+while [ $# -gt 0 ]; do
+  case "$1" in
     --no-restart) restart=0 ;;
-    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
-    *) want="$arg" ;;
+    --local) local_dir="${2:?--local needs the directory build-local-release wrote}"; shift ;;
+    -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
+    *) want="$1" ;;
   esac
+  shift
 done
+if [ -n "$local_dir" ] && [ -n "$want" ]; then
+  echo "deploy-release-build: --local takes its commit from the manifest; drop $want" >&2
+  exit 1
+fi
 
 case "$(uname -s)/$(uname -m)" in
   Linux/x86_64) target=x86_64-unknown-linux-gnu ;;
@@ -42,7 +54,27 @@ case "$(uname -s)/$(uname -m)" in
   *) echo "deploy-release-build: no release archive is built for $(uname -s)/$(uname -m)" >&2; exit 1 ;;
 esac
 
+work="$(mktemp -d)"
+trap 'rm -rf -- "$work"' EXIT
+mkdir "$work/candidate"
+
 git -C "$REPO" fetch -q origin main
+if [ -n "$local_dir" ]; then
+  manifest="$local_dir/manifest-$target.json"
+  [ -f "$manifest" ] || {
+    echo "deploy-release-build: $local_dir has no manifest-$target.json; build $target with scripts/build-local-release" >&2
+    exit 1
+  }
+  sha="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["source_commit"])' "$manifest")"
+  git -C "$REPO" cat-file -e "$sha^{commit}" 2>/dev/null || {
+    echo "deploy-release-build: commit $sha of $manifest is not in $REPO; fetch it first" >&2
+    exit 1
+  }
+  short="$(git -C "$REPO" rev-parse --short=7 "$sha")"
+  echo "==> Using the local build of $short ($target) in $local_dir"
+  cp "$manifest" "$work/candidate/manifest.json"
+  cp "$local_dir/"*.tar.gz "$local_dir/"*.tar.gz.sha256 "$work/candidate/"
+else
 main_sha="$(git -C "$REPO" rev-parse origin/main)"
 sha="$(git -C "$REPO" rev-parse "${want:-$main_sha}^{commit}")"
 short="$(git -C "$REPO" rev-parse --short=7 "$sha")"
@@ -91,12 +123,10 @@ if [ -z "$run_id" ]; then
 fi
 echo "==> Using run $run_id for $short ($target)"
 
-work="$(mktemp -d)"
-trap 'rm -rf -- "$work"' EXIT
 gh run download "$run_id" --name "mike-$target" --dir "$work/download"
-mkdir "$work/candidate"
 mv "$work/download/manifest-$target.json" "$work/candidate/manifest.json"
 mv "$work/download/"*.tar.gz "$work/download/"*.tar.gz.sha256 "$work/candidate/"
+fi
 
 # The installer must verify the archive with the evidence format of the commit
 # that built it, not whatever branch this checkout happens to be on.
