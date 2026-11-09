@@ -133,7 +133,8 @@ fi
 mkdir -p "$out/$sha"
 echo "==> Building $target at ${sha:0:9}; log: $log"
 {
-  heavy cargo fetch --locked
+  # Downloads only; the lock guards the compile.
+  cargo fetch --locked
   (cd frontend && rm -rf node_modules && pnpm fetch --frozen-lockfile)
   heavy env CI=true scripts/release.sh --target "$target" ${glibc:+--glibc "$glibc"}
 } >"$log" 2>&1 || die "the build failed; see $log"
