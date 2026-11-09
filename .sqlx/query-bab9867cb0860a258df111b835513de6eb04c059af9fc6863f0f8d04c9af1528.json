@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH open_threads AS (\n                       SELECT t.id, t.project_id, 'thread:' || t.slug AS tag\n                         FROM work.threads t\n                         JOIN work.thread_cards c ON c.thread_id = t.id\n                        WHERE t.status IS NULL OR t.status NOT IN ('done', 'complete')\n                   ),\n                   session_times AS (\n                       SELECT o.id AS thread_id, GREATEST(max(p.max_at), max(v.max_at)) AS max_at\n                         FROM open_threads o\n                         JOIN work.thread_sessions ts ON ts.thread_id = o.id\n                         JOIN sessions.sessions se ON se.session_uuid = ts.session_uuid\n                         LEFT JOIN LATERAL (\n                              SELECT max(GREATEST(d.recorded_at, d.close_recorded_at)) AS max_at\n                                FROM memory.dossier_entries d\n                               WHERE d.session_id = se.id AND d.kind = 'promise'\n                         ) p ON true\n                         LEFT JOIN LATERAL (\n                              SELECT v.created_at AS max_at\n                                FROM memory.turn_verdicts v\n                               WHERE v.session_id = se.id AND v.mode = 'live'\n                               ORDER BY v.created_at DESC\n                               LIMIT 1\n                         ) v ON true\n                        GROUP BY o.id\n                   ),\n                   note_times AS (\n                       SELECT o.id AS thread_id, max(n.updated_at) AS max_at\n                         FROM open_threads o\n                         JOIN workspace.session_notes n\n                           ON n.tags @> ARRAY[o.tag] AND n.kind IN ('decision', 'finding')\n                         JOIN sessions.sessions se ON se.id = n.session_id AND se.project_id = o.project_id\n                        GROUP BY o.id\n                   ),\n                   busy AS (\n                       SELECT st.thread_id, st.max_at FROM session_times st\n                       UNION ALL\n                       SELECT nt.thread_id, nt.max_at FROM note_times nt\n                   )\n                   SELECT b.thread_id AS \"thread_id!\", max(b.max_at) AS \"observed_at!\"\n                     FROM busy b\n                     JOIN work.thread_cards c ON c.thread_id = b.thread_id\n                    GROUP BY b.thread_id, c.source_max_at\n                   HAVING max(b.max_at) > c.source_max_at\n                    ORDER BY b.thread_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "thread_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "observed_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "bab9867cb0860a258df111b835513de6eb04c059af9fc6863f0f8d04c9af1528"
+}

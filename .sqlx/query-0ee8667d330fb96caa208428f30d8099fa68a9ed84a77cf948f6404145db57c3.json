@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE work.thread_cards c\n                  SET source_max_at = u.source_max_at\n                 FROM UNNEST($1::bigint[], $2::timestamptz[]) AS u(thread_id, source_max_at)\n                WHERE c.thread_id = u.thread_id AND c.source_max_at < u.source_max_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "TimestamptzArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0ee8667d330fb96caa208428f30d8099fa68a9ed84a77cf948f6404145db57c3"
+}

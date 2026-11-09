@@ -21,6 +21,54 @@ pub(super) async fn identity_by_id(
     .await
 }
 
+pub(super) async fn identities_by_ids(
+    pool: &PgPool,
+    thread_ids: &[i64],
+) -> Result<Vec<ThreadIdentity>, sqlx::Error> {
+    sqlx::query_as!(
+        ThreadIdentity,
+        "SELECT id, slug, title, goal, status, branch, worktree, last_session_uuid, source_path, parse_error, created_at, updated_at
+           FROM work.threads WHERE id = ANY($1) ORDER BY id",
+        thread_ids,
+    )
+    .fetch_all(pool)
+    .await
+}
+
+pub(super) struct ThreadStateRow {
+    pub(super) thread_id: i64,
+    pub(super) state: ThreadState,
+}
+
+pub(super) async fn states_by_ids(
+    pool: &PgPool,
+    thread_ids: &[i64],
+) -> Result<Vec<ThreadStateRow>, sqlx::Error> {
+    let rows = sqlx::query!(
+        "SELECT thread_id, tldr, where_we_are, next_up, blockers, open_questions, decisions, files, updated_at
+           FROM work.thread_state WHERE thread_id = ANY($1) ORDER BY thread_id",
+        thread_ids,
+    )
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(|row| ThreadStateRow {
+            thread_id: row.thread_id,
+            state: ThreadState {
+                tldr: row.tldr,
+                where_we_are: row.where_we_are,
+                next_up: row.next_up,
+                blockers: row.blockers,
+                open_questions: row.open_questions,
+                decisions: row.decisions,
+                files: row.files,
+                updated_at: row.updated_at,
+            },
+        })
+        .collect())
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct HistoryPage {
     pub limit: i64,

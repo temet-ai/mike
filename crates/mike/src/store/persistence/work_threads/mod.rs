@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 use super::PersistError;
 
+pub(crate) mod cards;
 mod checkpoint;
 mod criteria;
 mod entry;

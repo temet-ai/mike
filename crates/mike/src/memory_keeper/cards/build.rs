@@ -1,183 +1,285 @@
-use super::{Item, Section, SectionKind, clip, squash};
+use super::fit::{Item, squash};
 use crate::store::persistence::work_threads::cards::{
     CardAsk, CardEntry, CardInputs, CardNote, CardPromise,
 };
 
-const WHERE_CHARS: usize = 300;
-const NEXT_CHARS: usize = 240;
-const BLOCKER_CHARS: usize = 200;
-const QUESTION_CHARS: usize = 160;
-const HANDOFF_CHARS: usize = 240;
-const DECISION_CHARS: usize = 140;
-const PROMISE_CHARS: usize = 140;
-const ASK_CHARS: usize = 140;
-const FIELD_LINES: usize = 3;
-const DECISION_ENTRIES: usize = 5;
-const DECISION_NOTES: usize = 3;
-const PROMISES: usize = 3;
-const ASKS: usize = 3;
+const SLUG_CHARS: usize = 120;
 const SESSION_PREFIX_CHARS: usize = 8;
 
-pub(super) fn sections(inputs: &CardInputs) -> Vec<Section> {
-    let thread_ref = format!("thread:{}", inputs.thread.slug);
-    let (where_we_are, next_up, blockers, questions) = match inputs.state.as_ref() {
-        Some(state) => (
-            if state.where_we_are.trim().is_empty() {
-                state.tldr.as_str()
-            } else {
-                state.where_we_are.as_str()
-            },
-            state.next_up.as_str(),
-            state.blockers.as_str(),
-            state.open_questions.as_str(),
-        ),
-        None => ("", "", "", ""),
-    };
-    [
-        (
-            SectionKind::WhereWeAre,
-            whole_item(where_we_are, WHERE_CHARS, &thread_ref),
-        ),
-        (
-            SectionKind::NextUp,
-            whole_item(next_up, NEXT_CHARS, &thread_ref),
-        ),
-        (
-            SectionKind::Blockers,
-            field_items(blockers, FIELD_LINES, BLOCKER_CHARS, &thread_ref),
-        ),
-        (
-            SectionKind::OpenQuestions,
-            field_items(questions, FIELD_LINES, QUESTION_CHARS, &thread_ref),
-        ),
-        (SectionKind::LastHandoff, handoff_items(inputs)),
-        (SectionKind::DecisionsSince, decision_items(inputs)),
-        (SectionKind::OpenPromises, promise_items(&inputs.promises)),
-        (SectionKind::UnmetAsks, ask_items(&inputs.unmet_asks)),
-    ]
-    .into_iter()
-    .filter(|(_, items)| !items.is_empty())
-    .map(|(kind, items)| Section { kind, items })
-    .collect()
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SectionKind {
+    Header,
+    Goal,
+    WhereWeAre,
+    NextUp,
+    Blockers,
+    OpenQuestions,
+    DecisionsInForce,
+    LastHandoff,
+    DecisionsSince,
+    OpenPromises,
+    UnmetAsks,
+    Footer,
 }
 
-fn whole_item(text: &str, max_chars: usize, token: &str) -> Vec<Item> {
-    let body = clip(text, max_chars);
+const ORDER: [SectionKind; 12] = [
+    SectionKind::Header,
+    SectionKind::Goal,
+    SectionKind::WhereWeAre,
+    SectionKind::NextUp,
+    SectionKind::Blockers,
+    SectionKind::OpenQuestions,
+    SectionKind::DecisionsInForce,
+    SectionKind::LastHandoff,
+    SectionKind::DecisionsSince,
+    SectionKind::OpenPromises,
+    SectionKind::UnmetAsks,
+    SectionKind::Footer,
+];
+
+impl SectionKind {
+    pub(crate) fn budget_through(self) -> usize {
+        ORDER
+            .iter()
+            .take_while(|kind| **kind != self)
+            .chain(std::iter::once(&self))
+            .map(|kind| kind.budget())
+            .sum()
+    }
+
+    pub(crate) fn key(self) -> &'static str {
+        match self {
+            Self::Header => "header",
+            Self::Goal => "goal",
+            Self::WhereWeAre => "where_we_are",
+            Self::NextUp => "next_up",
+            Self::Blockers => "blockers",
+            Self::OpenQuestions => "open_questions",
+            Self::DecisionsInForce => "decisions_in_force",
+            Self::LastHandoff => "last_handoff",
+            Self::DecisionsSince => "decisions_since",
+            Self::OpenPromises => "open_promises",
+            Self::UnmetAsks => "unmet_asks",
+            Self::Footer => "footer",
+        }
+    }
+
+    pub(crate) fn heading(self) -> Option<&'static str> {
+        match self {
+            Self::Header | Self::Footer => None,
+            Self::Goal => Some("Goal"),
+            Self::WhereWeAre => Some("Where we are"),
+            Self::NextUp => Some("Next up"),
+            Self::Blockers => Some("Blockers"),
+            Self::OpenQuestions => Some("Open questions"),
+            Self::DecisionsInForce => Some("Decisions in force"),
+            Self::LastHandoff => Some("Last handoff"),
+            Self::DecisionsSince => Some("Decisions since"),
+            Self::OpenPromises => Some("Open promises"),
+            Self::UnmetAsks => Some("Unmet asks"),
+        }
+    }
+
+    fn budget(self) -> usize {
+        match self {
+            Self::Header => 250,
+            Self::Goal | Self::DecisionsInForce | Self::DecisionsSince => 110,
+            Self::WhereWeAre => 190,
+            Self::NextUp | Self::Footer => 150,
+            Self::Blockers => 90,
+            Self::OpenQuestions | Self::OpenPromises | Self::UnmetAsks => 70,
+            Self::LastHandoff => 130,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct Section {
+    pub(crate) kind: SectionKind,
+    pub(crate) items: Vec<Item>,
+}
+
+pub(crate) fn card_slug(slug: &str) -> String {
+    slug.chars().take(SLUG_CHARS).collect()
+}
+
+fn single(text: &str, token: &str) -> Vec<Item> {
+    let body = squash(text);
     if body.is_empty() {
         return Vec::new();
     }
-    vec![Item {
-        body,
-        refs: vec![token.to_owned()],
-    }]
+    vec![Item::new(body, vec![token.to_owned()])]
 }
 
-fn field_items(text: &str, max_lines: usize, max_chars: usize, token: &str) -> Vec<Item> {
-    text.lines()
-        .map(|line| line.trim().trim_start_matches(['-', '*']).trim())
+fn joined_lines(text: &str, token: &str) -> Vec<Item> {
+    let lines: Vec<String> = text
+        .lines()
+        .map(|line| squash(line.trim().trim_start_matches(['-', '*'])))
         .filter(|line| !line.is_empty())
-        .take(max_lines)
-        .map(|line| Item {
-            body: clip(line, max_chars),
-            refs: vec![token.to_owned()],
-        })
-        .collect()
+        .collect();
+    single(&lines.join("; "), token)
 }
 
-fn handoff_items(inputs: &CardInputs) -> Vec<Item> {
-    inputs
-        .handoff
-        .iter()
-        .map(|entry| {
-            let date = entry.entry_date.format("%Y-%m-%d");
-            let summary = clip(&entry.summary, HANDOFF_CHARS);
-            let body = match entry.session_uuid {
-                Some(session) => {
-                    let prefix: String = session
-                        .simple()
-                        .to_string()
-                        .chars()
-                        .take(SESSION_PREFIX_CHARS)
-                        .collect();
-                    format!("{date} by session {prefix}: {summary}")
-                }
-                None => format!("{date}: {summary}"),
-            };
-            Item {
-                body,
-                refs: vec![format!("entry:{}", entry.id)],
-            }
-        })
-        .collect()
+fn header(inputs: &CardInputs, token: &str) -> Vec<Item> {
+    let thread = &inputs.thread;
+    let mut body = format!(
+        "Work thread ({})",
+        thread.status.as_deref().unwrap_or("unknown")
+    );
+    if let Some(branch) = thread
+        .branch
+        .as_deref()
+        .map(squash)
+        .filter(|b| !b.is_empty())
+    {
+        body.push_str(&format!(", branch `{branch}`"));
+    }
+    if let Some(title) = thread
+        .title
+        .as_deref()
+        .map(squash)
+        .filter(|t| !t.is_empty())
+    {
+        body.push_str(&format!(": {title}"));
+    }
+    vec![Item::new(body, vec![token.to_owned()])]
+}
+
+fn session_prefix(entry: &CardEntry) -> Option<String> {
+    entry.session_uuid.map(|session| {
+        session
+            .simple()
+            .to_string()
+            .chars()
+            .take(SESSION_PREFIX_CHARS)
+            .collect()
+    })
+}
+
+fn handoff(entry: &CardEntry) -> Item {
+    let date = entry.entry_date.format("%Y-%m-%d");
+    let summary = squash(&entry.summary);
+    let body = match session_prefix(entry) {
+        Some(prefix) => format!("{date} by session {prefix}: {summary}"),
+        None => format!("{date}: {summary}"),
+    };
+    Item::new(body, vec![format!("entry:{}", entry.id)])
 }
 
 fn decision_entry(entry: &CardEntry) -> Item {
-    Item {
-        body: format!(
+    Item::new(
+        format!(
             "{}: {}",
             entry.entry_date.format("%Y-%m-%d"),
-            clip(&entry.summary, DECISION_CHARS)
+            squash(&entry.summary)
         ),
-        refs: vec![format!("entry:{}", entry.id)],
-    }
+        vec![format!("entry:{}", entry.id)],
+    )
 }
 
 fn decision_note(note: &CardNote) -> Item {
-    Item {
-        body: format!(
+    Item::new(
+        format!(
             "{} {}: {}",
             note.kind,
             note.created_at.format("%Y-%m-%d"),
-            clip(&note.title, DECISION_CHARS)
+            squash(&note.title)
         ),
-        refs: vec![format!("note:{}", note.note_uuid)],
-    }
+        vec![format!("note:{}", note.note_uuid)],
+    )
 }
 
-fn decision_items(inputs: &CardInputs) -> Vec<Item> {
-    inputs
-        .decisions
-        .iter()
-        .take(DECISION_ENTRIES)
-        .map(decision_entry)
-        .chain(inputs.notes.iter().take(DECISION_NOTES).map(decision_note))
-        .collect()
-}
-
-fn tail(text: &str, max_chars: usize) -> String {
-    let squashed = squash(text);
-    let count = squashed.chars().count();
-    if count <= max_chars {
-        return squashed;
-    }
-    let kept: String = squashed.chars().skip(count - (max_chars - 1)).collect();
-    format!("…{}", kept.trim_start())
-}
-
-fn promise_item(promise: &CardPromise) -> Item {
-    let excerpt = tail(&promise.excerpt, PROMISE_CHARS);
+fn promise(promise: &CardPromise) -> Item {
+    let text = promise.text.as_deref().map(squash).unwrap_or_default();
     let mut refs = vec![format!("promise:{}", promise.id)];
     refs.extend(promise.operator_turn_id.map(|turn| format!("turn:{turn}")));
-    Item {
-        body: if excerpt.is_empty() {
-            "promise made at the end of a turn".to_owned()
-        } else {
-            excerpt
-        },
-        refs,
-    }
+    let date = promise.effective_at.format("%Y-%m-%d");
+    let body = if text.is_empty() {
+        format!("{date}: promise made at the end of a turn")
+    } else {
+        format!("{date}: {text}")
+    };
+    Item::new(body, refs)
 }
 
-fn promise_items(promises: &[CardPromise]) -> Vec<Item> {
-    promises.iter().take(PROMISES).map(promise_item).collect()
+fn ask(ask: &CardAsk) -> Item {
+    Item::new(
+        format!(
+            "{}: {}",
+            ask.created_at.format("%Y-%m-%d"),
+            squash(&ask.unmet_ask)
+        ),
+        vec![format!("turn:{}", ask.operator_turn_id)],
+    )
 }
 
-fn ask_items(asks: &[CardAsk]) -> Vec<Item> {
-    asks.iter()
-        .take(ASKS)
-        .map(|ask| Item {
-            body: clip(&ask.unmet_ask, ASK_CHARS),
-            refs: vec![format!("turn:{}", ask.operator_turn_id)],
-        })
+fn state_sections(inputs: &CardInputs, token: &str) -> Vec<(SectionKind, Vec<Item>)> {
+    let Some(state) = inputs.state.as_ref() else {
+        return Vec::new();
+    };
+    let where_we_are = if state.where_we_are.trim().is_empty() {
+        &state.tldr
+    } else {
+        &state.where_we_are
+    };
+    vec![
+        (SectionKind::WhereWeAre, single(where_we_are, token)),
+        (SectionKind::NextUp, single(&state.next_up, token)),
+        (SectionKind::Blockers, joined_lines(&state.blockers, token)),
+        (
+            SectionKind::OpenQuestions,
+            joined_lines(&state.open_questions, token),
+        ),
+        (
+            SectionKind::DecisionsInForce,
+            joined_lines(&state.decisions, token),
+        ),
+    ]
+}
+
+pub(crate) fn sections(inputs: &CardInputs) -> Vec<Section> {
+    let slug = card_slug(&inputs.thread.slug);
+    let token = format!("thread:{slug}");
+    let mut raw = vec![
+        (SectionKind::Header, header(inputs, &token)),
+        (
+            SectionKind::Goal,
+            single(inputs.thread.goal.as_deref().unwrap_or_default(), &token),
+        ),
+    ];
+    raw.extend(state_sections(inputs, &token));
+    raw.extend([
+        (
+            SectionKind::LastHandoff,
+            inputs.handoff.iter().map(handoff).collect(),
+        ),
+        (
+            SectionKind::DecisionsSince,
+            inputs
+                .decisions
+                .iter()
+                .map(decision_entry)
+                .chain(inputs.notes.iter().map(decision_note))
+                .collect(),
+        ),
+        (
+            SectionKind::OpenPromises,
+            inputs.promises.iter().map(promise).collect(),
+        ),
+        (
+            SectionKind::UnmetAsks,
+            inputs.unmet_asks.iter().map(ask).collect(),
+        ),
+        (
+            SectionKind::Footer,
+            vec![Item::new(
+                format!("Full state: work_thread_get {slug}"),
+                Vec::new(),
+            )],
+        ),
+    ]);
+    raw.into_iter()
+        .filter(|(_, items)| !items.is_empty())
+        .map(|(kind, items)| Section { kind, items })
         .collect()
 }
