@@ -113,6 +113,18 @@ export const FEATURE_COPY: Record<string, FeatureCopy> = {
 			"After a session reads git status, diff or log, tether points it at what other sessions changed; mike stops adding that hint to the session's requests. Off, mike adds it.",
 		find: 'tether client serves stage git read hint what changed'
 	},
+	client_serves_memory_keeper: {
+		label: 'tether gives the work thread card',
+		description:
+			'tether adds the card of the work thread a prompt continues, and mike stops adding it for that session. No effect until card delivery ships.',
+		find: 'tether client serves stage memory keeper thread card'
+	},
+	memory_keeper: {
+		label: 'Work thread cards',
+		description:
+			'Keeps a short card for each open work thread: where it stands, what is next, blockers, the last handoff, decisions since, open promises and unmet asks. Built from the database on one machine; nothing leaves the machine. Turning it off stops the builder; turning it back on needs a restart.',
+		find: 'memory keeper thread card continue work thread'
+	},
 	change_record_tail: {
 		label: 'Say what changed on answers',
 		description:

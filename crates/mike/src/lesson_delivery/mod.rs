@@ -5,7 +5,7 @@ mod select;
 use sha2::{Digest, Sha256};
 
 pub(crate) use held::held_lesson_ids;
-pub(crate) use origin::{KEEPER_TAG_OPEN, label_keeper_lessons, label_mod_lessons};
+pub(crate) use origin::label_mod_lessons;
 pub(crate) use select::catalog_for_prompt;
 pub(crate) use select::{DeliveredLesson, PromptLessons, select_for_prompt};
 

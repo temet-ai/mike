@@ -42,6 +42,7 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
     client_serves("client_serves_change_record_tail"),
     client_serves("client_serves_git_read_hint"),
     client_serves("client_serves_mail"),
+    client_serves("client_serves_memory_keeper"),
     client_serves("client_serves_prompt_shaping"),
     client_serves("client_serves_proxy_tools"),
     client_serves("client_serves_recall"),
@@ -108,6 +109,11 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
         key: "mailbox_redelivery",
         scope: ToggleScope::Session,
         applies: ToggleApplies::NewSessions,
+    },
+    ToggleMeta {
+        key: "memory_keeper",
+        scope: ToggleScope::Global,
+        applies: ToggleApplies::LiveDisable,
     },
     ToggleMeta {
         key: "mod_lesson_delivery",
