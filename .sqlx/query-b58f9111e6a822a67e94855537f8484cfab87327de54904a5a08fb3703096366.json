@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT root_path AS \"root_path!\", project_id AS \"project_id!\"\n                     FROM projects.locations\n                    WHERE root_path <> ''",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "root_path!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "root_path"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "projects.locations",
+            "name": "project_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "b58f9111e6a822a67e94855537f8484cfab87327de54904a5a08fb3703096366"
+}
