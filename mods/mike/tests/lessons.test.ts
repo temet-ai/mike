@@ -115,3 +115,33 @@ test('compaction rearms versioned lessons and procedure catalogs without model c
   expect(JSON.parse(posts[2].body)).toMatchObject({ held: [], held_versions: {}, refresh: true })
   expect(third.context?.[0]).toContain('database-migrations')
 })
+
+const KEEPER = '<system-reminder source="memory-keeper">\n[keeper:abc123def456]\nthread release-mike: open\n</system-reminder>'
+
+test('a lesson-control session still gets the memory-keeper card', async ($, on) => {
+  on('session.id', async () => ({ value: SESSION }))
+  on('session.root', async () => ({ value: '/repo' }))
+  on('env.get', async (_, e) => ({ value: e.name === 'ANTHROPIC_BASE_URL' ? 'http://localhost:9988' : undefined }))
+  on('http.fetch', async () => reply({ arm: 'control', lessons: [], memory_keeper: KEEPER, memory_keeper_hash: 'abc123def456' }))
+  on('prompt.submit', async (_, e) => ({ text: e.text, context: e.context }))
+  const out = await $.prompt.submit({ text: 'continue with the release' })
+  expect(out.context ?? []).toEqual([KEEPER])
+})
+
+test('the same memory-keeper card is added once until compaction', async ($, on) => {
+  on('session.id', async () => ({ value: SESSION }))
+  on('session.root', async () => ({ value: '/repo' }))
+  on('env.get', async (_, e) => ({ value: e.name === 'ANTHROPIC_BASE_URL' ? 'http://localhost:9988' : undefined }))
+  on('http.fetch', async () => reply({ ...LESSONS, memory_keeper: KEEPER, memory_keeper_hash: 'abc123def456' }))
+  on('prompt.submit', async (_, e) => ({ text: e.text, context: e.context }))
+  const summary = [{ role: 'user' as const, text: 'Compacted working context', toolUses: [], toolResults: [] }]
+  on('session.compact', async () => ({ messages: summary }))
+  const first = await $.prompt.submit({ text: 'one' })
+  expect(first.context?.[0]).toContain('[keeper:abc123def456]')
+  expect(first.context?.[0]).toContain('[lesson:12]')
+  const second = await $.prompt.submit({ text: 'two' })
+  expect(second.context?.[0] ?? '').not.toContain('[keeper:')
+  await $.session.compact({ messages: summary, trigger: 'manual' })
+  const third = await $.prompt.submit({ text: 'three' })
+  expect(third.context?.[0]).toContain('[keeper:abc123def456]')
+})

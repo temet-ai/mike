@@ -4,7 +4,7 @@ import type { EngineInterface, HttpInit, Register } from 'claude-code'
 import type { Roster, Seat } from '../types'
 import { entryOf, modsNoteBody, pluginDirsOf } from './loadedMods'
 import type { ModEntry, ModListing } from './loadedMods'
-import { isDelivery, lessonsBlock, wantsLessons } from './lessons'
+import { isDelivery, keeperBlock, lessonsBlock, wantsLessons } from './lessons'
 
 const INSPECT = 'http://127.0.0.1:9989'
 const PANE = 'mike-seats-pane'
@@ -35,6 +35,7 @@ const heldLessons = new Map<number, string>()
 let refreshLessons = false
 let lessonSession: string | undefined
 const heldCatalogs = new Set<string>()
+const heldKeeper = new Set<string>()
 let inboxText: string | undefined
 let changesText: string | undefined
 
@@ -69,6 +70,7 @@ async function lessonContext($: EngineInterface, text: string): Promise<string |
   if (session !== lessonSession) {
     heldLessons.clear()
     heldCatalogs.clear()
+    heldKeeper.clear()
     refreshLessons = true
     lessonSession = session
   }
@@ -84,7 +86,9 @@ async function lessonContext($: EngineInterface, text: string): Promise<string |
       refresh: refreshLessons,
     }),
   })
-  if (!isDelivery(body) || body.arm !== 'mod') return null
+  if (!isDelivery(body)) return null
+  const keeper = keeperBlock(body, heldKeeper)
+  if (body.arm !== 'mod') return keeper
   for (const lesson of body.lessons) heldLessons.set(lesson.id, lesson.revision ?? 'legacy')
   refreshLessons = false
   const blocks = [lessonsBlock(body.lessons)]
@@ -92,6 +96,7 @@ async function lessonContext($: EngineInterface, text: string): Promise<string |
     heldCatalogs.add(body.topic_catalog)
     blocks.push(body.topic_catalog)
   }
+  blocks.push(keeper)
   return blocks.filter(Boolean).join('\n') || null
 }
 
@@ -255,6 +260,7 @@ export const register: Register = on => {
     if (result.messages && !e.agentId && e.trigger !== 'precompute') {
       heldLessons.clear()
       heldCatalogs.clear()
+      heldKeeper.clear()
       refreshLessons = true
     }
     return result
@@ -263,6 +269,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     heldLessons.clear()
     heldCatalogs.clear()
+    heldKeeper.clear()
     refreshLessons = true
     await start($)
     return next(e)
