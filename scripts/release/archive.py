@@ -12,7 +12,8 @@ import sys
 import tarfile
 import tempfile
 
-from common import ReleaseError, native_target, regular_file, run, sha256
+from common import (ReleaseError, foreign_exec_env, native_target, regular_file, run,
+                    runnable_targets, sha256)
 from migration_inventory import validate_migration_inventory
 from notice_inputs import MAX_NOTICE_BYTES, verify_notice
 from mod_assets import MAX_ASSET_BYTES, create_file, is_asset
@@ -126,7 +127,8 @@ def extract_members(archive, expected, descriptor):
 
 
 def smoke(binary, version, cwd, home):
-    env = {"HOME": str(home), "TMPDIR": str(home), "PATH": "", "LC_ALL": "C", "LANG": "C"}
+    env = {"HOME": str(home), "TMPDIR": str(home), "PATH": "", "LC_ALL": "C", "LANG": "C",
+           **foreign_exec_env()}
     output = run([str(binary), "--version"], cwd=cwd, env=env, timeout=30)
     prefix = f"{binary.name} {version}"
     if output != prefix and not output.startswith(prefix + " ") and not output.startswith(prefix + "\n"):
@@ -157,7 +159,8 @@ def binary_identity(binary, version, source_commit, epoch, cwd, home):
     expected = {"schema_version": 1, "product": binary.name, "version": version,
                 "source_sha": source_commit, "source_dirty": False,
                 "built_at": source_timestamp(epoch)}
-    env = {"HOME": str(home), "TMPDIR": str(home), "PATH": "", "LC_ALL": "C", "LANG": "C"}
+    env = {"HOME": str(home), "TMPDIR": str(home), "PATH": "", "LC_ALL": "C", "LANG": "C",
+           **foreign_exec_env()}
     output = run([str(binary), "--build-info"], cwd=cwd, env=env, timeout=30)
     try:
         observed = json.loads(output)
@@ -171,7 +174,7 @@ def binary_identity(binary, version, source_commit, epoch, cwd, home):
 
 
 def maintenance_smoke(extracted, cwd, home):
-    env = {"HOME": str(home), "TMPDIR": str(home), "LC_ALL": "C", "LANG": "C",
+    env = {"HOME": str(home), "TMPDIR": str(home), "LC_ALL": "C", "LANG": "C", **foreign_exec_env(),
            "PATH": str(Path(sys.executable).parent) + ":/usr/bin:/bin"}
     output = run([str(extracted / "mike-maintenance"), "--help"], cwd=cwd, env=env, timeout=30)
     if "upgrade-check" not in output or "Python 3.11+" not in output:
@@ -245,9 +248,10 @@ def verify_candidate(candidate):
         raise ReleaseError("invalid candidate source commit")
     epoch = manifest.get("source_date_epoch")
     source_timestamp(epoch)
-    target = native_target(candidate, os.environ.copy())
-    if manifest["target"] != target:
-        raise ReleaseError(f"candidate requires native {manifest['target']}, current host is {target}")
+    native = native_target(candidate, os.environ.copy())
+    target = manifest["target"]
+    if target not in runnable_targets(native):
+        raise ReleaseError(f"candidate requires native {target}, current host is {native}")
     version = manifest["version"]
     if not re.fullmatch(r"[0-9A-Za-z.+-]+", version):
         raise ReleaseError("invalid candidate version")

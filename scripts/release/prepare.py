@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -12,8 +13,9 @@ import tarfile
 import tempfile
 
 from archive import prepare_archives, source_timestamp, verify_candidate
-from common import (ReleaseError, build_environment, clean_source, native_target, run,
-                    sha256, source_git, spa_inventory, toolchain, workspace_version, write_json)
+from common import (CROSS_TARGETS, ReleaseError, build_environment, clean_source, native_target, run,
+                    runnable_targets, sha256, source_git, spa_inventory, toolchain, workspace_version,
+                    write_json)
 from migration_inventory import source_migration_inventory
 from notice_inputs import prepare_notice, verify_notice
 from rust_paths import PATH_DESTINATIONS, cargo_path_config
@@ -27,15 +29,25 @@ def plain_directory(path):
     path.mkdir(exist_ok=True)
 
 
-def preflight(root, requested, target):
+def preflight(root, requested, target, glibc=None):
     version = workspace_version(root, requested)
     commit = clean_source(root)
     env = build_environment()
     native = native_target(root, env)
-    if target is not None and target != native:
-        raise ReleaseError(f"requested target {target} is not native {native}; cross-builds are unsupported")
+    target = target or native
+    if glibc is not None and (not target.endswith("linux-gnu") or not re.fullmatch(r"2\.[0-9]+", glibc)):
+        raise ReleaseError("--glibc takes a floor such as 2.35 and applies only to a Linux target")
+    if target != native:
+        if glibc is None or (native, target) not in CROSS_TARGETS:
+            raise ReleaseError(f"requested target {target} is not native {native}; the only cross-build "
+                               "is aarch64-unknown-linux-gnu on x86_64 Linux with --glibc")
+        if target not in runnable_targets(native):
+            raise ReleaseError("a cross-built candidate is smoke-tested under qemu: register qemu-aarch64 "
+                               "with binfmt and set QEMU_LD_PREFIX to an ARM64 sysroot")
     versions = toolchain(root, env, native)
-    inspector = "readelf" if native.endswith("linux-gnu") else "otool"
+    if glibc is not None:
+        versions["cargo_zigbuild"] = run(["cargo-zigbuild", "--version"], cwd=root, env=env)
+    inspector = "readelf" if target.endswith("linux-gnu") else "otool"
     if shutil.which(inspector, path=env.get("PATH")) is None:
         raise ReleaseError(f"install {inspector} before preparing; no tools are installed automatically")
     for filename in (".env", ".env.local", ".env.production", ".env.production.local"):
@@ -45,10 +57,10 @@ def preflight(root, requested, target):
         source_git(root, "check-ignore", "--no-index", "--quiet", path)
     epoch = int(source_git(root, "show", "-s", "--format=%ct", "HEAD"))
     source_timestamp(epoch)
-    return version, commit, native, versions, env, epoch
+    return version, commit, target, versions, env, epoch
 
 
-def build(root, target, build_dir, env):
+def build(root, target, build_dir, env, glibc=None):
     frontend = root / "frontend"
     output = frontend / "build"
     if output.is_symlink() or (output.exists() and not output.is_dir()):
@@ -59,14 +71,18 @@ def build(root, target, build_dir, env):
     run(["pnpm", "install", "--offline", "--frozen-lockfile"], cwd=frontend, env=env)
     run(["pnpm", "build"], cwd=frontend, env=dict(env, NODE_ENV="production"))
     assets = spa_inventory(root)
-    print(f"==> Building native {target} with locked dependencies and SQLX_OFFLINE=true", flush=True)
+    # cargo-zigbuild links against the named glibc and still writes target/<triple>/.
+    command, cargo_target = (["cargo", "build"], target) if glibc is None else (
+        ["cargo", "zigbuild"], f"{target}.{glibc}")
+    print(f"==> Building {cargo_target} with {' '.join(command)}, locked dependencies and "
+          "SQLX_OFFLINE=true", flush=True)
     for name in ("mike", "mike-mcp"):
         previous = build_dir / target / "dist" / name
         if previous.is_symlink():
             raise ReleaseError(f"refusing symlink build output: {previous}")
         if previous.exists():
             previous.unlink()
-    run(["cargo", "build", "--offline", "--locked", "--profile", "dist", "--target", target,
+    run([*command, "--offline", "--locked", "--profile", "dist", "--target", cargo_target,
          "-p", "mike", "-p", "mike-mcp", "--config", cargo_path_config(root, env)], cwd=root,
         env=dict(env, CARGO_TARGET_DIR=str(build_dir)))
     return assets
@@ -92,8 +108,8 @@ def finalize_candidate(staging, output, manifest):
     return destination
 
 
-def prepare(root, requested, target, reviewed_notices=None):
-    version, commit, target, versions, env, epoch = preflight(root, requested, target)
+def prepare(root, requested, target, reviewed_notices=None, glibc=None):
+    version, commit, target, versions, env, epoch = preflight(root, requested, target, glibc)
     migrations = source_migration_inventory(root, commit)
     output = root / "dist-out"
     plain_directory(output)
@@ -112,7 +128,7 @@ def prepare(root, requested, target, reviewed_notices=None):
             plain_directory(path)
         staging = Path(tempfile.mkdtemp(prefix=".prepare-", dir=output))
         env["SOURCE_DATE_EPOCH"] = str(epoch)
-        assets = build(root, target, build_dir, env)
+        assets = build(root, target, build_dir, env, glibc)
         notice = prepare_notice(root, reviewed_notices, commit, version, target, assets)
         artifacts = prepare_archives(root, staging, build_dir, version, target, epoch, env, commit, notice)
         clean_source(root, commit)
@@ -125,7 +141,8 @@ def prepare(root, requested, target, reviewed_notices=None):
             "build": {"profile": "dist", "cargo_locked": True, "offline": True, "sqlx_offline": True,
                       "rust_path_remapping": PATH_DESTINATIONS,
                       "cargo_lock_sha256": sha256(root / "Cargo.lock"),
-                      "pnpm_lock_sha256": sha256(root / "frontend/pnpm-lock.yaml")},
+                      "pnpm_lock_sha256": sha256(root / "frontend/pnpm-lock.yaml"),
+                      **({} if glibc is None else {"linker": "cargo-zigbuild", "glibc_floor": glibc})},
             "spa_source_assets": assets, "artifacts": artifacts, "migration_inventory": migrations,
             "checks": {"archive_integrity": "passed", "archived_cli_smoke": "passed",
                        "source_unchanged": "passed", "executable_source_identity": "passed",
@@ -153,19 +170,21 @@ def main():
     parser.add_argument("--verify", type=Path, metavar="CANDIDATE_DIRECTORY")
     parser.add_argument("--reviewed-notices", type=Path,
                         help="optional offline source/target-bound notice review manifest with adjacent license texts; never grants publication permission")
+    parser.add_argument("--glibc", metavar="FLOOR",
+                        help="Linux only: link against this glibc with cargo-zigbuild, e.g. 2.35")
     parser.add_argument("--publish", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.publish:
         raise ReleaseError("publication is unavailable: qualify the prepared archive and implement "
                            "permission-preflighted, same-byte publication before enabling it")
     if args.verify:
-        if args.version or args.target or args.reviewed_notices:
+        if args.version or args.target or args.reviewed_notices or args.glibc:
             raise ReleaseError("--verify takes only a candidate directory, not a version, target or review input")
         manifest = verify_candidate(args.verify.resolve())
         print(f"Verified archived bytes and local CLI smoke: v{manifest['version']} ({manifest['target']})")
         print("Candidate remains unqualified; this does not replace clean-account/runtime checks.")
     else:
-        prepare(ROOT, args.version, args.target, args.reviewed_notices)
+        prepare(ROOT, args.version, args.target, args.reviewed_notices, args.glibc)
 
 
 if __name__ == "__main__":

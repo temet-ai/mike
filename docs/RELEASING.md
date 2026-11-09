@@ -2,7 +2,7 @@
 title: Preparing mike + mike-mcp release candidates
 status: active
 created: 2026-07-23
-updated: 2026-11-08
+updated: 2026-11-09
 summary: Where the 0.1.0-alpha.N release stands (0.1.0-alpha.5 is published), the release route (tag-triggered public repo workflow, Homebrew tap and mise, glibc 2.35 floor), archive preparation and verification; qualification and same-byte publication remain separate gates.
 ---
 
@@ -69,9 +69,11 @@ mike ships by the route radar (gg) ships by:
   because current Homebrew refuses a short name from an untrusted tap) and mise
   (`github:temet-ai/mike`). There is no curl installer.
 - **Linux floor.** Linux archives run on glibc 2.35 (Ubuntu 22.04) and newer.
-  A binary built on this development host needs glibc 2.39 and is never a
-  Linux candidate. The floor is enforced by where the archive is built (the
-  `ubuntu-22.04` runner) and by `python3 scripts/release/glibc_floor.py
+  A binary built on this development host with plain `cargo build` needs its
+  newer glibc and is never a Linux candidate. The floor is enforced by where the
+  archive is built (the `ubuntu-22.04` runner), or for a local build by linking
+  against glibc 2.35 with `scripts/release.sh --glibc 2.35` (cargo-zigbuild), and
+  by `python3 scripts/release/glibc_floor.py
   <candidate>/manifest.json`, which reads the `readelf --version-info` report
   in the manifest and exits 1 when either binary references a `GLIBC_` version
   above 2.35 or the report shows no versions. Run it on every Linux candidate
@@ -253,7 +255,39 @@ while it runs.
 
 # Optional target must match this machine and its Rust host.
 ./scripts/release.sh --target x86_64-unknown-linux-gnu
+
+# Linux only: link against glibc 2.35 with cargo-zigbuild instead of the host's glibc.
+./scripts/release.sh --target x86_64-unknown-linux-gnu --glibc 2.35
+
+# The one cross-build: Linux ARM64 on an x86_64 Linux host. The smoke tests run the
+# ARM64 binaries through qemu-aarch64 (binfmt) with QEMU_LD_PREFIX naming an ARM64 sysroot.
+./scripts/release.sh --target aarch64-unknown-linux-gnu --glibc 2.35
 ```
+
+### Building release archives without GitHub
+
+`scripts/build-local-release <target> [--sha <commit>] [--out <dir>]` does what one
+build job of `release-alpha.yml` does, on this machine. It checks the commit
+(default `origin/main`) out into the detached worktree
+`.claude/worktrees/release-<target>`, fetches the locked Cargo and pnpm
+dependencies, runs `scripts/release.sh`, checks the glibc floor and `--verify`, and
+writes `target/local-releases/<sha>/<target>/` with `manifest-<target>.json`, both
+archives and their `.sha256` files, the same files the workflow uploads.
+`scripts/deploy-release-build --local <that directory>` installs it.
+
+| Target | Built on | How |
+|---|---|---|
+| `aarch64-apple-darwin` | an Apple Silicon Mac | natively |
+| `x86_64-unknown-linux-gnu` | omit (x86_64 Linux) | cargo-zigbuild at glibc 2.35 |
+| `aarch64-unknown-linux-gnu` | omit | cross-built with cargo-zigbuild at glibc 2.35; smoke-tested under qemu |
+
+An ARM64 Linux machine (infra, a Raspberry Pi) never builds mike; the script
+refuses there. On Linux the build runs under `flock /tmp/mike-omit-build.lock nice -n 10`
+so it waits for other heavy jobs. The ARM64 smoke tests need qemu-aarch64 registered
+with binfmt; the script unpacks Ubuntu 22.04's ARM64 `libc6` and `libgcc-s1`
+packages, pinned by sha256, into `~/.cache/mike-release/` as qemu's sysroot. Node
+comes from mise or nvm at the `.nvmrc` version, and cargo-zigbuild needs zig on
+`PATH` or the uv `ziglang` tool's `python-zig`.
 
 Preparation performs these steps:
 
@@ -364,6 +398,8 @@ The development `scripts/install-release` entrypoint uses the same implementatio
 `scripts/deploy-release-build [sha]` deploys a machine from the same bytes: it reuses or
 starts the build-only `release-alpha.yml` run for the commit (default `origin/main`),
 installs this machine's archive with `scripts/install-release` and restarts `mike.service`.
+With `--local <dir>` it skips GitHub and installs a directory written by
+`scripts/build-local-release`.
 It validates the copied manifest, both archive/checksum pairs, native platform
 and binary versions before changing the prefix. Bash and Python 3.11+ are optional
 installation/maintenance prerequisites, not native runtime dependencies.

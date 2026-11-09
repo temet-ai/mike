@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+# Build the release archives of one target from a commit, on this machine,
+# without GitHub. The result has the shape of the release-alpha workflow's
+# artifact for that target, so deploy-release-build --local and
+# install-release take it unchanged:
+#
+#   <out>/<sha>/<target>/manifest-<target>.json
+#   <out>/<sha>/<target>/mike-v<version>-<target>.tar.gz (+ .sha256)
+#   <out>/<sha>/<target>/mike-mcp-v<version>-<target>.tar.gz (+ .sha256)
+#
+#   scripts/build-local-release <target> [--sha <commit>] [--out <dir>]
+#
+# Where each target builds:
+#   aarch64-apple-darwin       natively on an Apple Silicon Mac
+#   x86_64-unknown-linux-gnu   on x86_64 Linux, with cargo-zigbuild at glibc 2.35
+#   aarch64-unknown-linux-gnu  on x86_64 Linux, cross-built with cargo-zigbuild at
+#                              glibc 2.35 and smoke-tested under qemu-aarch64
+# An ARM64 Linux machine never builds mike; it installs what omit built.
+#
+# The commit defaults to origin/main. It builds in the detached worktree
+# .claude/worktrees/release-<target>, which keeps its build directory between
+# runs. On Linux the build runs under `flock $MIKE_BUILD_LOCK nice -n 10`
+# (default /tmp/mike-omit-build.lock), so one heavy job runs at a time.
+set -euo pipefail
+
+GLIBC_FLOOR=2.35
+# Ubuntu 22.04's ARM64 C runtime, the same glibc as the release floor, unpacked
+# into a user-space sysroot for qemu. Ubuntu drops superseded packages from the
+# pool; when a download fails, pin the current versions and their sha256 here.
+UBUNTU_PORTS=http://ports.ubuntu.com/ubuntu-ports
+SYSROOT_DEBS=(
+  "pool/main/g/glibc/libc6_2.35-0ubuntu3.15_arm64.deb dd88cc85dcfbac19c0c9b606676b7b1b87f851d75afa5c830fc5ba1293a30833"
+  "pool/main/g/gcc-12/libgcc-s1_12.3.0-1ubuntu1~22.04.3_arm64.deb 46626e1af6b159061e055f843654ee1f0f1e65fa280331ed47ee76ba1b1f6045"
+)
+
+die() { echo "build-local-release: $*" >&2; exit 1; }
+
+target="" want="" out=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --sha) want="${2:?--sha needs a commit}"; shift 2 ;;
+    --out) out="${2:?--out needs a directory}"; shift 2 ;;
+    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
+    -*) die "unknown option $1" ;;
+    *) [ -z "$target" ] || die "one target at a time"; target="$1"; shift ;;
+  esac
+done
+[ -n "$target" ] || die "name a target; see --help"
+
+host="$(uname -s)/$(uname -m)"
+case "$target@$host" in
+  aarch64-apple-darwin@Darwin/arm64) glibc="" ;;
+  x86_64-unknown-linux-gnu@Linux/x86_64|aarch64-unknown-linux-gnu@Linux/x86_64) glibc="$GLIBC_FLOOR" ;;
+  *@Linux/aarch64) die "this ARM64 Linux machine never builds mike; build $target on omit and install it here" ;;
+  *) die "$target is not built on $host" ;;
+esac
+
+# The main checkout, also when this runs from a worktree.
+root="$(dirname "$(git -C "$(dirname "$0")" rev-parse --path-format=absolute --git-common-dir)")"
+git -C "$root" fetch -q origin
+sha="$(git -C "$root" rev-parse "${want:-origin/main}^{commit}")"
+out="${out:-$root/target/local-releases}"
+dest="$out/$sha/$target"
+log="$out/$sha/build-$target.log"
+if [ -f "$dest/manifest-$target.json" ]; then
+  echo "Release build: $dest (already built)"
+  exit 0
+fi
+
+heavy() {
+  if [ "$(uname -s)" = Linux ]; then
+    flock "${MIKE_BUILD_LOCK:-/tmp/mike-omit-build.lock}" nice -n 10 "$@"
+  else
+    nice -n 10 "$@"
+  fi
+}
+
+worktree="$root/.claude/worktrees/release-$target"
+if git -C "$worktree" rev-parse --git-dir >/dev/null 2>&1; then
+  git -C "$worktree" checkout -q --detach "$sha"
+  git -C "$worktree" clean -fdq
+else
+  git -C "$root" worktree add -q --detach "$worktree" "$sha"
+fi
+cd "$worktree"
+if [ -n "$glibc" ] && ! grep -q -- '--glibc' scripts/release/prepare.py; then
+  die "${sha:0:9} predates the release script's --glibc option, so it cannot build a Linux archive here"
+fi
+
+# The exact Node of .nvmrc and pnpm of frontend/package.json, from mise or nvm.
+node_version="$(cat .nvmrc)"
+pnpm_version="$(python3 -c 'import json; print(json.load(open("frontend/package.json"))["packageManager"].split("@")[1])')"
+node_bin=""
+if command -v mise >/dev/null 2>&1; then
+  mise install -q "node@$node_version" "pnpm@$pnpm_version" >/dev/null
+  node_bin="$(mise where "node@$node_version")/bin:$(mise where "pnpm@$pnpm_version")"
+elif [ -x "$HOME/.nvm/versions/node/v$node_version/bin/node" ]; then
+  node_bin="$HOME/.nvm/versions/node/v$node_version/bin"
+else
+  die "need Node $node_version: install it with mise or nvm (nvm install $node_version)"
+fi
+export PATH="$node_bin:$HOME/.cargo/bin:$PATH"
+[ "$(pnpm --version)" = "$pnpm_version" ] || die "need pnpm $pnpm_version on PATH, found $(pnpm --version)"
+
+toolchain="$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)"
+if command -v rustup >/dev/null && ! rustup target list --installed --toolchain "$toolchain" | grep -qx "$target"; then
+  die "the pinned Rust $toolchain has no $target target: rustup target add --toolchain $toolchain $target"
+fi
+if [ -n "$glibc" ]; then
+  command -v cargo-zigbuild >/dev/null || die "install cargo-zigbuild (cargo install --locked cargo-zigbuild)"
+  if [ -z "${CARGO_ZIGBUILD_ZIG_PATH:-}" ] && ! command -v zig >/dev/null; then
+    command -v python-zig >/dev/null || die "need zig: install it, or uv tool install ziglang"
+    export CARGO_ZIGBUILD_ZIG_PATH="$(command -v python-zig)"
+  fi
+fi
+
+# A user-space sysroot whose loader and C library let qemu run the ARM64 binaries.
+if [ "$target" = aarch64-unknown-linux-gnu ]; then
+  [ -e /proc/sys/fs/binfmt_misc/qemu-aarch64 ] || die "register qemu-aarch64 with binfmt to smoke-test ARM64 binaries"
+  sysroot="${XDG_CACHE_HOME:-$HOME/.cache}/mike-release/sysroot-aarch64-glibc$GLIBC_FLOOR"
+  if [ ! -e "$sysroot/lib/ld-linux-aarch64.so.1" ]; then
+    echo "==> Unpacking the Ubuntu 22.04 ARM64 C runtime into $sysroot"
+    fetch="$(mktemp -d)"
+    for entry in "${SYSROOT_DEBS[@]}"; do
+      path="${entry% *}" digest="${entry#* }"
+      curl -fsSL -o "$fetch/pkg.deb" "$UBUNTU_PORTS/$path" || die "could not download $path; pin a current version"
+      echo "$digest  $fetch/pkg.deb" | sha256sum --check --quiet - || die "$path does not match its pinned sha256"
+      mkdir -p "$sysroot.partial"
+      bsdtar -xOf "$fetch/pkg.deb" 'data.tar.*' | bsdtar -xf - -C "$sysroot.partial"
+    done
+    rm -rf "$fetch" "$sysroot"
+    mv "$sysroot.partial" "$sysroot"
+  fi
+  export QEMU_LD_PREFIX="$sysroot"
+fi
+
+mkdir -p "$out/$sha"
+echo "==> Building $target at ${sha:0:9}; log: $log"
+{
+  # Downloads only; the lock guards the compile.
+  cargo fetch --locked
+  (cd frontend && rm -rf node_modules && pnpm fetch --frozen-lockfile)
+  heavy env CI=true scripts/release.sh --target "$target" ${glibc:+--glibc "$glibc"}
+} >"$log" 2>&1 || die "the build failed; see $log"
+
+candidate="$(sed -n 's/^Candidate: //p' "$log" | tail -1)"
+[ -f "$candidate/manifest.json" ] || die "no candidate printed; see $log"
+if [ -n "$glibc" ]; then
+  python3 scripts/release/glibc_floor.py "$candidate/manifest.json" || die "the candidate breaks the glibc $glibc floor"
+fi
+scripts/release.sh --verify "$candidate"
+
+rm -rf "$dest.partial"
+mkdir -p "$dest.partial"
+cp "$candidate"/*.tar.gz "$candidate"/*.tar.gz.sha256 "$dest.partial/"
+cp "$candidate/manifest.json" "$dest.partial/manifest-$target.json"
+mv "$dest.partial" "$dest"
+echo "Release build: $dest"

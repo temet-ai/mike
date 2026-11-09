@@ -5,12 +5,14 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 case "${1:-}" in
     --help|-h)
         cat <<'HELP'
-Usage: scripts/release.sh [CURRENT_VERSION] [--target NATIVE_TRIPLE]
+Usage: scripts/release.sh [CURRENT_VERSION] [--target TRIPLE] [--glibc FLOOR]
                          [--reviewed-notices /absolute/review/manifest.json]
        scripts/release.sh --verify CANDIDATE_DIRECTORY
 
 Prepare both binaries from a clean, reviewed commit using the current workspace
-version. Linux x86_64, Linux ARM64 and Apple Silicon macOS must each build on their own host.
+version. Each target builds on its own host, with one exception: Linux ARM64
+builds on x86_64 Linux with --glibc, smoke-tested under qemu-aarch64.
+--glibc (Linux only) links against that glibc with cargo-zigbuild, e.g. 2.35.
 Tools and dependency caches must already be provisioned; builds are offline.
 Archives, relative SHA256 files and a manifest go into ignored dist-out/.
 --verify checks and smoke-tests those exact archived bytes without rebuilding.
