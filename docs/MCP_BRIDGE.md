@@ -224,7 +224,7 @@ here.
 | Tool | What it does |
 |------|--------------|
 | `list_project_locations` | Discover project UUIDs and their machine-specific locations |
-| `search_project_knowledge` | Hybrid text/semantic search across artifacts, lessons, notes, turns, comms threads (the mail sessions sent each other, one thread per fleet run) and work threads (kind `work_thread`: goal, state and acceptance criteria); returns references and retrieval coverage |
+| `search_project_knowledge` | Hybrid text/semantic search across artifacts, lessons, notes, turns, comms threads (the mail sessions sent each other, one thread per fleet run), work threads (kind `work_thread`: goal, state and acceptance criteria) and session memory (kinds `thread_entry`, `question_answer`, `unmet_ask`, `correction`, `learning`, `mail`); each item has author, date, excerpt and reference, one per logical document across machines; returns retrieval coverage |
 | `read_project_knowledge` | Read the complete retained source for a reference returned by search, including provenance and revision metadata |
 
 For the portable-project setup and the recommended agent call sequence, see

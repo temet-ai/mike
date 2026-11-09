@@ -34,6 +34,30 @@ WITH candidates AS (
     SELECT 'thread', tx.thread_id, tx.body
       FROM mailbox.thread_text_v tx
      WHERE tx.thread_id = ANY(ARRAY(SELECT source_id FROM picked WHERE source_kind = 'thread'))
+    UNION ALL
+    SELECT 'thread_entry', l.id,
+           concat_ws(E'\n\n', 'Work thread ' || wt.slug || ': ' || l.kind, l.summary, l.body)
+      FROM work.thread_log l JOIN work.threads wt ON wt.id = l.thread_id
+     WHERE l.id = ANY(ARRAY(SELECT source_id FROM picked WHERE source_kind = 'thread_entry'))
+    UNION ALL
+    SELECT 'question_answer', q.id, concat_ws(E'\n\n', q.question, q.answer)
+      FROM workspace.questions q
+     WHERE q.id = ANY(ARRAY(SELECT source_id FROM picked WHERE source_kind = 'question_answer'))
+    UNION ALL
+    SELECT v.kind, v.id, concat_ws(E'\n\n', t.user_prompt, v.unmet_ask, v.rationale)
+      FROM (SELECT tv.*, p.source_kind AS kind
+              FROM picked p JOIN memory.turn_verdicts tv ON tv.id = p.source_id
+             WHERE p.source_kind IN ('unmet_ask', 'correction')) v
+      JOIN memory.operator_turns t ON t.id = v.operator_turn_id
+    UNION ALL
+    SELECT 'learning', s.id,
+           concat_ws(E'\n\n', array_to_string(k.topics, ', '), memory.session_learnings_text(k.learnings))
+      FROM sessions.sessions s JOIN memory.session_knowledge k ON k.session_id = s.session_uuid
+     WHERE s.id = ANY(ARRAY(SELECT source_id FROM picked WHERE source_kind = 'learning'))
+    UNION ALL
+    SELECT 'mail', m.id, m.body
+      FROM mailbox.messages m
+     WHERE m.id = ANY(ARRAY(SELECT source_id FROM picked WHERE source_kind = 'mail'))
 )
 SELECT p.source_kind AS "source_kind!", p.source_id AS "source_id!", p.reference AS "reference!",
        p.source_updated_at, p.source_seq, p.source_hash, b.body AS "body!"

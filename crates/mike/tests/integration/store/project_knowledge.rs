@@ -58,7 +58,7 @@ async fn assert_later_generations_supersede_then_delete(
     );
     assert_eq!(
         handle
-            .read_project_knowledge(&search.project, reference)
+            .read_project_knowledge(Some(&search.project), reference)
             .await?["body"],
         "Notebook identity evidence"
     );
@@ -73,7 +73,7 @@ async fn assert_later_generations_supersede_then_delete(
         .await?;
     assert_eq!(
         handle
-            .read_project_knowledge(&search.project, reference)
+            .read_project_knowledge(Some(&search.project), reference)
             .await?["deleted"],
         true
     );
@@ -140,13 +140,13 @@ async fn project_knowledge_locations_and_revision_scope() -> anyhow::Result<()> 
         .ok_or_else(|| anyhow::anyhow!("missing result"))?;
     assert_eq!(
         handle
-            .read_project_knowledge(&search.project, reference)
+            .read_project_knowledge(Some(&search.project), reference)
             .await?["body"],
         "Notebook identity evidence"
     );
     assert!(
         handle
-            .read_project_knowledge(&project_b, reference)
+            .read_project_knowledge(Some(&project_b), reference)
             .await
             .is_err()
     );
@@ -247,13 +247,13 @@ async fn project_knowledge_notebook_binding_and_lesson_round_trip() -> anyhow::R
     let note_ref = format!("note:{}", note);
     assert!(
         handle
-            .read_project_knowledge("/test/lesson-origin", &note_ref)
+            .read_project_knowledge(Some("/test/lesson-origin"), &note_ref)
             .await
             .is_err()
     );
     assert_eq!(
         handle
-            .read_project_knowledge("/test/lesson-target", &note_ref)
+            .read_project_knowledge(Some("/test/lesson-target"), &note_ref)
             .await?["body"],
         "Notebook evidence"
     );
@@ -352,7 +352,7 @@ async fn project_knowledge_work_thread_search_and_read_are_project_scoped() -> a
     assert!(elsewhere["items"].as_array().is_some_and(Vec::is_empty));
 
     let read = handle
-        .read_project_knowledge(&path, &format!("work_thread:{slug}"))
+        .read_project_knowledge(Some(&path), &format!("work_thread:{slug}"))
         .await?;
     assert_eq!(read["slug"], slug);
     assert_eq!(read["title"], "Harbour rebuild");
@@ -369,13 +369,13 @@ async fn project_knowledge_work_thread_search_and_read_are_project_scoped() -> a
     assert_eq!(read["acceptance_criteria"], "1. The lighthouse is gone");
     assert!(
         handle
-            .read_project_knowledge(&other_path, &format!("work_thread:{slug}"))
+            .read_project_knowledge(Some(&other_path), &format!("work_thread:{slug}"))
             .await
             .is_err()
     );
     assert!(
         handle
-            .read_project_knowledge(&path, "work_thread:no-such-thread")
+            .read_project_knowledge(Some(&path), "work_thread:no-such-thread")
             .await
             .is_err()
     );

@@ -41,7 +41,7 @@ async fn explicit_arguments_are_preserved_without_lookup_or_caller() -> anyhow::
         ("answer", "from"),
         ("decline", "from"),
         ("write_session_note", "session_id"),
-        ("read_project_knowledge", "project"),
+        ("work_thread_get", "project"),
     ] {
         for value in [json!("explicit"), Value::Null, json!("")] {
             let original = Some(Map::from_iter([(field.to_string(), value)]));
@@ -70,7 +70,7 @@ async fn absent_or_invalid_caller_rejects_content_based_impersonation() -> anyho
             "answer",
             "decline",
             "write_session_note",
-            "read_project_knowledge",
+            "work_thread_get",
         ] {
             let result = supply_defaults(
                 &client,
@@ -102,10 +102,28 @@ async fn caller_project_comes_from_session_summary() -> anyhow::Result<()> {
         .expect(1)
         .mount(&server)
         .await;
+    let client = InspectClient::new(server.uri());
+    let prepared = supply_defaults(
+        &client,
+        "work_thread_get",
+        args(json!({"slug": "harbour"})),
+        Some(SESSION),
+    )
+    .await?;
+    assert_eq!(
+        prepared.and_then(|a| a.get("project").cloned()),
+        Some(json!("/verified/project"))
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn read_project_knowledge_without_project_lets_the_server_infer_it() -> anyhow::Result<()> {
+    let server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/api/knowledge/read"))
-        .and(query_param("project", "/verified/project"))
-        .and(query_param("reference", "artifact:1"))
+        .and(query_param("reference", "mail:1"))
+        .and(wiremock::matchers::query_param_is_missing("project"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({"body": "source"})))
         .expect(1)
         .mount(&server)
@@ -114,7 +132,7 @@ async fn caller_project_comes_from_session_summary() -> anyhow::Result<()> {
     let prepared = supply_defaults(
         &client,
         "read_project_knowledge",
-        args(json!({"reference": "artifact:1"})),
+        args(json!({"reference": "mail:1"})),
         Some(SESSION),
     )
     .await?;
@@ -136,7 +154,7 @@ async fn caller_project_missing_or_failed_lookup_is_an_error() {
             .await;
         let client = InspectClient::new(server.uri());
         assert!(
-            supply_defaults(&client, "read_project_knowledge", None, Some(SESSION))
+            supply_defaults(&client, "work_thread_get", None, Some(SESSION))
                 .await
                 .is_err()
         );
@@ -213,7 +231,7 @@ async fn caller_project_refuses_a_different_session_summary() {
         .await;
     let client = InspectClient::new(server.uri());
     assert!(
-        supply_defaults(&client, "read_project_knowledge", None, Some(SESSION))
+        supply_defaults(&client, "work_thread_get", None, Some(SESSION))
             .await
             .is_err()
     );
@@ -227,7 +245,6 @@ fn caller_default_schemas_do_not_require_resolvable_fields() -> anyhow::Result<(
         ("answer", "from"),
         ("decline", "from"),
         ("write_session_note", "session_id"),
-        ("read_project_knowledge", "project"),
     ] {
         let tool = tools
             .iter()

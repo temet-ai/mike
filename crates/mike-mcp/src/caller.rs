@@ -48,8 +48,7 @@ async fn supply_required(
     let field = match name {
         "ask" | "answer" | "decline" => "from",
         "write_session_note" => "session_id",
-        "read_project_knowledge"
-        | "work_thread_list"
+        "work_thread_list"
         | "work_thread_get"
         | "work_thread_checkpoint"
         | "work_thread_add_entry" => "project",

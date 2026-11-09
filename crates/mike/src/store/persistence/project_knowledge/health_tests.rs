@@ -358,7 +358,9 @@ async fn freshness_of(handle: &PersistHandle, project: &str) -> anyhow::Result<(
         .and_then(|items| items.first())
         .ok_or_else(|| anyhow::anyhow!("no indexed document for {project}"))?;
     let reference = item["reference"].as_str().unwrap_or_default().to_owned();
-    let read = handle.read_project_knowledge(project, &reference).await?;
+    let read = handle
+        .read_project_knowledge(Some(project), &reference)
+        .await?;
     Ok((
         item["provenance"]["freshness"].clone(),
         read["freshness"].clone(),

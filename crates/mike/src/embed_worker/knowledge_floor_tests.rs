@@ -322,7 +322,7 @@ async fn semantic_search_kind_filter_measures_the_window_from_the_best_hit_of_th
     assert_eq!(titles_for(&fx, "unrelated wording").await?, ["strong"]);
     assert_eq!(
         titles_for_kind(&fx, "unrelated wording", Some("lesson")).await?,
-        ["correction"]
+        ["a lesson body that shares no words with the query"]
     );
     fx.db.cleanup().await?;
     Ok(())

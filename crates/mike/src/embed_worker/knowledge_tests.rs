@@ -124,7 +124,7 @@ async fn project_knowledge_semantic_worker_scope_revision_and_retry() -> anyhow:
     scan(&handle, source, 1, "Replacement version").await?;
     assert_eq!(
         handle
-            .read_project_knowledge(&project.project_uuid.to_string(), historical)
+            .read_project_knowledge(Some(&project.project_uuid.to_string()), historical)
             .await?["current"],
         false
     );

@@ -16,14 +16,23 @@ pub(super) fn id_only_string_schema() -> Arc<Map<String, Value>> {
     )
 }
 
+pub(super) fn select_description(example: Option<&str>) -> String {
+    let lead = example
+        .map(|pointer| format!(" (e.g. [\"{pointer}\"])"))
+        .unwrap_or_default();
+    format!(
+        "Optional array of RFC 6901 JSON pointers{lead} projecting the result to just those \
+         parts; \"*\" maps over array elements; omit for the full result. The first segment \
+         is this tool's result key, never another tool's; a miss returns `available_roots` \
+         naming the keys that exist. See server instructions."
+    )
+}
+
 fn select_property() -> Value {
     json!({
         "type": "array",
         "items": {"type": "string"},
-        "description": "Optional array of RFC 6901 JSON pointers (e.g. \"/sessions/*/id\") \
-            projecting the result to just those parts; \"*\" maps over array elements; omit \
-            for the full result. Roots are per tool; a miss returns `available_roots` naming \
-            the keys that exist. See server instructions."
+        "description": select_description(None)
     })
 }
 

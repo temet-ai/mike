@@ -107,7 +107,8 @@ pub(crate) async fn search(
 
 #[derive(Deserialize)]
 pub(crate) struct ReadQuery {
-    project: String,
+    #[serde(default)]
+    project: Option<String>,
     reference: String,
 }
 
@@ -118,7 +119,7 @@ pub(crate) async fn read(
     let mut read = state
         .persist()
         .ok_or_else(persist_unavailable_response)?
-        .read_project_knowledge(&input.project, &input.reference)
+        .read_project_knowledge(input.project.as_deref(), &input.reference)
         .await
         .map_err(knowledge_error)?;
     disk_check::annotate(&mut read).await;

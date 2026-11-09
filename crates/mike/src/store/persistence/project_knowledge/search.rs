@@ -5,6 +5,21 @@ use super::invalid;
 use crate::store::persistence::recall_embedding::set_vector_scan_limits;
 use crate::store::persistence::{PersistError, PersistHandle};
 
+const READABLE_KINDS: [&str; 12] = [
+    "artifact",
+    "lesson",
+    "note",
+    "turn",
+    "thread",
+    "work_thread",
+    "thread_entry",
+    "question_answer",
+    "unmet_ask",
+    "correction",
+    "learning",
+    "mail",
+];
+
 #[derive(Default, Deserialize)]
 pub struct KnowledgeQuery {
     pub project: String,
@@ -103,29 +118,34 @@ impl PersistHandle {
 
     pub async fn read_project_knowledge(
         &self,
-        project: &str,
+        project: Option<&str>,
         reference: &str,
     ) -> Result<Value, PersistError> {
-        let project = self.resolve_knowledge_project(project).await?;
+        let project_id = match project.filter(|p| !p.trim().is_empty()) {
+            Some(selector) => Some(self.resolve_knowledge_project(selector).await?.id),
+            None => None,
+        };
         let (kind, key) = reference
             .split_once(':')
             .ok_or_else(|| invalid("Invalid knowledge reference"))?;
-        let number = key.parse::<i64>().ok();
-        let uuid = key.parse::<uuid::Uuid>().ok();
-        if !matches!(
-            kind,
-            "artifact" | "lesson" | "note" | "turn" | "thread" | "work_thread"
-        ) {
+        if !READABLE_KINDS.contains(&kind) {
             return Err(invalid("Unknown knowledge source kind"));
         }
-        let value: Option<Value> = sqlx::query_scalar(include_str!("read.sql"))
-            .bind(project.id)
+        let mut found: Vec<Value> = sqlx::query_scalar(include_str!("read.sql"))
+            .bind(project_id)
             .bind(kind)
-            .bind(number)
-            .bind(uuid)
+            .bind(key.parse::<i64>().ok())
+            .bind(key.parse::<uuid::Uuid>().ok())
             .bind(key)
-            .fetch_optional(self.pool())
+            .fetch_all(self.pool())
             .await?;
-        value.ok_or_else(|| invalid("Knowledge reference not found in this project"))
+        match (found.len(), project_id) {
+            (0, Some(_)) => Err(invalid("Knowledge reference not found in this project")),
+            (0, None) => Err(invalid("Knowledge reference not found")),
+            (1, _) => Ok(found.remove(0)),
+            _ => Err(invalid(
+                "Knowledge reference matches several projects; pass project",
+            )),
+        }
     }
 }
