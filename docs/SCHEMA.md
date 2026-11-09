@@ -2475,7 +2475,7 @@ due retry (`next_attempt_at <= now()` with `attempts < 10` or a `[transient]` er
 | Column | Type | Purpose |
 |---|---|---|
 | `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key (since `20261102210000`) |
-| `source_kind` | `TEXT NOT NULL` | CHECK `IN ('artifact', 'lesson', 'note', 'thread', 'thread_entry', 'question_answer', 'unmet_ask', 'correction', 'learning', 'mail')` (session memory kinds since `20261109140000`) |
+| `source_kind` | `TEXT NOT NULL` | CHECK `IN ('artifact', 'lesson', 'note', 'thread', 'thread_entry', 'question_answer', 'unmet_ask', 'correction', 'learning', 'mail')` (session memory kinds since `20261109160000`) |
 | `source_id` | `BIGINT NOT NULL` | By kind: `memory.knowledge_revisions.id`, `memory.lessons.id`, `workspace.session_notes.id`, `mailbox.threads.id`, `work.thread_log.id`, `workspace.questions.id`, `memory.turn_verdicts.id` (unmet_ask, correction), `sessions.sessions.id` (learning) or `mailbox.messages.id`; no FK |
 | `model_key` | `TEXT NOT NULL` | The embedder the vectors came from; a different key re-embeds the source |
 | `completed_at` | `TIMESTAMPTZ NULL` | NULL until the source has vectors |
@@ -2668,7 +2668,7 @@ below) — those recompute live for the single open turn; this view always reads
 
 ### `memory.live_turn_verdicts_v`
 
-Added in `20261109140000_session_memory_knowledge_kinds.sql`. The newest live (`mode = 'live'`) verdict
+Added in `20261109160000_session_memory_knowledge_kinds.sql`. The newest live (`mode = 'live'`) verdict
 of each operator turn, by `(created_at, id)`, with the turn's `project_id`; an anti-join so a project
 filter reaches `memory.operator_turns`. Read by `search.sql` (kinds `unmet_ask`, `correction`) and
 `memory.knowledge_embedding_sources_v`.
