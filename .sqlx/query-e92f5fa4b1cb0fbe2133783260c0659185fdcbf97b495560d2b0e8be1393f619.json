@@ -1,0 +1,44 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH open_events AS (\n    SELECT e.id, e.session_id, e.request_id, e.created_at, e.returned\n      FROM memory.search_events e\n     WHERE e.used_final_at IS NULL AND e.session_id IS NOT NULL AND e.request_id IS NOT NULL\n     ORDER BY e.used_checked_at NULLS FIRST, e.created_at\n     LIMIT $1::bigint\n), windows AS (\n    SELECT e.id AS event_id, w.end_request_id, w.closed_at, w.final_assistant_text\n      FROM open_events e\n      CROSS JOIN LATERAL (\n          SELECT t.end_request_id, t.closed_at, t.final_assistant_text\n            FROM memory.operator_turns t\n           WHERE t.session_id = e.session_id AND t.end_request_id >= e.request_id\n           ORDER BY t.start_request_id\n           LIMIT $2::bigint\n      ) w\n), bounds AS (\n    SELECT event_id, count(*) AS turn_count, max(end_request_id) AS last_request_id,\n           max(COALESCE(closed_at, now())) AS last_at,\n           bool_and(closed_at IS NOT NULL) AS all_closed\n      FROM windows\n     GROUP BY event_id\n), returned AS (\n    SELECT e.id AS event_id, r.value ->> 'reference' AS reference,\n           regexp_replace(r.value ->> 'reference', '([^0-9A-Za-z:_-])', '\\\\\\1', 'g') AS pattern\n      FROM open_events e\n      CROSS JOIN LATERAL jsonb_array_elements(e.returned) AS r(value)\n), reads AS (\n    SELECT e.id AS event_id,\n           CASE WHEN u.tool_name ~ '(^|__)read_project_knowledge$' THEN u.input ->> 'reference'\n                ELSE 'turn:' || (u.input ->> 'id') END AS reference\n      FROM open_events e\n      JOIN bounds b ON b.event_id = e.id\n      JOIN tools.uses u ON u.session_id = e.session_id\n                       AND u.created_at >= e.created_at\n                       AND u.created_at <= b.last_at + interval '1 minute'\n                       AND u.request_id > e.request_id\n                       AND u.request_id <= b.last_request_id\n     WHERE u.tool_name ~ '(^|__)(read_project_knowledge|get_operator_turn)$'\n), replies AS (\n    SELECT r.event_id, r.reference\n      FROM returned r\n      JOIN windows w ON w.event_id = r.event_id\n     WHERE w.final_assistant_text ~ ('(^|[^0-9A-Za-z_-])' || r.pattern || '($|[^0-9A-Za-z_-])')\n), used AS (\n    SELECT event_id, reference FROM reads\n    UNION\n    SELECT event_id, reference FROM replies\n), used_in_returned AS (\n    SELECT u.event_id, array_agg(DISTINCT u.reference ORDER BY u.reference) AS refs\n      FROM used u\n      JOIN returned r ON r.event_id = u.event_id AND r.reference = u.reference\n     GROUP BY u.event_id\n), outcome AS (\n    SELECT e.id,\n           COALESCE(ur.refs, '{}'::text[]) AS refs,\n           COALESCE(b.turn_count = $2::bigint AND b.all_closed, false)\n               OR e.created_at < now() - make_interval(secs => $3::double precision) AS final\n      FROM open_events e\n      LEFT JOIN bounds b ON b.event_id = e.id\n      LEFT JOIN used_in_returned ur ON ur.event_id = e.id\n)\nUPDATE memory.search_events s\n   SET used_references = o.refs,\n       used_final_at = CASE WHEN o.final THEN now() END,\n       used_checked_at = now()\n  FROM outcome o\n WHERE s.id = o.id\nRETURNING s.id AS \"id!\", cardinality(s.used_references)::bigint AS \"used!\",\n          (s.used_final_at IS NOT NULL) AS \"finalised!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.search_events",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "used!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "finalised!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "e92f5fa4b1cb0fbe2133783260c0659185fdcbf97b495560d2b0e8be1393f619"
+}

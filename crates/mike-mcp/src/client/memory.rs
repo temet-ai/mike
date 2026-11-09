@@ -22,6 +22,7 @@ impl InspectClient {
         project_path: &str,
         query: &str,
         limit: Option<u64>,
+        session_id: Option<&str>,
     ) -> Result<Value, McpError> {
         let mut body = serde_json::Map::new();
         body.insert(
@@ -31,6 +32,12 @@ impl InspectClient {
         body.insert("query".to_string(), Value::String(query.to_string()));
         if let Some(l) = limit {
             body.insert("limit".to_string(), Value::Number(l.into()));
+        }
+        if let Some(session_id) = session_id {
+            body.insert(
+                "session_id".to_string(),
+                Value::String(session_id.to_string()),
+            );
         }
         self.post_json("/api/recall/similar-turns", &Value::Object(body))
             .await

@@ -6,6 +6,8 @@ pub(crate) struct RecallSimilarTurnsBody {
     pub(crate) query: String,
     #[serde(default)]
     pub(crate) limit: Option<usize>,
+    #[serde(default)]
+    pub(crate) session_id: Option<String>,
 }
 
 pub(crate) const RECALL_SIMILAR_TURNS_DEFAULT_LIMIT: i64 = 5;
@@ -16,6 +18,8 @@ pub(crate) struct SimilarTurnDto {
     #[serde(flatten)]
     pub(crate) turn: OperatorTurnDto,
     pub(crate) rank: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) rerank_score: Option<f64>,
 }
 
 #[derive(Debug, Serialize)]
@@ -25,6 +29,7 @@ pub(crate) struct RecallSimilarTurnsResponse {
     pub(crate) degraded: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) pending_turns: Option<i64>,
+    pub(crate) rerank: crate::api::rerank_search::RerankReport,
 }
 
 pub(crate) async fn recall_similar_turns(
@@ -41,7 +46,10 @@ pub(crate) async fn recall_similar_turns(
         .unwrap_or(RECALL_SIMILAR_TURNS_DEFAULT_LIMIT)
         .clamp(1, RECALL_SIMILAR_TURNS_MAX_LIMIT);
 
-    let (rows, used_embedding) = recall_rows_hybrid(handle, &state, &body, limit).await?;
+    let (fetch, candidates) = recall_turns_rerank::rows_to_fetch(&state, limit);
+    let (rows, used_embedding) = recall_rows_hybrid(handle, &state, &body, fetch).await?;
+    let (ranked, rerank) =
+        recall_turns_rerank::rerank_turns(&state, &body.query, rows, candidates).await;
 
     let degraded = !used_embedding;
     let retrieval_path = if used_embedding { "embedding" } else { "fts" };
@@ -57,12 +65,28 @@ pub(crate) async fn recall_similar_turns(
         None
     };
 
-    let turns: Vec<SimilarTurnDto> = rows.into_iter().map(ranked_row_to_similar_turn).collect();
+    let turns: Vec<SimilarTurnDto> = ranked
+        .into_iter()
+        .take(limit as usize)
+        .map(|(row, score)| {
+            let mut turn = ranked_row_to_similar_turn(row);
+            turn.rerank_score = score.map(|s| (f64::from(s) * 10_000.0).round() / 10_000.0);
+            turn
+        })
+        .collect();
+    crate::search_events::record_turn_recall(
+        &state,
+        body.session_id.as_deref(),
+        &body.query,
+        &turns,
+        &rerank,
+    );
     Ok(Json(RecallSimilarTurnsResponse {
         turns,
         retrieval_path,
         degraded,
         pending_turns,
+        rerank,
     }))
 }
 
@@ -236,6 +260,7 @@ fn log_embedding_recall_query_failed(
 fn ranked_row_to_similar_turn(r: crate::store::persistence::RankedTurnRow) -> SimilarTurnDto {
     SimilarTurnDto {
         rank: r.rank,
+        rerank_score: None,
         turn: OperatorTurnDto::from(crate::store::operator_turns::OperatorTurnRow {
             turn_id: r.turn_id,
             session_id: r.session_id,

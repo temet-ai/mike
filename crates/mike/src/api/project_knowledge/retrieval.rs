@@ -39,6 +39,21 @@ async fn query_vector(
 }
 
 pub(crate) async fn retrieve(state: &AppState, input: &KnowledgeQuery) -> Result<Value, Response> {
+    retrieve_with(state, input, true).await
+}
+
+pub(crate) async fn retrieve_without_rerank(
+    state: &AppState,
+    input: &KnowledgeQuery,
+) -> Result<Value, Response> {
+    retrieve_with(state, input, false).await
+}
+
+async fn retrieve_with(
+    state: &AppState,
+    input: &KnowledgeQuery,
+    rerank: bool,
+) -> Result<Value, Response> {
     let handle = state
         .persist()
         .ok_or_else(crate::api::handlers::persist_unavailable_response)?;
@@ -63,12 +78,15 @@ pub(crate) async fn retrieve(state: &AppState, input: &KnowledgeQuery) -> Result
         .resolve_knowledge_project(&input.project)
         .await
         .map_err(knowledge_error)?;
-    let mut result = if vector.is_some() {
+    let (mut result, report) = if rerank {
+        super::rerank_page::search(state, handle, &project, input, vector.as_ref())
+            .await
+            .map(|(page, report)| (page, Some(report)))
+    } else {
         handle
             .search_project_knowledge_hybrid(input, vector.as_ref())
             .await
-    } else {
-        handle.search_project_knowledge(input).await
+            .map(|page| (page, None))
     }
     .map_err(knowledge_error)?;
     let coverage = handle
@@ -77,5 +95,8 @@ pub(crate) async fn retrieve(state: &AppState, input: &KnowledgeQuery) -> Result
         .map_err(knowledge_error)?;
     result["embedding"] = json!({"coverage":coverage, "model":service.model_name(), "fallback":fallback,
         "scope":"artifact_lesson_note", "turns":"existing model-matched turn embeddings"});
+    if let Some(report) = report {
+        result["rerank"] = report.to_json();
+    }
     Ok(result)
 }

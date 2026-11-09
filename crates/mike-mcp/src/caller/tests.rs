@@ -304,3 +304,56 @@ async fn thread_writes_without_a_caller_keep_their_arguments_and_reads_need_a_pr
     assert!(error.message.contains("requires `project`"));
     Ok(())
 }
+
+#[tokio::test]
+async fn search_tools_receive_the_caller_session_so_the_search_can_be_recorded()
+-> anyhow::Result<()> {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/api/knowledge/search"))
+        .and(query_param("session_id", SESSION))
+        .and(query_param("query", "cache"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"items": []})))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/api/recall/similar-turns"))
+        .and(body_partial_json(
+            json!({"session_id": SESSION, "query": "cache"}),
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"turns": []})))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let client = InspectClient::new(server.uri());
+    let search = supply_defaults(
+        &client,
+        "search_project_knowledge",
+        args(json!({"project": "p", "query": "cache"})),
+        Some(SESSION),
+    )
+    .await?;
+    crate::tools::call_tool(&client, "search_project_knowledge", search).await?;
+    let recall = supply_defaults(
+        &client,
+        "recall_similar_turns",
+        args(json!({"project_path": "p", "query": "cache"})),
+        Some(SESSION),
+    )
+    .await?;
+    crate::tools::call_tool(&client, "recall_similar_turns", recall).await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn search_tools_without_a_caller_session_send_no_session_id() -> anyhow::Result<()> {
+    let client = InspectClient::new("http://127.0.0.1:1".into());
+    let original = args(json!({"project": "p", "query": "cache"}));
+
+    let prepared =
+        supply_defaults(&client, "search_project_knowledge", original.clone(), None).await?;
+
+    assert_eq!(prepared, original);
+    Ok(())
+}

@@ -115,6 +115,7 @@ pub(crate) mod response_intercepts;
 pub mod retention;
 pub mod runtime;
 pub(crate) mod scheduled_job_runs;
+pub(crate) mod search_events;
 pub mod semantic;
 pub mod session_action_list;
 pub mod session_analyzer_overrides;

@@ -5,7 +5,12 @@ use crate::client::InspectClient;
 
 pub(crate) mod retrospective;
 
-const THREAD_WRITE_TOOLS: [&str; 2] = ["work_thread_checkpoint", "work_thread_add_entry"];
+const SESSION_TAGGED_TOOLS: [&str; 4] = [
+    "work_thread_checkpoint",
+    "work_thread_add_entry",
+    "search_project_knowledge",
+    "recall_similar_turns",
+];
 
 pub(crate) async fn supply_defaults(
     client: &InspectClient,
@@ -27,7 +32,7 @@ fn supply_writing_session(
     };
     let named = arguments.contains_key("session_id") || arguments.contains_key("session_uuid");
     if let Some(session) = session
-        .filter(|value| THREAD_WRITE_TOOLS.contains(&name) && !named && is_session_uuid(value))
+        .filter(|value| SESSION_TAGGED_TOOLS.contains(&name) && !named && is_session_uuid(value))
     {
         arguments.insert("session_id".to_string(), Value::String(session.to_string()));
     }

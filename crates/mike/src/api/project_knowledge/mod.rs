@@ -84,11 +84,25 @@ pub(crate) async fn scan(
         .map_err(knowledge_error)
 }
 
+#[derive(Deserialize, Default)]
+pub(crate) struct CallerSession {
+    #[serde(default)]
+    session_id: Option<String>,
+}
+
 pub(crate) async fn search(
     State(state): State<AppState>,
     Query(input): Query<KnowledgeQuery>,
+    Query(caller): Query<CallerSession>,
 ) -> Result<Json<Value>, Response> {
-    retrieve(&state, &input).await.map(Json)
+    let answer = retrieve(&state, &input).await?;
+    crate::search_events::record_knowledge_search(
+        &state,
+        caller.session_id.as_deref(),
+        &input,
+        &answer,
+    );
+    Ok(Json(answer))
 }
 
 #[derive(Deserialize)]
@@ -183,9 +197,10 @@ pub(crate) async fn define_project(
 mod disk_check;
 mod health;
 pub(crate) mod query_vector_cache;
+mod rerank_page;
 mod retrieval;
 pub(crate) use health::embedding_capability;
-pub(crate) use retrieval::retrieve;
+pub(crate) use retrieval::{retrieve, retrieve_without_rerank};
 
 #[cfg(test)]
 mod disk_check_tests;
@@ -193,3 +208,5 @@ mod disk_check_tests;
 mod query_vector_cache_tests;
 #[cfg(test)]
 mod registration_tests;
+#[cfg(test)]
+mod rerank_tests;

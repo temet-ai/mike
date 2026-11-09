@@ -12,6 +12,9 @@ mod lesson_sync;
 mod location_view;
 mod locations;
 mod repo_adoption;
+mod rerank_passages;
+#[cfg(test)]
+mod rerank_passages_tests;
 mod search;
 mod session_binding;
 mod session_scope;
@@ -24,6 +27,7 @@ pub(crate) use location_view::is_scratch;
 pub use locations::{LocationInput, ProjectIdentity};
 pub(crate) use repo_adoption::RepoLocationAdoption;
 pub use search::KnowledgeQuery;
+pub(crate) use search::search_page;
 
 use super::PersistError;
 
