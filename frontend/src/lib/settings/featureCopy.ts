@@ -158,6 +158,12 @@ export const FEATURE_COPY: Record<string, FeatureCopy> = {
 		label: 'Dossier builder',
 		description: 'Builds the facts about each turn from captured data. Nothing leaves the machine.'
 	},
+	seat_memory_index: {
+		label: 'Fleet seat work in knowledge search',
+		description:
+			'Knowledge search also finds fleet seat briefs, reports and mail, labelled by seat and run and ranked below your own material; turning it back on needs a restart.',
+		find: 'seat fleet worker report brief mail search index'
+	},
 	semantic_context: {
 		label: 'Semantic context',
 		description:

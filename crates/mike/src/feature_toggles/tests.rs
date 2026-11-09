@@ -290,6 +290,7 @@ fn toggle_meta_covers_all_keys() {
             "reminders",
             "repeated_notices",
             "retention_sweep",
+            "seat_memory_index",
             "semantic_context",
             "self_identity_reminder",
             "session_end_shadow",
@@ -313,6 +314,7 @@ fn live_disable_workers_re_read_their_own_toggle_every_iteration() {
         "lesson_worker",
         "channel_link_sweep",
         "memory_keeper",
+        "seat_memory_index",
     ] {
         let meta = TOGGLE_META
             .iter()

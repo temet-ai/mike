@@ -1,5 +1,6 @@
 mod fixture;
 mod scenario;
+mod search;
 
 use serde_json::json;
 use sqlx::PgPool;

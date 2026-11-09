@@ -300,14 +300,37 @@ WITH knowledge_scope AS MATERIALIZED (
       LEFT JOIN semantic sem ON sem.reference = 'mail:' || m.message_uuid
      WHERE COALESCE(mt.project_id, mf.project_id) = $1
        AND ($2 = '' OR m.search_tsv @@ q.tsq OR sem.score IS NOT NULL)
+    UNION ALL
+    SELECT seat_ref.reference, 'seat', btrim(split_part(btrim(si.text), E'\n', 1)), si.item_kind,
+           NULL, si.at, ts_rank_cd(si.search_tsv, q.tsq), COALESCE(sem.score, 0),
+           jsonb_build_object('tier', 'seat', 'item_kind', si.item_kind, 'run_id', si.run_id,
+             'seat', si.seat, 'task', si.task, 'session_uuid', si.session_uuid,
+             'from_session', si.from_session, 'from_role', si.from_role,
+             'repeat_count', si.repeat_count, 'report_filed', si.report_filed,
+             'verdict_accepted', si.verdict_accepted,
+             'framing', 'seat material: written by or for a fleet seat or worker session, not by the operator'),
+           si.text,
+           jsonb_build_object('role', si.author, 'session_uuid', si.session_uuid,
+             'session_title', sts.title, 'seat', si.seat, 'run_id', si.run_id, 'task', si.task),
+           seat_ref.reference
+      FROM memory.seat_memory_items si
+      LEFT JOIN sessions.sessions sts ON sts.id = si.session_id CROSS JOIN q
+     CROSS JOIN LATERAL (SELECT CASE WHEN si.source_ref LIKE 'entry:%'
+                                     THEN 'thread_entry:' || substr(si.source_ref, 7)
+                                     ELSE si.source_ref END AS reference) seat_ref
+      LEFT JOIN semantic sem ON sem.reference = seat_ref.reference
+     WHERE si.project_id = $1 AND ($2 = '' OR si.search_tsv @@ q.tsq OR sem.score IS NOT NULL)
 ), deduped AS (
     SELECT DISTINCT ON (dedupe_key) *
-      FROM (SELECT *, count(*) OVER (PARTITION BY dedupe_key) AS copies
+      FROM (SELECT *, GREATEST(1, count(*) FILTER (WHERE source_kind <> 'seat')
+                                    OVER (PARTITION BY dedupe_key)) AS copies
               FROM candidates WHERE ($3::text IS NULL OR source_kind = $3)) c
-     ORDER BY dedupe_key, semantic_rank DESC, rank DESC, updated_at DESC NULLS LAST, reference
+     ORDER BY dedupe_key, source_kind = 'seat' DESC, semantic_rank DESC, rank DESC,
+              updated_at DESC NULLS LAST, reference
 ), ranked AS (
-    SELECT *, CASE WHEN rank > 0 THEN 1.0 / (60 + row_number() OVER (ORDER BY rank DESC, reference)) ELSE 0 END
-      + CASE WHEN semantic_rank > 0 THEN 1.0 / (60 + row_number() OVER (ORDER BY semantic_rank DESC, reference)) ELSE 0 END AS fused_rank
+    SELECT *, (CASE WHEN rank > 0 THEN 1.0 / (60 + row_number() OVER (ORDER BY rank DESC, reference)) ELSE 0 END
+      + CASE WHEN semantic_rank > 0 THEN 1.0 / (60 + row_number() OVER (ORDER BY semantic_rank DESC, reference)) ELSE 0 END)
+      * CASE WHEN source_kind = 'seat' THEN 0.5 ELSE 1 END AS fused_rank
     FROM deduped
 ), page AS (
     SELECT * FROM ranked

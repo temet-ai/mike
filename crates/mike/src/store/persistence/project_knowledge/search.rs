@@ -5,7 +5,8 @@ use super::invalid;
 use crate::store::persistence::recall_embedding::set_vector_scan_limits;
 use crate::store::persistence::{PersistError, PersistHandle};
 
-const READABLE_KINDS: [&str; 13] = [
+const READABLE_KINDS: [&str; 14] = [
+    "launch",
     "artifact",
     "lesson",
     "note",
