@@ -4,7 +4,7 @@
 connected to mike, with a name, a role and a goal that other sessions can read before the
 first turn. It spares you the setup of starting `claude` by hand in each folder. You can
 list the sessions mike started, close one, and have sessions send each other messages.
-It does not run a group of sessions toward one goal (that is [Fleets](fleets.md)), and it
+It does not run a group of sessions toward one goal (that is [Fleets](fleets/README.md)), and it
 does not read a session's traffic (that is [Reading sessions](reading-sessions.md)).
 
 Run it from any terminal: `mike spawn open <folder>`. The commands below need a terminal
@@ -67,7 +67,7 @@ passes the rest through untouched.
 | Flag | What it does |
 |---|---|
 | `--session-name <name>` | The name other sessions see. Defaults to `--seat`. |
-| `--seat <name>` | A name for this session within a run (see [Fleets](fleets.md)). |
+| `--seat <name>` | A name for this session within a run (see [Fleets](fleets/README.md)). |
 | `--role <role>` | What the session is, for example `writer`. Messages can be addressed to a role. |
 | `--instructions <text>` | The standing brief the session works under. |
 | `--goal <text>` | What it is working on. |

@@ -73,7 +73,7 @@ nothing from it. `/fleet-comms` opens a pane with the fleet's state as
 `mike fleet status` draws it, then its messages. While the fleet runs, a band above the prompt
 carries the latest message and **NEEDS YOU**, and the status line says **NEEDS YOU** or
 **NOTHING IS MOVING**. A fleet that is done, failed or not yet started raises nothing.
-See [Fleets](fleets.md).
+See [Fleets](fleets/README.md).
 
 In a fleet session whose task has a goal, the mod starts Claude Code's `/goal` with that
 goal after the session's first turn.

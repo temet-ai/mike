@@ -59,7 +59,8 @@ mike runs on Linux x86_64 and ARM64 (glibc 2.35 or newer) and on Apple Silicon M
 
 - [MCP](mcp.md): let Claude Code query what mike has captured.
 - [Start and manage sessions](sessions.md): open Claude Code sessions from mike.
-- [Fleets](fleets.md): several sessions working towards one goal.
+- [Fleets](fleets/README.md): several sessions working towards one goal.
+- [How a fleet runs](fleets/how-a-fleet-runs.md): what mike does from the moment a fleet starts until it closes, and what each session in it does.
 - [Work threads](threads.md): keep work going across sessions.
 - [Mods](mods.md): the panes and buttons mike adds inside Claude Code.
 

@@ -27,7 +27,7 @@ mike is an inspector for Claude Code, written in Rust. It records every request 
 - **Ask Claude Code about its own history.** `mike-mcp`, the companion program, gives a session [tools](docs/user-guide/mcp.md) to search earlier turns and notes.
 - **Keep a correction.** Tell Claude to record it as a [lesson](docs/user-guide/memory.md) and later sessions in that project can be handed it.
 - **Spot weak answers.** Local pattern checks [flag](docs/user-guide/flagged-responses.md) unbacked claims, blame-shifting and avoided work beside the response.
-- **Watch and steer.** Optional [steerers](docs/user-guide/steering.md) notice a session drifting from its goal, [filter rules](docs/user-guide/filters.md) rewrite the system prompt, and [fleets](docs/user-guide/fleets.md) run several sessions towards one goal.
+- **Watch and steer.** Optional [steerers](docs/user-guide/steering.md) notice a session drifting from its goal, [filter rules](docs/user-guide/filters.md) rewrite the system prompt, and [fleets](docs/user-guide/fleets/README.md) run several sessions towards one goal.
 
 A fresh install only captures: it forwards your requests unchanged and sends nothing to anyone but Anthropic. Features that rewrite a request or send text to another service stay off until you turn them on. [Privacy](docs/user-guide/privacy.md) lists what each one stores and sends.
 

@@ -36,7 +36,7 @@ PUB="$SCRATCH/public"
 git init -q -b main "$PUB"
 git -C "$PUB" config uploadpack.allowFilter true
 mkdir -p "$PUB/docs/user-guide/images"
-for p in $PAGES; do printf '# %s\n\nText.\n' "${p%.md}" > "$PUB/docs/user-guide/$p"; done
+for p in $PAGES; do mkdir -p "$(dirname "$PUB/docs/user-guide/$p")"; printf '# %s\n\nText.\n' "${p%.md}" > "$PUB/docs/user-guide/$p"; done
 printf '\x89PNG\r\n\x1a\n' > "$PUB/docs/user-guide/images/home.png"
 git -C "$PUB" add -A && git -C "$PUB" commit -q -m "guide" && git -C "$PUB" tag v1
 pub_edit() { # <page> <text> <message>: a new commit on the public main
@@ -55,9 +55,11 @@ cat > "$SITE/site/preview/package.json" <<'EOF'
 EOF
 cat > "$SITE/site/preview/scripts/sync.sh" <<'EOF'
 src="$1/docs/user-guide"
+rm -rf content/mike
 mkdir -p content/mike public/docs/mike/images
-rm -f content/mike/*.md
-cp "$src"/*.md content/mike/ || exit 1
+(cd "$src" && find . -name '*.md' ! -path './images/*') | while read -r f; do
+    mkdir -p "content/mike/$(dirname "$f")" && cp "$src/$f" "content/mike/$f" || exit 1
+done || exit 1
 for f in "$src"/images/*.png; do [ -f "$f" ] && cp "$f" public/docs/mike/images/; done
 exit 0
 EOF
@@ -101,6 +103,8 @@ before="$(pushed)"
 run "the release's guide is published and reported live" 0 "live at https://temet.ai/docs/mike/"
 expect "the push carried one commit" test "$(pushed)" -eq $((before + 1))
 expect "the website's origin has the guide's pages" origin_page README.md
+expect "the website's origin has the pages in the guide's subfolder" origin_page fleets/how-a-fleet-runs.md
+expect "a subfolder README is kept apart from the top README" grep -q "^# fleets/README" <(origin_page fleets/README.md)
 expect "the picture went to the public folder" git -C "$ORIGIN" cat-file -e main:site/preview/public/docs/mike/images/home.png
 expect "the commit names the release it came from" grep -q "synced to temet-ai/mike v1" <(git -C "$ORIGIN" log -1 --format=%s main)
 run "status then says the website holds the release's guide" 0 "holds the guide of that release" --status
@@ -112,6 +116,8 @@ expect "no commit was pushed for it" test "$(pushed)" -eq "$before"
 pub_edit install.md $'# install\n\nCorrected.' "correct the install page"
 run "status names a page changed on main since the release" 0 "install.md" --status
 run "status says how to publish it by hand" 0 "--ref main" --status
+pub_edit fleets/how-a-fleet-runs.md $'# how-a-fleet-runs\n\nMore.' "extend the fleet page"
+run "status names a subfolder page by its path" 0 "fleets/how-a-fleet-runs.md" --status
 run "the default still publishes the release, not main" 0 "nothing to publish"
 
 before="$(pushed)"

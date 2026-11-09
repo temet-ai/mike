@@ -93,7 +93,7 @@ Searching only reads; nothing is sent to Anthropic by this panel. Whether a sess
 
 The Fleet canvas draws one project's sessions as a graph: who is working, what they are
 working on, and who has written to whom. It is most useful when several sessions work on one
-goal; [Fleets](fleets.md) explains how to start and close a group of sessions on purpose.
+goal; [Fleets](fleets/README.md) explains how to start and close a group of sessions on purpose.
 A single session still appears here.
 
 ![The Fleet canvas showing a project's sessions and the messages between them](images/fleet.png)

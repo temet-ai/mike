@@ -7,14 +7,19 @@
 # It changes no file. Without --complete it passes while pages are still being written.
 #
 #   - exactly one `# ` title, and no `## ` text repeated within a page
-#   - links are `name.md` or `name.md#anchor` to a page in the map; the anchor must be a
-#     heading of that page (slugified, no de-duplication) when the page exists
-#   - images are `images/name.png`; images/ holds PNGs only
+#   - a page is at the top of the folder or in one subfolder (fleets/); its name in the map
+#     and in every message is its path from the guide folder, such as `fleets/README.md`
+#   - links are relative file links, `name.md` or `name.md#anchor`, read from the linking
+#     page's own folder (`../sessions.md` from fleets/, `fleets/README.md` from the top), and
+#     must reach a page in the map; the anchor must be a heading of that page (slugified, no
+#     de-duplication) when the page exists
+#   - images resolve to `images/name.png` (`../images/name.png` from fleets/); images/
+#     holds PNGs only
 #   - no frontmatter, raw HTML, HTML comments or footnotes
 #   - no private word (the list scripts/private-words-check reads: $MIKE_PRIVATE_WORDS, else
 #     ~/.config/mike-dev/private-words.txt), no non-loopback IPv4 address, no /home/ or /Users/ path
-#   --complete  also: every page of the map exists, nothing else is in the folder, and every
-#               embedded image exists
+#   --complete  also: every page of the map exists, nothing else is in the folder (a subfolder
+#               holds its map pages only), and every embedded image exists
 #
 # $GUIDE_DIR overrides the folder (the test uses it).
 # Exit: 0 clean, 1 failures, 2 usage.
@@ -22,14 +27,14 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DIR="${GUIDE_DIR:-$ROOT/docs/user-guide}"
-MAP="README.md quickstart.md install.md setup.md pages.md web-ui.md reading-sessions.md projects.md flagged-responses.md prompts-and-agents.md terminal.md memory.md steering.md judge.md filters.md compression.md mcp.md sessions.md fleets.md threads.md mods.md command-line.md settings.md privacy.md backup-and-recovery.md troubleshooting.md"
+MAP="README.md quickstart.md install.md setup.md pages.md web-ui.md reading-sessions.md projects.md flagged-responses.md prompts-and-agents.md terminal.md memory.md steering.md judge.md filters.md compression.md mcp.md sessions.md fleets/README.md fleets/how-a-fleet-runs.md threads.md mods.md command-line.md settings.md privacy.md backup-and-recovery.md troubleshooting.md"
 
 complete=0
 files=()
 for a in "$@"; do
     case "$a" in
         --complete) complete=1 ;;
-        -h|--help) sed -n '2,20p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '2,25p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         -*) echo "usage: scripts/check-user-guide [--complete] [file...]" >&2; exit 2 ;;
         *) files+=("$a") ;;
     esac
@@ -57,6 +62,20 @@ function slug(h,   s) {
     gsub(/[^a-z0-9 _-]/, "", s)
     gsub(/ /, "-", s)
     return s
+}
+# Path from the guide folder of a relative link REL on the page FROM, or "" when the link is
+# absolute or climbs out of the guide folder.
+function resolve(from, rel,   d, n, i, k, parts, stk, out) {
+    if (rel ~ /^\//) return ""
+    d = from; sub(/[^\/]*$/, "", d)
+    n = split(d rel, parts, "/"); k = 0; split("", stk)
+    for (i = 1; i <= n; i++) {
+        if (parts[i] == "" || parts[i] == ".") continue
+        if (parts[i] == "..") { if (k == 0) return ""; k--; continue }
+        stk[++k] = parts[i]
+    }
+    out = ""; for (i = 1; i <= k; i++) out = out (i > 1 ? "/" : "") stk[i]
+    return out
 }'
 
 # Headings of every page that exists: "page<TAB>slug".
@@ -74,11 +93,15 @@ done
 # Which pages to check.
 targets=()
 if ((${#files[@]})); then
+    realdir="$(cd "$DIR" && pwd -P)"
     for f in "${files[@]}"; do
-        [[ "$f" == */* ]] || f="$DIR/$f"
+        # A bare name, or a path from the guide folder such as fleets/README.md, is read there.
+        if [[ "$f" != */* ]] || { [[ "$f" != /* && ! -f "$f" && -f "$DIR/$f" ]]; }; then f="$DIR/$f"; fi
         if [[ ! -f "$f" ]]; then fail "$f:1: no such file"; continue; fi
-        if [[ "$(cd "$(dirname "$f")" && pwd -P)" != "$(cd "$DIR" && pwd -P)" ]]; then fail "$f:1: not in the guide folder"; continue; fi
-        if ! in_map "$(basename "$f")"; then fail "$f:1: not a page of the map"; continue; fi
+        fdir="$(cd "$(dirname "$f")" && pwd -P)"
+        if [[ "$fdir" != "$realdir" && "$fdir" != "$realdir"/* ]]; then fail "$f:1: not in the guide folder"; continue; fi
+        rel="${fdir#"$realdir"}"; rel="${rel#/}"; rel="${rel:+$rel/}$(basename "$f")"
+        if ! in_map "$rel"; then fail "$f:1: not a page of the map"; continue; fi
         targets+=("$f")
     done
 else
@@ -94,8 +117,11 @@ if [[ ! -s "$patterns" ]]; then
     echo "check-user-guide: no private word list at $words; private words not checked" >&2
 fi
 
+realdir="$(cd "$DIR" && pwd -P)"
 for f in ${targets[@]+"${targets[@]}"}; do
-    name="$(basename "$f")"
+    # The page's path from the guide folder: README.md, fleets/README.md.
+    fdir="$(cd "$(dirname "$f")" && pwd -P)"; name="${fdir#"$realdir"}"; name="${name#/}"
+    name="${name:+$name/}$(basename "$f")"
     awk -v F="$name" -v SLUGS="$slugs" -v MAP="$MAP" -v COMPLETE="$complete" -v IMGDIR="$DIR" "$SLUGFN"'
     function err(msg) { printf "%s:%d: %s\n", F, FNR, msg }
     BEGIN {
@@ -127,9 +153,13 @@ for f in ${targets[@]+"${targets[@]}"}; do
             tg = mm; sub(/^!?\[[^]]*\]\(/, "", tg); sub(/\)$/, "", tg); sub(/[ \t].*$/, "", tg)
             if (tg ~ /^(https?:|mailto:)/) continue
             if (img) {
-                if (tg !~ "^images/[^/]+[.]png$") { err("image " tg " is not images/<name>.png"); continue }
+                ri = resolve(F, tg)
+                if (ri !~ "^images/[^/]+[.]png$") {
+                    err("image " tg " is not images/<name>.png" (index(F, "/") ? " (../images/<name>.png from a subfolder)" : ""))
+                    continue
+                }
                 if (COMPLETE == 1) {
-                    path = IMGDIR "/" tg
+                    path = IMGDIR "/" ri
                     if ((getline junk < path) < 0) err("image " tg " does not exist")
                     close(path)
                 }
@@ -138,7 +168,10 @@ for f in ${targets[@]+"${targets[@]}"}; do
             file = tg; anchor = ""
             if (index(tg, "#")) { file = substr(tg, 1, index(tg, "#") - 1); anchor = substr(tg, index(tg, "#") + 1) }
             if (file == "") file = F
-            else if (!(file in inmap)) { err("link " tg " is not to a page of the map"); continue }
+            else {
+                file = resolve(F, file)
+                if (!(file in inmap)) { err("link " tg " is not to a page of the map"); continue }
+            }
             if (anchor != "" && (file in page) && !((file SUBSEP anchor) in have))
                 err("anchor #" anchor " is not a heading of " file)
         }
@@ -179,7 +212,15 @@ if ((complete)); then
         [[ -e "$e" ]] || continue
         b="$(basename "$e")"
         [[ "$b" == images ]] && continue
-        in_map "$b" || fail "$b:1: not in the page map"
+        if [[ -d "$e" ]] && [[ " $MAP" == *" $b/"* ]]; then
+            # A subfolder of the map holds its map pages and nothing else.
+            for s in "$e"/* "$e"/.[!.]*; do
+                [[ -e "$s" ]] || continue
+                [[ -f "$s" ]] && in_map "$b/$(basename "$s")" || fail "$b/$(basename "$s"):1: not in the page map"
+            done
+            continue
+        fi
+        [[ -f "$e" ]] && in_map "$b" || fail "$b:1: not in the page map"
     done
 fi
 

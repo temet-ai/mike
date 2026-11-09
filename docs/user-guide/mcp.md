@@ -89,7 +89,7 @@ most sessions never need: prompt-composition edits, evaluation and calibration r
 project-definition tools and per-session tool-use statistics.
 
 `mike-mcp list-tools` is the authoritative list, and the counts above change between
-releases. Sessions that mike starts for a [fleet](fleets.md) get a narrower set matching their
+releases. Sessions that mike starts for a [fleet](fleets/README.md) get a narrower set matching their
 job (`worker`, `coordinator`, `acceptance`, `observer`, `retrospective`, `reference` or
 `problem_solver`; for example `worker` is 30 tools). You only meet these if you read a
 fleet session's configuration. An unknown profile name stops the program with a message
@@ -130,7 +130,7 @@ After step 3 you can see the lesson on the `/memory` page in the [web UI](web-ui
 | Change what mike rewrites | `list_filter_rules`, `dry_run_filter_rules`, `create_filter_rule`, `update_filter_rule`, `delete_filter_rule`; see [Filters](filters.md) |
 | Work with other sessions | `get_workspace_roster`, `send_session_message`, `get_session_messages`, `verify_session_message`, `set_session_goal`, `get_fleet_graph` |
 | Start and stop sessions | `spawn_session`, `list_launches`, `kill_session`; see [Sessions](sessions.md) |
-| Define and watch a fleet | `define_fleet`, `get_fleet`; `what_changed` for who changed what in your checkout; see [Fleets](fleets.md) |
+| Define and watch a fleet | `define_fleet`, `get_fleet`; `what_changed` for who changed what in your checkout; see [Fleets](fleets/README.md) |
 | Keep work across sessions | `work_thread_list`, `work_thread_get`, `work_thread_checkpoint`; `write_session_note`, `list_session_notes`; see [Work threads](threads.md) |
 
 Text that comes back from a search, a note or a message is a record of what happened, not an

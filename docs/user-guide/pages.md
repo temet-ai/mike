@@ -38,7 +38,7 @@ The menu on the left groups the pages as Overview, Levers, Insight and System. P
 | Flagged responses | `/analysis` | [Flagged responses](flagged-responses.md) |
 | Prompts | `/prompts`, and its main, subagent, volatile-lines and new views | [Prompts, agents and tools](prompts-and-agents.md) |
 | Agents | `/agents`, and an agent at `/agents/<agent>` | [Prompts, agents and tools](prompts-and-agents.md) |
-| Fleet | `/fleet` | [Fleets](fleets.md), [Projects](projects.md) |
+| Fleet | `/fleet` | [Fleets](fleets/README.md), [Projects](projects.md) |
 | Compression review | `/compression-review` | [Compression](compression.md) |
 | Tools | `/tools` (tool errors are on the same page) | [Prompts, agents and tools](prompts-and-agents.md) |
 | Agent dispatches | `/diagnostics/agent-dispatches` | [Prompts, agents and tools](prompts-and-agents.md) |
@@ -74,7 +74,7 @@ Run `mike --help` for the list and `mike <command> --help` for one command. [Com
 | Start mike and Claude Code | `mike` (in a terminal), `mike serve`, `mike claude` | [Capture your first session](quickstart.md), [The terminal app](terminal.md) |
 | Connect Claude Code | `mike mcp`, `mike claude-code` | [MCP](mcp.md), [Mods](mods.md), [Set mike up](setup.md) |
 | Start and manage sessions | `mike spawn` | [Start and manage sessions](sessions.md) |
-| Run a fleet | `mike fleet` | [Fleets](fleets.md) |
+| Run a fleet | `mike fleet` | [Fleets](fleets/README.md) |
 | Keep work across sessions | `mike thread` | [Work threads](threads.md) |
 | Look at configuration | `mike config`, `mike print-config`, `mike import-dotenv` | [Settings](settings.md) |
 | Remove mike | `mike uninstall` | [Backup and recovery](backup-and-recovery.md) |

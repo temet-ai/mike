@@ -92,7 +92,7 @@ Setup runs these for you.
 
 ## Start sessions and run fleets
 
-[Sessions](sessions.md) and [Fleets](fleets.md) cover these; this is the list.
+[Sessions](sessions.md) and [Fleets](fleets/README.md) cover these; this is the list.
 
 | Command | What it does |
 |---|---|

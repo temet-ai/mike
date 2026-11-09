@@ -92,11 +92,15 @@ latest_release() {
 fetch_source() { git -C "$pub" fetch -q --no-tags --filter=blob:none origin "$@"; }
 
 # manifest <repo> <commit> <pages folder> <pictures folder>: one sorted line for each page
-# ("page <file> <blob>") and each picture ("picture <path> <blob>"), read from the commit.
+# ("page <path> <blob>", the path from the pages folder, so a page in a subfolder reads
+# fleets/README.md) and each picture ("picture <path> <blob>"), read from the commit. Markdown
+# under images/ is a note beside the pictures, not a page.
 manifest() {
     {
-        git -C "$1" ls-tree "$2" "$3/" | awk -F'\t' '
-            $1 ~ / blob / && $2 ~ /\.md$/ { split($1, a, " "); n = $2; sub(/.*\//, "", n); print "page", n, a[3] }' &&
+        git -C "$1" ls-tree -r "$2" "$3/" | awk -F'\t' -v P="$3/" '
+            $1 ~ / blob / && $2 ~ /\.md$/ {
+                n = substr($2, length(P) + 1); if (n ~ /^images\//) next
+                split($1, a, " "); print "page", n, a[3] }' &&
         git -C "$1" ls-tree -r "$2" "$4/" | awk -F'\t' -v P="$4/" '
             $1 ~ / blob / && tolower($2) ~ /\.(png|jpe?g|gif|svg|webp)$/ { split($1, a, " "); print "picture", substr($2, length(P) + 1), a[3] }'
     } | LC_ALL=C sort
