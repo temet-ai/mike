@@ -35,6 +35,26 @@ pub(super) async fn rerank_turns(
     }
 }
 
+const PROMPT_HEAD_CHARS: usize = 200;
+
 fn document(row: &RankedTurnRow) -> String {
-    format!("{}\n\n{}", row.user_prompt, row.final_assistant_text)
+    turn_text(&row.user_prompt, &row.final_assistant_text)
+}
+
+fn turn_text(prompt: &str, reply: &str) -> String {
+    let prompt = head(prompt, PROMPT_HEAD_CHARS);
+    let reply_room =
+        crate::analysis::rerank::MAX_DOCUMENT_CHARS.saturating_sub(prompt.chars().count() + 2);
+    format!("{prompt}\n\n{}", head(reply, reply_room))
+}
+
+#[cfg(test)]
+#[path = "recall_turns_rerank_text_tests.rs"]
+mod text_tests;
+
+fn head(text: &str, max_chars: usize) -> &str {
+    match text.char_indices().nth(max_chars) {
+        Some((end, _)) => &text[..end],
+        None => text,
+    }
 }
