@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT s.id, s.location_uuid, s.project_id AS bound_project, l.project_id AS \"bound_owner?\"\n                 FROM sessions.sessions s\n                 LEFT JOIN projects.locations l ON l.location_uuid = s.location_uuid\n                 WHERE s.session_uuid = $1 FOR UPDATE OF s",
+  "query": "SELECT s.id, s.location_uuid, s.project_id AS bound_project, l.project_id AS \"bound_owner?\"\n                 FROM sessions.sessions s\n                 LEFT JOIN projects.locations l ON l.location_uuid = s.location_uuid\n                 WHERE s.session_uuid = $1 FOR NO KEY UPDATE OF s",
   "describe": {
     "columns": [
       {
@@ -60,5 +60,5 @@
       false
     ]
   },
-  "hash": "3b3298e258f3dbd94ef946cd29bacf75950501358fd0660f6285b086f360bd3f"
+  "hash": "d050876399156a92fb79c76a9ad59e82682deaa9400a48db4408a15eaf4e71b2"
 }

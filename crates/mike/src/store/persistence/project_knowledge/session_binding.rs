@@ -15,7 +15,7 @@ impl PersistHandle {
             r#"SELECT s.id, s.location_uuid, s.project_id AS bound_project, l.project_id AS "bound_owner?"
                  FROM sessions.sessions s
                  LEFT JOIN projects.locations l ON l.location_uuid = s.location_uuid
-                 WHERE s.session_uuid = $1 FOR UPDATE OF s"#,
+                 WHERE s.session_uuid = $1 FOR NO KEY UPDATE OF s"#,
             session,
         )
         .fetch_one(&mut *tx)
