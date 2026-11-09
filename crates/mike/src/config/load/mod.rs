@@ -253,6 +253,8 @@ mod tests {
             .lock()
             .map_err(|e| anyhow::anyhow!("env_lock poisoned: {e}"))?;
         let _cleared = clear_proxy_env();
+        let _fallback = EnvVarGuard::unset("MIKE_DB_FALLBACK_ENABLED");
+        let _resync = EnvVarGuard::unset("MIKE_DB_RESYNC_ENABLED");
 
         let config = load_layered(CliOverrides::default())?;
         assert!(config.db_fallback_enabled);
