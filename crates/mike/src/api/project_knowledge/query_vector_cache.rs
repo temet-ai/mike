@@ -44,10 +44,11 @@ impl QueryVectorCache {
     pub(crate) fn put(&self, model_key: &str, query: &str, vector: Vec<f32>) {
         let key = (model_key.to_owned(), query.to_owned());
         let mut entries = self.entries.lock().unwrap_or_else(PoisonError::into_inner);
-        if !entries.vectors.contains_key(&key) && entries.vectors.len() >= self.capacity {
-            if let Some(oldest) = entries.recency.pop_front() {
-                entries.vectors.remove(&oldest);
-            }
+        if !entries.vectors.contains_key(&key)
+            && entries.vectors.len() >= self.capacity
+            && let Some(oldest) = entries.recency.pop_front()
+        {
+            entries.vectors.remove(&oldest);
         }
         entries.touch(&key);
         entries.vectors.insert(key, vector);

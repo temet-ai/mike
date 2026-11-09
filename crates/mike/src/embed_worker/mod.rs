@@ -143,15 +143,21 @@ pub(crate) async fn requeue_on_model_change(
         .await
     {
         Ok(turns) => {
-            if turns > 0 {
-                tracing::info!(turns, model = %model, "embed_backfill: turns embedded with another model queued for re-embedding");
-            }
+            log_requeued(turns, &model);
             *requeued_for = Some(model);
         }
-        Err(error) => {
-            tracing::warn!(%error, "embed_backfill: re-embedding queue after a model change failed; will retry next tick");
-        }
+        Err(error) => log_requeue_failed(&error),
     }
+}
+
+fn log_requeued(turns: u64, model: &str) {
+    if turns > 0 {
+        tracing::info!(turns, model = %model, "embed_backfill: turns embedded with another model queued for re-embedding");
+    }
+}
+
+fn log_requeue_failed(error: &PersistError) {
+    tracing::warn!(%error, "embed_backfill: re-embedding queue after a model change failed; will retry next tick");
 }
 
 fn log_starting() {

@@ -57,6 +57,25 @@ async fn set_similarity(
     Ok(())
 }
 
+async fn other_project(handle: &PersistHandle, documents: usize) -> anyhow::Result<Vec<String>> {
+    let titles: Vec<String> = (0..documents)
+        .map(|index| format!("other-{index}"))
+        .collect();
+    if documents == 0 {
+        return Ok(titles);
+    }
+    let other = handle
+        .define_knowledge_project("Other", Uuid::new_v4())
+        .await?;
+    let other_source = source(handle, &other.project_uuid.to_string()).await?;
+    let pairs: Vec<(&str, &str)> = titles
+        .iter()
+        .map(|title| (title.as_str(), "filler body text from another project"))
+        .collect();
+    scan_titles(handle, other_source, &pairs).await?;
+    Ok(titles)
+}
+
 struct Fixture {
     db: crate::store::persistence::test_support::TestDbHandle,
     handle: PersistHandle,
@@ -82,20 +101,7 @@ async fn fixture_beside_other_project(
     let source_uuid = source(&handle, &project.project_uuid.to_string()).await?;
     let titles: Vec<(&str, &str)> = documents.iter().map(|(t, b, _)| (*t, *b)).collect();
     scan_titles(&handle, source_uuid, &titles).await?;
-    let other_titles: Vec<String> = (0..other_documents)
-        .map(|index| format!("other-{index}"))
-        .collect();
-    if other_documents > 0 {
-        let other = handle
-            .define_knowledge_project("Other", Uuid::new_v4())
-            .await?;
-        let other_source = source(&handle, &other.project_uuid.to_string()).await?;
-        let pairs: Vec<(&str, &str)> = other_titles
-            .iter()
-            .map(|title| (title.as_str(), "filler body text from another project"))
-            .collect();
-        scan_titles(&handle, other_source, &pairs).await?;
-    }
+    let other_titles = other_project(&handle, other_documents).await?;
     let (_server, service) = embedding_server().await;
     sweep(&handle, &service, &mut breaker()).await?;
     for (title, _, similarity) in documents {
