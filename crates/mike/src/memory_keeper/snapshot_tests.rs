@@ -21,7 +21,7 @@ fn resolved(snapshot: &KeeperSnapshot, path: &str) -> Option<*const ProjectThrea
 #[test]
 fn project_for_nested_roots_picks_the_longest_match() {
     let snap = snapshot();
-    let app = snap.projects.get(&2).map(|p| Arc::as_ptr(p));
+    let app = snap.projects.get(&2).map(Arc::as_ptr);
     assert_eq!(resolved(&snap, "/work/app"), app);
     assert_eq!(resolved(&snap, "/work/app/crates/mike"), app);
 }
@@ -29,7 +29,7 @@ fn project_for_nested_roots_picks_the_longest_match() {
 #[test]
 fn project_for_sibling_with_shared_prefix_does_not_match_the_root() {
     let snap = snapshot();
-    let outer = snap.projects.get(&1).map(|p| Arc::as_ptr(p));
+    let outer = snap.projects.get(&1).map(Arc::as_ptr);
     assert_eq!(resolved(&snap, "/work/application"), outer);
 }
 
