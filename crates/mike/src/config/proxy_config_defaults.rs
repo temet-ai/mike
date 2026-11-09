@@ -139,16 +139,21 @@ impl ProxyConfig {
 }
 
 fn private_test_installation() -> std::path::PathBuf {
-    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let serial = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let folder = format!("mike-test-{}-{serial}", std::process::id());
-    let preferred = std::env::temp_dir().join(&folder);
-    let root = if preferred.as_os_str().len() <= 40 {
+    const MAX_FOLDER_PATH_LEN: usize = 40;
+    let mut builder = tempfile::Builder::new();
+    builder.prefix("mike-test-");
+    let preferred = builder.tempdir().unwrap_or_else(|error| {
+        panic!("cannot create a private test installation folder: {error}")
+    });
+    let folder = if preferred.path().as_os_str().len() <= MAX_FOLDER_PATH_LEN {
         preferred
     } else {
-        std::path::PathBuf::from("/tmp").join(&folder)
+        drop(preferred);
+        builder.tempdir_in("/tmp").unwrap_or_else(|error| {
+            panic!("cannot create a private test installation folder in /tmp: {error}")
+        })
     };
-    root.join("config.toml")
+    folder.keep().join("config.toml")
 }
 
 impl Default for ProxyConfig {
@@ -203,6 +208,7 @@ impl Default for ProxyConfig {
             mailbox_reject_send_to_ended_session: true,
             workspace_reap_interval_secs: default_workspace_reap_interval_secs(),
             embedding: crate::analysis::EmbeddingConfig::default(),
+            rerank: crate::analysis::RerankConfig::default(),
             analysis: AnalysisConfig::default(),
             cap_manager: CapManagerConfig::default(),
             log_dir: None,
@@ -231,3 +237,7 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "proxy_config_defaults_tests.rs"]
+mod proxy_config_defaults_tests;

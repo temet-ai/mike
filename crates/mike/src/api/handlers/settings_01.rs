@@ -296,6 +296,9 @@ pub(crate) async fn patch_setting(
                 let embedding_service = state.embedding_service();
                 let _ = embedding_service.apply_setting(&key, &validated_value);
             }
+            if key.starts_with("rerank.") {
+                let _ = state.rerank_service().apply_setting(&key, &validated_value);
+            }
             let swaps =
                 follow_live_bundle(svc, &key, &validated_value, previous_pointer, &source).await;
             let meta = crate::settings::SETTINGS_META

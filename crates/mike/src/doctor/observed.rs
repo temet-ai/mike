@@ -17,6 +17,7 @@ pub(crate) struct Observed {
     pub(crate) connection: ConnectionFacts,
     pub(crate) models: ModelFacts,
     pub(crate) embeddings: EmbeddingFacts,
+    pub(crate) rerank: RerankFacts,
     pub(crate) launch_backend: String,
 }
 
@@ -128,4 +129,11 @@ pub(crate) struct CapabilityFacts {
 pub(crate) struct EmbeddingFacts {
     pub(crate) url: Option<String>,
     pub(crate) reachable: Option<bool>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct RerankFacts {
+    pub(crate) url: Option<String>,
+    pub(crate) reachable: Option<bool>,
+    pub(crate) detail: Option<String>,
 }

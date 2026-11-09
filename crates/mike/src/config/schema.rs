@@ -152,6 +152,9 @@ pub struct ProxyConfig {
     pub(crate) embedding: crate::analysis::EmbeddingConfig,
 
     #[serde(default)]
+    pub(crate) rerank: crate::analysis::RerankConfig,
+
+    #[serde(default)]
     pub analysis: AnalysisConfig,
 
     #[serde(default)]

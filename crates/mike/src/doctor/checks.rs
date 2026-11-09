@@ -1,6 +1,6 @@
 use super::observed::{
     ConfigFileFacts, DatabaseFacts, EmbeddingFacts, MigrationFacts, ModelFacts, Observed,
-    ServerFacts, ServiceFacts, SidecarFacts, SpaFacts, ToolFacts,
+    RerankFacts, ServerFacts, ServiceFacts, SidecarFacts, SpaFacts, ToolFacts,
 };
 use super::{Check, SetupStep};
 use crate::user_config::FileState;
@@ -24,6 +24,7 @@ pub(crate) fn evaluate(observed: &Observed) -> Vec<Check> {
     checks.extend(super::check_claude::connection(&observed.connection));
     checks.extend(models(&observed.models));
     checks.push(embeddings(&observed.embeddings));
+    checks.push(rerank(&observed.rerank));
     checks.push(launch_backend(&observed.launch_backend));
     checks
 }
@@ -414,6 +415,31 @@ fn embeddings(facts: &EmbeddingFacts) -> Check {
             "embedding server",
             format!("{url} is configured; not probed"),
         ),
+    }
+}
+
+fn rerank(facts: &RerankFacts) -> Check {
+    let Some(url) = &facts.url else {
+        return Check::ok(
+            "rerank",
+            "reranker",
+            "not enabled; search results keep their plain order",
+        );
+    };
+    match facts.reachable {
+        Some(true) => Check::ok("rerank", "reranker", format!("{url} answers")),
+        None => Check::ok(
+            "rerank",
+            "reranker",
+            format!("{url} is enabled; not probed because mike is not running"),
+        ),
+        Some(false) => {
+            let detail = facts
+                .detail
+                .clone()
+                .unwrap_or_else(|| format!("{url} is enabled but does not answer"));
+            Check::warn("rerank", "reranker", detail, Some(SetupStep::Rerank))
+        }
     }
 }
 

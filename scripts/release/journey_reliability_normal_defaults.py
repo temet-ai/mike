@@ -188,6 +188,12 @@ prompt_assistant.read_versions
 recall_injector.max_lessons_per_topic
 reminders.inject_lessons
 reminders.max_lessons_to_inject
+rerank.candidates
+rerank.enabled
+rerank.model
+rerank.timeout_ms
+rerank.tuning.enabled
+rerank.url
 semantic.allow_remote_embedding
 semantic.batch_turns
 semantic.cluster_floor_quantile

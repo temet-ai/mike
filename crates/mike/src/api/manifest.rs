@@ -368,6 +368,7 @@ mod tests {
             "weasel_intercept",
             "persistence",
             "project_knowledge",
+            "rerank",
             "llm_credit",
             "remote_control_link",
             "llm_worker_lease",

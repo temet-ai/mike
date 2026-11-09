@@ -5,8 +5,8 @@ use serde_json::Value;
 use super::checks::evaluate;
 use super::observed::{
     BuildFacts, CapabilityFacts, ConfigFileFacts, ConnectionFacts, DatabaseFacts, EmbeddingFacts,
-    ExtensionFacts, McpFacts, MigrationFacts, ModelFacts, Observed, ServerFacts, ServiceFacts,
-    ShellFacts, SidecarFacts, SpaFacts, ToolFacts,
+    ExtensionFacts, McpFacts, MigrationFacts, ModelFacts, Observed, RerankFacts, ServerFacts,
+    ServiceFacts, ShellFacts, SidecarFacts, SpaFacts, ToolFacts,
 };
 use super::{Check, Report, SetupStep, Status, render};
 use crate::claude_code::{Registration, Route};
@@ -100,6 +100,7 @@ fn healthy() -> Observed {
             url: Some("http://127.0.0.1:7997".to_string()),
             reachable: Some(true),
         },
+        rerank: RerankFacts::default(),
         launch_backend: "herdr".to_string(),
     }
 }
@@ -134,3 +135,4 @@ mod background;
 mod database;
 mod host;
 mod report;
+mod rerank;

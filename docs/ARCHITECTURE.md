@@ -1163,6 +1163,7 @@ The diagnostic analysis subsystem detects weasel-language patterns in Claude's r
 | `analysis/patterns.rs` | 19 compiled patterns as `LazyLock<Regex>` statics |
 | `analysis/config.rs` | `AnalysisConfig`, `CategoryConfig`, `PatternConfig` persisted in `/settings` and boot defaults |
 | `analysis/embeddings/` | `EmbeddingService` (HTTP client to Infinity), `chunk_text` |
+| `analysis/rerank/` | `RerankService` (HTTP client to llama-server `/v1/rerank`, health, circuit breaker), `RerankConfig` |
 | `diagnostics/mod.rs` | Process-level diagnostics; currently only `rss` sub-module |
 | `diagnostics/rss.rs` | `read_max_rss()` wrapping `getrusage(RUSAGE_SELF).ru_maxrss` |
 
@@ -1210,6 +1211,25 @@ The `CompiledPattern` struct carries `name: &'static str` (the override key), `r
 4. Emits at most one `Diagnostic` per category. Total output ≤ 5 diagnostics per `run()` call.
 
 The registry is hot-swapped on `AppState` via `Arc<ArcSwap<AnalyzerRegistry>>` — config reloads replace the registry without restarting.
+
+### RerankService
+
+`RerankService` (`crates/mike/src/analysis/rerank/`, held on `AppState` beside the embedding service) is the HTTP client for a reranker served by llama.cpp's `llama-server --reranking`. A reranker reads the query and one candidate passage together and scores how well the passage answers the query; it reorders candidates the first search already found. The service posts `{"model", "query", "documents"}` to `{rerank.url}/v1/rerank`, reads `{"results":[{"index","relevance_score"}]}` and returns the scores best first. Each document is cut to 6,000 characters and the query to 2,000 before sending, because the server accepts about 2,000 tokens per query and passage pair.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `rerank.enabled` | off | Content egress: each reranked search sends the query and candidate passages to `rerank.url`. Off on a fresh install |
+| `rerank.url` | `http://127.0.0.1:11435` | A non-loopback URL needs `semantic.allow_remote_embedding`, the same permission embeddings need (`semantic/egress.rs`) |
+| `rerank.model` | `bge-reranker-v2-m3` | Model name sent with each request |
+| `rerank.timeout_ms` | 800 | Hard limit per request |
+| `rerank.candidates` | 50 | How many top results a search sends to the reranker |
+| `rerank.tuning.enabled` | off | Gate for the overnight tuning worker |
+
+Settings are declared in `settings/meta_rerank.rs`, folded into `ProxyConfig.rerank` at boot (`config/overrides_rerank.rs`) and applied live by `RerankService::apply_setting`, called from the `rerank.` branch of `patch_setting` in `api/handlers/settings_01.rs`. A change of `rerank.enabled`, `rerank.url` or `rerank.model` also clears the recorded outcomes and closes the circuit breaker.
+
+The server starts on its first connection and stops after ten idle minutes, so a cold start holds the first request open instead of answering 503. A request or `health()` call that times out after connecting, while the last known state is unknown, loading or older than ten minutes, is reported as loading and does not count as a failure. A refused connection, an HTTP error, a malformed answer or a timeout on a server that answered recently counts as a failure; three in a row open the crate's `CircuitBreaker` (15 s cooldown, doubling to 300 s), and `rerank()` then returns `BreakerOpen` without calling the server. `health()` ignores the breaker so it can close it again. 503 with "Loading model" also maps to loading.
+
+`/api/health` (`rerank` object) and `/api/capabilities` (`rerank` row) report the state from these recorded outcomes and never probe on their own, since a probe would start the server. Off, ready, idle and loading are healthy; a failing server is degraded with the last error and a remedy; a non-loopback URL without the egress permission is inert. The row does not change the overall health status, because search falls back to plain order. `mike doctor` has a `rerank` check built from the same health object; when the server does not answer it warns and names `mike setup rerank` as the fix. Source: `api/handlers/health/rerank.rs`, `doctor/checks.rs`.
 
 ### EmbeddingService
 

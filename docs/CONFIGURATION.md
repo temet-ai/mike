@@ -495,6 +495,7 @@ them are off unless noted; the full feature inventory is in [`FEATURES.md`](FEAT
 | `session_judge.enabled` | `MIKE_SESSION_JUDGE__ENABLED` | `false` |
 | `lesson_relations.enabled` | `MIKE_LESSON_RELATIONS__ENABLED` | `false` |
 | `embedding.enabled` | **ignored** — use `--embedding` or `/settings` | `false` |
+| `rerank.enabled` | **ignored** — use `/settings` | `false` — each reranked search sends the query and candidate passages to `rerank.url` |
 | `analysis.enabled` | `MIKE_ANALYSIS__ENABLED` | `true` — local diagnostics only, nothing leaves the machine |
 | `lesson_worker.enabled` | `MIKE_LESSON_WORKER__ENABLED` | `true` — local |
 | `harvester.enabled` | `MIKE_HARVESTER__ENABLED` | `true` — local |

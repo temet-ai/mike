@@ -19,6 +19,7 @@ and where keys live; [`CONFIGURATION.md`](CONFIGURATION.md) lists every setting 
 | `upstream_url` (`https://api.anthropic.com` by default) | Each request Claude Code sends to the proxy bind, with the caller's own credential header, after mike's configured rewrites | Every proxied request |
 | `openrouter.ai` | Captured conversation text, for the steerer, session judge, judge worker, `mike eval run` judge runs, turn guard and lesson-relation detection | Only when an OpenRouter key is set and the feature is on; all are off by default |
 | The configured embedding URL | Text to embed, for semantic recall | Only when `embedding.enabled` is on. A non-loopback URL is refused unless `semantic.allow_remote_embedding` is on |
+| The configured reranker URL (`rerank.url`) | The search query and the top candidate passages (each cut to 6,000 characters), to reorder search results | Only when `rerank.enabled` is on. A non-loopback URL is refused unless `semantic.allow_remote_embedding` is on |
 | The `claude` or `codex` CLI the prompt assistant starts | Prompts the operator writes there, under that CLI's own login | Only when the prompt assistant is used |
 | Docker Hub, the Debian package mirror and `github.com` (the pgvector release tag) | The image pull and local build of the managed database | `mike db up`, `mike database provision` |
 | Nothing else | | |

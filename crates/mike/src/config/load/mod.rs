@@ -96,6 +96,7 @@ fn load_layered(cli: CliOverrides, environment: &dyn Environment) -> anyhow::Res
     config.log_dir.get_or_insert(paths.log_dir);
     apply_openrouter_env(&mut config, environment);
     config.embedding = EmbeddingConfig::default();
+    config.rerank = crate::analysis::RerankConfig::default();
 
     if let Some(v) = embedding_enabled {
         config.embedding.enabled = v;

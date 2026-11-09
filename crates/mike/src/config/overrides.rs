@@ -1,5 +1,6 @@
 use super::overrides_analysis::apply_analysis_override;
 use super::overrides_launch::apply_launch_override;
+use super::overrides_rerank::apply_rerank_override;
 use super::schema::ProxyConfig;
 
 pub(crate) fn apply_settings_overrides(
@@ -9,6 +10,7 @@ pub(crate) fn apply_settings_overrides(
     for (key, value) in rows {
         let key = key.as_str();
         let _handled = apply_composition_and_embedding_override(cfg, key, value)
+            || apply_rerank_override(cfg, key, value)
             || apply_analysis_override(cfg, key, value)
             || apply_steerer_override(cfg, key, value)
             || apply_turn_judge_override(cfg, key, value)

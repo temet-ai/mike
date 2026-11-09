@@ -49,6 +49,7 @@ pub(crate) struct HealthResponse {
     pub(crate) instance: InstanceHealth,
     pub(crate) status: &'static str,
     pub(crate) embedding: EmbeddingHealth,
+    pub(crate) rerank: RerankHealth,
     pub(crate) persistence: PersistenceHealth,
     pub(crate) capture_gap: gap::CaptureGapHealth,
     pub(crate) llm: SteeringHealth,

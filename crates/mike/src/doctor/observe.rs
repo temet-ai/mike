@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use super::observed::{
     BuildFacts, CapabilityFacts, ConfigFileFacts, ConnectionFacts, EmbeddingFacts, McpFacts,
-    ModelFacts, Observed, ServiceFacts, ShellFacts, SidecarFacts, SpaFacts, ToolFacts,
+    ModelFacts, Observed, RerankFacts, ServiceFacts, ShellFacts, SidecarFacts, SpaFacts, ToolFacts,
 };
 use crate::claude_code::{Locations, gather_status, locate_mcp_binary};
 use crate::config::ProxyConfig;
@@ -31,6 +31,7 @@ pub(super) async fn observe(config: &ProxyConfig) -> Observed {
         observe_sidecar(config),
     );
     let embeddings = observe_embeddings(config, &inspect).await;
+    let rerank = observe_rerank(config, &inspect);
     let build = crate::change_log::current_build();
     let claude = observe_claude().await;
     let background = crate::service::observe().await;
@@ -76,7 +77,27 @@ pub(super) async fn observe(config: &ProxyConfig) -> Observed {
         mcp,
         connection,
         embeddings,
+        rerank,
         launch_backend: config.launch.backend.clone(),
+    }
+}
+
+fn observe_rerank(config: &ProxyConfig, inspect: &InspectView) -> RerankFacts {
+    let Some(row) = inspect.health.as_ref().and_then(|h| h.get("rerank")) else {
+        return RerankFacts {
+            url: config.rerank.enabled.then(|| config.rerank.url.clone()),
+            ..RerankFacts::default()
+        };
+    };
+    let text = |key: &str| row.get(key).and_then(Value::as_str).map(str::to_string);
+    let state = text("state");
+    if state.as_deref() == Some("off") {
+        return RerankFacts::default();
+    }
+    RerankFacts {
+        url: text("url"),
+        reachable: state.as_deref().map(|s| s == "ok"),
+        detail: text("detail"),
     }
 }
 
