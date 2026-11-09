@@ -278,6 +278,15 @@ Claude and Codex:
   reference. A document indexed on several machines (same source name and relative path)
   appears once, with `copies` counting the machine copies. A lesson is titled by its first
   line; its kind is `provenance.lesson_kind`.
+  Fleet seat material is kind `seat`: seat and workflow briefs, seat reports, coordinator and
+  peer mail, subagent hand-backs and Stop-hook feedback, as `memory.seat_memory(project)`
+  selects them. Each seat hit has `author.role` (coordinator, seat, peer or subagent), the
+  run, seat and task in `provenance`, and `provenance.framing` saying it was not written by
+  the operator; its rank is halved, so operator material with the same words comes first.
+  When a seat item is also a note, turn or mail result, the seat row with its labels is the
+  one returned. Seat hits need the `seat_memory_index` toggle (default off): its worker
+  copies what the function returns into `memory.seat_memory_items`, because the function
+  itself is too slow to call on every search.
 - `read_project_knowledge`: returned reference, optionally with a project; full source text,
   provenance and the `project_uuid` that holds it. Without a project the reference is read
   from whichever project holds it (a work-thread slug used in two projects asks for one).

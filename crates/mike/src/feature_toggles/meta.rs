@@ -161,6 +161,11 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
         applies: ToggleApplies::LiveDisable,
     },
     ToggleMeta {
+        key: "seat_memory_index",
+        scope: ToggleScope::Global,
+        applies: ToggleApplies::LiveDisable,
+    },
+    ToggleMeta {
         key: "semantic_context",
         scope: ToggleScope::Global,
         applies: ToggleApplies::Immediate,

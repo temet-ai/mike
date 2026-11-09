@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT generation AS \"generation!\"\n                     FROM memory.change_generations\n                    WHERE name = 'seat_memory_sources'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "generation!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.change_generations",
+            "name": "generation"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "93c839ed5956657e6f8245bb37e1846f2803fe72113f5394793b304c4a612f80"
+}

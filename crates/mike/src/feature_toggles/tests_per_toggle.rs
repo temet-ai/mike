@@ -157,3 +157,14 @@ fn memory_keeper_client_serves_meta_is_global_immediate() {
         )
     );
 }
+
+#[test]
+fn seat_memory_index_defaults_off_and_sets() {
+    let defaults = FeatureToggles::default();
+    assert_eq!(
+        get_toggle_enabled(&defaults, "seat_memory_index"),
+        Some(false)
+    );
+    let on = set_toggle_enabled(&defaults, "seat_memory_index", true);
+    assert!(on.as_ref().is_some_and(|t| t.seat_memory_index));
+}

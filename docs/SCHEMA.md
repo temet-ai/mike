@@ -2697,6 +2697,30 @@ below) — those recompute live for the single open turn; this view always reads
 
 ---
 
+### `memory.seat_memory_items`
+
+Added in `20261109180000_seat_memory_items.sql`. What `memory.seat_memory(project)` returns, for
+every project with seat launches, kept so knowledge search reads the seat tier through an index:
+the function costs about 140 ms for the busiest project, over the read budget. Written only by
+`seat_memory/refresh.sql` (the `seat_memory_index` worker), which inserts new rows, updates
+changed ones and deletes rows the function no longer returns; unchanged rows are not written.
+Read only by `search.sql` (kind `seat`). The rules for what enters the seat tier live in the
+function, not here.
+
+Columns: the function's output (`item_kind`, `source_ref`, `session_uuid`, `session_id`,
+`run_id`, `seat`, `task`, `author`, `from_session`, `from_role`, `at`, `text`, `repeat_count`,
+`report_filed`, `verdict_accepted`) plus `project_id` (FK → `projects.projects`, cascade),
+`refreshed_at` and `search_tsv` (generated `to_tsvector('english', text)`).
+
+**Primary key:** `(project_id, item_kind, source_ref, session_uuid)`. **Indexes:**
+`idx_seat_memory_items_search_tsv` (GIN on `search_tsv`).
+
+The same migration adds the `seat_memory_sources` row of `memory.change_generations`, bumped once
+per statement by `AFTER INSERT … FOR EACH STATEMENT` triggers on `launch.launches`,
+`launch.fleet_events` and `mailbox.messages`, and the `seat_memory_index` toggle key.
+
+---
+
 ### `memory.live_turn_verdicts_v`
 
 Added in `20261109160000_session_memory_knowledge_kinds.sql`. The newest live (`mode = 'live'`) verdict

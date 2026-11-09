@@ -106,7 +106,7 @@ flowchart TD
 
 ### Background workers and their gates
 
-These 28 entry points are called from `serve/workers.rs` in this order. The gate column distinguishes spawn gates from work gates inside already-running tasks. Defaults below are code defaults, before boot overrides and persisted settings; an enabled default does not guarantee that its dependencies are available. Toggle defaults come from `FeatureToggles::default()` in `crates/mike/src/feature_toggles/mod.rs`. `/settings` exposes runtime settings, while `TOGGLE_META` records whether a toggle is immediate, live-disable, or restart-bound. OpenRouter-backed workers are marked below; embedding and database destinations are separately configurable, so this is not a whole-process egress inventory.
+These 29 entry points are called from `serve/workers.rs` in this order. The gate column distinguishes spawn gates from work gates inside already-running tasks. Defaults below are code defaults, before boot overrides and persisted settings; an enabled default does not guarantee that its dependencies are available. Toggle defaults come from `FeatureToggles::default()` in `crates/mike/src/feature_toggles/mod.rs`. `/settings` exposes runtime settings, while `TOGGLE_META` records whether a toggle is immediate, live-disable, or restart-bound. OpenRouter-backed workers are marked below; embedding and database destinations are separately configurable, so this is not a whole-process egress inventory.
 
 | Worker | Gate | Default | Notes |
 |---|---|---|---|
@@ -128,6 +128,7 @@ These 28 entry points are called from `serve/workers.rs` in this order. The gate
 | `proxy::remote_control::spawn_repush_sweep` | persistence present | on | Every 10s retries eligible pending reminders for sessions with an open Remote Control stream |
 | `workspace_reaper::spawn_workspace_reaper` | persistence present | on | Expires workspace roster registrations whose lease lapsed |
 | `retention_worker::spawn_retention_sweep_worker` | `retention_sweep` toggle, persistence | **on** | See below |
+| `seat_memory_worker::spawn_seat_memory_worker` | `seat_memory_index` toggle and persistence; the work needs the `seat_memory_index` lease | **off** | Refreshes `memory.seat_memory_items` from `memory.seat_memory(project)` when the `seat_memory_sources` generation moves, checked every 30 s, and every 30 minutes as a backstop. Re-checks the toggle each tick and *exits* when it goes off; turning it back on needs a restart. Local only |
 | `knowledge_scan::spawn_knowledge_scan` | persistence present; `CLAUDE_CONFIG_DIR` or `HOME` set | on | Every 120s reads the Claude home's memory and skill files into project knowledge. Local only |
 | `steerer::reply_label::demotion::spawn_steerer_demotion` | persistence and a steering service | on | Every 600s runs the steerer demotion check |
 | `judge_worker::spawn_session_end_shadow` | persistence; an `OpenRouterClient` that builds | spawns on; its work is gated each tick | **OpenRouter-backed** — session-end shadow judging, interval from the `session_end_shadow_interval_secs` setting (at least 60s) |

@@ -138,6 +138,15 @@ SELECT jsonb_build_object('reference', 'learning:' || k.session_id,
 FROM memory.session_knowledge k JOIN sessions.sessions s ON s.session_uuid = k.session_id
 WHERE ($1::bigint IS NULL OR s.project_id = $1) AND $2 = 'learning' AND k.session_id = $4
 UNION ALL
+SELECT jsonb_build_object('reference', 'launch:' || l.id, 'body', l.brief_text,
+    'session_uuid', l.session_uuid, 'run_id', l.run_id, 'seat', l.seat, 'agent', l.agent,
+    'model', l.model, 'folder', l.folder, 'result', l.result, 'created_at', l.created_at,
+    'opened_at', l.opened_at, 'closed_at', l.closed_at,
+    'framing', 'seat material: the brief a fleet seat or worker session was launched with'),
+    ls.project_id
+FROM launch.launches l JOIN sessions.sessions ls ON ls.session_uuid = l.session_uuid
+WHERE ($1::bigint IS NULL OR ls.project_id = $1) AND $2 = 'launch' AND l.id = $3
+UNION ALL
 SELECT jsonb_build_object('reference', 'mail:' || m.message_uuid, 'body', m.body,
     'message_uuid', m.message_uuid, 'thread_uuid', th.thread_uuid,
     'in_reply_to', reply.message_uuid, 'from_session_uuid', fs.session_uuid,

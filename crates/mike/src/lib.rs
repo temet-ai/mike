@@ -76,6 +76,7 @@ pub mod runtime;
 pub(crate) mod sandbox;
 pub(crate) mod scheduled_jobs;
 pub(crate) mod search_events;
+pub mod seat_memory_worker;
 pub mod semantic;
 pub mod serve;
 pub mod service;
