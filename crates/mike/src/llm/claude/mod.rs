@@ -6,6 +6,7 @@ use serde_json::{Value, json};
 use tokio::process::Command;
 
 use super::LlmError;
+use crate::environment::{Environment, ProcessEnvironment};
 
 #[cfg(test)]
 mod tests;
@@ -199,6 +200,7 @@ async fn run_once(
     bin: &str,
     req: &ClaudeRequest<'_>,
     effort: Option<&str>,
+    environment: &dyn Environment,
 ) -> Result<Result<Value, ExecFailure>, LlmError> {
     let workdir = tempfile::Builder::new()
         .prefix("mike-claude-")
@@ -213,7 +215,7 @@ async fn run_once(
     let mut child = Command::new(bin)
         .args(cli_args(req.model, effort, &schema_json, &system_file))
         .env_clear()
-        .envs(crate::anthropic_cli::clean_cli_env())
+        .envs(crate::anthropic_cli::clean_cli_env_from(environment))
         .current_dir(workdir.path())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -274,8 +276,16 @@ async fn run_once(
 }
 
 pub(crate) async fn run(bin: &str, req: ClaudeRequest<'_>) -> Result<Value, LlmError> {
+    run_in(bin, req, &ProcessEnvironment).await
+}
+
+pub(crate) async fn run_in(
+    bin: &str,
+    req: ClaudeRequest<'_>,
+    environment: &dyn Environment,
+) -> Result<Value, LlmError> {
     let effort = claude_effort(req.reasoning_effort);
-    let failure = match run_once(bin, &req, effort).await? {
+    let failure = match run_once(bin, &req, effort, environment).await? {
         Ok(payload) => return Ok(payload),
         Err(failure) => failure,
     };
@@ -287,7 +297,7 @@ pub(crate) async fn run(bin: &str, req: ClaudeRequest<'_>) -> Result<Value, LlmE
         error = %failure.message,
         "claude: model rejected the reasoning effort; resending without it"
     );
-    match run_once(bin, &req, None).await? {
+    match run_once(bin, &req, None, environment).await? {
         Ok(payload) => Ok(payload),
         Err(retry) => Err(transport(retry.message)),
     }

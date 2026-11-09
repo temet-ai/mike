@@ -9,6 +9,14 @@ fn env_of<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String
     }
 }
 
+fn environment_after_file(process: &MapEnvironment, entries: &[Entry]) -> MapEnvironment {
+    plan(entries, &|name| process.var(name))
+        .into_iter()
+        .fold(process.clone(), |environment, (name, value)| {
+            environment.with(&name, &value)
+        })
+}
+
 #[test]
 fn the_file_fills_only_variables_the_process_does_not_have() {
     let entries = [
@@ -59,22 +67,20 @@ fn a_literal_beats_a_named_variable_for_the_same_setting() {
 
 #[test]
 fn precedence_runs_defaults_then_file_then_environment_then_cli_flags() -> anyhow::Result<()> {
-    let _serial = lock_env()?;
-    let _cleared = clear_proxy_env();
     let (_dir, path) = temp_file(
         "listen_addr = \"127.0.0.1:7001\"\ninspect_addr = \"127.0.0.1:7002\"\nupstream_url = \"https://file.example\"\n",
     )?;
+    let process = MapEnvironment::isolated().with("MIKE_INSPECT_ADDR", "127.0.0.1:7777");
 
-    let defaults = crate::config::load(CliOverrides::default())?;
+    let defaults =
+        crate::config::load::load_with(CliOverrides::default(), &MapEnvironment::isolated())?;
     assert_eq!(defaults.proxy_listen_addr, "127.0.0.1:9988");
 
-    let _env = EnvVarGuard::set("MIKE_INSPECT_ADDR", "127.0.0.1:7777");
-    let _upstream = EnvVarGuard::unset("MIKE_UPSTREAM_URL");
-    let _listen = EnvVarGuard::unset("MIKE_LISTEN_ADDR");
-    let applied = apply_config_file(Ok(&path));
-    assert_eq!(applied.state, FileState::Loaded { keys: 3 });
+    let entries = ConfigFile::open(&path)?.entries()?;
+    assert_eq!(entries.len(), 3);
+    let after_file = environment_after_file(&process, &entries);
 
-    let with_file = crate::config::load(CliOverrides::default())?;
+    let with_file = crate::config::load::load_with(CliOverrides::default(), &after_file)?;
     assert_eq!(with_file.proxy_listen_addr, "127.0.0.1:7001");
     assert_eq!(with_file.upstream_url, "https://file.example");
     assert_eq!(with_file.inspect_listen_addr, "127.0.0.1:7777");
@@ -84,7 +90,7 @@ fn precedence_runs_defaults_then_file_then_environment_then_cli_flags() -> anyho
         ..CliOverrides::default()
     };
     assert_eq!(
-        crate::config::load(cli)?.proxy_listen_addr,
+        crate::config::load::load_with(cli, &after_file)?.proxy_listen_addr,
         "127.0.0.1:7003"
     );
     Ok(())
@@ -92,7 +98,6 @@ fn precedence_runs_defaults_then_file_then_environment_then_cli_flags() -> anyho
 
 #[test]
 fn a_missing_or_broken_file_is_reported_in_its_state_and_assigns_nothing() -> anyhow::Result<()> {
-    let _serial = lock_env()?;
     let dir = tempfile::tempdir()?;
     let missing = apply_config_file(Ok(&dir.path().join("nope.toml")));
     assert_eq!(missing.state, FileState::Missing);
@@ -151,38 +156,32 @@ fn a_multi_line_parse_error_stays_on_one_comment_line() {
 }
 
 #[test]
-fn a_dotenv_in_the_working_directory_is_not_loaded_implicitly() -> anyhow::Result<()> {
-    let _serial = lock_env()?;
-    let _cleared = clear_proxy_env();
-    let work = tempfile::tempdir()?;
-    std::fs::write(
-        work.path().join(".env"),
-        "MIKE_LISTEN_ADDR=127.0.0.1:7100\nMIKE_DATABASE_URL=postgres://dotenv@h/db\n",
-    )?;
+fn the_planned_variables_come_from_the_file_and_never_replace_a_process_variable()
+-> anyhow::Result<()> {
     let (_dir, path) = temp_file(
         "listen_addr = \"127.0.0.1:7200\"\ndatabase_url = \"postgres://file@h/db\"\nlaunch_backend = \"tmux\"\n",
     )?;
-    let prior = std::env::current_dir()?;
-    std::env::set_current_dir(work.path())?;
-    let _database = EnvVarGuard::set("MIKE_DATABASE_URL", "postgres://process@h/db");
-    let _backend = EnvVarGuard::unset("MIKE_LAUNCH_BACKEND");
-    let applied = apply_config_file(Ok(&path));
-    std::env::set_current_dir(prior)?;
+    let process = MapEnvironment::isolated().with("MIKE_DATABASE_URL", "postgres://process@h/db");
+    let entries = ConfigFile::open(&path)?.entries()?;
+
+    let after_file = environment_after_file(&process, &entries);
 
     assert_eq!(
-        std::env::var("MIKE_LISTEN_ADDR").as_deref(),
-        Ok("127.0.0.1:7200")
+        after_file.var("MIKE_LISTEN_ADDR").as_deref(),
+        Some("127.0.0.1:7200")
     );
     assert_eq!(
-        std::env::var("MIKE_DATABASE_URL").as_deref(),
-        Ok("postgres://process@h/db")
+        after_file.var("MIKE_DATABASE_URL").as_deref(),
+        Some("postgres://process@h/db")
     );
-    assert_eq!(std::env::var("MIKE_LAUNCH_BACKEND").as_deref(), Ok("tmux"));
-    assert!(applied.assigned.contains(&"MIKE_LISTEN_ADDR".to_string()));
-    assert!(
-        applied
-            .assigned
-            .contains(&"MIKE_LAUNCH_BACKEND".to_string())
+    assert_eq!(
+        after_file.var("MIKE_LAUNCH_BACKEND").as_deref(),
+        Some("tmux")
     );
+    let planned = plan(&entries, &|name| process.var(name));
+    let names: Vec<&str> = planned.iter().map(|(name, _)| name.as_str()).collect();
+    assert!(names.contains(&"MIKE_LISTEN_ADDR"), "{names:?}");
+    assert!(names.contains(&"MIKE_LAUNCH_BACKEND"), "{names:?}");
+    assert!(!names.contains(&"MIKE_DATABASE_URL"), "{names:?}");
     Ok(())
 }

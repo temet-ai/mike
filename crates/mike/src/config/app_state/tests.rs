@@ -11,7 +11,7 @@ use crate::config::load::CliOverrides;
 
 fn parse(args: &[&str]) -> anyhow::Result<ProxyConfig> {
     let overrides = CliOverrides::try_parse_from(args)?;
-    crate::config::load::load(overrides)
+    crate::config::load::load_with(overrides, &crate::environment::MapEnvironment::isolated())
 }
 
 #[tokio::test]
@@ -95,13 +95,7 @@ async fn session_toggles_freeze_at_first_sight_new_sessions_see_flips() -> anyho
 
 #[tokio::test]
 async fn app_state_new_errors_without_database_url_when_enabled() -> anyhow::Result<()> {
-    let config = {
-        let _serial = crate::config::test_env::env_lock()
-            .lock()
-            .map_err(|e| anyhow::anyhow!("env_lock poisoned: {e}"))?;
-        let _cleared = crate::config::test_env::clear_proxy_env();
-        parse(&["mike", "--persist-enabled", "1"])?
-    };
+    let config = parse(&["mike", "--persist-enabled", "1"])?;
     match AppState::new(config).await {
         Err(e) => {
             let msg = format!("{e}");
@@ -121,21 +115,15 @@ async fn app_state_new_errors_without_database_url_when_enabled() -> anyhow::Res
 async fn app_state_new_errors_on_unreachable_database() -> anyhow::Result<()> {
     let tmp = tempfile::TempDir::new()?;
     let data_dir = tmp.path().to_string_lossy().to_string();
-    let mut config = {
-        let _serial = crate::config::test_env::env_lock()
-            .lock()
-            .map_err(|e| anyhow::anyhow!("env_lock poisoned: {e}"))?;
-        let _cleared = crate::config::test_env::clear_proxy_env();
-        parse(&[
-            "mike",
-            "--persist-enabled",
-            "1",
-            "--database-url",
-            "postgres://nobody:nobody@127.0.0.1:1/does_not_exist",
-            "--data-dir",
-            &data_dir,
-        ])?
-    };
+    let mut config = parse(&[
+        "mike",
+        "--persist-enabled",
+        "1",
+        "--database-url",
+        "postgres://nobody:nobody@127.0.0.1:1/does_not_exist",
+        "--data-dir",
+        &data_dir,
+    ])?;
     config.db_connect_timeout_ms = 200;
     match AppState::new(config).await {
         Err(_) => Ok(()),

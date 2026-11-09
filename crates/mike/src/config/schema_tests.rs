@@ -6,15 +6,11 @@ use super::schema::ProxyConfig;
 
 fn parse(args: &[&str]) -> anyhow::Result<ProxyConfig> {
     let overrides = CliOverrides::try_parse_from(args)?;
-    crate::config::load::load(overrides)
+    crate::config::load::load_with(overrides, &crate::environment::MapEnvironment::isolated())
 }
 
 #[test]
 fn test_default_config_parses() -> anyhow::Result<()> {
-    let _serial = crate::config::test_env::env_lock()
-        .lock()
-        .map_err(|e| anyhow::anyhow!("env_lock poisoned: {e}"))?;
-    let _cleared = crate::config::test_env::clear_proxy_env();
     let config = parse(&["mike"])?;
     assert_eq!(config.proxy_listen_addr, "127.0.0.1:9988");
     assert_eq!(config.inspect_listen_addr, "127.0.0.1:9989");

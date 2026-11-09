@@ -7,33 +7,39 @@ use super::model_ref::ModelRef;
 use super::openrouter::missing_key_error;
 use super::provider::{ModelTier, ProviderPolicy};
 use super::{LlmError, OpenRouterClient};
+use crate::environment::{Environment, ProcessEnvironment};
 
 pub(crate) type OpenRouterKeySlot = Arc<ArcSwap<Option<SecretString>>>;
 
 pub(crate) type AnthropicKeySlot = Arc<ArcSwap<Option<SecretString>>>;
 
 pub(crate) fn seed_anthropic_from_env() -> Option<SecretString> {
-    std::env::var("MIKE_ASSISTANT_ANTHROPIC_API_KEY")
-        .ok()
-        .filter(|v| !v.is_empty())
-        .map(|v| SecretString::new(v.into()))
+    seed_anthropic_from(&ProcessEnvironment)
+}
+
+pub(crate) fn seed_anthropic_from(environment: &dyn Environment) -> Option<SecretString> {
+    secret_from(environment, "MIKE_ASSISTANT_ANTHROPIC_API_KEY")
 }
 
 pub(crate) fn seed_from_env(config_key: Option<&SecretString>) -> Option<SecretString> {
+    seed_from(config_key, &ProcessEnvironment)
+}
+
+pub(crate) fn seed_from(
+    config_key: Option<&SecretString>,
+    environment: &dyn Environment,
+) -> Option<SecretString> {
     config_key
         .map(|s| SecretString::new(s.expose_secret().to_owned().into()))
-        .or_else(|| {
-            std::env::var("MIKE_STEERER_OPENROUTER_API_KEY")
-                .ok()
-                .filter(|v| !v.is_empty())
-                .map(|v| SecretString::new(v.into()))
-        })
-        .or_else(|| {
-            std::env::var("OPENROUTER_API_KEY")
-                .ok()
-                .filter(|v| !v.is_empty())
-                .map(|v| SecretString::new(v.into()))
-        })
+        .or_else(|| secret_from(environment, "MIKE_STEERER_OPENROUTER_API_KEY"))
+        .or_else(|| secret_from(environment, "OPENROUTER_API_KEY"))
+}
+
+fn secret_from(environment: &dyn Environment, name: &str) -> Option<SecretString> {
+    environment
+        .var(name)
+        .filter(|value| !value.is_empty())
+        .map(|value| SecretString::new(value.into()))
 }
 
 pub(crate) fn resolve(slot: &OpenRouterKeySlot) -> Option<SecretString> {
@@ -84,7 +90,17 @@ pub(crate) fn cli_api_key(
     tier: Option<ModelTier>,
     model: &str,
 ) -> Result<String, LlmError> {
-    if let Some(key) = seed_from_env(configured) {
+    cli_api_key_in(configured, policy, tier, model, &ProcessEnvironment)
+}
+
+pub(crate) fn cli_api_key_in(
+    configured: Option<&SecretString>,
+    policy: &ProviderPolicy,
+    tier: Option<ModelTier>,
+    model: &str,
+    environment: &dyn Environment,
+) -> Result<String, LlmError> {
+    if let Some(key) = seed_from(configured, environment) {
         return Ok(key.expose_secret().to_owned());
     }
     if !model_needs_openrouter_key(policy, tier, model) {
@@ -143,6 +159,7 @@ mod tests {
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     use super::*;
+    use crate::environment::MapEnvironment;
 
     fn slot_with(key: Option<&str>) -> OpenRouterKeySlot {
         Arc::new(ArcSwap::from_pointee(
@@ -150,39 +167,16 @@ mod tests {
         ))
     }
 
-    struct EnvVarGuard {
-        key: &'static str,
-        prior: Option<std::ffi::OsString>,
-    }
-
-    impl EnvVarGuard {
-        fn unset(key: &'static str) -> Self {
-            let prior = std::env::var_os(key);
-            unsafe { std::env::remove_var(key) };
-            Self { key, prior }
-        }
-    }
-
-    impl Drop for EnvVarGuard {
-        fn drop(&mut self) {
-            match &self.prior {
-                Some(v) => unsafe { std::env::set_var(self.key, v) },
-                None => unsafe { std::env::remove_var(self.key) },
-            }
-        }
+    fn no_keys() -> MapEnvironment {
+        MapEnvironment::default()
     }
 
     #[test]
-    #[serial_test::serial(openrouter_env)]
-    fn seed_from_env_prefers_config_field_over_env_vars() {
-        let _guards = [
-            EnvVarGuard::unset("MIKE_STEERER_OPENROUTER_API_KEY"),
-            EnvVarGuard::unset("OPENROUTER_API_KEY"),
-        ];
-        unsafe { std::env::set_var("MIKE_STEERER_OPENROUTER_API_KEY", "from-env") };
+    fn seed_from_config_field_beats_env_vars() {
+        let environment = no_keys().with("MIKE_STEERER_OPENROUTER_API_KEY", "from-env");
 
         let config_key = SecretString::new("from-config".to_owned().into());
-        let seeded = seed_from_env(Some(&config_key));
+        let seeded = seed_from(Some(&config_key), &environment);
         assert_eq!(
             seeded.map(|s| s.expose_secret().to_owned()),
             Some("from-config".to_owned())
@@ -190,15 +184,23 @@ mod tests {
     }
 
     #[test]
-    #[serial_test::serial(openrouter_env)]
-    fn seed_from_env_falls_back_to_primary_env_var_then_secondary() {
-        let _guards = [
-            EnvVarGuard::unset("MIKE_STEERER_OPENROUTER_API_KEY"),
-            EnvVarGuard::unset("OPENROUTER_API_KEY"),
-        ];
-        unsafe { std::env::set_var("OPENROUTER_API_KEY", "from-fallback-env") };
+    fn seed_from_primary_env_var_beats_the_secondary() {
+        let environment = no_keys()
+            .with("MIKE_STEERER_OPENROUTER_API_KEY", "from-primary")
+            .with("OPENROUTER_API_KEY", "from-fallback-env");
 
-        let seeded = seed_from_env(None);
+        let seeded = seed_from(None, &environment);
+        assert_eq!(
+            seeded.map(|s| s.expose_secret().to_owned()),
+            Some("from-primary".to_owned())
+        );
+    }
+
+    #[test]
+    fn seed_from_secondary_env_var_when_primary_is_unset() {
+        let environment = no_keys().with("OPENROUTER_API_KEY", "from-fallback-env");
+
+        let seeded = seed_from(None, &environment);
         assert_eq!(
             seeded.map(|s| s.expose_secret().to_owned()),
             Some("from-fallback-env".to_owned())
@@ -206,22 +208,28 @@ mod tests {
     }
 
     #[test]
-    #[serial_test::serial(openrouter_env)]
-    fn seed_from_env_none_when_nothing_configured() {
-        let _guards = [
-            EnvVarGuard::unset("MIKE_STEERER_OPENROUTER_API_KEY"),
-            EnvVarGuard::unset("OPENROUTER_API_KEY"),
-        ];
-        assert!(seed_from_env(None).is_none());
+    fn seed_from_none_when_nothing_configured() {
+        assert!(seed_from(None, &no_keys()).is_none());
     }
 
     #[test]
-    #[serial_test::serial(anthropic_env)]
-    fn seed_anthropic_from_env_reads_configured_var() {
-        let _guard = EnvVarGuard::unset("MIKE_ASSISTANT_ANTHROPIC_API_KEY");
-        unsafe { std::env::set_var("MIKE_ASSISTANT_ANTHROPIC_API_KEY", "sk-ant-from-env") };
+    fn seed_from_skips_an_empty_primary_and_uses_the_secondary() {
+        let environment = no_keys()
+            .with("MIKE_STEERER_OPENROUTER_API_KEY", "")
+            .with("OPENROUTER_API_KEY", "from-fallback-env");
 
-        let seeded = seed_anthropic_from_env();
+        let seeded = seed_from(None, &environment);
+        assert_eq!(
+            seeded.map(|s| s.expose_secret().to_owned()),
+            Some("from-fallback-env".to_owned())
+        );
+    }
+
+    #[test]
+    fn seed_anthropic_from_reads_configured_var() {
+        let environment = no_keys().with("MIKE_ASSISTANT_ANTHROPIC_API_KEY", "sk-ant-from-env");
+
+        let seeded = seed_anthropic_from(&environment);
         assert_eq!(
             seeded.map(|s| s.expose_secret().to_owned()),
             Some("sk-ant-from-env".to_owned())
@@ -229,18 +237,14 @@ mod tests {
     }
 
     #[test]
-    #[serial_test::serial(anthropic_env)]
-    fn seed_anthropic_from_env_none_when_unset() {
-        let _guard = EnvVarGuard::unset("MIKE_ASSISTANT_ANTHROPIC_API_KEY");
-        assert!(seed_anthropic_from_env().is_none());
+    fn seed_anthropic_from_none_when_unset() {
+        assert!(seed_anthropic_from(&no_keys()).is_none());
     }
 
     #[test]
-    #[serial_test::serial(anthropic_env)]
-    fn seed_anthropic_from_env_none_when_empty() {
-        let _guard = EnvVarGuard::unset("MIKE_ASSISTANT_ANTHROPIC_API_KEY");
-        unsafe { std::env::set_var("MIKE_ASSISTANT_ANTHROPIC_API_KEY", "") };
-        assert!(seed_anthropic_from_env().is_none());
+    fn seed_anthropic_from_none_when_empty() {
+        let environment = no_keys().with("MIKE_ASSISTANT_ANTHROPIC_API_KEY", "");
+        assert!(seed_anthropic_from(&environment).is_none());
     }
 
     #[test]
@@ -345,21 +349,12 @@ mod tests {
         Ok(())
     }
 
-    fn unset_key_env() -> [EnvVarGuard; 2] {
-        [
-            EnvVarGuard::unset("MIKE_STEERER_OPENROUTER_API_KEY"),
-            EnvVarGuard::unset("OPENROUTER_API_KEY"),
-        ]
-    }
-
     #[test]
-    #[serial_test::serial(openrouter_env)]
     fn cli_api_key_needs_no_key_for_codex_and_claude_models() {
-        let _guards = unset_key_env();
         let policy = ProviderPolicy::default();
         for model in ["codex/gpt-6-sol", "claude/sonnet"] {
             assert_eq!(
-                cli_api_key(None, &policy, None, model).ok(),
+                cli_api_key_in(None, &policy, None, model, &no_keys()).ok(),
                 Some(String::new()),
                 "{model}"
             );
@@ -367,11 +362,9 @@ mod tests {
     }
 
     #[test]
-    #[serial_test::serial(openrouter_env)]
     fn cli_api_key_refuses_an_openrouter_model_naming_the_model_and_the_provider() {
-        let _guards = unset_key_env();
         let policy = ProviderPolicy::default();
-        let message = cli_api_key(None, &policy, None, "google/gemini-3.8-flash")
+        let message = cli_api_key_in(None, &policy, None, "google/gemini-3.8-flash", &no_keys())
             .err()
             .map(|e| e.to_string())
             .unwrap_or_default();
@@ -380,12 +373,10 @@ mod tests {
     }
 
     #[test]
-    #[serial_test::serial(openrouter_env)]
     fn cli_api_key_names_llm_provider_for_a_tierless_job_under_a_cli_provider() {
-        let _guards = unset_key_env();
         let mut policy = ProviderPolicy::default();
         assert!(policy.set_provider("claude"));
-        let message = cli_api_key(None, &policy, None, "google/gemini-3.8-flash")
+        let message = cli_api_key_in(None, &policy, None, "google/gemini-3.8-flash", &no_keys())
             .err()
             .map(|e| e.to_string())
             .unwrap_or_default();
@@ -393,17 +384,16 @@ mod tests {
     }
 
     #[test]
-    #[serial_test::serial(openrouter_env)]
     fn cli_api_key_follows_the_provider_tier_model_not_the_roles_own_name() {
-        let _guards = unset_key_env();
         let mut policy = ProviderPolicy::default();
         assert!(policy.set_provider("codex"));
         assert_eq!(
-            cli_api_key(
+            cli_api_key_in(
                 None,
                 &policy,
                 Some(ModelTier::Strong),
-                "google/gemini-3.8-flash"
+                "google/gemini-3.8-flash",
+                &no_keys()
             )
             .ok(),
             Some(String::new())
@@ -411,19 +401,34 @@ mod tests {
     }
 
     #[test]
-    #[serial_test::serial(openrouter_env)]
     fn cli_api_key_uses_a_configured_key_whatever_the_model() {
-        let _guards = unset_key_env();
         let configured = SecretString::new("sk-config".to_owned().into());
         assert_eq!(
-            cli_api_key(
+            cli_api_key_in(
                 Some(&configured),
                 &ProviderPolicy::default(),
                 None,
-                "codex/gpt-6-sol"
+                "codex/gpt-6-sol",
+                &no_keys()
             )
             .ok(),
             Some("sk-config".to_owned())
+        );
+    }
+
+    #[test]
+    fn cli_api_key_uses_an_environment_key_for_an_openrouter_model() {
+        let environment = no_keys().with("OPENROUTER_API_KEY", "sk-env");
+        assert_eq!(
+            cli_api_key_in(
+                None,
+                &ProviderPolicy::default(),
+                None,
+                "google/gemini-3.8-flash",
+                &environment
+            )
+            .ok(),
+            Some("sk-env".to_owned())
         );
     }
 

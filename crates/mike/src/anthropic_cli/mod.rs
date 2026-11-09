@@ -13,7 +13,7 @@ mod tests;
 
 #[cfg(test)]
 pub(crate) use cli::AnthropicCli;
-pub(crate) use env::clean_cli_env;
+pub(crate) use env::clean_cli_env_from;
 pub(crate) use error::AnthropicCliError;
 pub(crate) use login::LoginStatusDto;
 pub(crate) use logout::run_logout;

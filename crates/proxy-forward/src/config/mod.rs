@@ -42,6 +42,11 @@ pub const DEFAULT_MAX_BODY_BYTES: usize = 64 * 1024 * 1024;
 
 impl Config {
     pub fn from_env_and_overrides(overrides: ConfigOverrides) -> Result<Self, String> {
+        Self::from_lookup(overrides, &process_lookup)
+    }
+
+    pub fn from_lookup(overrides: ConfigOverrides, lookup: Lookup<'_>) -> Result<Self, String> {
+        let env_nonempty = |key: &str| env_nonempty(lookup, key);
         let bind = overrides
             .bind
             .or_else(|| env_nonempty("MIKE_FORWARD_BIND"))
@@ -178,11 +183,14 @@ pub struct ConfigOverrides {
     pub max_body_bytes: Option<String>,
 }
 
-fn env_nonempty(key: &str) -> Option<String> {
-    match std::env::var(key) {
-        Ok(v) if !v.trim().is_empty() => Some(v),
-        _ => None,
-    }
+pub type Lookup<'a> = &'a dyn Fn(&str) -> Option<String>;
+
+pub fn process_lookup(key: &str) -> Option<String> {
+    std::env::var(key).ok()
+}
+
+fn env_nonempty(lookup: Lookup<'_>, key: &str) -> Option<String> {
+    lookup(key).filter(|value| !value.trim().is_empty())
 }
 
 fn parse_duration(raw: &str, label: &str) -> Result<Duration, String> {
@@ -206,8 +214,12 @@ fn parse_upstream_authority(upstream: &str) -> Result<http::uri::Authority, Stri
 }
 
 pub fn resolve_ca_dir(explicit: Option<PathBuf>) -> PathBuf {
+    resolve_ca_dir_from(explicit, &process_lookup)
+}
+
+pub fn resolve_ca_dir_from(explicit: Option<PathBuf>, lookup: Lookup<'_>) -> PathBuf {
     explicit
-        .or_else(|| env_nonempty("MIKE_FORWARD_CA_DIR").map(PathBuf::from))
+        .or_else(|| env_nonempty(lookup, "MIKE_FORWARD_CA_DIR").map(PathBuf::from))
         .unwrap_or_else(default_ca_dir)
 }
 

@@ -110,11 +110,11 @@ mod tests {
     use super::*;
     use crate::config::ProxyConfig;
     use crate::config::load::CliOverrides;
-    use crate::config::test_env::{EnvVarGuard, clear_proxy_env, env_lock};
+    use crate::environment::MapEnvironment;
 
-    fn parse(args: &[&str]) -> anyhow::Result<ProxyConfig> {
+    fn parse(args: &[&str], environment: &MapEnvironment) -> anyhow::Result<ProxyConfig> {
         let overrides = CliOverrides::try_parse_from(args)?;
-        crate::config::load::load(overrides)
+        crate::config::load::load_with(overrides, environment)
     }
 
     #[test]
@@ -140,33 +140,27 @@ mod tests {
 
     #[test]
     fn launch_env_vars_reach_every_field() -> anyhow::Result<()> {
-        let _serial = env_lock()
-            .lock()
-            .map_err(|e| anyhow::anyhow!("env_lock poisoned: {e}"))?;
-        let _cleared = clear_proxy_env();
-        let guards = [
-            EnvVarGuard::set("MIKE_LAUNCH_BACKEND", "herdr"),
-            EnvVarGuard::set("MIKE_LAUNCH_BACKEND_FOLLOW_CALLER", "0"),
-            EnvVarGuard::set("MIKE_LAUNCH_USE_SIDECAR", "1"),
-            EnvVarGuard::set("MIKE_LAUNCH_PROXY_FORWARD_URL", "http://127.0.0.1:19987"),
-            EnvVarGuard::set("MIKE_LAUNCH_NO_PROXY", "localhost"),
-            EnvVarGuard::set("MIKE_LAUNCH_CA_CERT", "/tmp/ca.pem"),
-            EnvVarGuard::set(
+        let environment = MapEnvironment::isolated()
+            .with("MIKE_LAUNCH_BACKEND", "herdr")
+            .with("MIKE_LAUNCH_BACKEND_FOLLOW_CALLER", "0")
+            .with("MIKE_LAUNCH_USE_SIDECAR", "1")
+            .with("MIKE_LAUNCH_PROXY_FORWARD_URL", "http://127.0.0.1:19987")
+            .with("MIKE_LAUNCH_NO_PROXY", "localhost")
+            .with("MIKE_LAUNCH_CA_CERT", "/tmp/ca.pem")
+            .with(
                 "MIKE_LAUNCH_CLAUDE_ARGS",
                 "--dangerously-skip-permissions  --chrome",
-            ),
-            EnvVarGuard::set("MIKE_LAUNCH_BRIEF_INLINE_MAX", "1200"),
-            EnvVarGuard::set("MIKE_LAUNCH_CHANNEL_CHECK_ENABLED", "0"),
-            EnvVarGuard::set("MIKE_LAUNCH_CHANNEL_CHECK_TIMEOUT_SECS", "45"),
-            EnvVarGuard::set("MIKE_LAUNCH_CHANNEL_CHECK_INTERVAL_SECS", "5"),
-            EnvVarGuard::set("MIKE_LAUNCH_WARN_SURFACES", "4"),
-            EnvVarGuard::set("MIKE_LAUNCH_MAX_SURFACES", "0"),
-            EnvVarGuard::set("MIKE_LAUNCH_AUTO_TRUST", "no"),
-            EnvVarGuard::set("MIKE_LAUNCH_KILL_WAIT_SECS", "7"),
-            EnvVarGuard::set("MIKE_LAUNCH_WORKTREE_CONFIG", "a.toml:b.json"),
-        ];
-        let cfg = parse(&["mike"])?.launch;
-        drop(guards);
+            )
+            .with("MIKE_LAUNCH_BRIEF_INLINE_MAX", "1200")
+            .with("MIKE_LAUNCH_CHANNEL_CHECK_ENABLED", "0")
+            .with("MIKE_LAUNCH_CHANNEL_CHECK_TIMEOUT_SECS", "45")
+            .with("MIKE_LAUNCH_CHANNEL_CHECK_INTERVAL_SECS", "5")
+            .with("MIKE_LAUNCH_WARN_SURFACES", "4")
+            .with("MIKE_LAUNCH_MAX_SURFACES", "0")
+            .with("MIKE_LAUNCH_AUTO_TRUST", "no")
+            .with("MIKE_LAUNCH_KILL_WAIT_SECS", "7")
+            .with("MIKE_LAUNCH_WORKTREE_CONFIG", "a.toml:b.json");
+        let cfg = parse(&["mike"], &environment)?.launch;
         assert_eq!(
             cfg,
             LaunchConfig {
@@ -193,27 +187,27 @@ mod tests {
 
     #[test]
     fn launch_cli_flags_override_env() -> anyhow::Result<()> {
-        let _serial = env_lock()
-            .lock()
-            .map_err(|e| anyhow::anyhow!("env_lock poisoned: {e}"))?;
-        let _cleared = clear_proxy_env();
-        let _backend = EnvVarGuard::set("MIKE_LAUNCH_BACKEND", "tmux");
-        let _args = EnvVarGuard::set("MIKE_LAUNCH_CLAUDE_ARGS", "--chrome");
-        let cfg = parse(&[
-            "mike",
-            "--launch-backend",
-            "herdr",
-            "--launch-claude-args",
-            "--dangerously-skip-permissions --verbose",
-            "--launch-auto-trust",
-            "0",
-            "--launch-kill-wait-secs",
-            "3",
-            "--launch-ca-cert",
-            "/x/ca.pem",
-            "--launch-worktree-config",
-            "c.toml:d.json",
-        ])?
+        let environment = MapEnvironment::isolated()
+            .with("MIKE_LAUNCH_BACKEND", "tmux")
+            .with("MIKE_LAUNCH_CLAUDE_ARGS", "--chrome");
+        let cfg = parse(
+            &[
+                "mike",
+                "--launch-backend",
+                "herdr",
+                "--launch-claude-args",
+                "--dangerously-skip-permissions --verbose",
+                "--launch-auto-trust",
+                "0",
+                "--launch-kill-wait-secs",
+                "3",
+                "--launch-ca-cert",
+                "/x/ca.pem",
+                "--launch-worktree-config",
+                "c.toml:d.json",
+            ],
+            &environment,
+        )?
         .launch;
         assert_eq!(cfg.backend, "herdr");
         assert_eq!(
@@ -254,12 +248,8 @@ mod tests {
 
     #[test]
     fn launch_bad_bool_env_is_a_load_error() -> anyhow::Result<()> {
-        let _serial = env_lock()
-            .lock()
-            .map_err(|e| anyhow::anyhow!("env_lock poisoned: {e}"))?;
-        let _cleared = clear_proxy_env();
-        let _bad = EnvVarGuard::set("MIKE_LAUNCH_AUTO_TRUST", "maybe");
-        let err = parse(&["mike"]).err();
+        let environment = MapEnvironment::isolated().with("MIKE_LAUNCH_AUTO_TRUST", "maybe");
+        let err = parse(&["mike"], &environment).err();
         assert!(
             err.is_some(),
             "a non-bool MIKE_LAUNCH_AUTO_TRUST must fail the load"

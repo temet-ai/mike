@@ -25,6 +25,7 @@ pub(crate) mod diagnostics;
 pub mod doctor;
 pub mod dossier;
 pub mod embed_worker;
+pub(crate) mod environment;
 pub(crate) mod error;
 pub mod eval;
 pub mod eval_metrics;

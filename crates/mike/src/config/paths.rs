@@ -2,6 +2,12 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
+pub(crate) type Lookup<'a> = &'a dyn Fn(&str) -> Option<String>;
+
+fn process_lookup(name: &str) -> Option<String> {
+    live_install_guard::env(name).map(|value| value.to_string_lossy().into_owned())
+}
+
 #[path = "live_install_guard.rs"]
 pub(crate) mod live_install_guard;
 
@@ -17,30 +23,34 @@ pub struct InstallationPaths {
 
 impl InstallationPaths {
     pub fn resolve(selected: Option<&Path>) -> Result<Self> {
-        let paths = Self::resolve_unguarded(selected)?;
+        Self::resolve_in(selected, &process_lookup)
+    }
+
+    pub(crate) fn resolve_in(selected: Option<&Path>, environment: Lookup<'_>) -> Result<Self> {
+        let paths = Self::resolve_unguarded(selected, environment)?;
         for dir in [&paths.config_dir, &paths.data_dir, &paths.state_dir] {
             live_install_guard::refuse(dir);
         }
         Ok(paths)
     }
 
-    fn resolve_unguarded(selected: Option<&Path>) -> Result<Self> {
+    fn resolve_unguarded(selected: Option<&Path>, environment: Lookup<'_>) -> Result<Self> {
         if let Some(path) = selected {
             let config_file = absolute(path)?;
-            return Self::selected(config_file, Self::resolve_unguarded(None).ok());
+            return Self::selected(config_file, Self::resolve_unguarded(None, environment).ok());
         }
         let dirs = directories::ProjectDirs::from("", "", "mike")
             .context("cannot resolve user directories; supply --config with an absolute path")?;
-        let home = live_install_guard::env("HOME").map(PathBuf::from);
+        let home = environment_value(environment, "HOME").map(PathBuf::from);
         let user_root = |variable: &str, fallback: &str| -> Result<PathBuf> {
-            live_install_guard::env(variable)
+            environment_value(environment, variable)
                 .map(PathBuf::from)
                 .filter(|path| path.is_absolute())
                 .or_else(|| home.as_ref().map(|path| path.join(fallback)))
                 .map(|path| path.join("mike"))
                 .context("cannot resolve user directories; supply --config with an absolute path")
         };
-        let config_dir = match absolute_env(CONFIG_HOME_ENV) {
+        let config_dir = match absolute_env(environment, CONFIG_HOME_ENV) {
             Some(root) => root.join("mike"),
             None => user_root("XDG_CONFIG_HOME", ".config")?,
         };
@@ -89,8 +99,13 @@ impl InstallationPaths {
 
 pub(crate) const CONFIG_HOME_ENV: &str = "MIKE_CONFIG_HOME";
 
-fn absolute_env(name: &str) -> Option<PathBuf> {
-    live_install_guard::env(name)
+pub(crate) fn environment_value(environment: Lookup<'_>, name: &str) -> Option<std::ffi::OsString> {
+    environment(name)
+        .map(|value| live_install_guard::private(PathBuf::from(value)).into_os_string())
+}
+
+fn absolute_env(environment: Lookup<'_>, name: &str) -> Option<PathBuf> {
+    environment_value(environment, name)
         .map(PathBuf::from)
         .filter(|path| path.is_absolute())
 }

@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use super::UserConfigError;
+use crate::environment::{Environment, ProcessEnvironment};
 
 const APP_DIR: &str = "mike";
 const CONFIG_FILE_NAME: &str = "config.toml";
@@ -35,12 +36,19 @@ pub(crate) fn config_file_from(
 }
 
 pub(crate) fn default_config_file() -> Result<PathBuf, UserConfigError> {
-    let config_home = crate::config::env_text(crate::config::paths::CONFIG_HOME_ENV)
-        .filter(|value| Path::new(value).is_absolute())
-        .or_else(|| crate::config::env_text("XDG_CONFIG_HOME"));
+    default_config_file_in(&ProcessEnvironment)
+}
+
+pub(crate) fn default_config_file_in(
+    environment: &dyn Environment,
+) -> Result<PathBuf, UserConfigError> {
+    let config_home =
+        crate::config::env_text_from(environment, crate::config::paths::CONFIG_HOME_ENV)
+            .filter(|value| Path::new(value).is_absolute())
+            .or_else(|| crate::config::env_text_from(environment, "XDG_CONFIG_HOME"));
     let file = config_file_from(
         config_home.as_deref(),
-        crate::config::env_text("HOME").as_deref(),
+        crate::config::env_text_from(environment, "HOME").as_deref(),
     )?;
     crate::config::paths::live_install_guard::refuse(&file);
     Ok(file)

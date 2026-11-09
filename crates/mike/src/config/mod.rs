@@ -10,8 +10,6 @@ mod paths_env_tests;
 pub(crate) mod retention_sweep;
 pub(crate) mod session_judge;
 pub mod subcommands;
-#[cfg(test)]
-pub(crate) mod test_env;
 
 mod child;
 mod credentials;
@@ -24,6 +22,14 @@ pub(crate) use credentials::reload_openrouter_key;
 
 pub(crate) fn env_text(name: &str) -> Option<String> {
     paths::live_install_guard::env(name).and_then(|value| value.into_string().ok())
+}
+
+pub(crate) fn env_text_from(
+    environment: &dyn crate::environment::Environment,
+    name: &str,
+) -> Option<String> {
+    paths::environment_value(&crate::environment::lookup(environment), name)
+        .and_then(|value| value.into_string().ok())
 }
 
 mod app_state;

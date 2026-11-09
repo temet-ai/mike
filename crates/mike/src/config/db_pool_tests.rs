@@ -1,6 +1,7 @@
 use super::DbPoolConfig;
-use crate::config::test_env::{EnvVarGuard, clear_proxy_env, env_lock};
-use crate::config::{CliOverrides, ProxyConfig, load};
+use crate::config::load::load_with;
+use crate::config::{CliOverrides, ProxyConfig};
+use crate::environment::MapEnvironment;
 use crate::store::persistence::pool_classes::PoolClassesConfig;
 
 #[test]
@@ -20,15 +21,12 @@ fn db_pool_defaults_match_the_work_class_design() {
 
 #[test]
 fn db_pool_env_overrides_each_class_limit() -> anyhow::Result<()> {
-    let _serial = env_lock()
-        .lock()
-        .map_err(|e| anyhow::anyhow!("env_lock poisoned: {e}"))?;
-    let _cleared = clear_proxy_env();
-    let _capture = EnvVarGuard::set("MIKE_DB_POOL_CAPTURE_SIZE", "3");
-    let _interactive = EnvVarGuard::set("MIKE_DB_POOL_INTERACTIVE_ACQUIRE_TIMEOUT_MS", "750");
-    let _background = EnvVarGuard::set("MIKE_DB_POOL_BACKGROUND_STATEMENT_TIMEOUT_MS", "90000");
+    let environment = MapEnvironment::isolated()
+        .with("MIKE_DB_POOL_CAPTURE_SIZE", "3")
+        .with("MIKE_DB_POOL_INTERACTIVE_ACQUIRE_TIMEOUT_MS", "750")
+        .with("MIKE_DB_POOL_BACKGROUND_STATEMENT_TIMEOUT_MS", "90000");
 
-    let config = load(CliOverrides::default())?;
+    let config = load_with(CliOverrides::default(), &environment)?;
     let classes = config.db_pool.classes();
     assert_eq!(classes.capture.max_connections, 3);
     assert_eq!(classes.interactive.acquire_timeout_ms, 750);
@@ -58,11 +56,7 @@ fn db_pool_fields_serialize_as_flat_boot_keys() -> anyhow::Result<()> {
 
 #[test]
 fn db_pool_non_numeric_env_is_rejected() -> anyhow::Result<()> {
-    let _serial = env_lock()
-        .lock()
-        .map_err(|e| anyhow::anyhow!("env_lock poisoned: {e}"))?;
-    let _cleared = clear_proxy_env();
-    let _capture = EnvVarGuard::set("MIKE_DB_POOL_CAPTURE_SIZE", "four");
-    assert!(load(CliOverrides::default()).is_err());
+    let environment = MapEnvironment::isolated().with("MIKE_DB_POOL_CAPTURE_SIZE", "four");
+    assert!(load_with(CliOverrides::default(), &environment).is_err());
     Ok(())
 }

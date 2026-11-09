@@ -292,33 +292,13 @@ async fn run_exceeding_the_timeout_is_a_timeout_error() -> anyhow::Result<()> {
     Ok(())
 }
 
-struct EnvVarGuard {
-    key: &'static str,
-    prior: Option<std::ffi::OsString>,
-}
-
-impl EnvVarGuard {
-    fn set(key: &'static str, value: &str) -> Self {
-        let prior = std::env::var_os(key);
-        unsafe { std::env::set_var(key, value) };
-        Self { key, prior }
-    }
-}
-
-impl Drop for EnvVarGuard {
-    fn drop(&mut self) {
-        match &self.prior {
-            Some(v) => unsafe { std::env::set_var(self.key, v) },
-            None => unsafe { std::env::remove_var(self.key) },
-        }
-    }
-}
-
 #[tokio::test]
-#[serial_test::serial(claude_env)]
 async fn run_scrubs_the_environment_the_cli_sees() -> anyhow::Result<()> {
-    let _base = EnvVarGuard::set("ANTHROPIC_BASE_URL", "http://127.0.0.1:9988");
-    let _proxy = EnvVarGuard::set("HTTPS_PROXY", "http://127.0.0.1:9987");
+    let environment = crate::environment::MapEnvironment::new(&[
+        ("PATH", "/usr/bin:/bin"),
+        ("ANTHROPIC_BASE_URL", "http://127.0.0.1:9988"),
+        ("HTTPS_PROXY", "http://127.0.0.1:9987"),
+    ]);
     let dir = tempfile::tempdir()?;
     let bin = fake_claude(
         dir.path(),
@@ -327,9 +307,10 @@ async fn run_scrubs_the_environment_the_cli_sees() -> anyhow::Result<()> {
         ),
     )?;
     let schema = schema();
-    let payload = run(
+    let payload = run_in(
         &bin.display().to_string(),
         request(&schema, "none", Duration::from_secs(10)),
+        &environment,
     )
     .await;
     assert!(payload.is_ok(), "{payload:?}");
