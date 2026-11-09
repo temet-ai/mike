@@ -1,0 +1,11 @@
+# Managed by mike setup rerank. Run `mike setup rerank` again to regenerate this file.
+# Passes connections from the socket to llama-server and exits after 10 idle minutes;
+# the server unit is StopWhenUnneeded, so it stops with this one and frees the GPU.
+[Unit]
+Description=mike reranker on-demand forwarder (:11435 to :11436)
+Requires=mike-stack-rerank.service
+After=mike-stack-rerank.service
+
+[Service]
+Type=notify
+ExecStart=@SOCKET_PROXYD@ --exit-idle-time=600 127.0.0.1:11436

@@ -2,7 +2,7 @@
 title: Optional dependencies and launchers
 status: active
 created: 2026-07-20
-updated: 2026-11-06
+updated: 2026-11-09
 summary: What each optional external service buys you, what mike does without it, what it is commonly but wrongly assumed to need, and the cc shell launcher for captured restartable sessions.
 supersedes: the first-run and feature-toggle material this doc used to carry
 ---
@@ -50,6 +50,7 @@ capture cluster used `scripts/capture-db/upgrade-to-19.sh`).
 |---|---|---|---|
 | **OpenRouter API key** (`MIKE_STEERER_OPENROUTER_API_KEY`, or `OPENROUTER_API_KEY`) | The LLM features: steerer fleet (including the turn guard), session judge, judge worker, the offline `mike eval run` judge runs, lesson-relation detection. **Enabling any of these sends captured conversation text to `openrouter.ai`.** | Those workers log a warning at boot and never spawn. The forward path is unaffected. | Leave the key unset. All of the features are also off by default in `/settings`. |
 | **Embedding server** (OpenAI-shaped `/embeddings`; default `http://127.0.0.1:7997`, model `embeddinggemma`; with Ollama, `http://127.0.0.1:11434/v1` and `embeddinggemma`, which `mike setup embeddings` sets up) | Semantic recall ranking (`recall_similar_turns`, `recall_project_context`) and lesson dedup/promotion. | Recall falls back to Postgres `pg_trgm` text search — still works, lower-quality ranking. | `embedding.enabled` defaults off. If you turn it on, a **remote or hosted** `embedding.url` means the text being embedded leaves your machine; a local server does not. `MIKE_EMBEDDING__*` environment variables are **ignored** — use `/settings` or the `--embedding` CLI flag. |
+| **Reranker server** (llama.cpp `llama-server --reranking` with `bge-reranker-v2-m3`, on port 11435; `mike setup rerank` installs it on a Linux machine with an NVIDIA card, or points this machine at another machine's) | Reordering search results so the passage that answers the query comes first. It loads on the first search, unloads after 10 idle minutes and uses about 1 GB of graphics memory while loaded. | Searches keep the order search by meaning gives them. | `rerank.enabled` defaults off. A `rerank.url` on another machine means search queries and candidate passages are sent to that machine. |
 | **Docker** | The convenience local Postgres only. | Bring your own Postgres, or run `mike db native` for the commands that set one up without Docker. | n/a — never required by the proxy itself |
 | **`proxy-forward` sidecar** (`:9987`) | Capturing Claude Code's Remote Control WebSocket channel, and failover to Anthropic while the proxy restarts. This is an HTTPS MITM with its own generated CA. | Normal `/v1/*` capture through `:9988` is complete; only the Remote Control channel goes unobserved. | Don't start it. All `MIKE_FORWARD_*` config is sidecar-local. |
 | **Node ≥ 25 + pnpm** | Building the browser UI. `mike` serves the SPA it was compiled with; `vite dev` is the hot-reload development path. | The inspect REST API (`:9989`) and every MCP tool still work. | Build mike without a `frontend/build` present, or set `MIKE_SPA_ENABLED=0`. |

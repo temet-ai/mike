@@ -1,0 +1,14 @@
+# Managed by mike setup rerank. Run `mike setup rerank` again to regenerate this file.
+# Started only through mike-stack-rerank-proxy; ExecStartPost holds the first connection
+# until the model has loaded, so the first rerank waits instead of failing.
+[Unit]
+Description=mike reranker (llama-server, bge-reranker-v2-m3, 127.0.0.1:11436)
+StopWhenUnneeded=yes
+
+[Service]
+Type=simple
+WorkingDirectory=@LLAMA_DIR@
+ExecStart=@LLAMA_DIR@/llama-server --reranking --pooling rank -m @MODEL@ --host 127.0.0.1 --port 11436 -ngl 99 -c 8192 -b 2048 -ub 2048
+ExecStartPost=/bin/sh -c 'until curl -sf -o /dev/null http://127.0.0.1:11436/health; do sleep 0.2; done'
+TimeoutStartSec=150
+Restart=no

@@ -6,6 +6,7 @@ pub(super) mod machine;
 pub(super) mod models;
 mod proxy;
 pub(super) mod ready;
+pub(super) mod rerank;
 pub(super) mod service;
 pub(super) mod terminal;
 pub(super) mod welcome;
@@ -22,6 +23,7 @@ pub(super) fn all() -> Vec<Box<dyn WizardStep>> {
         Box::new(features::Features::new()),
         Box::new(models::Models::new()),
         Box::new(embeddings::Embeddings::new()),
+        Box::new(rerank::Rerank::new()),
         Box::new(terminal::Terminal::real()),
         Box::new(ready::Ready::new()),
     ]

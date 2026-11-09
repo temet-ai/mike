@@ -1,0 +1,12 @@
+# Managed by mike setup rerank. Run `mike setup rerank` again to regenerate this file.
+# Listens on every interface, as Ollama does, so other machines' mike can rerank here.
+# The first connection starts mike-stack-rerank-proxy, which starts the server.
+[Unit]
+Description=mike reranker socket (:11435, starts the reranker on demand)
+
+[Socket]
+ListenStream=0.0.0.0:11435
+Service=mike-stack-rerank-proxy.service
+
+[Install]
+WantedBy=sockets.target

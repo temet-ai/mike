@@ -20,6 +20,7 @@ fn the_steps_run_in_the_agreed_order() {
             "features",
             "models",
             "search",
+            "rerank",
             "terminal",
             "ready"
         ]
@@ -183,18 +184,35 @@ async fn declining_the_look_is_remembered_for_the_later_steps() -> anyhow::Resul
 
 #[tokio::test]
 async fn the_indicator_and_status_bar_name_the_step_and_its_number() -> anyhow::Result<()> {
+    let all = steps::all();
+    let total = all.len();
+    let at = |label: &str| all.iter().position(|s| s.label() == label).unwrap_or(total);
+    let (database, machine, claude) = (at("database"), at("machine"), at("claude code"));
+    let parts = all
+        .get(claude)
+        .and_then(|s| s.progress())
+        .map_or(0, |(_, of)| of);
     let harness = Harness::new()?;
-    let (mut state, client, mut config, _dir) = harness.into_state(steps::all(), 2);
+    let (mut state, client, mut config, _dir) = harness.into_state(steps::all(), database);
     let _ = (&client, &mut config);
     let text = render(&mut state);
-    assert!(text.contains("3·database"), "{text}");
-    assert!(text.contains("2·machine"), "{text}");
-    assert!(text.contains("step 3/10 · database"), "{text}");
+    assert!(
+        text.contains(&format!("{}·database", database + 1)),
+        "{text}"
+    );
+    assert!(text.contains(&format!("{}·machine", machine + 1)), "{text}");
+    assert!(
+        text.contains(&format!("step {}/{total} · database", database + 1)),
+        "{text}"
+    );
     assert!(text.contains("SETUP"), "{text}");
-    state.current = 4;
+    state.current = claude;
     let text = render(&mut state);
-    assert!(text.contains("step 5/10 · part 1/5"), "{text}");
-    state.current = 9;
+    assert!(
+        text.contains(&format!("step {}/{total} · part 1/{parts}", claude + 1)),
+        "{text}"
+    );
+    state.current = total - 1;
     let text = render(&mut state);
     assert!(text.contains("READY"), "{text}");
     Ok(())
