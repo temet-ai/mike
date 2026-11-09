@@ -165,7 +165,7 @@ All resolve the repo root themselves.
 
 | What changed       | What to do                                                      |
 |--------------------|-----------------------------------------------------------------|
-| `crates/mike-mcp/` | `make install`, then restart Claude Code                        |
+| `crates/mike-mcp/` | `make install` (`scripts/deploy-release-build` on a release-installed machine such as infra), then restart Claude Code |
 | `crates/mike/`     | `./scripts/start-proxy.sh` (also refreshes `~/.local/bin/mike`) |
 | `frontend/` only   | Nothing; the SPA hot-reloads                                    |
 | migrations         | Restart the stack — migrations run on startup                   |
