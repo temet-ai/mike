@@ -3,7 +3,6 @@ use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
 use crate::lesson_worker::LessonSnapshot;
-use crate::lesson_worker::relevance::DEFAULT_LESSON_BUDGET;
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub(crate) struct DeliveredLesson {
@@ -22,7 +21,6 @@ pub(crate) struct PromptLessons<'a> {
     pub(crate) held_versions: Option<&'a HashMap<i64, String>>,
     pub(crate) limit: usize,
     pub(crate) content_only: bool,
-    pub(crate) budget: Option<usize>,
 }
 
 pub(crate) fn select_for_prompt(request: PromptLessons<'_>) -> Vec<DeliveredLesson> {
@@ -35,7 +33,6 @@ pub(crate) fn select_for_prompt(request: PromptLessons<'_>) -> Vec<DeliveredLess
         held_versions,
         limit,
         content_only,
-        budget,
     } = request;
     let mut seen = std::collections::HashSet::new();
     let candidates: Vec<_> = snapshot
@@ -55,13 +52,9 @@ pub(crate) fn select_for_prompt(request: PromptLessons<'_>) -> Vec<DeliveredLess
         .filter(|lesson| !content_only || !snapshot.withholds_content(lesson))
         .filter(|lesson| seen.insert(lesson.id))
         .collect();
-    let chosen = snapshot.relevance.select_within(
-        &candidates,
-        session_id,
-        prompt,
-        limit,
-        budget.unwrap_or(DEFAULT_LESSON_BUDGET),
-    );
+    let chosen = snapshot
+        .relevance
+        .select(&candidates, session_id, prompt, limit);
     snapshot.relevance.delivered(session_id, &chosen);
     chosen
         .into_iter()

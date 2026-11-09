@@ -74,7 +74,6 @@ fn request<'a>(snapshot: &'a LessonSnapshot, held: &'a [i64]) -> PromptLessons<'
         held_versions: None,
         limit: 5,
         content_only: false,
-        budget: None,
     }
 }
 
@@ -210,32 +209,4 @@ fn withheld_topiced_lesson_is_delivered_when_content_only_is_off() {
     );
     let delivered = select_for_prompt(request(&snapshot, &[]));
     assert_eq!(delivered.len(), 1);
-}
-
-#[test]
-fn a_smaller_budget_delivers_fewer_bytes_than_the_default() {
-    let default_snapshot = snapshot();
-    let default_bytes: usize = select_for_prompt(request(&default_snapshot, &[]))
-        .iter()
-        .map(|lesson| lesson.text.len())
-        .sum();
-    let small_snapshot = snapshot();
-    let small = select_for_prompt(PromptLessons {
-        budget: Some(35),
-        ..request(&small_snapshot, &[])
-    });
-    let small_bytes: usize = small.iter().map(|lesson| lesson.text.len()).sum();
-    assert_eq!(small.len(), 1);
-    assert!(small_bytes < default_bytes);
-    assert!(small_bytes <= 35);
-}
-
-#[test]
-fn a_zero_budget_delivers_no_lessons() {
-    let snapshot = snapshot();
-    let delivered = select_for_prompt(PromptLessons {
-        budget: Some(0),
-        ..request(&snapshot, &[])
-    });
-    assert!(delivered.is_empty());
 }

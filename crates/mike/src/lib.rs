@@ -56,7 +56,6 @@ pub mod mailbox_reaper;
 pub(crate) mod mcp_channel;
 pub mod memory_cap;
 pub mod memory_harvester;
-pub(crate) mod memory_keeper;
 pub mod metrics;
 pub mod observability;
 pub(crate) mod owner_only_file;

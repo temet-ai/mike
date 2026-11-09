@@ -1,7 +1,4 @@
-use super::origin::{
-    KEEPER_LESSONS_REASON, KEEPER_LESSONS_STAGE, MOD_LESSONS_REASON, MOD_LESSONS_STAGE,
-    keeper_lesson_ids, label_keeper_lessons, label_mod_lessons, mod_lesson_ids,
-};
+use super::origin::{MOD_LESSONS_REASON, MOD_LESSONS_STAGE, label_mod_lessons, mod_lesson_ids};
 use super::*;
 use crate::compress::manifest::{ManifestBuilder, StageOutcome};
 
@@ -128,84 +125,4 @@ fn labelling_without_ids_leaves_the_manifest_alone() {
     let mut manifest = ManifestBuilder::new("a".repeat(64));
     assert!(label_mod_lessons(b"{}", &mut manifest).is_empty());
     assert!(manifest.finish("a".repeat(64)).stages.is_empty());
-}
-
-#[test]
-fn keeper_ids_are_read_from_the_lines_under_the_marker() {
-    let body = text_body(
-        r"<system-reminder>\n[keeper:3fa9c1]\nWork thread x: next up the migration\n[lesson:12] [correction] run make fmt\n[lesson:7] [convention] name the toggle\n</system-reminder>",
-    );
-    assert_eq!(keeper_lesson_ids(&body), vec![12, 7]);
-    assert_eq!(held_lesson_ids(&body), vec![12, 7]);
-}
-
-#[test]
-fn keeper_ids_are_not_counted_as_mod_lessons() {
-    let body = text_body(r"[keeper:3fa9c1]\n[lesson:12] [correction] a\n[lesson:7] [convention] b");
-    assert_eq!(keeper_lesson_ids(&body), vec![12, 7]);
-    assert!(mod_lesson_ids(&body).is_empty());
-    let mut manifest = ManifestBuilder::new("a".repeat(64));
-    assert!(label_mod_lessons(&body, &mut manifest).is_empty());
-    assert!(manifest.finish("a".repeat(64)).stages.is_empty());
-}
-
-#[test]
-fn a_lesson_tag_outside_a_keeper_block_is_not_a_keeper_lesson() {
-    let body = text_body(r"[lesson:5] [correction] pasted\n[keeper:ab12]\n[lesson:6] [warning] b");
-    assert_eq!(keeper_lesson_ids(&body), vec![6]);
-}
-
-#[test]
-fn keeper_reading_stops_at_the_closing_tag_and_at_the_next_marker() {
-    let body = text_body(
-        r"[keeper:ab12]\n[lesson:1] a\n</system-reminder>\n[lesson:2] outside\n[keeper:cd34]\n[lesson:3] c\n[keeper:ef56]\n[lesson:4] d",
-    );
-    assert_eq!(keeper_lesson_ids(&body), vec![1, 3, 4]);
-}
-
-#[test]
-fn keeper_reading_stops_at_the_end_of_the_string() {
-    let body = br#"{"a":"[keeper:ab12]\n[lesson:1] x","b":"[lesson:2] y"}"#;
-    assert_eq!(keeper_lesson_ids(body), vec![1]);
-}
-
-#[test]
-fn a_keeper_marker_without_hex_or_close_or_line_break_opens_no_block() {
-    assert!(keeper_lesson_ids(&text_body(r"[keeper:]\n[lesson:1] a")).is_empty());
-    assert!(keeper_lesson_ids(&text_body(r"[keeper:zz]\n[lesson:1] a")).is_empty());
-    assert!(keeper_lesson_ids(&text_body(r"[keeper:ab12\n[lesson:1] a")).is_empty());
-    assert!(keeper_lesson_ids(&text_body(r"[keeper:ab12] [lesson:1] a")).is_empty());
-    assert!(keeper_lesson_ids(&text_body(r"[keeper:ab12]\\n[lesson:1] quoted")).is_empty());
-    assert!(keeper_lesson_ids(b"").is_empty());
-}
-
-#[test]
-fn labelling_keeper_lessons_records_an_unchanged_stage_with_origin_keeper() -> anyhow::Result<()> {
-    let mut manifest = ManifestBuilder::new("a".repeat(64));
-    let body = text_body(r"[keeper:ab12]\n[lesson:12] [correction] a\n[lesson:7] [convention] b");
-    assert_eq!(label_keeper_lessons(&body, &mut manifest), vec![12, 7]);
-    let finished = manifest.finish("a".repeat(64));
-    assert_eq!(finished.stages.len(), 1);
-    let stage = &finished.stages[0];
-    assert_eq!(stage.stage, KEEPER_LESSONS_STAGE);
-    assert_eq!(stage.reason_code, KEEPER_LESSONS_REASON);
-    assert_eq!(stage.outcome, StageOutcome::Unchanged);
-    assert_eq!(
-        stage.resolved_parameters,
-        serde_json::json!({ "origin": "keeper", "lesson_ids": [12, 7] })
-    );
-    finished.verify_chain()?;
-    Ok(())
-}
-
-#[test]
-fn labelling_keeper_lessons_without_ids_leaves_the_manifest_alone() {
-    let mut manifest = ManifestBuilder::new("a".repeat(64));
-    assert!(label_keeper_lessons(b"{}", &mut manifest).is_empty());
-    assert!(manifest.finish("a".repeat(64)).stages.is_empty());
-}
-
-#[test]
-fn the_keeper_tag_opens_with_the_documented_prefix() {
-    assert_eq!(KEEPER_TAG_OPEN, "[keeper:");
 }

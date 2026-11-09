@@ -2281,15 +2281,46 @@ set by time without a write), `lessons/vectors.rs` (`lessons`) and `project_know
 | `generation` | `BIGINT NOT NULL DEFAULT 0` | Incremented on every relevant change |
 | `changed_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
 
-Seeded rows: `lessons`, `session_projects`.
+Seeded rows: `lessons`, `session_projects`; `thread_cards` and `thread_card_sources` are added by
+`20261109120000_thread_cards.sql`. `thread_card_sources` is read every 10 s by the memory-keeper card
+worker (`store/persistence/work_threads/cards/scan.rs`); `thread_cards` tells each machine's card
+snapshot to reload.
 
 **Triggers that bump it:**
 - `lessons`: `trg_lessons_change_generation`/`_upd` on `memory.lessons`, `trg_lesson_relations_change_generation`/`_upd` on `memory.lesson_relations`, `trg_lesson_shape_findings_change_generation`/`_upd` on `memory.lesson_shape_findings`
 - `lessons` and `session_projects`: `trg_projects_path_change_generation`/`_upd` on `projects.projects` (insert, delete, change of `project_path`)
 - `session_projects`: `trg_sessions_project_change_generation`/`_del`/`_upd` on `sessions.sessions` (rows with a `location_uuid` or `project_resolution = 'operator'`; updates of `project_id`, `location_uuid`, `project_resolution`)
+- `thread_cards`: `trg_thread_cards_change_generation`/`_upd` on `work.thread_cards` (insert, delete, and an update that changes `card`, `text`, `content_hash` or `refs`; advancing `source_max_at` or `built_at` alone does not bump it)
+- `thread_card_sources`: `trg_threads_card_sources`/`_upd` on `work.threads` (any change), `trg_thread_state_card_sources`/`_upd` on `work.thread_state` (the state fields, `files` and `updated_at`; not the embedding columns), `trg_thread_log_card_sources`/`_upd` on `work.thread_log` (any change), `trg_thread_sessions_card_sources`/`_upd` on `work.thread_sessions` (insert, delete, a change of `contribution`; not `last_seen_at`)
 
 The same migration adds `idx_lessons_expires_at` on `memory.lessons (expires_at) WHERE expires_at IS NOT NULL`
 for the expiry count.
+
+---
+
+### `memory.keeper_supplies`
+
+Added in `20261109121500_keeper_supplies.sql`. What memory-keeper supplied to each session: one row per
+(session, thread, card text), recorded after the block was returned so the route's latency does not include
+it. A repeat of the same card for the same session is not recorded again: the writer inserts with
+`WHERE NOT EXISTS` over `(session_uuid, thread_id, content_hash)`, served by the `(session_uuid, thread_id)`
+index; there is no UNIQUE or index on `content_hash`. The source of the supply rate and of resolution
+accuracy. No writer exists yet; the supply path that records into it is the next memory-keeper step.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` | |
+| `session_uuid` | `UUID NOT NULL` | Soft reference to `sessions.sessions.session_uuid` |
+| `thread_id` | `BIGINT NULL` | FK → `work.threads(id)` ON DELETE CASCADE; NULL for a control-arm session or a prompt that resolved to no thread |
+| `content_hash` | `TEXT NULL` | `work.thread_cards.content_hash` of the card supplied; not indexed |
+| `carrier` | `TEXT NOT NULL` | CHECK `tether`, `mod`, `proxy` |
+| `arm` | `TEXT NOT NULL` | CHECK `keeper`, `control` |
+| `resolution` | `TEXT NOT NULL` | CHECK `one`, `several`, `none` |
+| `signals` | `JSONB NOT NULL DEFAULT '{}'` | The resolver signals behind the resolution |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Indexes:**
+- `idx_keeper_supplies_session_thread`: `(session_uuid, thread_id)` (BTree)
 
 ---
 
@@ -5320,10 +5351,11 @@ Added by `20260903000002_work_threads.sql` ([issue #243](https://github.com/teme
 moving worklog thread state out of `artifacts/threads/*/worklog.md` and the session-start hook that
 pasted it into every session) and extended by `20261022120000_work_threads_direct_write.sql`
 ([issue #67](https://github.com/temet-ai/mike/issues/67): a thread lives in mike's database, not
-in a file, so it can be created, checkpointed and given entries directly). Six tables: `threads`
+in a file, so it can be created, checkpointed and given entries directly). Seven tables: `threads`
 (identity and metadata), `thread_state` (the present tense, one row per thread, replaced whole on
 every checkpoint), `thread_acceptance_criteria`, `thread_log` (append-only history),
-`thread_sessions` (which sessions worked which thread) and `thread_dependencies`. Not to be confused
+`thread_sessions` (which sessions worked which thread), `thread_dependencies` and `thread_cards`
+(the memory-keeper card rendered from the others). Not to be confused
 with `mailbox.threads`, a conversation between sessions. Surfaced by `GET`/`POST /api/work-threads`
 (`work_thread_list`, `work_thread_checkpoint`), `GET`/`PATCH /api/work-threads/{slug}`
 (`work_thread_get`), `POST /api/work-threads/{slug}/entries` (`work_thread_add_entry`) and
@@ -5507,6 +5539,35 @@ used to name it.
 
 **Indexes:**
 - `idx_work_thread_dependencies_depends_on`: `depends_on_thread_id` (BTree)
+
+---
+
+### `work.thread_cards`
+
+Added in `20261109120000_thread_cards.sql`. One rendered card per work thread: where it stands, what is
+next, blockers, open questions, decisions in force, the newest handoff, decisions since it (log entries and
+decision or finding notes tagged `thread:<slug>`), open dossier promises and unmet asks of the thread's
+sessions from the last 14 days, each item with a reference token (`thread:`, `entry:`, `note:`,
+`promise:`, `turn:`). Derived data, written only by the memory-keeper card worker
+(`memory_keeper/worker.rs`, `store/persistence/work_threads/cards/`): the content upsert changes a row only
+when `content_hash` differs, then a second statement advances `source_max_at`. Safe to delete; the next pass
+rebuilds it.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `thread_id` | `BIGINT PRIMARY KEY` | FK → `work.threads(id)` ON DELETE CASCADE |
+| `card` | `JSONB NOT NULL` | The card as structured sections, in text order |
+| `text` | `TEXT NOT NULL` | The rendered card; CHECK `octet_length(text) <= 1500` |
+| `content_hash` | `TEXT NOT NULL` | sha256 of `text`, hex; not indexed |
+| `refs` | `JSONB NOT NULL` | Array of the reference tokens the text carries |
+| `source_max_at` | `TIMESTAMPTZ NOT NULL` | Newest source change the card was built against; advanced on every rebuild |
+| `built_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | When the content last changed |
+
+**Constraints:**
+- `thread_cards_text_bounded`: `octet_length(text) <= 1500`
+
+**Triggers:** `trg_thread_cards_change_generation`/`_upd` bump the `thread_cards` row of
+`memory.change_generations` when the content changes.
 
 ---
 
