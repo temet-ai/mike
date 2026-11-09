@@ -100,11 +100,10 @@ impl<R: Runner> Rerank<R> {
             .await
             .and_then(|out| out.lines().next().map(|l| l.trim().to_string()))
             .filter(|line| !line.is_empty());
-        let systemd = cfg!(target_os = "linux")
-            && self
-                .succeeds("systemctl", &["--user", "show-environment"])
-                .await
-                .is_some();
+        let systemd = self
+            .succeeds("systemctl", &["--user", "show-environment"])
+            .await
+            .is_some();
         let socket_active = systemd
             && self
                 .succeeds("systemctl", &["--user", "is-active", SOCKET_UNIT])
