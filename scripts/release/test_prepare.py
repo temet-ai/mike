@@ -48,9 +48,12 @@ elif name == 'pnpm':
         if control.get('private_spa'): (out / '.env').write_text('secret')
     else: sys.exit('unexpected pnpm arguments: ' + str(args))
 elif name == 'cargo':
+    glibc = control.get('glibc')
     if args == ['--version']: print('cargo 1.95.0 (fixture)')
+    elif args == ['zigbuild', '--version']: print('cargo-zigbuild 0.22.0 (fixture)')
     else:
-        assert args[:-2] == ['build','--offline','--locked','--profile','dist','--target',target,'-p','mike','-p','mike-mcp']
+        assert args[:-2] == ['zigbuild' if glibc else 'build','--offline','--locked','--profile','dist',
+                             '--target',target + ('.' + glibc if glibc else ''),'-p','mike','-p','mike-mcp']
         assert args[-2] == '--config'
         flags = tomllib.loads(args[-1])['target']['cfg(all())']['rustflags']
         assert flags and all(flag.startswith('--remap-path-prefix=') for flag in flags)
@@ -278,6 +281,36 @@ class PreparationTests(unittest.TestCase):
     def test_cross_target_fails_before_build(self):
         result = self.invoke("--target", "aarch64-apple-darwin", success=False)
         self.assertIn("not native", result.stderr)
+        self.assert_unmodified()
+
+    def test_glibc_floor_builds_with_zigbuild_and_records_it(self):
+        self.configure(glibc="2.35")
+        result = self.invoke("--glibc", "2.35")
+        candidate = Path(next(line.removeprefix("Candidate: ") for line in result.stdout.splitlines()
+                              if line.startswith("Candidate: ")))
+        manifest = json.loads((candidate / "manifest.json").read_text())
+        self.assertEqual(manifest["target"], "x86_64-unknown-linux-gnu")
+        self.assertEqual((manifest["build"]["linker"], manifest["build"]["glibc_floor"]),
+                         ("cargo-zigbuild", "2.35"))
+        self.assertIn("cargo-zigbuild", manifest["toolchain"]["cargo_zigbuild"])
+        builds = [c["args"] for c in self.calls() if c["tool"] == "cargo" and "--profile" in c["args"]]
+        self.assertEqual([args[0] for args in builds], ["zigbuild"])
+        self.assert_unmodified()
+
+    def test_cross_target_needs_glibc_and_qemu(self):
+        self.configure(target="aarch64-unknown-linux-gnu", rust_host="x86_64-unknown-linux-gnu", glibc="2.35")
+        self.env.pop("QEMU_LD_PREFIX", None)
+        result = self.invoke("--target", "aarch64-unknown-linux-gnu", success=False)
+        self.assertIn("not native", result.stderr)
+        result = self.invoke("--target", "aarch64-unknown-linux-gnu", "--glibc", "2.35", success=False)
+        self.assertIn("qemu", result.stderr)
+        self.assertFalse(any(c["tool"] == "cargo" and "--profile" in c["args"] for c in self.calls()))
+        self.assert_unmodified()
+
+    def test_glibc_floor_is_refused_for_macos(self):
+        self.configure(target="aarch64-apple-darwin")
+        result = self.invoke("--glibc", "2.35", success=False)
+        self.assertIn("--glibc", result.stderr)
         self.assert_unmodified()
 
     def test_mixed_binary_versions_fail_and_remove_partial_candidate(self):

@@ -53,7 +53,10 @@ def write_json(path, value):
 def build_environment():
     # Do not inherit credentials, DATABASE_URL, MIKE_*, VITE_*, Rust overrides,
     # build-cache identity suppression, or other shell/project configuration.
-    env = {key: os.environ[key] for key in ("HOME", "PATH", "TMPDIR", "CARGO_HOME", "RUSTUP_HOME")
+    # CARGO_ZIGBUILD_ZIG_PATH names zig for a --glibc build; QEMU_LD_PREFIX is
+    # the user-space ARM64 sysroot that runs a cross-built binary's smoke tests.
+    env = {key: os.environ[key] for key in ("HOME", "PATH", "TMPDIR", "CARGO_HOME", "RUSTUP_HOME",
+                                            "CARGO_ZIGBUILD_ZIG_PATH", "QEMU_LD_PREFIX")
            if key in os.environ}
     env.update(SQLX_OFFLINE="true", CARGO_NET_OFFLINE="true", CARGO_BUILD_JOBS="1",
                CARGO_INCREMENTAL="0", RUSTUP_AUTO_INSTALL="0",
@@ -121,6 +124,29 @@ def native_target(root, env):
         if host[:2] == (system, machine):
             return target
     raise ReleaseError(f"unsupported native host {system}/{machine}; no cross-compilation")
+
+
+# The one cross-build: Linux ARM64 archives made on an x86_64 Linux host with
+# cargo-zigbuild, so the Raspberry Pi that runs them never builds mike.
+CROSS_TARGETS = {("x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu")}
+QEMU_AARCH64 = Path("/proc/sys/fs/binfmt_misc/qemu-aarch64")
+
+
+def foreign_exec_env():
+    """The environment a cross-built binary needs to run here under qemu's binfmt handler."""
+    prefix = os.environ.get("QEMU_LD_PREFIX")
+    return {"QEMU_LD_PREFIX": prefix} if prefix else {}
+
+
+def runnable_targets(native):
+    """Targets whose binaries this host can execute: its own, and ARM64 Linux through qemu."""
+    targets = {native}
+    prefix = os.environ.get("QEMU_LD_PREFIX")
+    for host, target in CROSS_TARGETS:
+        if (host == native and QEMU_AARCH64.exists() and prefix
+                and (Path(prefix) / "lib/ld-linux-aarch64.so.1").exists()):
+            targets.add(target)
+    return targets
 
 
 def toolchain(root, env, target):
