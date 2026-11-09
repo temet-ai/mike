@@ -27,7 +27,7 @@ const DEFAULT_INFINITY_URL: &str = "http://127.0.0.1:7997";
 
 const HTTP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(180);
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct EmbeddingConfig {
     #[serde(deserialize_with = "deserialize_permissive_bool")]

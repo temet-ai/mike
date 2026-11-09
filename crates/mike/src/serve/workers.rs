@@ -10,6 +10,8 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::resync::worker::spawn_resync_worker(state);
 
+    crate::settings::running_services::spawn_running_service_sync(state);
+
     crate::embed_worker::spawn_embed_backfill(state);
 
     crate::knowledge_scan::spawn_knowledge_scan(state);
