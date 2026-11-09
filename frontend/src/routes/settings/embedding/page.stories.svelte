@@ -30,8 +30,8 @@
 		meta({
 			key: 'embedding.model',
 			kind: 'string',
-			default: 'nomic-embed-text-v1.5',
-			value: 'nomic-embed-text-v1.5',
+			default: 'embeddinggemma',
+			value: 'embeddinggemma',
 			label: 'Model',
 			description: 'Embedding model id.',
 			max_len: 256
@@ -150,8 +150,9 @@
 		const canvas = within(canvasElement);
 		await expect(canvasElement.textContent).toContain('Embedding');
 		const radios = canvas.getAllByRole('radio');
-		await expect(radios).toHaveLength(2);
+		await expect(radios).toHaveLength(3);
 		await expect(radios.map((r) => r.getAttribute('value'))).toEqual([
+			'embeddinggemma',
 			'nomic-embed-text-v1.5',
 			'nomic-embed-text'
 		]);
@@ -195,6 +196,7 @@
 		const radios = canvas.getAllByRole('radio');
 		await expect(radios.map((r) => r.getAttribute('value'))).toEqual([
 			'openai/text-embedding-3-small',
+			'embeddinggemma',
 			'nomic-embed-text-v1.5',
 			'nomic-embed-text'
 		]);

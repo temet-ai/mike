@@ -4,9 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::{Deserialize, Serialize};
 
-use super::{
-    DEFAULT_DIM, EmbedError, EmbeddingConfig, HTTP_TIMEOUT, PREFIX_DOCUMENT, PREFIX_QUERY,
-};
+use super::{DEFAULT_DIM, EmbedError, EmbeddingConfig, HTTP_TIMEOUT, prefixes_for};
 
 #[derive(Serialize)]
 struct EmbedRequest<'a> {
@@ -139,8 +137,8 @@ impl EmbeddingService {
     }
 
     pub async fn embed_query(&self, query: &str) -> Result<Vec<f32>, EmbedError> {
-        let prefixed = format!("{PREFIX_QUERY}{query}");
-        let mut out = self.embed_batch(vec![prefixed]).await?;
+        let prefix = prefixes_for(&self.snapshot_config().model).query;
+        let mut out = self.embed_batch(vec![format!("{prefix}{query}")]).await?;
         out.pop()
             .ok_or_else(|| EmbedError::Parse("empty response for single query".to_string()))
     }
@@ -149,10 +147,8 @@ impl EmbeddingService {
         if texts.is_empty() {
             return Ok(Vec::new());
         }
-        let prefixed: Vec<String> = texts
-            .iter()
-            .map(|t| format!("{PREFIX_DOCUMENT}{t}"))
-            .collect();
+        let prefix = prefixes_for(&self.snapshot_config().model).document;
+        let prefixed: Vec<String> = texts.iter().map(|t| format!("{prefix}{t}")).collect();
         self.embed_batch(prefixed).await
     }
 
@@ -171,10 +167,8 @@ impl EmbeddingService {
         if texts.is_empty() {
             return Ok((config, Vec::new()));
         }
-        let prefixed: Vec<String> = texts
-            .iter()
-            .map(|t| format!("{PREFIX_DOCUMENT}{t}"))
-            .collect();
+        let prefix = prefixes_for(&config.model).document;
+        let prefixed: Vec<String> = texts.iter().map(|t| format!("{prefix}{t}")).collect();
         let vectors = self.post_to_infinity(&config, &prefixed).await?;
         Ok((config, vectors))
     }

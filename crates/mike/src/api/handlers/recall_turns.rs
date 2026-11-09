@@ -153,7 +153,8 @@ async fn try_embedding_recall(
 ) -> Option<Vec<crate::store::persistence::RankedTurnRow>> {
     let query_vec = embed_recall_query(embedding_service, project, query).await?;
     let literal = crate::store::operator_turns::vector_to_text_literal(&query_vec);
-    recall_by_embedding(handle, project, query, &literal, limit).await
+    let model = embedding_service.model_name();
+    recall_by_embedding(handle, project, query, (&model, &literal), limit).await
 }
 
 async fn embed_recall_query(
@@ -161,8 +162,16 @@ async fn embed_recall_query(
     project: &str,
     query: &str,
 ) -> Option<Vec<f32>> {
+    use crate::api::project_knowledge::query_vector_cache::QUERY_VECTORS;
+    let key = crate::embed_worker::knowledge::model_key(embedding_service);
+    if let Some(cached) = QUERY_VECTORS.get(&key, query) {
+        return Some(cached);
+    }
     match embedding_service.embed_query(query).await {
-        Ok(v) => Some(v),
+        Ok(v) => {
+            QUERY_VECTORS.put(&key, query, v.clone());
+            Some(v)
+        }
         Err(e) => {
             tracing::warn!(
                 project,
@@ -178,11 +187,11 @@ async fn recall_by_embedding(
     handle: &crate::store::persistence::PersistHandle,
     project: &str,
     query: &str,
-    literal: &str,
+    (model, literal): (&str, &str),
     limit: i64,
 ) -> Option<Vec<crate::store::persistence::RankedTurnRow>> {
     match handle
-        .recall_turns_by_embedding(project, literal, limit)
+        .recall_turns_by_embedding(project, model, literal, limit)
         .await
     {
         Ok(Some(found)) => {

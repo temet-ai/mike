@@ -208,6 +208,7 @@ async fn embed_and_write_chunks(
     if plan.is_empty() {
         return Ok(EmbedWriteOutcome::no_work());
     }
+    let model_name = embedding_service.model_name();
     let vectors = match embed_plan_texts(embedding_service, &plan, rows.len()).await {
         EmbedTextsOutcome::Vectors(v) => v,
         EmbedTextsOutcome::Failed => {
@@ -217,7 +218,9 @@ async fn embed_and_write_chunks(
             });
         }
     };
-    let model_name = embedding_service.model_name();
+    if embedding_service.model_name() != model_name {
+        return Ok(EmbedWriteOutcome::no_work());
+    }
     Ok(write_turn_chunks(handle, &plan, &vectors, turn_ranges, &model_name).await)
 }
 

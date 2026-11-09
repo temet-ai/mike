@@ -158,8 +158,13 @@ async fn near_lessons(
     if !embedding.is_available() {
         return Vec::new();
     }
-    let vector = match embedding.embed(text).await {
-        Ok(vector) => vector,
+    let vector = match embedding
+        .embed_documents(std::slice::from_ref(&text.to_owned()))
+        .await
+        .map(|mut vectors| vectors.pop())
+    {
+        Ok(Some(vector)) => vector,
+        Ok(None) => return Vec::new(),
         Err(error) => {
             tracing::debug!(%error, "create_lesson: the text was not embedded, so no near lessons are named");
             return Vec::new();

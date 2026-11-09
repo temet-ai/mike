@@ -1,0 +1,3 @@
+-- no-transaction
+-- Meaning-based search over project knowledge reads the nearest chunks first; without a vector index every search computes the distance to all of the chunks. Same parameters as idx_otc_embedding. Writes to the table continue while it builds. If a build is interrupted the index stays INVALID and this statement skips it on a rerun: check pg_index.indisvalid and drop the index before restarting.
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_knowledge_embedding_chunks_embedding ON memory.knowledge_embedding_chunks USING hnsw (embedding vector_cosine_ops) WITH (m = '16', ef_construction = '64');

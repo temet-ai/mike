@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SET LOCAL hnsw.ef_search = 1000",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "0b8f8dbc23cb6d912e224dd170e7f6a162ce01151e2f84cf4b04461678abb6af"
+}

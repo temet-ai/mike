@@ -1,5 +1,5 @@
 use super::knowledge::{model_key, sweep_if_leader};
-use super::knowledge_key::{LEASE_ROLE, rekey_url_keyed_rows};
+use super::knowledge_key::{LEASE_ROLE, rekey_url_keyed_rows, unversioned_v2_key};
 use super::knowledge_tests::{breaker, embedding_server, scan, source, vector};
 use crate::analysis::{EmbeddingConfig, EmbeddingService};
 use crate::store::persistence::{
@@ -137,6 +137,25 @@ async fn rekey_without_matching_keys_changes_nothing() -> anyhow::Result<()> {
     seed_state(&handle, 26000, &legacy_key(UNRECORDED), 4).await?;
     assert_eq!(rekey_url_keyed_rows(&handle, &loopback_service()).await?, 0);
     assert_eq!(keyed_count(&handle, &legacy_key(UNRECORDED)).await?, 4);
+    db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn rekey_with_unversioned_v2_rows_leaves_them_for_the_worker_to_redo() -> anyhow::Result<()> {
+    let (db, handle) = fresh_db().await?;
+    let service = EmbeddingService::new(&EmbeddingConfig {
+        enabled: true,
+        url: LOOPBACK.into(),
+        model: "embeddinggemma".into(),
+        chunk_max_chars: 1024,
+    });
+    let old_key = unversioned_v2_key("embeddinggemma", 1024);
+    assert_ne!(old_key, model_key(&service));
+    seed_state(&handle, 31000, &old_key, 6).await?;
+    assert_eq!(rekey_url_keyed_rows(&handle, &service).await?, 0);
+    assert_eq!(keyed_count(&handle, &old_key).await?, 6);
+    assert_eq!(keyed_count(&handle, &model_key(&service)).await?, 0);
     db.cleanup().await?;
     Ok(())
 }

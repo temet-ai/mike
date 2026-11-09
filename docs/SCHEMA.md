@@ -1802,7 +1802,7 @@ embedded independently. Recall takes `MIN(chunk_embedding <=> query_vec)` over a
 | `chunk_idx` | `INTEGER NOT NULL` | 0-based ordinal within `(turn_id, chunk_role_id)` |
 | `chunk_role_id` | `BIGINT NOT NULL` | FK → `memory.chunk_roles(id)` |
 | `chunk_text` | `TEXT NOT NULL` | ≤1500 chars of source text |
-| `chunk_embedding` | `vector(768) NOT NULL` | 768-dimension embedding (nomic-ai/nomic-embed-text-v1.5 via Infinity) |
+| `chunk_embedding` | `vector(768) NOT NULL` | 768-dimension embedding (the configured `embedding.model`) |
 | `embedding_model` | `TEXT NOT NULL` | Model identifier |
 | `embedded_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | |
 
@@ -1849,7 +1849,7 @@ Operator/agent-authored memory entries scoped to a project. Pulled by `recall_pr
 | `stage_id` | `BIGINT NOT NULL DEFAULT 1` | FK → `memory.lesson_stages(id)` |
 | `source_id` | `BIGINT NOT NULL DEFAULT 1` | FK → `memory.lesson_sources(id)` |
 | `text_sha256` | `BYTEA NULL` | SHA-256 for dedup |
-| `embedding` | `vector(768) NULL` | Embedding for semantic recall (nomic-ai/nomic-embed-text-v1.5 via Infinity) |
+| `embedding` | `vector(768) NULL` | Embedding for semantic recall (the configured `embedding.model`) |
 | `embedding_model` | `TEXT NULL` | |
 | `embedded_at` | `TIMESTAMPTZ NULL` | |
 | `consolidation_count` | `INTEGER NOT NULL DEFAULT 0` | |
@@ -2314,7 +2314,7 @@ for the expiry count.
 Added in migration `20260901000001_session_embeddings.sql`. One vector per session with embedded turns.
 Until the session judge writes a narrative overview, the vector is the L2-normalised mean of the session's
 `memory.operator_turn_chunks` embeddings (`source = 'centroid'`); once an overview exists, the vector is the
-overview's own embedding (`source = 'overview'`). Both live in the same nomic-embed-text-v1.5 768-dim space.
+overview's own embedding (`source = 'overview'`). Both live in the same 768-dim space of the configured `embedding.model`.
 Keyed on `session_id uuid`, referencing `sessions.sessions(session_uuid)` — not the bigint surrogate `id`
 every other `memory.*` table FKs against — because every caller (the embed worker sweep, the two
 embedding-graph REST routes, the session judge) already holds the session's UUID.
@@ -2327,7 +2327,7 @@ constraint): a session is **missing** when it has at least one embedded turn chu
 | Column | Type | Purpose |
 |---|---|---|
 | `session_id` | `UUID PRIMARY KEY` | FK → `sessions.sessions(session_uuid)` ON DELETE CASCADE |
-| `embedding` | `vector(768) NOT NULL` | 768-dim embedding (nomic-ai/nomic-embed-text-v1.5) |
+| `embedding` | `vector(768) NOT NULL` | 768-dim embedding (the configured `embedding.model`) |
 | `embedding_model` | `TEXT NOT NULL` | Model identifier |
 | `source` | `TEXT NOT NULL` | `CHECK (source IN ('overview', 'centroid'))` |
 | `chunk_count` | `INTEGER NOT NULL DEFAULT 0` | Turn-chunk count the centroid was computed over (0 for an overview row) |
@@ -2513,6 +2513,9 @@ of one embedded source, written with its `memory.knowledge_embedding_state` row 
 | `embedding` | `public.vector(768) NOT NULL` | |
 
 **Primary key:** `(state_id, ordinal)`.
+
+**Indexes:**
+- `idx_knowledge_embedding_chunks_embedding`: `embedding vector_cosine_ops` HNSW m=16 ef=64 (`20261109100001`) — nearest-first chunk search in `search.sql`, which reads the nearest 200 chunks of the project with pgvector's iterative scan and keeps only references within 0.08 of the best score and at or above 0.6
 
 ---
 

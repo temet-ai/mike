@@ -75,6 +75,9 @@ pub(crate) mod project_pin_ttl;
 pub mod prompt_classification;
 pub mod prompt_stream;
 pub mod questions;
+mod recall_embedding;
+#[cfg(test)]
+mod recall_embedding_tests;
 pub(crate) mod recall_reads;
 pub mod reconstruct;
 pub mod rehydrate;

@@ -177,7 +177,7 @@ mod tests {
             "embedding env vars must be ignored"
         );
         assert_eq!(config.embedding.url, "http://127.0.0.1:7997");
-        assert_eq!(config.embedding.model, "nomic-embed-text-v1.5");
+        assert_eq!(config.embedding.model, "embeddinggemma");
         assert_eq!(config.embedding.chunk_max_chars, 1500);
         Ok(())
     }
@@ -253,6 +253,8 @@ mod tests {
             .lock()
             .map_err(|e| anyhow::anyhow!("env_lock poisoned: {e}"))?;
         let _cleared = clear_proxy_env();
+        let _fallback = EnvVarGuard::unset("MIKE_DB_FALLBACK_ENABLED");
+        let _resync = EnvVarGuard::unset("MIKE_DB_RESYNC_ENABLED");
 
         let config = load_layered(CliOverrides::default())?;
         assert!(config.db_fallback_enabled);

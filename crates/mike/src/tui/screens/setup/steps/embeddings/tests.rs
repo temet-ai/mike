@@ -28,7 +28,7 @@ fn inputs() -> EmbedInputs {
         current: Some(Current {
             enabled: false,
             url: "http://127.0.0.1:7997".to_string(),
-            model: "nomic-embed-text-v1.5".to_string(),
+            model: "embeddinggemma".to_string(),
         }),
     }
 }
@@ -43,25 +43,19 @@ fn actions(inputs: &EmbedInputs) -> Vec<EmbedAction> {
 
 #[test]
 fn model_names_match_with_or_without_a_tag() {
-    let models = vec![
-        "nomic-embed-text:latest".to_string(),
-        "llama3:8b".to_string(),
-    ];
-    assert!(has_model(&models, "nomic-embed-text"));
-    assert!(!has_model(&models, "nomic"));
+    let models = vec!["embeddinggemma:latest".to_string(), "llama3:8b".to_string()];
+    assert!(has_model(&models, "embeddinggemma"));
+    assert!(!has_model(&models, "embedding"));
     assert!(!has_model(&models, "llama"));
-    assert!(has_model(
-        &["nomic-embed-text".to_string()],
-        "nomic-embed-text"
-    ));
-    assert!(!has_model(&[], "nomic-embed-text"));
+    assert!(has_model(&["embeddinggemma".to_string()], "embeddinggemma"));
+    assert!(!has_model(&[], "embeddinggemma"));
 }
 
 #[test]
 fn with_ollama_pulled_and_running_the_choice_is_to_use_it_without_a_pull_command() {
     let mut ready = inputs();
     ready.ollama = ollama();
-    ready.models = Some(vec!["nomic-embed-text:latest".to_string()]);
+    ready.models = Some(vec!["embeddinggemma:latest".to_string()]);
     assert_eq!(
         actions(&ready),
         vec![
@@ -75,7 +69,7 @@ fn with_ollama_pulled_and_running_the_choice_is_to_use_it_without_a_pull_command
     assert!(choice.is_some_and(|c| c.recommended && c.commands.is_empty()));
     let found = panel.found.join("\n");
     assert!(
-        found.contains("answers on http://127.0.0.1:11434 and has nomic-embed-text"),
+        found.contains("answers on http://127.0.0.1:11434 and has embeddinggemma"),
         "{found}"
     );
     assert!(found.contains("Search by meaning is off"), "{found}");
@@ -89,7 +83,7 @@ fn ollama_not_pulled_shows_the_pull_command_and_a_stopped_server_shows_the_start
     let panel = plan_panel(&stopped);
     assert_eq!(
         panel.choices[0].commands,
-        vec!["ollama pull nomic-embed-text", "brew services start ollama"]
+        vec!["ollama pull embeddinggemma", "brew services start ollama"]
     );
     assert!(
         panel
@@ -107,7 +101,7 @@ fn ollama_not_pulled_shows_the_pull_command_and_a_stopped_server_shows_the_start
     running.models = Some(Vec::new());
     let found = plan_panel(&running).found.join("\n");
     assert!(
-        found.contains("nomic-embed-text is not pulled yet"),
+        found.contains("embeddinggemma is not pulled yet"),
         "{found}"
     );
 }
@@ -169,7 +163,7 @@ fn ollama_reply(count: usize, width: usize) -> Value {
         "data": (0..count)
             .map(|i| json!({"object": "embedding", "embedding": vec![0.5_f32; width], "index": i}))
             .collect::<Vec<_>>(),
-        "model": "nomic-embed-text"
+        "model": "embeddinggemma"
     })
 }
 
@@ -192,10 +186,10 @@ async fn ollama_server(models: &[&str], width: usize) -> MockServer {
 
 #[tokio::test]
 async fn the_ollama_server_is_read_through_its_tags_route() {
-    let server = ollama_server(&["nomic-embed-text:latest"], 768).await;
+    let server = ollama_server(&["embeddinggemma:latest"], 768).await;
     assert_eq!(
         ollama_models(&server.uri()).await,
-        Some(vec!["nomic-embed-text:latest".to_string()])
+        Some(vec!["embeddinggemma:latest".to_string()])
     );
     assert_eq!(ollama_models("http://127.0.0.1:1").await, None);
 }
@@ -203,7 +197,7 @@ async fn the_ollama_server_is_read_through_its_tags_route() {
 #[tokio::test]
 async fn one_embedding_must_have_the_width_mike_stores() {
     let right = ollama_server(&[], 768).await;
-    let finding = fetch_one(&format!("{}/v1", right.uri()), "nomic-embed-text").await;
+    let finding = fetch_one(&format!("{}/v1", right.uri()), "embeddinggemma").await;
     assert!(finding.passed(), "{}", finding.text);
     assert!(finding.text.contains("768 numbers"));
     let wrong = ollama_server(&[], 384).await;
@@ -214,7 +208,7 @@ async fn one_embedding_must_have_the_width_mike_stores() {
         "{}",
         finding.text
     );
-    let down = fetch_one("http://127.0.0.1:1/v1", "nomic-embed-text").await;
+    let down = fetch_one("http://127.0.0.1:1/v1", "embeddinggemma").await;
     assert!(!down.passed());
 }
 
@@ -233,7 +227,7 @@ async fn proxy_server(embedding_url: &str) -> MockServer {
         json!({"settings": [
             {"key": "embedding.enabled", "value": false},
             {"key": "embedding.url", "value": embedding_url},
-            {"key": "embedding.model", "value": "nomic-embed-text-v1.5"}
+            {"key": "embedding.model", "value": "embeddinggemma"}
         ]}),
     )
     .mount(&server)
@@ -280,14 +274,14 @@ async fn harness_for(proxy: &MockServer) -> anyhow::Result<Harness> {
 #[tokio::test]
 async fn using_ollama_sets_the_three_embedding_settings_and_fetches_one_embedding()
 -> anyhow::Result<()> {
-    let ollama = ollama_server(&["nomic-embed-text:latest"], 768).await;
+    let ollama = ollama_server(&["embeddinggemma:latest"], 768).await;
     let proxy = proxy_server("http://127.0.0.1:7997").await;
     let mut harness = harness_for(&proxy).await?;
     let mut step = Embeddings::with_base(&ollama.uri());
     step.enter(&mut harness.cx()).await;
     let text = render_step(&step);
     assert!(
-        text.contains("Use Ollama with nomic-embed-text (recommended)"),
+        text.contains("Use Ollama with embeddinggemma (recommended)"),
         "{text}"
     );
     assert_eq!(
@@ -295,10 +289,7 @@ async fn using_ollama_sets_the_three_embedding_settings_and_fetches_one_embeddin
         Outcome::Stay
     );
     let text = render_step(&step);
-    assert!(
-        text.contains("nomic-embed-text is already pulled."),
-        "{text}"
-    );
+    assert!(text.contains("embeddinggemma is already pulled."), "{text}");
     assert!(
         text.contains("The running proxy accepted 3 embedding settings."),
         "{text}"
@@ -319,7 +310,7 @@ async fn using_ollama_sets_the_three_embedding_settings_and_fetches_one_embeddin
     assert!(
         writes
             .iter()
-            .any(|(p, b)| p.ends_with("embedding.model") && b.contains("nomic-embed-text")),
+            .any(|(p, b)| p.ends_with("embedding.model") && b.contains("embeddinggemma")),
         "{writes:?}"
     );
     assert!(

@@ -11,7 +11,7 @@ fn default_config_has_known_model_and_is_disabled() {
 #[test]
 fn default_constants_match_schema() {
     assert_eq!(DEFAULT_DIM, 768, "must match `vector(768)` column");
-    assert_eq!(DEFAULT_MODEL, "nomic-embed-text-v1.5");
+    assert_eq!(DEFAULT_MODEL, "embeddinggemma");
 }
 
 #[test]
@@ -172,7 +172,65 @@ async fn embed_documents_checked_returns_the_snapshot_it_posted_with() -> anyhow
     assert_eq!(vectors, vec![vec![0.1, 0.2]]);
     let received = server.received_requests().await.unwrap_or_default();
     let body: serde_json::Value = serde_json::from_slice(&received[0].body)?;
-    assert_eq!(body["input"][0], format!("{PREFIX_DOCUMENT}continue"));
+    assert_eq!(body["input"][0], "title: none | text: continue");
+    Ok(())
+}
+
+async fn posted_input(model: &str, query: bool) -> anyhow::Result<serde_json::Value> {
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/embeddings"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [{"embedding": [0.1, 0.2]}]
+        })))
+        .mount(&server)
+        .await;
+    let svc = EmbeddingService::new(&EmbeddingConfig {
+        model: model.to_owned(),
+        ..checked_config(server.uri())
+    });
+    if query {
+        svc.embed_query("find me").await?;
+    } else {
+        svc.embed_documents(&["find me".to_owned()]).await?;
+    }
+    let received = server.received_requests().await.unwrap_or_default();
+    let body: serde_json::Value = serde_json::from_slice(&received[0].body)?;
+    Ok(body["input"][0].clone())
+}
+
+#[tokio::test]
+async fn embed_query_with_embeddinggemma_sends_the_search_result_prefix() -> anyhow::Result<()> {
+    assert_eq!(
+        posted_input("embeddinggemma", true).await?,
+        "task: search result | query: find me"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn embed_query_with_nomic_keeps_the_search_query_prefix() -> anyhow::Result<()> {
+    assert_eq!(
+        posted_input("nomic-embed-text-v1.5", true).await?,
+        "search_query: find me"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn embed_documents_with_nomic_keeps_the_search_document_prefix() -> anyhow::Result<()> {
+    assert_eq!(
+        posted_input("nomic-embed-text", false).await?,
+        "search_document: find me"
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn embed_documents_with_unknown_model_sends_the_text_unchanged() -> anyhow::Result<()> {
+    assert_eq!(posted_input("all-minilm", false).await?, "find me");
     Ok(())
 }
 

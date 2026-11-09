@@ -8,7 +8,7 @@ use crate::finding::Finding;
 use crate::tui::client::{ApiClient, CapabilityState};
 
 pub(super) const OLLAMA_BASE: &str = "http://127.0.0.1:11434";
-pub(super) const OLLAMA_MODEL: &str = "nomic-embed-text";
+pub(super) const OLLAMA_MODEL: &str = "embeddinggemma";
 pub(super) const VECTOR_WIDTH: usize = 768;
 const PROBE_WAIT: Duration = Duration::from_secs(3);
 const PULL_WAIT: Duration = Duration::from_secs(1800);

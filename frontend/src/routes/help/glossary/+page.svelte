@@ -1240,7 +1240,7 @@
 					slug: 'embeddings',
 					term: 'Embeddings / Infinity',
 					body: [
-						'The vector representations that power semantic recall. Embeddings are computed out-of-process by an Infinity HTTP service running `nomic-embed-text-v1.5` (768-dimensional vectors), keeping the embedding load off this process. A background embed worker embeds each just-closed operator turn and each lesson during consolidation.',
+						'The vector representations that power semantic recall. Embeddings are computed out-of-process by an OpenAI-compatible embedding server (Ollama by default) running `embeddinggemma` (768-dimensional vectors), keeping the embedding load off this process. A background embed worker embeds each just-closed operator turn and each lesson during consolidation.',
 						'The pipeline is enabled by default and settable from /settings (enable flag, Infinity base URL, model name). If Infinity is unreachable, recall falls back to Postgres FTS — embeddings are an accelerator, not a hard dependency.'
 					],
 					seenAt: ['/settings (embedding pipeline controls)', '/diagnostics/memory'],

@@ -1,21 +1,49 @@
-WITH semantic_chunks AS (
-    SELECT src.reference, 1 - (c.embedding <=> $7::text::public.vector) AS score
-    FROM memory.knowledge_embedding_sources_v src
-    JOIN memory.knowledge_embedding_state e
-      ON e.source_kind = src.source_kind AND e.source_id = src.source_id
-    JOIN memory.knowledge_embedding_chunks c ON c.state_id = e.id
+WITH knowledge_scope AS MATERIALIZED (
+    SELECT e.id AS state_id, src.reference
+    FROM memory.knowledge_embedding_state e
+    JOIN memory.knowledge_embedding_sources_v src
+      ON src.source_kind = e.source_kind AND src.source_id = e.source_id
     WHERE src.project_id = $1
       AND e.source_updated_at IS NOT DISTINCT FROM src.source_updated_at
       AND e.source_seq IS NOT DISTINCT FROM src.source_seq
       AND e.source_hash IS NOT DISTINCT FROM src.source_hash
       AND e.model_key = $8 AND e.completed_at IS NOT NULL AND $7::text IS NOT NULL
+), nearest_first AS (
+    SELECT (SELECT count(*) FROM knowledge_scope) * 5
+           >= (SELECT reltuples FROM pg_class WHERE oid = 'memory.knowledge_embedding_state'::regclass) AS enabled
+), nearest_knowledge_chunks AS MATERIALIZED (
+    SELECT c.state_id, c.embedding <=> $7::text::public.vector AS distance
+    FROM memory.knowledge_embedding_chunks c
+    WHERE (SELECT enabled FROM nearest_first)
+    ORDER BY c.embedding <=> $7::text::public.vector
+    LIMIT 1000
+), semantic_chunks AS (
+    (SELECT s.reference, 1 - (c.embedding <=> $7::text::public.vector) AS score
+     FROM knowledge_scope s
+     JOIN memory.knowledge_embedding_chunks c ON c.state_id = s.state_id
+     WHERE NOT (SELECT enabled FROM nearest_first)
+     ORDER BY c.embedding <=> $7::text::public.vector
+     LIMIT 200)
     UNION ALL
-    SELECT 'turn:' || c.turn_id, 1 - (c.chunk_embedding <=> $7::text::public.vector)
-    FROM memory.operator_turn_chunks c JOIN memory.operator_turns t ON t.id = c.turn_id
-    WHERE t.project_id = $1 AND c.embedding_model = $9 AND $7::text IS NOT NULL
-      AND (t.opened_by IS NULL OR t.opened_by = 'operator')
+    (SELECT s.reference, 1 - n.distance
+     FROM nearest_knowledge_chunks n JOIN knowledge_scope s ON s.state_id = n.state_id
+     ORDER BY n.distance
+     LIMIT 200)
+    UNION ALL
+    (SELECT 'turn:' || c.turn_id, 1 - (c.chunk_embedding <=> $7::text::public.vector)
+     FROM memory.operator_turn_chunks c JOIN memory.operator_turns t ON t.id = c.turn_id
+     WHERE t.project_id = $1 AND c.embedding_model = $9 AND $7::text IS NOT NULL
+       AND (t.opened_by IS NULL OR t.opened_by = 'operator')
+     ORDER BY c.chunk_embedding <=> $7::text::public.vector
+     LIMIT 200)
 ), semantic AS (
-    SELECT reference, max(score) AS score FROM semantic_chunks GROUP BY reference HAVING max(score) >= 0.3
+    SELECT reference, score
+    FROM (SELECT reference, max(score) AS score, max(max(score)) OVER () AS best
+          FROM semantic_chunks
+          WHERE $3::text IS NULL OR split_part(reference, ':', 1)
+                = CASE WHEN $3::text IN ('memory', 'skill') THEN 'artifact' ELSE $3::text END
+          GROUP BY reference) per_reference
+    WHERE score >= GREATEST(0.6, best - 0.08)
 ), q AS (SELECT websearch_to_tsquery('english', $2) AS tsq), superseded AS (
     SELECT DISTINCT rel.to_lesson_id
     FROM memory.lesson_relations rel

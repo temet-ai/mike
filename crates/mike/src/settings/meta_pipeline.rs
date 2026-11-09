@@ -67,7 +67,7 @@ fn composition_and_embedding_entries() -> Vec<SettingMeta> {
             kind: SettingKind::String,
             scope: SettingScope::Global,
             applies: SettingApplies::NextCycle,
-            default: serde_json::Value::String("nomic-embed-text-v1.5".to_owned()),
+            default: serde_json::Value::String("embeddinggemma".to_owned()),
             label: "Embedding model",
             description: "Model name served by the Infinity embedding server.",
             min_i64: None,
