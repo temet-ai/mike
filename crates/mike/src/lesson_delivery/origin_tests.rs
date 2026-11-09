@@ -57,6 +57,30 @@ fn an_escaped_quote_inside_lesson_text_does_not_end_the_block() {
 }
 
 #[test]
+fn ids_are_read_from_the_lines_tether_adds() {
+    let body = text_body(
+        r"prompt.submit hook additional context: Lesson recorded from earlier sessions in this project [lesson:2246] [correction]: finish it\n\nLesson recorded from earlier sessions in this project [lesson:9] [warning]: b",
+    );
+    assert_eq!(mod_lesson_ids(&body), vec![2246, 9]);
+}
+
+#[test]
+fn tether_lines_and_the_mod_block_are_counted_once_together() {
+    let body = text_body(
+        r"Lessons recorded from earlier sessions in this project:\n[lesson:1] [correction] a\n</system-reminder> Lesson recorded from earlier sessions in this project [lesson:1] [correction]: a Lesson recorded from earlier sessions in this project [lesson:2] [warning]: b",
+    );
+    assert_eq!(mod_lesson_ids(&body), vec![1, 2]);
+}
+
+#[test]
+fn the_tether_prefix_without_a_tag_after_it_is_not_a_lesson() {
+    let body = text_body(
+        r"Lesson recorded from earlier sessions in this project [lesson:N] [kind]: quoted in a doc",
+    );
+    assert!(mod_lesson_ids(&body).is_empty());
+}
+
+#[test]
 fn a_body_without_tags_has_no_mod_lessons() {
     assert!(mod_lesson_ids(b"").is_empty());
     assert!(mod_lesson_ids(b"{}").is_empty());
