@@ -15,6 +15,8 @@ fn request() -> Json<ContextRequest> {
     Json(ContextRequest {
         project: "/tmp/session-context-test".to_owned(),
         serves: Vec::new(),
+        prompt: None,
+        cwd: None,
     })
 }
 
