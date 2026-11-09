@@ -11,6 +11,7 @@ use crate::store::persistence::{PersistError, PersistHandle};
 const QUERY_CAPACITY: usize = 128;
 const SESSION_CAPACITY: usize = 1024;
 const MAX_QUERY_BYTES: usize = 8192;
+pub(crate) const DEFAULT_LESSON_BUDGET: usize = 6000;
 
 #[derive(Debug, Default)]
 pub(crate) struct LessonRelevance {
@@ -67,6 +68,17 @@ impl LessonRelevance {
         query: &str,
         limit: usize,
     ) -> Vec<&'a InjectableLesson> {
+        self.select_within(lessons, session, query, limit, DEFAULT_LESSON_BUDGET)
+    }
+
+    pub(crate) fn select_within<'a>(
+        &self,
+        lessons: &[&'a InjectableLesson],
+        session: &str,
+        query: &str,
+        limit: usize,
+        budget: usize,
+    ) -> Vec<&'a InjectableLesson> {
         let key = fingerprint(query);
         let mut state = self.state.try_lock().ok();
         if let Some(state) = state.as_mut() {
@@ -88,7 +100,7 @@ impl LessonRelevance {
             .filter(|(_, relevance)| query.is_empty() || *relevance > 0.0)
             .collect();
         ranked.sort_by(|a, b| b.1.total_cmp(&a.1));
-        let mut remaining = 6000usize;
+        let mut remaining = budget;
         ranked
             .into_iter()
             .filter_map(|(lesson, _)| {
