@@ -142,7 +142,7 @@ fi
 "$installer" "${install_args[@]}"
 
 mike_bin="$HOME/.local/bin/mike"
-"$mike_bin" --version | grep -q "($short," || {
+"$mike_bin" --version | grep -q "($short[0-9a-f]*," || {
   echo "deploy-release-build: installed mike reports $("$mike_bin" --version), not $short" >&2
   exit 1
 }
@@ -175,7 +175,7 @@ deploy_stack_binary() {
   cp -L "$(dirname "$mike_bin")/../lib/mike-archive/current/mike" "$deployed.new"
   mv "$deployed.new" "$deployed"
   printf '%s\n' "$sha" > "$deployed.commit"
-  "$deployed" --version | grep -q "($short," || {
+  "$deployed" --version | grep -q "($short[0-9a-f]*," || {
     echo "deploy-release-build: $deployed reports $("$deployed" --version), not $short" >&2
     exit 1
   }
