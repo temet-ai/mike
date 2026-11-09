@@ -74,13 +74,45 @@ mike_bin="$HOME/.local/bin/mike"
   exit 1
 }
 
+usable_unit() {
+  command -v systemctl >/dev/null 2>&1 || return 1
+  local state
+  state="$(systemctl --user is-enabled "$1" 2>/dev/null)" || [ -n "$state" ] || return 1
+  case "$state" in masked|masked-runtime|not-found|"") return 1 ;; esac
+  systemctl --user cat "$1" >/dev/null 2>&1
+}
+
+restart_unit() {
+  echo "==> Restarting $1"
+  systemctl --user restart "$1"
+  systemctl --user is-active --quiet "$1" || { echo "deploy-release-build: $1 did not start" >&2; exit 1; }
+}
+
+# A machine runs mike either as mike.service on the installed binary, or as
+# the dev stack's mike-stack-proxy, which runs the checkout's
+# .deploy/mike.deployed. The stack unit gets the release binary copied into
+# that slot, keeping the previous binary beside it, so both run the same bytes.
+deploy_stack_binary() {
+  local deployed="$REPO/.deploy/mike.deployed"
+  mkdir -p "$REPO/.deploy"
+  [ -f "$deployed" ] && cp -p "$deployed" "$deployed.previous"
+  cp -L "$(dirname "$mike_bin")/../lib/mike-archive/current/mike" "$deployed.new"
+  mv "$deployed.new" "$deployed"
+  printf '%s\n' "$sha" > "$deployed.commit"
+  "$deployed" --version | grep -q "($short," || {
+    echo "deploy-release-build: $deployed reports $("$deployed" --version), not $short" >&2
+    exit 1
+  }
+}
+
 if [ "$restart" = 1 ]; then
-  if command -v systemctl >/dev/null 2>&1 && systemctl --user cat mike.service >/dev/null 2>&1; then
-    echo "==> Restarting mike.service"
-    systemctl --user restart mike.service
-    systemctl --user is-active --quiet mike.service || { echo "deploy-release-build: mike.service did not start" >&2; exit 1; }
+  if usable_unit mike.service; then
+    restart_unit mike.service
+  elif usable_unit mike-stack-proxy.service; then
+    deploy_stack_binary
+    restart_unit mike-stack-proxy.service
   else
-    echo "==> No mike.service here; restart mike yourself to run $short"
+    echo "==> No mike.service or mike-stack-proxy here; restart mike yourself to run $short"
   fi
 fi
 echo "deploy-release-build: $("$mike_bin" --version)"
