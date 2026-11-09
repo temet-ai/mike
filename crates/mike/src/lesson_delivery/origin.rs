@@ -6,8 +6,36 @@ use crate::compress::manifest::{ManifestBuilder, UnchangedStage};
 
 pub(super) const MOD_LESSONS_STAGE: &str = "mod_lessons";
 pub(super) const MOD_LESSONS_REASON: &str = "lessons_added_by_mod";
+pub(super) const TETHER_LESSON_PREFIX: &str =
+    "Lesson recorded from earlier sessions in this project ";
 
 pub(super) fn mod_lesson_ids(body: &[u8]) -> Vec<i64> {
+    let mut ids = heading_block_ids(body);
+    for id in tether_line_ids(body) {
+        if !ids.contains(&id) {
+            ids.push(id);
+        }
+    }
+    ids
+}
+
+fn tether_line_ids(body: &[u8]) -> Vec<i64> {
+    let prefix = TETHER_LESSON_PREFIX.as_bytes();
+    let mut ids = Vec::new();
+    let mut from = 0;
+    while let Some(offset) = find(body.get(from..).unwrap_or_default(), prefix) {
+        let tag_start = from + offset + prefix.len();
+        from = tag_start;
+        if let Some((id, _)) = tag_at(body, tag_start)
+            && !ids.contains(&id)
+        {
+            ids.push(id);
+        }
+    }
+    ids
+}
+
+fn heading_block_ids(body: &[u8]) -> Vec<i64> {
     let heading = LESSONS_HEADING.as_bytes();
     let mut ids = Vec::new();
     let mut from = 0;
