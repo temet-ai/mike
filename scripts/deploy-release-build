@@ -10,8 +10,21 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-REPO="$(dirname "$SCRIPT_DIR")"
+REPO="${DEPLOY_RELEASE_BUILD_REPO:-$(dirname "$SCRIPT_DIR")}"
 WORKFLOW=release-alpha.yml
+
+# A checkout on an older branch would run an older copy of this script, which
+# can refuse or misplace an install. Run main's copy instead.
+if [ -z "${DEPLOY_RELEASE_BUILD_REPO:-}" ]; then
+  git -C "$REPO" fetch -q origin main
+  latest="$(mktemp)"
+  git -C "$REPO" show origin/main:scripts/deploy-release-build > "$latest"
+  if ! cmp -s "$latest" "${BASH_SOURCE[0]}"; then
+    echo "==> Running origin/main's deploy-release-build"
+    DEPLOY_RELEASE_BUILD_REPO="$REPO" exec bash "$latest" "$@"
+  fi
+  rm -f "$latest"
+fi
 restart=1
 want=""
 for arg in "$@"; do
@@ -119,12 +132,15 @@ restart_unit() {
 }
 
 # A machine runs mike either as mike.service on the installed binary, or as
-# the dev stack's mike-stack-proxy, which runs the checkout's
-# .deploy/mike.deployed. The stack unit gets the release binary copied into
-# that slot, keeping the previous binary beside it, so both run the same bytes.
+# the dev stack's mike-stack-proxy, which runs .deploy/mike.deployed in its
+# WorkingDirectory — the unit's checkout, which may not be this one. The binary
+# goes there, the previous one kept beside it, so both run the same bytes.
 deploy_stack_binary() {
-  local deployed="$REPO/.deploy/mike.deployed"
-  mkdir -p "$REPO/.deploy"
+  local unit_dir
+  unit_dir="$(systemctl --user show -p WorkingDirectory --value mike-stack-proxy.service)"
+  [ -n "$unit_dir" ] || unit_dir="$REPO"
+  local deployed="$unit_dir/.deploy/mike.deployed"
+  mkdir -p "$unit_dir/.deploy"
   [ -f "$deployed" ] && cp -p "$deployed" "$deployed.previous"
   cp -L "$(dirname "$mike_bin")/../lib/mike-archive/current/mike" "$deployed.new"
   mv "$deployed.new" "$deployed"
