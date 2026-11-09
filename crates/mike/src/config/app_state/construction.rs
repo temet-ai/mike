@@ -60,6 +60,7 @@ impl AppState {
         let steerer_openrouter_key = llm_wiring::seed_openrouter_key_slot(&config);
         let anthropic_api_key = llm_wiring::seed_anthropic_key_slot();
         let embedding_service = pipeline::wire_embedding_service(&mut store, &config.embedding);
+        let rerank_service = crate::analysis::RerankService::new(&config.rerank);
         let settings_overlay = Arc::new(ArcSwap::from_pointee(SettingsOverlay::default()));
         crate::llm::provider::install(settings_overlay.clone());
         warn_retired_correction(&config);
@@ -101,6 +102,7 @@ impl AppState {
             injected_replay: Arc::new(crate::injected_replay::InjectedBlockRegistry::default()),
             composer,
             embedding_service,
+            rerank_service,
             semantic: crate::semantic::SemanticHandle::default(),
             in_flight,
             shed_registry,

@@ -37,6 +37,7 @@ fn every_check_the_audit_lists_is_present_with_a_stable_id() {
         "models",
         "capabilities",
         "embeddings",
+        "rerank",
         "launch_backend",
     ] {
         assert!(ids.contains(&expected), "missing {expected} in {ids:?}");
@@ -81,6 +82,7 @@ fn every_setup_step_has_the_documented_name() {
         SetupStep::Claude,
         SetupStep::Models,
         SetupStep::Embeddings,
+        SetupStep::Rerank,
         SetupStep::Terminal,
         SetupStep::Features,
     ]
@@ -95,6 +97,7 @@ fn every_setup_step_has_the_documented_name() {
             "mike setup claude",
             "mike setup models",
             "mike setup embeddings",
+            "mike setup rerank",
             "mike setup terminal",
             "mike setup features",
         ]

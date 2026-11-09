@@ -64,6 +64,7 @@ pub struct AppState {
     pub(crate) injected_replay: Arc<crate::injected_replay::InjectedBlockRegistry>,
     pub(crate) composer: Arc<ComposerService>,
     pub(crate) embedding_service: EmbeddingService,
+    pub(crate) rerank_service: crate::analysis::RerankService,
     pub(crate) semantic: crate::semantic::SemanticHandle,
     pub(crate) in_flight: Arc<crate::in_flight::InFlightRegistry>,
     pub(crate) shed_registry: Arc<crate::memory_cap::ShedRegistry>,

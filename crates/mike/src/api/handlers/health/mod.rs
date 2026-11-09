@@ -5,10 +5,14 @@ mod dto;
 mod gap;
 mod judge;
 mod probe;
+mod rerank;
+#[cfg(test)]
+mod rerank_tests;
 mod stored;
 
 pub(crate) use dto::*;
 pub(crate) use probe::ProbeState;
+pub(crate) use rerank::{RerankHealth, RerankRowState, rerank_health};
 pub(crate) use stored::spawn_health_refresher;
 
 #[cfg(any(test, feature = "test-seams"))]
@@ -72,6 +76,7 @@ pub(crate) async fn health(State(state): State<AppState>) -> Json<HealthResponse
         },
         status,
         embedding,
+        rerank: rerank_health(&state),
         persistence,
         capture_gap,
         llm,

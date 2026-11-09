@@ -5,12 +5,14 @@ pub(crate) mod corpus;
 pub mod embeddings;
 pub(crate) mod judge;
 pub(crate) mod patterns;
+pub mod rerank;
 
 pub use analyzer::AnalyzerRegistry;
 pub use config::{AnalysisConfig, CategoryConfig, PatternConfig};
 pub use embeddings::{EmbedError, EmbeddingConfig, EmbeddingService};
 pub use judge::JUDGE_RUBRIC_VERSION;
 pub use patterns::Enforcement;
+pub use rerank::{RerankConfig, RerankError, RerankService};
 
 pub fn export_analysis_corpus(out: &std::path::Path) -> anyhow::Result<()> {
     corpus::write_to_path(out)

@@ -37,6 +37,7 @@ mod bool_parse;
 mod overrides;
 mod overrides_analysis;
 mod overrides_launch;
+mod overrides_rerank;
 mod persist_bootstrap;
 mod proxy_config_defaults;
 mod schema;

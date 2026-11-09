@@ -43,6 +43,7 @@ pub(crate) enum SetupStep {
     Claude,
     Models,
     Embeddings,
+    Rerank,
     Terminal,
     Features,
 }
@@ -55,6 +56,7 @@ impl SetupStep {
             SetupStep::Claude => "claude",
             SetupStep::Models => "models",
             SetupStep::Embeddings => "embeddings",
+            SetupStep::Rerank => "rerank",
             SetupStep::Terminal => "terminal",
             SetupStep::Features => "features",
         }

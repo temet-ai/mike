@@ -35,6 +35,26 @@ fn remote_host_blocks_embedding_unless_allowed() {
 }
 
 #[test]
+fn remote_host_blocks_rerank_unless_allowed() {
+    let rerank = |url: &str| crate::analysis::RerankConfig {
+        enabled: true,
+        url: url.to_owned(),
+        ..Default::default()
+    };
+    let remote = rerank("http://192.168.1.20:11435");
+    assert!(!super::egress::allow_rerank(&remote, false));
+    assert!(super::egress::allow_rerank(&remote, true));
+    assert!(super::egress::allow_rerank(
+        &rerank("http://127.0.0.1:11435"),
+        false
+    ));
+    assert_eq!(
+        super::egress::egress_state_for_url("http://omit:11435", false),
+        EgressState::RemoteBlocked
+    );
+}
+
+#[test]
 fn unparseable_url_is_treated_as_remote() {
     assert!(!is_loopback_url("not a url"));
     assert!(!allow(&cfg("::::"), false));

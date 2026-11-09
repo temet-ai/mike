@@ -114,6 +114,8 @@ mod request_deltas_api;
 mod request_responses;
 #[path = "integration/requests_check_constraints.rs"]
 mod requests_check_constraints;
+#[path = "integration/rerank_settings.rs"]
+mod rerank_settings;
 #[path = "integration/resumed_session_channel_link.rs"]
 mod resumed_session_channel_link;
 #[path = "integration/resync_engine.rs"]

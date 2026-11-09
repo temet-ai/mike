@@ -28,6 +28,7 @@ pub(crate) async fn capabilities(State(state): State<AppState>) -> Json<Capabili
     let steering = steering_capability(&state, toggles.steerer).await;
     let semantic_recall = semantic_recall_capability(&state).await;
     let knowledge = crate::api::project_knowledge::embedding_capability(&state).await;
+    let rerank = rerank_capability(&state);
     let weasel_intercept = weasel_intercept_capability(&state, toggles.weasel_intercept);
     let persistence = persistence_capability(&state).await;
     let llm_credit = llm_credit_capability(&state).await;
@@ -48,6 +49,7 @@ pub(crate) async fn capabilities(State(state): State<AppState>) -> Json<Capabili
             weasel_intercept,
             persistence,
             knowledge,
+            rerank,
             llm_credit,
             remote_control_link,
             llm_worker_lease,
@@ -194,6 +196,22 @@ async fn semantic_recall_capability(state: &AppState) -> CapabilityRow {
     }
 }
 
+fn rerank_capability(state: &AppState) -> CapabilityRow {
+    let health = rerank_health(state);
+    CapabilityRow {
+        id: "rerank",
+        label: "Reranker",
+        state: match health.state {
+            RerankRowState::Off => CapabilityState::Off,
+            RerankRowState::Ok => CapabilityState::Active,
+            RerankRowState::Degraded => CapabilityState::Degraded,
+            RerankRowState::Inert => CapabilityState::Inert,
+        },
+        detail: health.detail,
+        fix: health.fix.unwrap_or_default(),
+    }
+}
+
 fn weasel_intercept_capability(state: &AppState, enabled: bool) -> CapabilityRow {
     let forbidden_word_count = state
         .settings_overlay
@@ -269,6 +287,10 @@ async fn persistence_capability(state: &AppState) -> CapabilityRow {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "capabilities_rerank_tests.rs"]
+mod capabilities_rerank_tests;
 
 #[cfg(test)]
 mod weasel_capability_tests {

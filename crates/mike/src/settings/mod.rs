@@ -16,6 +16,9 @@ mod meta_llm_budget;
 mod meta_llm_provider;
 mod meta_operations;
 mod meta_pipeline;
+mod meta_rerank;
+#[cfg(test)]
+mod meta_rerank_tests;
 pub(crate) mod meta_scheduled_jobs;
 pub(crate) mod meta_semantic;
 mod meta_session_end;

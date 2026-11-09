@@ -152,6 +152,10 @@ impl AppState {
         self.embedding_service.clone()
     }
 
+    pub fn rerank_service(&self) -> crate::analysis::RerankService {
+        self.rerank_service.clone()
+    }
+
     pub fn semantic(&self) -> crate::semantic::SemanticHandle {
         self.semantic.clone()
     }
