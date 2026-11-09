@@ -56,6 +56,18 @@ FROM memory.operator_turns t JOIN sessions.sessions s ON s.id = t.session_id
 JOIN mike.operator_turn_text_v tx ON tx.turn_id = t.id
 WHERE ($1::bigint IS NULL OR t.project_id = $1) AND $2 = 'turn' AND t.id = $3
 UNION ALL
+SELECT jsonb_build_object('reference', 'promise:' || e.id, 'body', tx.final_assistant_text,
+    'promise_text', substr(tx.final_assistant_text, (e.data->'span'->>0)::int + 1,
+                           (e.data->'span'->>1)::int - (e.data->'span'->>0)::int),
+    'data', e.data, 'status', e.status, 'source', e.source, 'source_ref', e.source_ref,
+    'effective_at', e.effective_at, 'recorded_at', e.recorded_at, 'closed_at', e.closed_at,
+    'closed_by', e.closed_by, 'session_uuid', s.session_uuid,
+    'turn', CASE WHEN e.operator_turn_id IS NOT NULL THEN 'turn:' || e.operator_turn_id END,
+    'user_prompt', tx.user_prompt), s.project_id
+FROM memory.dossier_entries e JOIN sessions.sessions s ON s.id = e.session_id
+LEFT JOIN mike.operator_turn_text_v tx ON tx.turn_id = e.operator_turn_id
+WHERE ($1::bigint IS NULL OR s.project_id = $1) AND $2 = 'promise' AND e.kind = 'promise' AND e.id = $3
+UNION ALL
 SELECT jsonb_build_object('reference', 'thread:' || tx.thread_uuid, 'body', tx.body,
     'title', tx.subject, 'thread_uuid', tx.thread_uuid, 'fleet_uuid', tx.fleet_uuid,
     'resolved_at', tx.resolved_at, 'last_message_at', tx.last_message_at), tx.project_id
