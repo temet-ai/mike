@@ -3,6 +3,7 @@ use anyhow::{Result, bail};
 use chrono::Duration;
 
 const NOW_EPOCH_SECONDS: i64 = 1_794_225_600;
+const ME: u128 = 1;
 
 fn now() -> DateTime<Utc> {
     DateTime::<Utc>::UNIX_EPOCH + Duration::seconds(NOW_EPOCH_SECONDS)
@@ -10,10 +11,9 @@ fn now() -> DateTime<Utc> {
 
 fn session() -> SessionFacts<'static> {
     SessionFacts {
-        session_uuid: Uuid::from_u128(1),
-        predecessor_session_uuid: None,
-        checkout_branch: None,
-        checkout_worktree: None,
+        session_uuid: Uuid::from_u128(ME),
+        cwd: None,
+        branch: None,
         recent_turn_text: Vec::new(),
     }
 }
@@ -28,10 +28,22 @@ fn thread(slug: &str, title: &str, age_days: i64) -> ThreadFacts {
         worktree: None,
         last_session_uuid: None,
         last_checkpoint_at: now() - Duration::days(age_days),
+        linked_sessions: BTreeSet::new(),
+        checkout_dirs: BTreeSet::new(),
     }
 }
 
-fn run<'a>(prompt: &'a str, session: SessionFacts<'a>, threads: &'a [ThreadFacts]) -> Resolution {
+fn linked_thread(slug: &str, age_days: i64) -> ThreadFacts {
+    let mut facts = thread(slug, slug, age_days);
+    facts.linked_sessions.insert(Uuid::from_u128(ME));
+    facts
+}
+
+fn run<'a>(
+    prompt: Option<&'a str>,
+    session: SessionFacts<'a>,
+    threads: &'a [ThreadFacts],
+) -> Resolution {
     resolve(&ResolveInput {
         prompt,
         session,
@@ -61,7 +73,7 @@ fn resolve_slug_named_in_prompt_wins_over_fresher_thread() -> Result<()> {
         thread("beta-cleanup", "Beta cleanup", 0),
     ];
     let pick = expect_one(run(
-        "what is the status of alpha-rollout",
+        Some("what is the status of alpha-rollout"),
         session(),
         &threads,
     ))?;
@@ -71,59 +83,74 @@ fn resolve_slug_named_in_prompt_wins_over_fresher_thread() -> Result<()> {
 }
 
 #[test]
-fn resolve_ticket_in_prompt_matches_thread_title_without_deictic_phrase() -> Result<()> {
+fn resolve_ticket_in_prompt_matches_thread_title_without_continuation() -> Result<()> {
     let threads = [
-        thread("supplier-export", "WPCW-1529 supplier charge export", 12),
+        thread("supplier-export", "PROJ-1529 supplier charge export", 12),
         thread("beta-cleanup", "Beta cleanup", 0),
     ];
-    let pick = expect_one(run("look into WPCW-1529 for me", session(), &threads))?;
+    let pick = expect_one(run(Some("look into PROJ-1529 for me"), session(), &threads))?;
     assert_eq!(pick.slug, "supplier-export");
-    assert!(pick.signals.contains(&Signal::ExplicitMention));
     assert!(!pick.signals.contains(&Signal::Deictic));
     Ok(())
 }
 
 #[test]
-fn resolve_branch_match_with_deictic_prompt_wins() -> Result<()> {
-    let mut on_branch = thread("alpha-rollout", "Alpha rollout", 1);
-    on_branch.branch = Some("feat/alpha".to_owned());
-    let other = thread("beta-cleanup", "Beta cleanup", 1);
-    let mut facts = session();
-    facts.checkout_branch = Some("feat/alpha".to_owned());
-    let threads = [other, on_branch];
-    let pick = expect_one(run("continue where we left off", facts, &threads))?;
+fn resolve_linked_session_with_continue_prompt_gives_one() -> Result<()> {
+    let threads = [
+        thread("beta-cleanup", "Beta cleanup", 0),
+        linked_thread("alpha-rollout", 2),
+    ];
+    let pick = expect_one(run(
+        Some("can we continue with the open epic"),
+        session(),
+        &threads,
+    ))?;
     assert_eq!(pick.slug, "alpha-rollout");
-    assert!(pick.signals.contains(&Signal::BranchMatch));
+    assert!(pick.signals.contains(&Signal::LinkedSession));
     assert!(pick.signals.contains(&Signal::Deictic));
     Ok(())
 }
 
 #[test]
-fn resolve_worktree_match_ignores_trailing_slash() -> Result<()> {
-    let mut on_tree = thread("alpha-rollout", "Alpha rollout", 1);
-    on_tree.worktree = Some("/work/alpha/".to_owned());
-    let other = thread("beta-cleanup", "Beta cleanup", 1);
+fn resolve_checkout_directory_with_continue_prompt_gives_one() -> Result<()> {
+    let mut here = thread("alpha-rollout", "Alpha rollout", 1);
+    here.checkout_dirs.insert("/work/app/".to_owned());
+    let threads = [thread("beta-cleanup", "Beta cleanup", 1), here];
     let mut facts = session();
-    facts.checkout_worktree = Some("/work/alpha".to_owned());
-    let threads = [other, on_tree];
-    let pick = expect_one(run("carry on", facts, &threads))?;
+    facts.cwd = Some("/work/app");
+    let pick = expect_one(run(Some("carry on"), facts, &threads))?;
     assert_eq!(pick.slug, "alpha-rollout");
-    assert!(pick.signals.contains(&Signal::WorktreeMatch));
+    assert!(pick.signals.contains(&Signal::CheckoutMatch));
     Ok(())
 }
 
 #[test]
-fn resolve_last_session_equal_to_predecessor_counts() -> Result<()> {
-    let predecessor = Uuid::from_u128(7);
-    let mut owned = thread("alpha-rollout", "Alpha rollout", 1);
-    owned.last_session_uuid = Some(predecessor);
-    let other = thread("beta-cleanup", "Beta cleanup", 1);
+fn resolve_feature_branch_match_counts_and_default_branch_does_not() -> Result<()> {
+    let mut feature = thread("alpha-rollout", "Alpha rollout", 1);
+    feature.branch = Some("feat/alpha".to_owned());
+    let mut on_main = thread("beta-cleanup", "Beta cleanup", 1);
+    on_main.branch = Some("main".to_owned());
+    let threads = [on_main, feature];
     let mut facts = session();
-    facts.predecessor_session_uuid = Some(predecessor);
-    let threads = [other, owned];
-    let pick = expect_one(run("resume", facts, &threads))?;
+    facts.branch = Some("feat/alpha");
+    let pick = expect_one(run(Some("resume"), facts, &threads))?;
     assert_eq!(pick.slug, "alpha-rollout");
-    assert!(pick.signals.contains(&Signal::LastSession));
+    let mut main_facts = session();
+    main_facts.branch = Some("main");
+    let none = run(Some("resume"), main_facts, &threads);
+    assert_eq!(none, Resolution::None);
+    Ok(())
+}
+
+#[test]
+fn resolve_worktree_inside_session_cwd_counts() -> Result<()> {
+    let mut tree = thread("alpha-rollout", "Alpha rollout", 1);
+    tree.worktree = Some(".claude/worktrees/alpha/".to_owned());
+    let threads = [thread("beta-cleanup", "Beta cleanup", 1), tree];
+    let mut facts = session();
+    facts.cwd = Some("/work/app/.claude/worktrees/alpha");
+    let pick = expect_one(run(Some("pick up where we left off"), facts, &threads))?;
+    assert!(pick.signals.contains(&Signal::WorktreeMatch));
     Ok(())
 }
 
@@ -135,161 +162,155 @@ fn resolve_recent_turn_mention_lifts_thread_above_equally_fresh_peer() -> Result
     ];
     let mut facts = session();
     facts.recent_turn_text = vec!["we were reviewing beta-cleanup earlier"];
-    let pick = expect_one(run("continue", facts, &threads))?;
+    let pick = expect_one(run(Some("continue"), facts, &threads))?;
     assert_eq!(pick.slug, "beta-cleanup");
     assert!(pick.signals.contains(&Signal::RecentMention));
     Ok(())
 }
 
 #[test]
-fn resolve_two_equal_threads_with_continue_prompt_gives_several_by_slug() -> Result<()> {
+fn resolve_two_equally_linked_threads_give_several_by_slug() -> Result<()> {
     let threads = [
-        thread("zeta-work", "Zeta work", 1),
-        thread("alpha-rollout", "Alpha rollout", 1),
+        linked_thread("zeta-work", 1),
+        linked_thread("alpha-rollout", 1),
     ];
-    let picks = expect_several(run(
-        "can we continue with the open epic",
-        session(),
-        &threads,
-    ))?;
+    let picks = expect_several(run(Some("where are we"), session(), &threads))?;
     let slugs: Vec<&str> = picks.iter().map(|pick| pick.slug.as_str()).collect();
     assert_eq!(slugs, vec!["alpha-rollout", "zeta-work"]);
     Ok(())
 }
 
 #[test]
-fn resolve_many_equal_threads_caps_several_at_three() -> Result<()> {
-    let threads: Vec<ThreadFacts> = ["a-one", "b-two", "c-three", "d-four", "e-five"]
-        .iter()
-        .map(|slug| thread(slug, "Same", 1))
-        .collect();
-    let picks = expect_several(run("carry on", session(), &threads))?;
-    assert_eq!(picks.len(), 3);
+fn resolve_two_threads_known_only_by_recency_abstain() {
+    let threads = [
+        thread("zeta-work", "Zeta work", 1),
+        thread("alpha-rollout", "Alpha rollout", 1),
+    ];
+    assert_eq!(run(Some("continue"), session(), &threads), Resolution::None);
+}
+
+#[test]
+fn resolve_the_only_recent_thread_with_continue_prompt_gives_one() -> Result<()> {
+    let threads = [thread("alpha-rollout", "Alpha rollout", 0)];
+    let pick = expect_one(run(
+        Some("can we continue with the open epic"),
+        session(),
+        &threads,
+    ))?;
+    assert_eq!(pick.slug, "alpha-rollout");
     Ok(())
+}
+
+#[test]
+fn resolve_more_than_three_close_threads_abstains() {
+    let threads: Vec<ThreadFacts> = ["a-one", "b-two", "c-three", "d-four"]
+        .iter()
+        .map(|slug| linked_thread(slug, 1))
+        .collect();
+    assert_eq!(run(Some("carry on"), session(), &threads), Resolution::None);
 }
 
 #[test]
 fn resolve_unrelated_prompt_abstains() {
     let threads = [
-        thread("alpha-rollout", "Alpha rollout", 0),
+        linked_thread("alpha-rollout", 0),
         thread("beta-cleanup", "Beta cleanup", 0),
     ];
-    let resolution = run("rename the config field to timeout", session(), &threads);
+    let resolution = run(
+        Some("rename the config field to timeout"),
+        session(),
+        &threads,
+    );
     assert_eq!(resolution, Resolution::None);
 }
 
 #[test]
-fn resolve_single_shared_word_without_deictic_phrase_abstains() {
+fn resolve_single_shared_word_without_continuation_abstains() {
     let threads = [thread("alpha-rollout", "Alpha rollout", 0)];
-    let resolution = run("fix the rollout script", session(), &threads);
-    assert_eq!(resolution, Resolution::None);
+    assert_eq!(
+        run(Some("fix the rollout script"), session(), &threads),
+        Resolution::None
+    );
 }
 
 #[test]
-fn resolve_two_shared_words_without_deictic_phrase_resolves() -> Result<()> {
+fn resolve_two_shared_words_without_continuation_resolves() -> Result<()> {
     let threads = [thread("alpha-rollout", "Alpha rollout plan", 0)];
-    let pick = expect_one(run("update the alpha rollout script", session(), &threads))?;
-    assert_eq!(pick.slug, "alpha-rollout");
+    let pick = expect_one(run(
+        Some("update the alpha rollout script"),
+        session(),
+        &threads,
+    ))?;
     assert!(pick.signals.contains(&Signal::PromptWords));
     Ok(())
 }
 
 #[test]
-fn resolve_continuation_prompt_with_one_recent_thread_gives_one() -> Result<()> {
-    let threads = [thread("alpha-rollout", "Alpha rollout", 0)];
-    let pick = expect_one(run(
-        "can we continue with the open epic",
-        session(),
-        &threads,
-    ))?;
-    assert_eq!(pick.slug, "alpha-rollout");
-    assert!(pick.signals.contains(&Signal::RecentCheckpoint));
-    assert!(pick.signals.contains(&Signal::Deictic));
-    Ok(())
-}
-
-#[test]
-fn resolve_stale_checkpoint_loses_to_fresh_one() -> Result<()> {
+fn resolve_stale_thread_drops_out_and_fresh_one_resolves() -> Result<()> {
     let threads = [
         thread("old-effort", "Old effort", 30),
         thread("new-effort", "New effort", 0),
     ];
-    let pick = expect_one(run("where are we", session(), &threads))?;
-    assert_eq!(pick.slug, "new-effort");
+    assert_eq!(
+        expect_one(run(Some("where are we"), session(), &threads))?.slug,
+        "new-effort"
+    );
     Ok(())
 }
 
 #[test]
-fn resolve_continuation_prompt_with_only_stale_threads_abstains() {
-    let threads = [thread("old-effort", "Old effort", 40)];
-    assert_eq!(run("continue", session(), &threads), Resolution::None);
+fn resolve_closed_thread_is_never_resolved_even_when_named() {
+    let mut done = thread("alpha-rollout", "Alpha rollout", 0);
+    done.status = "done".to_owned();
+    let threads = [done];
+    assert_eq!(
+        run(Some("status of alpha-rollout"), session(), &threads),
+        Resolution::None
+    );
 }
 
 #[test]
-fn resolve_continuation_prompt_without_threads_abstains() {
-    assert_eq!(run("continue", session(), &[]), Resolution::None);
+fn resolve_no_prompt_with_one_linked_thread_gives_one() -> Result<()> {
+    let threads = [
+        thread("beta-cleanup", "Beta cleanup", 0),
+        linked_thread("alpha-rollout", 3),
+    ];
+    let pick = expect_one(run(None, session(), &threads))?;
+    assert_eq!(pick.slug, "alpha-rollout");
+    Ok(())
 }
 
 #[test]
-fn resolve_stopword_only_overlap_does_not_resolve() {
+fn resolve_no_prompt_and_no_session_link_abstains() {
+    let threads = [thread("alpha-rollout", "Alpha rollout", 0)];
+    assert_eq!(run(None, session(), &threads), Resolution::None);
+}
+
+#[test]
+fn resolve_no_threads_abstains() {
+    assert_eq!(run(Some("continue"), session(), &[]), Resolution::None);
+}
+
+#[test]
+fn resolve_stopword_only_overlap_abstains() {
     let mut stop = thread("alpha-rollout", "the and for with this that", 0);
     stop.goal = "what where when would should could".to_owned();
     let threads = [stop];
-    let resolution = run(
-        "the and for with this that what where when",
-        session(),
-        &threads,
-    );
-    assert_eq!(resolution, Resolution::None);
+    let prompt = Some("the and for with this that what where when");
+    assert_eq!(run(prompt, session(), &threads), Resolution::None);
 }
 
 #[test]
-fn resolve_result_is_independent_of_input_order() {
+fn resolve_input_order_does_not_change_the_result() {
     let forward = [
-        thread("zeta-work", "Zeta work", 1),
-        thread("alpha-rollout", "Alpha rollout", 1),
+        linked_thread("zeta-work", 1),
+        linked_thread("alpha-rollout", 1),
         thread("mid-effort", "Mid effort", 2),
     ];
     let mut reversed = forward.to_vec();
     reversed.reverse();
     assert_eq!(
-        run("pick up where we left off", session(), &forward),
-        run("pick up where we left off", session(), &reversed)
-    );
-}
-
-#[test]
-fn tokenize_drops_stopwords_short_words_and_case() {
-    let words: Vec<String> = tokenize("The Quick fox AND is on a Plan")
-        .into_iter()
-        .collect();
-    assert_eq!(
-        words,
-        vec!["fox".to_owned(), "plan".to_owned(), "quick".to_owned()]
-    );
-}
-
-#[test]
-fn is_deictic_recognises_continuation_phrasing_on_word_boundaries() {
-    for prompt in [
-        "Can we continue?",
-        "carry on please",
-        "Where are we on this",
-        "what\u{2019}s the status",
-        "pick up the open epic",
-        "I thought about that decision",
-    ] {
-        assert!(is_deictic(prompt), "{prompt}");
-    }
-    for prompt in ["discontinue the service", "pick upload", "rename the field"] {
-        assert!(!is_deictic(prompt), "{prompt}");
-    }
-}
-
-#[test]
-fn tickets_extracts_project_style_keys_only() {
-    assert_eq!(
-        tickets("see WPCW-1529 and utf-x and a-1 plus ab-12."),
-        vec!["wpcw-1529", "ab-12"]
+        run(Some("pick up where we left off"), session(), &forward),
+        run(Some("pick up where we left off"), session(), &reversed)
     );
 }

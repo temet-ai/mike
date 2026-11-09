@@ -1,6 +1,11 @@
-#[cfg(test)]
-mod arm;
+pub(crate) mod arm;
+pub(crate) mod block;
 pub(crate) mod cards;
 pub(crate) mod health;
 mod rebuild;
+pub(crate) mod resolve;
+mod resolve_text;
+pub(crate) mod served;
+pub(crate) mod snapshot;
+pub(crate) mod supply;
 pub(crate) mod worker;
