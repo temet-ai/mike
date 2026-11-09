@@ -67,6 +67,16 @@ impl EmbeddingService {
 
     pub fn apply_setting(&self, key: &str, value: &serde_json::Value) -> bool {
         let mut config = self.inner.config.write().unwrap_or_else(|e| e.into_inner());
+        Self::assign_setting(&mut config, key, value)
+    }
+
+    pub(crate) fn apply_stored_setting(&self, key: &str, value: &serde_json::Value) -> bool {
+        let mut config = self.inner.config.write().unwrap_or_else(|e| e.into_inner());
+        let before = config.clone();
+        Self::assign_setting(&mut config, key, value) && *config != before
+    }
+
+    fn assign_setting(config: &mut EmbeddingConfig, key: &str, value: &serde_json::Value) -> bool {
         match key {
             "embedding.enabled" => {
                 if let Some(v) = value.as_bool() {

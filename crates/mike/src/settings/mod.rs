@@ -32,6 +32,9 @@ mod overlay_apply;
 mod overlay_apply_provider;
 mod overlay_apply_session_end;
 mod overlay_apply_turn_judge;
+pub(crate) mod running_services;
+#[cfg(test)]
+mod running_services_tests;
 #[cfg(test)]
 mod settings_tests;
 mod validate;

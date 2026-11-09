@@ -90,7 +90,33 @@ impl RerankService {
 
     pub fn apply_setting(&self, key: &str, value: &serde_json::Value) -> bool {
         let mut config = self.inner.config.write().unwrap_or_else(|e| e.into_inner());
-        let applied = match key {
+        let applied = Self::assign_setting(&mut config, key, value);
+        drop(config);
+        if applied {
+            self.reset_runtime_for(key);
+        }
+        applied
+    }
+
+    pub(crate) fn apply_stored_setting(&self, key: &str, value: &serde_json::Value) -> bool {
+        let mut config = self.inner.config.write().unwrap_or_else(|e| e.into_inner());
+        let before = config.clone();
+        let changed = Self::assign_setting(&mut config, key, value) && *config != before;
+        drop(config);
+        if changed {
+            self.reset_runtime_for(key);
+        }
+        changed
+    }
+
+    fn reset_runtime_for(&self, key: &str) {
+        if matches!(key, "rerank.enabled" | "rerank.url" | "rerank.model") {
+            *self.runtime() = Runtime::new();
+        }
+    }
+
+    fn assign_setting(config: &mut RerankConfig, key: &str, value: &serde_json::Value) -> bool {
+        match key {
             "rerank.enabled" => assign(&mut config.enabled, value.as_bool()),
             "rerank.url" => assign(
                 &mut config.url,
@@ -107,12 +133,7 @@ impl RerankService {
             ),
             "rerank.tuning.enabled" => assign(&mut config.tuning_enabled, value.as_bool()),
             _ => false,
-        };
-        drop(config);
-        if applied && matches!(key, "rerank.enabled" | "rerank.url" | "rerank.model") {
-            *self.runtime() = Runtime::new();
         }
-        applied
     }
 
     pub async fn health(&self) -> ServerHealth {
