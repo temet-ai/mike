@@ -177,7 +177,17 @@ def maintenance_smoke(extracted, cwd, home):
     if "upgrade-check" not in output or "Python 3.11+" not in output:
         raise ReleaseError("archived maintenance help is incomplete")
     return {"command": ["mike-maintenance", "--help"],
+            "python": f"{sys.version_info.major}.{sys.version_info.minor}",
             "stdout_sha256": hashlib.sha256(output.encode()).hexdigest()}
+
+
+def same_maintenance_smoke(observed, recorded):
+    # The help text is argparse output, whose layout changes between Python
+    # minor versions; the byte digest is only comparable on the same version.
+    # On another version the content check in maintenance_smoke still applies.
+    if recorded.get("python") != observed["python"]:
+        return True
+    return recorded == observed
 
 
 def runtime_requirements(binary, target, env):
@@ -282,7 +292,7 @@ def verify_candidate(candidate):
                 raise ReleaseError(f"archived executable build identity evidence changed: {name}")
             if name == "mike" and (extracted / "mike-maintenance").exists():
                 observed = maintenance_smoke(extracted, cwd, home)
-                if "maintenance_smoke" in item and observed != item["maintenance_smoke"]:
+                if "maintenance_smoke" in item and not same_maintenance_smoke(observed, item["maintenance_smoke"]):
                     raise ReleaseError("archived maintenance smoke output changed")
             elif "maintenance_smoke" in item:
                 raise ReleaseError("candidate declares maintenance evidence without the shipped helper")
