@@ -7,7 +7,7 @@ use super::file::{ConfigFile, Entry, Setting, SettingValue};
 use super::import::{import_env, parse_dotenv};
 use super::paths::{config_dir_from, config_file_from, state_dir_from};
 use crate::config::CliOverrides;
-use crate::config::test_env::{EnvVarGuard, clear_proxy_env, env_lock};
+use crate::environment::{Environment, MapEnvironment};
 
 fn temp_file(contents: &str) -> anyhow::Result<(tempfile::TempDir, PathBuf)> {
     let dir = tempfile::tempdir()?;
@@ -33,12 +33,6 @@ fn from_env(env_name: &str, source: &str) -> Entry {
         env_name: env_name.to_string(),
         setting: Setting::FromEnv(source.to_string()),
     }
-}
-
-fn lock_env() -> anyhow::Result<std::sync::MutexGuard<'static, ()>> {
-    env_lock()
-        .lock()
-        .map_err(|e| anyhow::anyhow!("env_lock poisoned: {e}"))
 }
 
 mod apply;

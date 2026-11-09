@@ -191,7 +191,7 @@ fn shell_quote(raw: &str) -> String {
 mod tests {
     use super::*;
     use crate::config::load::{CliOverrides, load_layered};
-    use crate::config::test_env::*;
+    use crate::environment::MapEnvironment;
 
     #[test]
     fn to_toml_string_redacts_local_database_url_password() -> anyhow::Result<()> {
@@ -263,11 +263,7 @@ mod tests {
         let body = to_toml_string(&config)?;
         assert!(body.contains("proxy_listen_addr"));
         assert!(body.contains("persist_enabled"));
-        let _serial = env_lock()
-            .lock()
-            .map_err(|e| anyhow::anyhow!("env_lock poisoned: {e}"))?;
-        let _cleared = clear_proxy_env();
-        let parsed = load_layered(CliOverrides::default())?;
+        let parsed = load_layered(CliOverrides::default(), &MapEnvironment::isolated())?;
         assert_eq!(parsed.proxy_listen_addr, config.proxy_listen_addr);
         assert_eq!(parsed.persist_enabled, config.persist_enabled);
         Ok(())
@@ -378,12 +374,8 @@ mod tests {
         let unquoted = parse_shell_quoted(raw_value);
         assert_eq!(unquoted, original.spa_origins.join(","));
 
-        let _serial = env_lock()
-            .lock()
-            .map_err(|e| anyhow::anyhow!("env_lock poisoned: {e}"))?;
-        let _cleared = clear_proxy_env();
-        let _g = EnvVarGuard::set("MIKE_SPA_ORIGINS", &unquoted);
-        let loaded = load_layered(CliOverrides::default())?;
+        let environment = MapEnvironment::isolated().with("MIKE_SPA_ORIGINS", &unquoted);
+        let loaded = load_layered(CliOverrides::default(), &environment)?;
         assert_eq!(
             loaded.spa_origins, original.spa_origins,
             "spa_origins must round-trip through to_shell_exports → env → load"

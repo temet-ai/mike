@@ -5,6 +5,7 @@ use serde_json::{Value, json};
 use super::definition::{FleetDefinition, merge};
 use super::operation::Execution;
 use super::{browser_guard, bundle, timed_command};
+use crate::environment::{Environment, ProcessEnvironment};
 
 #[path = "background_hook.rs"]
 pub(super) mod background_hook;
@@ -51,6 +52,15 @@ pub(super) fn scratch_dir(state: &Path, repo: &str) -> PathBuf {
 }
 
 pub(super) fn effective(def: &FleetDefinition, scratch: &Path, seat: &str) -> Value {
+    effective_in(def, scratch, seat, &ProcessEnvironment)
+}
+
+pub(super) fn effective_in(
+    def: &FleetDefinition,
+    scratch: &Path,
+    seat: &str,
+    environment: &dyn Environment,
+) -> Value {
     let tmp = scratch.join("tmp").to_string_lossy().into_owned();
     let mut settings = json!({
         "env": {
@@ -62,7 +72,7 @@ pub(super) fn effective(def: &FleetDefinition, scratch: &Path, seat: &str) -> Va
             PROFILE_ENV: profile_for(seat),
         },
     });
-    if let Some(home) = operator_config_home() {
+    if let Some(home) = operator_config_home(environment) {
         settings["env"][crate::config::paths::CONFIG_HOME_ENV] =
             Value::String(home.to_string_lossy().into_owned());
     }
@@ -81,9 +91,9 @@ pub(super) fn effective(def: &FleetDefinition, scratch: &Path, seat: &str) -> Va
     settings
 }
 
-fn operator_config_home() -> Option<PathBuf> {
+fn operator_config_home(environment: &dyn Environment) -> Option<PathBuf> {
     let absolute = |name: &str| {
-        crate::config::env_text(name)
+        crate::config::env_text_from(environment, name)
             .map(PathBuf::from)
             .filter(|path| path.is_absolute())
     };
@@ -200,7 +210,8 @@ fn quoted(path: &Path) -> String {
 }
 
 pub(super) fn seat_executable() -> std::io::Result<PathBuf> {
-    stable_executable(&std::env::current_exe()?)
+    let running = super::start::running_binary().map_err(std::io::Error::other)?;
+    stable_executable(&running)
 }
 
 fn stable_executable(running: &Path) -> std::io::Result<PathBuf> {

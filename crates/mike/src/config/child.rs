@@ -5,6 +5,7 @@ use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 
 use super::{CliOverrides, ProxyConfig, paths::InstallationPaths};
+use crate::environment::{Environment, ProcessEnvironment};
 
 #[derive(Deserialize, Serialize)]
 pub(crate) struct BootSnapshot {
@@ -16,9 +17,17 @@ pub fn configure_child(
     command: &mut std::process::Command,
     config: &ProxyConfig,
 ) -> Result<PathBuf> {
+    configure_child_in(command, config, &ProcessEnvironment)
+}
+
+pub(crate) fn configure_child_in(
+    command: &mut std::process::Command,
+    config: &ProxyConfig,
+    environment: &dyn Environment,
+) -> Result<PathBuf> {
     let selection =
         (!config.config_path.as_os_str().is_empty()).then_some(config.config_path.as_path());
-    let paths = InstallationPaths::resolve(selection)?;
+    let paths = InstallationPaths::resolve_in(selection, &crate::environment::lookup(environment))?;
     super::write::ensure_private_directory(&paths.state_dir)?;
     let path = paths
         .state_dir
@@ -198,10 +207,10 @@ mod tests {
     }
     #[test]
     fn child_snapshot_preserves_effective_overrides_and_selected_reload_source() -> Result<()> {
-        use crate::config::test_env::*;
+        use crate::config::load::{load_with, reload_selected_with};
+        use crate::environment::MapEnvironment;
         use clap::Parser;
-        let _serial = env_lock().lock().map_err(|_| anyhow::anyhow!("env lock"))?;
-        let _cleared = clear_proxy_env();
+        let environment = MapEnvironment::isolated();
         let dir = tempfile::tempdir()?;
         let file = dir.path().join("config.toml");
         std::fs::write(&file, "max_requests=11")?;
@@ -210,18 +219,18 @@ mod tests {
             max_requests: Some(55),
             ..CliOverrides::default()
         };
-        let parent = crate::config::load(cli)?;
+        let parent = load_with(cli, &environment)?;
         let mut command = std::process::Command::new("mike");
-        let snapshot = configure_child(&mut command, &parent)?;
+        let snapshot = configure_child_in(&mut command, &parent, &environment)?;
         std::fs::write(&file, "max_requests=22")?;
         let child_cli = CliOverrides::try_parse_from(
             std::iter::once(std::ffi::OsStr::new("mike")).chain(command.get_args()),
         )?;
-        let child = crate::config::load(child_cli)?;
+        let child = load_with(child_cli, &environment)?;
         assert_eq!(child.max_requests, 55);
         assert_eq!(child.config_path, file);
         assert!(!snapshot.exists());
-        assert_eq!(crate::config::reload_selected(&child)?.max_requests, 55);
+        assert_eq!(reload_selected_with(&child, &environment)?.max_requests, 55);
         Ok(())
     }
     #[test]

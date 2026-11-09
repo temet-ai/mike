@@ -280,28 +280,6 @@ mod tests {
         Ok(())
     }
 
-    struct EnvVarGuard {
-        key: &'static str,
-        prior: Option<std::ffi::OsString>,
-    }
-
-    impl EnvVarGuard {
-        fn unset(key: &'static str) -> Self {
-            let prior = std::env::var_os(key);
-            unsafe { std::env::remove_var(key) };
-            Self { key, prior }
-        }
-    }
-
-    impl Drop for EnvVarGuard {
-        fn drop(&mut self) {
-            match &self.prior {
-                Some(value) => unsafe { std::env::set_var(self.key, value) },
-                None => unsafe { std::env::remove_var(self.key) },
-            }
-        }
-    }
-
     async fn capabilities_json(router: Router) -> anyhow::Result<serde_json::Value> {
         let res = router
             .oneshot(
@@ -413,13 +391,11 @@ mod tests {
     }
 
     #[tokio::test]
-    #[serial_test::serial(openrouter_env)]
     async fn capabilities_reports_persistence_off_and_steering_inert() -> anyhow::Result<()> {
-        let _guards = [
-            EnvVarGuard::unset("MIKE_STEERER_OPENROUTER_API_KEY"),
-            EnvVarGuard::unset("OPENROUTER_API_KEY"),
-        ];
         let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
+        state
+            .steerer_openrouter_key
+            .store(std::sync::Arc::new(None));
         state.feature_toggle_overlay.store(std::sync::Arc::new(
             crate::feature_toggles::FeatureToggles {
                 steerer: true,
