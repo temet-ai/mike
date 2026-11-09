@@ -77,12 +77,12 @@ CARGO_SWEEP_MAXSIZE_GB=1 "$SWEEP" "$t" >/dev/null
 [[ -d "$t/debug/incremental/mike-3mflii7unhj8b" ]] && chk pass "incremental state is kept under the cap" || chk fail "incremental state is kept under the cap"
 rm -rf "$t"
 
-echo "cargo-target-sweep — --remove-idle deletes only a directory nobody wrote to"
+echo "cargo-target-sweep — --remove-idle retains Cargo lock paths and sweeps artifacts"
 idle="$(new_target)"
 find "$idle" -exec touch -t 202001010000 {} +
 busy="$(new_target)"
 "$SWEEP" --remove-idle 14 "$idle" "$busy" >/dev/null
-[[ ! -e "$idle" ]] && chk pass "an idle build directory is removed" || chk fail "an idle build directory is removed"
+[[ -d "$idle" && ! -e "$idle/debug/deps/libserde-0123456789abcdef.rlib" ]] && chk pass "an idle build directory retains its lock paths but loses superseded artifacts" || chk fail "an idle build directory retains its lock paths but loses superseded artifacts"
 [[ -d "$busy" ]] && chk pass "a build directory written recently stays" || chk fail "a build directory written recently stays"
 rm -rf "$idle" "$busy"
 
@@ -139,7 +139,7 @@ code=$?
 (( code != 0 )) && grep -q "under the 1000000GB floor" <<< "$out" && chk pass "a volume under the floor fails the run and says so" || chk fail "a volume under the floor fails the run and says so ($code: $out)"
 rm -rf "$roots"
 
-echo "cargo-sweep-all — build output whose owner is finished or gone is removed"
+echo "cargo-sweep-all — build output whose owner is finished or gone is swept without unlinking Cargo locks"
 roots="$(mktemp -d)"
 g() { git -c user.name=t -c user.email=t@t -c init.defaultBranch=main "$@" >/dev/null 2>&1; }
 repo="$roots/proj"
@@ -165,15 +165,15 @@ stub="$roots/stub"
 printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$@" >> "%s/args"\n' "$roots" > "$stub" && chmod +x "$stub"
 HOME="$home" CARGO_SWEEP_ROOTS="$roots" CARGO_SWEEP_SCRIPT="$stub" CARGO_SWEEP_FLOOR_GB=0 "$script_dir/cargo-sweep-all" >/dev/null
 args="$(cat "$roots/args" 2>/dev/null)"
-[[ ! -e "$roots/proj-merged/target" ]] && chk pass "an idle target in a worktree whose branch is merged is removed" || chk fail "an idle target in a worktree whose branch is merged is removed"
+[[ -d "$roots/proj-merged/target" ]] && grep -qx "$(cd "$roots/proj-merged/target" && pwd -P)" <<< "$args" && chk pass "an idle merged worktree target is retained and swept" || chk fail "an idle merged worktree target is retained and swept"
 [[ -d "$roots/proj-merged" ]] && chk pass "the worktree itself stays" || chk fail "the worktree itself stays"
 [[ -d "$roots/proj-open/target" ]] && chk pass "a worktree on an unmerged branch keeps its target" || chk fail "a worktree on an unmerged branch keeps its target"
 [[ -d "$roots/proj-detached/target" ]] && chk pass "a detached checkout keeps its target" || chk fail "a detached checkout keeps its target"
 [[ -d "$roots/proj/target" ]] && chk pass "the main checkout keeps its target" || chk fail "the main checkout keeps its target"
 [[ -d "$roots/proj-fresh/target" ]] && chk pass "a target built in the last days stays" || chk fail "a target built in the last days stays"
-[[ ! -e "$roots/cache/gate-622-target" ]] && chk pass "an idle target no project owns is removed" || chk fail "an idle target no project owns is removed"
+[[ -d "$roots/cache/gate-622-target" ]] && grep -qx "$(cd "$roots/cache/gate-622-target" && pwd -P)" <<< "$args" && chk pass "an idle unowned target is retained and swept" || chk fail "an idle unowned target is retained and swept"
 [[ -d "$roots/cache/fresh-target" ]] && chk pass "a recently built target no project owns stays" || chk fail "a recently built target no project owns stays"
-[[ ! -e "$home/.cargo/build/proj/aa/gone" ]] && chk pass "a cargo build-dir whose checkout is gone is removed" || chk fail "a cargo build-dir whose checkout is gone is removed"
+[[ -d "$home/.cargo/build/proj/aa/gone" ]] && grep -qx "$home/.cargo/build/proj/aa/gone" <<< "$args" && chk pass "a cargo build-dir whose checkout is gone is retained and swept" || chk fail "a cargo build-dir whose checkout is gone is retained and swept"
 [[ -d "$home/.cargo/build/proj/bb/live" ]] && grep -qx "$home/.cargo/build/proj/bb/live" <<< "$args" && chk pass "a cargo build-dir whose checkout exists is kept and swept" || chk fail "a cargo build-dir whose checkout exists is kept and swept"
 grep -qx "$home/.cargo/build/proj/cc/nomarker" <<< "$args" && grep -qx -- "--remove-idle" <<< "$args" && chk pass "a cargo build-dir with no .checkout is swept with idle removal" || chk fail "a cargo build-dir with no .checkout is swept with idle removal"
 grep -q "dd/empty" <<< "$args" && chk fail "a hash folder with no cargo output is left alone" || chk pass "a hash folder with no cargo output is left alone"
@@ -188,7 +188,91 @@ grep -q "^$projects/" <<< "$listed" && chk pass "the projects folder that holds 
 roots="$(mktemp -d)"
 mkdir -p "$roots/old/target/debug" && touch "$roots/old/target/.rustc_info.json" && find "$roots/old" -exec touch -t 202001010000 {} +
 out="$(HOME="$roots/nohome" CARGO_SWEEP_ROOTS="$roots" CARGO_SWEEP_SCRIPT=true CARGO_SWEEP_FLOOR_GB=0 "$script_dir/cargo-sweep-all" --dry-run)"
-[[ -d "$roots/old/target" ]] && grep -q "would remove" <<< "$out" && chk pass "a dry run names an idle unowned target and keeps it" || chk fail "a dry run names an idle unowned target and keeps it ($out)"
+[[ -d "$roots/old/target" ]] && grep -q "would sweep" <<< "$out" && chk pass "a dry run names an idle unowned target and keeps it" || chk fail "a dry run names an idle unowned target and keeps it ($out)"
+rm -rf "$roots"
+
+echo "cargo-target-sweep — unreferenced compiler objects are reclaimed without breaking debugging"
+t="$(new_target)"
+object="$t/debug/deps/mike-0123456789abcdef.codegen.session.rcgu.o"
+printf 'obsolete object\n' > "$object"
+"$SWEEP" --cap 1000 "$t" >/dev/null
+[[ -f "$object" ]] && chk pass "recent objects remain warm under cap" || chk fail "recent objects remain warm under cap"
+"$SWEEP" --cap 0 --dry-run "$t" > "$t/preview"
+[[ -f "$object" ]] && grep -q '1 unreferenced compiler object' "$t/preview" && chk pass "dry run previews recent unreferenced objects without deleting them" || chk fail "dry run previews recent unreferenced objects without deleting them"
+"$SWEEP" --cap 0 "$t" >/dev/null
+code=$?
+[[ ! -e "$object" ]] && chk pass "over cap an unreferenced object is removed" || chk fail "over cap an unreferenced object is removed"
+(( code != 0 )) && chk pass "a directory still over cap returns failure" || chk fail "a directory still over cap returns failure"
+mkdir -p "$t/debugging/deps"
+printf 'keep explicit debugging output\n' > "$t/debugging/deps/mike-0123456789abcdef.codegen.session.rcgu.o"
+"$SWEEP" --cap 0 "$t" >/dev/null
+[[ -f "$t/debugging/deps/mike-0123456789abcdef.codegen.session.rcgu.o" ]] && chk pass "explicit debugging profile keeps its objects" || chk fail "explicit debugging profile keeps its objects"
+rm -rf "$t"
+
+echo "cargo-target-sweep — Cargo locks protect objects and guarded incremental cleanup"
+t="$(new_target)"
+mkdir -p "$t/.guard"
+touch "$t/debug/.cargo-build-lock"
+object="$t/debug/deps/mike-0123456789abcdef.codegen.session.rcgu.o"
+printf 'object\n' > "$object"
+ready="$t/locked"
+perl -MFcntl=:flock -e 'open(my $h, "<", $ARGV[0]) or die; flock($h, LOCK_EX) or die; open(my $r, ">", $ARGV[1]); close $r; sleep 30' "$t/debug/.cargo-build-lock" "$ready" &
+holder=$!
+for _ in $(seq 50); do [[ -e "$ready" ]] && break; sleep 0.1; done
+"$SWEEP" --cap 0 "$t" >/dev/null
+[[ -f "$object" && -d "$t/debug/incremental/mike-3mflii7unhj8b" ]] && chk pass "held profile lock protects objects and incremental state even with sweep guard" || chk fail "held profile lock protects objects and incremental state even with sweep guard"
+kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null
+"$SWEEP" --cap 0 "$t" >/dev/null
+[[ ! -e "$object" && ! -d "$t/debug/incremental" ]] && chk pass "both are reclaimed after the Cargo lock is released" || chk fail "both are reclaimed after the Cargo lock is released"
+rm -rf "$t"
+
+echo "cargo-target-sweep — lock failures fail closed"
+t="$(new_target)"
+ln -s "$t/missing" "$t/debug/.cargo-lock"
+"$SWEEP" --cap 1000 "$t" > "$t/log" 2>&1
+code=$?
+(( code != 0 )) && [[ -f "$t/debug/deps/libserde-0123456789abcdef.rlib" ]] && chk pass "cannot acquire a real lock fails the sweep and preserves candidates" || chk fail "cannot acquire a real lock fails the sweep and preserves candidates"
+rm -rf "$t"
+
+if [[ "$(uname -s)" == Darwin ]]; then
+  echo "cargo-target-sweep — current Mach-O debug maps keep required compiler objects"
+  t="$(new_target)"
+  object="$t/debug/deps/mike-0123456789abcdef.codegen.session.rcgu.o"
+  printf 'int kept(void); int native_kept(void); int main(void) { return kept() + native_kept(); }\n' > "$t/main.c"
+  printf 'int kept(void) { return 0; }\n' > "$t/library.c"
+  archive="$t/debug/deps/libcached-0123456789abcdef.rlib"
+  native_dir="$t/debug/build/native-0123456789abcdef"
+  mkdir -p "$native_dir" "$t/debug/build/native-fedcba9876543210"
+  printf 'int native_kept(void) { return 0; }\n' > "$t/native.c"
+  if cc -g -c "$t/main.c" -o "$object" && cc -g -c "$t/library.c" -o "$t/library.o" && ar rcs "$archive" "$t/library.o" && cc -g -c "$t/native.c" -o "$t/native.o" && ar rcs "$native_dir/libnative.a" "$t/native.o" && cc -g "$object" "$archive" "$native_dir/libnative.a" -o "$t/debug/current"; then
+    orphan="$t/debug/deps/mike-0123456789abcdef.old.session.rcgu.o"
+    cp "$object" "$orphan"
+    cp "$archive" "$t/debug/deps/libcached-fedcba9876543210.rlib"
+    touch -t 202001010000 "$archive" "$native_dir"
+    "$SWEEP" --cap 0 "$t" >/dev/null
+    [[ -f "$object" && ! -e "$orphan" ]] && chk pass "current binary keeps its referenced unpacked debug object while an orphan goes" || chk fail "current binary keeps its referenced unpacked debug object while an orphan goes"
+    [[ -f "$archive" ]] && chk pass "a current binary preserves its debug archive even when its crate hash is superseded" || chk fail "a current binary preserves its debug archive even when its crate hash is superseded"
+    [[ -f "$native_dir/libnative.a" ]] && chk pass "a referenced native archive protects its superseded build-script directory" || chk fail "a referenced native archive protects its superseded build-script directory"
+    mkdir -p "$t/bin"
+    printf '#!/bin/sh\nexit 1\n' > "$t/bin/nm"
+    chmod +x "$t/bin/nm"
+    cp "$object" "$orphan"
+    PATH="$t/bin:$PATH" "$SWEEP" --cap 0 "$t" > "$t/nm-failure" 2>&1
+    code=$?
+    (( code != 0 )) && [[ -f "$orphan" ]] && chk pass "debug reference inspection failure preserves objects and fails the run" || chk fail "debug reference inspection failure preserves objects and fails the run"
+  else
+    chk fail "compile small native debug-map fixture"
+  fi
+  rm -rf "$t"
+fi
+
+echo "cargo-sweep-all — deeply nested worktrees are discovered"
+roots="$(mktemp -d)"
+deep="$roots/a/b/c/d/e/f/g/h/project/.claude/worktrees/active/target"
+mkdir -p "$deep/debug"
+touch "$deep/CACHEDIR.TAG"
+out="$(HOME="$roots/nohome" CARGO_SWEEP_ROOTS="$roots" CARGO_SWEEP_SCRIPT=/bin/echo CARGO_SWEEP_FLOOR_GB=0 "$script_dir/cargo-sweep-all" --dry-run)"
+grep -q "$(cd "$deep" && pwd -P)" <<< "$out" && chk pass "active worktree beyond seven directory levels is found" || chk fail "active worktree beyond seven directory levels is found"
 rm -rf "$roots"
 
 echo "────────────────────────────────────────"

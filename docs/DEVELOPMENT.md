@@ -2,7 +2,7 @@
 title: Development
 status: active
 created: 2026-07-08
-updated: 2026-11-06
+updated: 2026-11-09
 summary: Dev loop commands and house rules for contributing code to mike.
 ---
 
@@ -47,6 +47,28 @@ restored instead of rebuilt, `scripts/cx` can run cargo through mbx when asked
 (`MIKE_BUILD_CACHE=mbx`, with `CARGO_TARGET_DIR` naming the directory). It is off unless asked and
 never combined with sccache. What it does, the three traps and the trial scripts are in
 [`scripts/mbx-trial/README.md`](../scripts/mbx-trial/README.md).
+
+### Build disk cleanup on macOS
+
+Run `scripts/install-cargo-sweep` to install or update the Mac's six-hour build
+cleanup job (`--dry-run` previews the installation). It copies a versioned
+runtime outside the checkout, so changing branches does not change the installed
+cleaner. It migrates the old shared-target launcher to discover build directories
+under `~/projects` and `~/.cache`, including worktrees. Existing interval and size
+settings are preserved; a new installation uses a 25 GiB per-directory cap and
+reports failure if free space remains below 30 GiB.
+
+The LaunchAgent runs independently of Mike's working directory. An installed
+Mike started from its state directory cannot run checkout-relative scheduler
+scripts; an enabled `cargo_sweep` setting alone does not prove cleanup is running.
+Check `launchctl print gui/$(id -u)/com.dawiddutoit.cargo-sweep` for the last exit
+status, and `~/.local/state/mike/cargo-sweep/sweep.log` for the directories and sizes
+actually swept. The installer keeps backups alongside the log.
+
+The cleaner preserves compiler objects referenced by current macOS binaries'
+debug maps. Removing every `*.rcgu.o` indiscriminately leaves binaries runnable
+but can remove their debugger information. Busy profiles are skipped under Cargo
+locks; an over-cap or failed cleanup is reported as a failure.
 
 ### Test database isolation
 
