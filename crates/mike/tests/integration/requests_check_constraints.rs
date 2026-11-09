@@ -78,7 +78,7 @@ async fn baseline_accepted_values_succeed() -> anyhow::Result<()> {
         eprintln!("MIKE_TEST_ADMIN_URL unset; skipping baseline_accepted_values_succeed");
         return Ok(());
     };
-    let test_db = factory.acquire_shared().await?;
+    let test_db = factory.acquire_isolated().await?;
     let pool = PgPoolOptions::new()
         .max_connections(2)
         .connect(&test_db.database_url)
@@ -99,7 +99,7 @@ async fn method_rejects_lowercase() -> anyhow::Result<()> {
         eprintln!("MIKE_TEST_ADMIN_URL unset; skipping method_rejects_lowercase");
         return Ok(());
     };
-    let test_db = factory.acquire_shared().await?;
+    let test_db = factory.acquire_isolated().await?;
     let pool = PgPoolOptions::new()
         .max_connections(2)
         .connect(&test_db.database_url)
@@ -125,7 +125,7 @@ async fn turn_type_rejects_unknown_value() -> anyhow::Result<()> {
         eprintln!("MIKE_TEST_ADMIN_URL unset; skipping turn_type_rejects_unknown_value");
         return Ok(());
     };
-    let test_db = factory.acquire_shared().await?;
+    let test_db = factory.acquire_isolated().await?;
     let pool = PgPoolOptions::new()
         .max_connections(2)
         .connect(&test_db.database_url)
@@ -153,7 +153,7 @@ async fn turn_origin_rejects_trailing_underscore_typo() -> anyhow::Result<()> {
         );
         return Ok(());
     };
-    let test_db = factory.acquire_shared().await?;
+    let test_db = factory.acquire_isolated().await?;
     let pool = PgPoolOptions::new()
         .max_connections(2)
         .connect(&test_db.database_url)
@@ -179,7 +179,7 @@ async fn status_rejects_uppercase_pending() -> anyhow::Result<()> {
         eprintln!("MIKE_TEST_ADMIN_URL unset; skipping status_rejects_uppercase_pending");
         return Ok(());
     };
-    let test_db = factory.acquire_shared().await?;
+    let test_db = factory.acquire_isolated().await?;
     let pool = PgPoolOptions::new()
         .max_connections(2)
         .connect(&test_db.database_url)
@@ -205,7 +205,7 @@ async fn status_rejects_unknown_code() -> anyhow::Result<()> {
         eprintln!("MIKE_TEST_ADMIN_URL unset; skipping status_rejects_unknown_code");
         return Ok(());
     };
-    let test_db = factory.acquire_shared().await?;
+    let test_db = factory.acquire_isolated().await?;
     let pool = PgPoolOptions::new()
         .max_connections(2)
         .connect(&test_db.database_url)

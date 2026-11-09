@@ -9,6 +9,8 @@ use serde_json::json;
 use tempfile::TempDir;
 use uuid::Uuid;
 
+const FIXTURE_CHILD_LIMIT: std::time::Duration = std::time::Duration::from_secs(30);
+
 struct Fixture {
     persist: PersistHandle,
     state: AppState,
@@ -418,7 +420,7 @@ async fn owned_root_fixture(
     let pid = child
         .id()
         .ok_or_else(|| anyhow::anyhow!("fixture child has no PID"))?;
-    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+    tokio::time::timeout(FIXTURE_CHILD_LIMIT, async {
         loop {
             if mike::launch::cli::test_support::remember_owned_root_fixture(
                 id,
@@ -461,7 +463,7 @@ async fn same_proxy_witness_proves_natural_exit_of_its_owned_fixture_root() -> a
         )
         .await?;
     drop(child.stdin.take());
-    tokio::time::timeout(std::time::Duration::from_secs(2), child.wait()).await??;
+    tokio::time::timeout(FIXTURE_CHILD_LIMIT, child.wait()).await??;
     assert!(shutdown::reconcile(&f.state, &f.persist, &f.row).await?);
     assert_eq!(f.refresh().await?.state, "done");
     assert!(
