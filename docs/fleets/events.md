@@ -36,7 +36,7 @@ and `resource_admitted` exist in the table and the code, and a problem's dossier
 
 Code: `launch/fleet/events.rs` (kinds and payloads), `store/persistence/fleet/events.rs`
 and `events_sql/` (persistence), migration `20261022000000_launch_fleet_events.sql`.
-Column reference: [`SCHEMA.md`](SCHEMA.md#launchfleet_events).
+Column reference: [`SCHEMA.md`](../SCHEMA.md#launchfleet_events).
 
 ## A row
 

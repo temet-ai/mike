@@ -8,7 +8,7 @@ it needs you. A fleet leaves a single session alone: a session you start with
 
 Use a fleet when the goal splits into at least two tasks that touch different files and can
 run side by side, such as a backend change, the page that uses it and the docs for both.
-For one task a single session is faster; see [Sessions](sessions.md).
+For one task a single session is faster; see [Sessions](../sessions.md).
 
 You define a fleet from inside Claude Code with `/fleet`, and watch it with
 `mike fleet status` or in the terminal pane the fleet opens. The web UI's
@@ -18,14 +18,14 @@ the messages between them; it does not show a fleet's tasks.
 ## Before you start
 
 - A terminal that `mike spawn` can open panes in (see
-  [Sessions](sessions.md#choose-a-terminal-first)). A fleet's sessions are ordinary Claude
+  [Sessions](../sessions.md#choose-a-terminal-first)). A fleet's sessions are ordinary Claude
   Code sessions opened the same way.
 - mike running, with its database.
 - A repository with a command that tells whether the tree is sound, such as a type-check or
   a build. The fleet runs it for every session.
 
 The sessions' traffic goes to Anthropic like any other session's, and see
-[Privacy](privacy.md). They commit and push to the one branch you name, in your checkout.
+[Privacy](../privacy.md). They commit and push to the one branch you name, in your checkout.
 They do not create worktrees or branches.
 
 ## Run a fleet on the example site
@@ -72,14 +72,14 @@ stands on its own: a session knows only the rules, the definition and its own br
 each file to one task.
 
 The definition cannot start while anything is missing. Ask Claude for the fleet's state
-(`get_fleet`, see [MCP](mcp.md)): it lists what is missing and, before the start, what this
+(`get_fleet`, see [MCP](../mcp.md)): it lists what is missing and, before the start, what this
 machine would refuse, for example too many sessions for the terminal. Fix those, then mark
 the fleet ready.
 
 ## Start it
 
 Marking the fleet ready starts it. If you turned off **Start fleets on their own**
-(`fleet_auto_start`, on by default) in [Settings](settings.md), the fleet waits until you
+(`fleet_auto_start`, on by default) in [Settings](../settings.md), the fleet waits until you
 run:
 
 ```sh
@@ -113,7 +113,7 @@ No more than 16 panes open by default (`launch_max_surfaces`).
 | `mike fleet record <fleet>` | For a finished run: time to done, minutes lost to faults, tokens per accepted task. `--against <fleet>` compares two runs. |
 
 Add `--json` to `list`, `status` and `record` for scripts. Every command takes
-`--config <FILE>`. The full list of commands is in [Command line](command-line.md).
+`--config <FILE>`. The full list of commands is in [Command line](../command-line.md).
 
 The status screen raises three flags:
 
@@ -123,7 +123,7 @@ The status screen raises three flags:
 - **PROBLEM** shows something mike is working through, and whether it was escalated to you.
 
 A fleet is in one of these states: `draft`, `ready`, `starting`, `running`, `stopping`,
-`failed` or `done`. Inside a fleet's own sessions the [fleet-comms mod](mods.md#fleet-comms)
+`failed` or `done`. Inside a fleet's own sessions the [fleet-comms mod](../mods.md#fleet-comms)
 shows the same state and the messages between sessions.
 
 ### See a project's sessions on the Fleet page
@@ -132,8 +132,8 @@ Open **Fleet** in the menu, or <http://localhost:9990/fleet>. It shows the sessi
 project, chosen at the top, over the last 24 hours, in three views: **Relationships**
 (a graph of sessions linked by the messages between them), **Board**, and **Notebook**.
 It lists any captured sessions, fleet or not, and does not list a fleet's tasks or
-verdicts; use `mike fleet status` for those. See [The web UI](web-ui.md) and
-[Projects](projects.md).
+verdicts; use `mike fleet status` for those. See [The web UI](../web-ui.md) and
+[Projects](../projects.md).
 
 If there is nothing to show, the page says so:
 
@@ -141,7 +141,7 @@ If there is nothing to show, the page says so:
 - **No sessions in this project's fleet**: no session activity or messages for that project
   in the window.
 - **No active fleet activity in this window**: the Board has only old sessions with no
-  messages. **See all sessions** opens [Sessions](reading-sessions.md).
+  messages. **See all sessions** opens [Sessions](../reading-sessions.md).
 
 ## When it finishes
 
@@ -171,6 +171,6 @@ To end one session only, run `mike spawn kill --session <id>`.
 ## When there is no fleet
 
 Every `mike fleet` command talks to the running mike. With mike stopped, `mike fleet list`
-exits with `could not reach the inspect API`; start mike first (see [Setup](setup.md)).
+exits with `could not reach the inspect API`; start mike first (see [Setup](../setup.md)).
 `/fleet` writes no definition when your goal cannot be split into at least two tasks on
 separate files; that is a job for one session.
