@@ -6,6 +6,7 @@ mod schema;
 
 pub mod mail;
 mod select;
+mod select_examples;
 mod select_hint;
 
 mod config_history;

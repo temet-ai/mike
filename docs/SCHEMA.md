@@ -2475,8 +2475,8 @@ due retry (`next_attempt_at <= now()` with `attempts < 10` or a `[transient]` er
 | Column | Type | Purpose |
 |---|---|---|
 | `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key (since `20261102210000`) |
-| `source_kind` | `TEXT NOT NULL` | CHECK `IN ('artifact', 'lesson', 'note', 'thread')` |
-| `source_id` | `BIGINT NOT NULL` | `memory.knowledge_revisions.id`, `memory.lessons.id`, `workspace.session_notes.id` or `mailbox.threads.id` by kind; no FK |
+| `source_kind` | `TEXT NOT NULL` | CHECK `IN ('artifact', 'lesson', 'note', 'thread', 'thread_entry', 'question_answer', 'unmet_ask', 'correction', 'learning', 'mail')` (session memory kinds since `20261109140000`) |
+| `source_id` | `BIGINT NOT NULL` | By kind: `memory.knowledge_revisions.id`, `memory.lessons.id`, `workspace.session_notes.id`, `mailbox.threads.id`, `work.thread_log.id`, `workspace.questions.id`, `memory.turn_verdicts.id` (unmet_ask, correction), `sessions.sessions.id` (learning) or `mailbox.messages.id`; no FK |
 | `model_key` | `TEXT NOT NULL` | The embedder the vectors came from; a different key re-embeds the source |
 | `completed_at` | `TIMESTAMPTZ NULL` | NULL until the source has vectors |
 | `attempts` | `INTEGER NOT NULL DEFAULT 0` | |
@@ -2487,8 +2487,8 @@ due retry (`next_attempt_at <= now()` with `attempts < 10` or a `[transient]` er
 | `source_hash` | `TEXT NULL` | The lesson's `text_md5` the vectors match; `lesson` only |
 
 **Constraints:**
-- `knowledge_embedding_state_source_kind_check`: `source_kind IN ('artifact', 'lesson', 'note', 'thread')`
-- `knowledge_embedding_state_version_shape_check`: `(source_kind = 'note' OR source_updated_at IS NULL) AND (source_kind = 'thread' OR source_seq IS NULL) AND (source_kind = 'lesson' OR source_hash IS NULL)`
+- `knowledge_embedding_state_source_kind_check`: the ten kinds above
+- `knowledge_embedding_state_version_shape_check`: `(source_kind IN ('note', 'question_answer', 'learning') OR source_updated_at IS NULL) AND (source_kind = 'thread' OR source_seq IS NULL) AND (source_kind = 'lesson' OR source_hash IS NULL)`. Thread entries, verdicts and mail are immutable, so their id is their version; answered questions use `settled_at`, learnings `generated_at`.
 
 **Indexes:**
 - `knowledge_embedding_state_source_key`: UNIQUE `(source_kind, source_id)` (BTree)
@@ -2663,6 +2663,25 @@ Columns: `id`, `session_id`, `session_uuid`, `project_id`, `project_path`, `star
 Not to be confused with `mike.operator_turn_aggregates_v`/`mike.operator_turn_text_v` (Read-API views,
 below) — those recompute live for the single open turn; this view always reads the base table's stored
 (possibly NULL-while-open) columns directly.
+
+---
+
+### `memory.live_turn_verdicts_v`
+
+Added in `20261109140000_session_memory_knowledge_kinds.sql`. The newest live (`mode = 'live'`) verdict
+of each operator turn, by `(created_at, id)`, with the turn's `project_id`; an anti-join so a project
+filter reaches `memory.operator_turns`. Read by `search.sql` (kinds `unmet_ask`, `correction`) and
+`memory.knowledge_embedding_sources_v`.
+
+Columns: `id`, `operator_turn_id`, `session_id`, `reaction`, `unmet_ask`, `rationale`, `created_at`,
+`project_id`.
+
+The same migration adds `memory.session_learnings_text(text[])`, an immutable `array_to_string(…, E'\n')`
+so session learnings can carry an expression index, and these indexes:
+- `idx_turn_verdicts_live_text`: GIN over `to_tsvector('english', coalesce(unmet_ask, '') || ' ' || coalesce(rationale, ''))` `WHERE mode = 'live'`
+- `idx_turn_verdicts_live_turn_newest`: `(operator_turn_id, created_at DESC, id DESC) WHERE mode = 'live'`, for the newest-verdict anti-join
+- `idx_session_knowledge_learnings_text`: GIN over `to_tsvector('english', memory.session_learnings_text(learnings))`
+- `idx_mailbox_messages_sent_text`: GIN over `search_tsv` `WHERE from_session_id IS NOT NULL`, for the `mail` kind
 
 ---
 

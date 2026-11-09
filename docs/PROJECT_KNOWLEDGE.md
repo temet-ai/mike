@@ -269,9 +269,19 @@ Claude and Codex:
 - `search_project_knowledge`: project UUID/path, text query, optional source `kind`,
   historical inclusion, and pagination. Sources are artifacts, Claude Code memory files
   (`memory`), project skills (`skill`), lessons, session notes, turns, comms threads
-  (`thread`) and work threads (`work_thread`).
-- `read_project_knowledge`: project plus returned reference; full source text and
-  provenance. `artifact:123` identifies an immutable revision, not a mutable path.
+  (`thread`), work threads (`work_thread`), and session memory: work-thread log entries
+  (`thread_entry`), answered seat questions (`question_answer`), the turn judge's unmet asks
+  and corrections (`unmet_ask`, `correction`, from each turn's newest live verdict), session
+  learnings (`learning`) and each mail message a session sent (`mail`; mike's own notices,
+  which have no sending session, are left out). Every item carries `author` (role and
+  session), `updated_at`, an `excerpt` of about 300 characters around the match, and its
+  reference. A document indexed on several machines (same source name and relative path)
+  appears once, with `copies` counting the machine copies. A lesson is titled by its first
+  line; its kind is `provenance.lesson_kind`.
+- `read_project_knowledge`: returned reference, optionally with a project; full source text,
+  provenance and the `project_uuid` that holds it. Without a project the reference is read
+  from whichever project holds it (a work-thread slug used in two projects asks for one).
+  `artifact:123` identifies an immutable revision, not a mutable path.
 - `recall_project_context`: accepts an optional `query` to include knowledge results
   alongside its existing lessons and recent turns.
 
@@ -335,7 +345,7 @@ the inspect host or URL encoding rules.
 Setup tools remain callable in the full/deferred catalogue; search, read and project
 location discovery are in the core profile. Search combines PostgreSQL text retrieval with model-matched semantic results using
 reciprocal-rank fusion. The existing embedding backfill worker chunks artifacts,
-lessons and notes outside request forwarding (a sweep every 30 seconds); turn results reuse existing turn
+lessons, notes, comms threads and the session memory kinds above outside request forwarding (a sweep every 30 seconds); turn results reuse existing turn
 vectors. New or changed sources remain text-searchable while embedding is pending.
 A model/endpoint/chunking change invalidates the new knowledge vectors and schedules
 re-embedding. Query embedding has a three-second deadline and falls back to lexical

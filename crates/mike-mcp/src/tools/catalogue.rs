@@ -125,6 +125,9 @@ pub fn all_tools() -> Vec<Tool> {
     tools.extend(cross_session::cross_session_tools());
     tools.extend(improvement::improvement_tools());
     tools
+        .into_iter()
+        .map(super::select_examples::with_select_example)
+        .collect()
 }
 
 #[cfg(test)]
