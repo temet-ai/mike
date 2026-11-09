@@ -275,6 +275,33 @@ class InstallTests(unittest.TestCase):
         self.rewrite_manifest(lambda m: m.update(source_commit="b" * 40), other)
         self.assertNotEqual(self.cli(other).returncode, 0)
 
+    def rebuild_cli(self, candidate):
+        return subprocess.run([str(ROOT / "scripts/install-release"), "--candidate", str(candidate),
+                               "--prefix", str(self.prefix), "--json", "--rebuild-same-version"],
+                              text=True, capture_output=True, timeout=30)
+
+    def test_rebuilt_same_version_refused_by_the_version_check_without_the_flag(self):
+        install(self.candidate, self.prefix)
+        rebuilt = self.make_candidate("0.1.0", script_extra=": rebuilt")
+        result = self.cli(rebuilt)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("changed same-version candidate refused", result.stderr)
+
+    def test_rebuilt_same_version_installs_when_rebuild_is_asked_for(self):
+        install(self.candidate, self.prefix)
+        previous = self.current().resolve()
+        result = self.rebuild_cli(self.make_candidate("0.1.0", script_extra=": rebuilt"))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotEqual(previous, self.current().resolve())
+
+    def test_downgrade_refused_even_when_rebuild_is_asked_for(self):
+        install(self.make_candidate("0.2.0"), self.prefix)
+        previous = self.current().resolve()
+        result = self.rebuild_cli(self.candidate)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("downgrade", result.stderr)
+        self.assertEqual(previous, self.current().resolve())
+
     def test_modified_installed_binary_refused(self):
         install(self.candidate, self.prefix)
         installed = self.prefix / "bin" / "mike"; installed.write_text("unrelated replacement")
