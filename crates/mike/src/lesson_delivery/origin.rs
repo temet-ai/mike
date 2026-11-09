@@ -6,6 +6,9 @@ use crate::compress::manifest::{ManifestBuilder, UnchangedStage};
 
 pub(super) const MOD_LESSONS_STAGE: &str = "mod_lessons";
 pub(super) const MOD_LESSONS_REASON: &str = "lessons_added_by_mod";
+pub(crate) const KEEPER_TAG_OPEN: &str = "[keeper:";
+pub(super) const KEEPER_LESSONS_STAGE: &str = "keeper_lessons";
+pub(super) const KEEPER_LESSONS_REASON: &str = "lessons_supplied_by_keeper";
 pub(super) const TETHER_LESSON_PREFIX: &str =
     "Lesson recorded from earlier sessions in this project ";
 
@@ -100,4 +103,65 @@ fn record_mod_lessons(manifest: &mut ManifestBuilder, ids: &[i64]) {
         targets: Vec::new(),
         detail: None,
     });
+}
+
+pub(super) fn keeper_lesson_ids(body: &[u8]) -> Vec<i64> {
+    let open = KEEPER_TAG_OPEN.as_bytes();
+    let mut ids = Vec::new();
+    let mut from = 0;
+    while let Some(offset) = find(body.get(from..).unwrap_or_default(), open) {
+        let start = from + offset;
+        from = start + open.len();
+        let Some(marker_end) = keeper_marker_end(body, start) else {
+            continue;
+        };
+        from = marker_end;
+        collect_block_ids(body, marker_end, &mut ids);
+    }
+    ids
+}
+
+fn keeper_marker_end(body: &[u8], start: usize) -> Option<usize> {
+    let digits_at = start + KEEPER_TAG_OPEN.len();
+    let hex = body
+        .get(digits_at..)?
+        .iter()
+        .take_while(|byte| byte.is_ascii_hexdigit())
+        .count();
+    let close = digits_at + hex;
+    (hex > 0 && body.get(close) == Some(&b']')).then_some(close + 1)
+}
+
+fn collect_block_ids(body: &[u8], marker_end: usize, ids: &mut Vec<i64>) {
+    let mut line = line_start_at(body, marker_end);
+    while let Some(start) = line {
+        if body.get(start..).is_some_and(ends_block) {
+            break;
+        }
+        if let Some((id, _)) = tag_at(body, start)
+            && !ids.contains(&id)
+        {
+            ids.push(id);
+        }
+        line = next_line_start(body, start);
+    }
+}
+
+fn ends_block(rest: &[u8]) -> bool {
+    rest.starts_with(b"</") || rest.starts_with(KEEPER_TAG_OPEN.as_bytes())
+}
+
+pub(crate) fn label_keeper_lessons(body: &[u8], manifest: &mut ManifestBuilder) -> Vec<i64> {
+    let ids = keeper_lesson_ids(body);
+    if !ids.is_empty() {
+        manifest.record_unchanged_with(UnchangedStage {
+            stage: KEEPER_LESSONS_STAGE,
+            policy_id: KEEPER_LESSONS_STAGE,
+            reason_code: KEEPER_LESSONS_REASON,
+            resolved_parameters: json!({ "origin": "keeper", "lesson_ids": ids }),
+            targets: Vec::new(),
+            detail: None,
+        });
+    }
+    ids
 }

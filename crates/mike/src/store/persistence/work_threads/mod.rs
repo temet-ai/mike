@@ -6,6 +6,7 @@ use uuid::Uuid;
 use super::PersistError;
 
 mod checkpoint;
+pub(crate) mod cards;
 mod criteria;
 mod entry;
 mod import;

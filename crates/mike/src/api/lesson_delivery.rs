@@ -78,6 +78,7 @@ pub(crate) async fn post_for_prompt(
                 held_versions: request.held_versions.as_ref(),
                 limit: settings.reminders_max_lessons_to_inject,
                 content_only: toggles.recall_injector,
+                budget: None,
             })
         }
     };
