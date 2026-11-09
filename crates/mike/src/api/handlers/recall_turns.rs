@@ -162,8 +162,16 @@ async fn embed_recall_query(
     project: &str,
     query: &str,
 ) -> Option<Vec<f32>> {
+    use crate::api::project_knowledge::query_vector_cache::QUERY_VECTORS;
+    let key = crate::embed_worker::knowledge::model_key(embedding_service);
+    if let Some(cached) = QUERY_VECTORS.get(&key, query) {
+        return Some(cached);
+    }
     match embedding_service.embed_query(query).await {
-        Ok(v) => Some(v),
+        Ok(v) => {
+            QUERY_VECTORS.put(&key, query, v.clone());
+            Some(v)
+        }
         Err(e) => {
             tracing::warn!(
                 project,

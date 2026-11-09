@@ -25,10 +25,12 @@ WITH docs AS (
            CASE WHEN docs.search_tsv @@ q.tsq THEN ts_rank_cd(docs.search_tsv, q.tsq) ELSE 0 END AS lexical
     FROM docs CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = docs.reference
     ORDER BY docs.source_name, docs.content_hash, docs.reference
+), floored AS (
+    SELECT scored.*, max(similarity) OVER () AS best FROM scored
 )
 SELECT reference AS "reference!", source_name AS "source_name!", relative_path AS "relative_path!",
        title AS "title!", body AS "body!", metadata AS "metadata!", similarity
-FROM scored
-WHERE COALESCE(similarity, 0) >= 0.3 OR (similarity IS NULL AND lexical > 0)
+FROM floored
+WHERE COALESCE(similarity, 0) >= GREATEST(0.6, best - 0.08) OR (similarity IS NULL AND lexical > 0)
 ORDER BY COALESCE(similarity, 0) DESC, lexical DESC, reference
 LIMIT $5

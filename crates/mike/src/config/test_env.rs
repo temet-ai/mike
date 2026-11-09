@@ -44,6 +44,8 @@ pub(crate) fn clear_proxy_env() -> Vec<EnvVarGuard> {
         "MIKE_DATABASE_URL",
         "MIKE_LOCAL_DATABASE_URL",
         "MIKE_DATA_DIR",
+        "MIKE_DB_FALLBACK_ENABLED",
+        "MIKE_DB_RESYNC_ENABLED",
         "MIKE_PROJECT_PINNED",
         "MIKE_DEFAULT_TTL_SECS",
         "MIKE_SMOKE_RUN",

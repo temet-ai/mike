@@ -91,6 +91,59 @@ async fn fixture_beside_other_project(
     documents: &[(&str, &str, f64)],
     other_documents: usize,
 ) -> anyhow::Result<Fixture> {
+    fixture_with_lesson(documents, other_documents, None).await
+}
+
+async fn insert_lesson(handle: &PersistHandle, project_id: i64) -> anyhow::Result<()> {
+    sqlx::query(
+        "INSERT INTO memory.lessons (project_id, kind_id, text, stage_id, source_id, topic)
+         SELECT $1, lk.id, $2, ls.id, lsrc.id, 'floor'
+         FROM memory.lesson_kinds lk, memory.lesson_stages ls, memory.lesson_sources lsrc
+         WHERE lk.code = 'correction' AND ls.code = 'daily' AND lsrc.code = 'operator'",
+    )
+    .bind(project_id)
+    .bind("a lesson body that shares no words with the query")
+    .execute(handle.pool())
+    .await?;
+    Ok(())
+}
+
+async fn set_lesson_similarity(handle: &PersistHandle, similarity: f64) -> anyhow::Result<()> {
+    sqlx::query(
+        "UPDATE memory.knowledge_embedding_chunks c
+            SET embedding = $1::text::vector
+           FROM memory.knowledge_embedding_state e
+          WHERE c.state_id = e.id AND e.source_kind = 'lesson'",
+    )
+    .bind(angled_literal(similarity))
+    .execute(handle.pool())
+    .await?;
+    Ok(())
+}
+
+async fn place_vectors(
+    handle: &PersistHandle,
+    documents: &[(&str, &str, f64)],
+    other_titles: &[String],
+    lesson_similarity: Option<f64>,
+) -> anyhow::Result<()> {
+    for (title, _, similarity) in documents {
+        set_similarity(handle, title, *similarity).await?;
+    }
+    if let Some(similarity) = lesson_similarity {
+        set_lesson_similarity(handle, similarity).await?;
+    }
+    for title in other_titles {
+        set_similarity(handle, title, 0.95).await?;
+    }
+    Ok(())
+}
+
+async fn fixture_with_lesson(
+    documents: &[(&str, &str, f64)],
+    other_documents: usize,
+    lesson_similarity: Option<f64>,
+) -> anyhow::Result<Fixture> {
     let db = acquire_ephemeral_db()
         .await?
         .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
@@ -102,14 +155,12 @@ async fn fixture_beside_other_project(
     let titles: Vec<(&str, &str)> = documents.iter().map(|(t, b, _)| (*t, *b)).collect();
     scan_titles(&handle, source_uuid, &titles).await?;
     let other_titles = other_project(&handle, other_documents).await?;
+    if lesson_similarity.is_some() {
+        insert_lesson(&handle, project.id).await?;
+    }
     let (_server, service) = embedding_server().await;
     sweep(&handle, &service, &mut breaker()).await?;
-    for (title, _, similarity) in documents {
-        set_similarity(&handle, title, *similarity).await?;
-    }
-    for title in &other_titles {
-        set_similarity(&handle, title, 0.95).await?;
-    }
+    place_vectors(&handle, documents, &other_titles, lesson_similarity).await?;
     sqlx::query("ANALYZE memory.knowledge_embedding_state")
         .execute(handle.pool())
         .await?;
@@ -127,9 +178,18 @@ async fn fixture_beside_other_project(
 }
 
 async fn titles_for(fixture: &Fixture, query: &str) -> anyhow::Result<Vec<String>> {
+    titles_for_kind(fixture, query, None).await
+}
+
+async fn titles_for_kind(
+    fixture: &Fixture,
+    query: &str,
+    kind: Option<&str>,
+) -> anyhow::Result<Vec<String>> {
     let input = KnowledgeQuery {
         project: fixture.project.clone(),
         query: query.into(),
+        kind: kind.map(str::to_owned),
         ..Default::default()
     };
     let found = fixture
@@ -242,6 +302,28 @@ async fn semantic_search_small_project_beside_a_large_corpus_still_returns_its_h
     )
     .await?;
     assert_eq!(titles_for(&fx, "unrelated wording").await?, ["mine"]);
+    fx.db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn semantic_search_kind_filter_measures_the_window_from_the_best_hit_of_that_kind()
+-> anyhow::Result<()> {
+    let fx = fixture_with_lesson(
+        &[(
+            "strong",
+            "alpha body text that has no overlap with the query",
+            0.90,
+        )],
+        0,
+        Some(0.78),
+    )
+    .await?;
+    assert_eq!(titles_for(&fx, "unrelated wording").await?, ["strong"]);
+    assert_eq!(
+        titles_for_kind(&fx, "unrelated wording", Some("lesson")).await?,
+        ["correction"]
+    );
     fx.db.cleanup().await?;
     Ok(())
 }
