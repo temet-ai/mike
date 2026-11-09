@@ -1,0 +1,157 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH open_threads AS (\n                       SELECT t.id, t.project_id, t.slug, COALESCE(t.title, t.slug) AS title,\n                              COALESCE(t.goal, '') AS goal, t.status, t.branch, t.worktree,\n                              t.last_session_uuid,\n                              GREATEST(t.updated_at, s.updated_at) AS checkpoint_at\n                         FROM work.threads t\n                         LEFT JOIN work.thread_state s ON s.thread_id = t.id\n                        WHERE t.status IN ('active', 'implementing', 'review', 'in-progress')\n                   ), linked AS (\n                       SELECT x.thread_id,\n                              array_agg(DISTINCT x.session_uuid) AS sessions,\n                              array_agg(DISTINCT ss.cwd) FILTER (WHERE ss.cwd IS NOT NULL) AS dirs\n                         FROM work.thread_sessions x\n                         JOIN open_threads o ON o.id = x.thread_id\n                         LEFT JOIN sessions.sessions ss ON ss.session_uuid = x.session_uuid\n                        GROUP BY x.thread_id\n                   )\n                   SELECT o.id AS \"thread_id!\",\n                          o.project_id AS \"project_id!\",\n                          o.slug AS \"slug!\",\n                          o.title AS \"title!\",\n                          o.goal AS \"goal!\",\n                          o.status AS \"status!\",\n                          o.branch,\n                          o.worktree,\n                          o.last_session_uuid,\n                          o.checkpoint_at AS \"last_checkpoint_at!\",\n                          c.text AS \"text!\",\n                          c.content_hash AS \"content_hash!\",\n                          COALESCE(l.sessions, '{}') AS \"linked_sessions!\",\n                          COALESCE(l.dirs, '{}') AS \"checkout_dirs!\"\n                     FROM open_threads o\n                     JOIN work.thread_cards c ON c.thread_id = o.id\n                     LEFT JOIN linked l ON l.thread_id = o.id\n                    ORDER BY o.project_id, o.slug",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "thread_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "slug!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "slug"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "title!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "goal!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "status!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "branch",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "branch"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "worktree",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "worktree"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "last_session_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "last_session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "last_checkpoint_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "text!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_cards",
+            "name": "text"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "content_hash!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_cards",
+            "name": "content_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "linked_sessions!",
+        "type_info": "UuidArray",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 13,
+        "name": "checkout_dirs!",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null,
+      null,
+      true,
+      true,
+      true,
+      true,
+      null,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "6df28e9ed4283739ef7e8a541ad674feea4a6767d2bf86f567eea9ae4b5bfa8b"
+}

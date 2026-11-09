@@ -29,19 +29,24 @@ struct Block {
 }
 
 pub(super) fn conversation_query(body: &[u8]) -> (String, usize) {
+    let (mut prompts, count) = recent_user_prompts(body, 3);
+    prompts.reverse();
+    (prompts.join("\n"), count)
+}
+
+pub(crate) fn recent_user_prompts(body: &[u8], limit: usize) -> (Vec<String>, usize) {
     let Ok(conversation) = serde_json::from_slice::<Conversation<'_>>(body) else {
-        return (String::new(), 0);
+        return (Vec::new(), 0);
     };
-    let mut prompts: Vec<_> = conversation
+    let prompts = conversation
         .messages
         .iter()
         .rev()
         .filter(|message| message.role == "user")
         .filter_map(|message| user_text(message.content))
-        .take(3)
+        .take(limit)
         .collect();
-    prompts.reverse();
-    (prompts.join("\n"), conversation.messages.len())
+    (prompts, conversation.messages.len())
 }
 
 fn user_text(content: &RawValue) -> Option<String> {

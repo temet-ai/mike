@@ -113,3 +113,47 @@ fn repeated_notices_defaults_off_and_round_trips() -> anyhow::Result<()> {
     assert!(resolved.repeated_notices);
     Ok(())
 }
+
+#[test]
+fn memory_keeper_toggles_default_off() {
+    let defaults = FeatureToggles::default();
+    assert!(!defaults.memory_keeper);
+    assert!(!defaults.client_serves_memory_keeper);
+    assert_eq!(get_toggle_enabled(&defaults, "memory_keeper"), Some(false));
+    assert_eq!(
+        get_toggle_enabled(&defaults, "client_serves_memory_keeper"),
+        Some(false)
+    );
+}
+
+#[test]
+fn memory_keeper_toggles_set_independently() {
+    let worker_on = set_toggle_enabled(&FeatureToggles::default(), "memory_keeper", true);
+    assert!(
+        worker_on
+            .as_ref()
+            .is_some_and(|t| t.memory_keeper && !t.client_serves_memory_keeper)
+    );
+    let client_on = set_toggle_enabled(
+        &FeatureToggles::default(),
+        "client_serves_memory_keeper",
+        true,
+    );
+    assert!(
+        client_on
+            .as_ref()
+            .is_some_and(|t| t.client_serves_memory_keeper && !t.memory_keeper)
+    );
+}
+
+#[test]
+fn memory_keeper_client_serves_meta_is_global_immediate() {
+    let meta = TOGGLE_META
+        .iter()
+        .find(|m| m.key == "client_serves_memory_keeper");
+    assert!(
+        meta.is_some_and(
+            |m| m.scope == ToggleScope::Global && m.applies == ToggleApplies::Immediate
+        )
+    );
+}

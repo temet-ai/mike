@@ -1,0 +1,124 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT thread_id, tldr, where_we_are, next_up, blockers, open_questions, decisions, files, updated_at\n           FROM work.thread_state WHERE thread_id = ANY($1) ORDER BY thread_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "thread_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "work.thread_state",
+            "name": "thread_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "tldr",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_state",
+            "name": "tldr"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "where_we_are",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_state",
+            "name": "where_we_are"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "next_up",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_state",
+            "name": "next_up"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "blockers",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_state",
+            "name": "blockers"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "open_questions",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_state",
+            "name": "open_questions"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "decisions",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.thread_state",
+            "name": "decisions"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "files",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "work.thread_state",
+            "name": "files"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "work.thread_state",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e2d874c4967796771a64b21b397f3561d2c8244e69690e6c7c98b93979981818"
+}

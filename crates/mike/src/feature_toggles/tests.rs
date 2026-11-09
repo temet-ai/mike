@@ -260,6 +260,7 @@ fn toggle_meta_covers_all_keys() {
             "client_serves_change_record_tail",
             "client_serves_git_read_hint",
             "client_serves_mail",
+            "client_serves_memory_keeper",
             "client_serves_prompt_shaping",
             "client_serves_proxy_tools",
             "client_serves_recall",
@@ -279,6 +280,7 @@ fn toggle_meta_covers_all_keys() {
             "launch_brief",
             "lesson_worker",
             "mailbox_redelivery",
+            "memory_keeper",
             "mod_lesson_delivery",
             "native_peer_mail",
             "prompt_assistant",
@@ -310,6 +312,7 @@ fn live_disable_workers_re_read_their_own_toggle_every_iteration() {
         "steerer",
         "lesson_worker",
         "channel_link_sweep",
+        "memory_keeper",
     ] {
         let meta = TOGGLE_META
             .iter()

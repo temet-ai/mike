@@ -205,12 +205,13 @@ pub(crate) fn is_session_own_lane(ctx: &StageContext<'_>) -> bool {
     ) && !ctx.has_agent_id
 }
 
-pub(crate) const STAGE_ORDER: [&str; 18] = [
+pub(crate) const STAGE_ORDER: [&str; 19] = [
     "filter",
     "reminder_on_token",
     "lazy_sections",
     "recall_injector",
     "lessons",
+    "memory_keeper",
     "self_identity",
     "workspace_briefing",
     "agent_lessons",
@@ -239,6 +240,7 @@ pub(crate) fn stages_before_steerer() -> Vec<Box<dyn RequestStage>> {
         Box::new(crate::lazy_sections::stage::LazySectionsStage),
         Box::new(crate::recall_injector::stage::RecallInjectorStage),
         Box::new(crate::reminders::stage::SessionLessonsStage),
+        Box::new(crate::memory_keeper::stage::MemoryKeeperStage),
         Box::new(crate::reminders::stage::SelfIdentityStage),
         Box::new(crate::reminders::workspace_briefing::WorkspaceBriefingStage),
         Box::new(crate::reminders::stage::AgentLessonsStage),

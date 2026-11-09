@@ -145,6 +145,8 @@ pub mod steering_facts;
 pub(crate) mod system_prompt_backfill;
 #[cfg(any(test, feature = "test-seams"))]
 pub mod test_support;
+#[cfg(test)]
+mod thread_card_generations_tests;
 pub(crate) mod time_spent;
 pub mod tool_call_reads;
 pub mod tool_errors;

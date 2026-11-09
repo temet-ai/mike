@@ -70,6 +70,7 @@ pub struct AppState {
     pub(crate) shed_registry: Arc<crate::memory_cap::ShedRegistry>,
     pub(crate) capture_admission_throttled: Arc<std::sync::atomic::AtomicBool>,
     pub(crate) lesson_cache: crate::lesson_worker::LessonCache,
+    pub(crate) keeper_snapshot: crate::memory_keeper::snapshot::KeeperCache,
     pub(crate) change_feed: crate::change_feed::ChangeFeed,
     pub(crate) poll_answers: crate::api::poll_answers::PollAnswers,
 

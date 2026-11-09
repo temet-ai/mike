@@ -2,9 +2,13 @@ use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::config::AppState;
 use crate::lesson_delivery::{self, Arm, DeliveredLesson, PromptLessons};
+use crate::memory_keeper::block::Block;
+use crate::memory_keeper::deliver::{CardAsk, card_for, serves_cards};
+use crate::memory_keeper::supply::Carrier;
 use crate::recall_injector::formatter;
 
 #[derive(Debug, Deserialize)]
@@ -18,6 +22,8 @@ pub(crate) struct ForPromptRequest {
     held_versions: Option<std::collections::HashMap<i64, String>>,
     #[serde(default)]
     refresh: bool,
+    #[serde(default)]
+    cwd: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -27,29 +33,65 @@ pub(crate) struct ForPromptResponse {
     topic_catalog: Option<String>,
     memory_grammar: Option<&'static str>,
     memory_topics: Vec<String>,
+    memory_keeper: Option<String>,
+    memory_keeper_hash: Option<String>,
 }
 
-fn answer(arm: &'static str, lessons: Vec<DeliveredLesson>) -> Json<ForPromptResponse> {
-    Json(ForPromptResponse {
-        arm,
-        lessons,
-        topic_catalog: None,
-        memory_grammar: None,
-        memory_topics: Vec::new(),
-    })
+struct Lessons {
+    arm: &'static str,
+    lessons: Vec<DeliveredLesson>,
+    memory_topics: Option<Vec<String>>,
 }
 
 pub(crate) async fn post_for_prompt(
     State(state): State<AppState>,
     Json(request): Json<ForPromptRequest>,
 ) -> Result<Json<ForPromptResponse>, StatusCode> {
-    if uuid::Uuid::parse_str(&request.session).is_err() {
+    let Ok(session) = Uuid::parse_str(&request.session) else {
         return Err(StatusCode::BAD_REQUEST);
+    };
+    let card = card(&state, session, &request).await;
+    let lessons = lessons(&state, &request).await;
+    let topics = lessons.memory_topics;
+    Ok(Json(ForPromptResponse {
+        arm: lessons.arm,
+        lessons: lessons.lessons,
+        topic_catalog: topics
+            .as_deref()
+            .and_then(|topics| formatter::memory_note(topics, true)),
+        memory_grammar: topics.is_some().then_some(formatter::MEMORY_TAG_GRAMMAR),
+        memory_topics: topics.unwrap_or_default(),
+        memory_keeper_hash: card.as_ref().map(|block| block.hash.clone()),
+        memory_keeper: card.map(|block| block.text),
+    }))
+}
+
+async fn card(state: &AppState, session: Uuid, request: &ForPromptRequest) -> Option<Block> {
+    if !serves_cards(state) {
+        return None;
     }
+    card_for(
+        state,
+        &CardAsk {
+            session,
+            project_path: &request.project,
+            prompt: Some(&request.prompt),
+            cwd: request.cwd.as_deref(),
+            carrier: Carrier::Mod,
+        },
+    )
+    .await
+}
+
+async fn lessons(state: &AppState, request: &ForPromptRequest) -> Lessons {
     let toggles = state.feature_toggle_overlay.load();
     let settings = state.settings_overlay.load();
     if !toggles.mod_lesson_delivery || !settings.reminders_inject_lessons {
-        return Ok(answer("off", Vec::new()));
+        return Lessons {
+            arm: "off",
+            lessons: Vec::new(),
+            memory_topics: None,
+        };
     }
     let arm = lesson_delivery::arm_for(&request.session);
     let mut memory_topics = None;
@@ -81,18 +123,12 @@ pub(crate) async fn post_for_prompt(
             })
         }
     };
-    record_arm(&state, &request.session, arm, &lessons).await;
-    Ok(Json(ForPromptResponse {
+    record_arm(state, &request.session, arm, &lessons).await;
+    Lessons {
         arm: arm.as_str(),
         lessons,
-        topic_catalog: memory_topics
-            .as_deref()
-            .and_then(|topics| formatter::memory_note(topics, true)),
-        memory_grammar: memory_topics
-            .is_some()
-            .then_some(formatter::MEMORY_TAG_GRAMMAR),
-        memory_topics: memory_topics.unwrap_or_default(),
-    }))
+        memory_topics,
+    }
 }
 
 async fn record_arm(state: &AppState, session: &str, arm: Arm, lessons: &[DeliveredLesson]) {

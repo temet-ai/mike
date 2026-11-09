@@ -41,6 +41,11 @@ pub(crate) async fn capabilities(State(state): State<AppState>) -> Json<Capabili
         state.persist().is_some(),
         crate::db_cost::current().as_deref(),
     );
+    let memory_keeper = crate::memory_keeper::health::capability_row(
+        state.persist().is_some(),
+        toggles.memory_keeper,
+        &crate::memory_keeper::health::snapshot(),
+    );
 
     Json(CapabilitiesResponse {
         capabilities: vec![
@@ -57,6 +62,7 @@ pub(crate) async fn capabilities(State(state): State<AppState>) -> Json<Capabili
             worker_toggles,
             scheduled_jobs,
             db_cost,
+            memory_keeper,
         ],
     })
 }

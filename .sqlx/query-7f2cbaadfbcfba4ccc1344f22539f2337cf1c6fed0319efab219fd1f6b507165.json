@@ -1,0 +1,77 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH handoffs AS (\n               SELECT DISTINCT ON (l.thread_id) l.thread_id, l.entry_date\n                 FROM work.thread_log l\n                WHERE l.thread_id = ANY($1) AND l.kind = 'handoff'\n                ORDER BY l.thread_id, l.ord DESC\n           )\n           SELECT r.thread_id AS \"thread_id!\", r.note_uuid AS \"note_uuid!\", r.kind AS \"kind!\",\n                  r.title AS \"title!\", r.created_at AS \"created_at!\"\n             FROM (\n                   SELECT t.id AS thread_id, n.note_uuid, n.kind, n.title, n.created_at,\n                          row_number() OVER (PARTITION BY t.id ORDER BY n.created_at DESC, n.id DESC) AS rn\n                     FROM work.threads t\n                     LEFT JOIN handoffs h ON h.thread_id = t.id\n                     JOIN workspace.session_notes n ON n.tags @> ARRAY['thread:' || t.slug]\n                     JOIN sessions.sessions se ON se.id = n.session_id AND se.project_id = t.project_id\n                    WHERE t.id = ANY($1)\n                      AND n.kind IN ('decision', 'finding')\n                      AND (h.entry_date IS NULL\n                           OR n.created_at >= h.entry_date::timestamp AT TIME ZONE 'UTC')\n                  ) r\n            WHERE r.rn <= $2\n            ORDER BY r.thread_id, r.created_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "thread_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "note_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_notes",
+            "name": "note_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_notes",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "title!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_notes",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_notes",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "7f2cbaadfbcfba4ccc1344f22539f2337cf1c6fed0319efab219fd1f6b507165"
+}

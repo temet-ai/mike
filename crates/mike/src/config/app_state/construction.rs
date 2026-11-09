@@ -112,6 +112,9 @@ impl AppState {
             lesson_cache: Arc::new(ArcSwap::from_pointee(
                 crate::lesson_worker::LessonSnapshot::default(),
             )),
+            keeper_snapshot: Arc::new(ArcSwap::from_pointee(
+                crate::memory_keeper::snapshot::KeeperSnapshot::default(),
+            )),
             steerer_registry,
             steerer_service,
             feature_toggle_overlay,

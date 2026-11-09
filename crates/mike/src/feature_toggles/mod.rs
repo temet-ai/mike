@@ -93,6 +93,9 @@ pub struct FeatureToggles {
     #[serde(default)]
     pub context_focus_question: bool,
 
+    #[serde(default)]
+    pub memory_keeper: bool,
+
     #[serde(default = "on")]
     pub client_serves_self_identity: bool,
     #[serde(default)]
@@ -115,6 +118,8 @@ pub struct FeatureToggles {
     pub client_serves_mail: bool,
     #[serde(default)]
     pub client_serves_git_read_hint: bool,
+    #[serde(default)]
+    pub client_serves_memory_keeper: bool,
 }
 
 fn on() -> bool {
@@ -159,6 +164,7 @@ impl Default for FeatureToggles {
             change_record: false,
             change_record_tail: false,
             context_focus_question: false,
+            memory_keeper: false,
             client_serves_self_identity: true,
             client_serves_workspace_briefing: false,
             client_serves_change_record_tail: false,
@@ -170,6 +176,7 @@ impl Default for FeatureToggles {
             client_serves_weasel_guard: false,
             client_serves_mail: false,
             client_serves_git_read_hint: false,
+            client_serves_memory_keeper: false,
         }
     }
 }
@@ -298,6 +305,7 @@ pub fn get_toggle_enabled(toggles: &FeatureToggles, key: &str) -> Option<bool> {
         "launch_brief" => Some(toggles.launch_brief),
         "lesson_worker" => Some(toggles.lesson_worker),
         "mailbox_redelivery" => Some(toggles.mailbox_redelivery),
+        "memory_keeper" => Some(toggles.memory_keeper),
         "mod_lesson_delivery" => Some(toggles.mod_lesson_delivery),
         "native_peer_mail" => Some(toggles.native_peer_mail),
         "prompt_assistant" => Some(toggles.prompt_assistant),
@@ -334,6 +342,7 @@ fn client_serves_mut<'a>(toggles: &'a mut FeatureToggles, key: &str) -> Option<&
         "client_serves_weasel_guard" => &mut toggles.client_serves_weasel_guard,
         "client_serves_mail" => &mut toggles.client_serves_mail,
         "client_serves_git_read_hint" => &mut toggles.client_serves_git_read_hint,
+        "client_serves_memory_keeper" => &mut toggles.client_serves_memory_keeper,
         _ => return None,
     })
 }
@@ -379,6 +388,7 @@ pub(crate) fn set_toggle_enabled(
         "launch_brief" => updated.launch_brief = enabled,
         "lesson_worker" => updated.lesson_worker = enabled,
         "mailbox_redelivery" => updated.mailbox_redelivery = enabled,
+        "memory_keeper" => updated.memory_keeper = enabled,
         "mod_lesson_delivery" => updated.mod_lesson_delivery = enabled,
         "native_peer_mail" => updated.native_peer_mail = enabled,
         "prompt_assistant" => updated.prompt_assistant = enabled,

@@ -23,6 +23,7 @@ fn stage_order_matches_documented_pipeline_sequence() {
             "lazy_sections",
             "recall_injector",
             "lessons",
+            "memory_keeper",
             "self_identity",
             "workspace_briefing",
             "agent_lessons",

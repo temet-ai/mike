@@ -535,6 +535,17 @@ The `dossier_builder` toggle (off by default; switched on after deploy; applies 
 
 `mike origin-backfill` re-lanes primary-lane requests that carry `x-claude-code-agent-id` (`--since` default 2026-09-17, `--until`, `--batch` default 500) to `workflow_subagent` or `subagent` with author `agent`, marks the operator turns those requests opened `opened_by = 'agent'`, and lists the operator turns an agent request closed in `closed-by-agent.jsonl`. It is a dry run unless `--execute` is given (which connects read-write); both modes write `summary.json` and `closed-by-agent.jsonl` to `--out`, and `--execute` also writes `relaned.jsonl` and `agent-opened.jsonl`, the old and new values needed to revert. A second `--execute` run writes nothing.
 
+### Work thread cards (memory-keeper)
+
+Two toggles, both off by default, at `/settings` or `PATCH /api/settings/features/<key>`:
+
+| Toggle | Applies | What it does |
+|---|---|---|
+| `memory_keeper` | live disable | Runs the card worker, which keeps one card of at most 1,500 bytes per open work thread in `work.thread_cards`: where it stands, what is next, blockers, open questions, decisions in force, the last handoff, decisions since, open promises and unmet asks, with a reference token on every item. The worker runs on the machine holding the `memory_keeper_cards` lease, reads the `thread_card_sources` change counter every 10 seconds and the busy sources (thread-tagged notes, promises, verdicts) once a minute, and rewrites a card only when its text changed. It re-reads the toggle each tick and exits when it goes off; turning it back on needs a restart. Local only: no model call, nothing leaves the machine. Its state is the `memory_keeper` row of `/api/capabilities` |
+| `client_serves_memory_keeper` | immediate | Lets a client such as tether carry the card block, so the proxy stops adding it for that session. Nothing delivers cards yet, so it has no effect until card delivery ships |
+
+A decision or finding note joins a card only when it carries the tag `thread:<slug>`. Promises and unmet asks are bounded to the last 14 days and to the time after the newest handoff.
+
 ### Scheduled jobs (runtime settings)
 
 | Setting | Default | Range | What it does |

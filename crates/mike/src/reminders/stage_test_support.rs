@@ -7,19 +7,19 @@ use crate::lesson_worker::LessonSnapshot;
 use crate::pipeline::StageContext;
 use crate::store::models::RequestId;
 
-pub(super) struct StageCtxFixture<'a> {
-    pub(super) state: &'a crate::config::AppState,
-    pub(super) session_toggles: &'a ResolvedToggles,
-    pub(super) filter_cfg: &'a FilterConfig,
-    pub(super) lesson_snapshot: &'a LessonSnapshot,
-    pub(super) turn_origin: &'a TurnOrigin,
-    pub(super) session_id: &'a str,
-    pub(super) project_path: &'a str,
-    pub(super) is_tool_loop: bool,
-    pub(super) subagent_persona: Option<&'a str>,
+pub(crate) struct StageCtxFixture<'a> {
+    pub(crate) state: &'a crate::config::AppState,
+    pub(crate) session_toggles: &'a ResolvedToggles,
+    pub(crate) filter_cfg: &'a FilterConfig,
+    pub(crate) lesson_snapshot: &'a LessonSnapshot,
+    pub(crate) turn_origin: &'a TurnOrigin,
+    pub(crate) session_id: &'a str,
+    pub(crate) project_path: &'a str,
+    pub(crate) is_tool_loop: bool,
+    pub(crate) subagent_persona: Option<&'a str>,
 }
 
-pub(super) fn make_ctx(fixture: StageCtxFixture<'_>) -> StageContext<'_> {
+pub(crate) fn make_ctx(fixture: StageCtxFixture<'_>) -> StageContext<'_> {
     StageContext {
         state: fixture.state,
         session_toggles: fixture.session_toggles,

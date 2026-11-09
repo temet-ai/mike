@@ -12,7 +12,7 @@ pub(crate) mod lesson_injection_backfill;
 mod seat_role;
 mod self_identity;
 mod session_lessons;
-mod session_lessons_query;
+pub(crate) mod session_lessons_query;
 pub(crate) mod stage;
 pub(crate) mod workspace_briefing;
 
@@ -41,7 +41,7 @@ mod session_lessons_stage_tests;
 #[cfg(test)]
 mod session_lessons_tests;
 #[cfg(test)]
-mod stage_test_support;
+pub(crate) mod stage_test_support;
 #[cfg(test)]
 mod test_support;
 #[cfg(test)]
