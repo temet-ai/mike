@@ -1,5 +1,6 @@
 use super::PersistError;
 use super::recall_reads::TURN_COLUMNS;
+use crate::analysis::embeddings::score_floor_for;
 use sqlx::{Postgres, QueryBuilder};
 
 const CHUNK_CANDIDATES: i64 = 200;
@@ -28,6 +29,7 @@ pub(super) fn by_embedding_query(
     query_vec_literal: &str,
     limit: i64,
 ) -> QueryBuilder<Postgres> {
+    let cut = score_floor_for(embedding_model);
     let mut query = QueryBuilder::new(
         "WITH nearest_chunks AS (
             SELECT c.turn_id,
@@ -70,7 +72,13 @@ pub(super) fn by_embedding_query(
                        MIN(min_distance) OVER () AS best_distance
                   FROM chunk_distances
               ) scored
-             WHERE min_distance <= LEAST(0.4, best_distance + 0.08)
+             WHERE min_distance <= LEAST(",
+        )
+        .push_bind(1.0 - cut.floor)
+        .push("::float8, best_distance + ")
+        .push_bind(cut.window)
+        .push(
+            "::float8)
              ORDER BY min_distance ASC
              LIMIT ",
         )

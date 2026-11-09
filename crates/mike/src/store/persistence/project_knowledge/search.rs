@@ -2,6 +2,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use super::invalid;
+use crate::analysis::embeddings::{ScoreFloor, score_floor_for};
 use crate::store::persistence::recall_embedding::set_vector_scan_limits;
 use crate::store::persistence::{PersistError, PersistHandle};
 
@@ -32,6 +33,56 @@ pub struct KnowledgeQuery {
     pub include_historical: bool,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
+}
+
+struct QueryVector<'a> {
+    literal: Option<&'a str>,
+    model_key: Option<&'a str>,
+    model_name: Option<&'a str>,
+    cut: ScoreFloor,
+}
+
+impl<'a> QueryVector<'a> {
+    fn from(vector: Option<&'a (String, String, String)>) -> Self {
+        match vector {
+            Some((literal, key, name)) => Self {
+                literal: Some(literal),
+                model_key: Some(key),
+                model_name: Some(name),
+                cut: score_floor_for(name),
+            },
+            None => Self {
+                literal: None,
+                model_key: None,
+                model_name: None,
+                cut: ScoreFloor::NO_CUT,
+            },
+        }
+    }
+}
+
+async fn fetch_hits(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    (project_id, input): (i64, &KnowledgeQuery),
+    (limit, offset): (i64, i64),
+    bound: &QueryVector<'_>,
+) -> Result<Vec<Value>, PersistError> {
+    Ok(sqlx::query_file_scalar!(
+        "src/store/persistence/project_knowledge/search.sql",
+        project_id,
+        input.query,
+        input.kind,
+        input.include_historical,
+        limit + 1,
+        offset,
+        bound.literal,
+        bound.model_key,
+        bound.model_name,
+        bound.cut.floor,
+        bound.cut.window,
+    )
+    .fetch_all(&mut **tx)
+    .await?)
 }
 
 pub(crate) fn search_page(
@@ -100,20 +151,8 @@ impl PersistHandle {
         if vector.is_some() {
             set_vector_scan_limits(&mut tx).await?;
         }
-        let rows = sqlx::query_file_scalar!(
-            "src/store/persistence/project_knowledge/search.sql",
-            project_id,
-            input.query,
-            input.kind,
-            input.include_historical,
-            limit + 1,
-            offset,
-            vector.map(|v| v.0.as_str()),
-            vector.map(|v| v.1.as_str()),
-            vector.map(|v| v.2.as_str()),
-        )
-        .fetch_all(&mut *tx)
-        .await?;
+        let bound = QueryVector::from(vector);
+        let rows = fetch_hits(&mut tx, (project_id, input), (limit, offset), &bound).await?;
         tx.commit().await?;
         Ok(rows)
     }

@@ -1,5 +1,6 @@
 use serde_json::{Value, json};
 
+use crate::analysis::embeddings::{ScoreFloor, score_floor_for};
 use crate::store::persistence::{PersistError, PersistHandle};
 
 pub(crate) const MEMORY_SOURCE: &str = "claude-memory";
@@ -73,12 +74,13 @@ impl PersistHandle {
         &self,
         project_id: i64,
         query: &str,
-        vector: Option<&(String, String)>,
+        vector: Option<&(String, String, String)>,
         limit: i64,
     ) -> Result<Vec<GuidanceRow>, PersistError> {
         if query.trim().is_empty() {
             return Ok(Vec::new());
         }
+        let cut = vector.map_or(ScoreFloor::NO_CUT, |v| score_floor_for(&v.2));
         Ok(sqlx::query_file_as!(
             GuidanceRow,
             "src/store/persistence/project_knowledge/guidance.sql",
@@ -86,7 +88,9 @@ impl PersistHandle {
             query,
             vector.map(|v| v.0.as_str()),
             vector.map(|v| v.1.as_str()),
-            limit.clamp(1, 10)
+            limit.clamp(1, 10),
+            cut.floor,
+            cut.window
         )
         .fetch_all(self.pool())
         .await?)

@@ -19,7 +19,7 @@ fn query_text(candidate: &CorrectionCandidate) -> String {
     tail_chars(text.trim(), QUERY_CHARS).to_owned()
 }
 
-async fn query_vector(deps: &ProposerDeps<'_>, text: &str) -> Option<(String, String)> {
+async fn query_vector(deps: &ProposerDeps<'_>, text: &str) -> Option<(String, String, String)> {
     let service = deps.embedding;
     if !service.is_available() {
         return None;
@@ -30,6 +30,7 @@ async fn query_vector(deps: &ProposerDeps<'_>, text: &str) -> Option<(String, St
             Some((
                 crate::store::operator_turns::vector_to_text_literal(&vector),
                 key,
+                service.model_name(),
             ))
         }
         _ => None,
