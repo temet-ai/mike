@@ -33,6 +33,8 @@ pub(crate) mod operator_turns;
 mod project_display_name;
 #[path = "project_knowledge.rs"]
 mod project_knowledge;
+#[path = "project_knowledge_promise.rs"]
+mod project_knowledge_promise;
 #[path = "project_pin_ttl.rs"]
 mod project_pin_ttl;
 #[path = "reconstruct.rs"]

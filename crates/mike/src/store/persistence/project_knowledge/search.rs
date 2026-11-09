@@ -103,7 +103,7 @@ impl PersistHandle {
         let uuid = key.parse::<uuid::Uuid>().ok();
         if !matches!(
             kind,
-            "artifact" | "lesson" | "note" | "turn" | "thread" | "work_thread"
+            "artifact" | "lesson" | "note" | "turn" | "promise" | "thread" | "work_thread"
         ) {
             return Err(invalid("Unknown knowledge source kind"));
         }

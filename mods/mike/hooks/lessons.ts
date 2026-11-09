@@ -1,5 +1,19 @@
 export type Lesson = { id: number; kind: string; text: string; revision?: string }
-export type LessonDelivery = { arm: 'off' | 'control' | 'mod'; lessons: Lesson[]; topic_catalog?: string | null }
+export type LessonDelivery = {
+  arm: 'off' | 'control' | 'mod'
+  lessons: Lesson[]
+  topic_catalog?: string | null
+  memory_keeper?: string | null
+  memory_keeper_hash?: string | null
+}
+
+export function keeperBlock(body: LessonDelivery, held: Set<string>): string | null {
+  const text = body.memory_keeper
+  const hash = body.memory_keeper_hash ?? text
+  if (typeof text !== 'string' || text.trim() === '' || typeof hash !== 'string' || held.has(hash)) return null
+  held.add(hash)
+  return text
+}
 
 export const LESSONS_HEADING = 'Lessons recorded from earlier sessions in this project:'
 

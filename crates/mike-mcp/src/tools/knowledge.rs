@@ -58,7 +58,7 @@ pub(super) fn tools() -> Vec<Tool> {
         ),
         Tool::new(
             READ,
-            "Read the complete source behind a project knowledge reference, including artifact revision and provenance. Project scope is enforced.",
+            "Read the complete source behind a project knowledge reference, including artifact revision and provenance. Also reads promise:<id>, a promise a session made at the end of a turn: its text, status, session and turn. Project scope is enforced.",
             object_schema(
                 vec![
                     (
