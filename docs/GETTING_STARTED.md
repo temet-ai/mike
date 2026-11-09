@@ -122,8 +122,8 @@ only what changed: it reinstalls `mike-mcp` into `~/.local/bin`, deploys `mike`,
 `proxy-forward` sidecar and a `vite dev` SPA. Where systemd is available these run as user
 units named `mike-stack-*` that outlive the script and restart on failure; without it
 (`MIKE_STACK_SUPERVISOR=nohup`, or macOS) the SPA runs in the foreground of that terminal and
-Ctrl-C stops only it. It does not start Storybook or the architecture diagrams
-(`systemctl --user start mike-stack-storybook mike-stack-arch`). Stop everything with
+Ctrl-C stops only it. It does not start Storybook
+(`systemctl --user start mike-stack-storybook`). Stop everything with
 `./scripts/stop-proxy.sh`.
 
 ### 4. Point Claude Code at the proxy

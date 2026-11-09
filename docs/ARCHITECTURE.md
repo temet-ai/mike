@@ -63,8 +63,6 @@ flowchart LR
     Inspect -.->|WS broadcast| Browser
 ```
 
-The same map, and the views inside each part of it, are kept as a model in [`architecture/`](architecture/README.md): `scripts/arch serve` shows them in a browser and `scripts/arch png` saves them as pictures.
-
 Three TCP listeners, one process, one shared `AppState`. The MCP bridge is a separate binary so it can crash, restart, or be replaced without touching the proxy's hot path. `proxy-forward` is a separate binary because it is a different interception model (CONNECT + per-domain TLS) that most operators never need. Postgres is the only persistent component — restart the proxy and all terminal traffic survives. During frontend development `vite dev` takes `:9990` from the SPA bind so a CSS edit doesn't require a `cargo build`; that swap is the only reason the SPA bind is optional at all.
 
 ## 3. Request Lifecycle

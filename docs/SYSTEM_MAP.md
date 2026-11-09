@@ -58,7 +58,7 @@ Three invariants hold everywhere:
 | Terminal UI | tty | bare `mike` on a terminal (`crates/mike/src/tui/`) | Home, config, setup wizard, start/stop, sessions, requests. Bare `mike` off a tty runs `serve`. |
 | Database | `:6666` owned Docker, `:5440` dev capture DB, `:6667` test DB | PostgreSQL 19 with pgvector (`crates/mike/resources/postgres19.Dockerfile`) | Primary store. Memory-only "trial" mode exists. |
 | Claude Code mods | in Claude Code | `mods/` | Panes, status line, chips and skills inside Claude Code (`mike`, `fleet-comms`, `mike-mail`, `mods`, `thread`, `wiretap`). |
-| Dev-only | `:6006` Storybook, `:9986` LikeC4 diagrams | `scripts/systemd/mike-stack-*.service.in` | Started by `scripts/start-proxy.sh`; never by a release install. |
+| Dev-only | `:6006` Storybook | `scripts/systemd/mike-stack-*.service.in` | Started by `scripts/start-proxy.sh`; never by a release install. |
 
 Installed services: `mike service install` writes `mike.service` and
 `mike-forward.service` (systemd user units) or `ai.temet.mike.proxy` and
@@ -404,7 +404,6 @@ command and settings pages are tested against the binary.
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Rationale, decisions, module map, the operator-turn lifecycle |
 | [`../ARCHITECTURE.md`](../ARCHITECTURE.md) (root) | Developer quick start: conventions, test tiers, how to add code |
 | [`REQUEST_FLOW.md`](REQUEST_FLOW.md) · [`STARTUP_FLOW.md`](STARTUP_FLOW.md) | One request through both binds; `mike serve` from boot to shutdown |
-| [`architecture/README.md`](architecture/README.md) | The LikeC4 model, live on `:9986` in a checkout |
 | [`animations/README.md`](animations/README.md) | Animated diagrams of a turn, the pipeline, the two-phase write and boot |
 | [`SCHEMA.md`](SCHEMA.md) · [`RUNTIME_CONTRACT.md`](RUNTIME_CONTRACT.md) | Tables; the runtime identity and event contract |
 | [`CAPTURE_OUTAGES.md`](CAPTURE_OUTAGES.md) · [`CAPTURE_RETAINED_BYTES.md`](CAPTURE_RETAINED_BYTES.md) | What happens when capture stalls; the byte budget of a live stream |

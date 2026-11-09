@@ -71,7 +71,7 @@ crates/
 | Inspect | 9989 | `/api/*` REST + `/api/ws` WS | Host/Origin allow-list (`api/host_guard.rs`) plus CORS, compression, request-id, timeout and trace layers; no authentication |
 | SPA | 9990 | the whole `/api/*` router merged with the embedded SvelteKit build | Enabled by default (`spa_enabled`); the development stack turns it off and runs `vite dev` on the port instead |
 
-**Process layout.** The development stack (`scripts/start-proxy.sh`) runs `mike` with `MIKE_SPA_ENABLED=0`, the SPA as an independent `vite dev` process on `:9990`, the `proxy-forward` sidecar on `:9987`, the prompt assistant (`services/prompt-assistant`) on `:9985`, Storybook on `:6006` and the architecture diagrams on `:9986`, each a `mike-stack-*` systemd user unit. The MCP bridge is a separate binary (`mike-mcp`) spawned by Claude Code. An installed or plain `mike` launch serves the built SPA from the binary instead (`crates/mike/src/spa.rs`).
+**Process layout.** The development stack (`scripts/start-proxy.sh`) runs `mike` with `MIKE_SPA_ENABLED=0`, the SPA as an independent `vite dev` process on `:9990`, the `proxy-forward` sidecar on `:9987`, the prompt assistant (`services/prompt-assistant`) on `:9985` and Storybook on `:6006`, each a `mike-stack-*` systemd user unit. The MCP bridge is a separate binary (`mike-mcp`) spawned by Claude Code. An installed or plain `mike` launch serves the built SPA from the binary instead (`crates/mike/src/spa.rs`).
 
 **Workspace-level dependencies** are pinned in the root `Cargo.toml` `[workspace.dependencies]` — add a dep there first, then refer to it with `{ workspace = true }` in the crate manifest. This prevents version drift between crates.
 
@@ -333,13 +333,12 @@ The `scripts/` directory contains the full operational toolchain. All scripts ar
 | 9989 | Inspect bind | `/api/*` REST + `/api/ws` WebSocket + CORS |
 | 9990 | SPA host | SvelteKit SPA (`vite dev` with HMR in the development stack; served by `mike` itself otherwise) |
 | 9987 | proxy-forward | HTTPS_PROXY MITM sidecar |
-| 9986 | Diagrams | The LikeC4 architecture model (`scripts/arch`) |
 | 9985 | Prompt assistant | `services/prompt-assistant` |
 | 6006 | Storybook | Component story sandbox |
 
 #### `scripts/start-proxy.sh`
 
-Builds and deploys the full stack, without asking: builds the Rust binaries, hands the proxy to `deploy-proxy.sh` (smoke test on alternate ports, then cutover; a byte-identical proxy is left running), resolves config via `eval "$(mike print-config --shell)"`, and makes sure the sidecar, the prompt assistant, the web UI (Vite on 9990), Storybook (6006) and the architecture diagrams (9986) are up. Each of those is a systemd user unit (`mike-stack-*`), so the script returns the terminal when it is done. It ends with a box listing every address, in which a service that does not answer is marked. One deploy runs at a time: a second waits on `.deploy/deploy.lock`.
+Builds and deploys the full stack, without asking: builds the Rust binaries, hands the proxy to `deploy-proxy.sh` (smoke test on alternate ports, then cutover; a byte-identical proxy is left running), resolves config via `eval "$(mike print-config --shell)"`, and makes sure the sidecar, the prompt assistant, the web UI (Vite on 9990) and Storybook (6006) are up. Each of those is a systemd user unit (`mike-stack-*`), so the script returns the terminal when it is done. It ends with a box listing every address, in which a service that does not answer is marked. One deploy runs at a time: a second waits on `.deploy/deploy.lock`.
 
 ```bash
 ./scripts/start-proxy.sh           # optimised (release) build, the default
@@ -769,7 +768,6 @@ pnpm run lint        # eslint
 | 9989 | Inspect bind — REST API + WebSocket |
 | 9990 | SPA host (Vite dev in the development stack, otherwise `mike` itself) |
 | 9987 | proxy-forward sidecar |
-| 9986 | Architecture diagrams |
 | 9985 | Prompt assistant |
 | 6006 | Storybook |
 

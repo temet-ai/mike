@@ -52,7 +52,7 @@ container started or the migrations succeeded.
 ## Frontend advisory policy
 
 `scripts/frontend-audit` runs the installed project-declared pnpm against the
-lockfiles of `frontend/`, `services/prompt-assistant/` and `scripts/likec4/`, and every
+lockfiles of `frontend/` and `services/prompt-assistant/`, and every
 one must pass. It audits production, development and optional dependencies,
 uses `--audit-level=high`, and fails on any high or critical advisory in the
 report. Lower severities are printed in the summary and do not fail it. It never

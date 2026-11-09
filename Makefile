@@ -142,9 +142,7 @@ test-repo:
 test-timing:
 	@./scripts/test-timing
 
-## Rust structural lint, the rules and fleet text budgets, and the
-## architecture model check (scripts/arch check), which reports NOT RUN (2)
-## without failing lint when pnpm is absent. Lint checks the repository only;
+## Rust structural lint and the rules and fleet text budgets. Lint checks the repository only;
 ## whether Claude Code's Remote Control still links to sessions is reported by
 ## the proxy's health status (the remote_control_link capability), and the two
 ## protocol scripts can be run by hand with `make rc-protocol-check`.
@@ -173,16 +171,6 @@ lint: lint-mods
 		python3 -I ./scripts/rule-checks/fleet_text.py overlap; exit $$rc; \
 	else \
 		echo "fleet-text-overlap: PASS"; \
-	fi
-	@./scripts/arch check >/dev/null 2>&1; rc=$$?; \
-	if [ $$rc -eq 2 ]; then \
-		echo "arch check: NOT RUN (pnpm is not on PATH, so LikeC4 cannot be installed) - not failing lint"; \
-	elif [ $$rc -ne 0 ]; then \
-		./scripts/arch check; \
-		echo "arch check: docs/architecture no longer matches the code, or does not validate. Fix the model in the same commit."; \
-		exit $$rc; \
-	else \
-		echo "arch check: PASS"; \
 	fi
 
 fmt:
@@ -229,11 +217,6 @@ doc-animations:
 ## Record the interactive demos in docs/animations/ playing their scripted run, as animated WebP for GitHub.
 doc-recordings:
 	@node docs/animations/record.mjs
-
-## Check the architecture model in docs/architecture: it validates, it is formatted, and its
-## source links, pipeline stages and schemas match the tree. Also runs in lint.
-arch-check:
-	@./scripts/arch check
 
 ## List Makefile targets with their descriptions.
 help:

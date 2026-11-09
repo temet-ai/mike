@@ -12,9 +12,8 @@
 #                      sidecar is LEFT ALIVE so it can cover the mike swap
 #                      window (routes Direct to Anthropic while :9988 is down).
 #   4. Vite dev SPA (HMR) — an already-running one is LEFT ALIVE (vite HMR needs
-#      no redeploy); only a down one is (re)launched. Storybook and the
-#      architecture diagrams are not started: systemctl --user start
-#      mike-stack-storybook mike-stack-arch when you want them.
+#      no redeploy); only a down one is (re)launched. Storybook is not
+#      started: systemctl --user start mike-stack-storybook when you want it.
 #
 # Who keeps what running: the proxy, the sidecar, the prompt assistant and the
 # SPA are systemd user units (mike-stack-*, scripts/lib/stack-units.sh) that
@@ -31,7 +30,6 @@
 #   - proxy-forward      :9987   HTTPS_PROXY MITM sidecar (failover to Anthropic)
 #   - Vite dev SPA       :9990   /        (SvelteKit SPA, HMR enabled)
 #   - Storybook          :6006   /        (component / route story sandbox)
-#   - Architecture       :9986   /        (the LikeC4 model in docs/architecture, redrawn on save)
 #
 # Pre-flight: the capture DB is the Postgres that MIKE_DATABASE_URL (.env)
 # addresses — on the development host the Docker container armitage-pg, started
@@ -72,7 +70,6 @@
 #   - Web UI:      http://127.0.0.1:9990/      (runtime config at /settings)
 #   - Storybook:   http://127.0.0.1:6006/
 #   - Style guide: the Foundations/Style Guide stories in Storybook
-#   - Diagrams:    http://127.0.0.1:9986/      (the architecture, from docs/architecture)
 #   - REST API:    http://127.0.0.1:9989/api/requests
 #   - Sessions:    `cc` (scripts/shell/cc.zsh), or ANTHROPIC_BASE_URL=http://127.0.0.1:9988 claude
 #
@@ -81,7 +78,7 @@
 #   - smoke.log              last smoke-test run (alt-port boot validation)
 #   - proxy-forward.log      the sidecar
 #   - prompt-assistant.log   the prompt assistant
-#   - spa.log, storybook.log, arch.log   the SPA, Storybook and the diagrams, when
+#   - spa.log, storybook.log the SPA and Storybook, when
 #                            their units run them (in the foreground their output
 #                            is in the terminal, not in a file)
 
@@ -763,13 +760,9 @@ else
     SPA_LOG_REL=""
     maybe_start_frontend "${SPA_PORT}"       "SPA host (vite dev — HMR enabled)" "pnpm run start"
 fi
-# Storybook and the architecture diagrams are not started by a deploy. They are
-# units to start by hand: systemctl --user start mike-stack-storybook mike-stack-arch.
-# Their rows show only when they answer.
+# Storybook is not started by a deploy. It is a unit to start by hand:
+# systemctl --user start mike-stack-storybook. Its rows show only when it answers.
 STORYBOOK_LOG_REL=""
-ARCH_LOG_REL=""
-ARCH_PORT="${ARCH_PORT:-$(env_value ARCH_PORT)}"
-ARCH_PORT="${ARCH_PORT:-9986}"
 
 # ── Summary box: every URL + log location in one place ───────────────────────
 # Relative log paths (script runs from repo root) keep the box compact.
@@ -820,9 +813,6 @@ if lsof -ti ":${STORYBOOK_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
     add_row "Storybook:"   "${STORYBOOK_URL}"   "$(hlink "${STORYBOOK_URL}")"
     add_row "Style guide:" "${STYLE_GUIDE_URL}" "$(hlink "${STYLE_GUIDE_URL}")"
 fi
-if lsof -ti ":${ARCH_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
-    add_row "Diagrams:"    "http://127.0.0.1:${ARCH_PORT}/" "$(hlink "http://127.0.0.1:${ARCH_PORT}/")"
-fi
 add_service_row "REST API:"    "http://${INSPECT_ADDR}/api/requests" "${INSPECT_PORT}"
 add_service_row "Assistant:"   "${ASSISTANT_URL}"                    "${PROMPT_ASSISTANT_PORT}"
 
@@ -849,7 +839,6 @@ LOG_NAMES="mike,smoke,proxy-forward,prompt-assistant"
 ${SERVICE_INSTALLED} && LOG_NAMES="smoke,prompt-assistant"
 [[ -n "${SPA_LOG_REL}" ]] && LOG_NAMES+=",spa"
 [[ -n "${STORYBOOK_LOG_REL}" ]] && LOG_NAMES+=",storybook"
-[[ -n "${ARCH_LOG_REL}" ]] && LOG_NAMES+=",arch"
 add_row "Logs:"       ".deploy/{${LOG_NAMES}}.log"  ".deploy/{${LOG_NAMES}}.log"
 if ${SERVICE_INSTALLED}; then
     SERVICE_LOG_ROW="$(managed_service_log || true)"
