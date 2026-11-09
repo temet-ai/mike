@@ -1,0 +1,1 @@
+SELECT item_kind, project_id, session_id, session_uuid, run_id, seat, task, author, at, text, source_ref, repeat_count, report_filed, verdict_accepted FROM memory.seat_memory_v WHERE project_id = 993478
