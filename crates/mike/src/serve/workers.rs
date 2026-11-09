@@ -61,4 +61,8 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
     crate::db_cost::spawn_db_cost_monitor(state);
 
     crate::scheduled_jobs::spawn_scheduled_jobs(state);
+
+    crate::search_events::spawn_search_events_worker(state);
+
+    crate::analysis::rerank::spawn_rerank_warmup(state);
 }

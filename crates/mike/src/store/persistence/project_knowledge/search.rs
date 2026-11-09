@@ -17,7 +17,7 @@ pub struct KnowledgeQuery {
     pub offset: Option<i64>,
 }
 
-fn search_page(
+pub(crate) fn search_page(
     project_uuid: uuid::Uuid,
     hybrid: bool,
     rows: Vec<Value>,
@@ -58,6 +58,17 @@ impl PersistHandle {
             limit,
             offset,
         ))
+    }
+
+    pub(crate) async fn knowledge_candidate_rows(
+        &self,
+        project_id: i64,
+        input: &KnowledgeQuery,
+        count: i64,
+        vector: Option<&(String, String, String)>,
+    ) -> Result<Vec<Value>, PersistError> {
+        self.knowledge_search_rows(project_id, input, count, 0, vector)
+            .await
     }
 
     async fn knowledge_search_rows(

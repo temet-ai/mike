@@ -3,13 +3,13 @@ title: Database Schema Reference
 status: active
 created: 2026-05-01
 updated: 2026-11-06
-summary: Reference for mike's multi-schema Postgres database — tables, columns, FKs, indexes, views, and triggers. Every table a migration creates has a section (222 sections); the migrations are the source of truth.
+summary: Reference for mike's multi-schema Postgres database — tables, columns, FKs, indexes, views, and triggers. Every table a migration creates has a section (223 sections); the migrations are the source of truth.
 ---
 
 # Database Schema Reference
 
 **Scope:** this is a maintained reference, not an exhaustive generated schema dump. It
-gives every table a migration creates its own section (222 in all). Where a definition here disagrees
+gives every table a migration creates its own section (223 in all). Where a definition here disagrees
 with `crates/mike/src/store/persistence/migrations/`, the ordered migrations are authoritative.
 
 The proxy's Postgres database captures, persists, and exposes every Claude API request that flows through the
@@ -2522,6 +2522,36 @@ of one embedded source, written with its `memory.knowledge_embedding_state` row 
 
 
 
+
+### `memory.search_events`
+
+Added in `20261109140000_search_events.sql`. One row per `search_project_knowledge` or
+`recall_similar_turns` call, written after the answer is built by a task spawned on `AppState.tracker`
+(`search_events/record.rs`; SQL `store/persistence/search_events/record.sql`). The
+`search_events` worker (`search_events/worker.rs`, lease role `search_events_used`) fills the used columns
+with `store/persistence/search_events/mark_used.sql`. Deleting a session deletes its events.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `session_id` | `BIGINT NULL` | FK → `sessions.sessions(id)` ON DELETE CASCADE; NULL when the caller sent no session id or the id is unknown |
+| `request_id` | `BIGINT NULL` | FK → `requests.requests(id)` ON DELETE SET NULL; the request whose response emitted the calling `tools.uses` row, else the session's newest request |
+| `tool` | `TEXT NOT NULL` | CHECK `IN ('search_project_knowledge', 'recall_similar_turns')` |
+| `query` | `TEXT NOT NULL` | The query as sent, `''` when browsing |
+| `kind_filter` | `TEXT NULL` | The `kind` argument of a knowledge search |
+| `returned` | `JSONB NOT NULL DEFAULT '[]'` | Array, in the order the caller saw it, of `{reference, score, rerank_score?}`; `score` is the plain fused rank (knowledge) or rank (turns) |
+| `rerank_state` | `TEXT NOT NULL` | CHECK `IN ('reranked', 'loading', 'off', 'unavailable')`, as in the answer's `rerank.state` |
+| `used_references` | `TEXT[] NOT NULL DEFAULT '{}'` | Returned references the same session read with `read_project_knowledge` or `get_operator_turn`, or named in a turn's final reply, from the request after the search through the fifth following operator turn |
+| `used_checked_at` | `TIMESTAMPTZ NULL` | When the worker last evaluated the row; open rows are taken oldest-checked first |
+| `used_final_at` | `TIMESTAMPTZ NULL` | Set when the five following turns have closed or the row is a day old; the used columns no longer change |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Indexes:**
+- `idx_search_events_session`: `session_id WHERE session_id IS NOT NULL` (BTree partial) — the cascade from `sessions.sessions`
+- `idx_search_events_request`: `request_id WHERE request_id IS NOT NULL` (BTree partial) — the `SET NULL` from `requests.requests`
+- `idx_search_events_open`: `(used_checked_at NULLS FIRST, created_at) WHERE used_final_at IS NULL AND session_id IS NOT NULL AND request_id IS NOT NULL` (BTree partial) — the worker's batch
+
+---
 
 ### `memory.knowledge_sources` (collector health columns)
 

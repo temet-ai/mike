@@ -74,6 +74,7 @@ pub mod retention_worker;
 pub mod runtime;
 pub(crate) mod sandbox;
 pub(crate) mod scheduled_jobs;
+pub(crate) mod search_events;
 pub mod semantic;
 pub mod serve;
 pub mod service;

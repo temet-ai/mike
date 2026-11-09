@@ -317,6 +317,15 @@ means no eligible source matched the query; it does not authorize searching a
 different project. If semantic retrieval is unavailable, continue with the
 reported lexical result and show that fallback in any generated report.
 
+The answer also carries a `rerank` object, `{state, ready_in_s, detail?}`, where `state`
+is `reranked`, `loading`, `off` or `unavailable`. With `rerank.enabled` on, the top
+`rerank.candidates` results are reordered by a reranker model and each reordered item
+carries `rerank_score`; in every other state `detail` says why the results are in
+plain order. `recall_project_context` always uses the plain order. Each search is
+recorded in `memory.search_events` with the calling session, which the MCP bridge
+supplies as `session_id`; a later pass marks the returned references the same session
+read or named within the next five turns.
+
 For direct HTTP integrations, the equivalent endpoints are
 `GET /api/knowledge/locations`, `GET /api/knowledge/search?project=...`, and
 `GET /api/knowledge/read?project=...&reference=...`. The MCP tools are preferred

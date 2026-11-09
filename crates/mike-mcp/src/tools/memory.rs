@@ -166,8 +166,11 @@ fn recall_similar_turns_tool() -> Tool {
         Cow::Borrowed(
             "Find the operator turns of a project that resemble a query: by embedding similarity \
              when embeddings are available, otherwise by hybrid text and semantic search. Returns \
-             `{turns, retrieval_path, degraded, pending_turns?}`; `turns` are full operator-turn \
-             rows. `degraded: true` means embeddings were unavailable and full-text search served \
+             `{turns, retrieval_path, degraded, pending_turns?, rerank}`; `turns` are full \
+             operator-turn rows. `rerank` is `{state: reranked|loading|off|unavailable, \
+             ready_in_s, detail?}`: when state is reranked, a reranker model has reordered the \
+             turns (each then has `rerank_score`); otherwise `detail` says why they are in plain \
+             order. `degraded: true` means embeddings were unavailable and full-text search served \
              the result, so ranking is weaker. `pending_turns`, when present, counts turns without \
              embeddings; a non-zero value means ranking improves once the back-fill completes.",
         ),
@@ -342,6 +345,8 @@ pub(crate) struct RecallSimilarTurnsArgs {
     pub(crate) query: String,
     #[serde(default)]
     pub(crate) limit: Option<u64>,
+    #[serde(default)]
+    pub(crate) session_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -415,7 +420,12 @@ pub(crate) async fn call_tool(
         TOOL_RECALL_SIMILAR_TURNS => {
             let args = parse_args_required::<RecallSimilarTurnsArgs>(arguments)?;
             let value = client
-                .recall_similar_turns(&args.project_path, &args.query, args.limit)
+                .recall_similar_turns(
+                    &args.project_path,
+                    &args.query,
+                    args.limit,
+                    args.session_id.as_deref(),
+                )
                 .await
                 .map_err(McpError::into_rmcp)?;
             Ok(wrap_success("similar_turns", value))

@@ -90,6 +90,9 @@ mod prompts_03;
 mod prompts_04;
 mod recall_context;
 mod recall_turns;
+mod recall_turns_rerank;
+#[cfg(test)]
+mod recall_turns_rerank_tests;
 pub mod receipts_01;
 mod remote_control_link;
 mod request_body;

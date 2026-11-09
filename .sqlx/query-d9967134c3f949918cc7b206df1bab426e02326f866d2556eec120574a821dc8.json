@@ -1,0 +1,37 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH wanted AS (\n    SELECT DISTINCT r.reference,\n           split_part(r.reference, ':', 1) AS kind,\n           substr(r.reference, position(':' IN r.reference) + 1) AS key\n      FROM unnest($1::text[]) AS r(reference)\n), sources AS (\n    SELECT w.reference, 'artifact'::text AS source_kind,\n           CASE WHEN w.key ~ '^[0-9]{1,18}$' THEN w.key::bigint END AS source_id\n      FROM wanted w\n     WHERE w.kind = 'artifact'\n    UNION ALL\n    SELECT w.reference, 'lesson', l.id\n      FROM wanted w\n      JOIN memory.lessons l\n        ON l.uuid = CASE WHEN w.key ~ '^[0-9a-fA-F-]{36}$' THEN w.key::uuid END\n     WHERE w.kind = 'lesson'\n    UNION ALL\n    SELECT w.reference, 'note', n.id\n      FROM wanted w\n      JOIN workspace.session_notes n\n        ON n.note_uuid = CASE WHEN w.key ~ '^[0-9a-fA-F-]{36}$' THEN w.key::uuid END\n     WHERE w.kind = 'note'\n    UNION ALL\n    SELECT w.reference, 'thread', t.id\n      FROM wanted w\n      JOIN mailbox.threads t\n        ON t.thread_uuid = CASE WHEN w.key ~ '^[0-9a-fA-F-]{36}$' THEN w.key::uuid END\n     WHERE w.kind = 'thread'\n)\nSELECT DISTINCT ON (s.reference) s.reference AS \"reference!\", c.body AS \"body!\"\n  FROM sources s\n  JOIN memory.knowledge_embedding_state e\n    ON e.source_kind = s.source_kind AND e.source_id = s.source_id\n   AND e.completed_at IS NOT NULL AND ($3::text IS NULL OR e.model_key = $3::text)\n  JOIN memory.knowledge_embedding_chunks c ON c.state_id = e.id\n ORDER BY s.reference, c.embedding <=> $2::text::public.vector NULLS LAST, c.ordinal\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "reference!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "body!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_embedding_chunks",
+            "name": "body"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      false
+    ]
+  },
+  "hash": "d9967134c3f949918cc7b206df1bab426e02326f866d2556eec120574a821dc8"
+}
