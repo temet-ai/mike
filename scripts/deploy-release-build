@@ -66,7 +66,18 @@ mkdir "$work/candidate"
 mv "$work/download/manifest-$target.json" "$work/candidate/manifest.json"
 mv "$work/download/"*.tar.gz "$work/download/"*.tar.gz.sha256 "$work/candidate/"
 
-"$SCRIPT_DIR/install-release" --candidate "$work/candidate"
+# The installer must verify the archive with the evidence format of the commit
+# that built it, not whatever branch this checkout happens to be on.
+mkdir "$work/tools"
+git -C "$REPO" archive "$sha" scripts | tar -x -C "$work/tools"
+installer="$work/tools/scripts/install-release"
+install_args=(--candidate "$work/candidate")
+# Successive commits of main share a version; a deploy installs the next one
+# over the last. Installers older than the flag still refuse a changed build.
+if grep -q -- '--rebuild-same-version' "$work/tools/scripts/release/install.py"; then
+  install_args+=(--rebuild-same-version)
+fi
+"$installer" "${install_args[@]}"
 
 mike_bin="$HOME/.local/bin/mike"
 "$mike_bin" --version | grep -q "($short," || {

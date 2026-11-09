@@ -30,11 +30,13 @@ def semver(value):
     return (int(major), int(minor), int(patch), prerelease is None, tuple(identifiers))
 
 
-def check_upgrade(previous, manifest, same):
+def check_upgrade(previous, manifest, same, rebuild_same_version=False):
     proposed = semver(manifest["version"])
     if previous is None or same:
         return
     installed = semver(previous["version"])
+    if rebuild_same_version and proposed == installed:
+        return
     if proposed <= installed:
         raise ReleaseError("downgrade or changed same-version candidate refused; preserve your backup "
                            "and use a separately reviewed recovery procedure")
@@ -68,7 +70,7 @@ def stage_generation(snapshot, manifest, state, identity):
         clean_pending(stage)
 
 
-def install_verified(snapshot, manifest, prefix):
+def install_verified(snapshot, manifest, prefix, rebuild_same_version=False):
     prefix = safe_prefix(prefix)
     # Reject invalid versions before even making the private installation root.
     semver(manifest["version"])
@@ -77,7 +79,7 @@ def install_verified(snapshot, manifest, prefix):
     with installation_lock(state):
         check_links(prefix, True)
         old_identity, previous = current_generation(state)
-        check_upgrade(previous, manifest, old_identity == identity)
+        check_upgrade(previous, manifest, old_identity == identity, rebuild_same_version)
         stage_generation(snapshot, manifest, state, identity)
         commit_generation(prefix, state, identity)
         current, _ = current_generation(state)
@@ -89,11 +91,11 @@ def install_verified(snapshot, manifest, prefix):
             "qualified": False}
 
 
-def install(candidate, prefix):
+def install(candidate, prefix, rebuild_same_version=False):
     # Integrity, platform, allowlisted extraction and both executable versions are
     # checked before inspecting or modifying the installation prefix.
     with verified_inputs(candidate) as (snapshot, manifest):
-        return install_verified(snapshot, manifest, prefix)
+        return install_verified(snapshot, manifest, prefix, rebuild_same_version)
 
 
 def main():
@@ -106,8 +108,11 @@ def main():
     parser.add_argument("--prefix", type=Path, default=Path.home() / ".local",
                         help="user-owned prefix (default: ~/.local); stable commands are PREFIX/bin/mike[-mcp]")
     parser.add_argument("--json", action="store_true", help="print install receipt as JSON")
+    parser.add_argument("--rebuild-same-version", action="store_true",
+                        help="accept a candidate of the installed version built from another commit "
+                             "(a machine deploying successive commits); an older version is still refused")
     args = parser.parse_args()
-    result = install(args.candidate, args.prefix)
+    result = install(args.candidate, args.prefix, args.rebuild_same_version)
     if args.json:
         print(json.dumps(result, indent=2, sort_keys=True))
     else:
