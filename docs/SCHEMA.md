@@ -5065,7 +5065,7 @@ Added in `20261006100000_fleet_run_records.sql`. One row per fleet, written once
 
 ### `launch.fleet_events`
 
-Added in `20261022000000_launch_fleet_events.sql`. The append-only record of a fleet run: one row per thing that happened, never updated, so every state a fleet shows is a fold over a run's rows in `id` order. `id` is `BIGINT GENERATED ALWAYS AS IDENTITY` (PK); `run_id` is `TEXT NOT NULL`, FK → `launch.runs(run_id)` ON DELETE CASCADE; `task` (`TEXT NULL`) and `session_uuid` (`UUID NULL`) name what the event is about, both NULL for an event about the whole run; `kind` is `TEXT NOT NULL` with a CHECK listing the kinds in [`FLEET_EVENTS.md`](FLEET_EVENTS.md); `payload` is `JSONB NOT NULL DEFAULT '{}'`, decoded whole in Rust by kind, carrying ids and shas and never captured text; `occurred_at` is `TIMESTAMPTZ NOT NULL DEFAULT now()`. Indexes: `(run_id, id)` and a partial `(run_id, task, kind) WHERE task IS NOT NULL`. Fleet 2's writers fill it, listed per task in [`FLEET_EVENTS.md`](FLEET_EVENTS.md) (the fold reads it for every shown state); the persistence calls are `append`, `since(run, after_id)` and `for_task(run, task)`.
+Added in `20261022000000_launch_fleet_events.sql`. The append-only record of a fleet run: one row per thing that happened, never updated, so every state a fleet shows is a fold over a run's rows in `id` order. `id` is `BIGINT GENERATED ALWAYS AS IDENTITY` (PK); `run_id` is `TEXT NOT NULL`, FK → `launch.runs(run_id)` ON DELETE CASCADE; `task` (`TEXT NULL`) and `session_uuid` (`UUID NULL`) name what the event is about, both NULL for an event about the whole run; `kind` is `TEXT NOT NULL` with a CHECK listing the kinds in [`FLEET_EVENTS.md`](FLEET_EVENTS.md); `payload` is `JSONB NOT NULL DEFAULT '{}'`, decoded whole in Rust by kind, carrying ids and shas and never captured text; `occurred_at` is `TIMESTAMPTZ NOT NULL DEFAULT now()`. Indexes: `(run_id, id)`, a partial `(run_id, task, kind) WHERE task IS NOT NULL`, and `(session_uuid, kind)` (`idx_fleet_events_session_kind`, `20261109130001`; a seat's events by kind, read by `memory.seat_memory`). Fleet 2's writers fill it, listed per task in [`FLEET_EVENTS.md`](FLEET_EVENTS.md) (the fold reads it for every shown state); the persistence calls are `append`, `since(run, after_id)` and `for_task(run, task)`.
 
 ### `memory.carried_lessons`
 
@@ -5250,6 +5250,37 @@ notice is retried, and `told_sql/recorded_introductions.sql` filters repeats alr
 
 ---
 
+### `memory.seat_memory(p_project_id bigint)`
+
+Added in `20261109130000_seat_memory_function.sql`. A read-only SQL function, not a table: the allow-listed
+fleet-seat material of one project, for the search seat tier. Machine-opened operator turns are left out of
+every operator-facing reader, so seat work reaches search only through this function. It returns one row per
+included item, each labelled with `author` (`coordinator`, `seat`, `peer`, `subagent`), the run, seat and task, and
+`report_filed` / `verdict_accepted` flags, and the reader must frame the text as data and not as something the
+operator said. A function and not a view because every read is for one project: the seat set is narrowed to the
+project first, and a view over all projects could not push a project filter below its window functions (about
+530 ms per read against a 50 ms budget; the function takes about 47 ms for the largest project).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `item_kind` | `TEXT` | `seat_brief`, `workflow_brief`, `seat_report`, `seat_mail`, `peer_message`, `seat_goal_feedback` or `seat_thread_entry` |
+| `project_id`, `session_id`, `session_uuid` | `BIGINT`, `BIGINT`, `UUID` | The project and the seat session the item belongs to |
+| `run_id`, `seat`, `task` | `TEXT` | The fleet run, seat name and task; NULL for a `workflow_brief` |
+| `author` | `TEXT` | Who wrote the text |
+| `from_session`, `from_role` | `UUID`, `TEXT` | Mail kinds only: the sender's session and role (the channel tag's `from_role`, else the seat the sender was launched as); NULL elsewhere and when the sender is unknown |
+| `at`, `text`, `source_ref` | `TIMESTAMPTZ`, `TEXT`, `TEXT` | When, the full text, and a stable reference (`launch:<id>`, `turn:<id>`, `note:<uuid>`, `mail:<uuid>`, `entry:<id>`) |
+| `repeat_count` | `INTEGER` | How many near-identical rows collapsed into this one |
+| `report_filed` | `BOOLEAN` | The item's own seat session filed a report |
+| `verdict_accepted` | `BOOLEAN` | Every criterion's latest `verdict_recorded` for the (run, task) passed; false without a task or verdict |
+
+Gates: the seat's run has a `report_filed` event, the launch did not fail, a template seat counts only when it
+filed its own report, and observer seats and synthetic sessions are out. Empty turns, task notifications, loop
+wakeups, tool-loaded, probes, compaction and observer mail are not memory and are left out. It reads
+`launch.fleet_events` through `idx_fleet_events_session_kind` and `work.thread_log` through
+`idx_work_thread_log_session_uuid`.
+
+---
+
 
 
 
@@ -5398,6 +5429,7 @@ holding the thread row lock, and an import uses the entry's position in the work
 
 **Indexes:**
 - `idx_work_thread_log_thread_newest`: `(thread_id, entry_date DESC, ord DESC)` (BTree) — one thread's log, newest first
+- `idx_work_thread_log_session_uuid`: `(session_uuid) WHERE session_uuid IS NOT NULL` (BTree, `20261109130002`) — the entries one session wrote, read by `memory.seat_memory`
 
 ---
 

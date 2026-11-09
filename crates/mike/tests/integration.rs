@@ -126,6 +126,8 @@ mod retention_worker_db;
 mod row_changed_filters;
 #[path = "integration/runtime_codex/mod.rs"]
 mod runtime_codex;
+#[path = "integration/seat_memory/mod.rs"]
+mod seat_memory;
 #[path = "integration/semantic/mod.rs"]
 mod semantic;
 #[path = "integration/session_delivery_api/mod.rs"]
