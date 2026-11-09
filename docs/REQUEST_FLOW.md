@@ -145,6 +145,7 @@ Where each gate lives — some stages answer `enabled()` from the resolved sessi
 | `lazy_sections` | lazy sections in `FilterConfig` | none defined |
 | `recall_injector` | `recall_injector` toggle | off |
 | `lessons` | `reminders.inject_lessons`, session own lane, not a tool loop | off |
+| `memory_keeper` | `memory_keeper` toggle, session own lane, not a tool loop; stands aside when tether or the mod served the session or the body already carries a `[keeper:…]` card | off |
 | `self_identity` | `self_identity_reminder`, session own lane, not a tool loop | off |
 | `workspace_briefing` | `workspace_briefing`, session own lane, not a tool loop | off |
 | `agent_lessons` | `agent_lessons` toggle, Subagent turns only | off |

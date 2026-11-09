@@ -10,5 +10,6 @@ pub(crate) mod resolve;
 mod resolve_text;
 pub(crate) mod served;
 pub(crate) mod snapshot;
+pub(crate) mod stage;
 pub(crate) mod supply;
 pub(crate) mod worker;
