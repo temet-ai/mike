@@ -6,7 +6,10 @@ use super::{ThreadIdentity, ThreadState};
 
 mod inputs;
 mod scan;
+mod snapshot;
 mod write;
+
+pub(crate) use snapshot::{LocationRoot, OpenCardRow};
 
 pub(crate) const DECISION_CAP: i64 = 3;
 pub(crate) const NOTE_CAP: i64 = 2;

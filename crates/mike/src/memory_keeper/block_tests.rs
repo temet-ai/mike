@@ -9,6 +9,7 @@ use super::*;
 
 fn entry(slug: &str, goal: &str) -> ThreadEntry {
     ThreadEntry {
+        thread_id: 1,
         facts: ThreadFacts {
             slug: slug.to_owned(),
             title: format!("{slug} title"),

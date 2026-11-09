@@ -18,6 +18,7 @@ fn now() -> DateTime<Utc> {
 
 fn entry(slug: &str, linked: Option<Uuid>, status: &str) -> ThreadEntry {
     ThreadEntry {
+        thread_id: 1,
         facts: ThreadFacts {
             slug: slug.to_owned(),
             title: format!("{slug} title"),

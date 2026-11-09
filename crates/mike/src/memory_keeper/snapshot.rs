@@ -1,10 +1,15 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use arc_swap::ArcSwap;
+
 use super::resolve::ThreadFacts;
+
+pub(crate) type KeeperCache = Arc<ArcSwap<KeeperSnapshot>>;
 
 #[derive(Debug, Clone)]
 pub(crate) struct ThreadEntry {
+    pub(crate) thread_id: i64,
     pub(crate) facts: ThreadFacts,
     pub(crate) text: Arc<str>,
     pub(crate) content_hash: String,

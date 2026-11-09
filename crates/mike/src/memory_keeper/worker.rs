@@ -7,6 +7,8 @@ use tokio_util::sync::CancellationToken;
 
 use super::health::{self, LastPass};
 use super::rebuild::{PassReport, merge, rebuild};
+use super::refresh::refresh;
+use super::snapshot::KeeperCache;
 use crate::circuit_breaker::CircuitBreaker;
 use crate::config::AppState;
 use crate::feature_toggles::FeatureToggles;
@@ -147,13 +149,17 @@ pub(crate) fn spawn_memory_keeper(state: &AppState) {
         return;
     };
     let toggles = state.feature_toggle_overlay.clone();
-    state.tracker.spawn(run(persist, toggles, state.shutdown()));
+    let cache = state.keeper_snapshot.clone();
+    state
+        .tracker
+        .spawn(run(persist, toggles, cache, state.shutdown()));
     log_spawned();
 }
 
 async fn run(
     persist: PersistHandle,
     toggles: Arc<ArcSwap<FeatureToggles>>,
+    cache: KeeperCache,
     shutdown: CancellationToken,
 ) {
     health::set_running(true);
@@ -164,6 +170,9 @@ async fn run(
             break;
         }
         keeper.tick(&persist, Instant::now()).await;
+        if let Err(error) = refresh(&persist, &cache).await {
+            tracing::warn!(error = %error, "memory_keeper: card snapshot not refreshed; the previous one stays");
+        }
         tokio::select! {
             biased;
             () = shutdown.cancelled() => break,

@@ -40,6 +40,7 @@ pub(crate) struct SupplyRequest<'a> {
 pub(crate) struct SupplyRecord {
     pub(crate) session: Uuid,
     pub(crate) thread_slug: Option<String>,
+    pub(crate) thread_id: Option<i64>,
     pub(crate) content_hash: Option<String>,
     pub(crate) carrier: Carrier,
     pub(crate) arm: KeeperArm,
@@ -88,6 +89,8 @@ pub(crate) fn supply(snapshot: &KeeperSnapshot, request: &SupplyRequest<'_>) -> 
     let record = SupplyRecord {
         session: request.session,
         thread_slug: single_slug(&resolution),
+        thread_id: single_slug(&resolution)
+            .and_then(|slug| project.entry(&slug).map(|entry| entry.thread_id)),
         content_hash: block.as_ref().map(|b| b.hash.clone()),
         carrier: request.carrier,
         arm,
