@@ -10,8 +10,21 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-REPO="$(dirname "$SCRIPT_DIR")"
+REPO="${DEPLOY_RELEASE_BUILD_REPO:-$(dirname "$SCRIPT_DIR")}"
 WORKFLOW=release-alpha.yml
+
+# A checkout on an older branch would run an older copy of this script, which
+# can refuse or misplace an install. Run main's copy instead.
+if [ -z "${DEPLOY_RELEASE_BUILD_REPO:-}" ]; then
+  git -C "$REPO" fetch -q origin main
+  latest="$(mktemp)"
+  git -C "$REPO" show origin/main:scripts/deploy-release-build > "$latest"
+  if ! cmp -s "$latest" "${BASH_SOURCE[0]}"; then
+    echo "==> Running origin/main's deploy-release-build"
+    DEPLOY_RELEASE_BUILD_REPO="$REPO" exec bash "$latest" "$@"
+  fi
+  rm -f "$latest"
+fi
 restart=1
 want=""
 for arg in "$@"; do
@@ -34,28 +47,47 @@ main_sha="$(git -C "$REPO" rev-parse origin/main)"
 sha="$(git -C "$REPO" rev-parse "${want:-$main_sha}^{commit}")"
 short="$(git -C "$REPO" rev-parse --short=7 "$sha")"
 
-finished_run() {
-  gh run list --workflow "$WORKFLOW" --commit "$sha" --event workflow_dispatch \
-    --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty'
+# A run serves this machine when its build job for this target succeeded, or is still
+# queued or running. Several machines deploying one commit share runs this way instead
+# of each dispatching a full build; a dispatch builds only this machine's target.
+run_for_target() {
+  local wanted="$1" id
+  for id in $(gh run list --workflow "$WORKFLOW" --commit "$sha" --event workflow_dispatch \
+      --limit 10 --json databaseId --jq '.[].databaseId'); do
+    if gh run view "$id" --json jobs --jq ".jobs[] | select(.name | contains(\"$target\")) | .conclusion" \
+        | grep -qx "$wanted"; then
+      echo "$id"
+      return 0
+    fi
+  done
+  return 1
 }
 
-run_id="$(finished_run)"
+run_id="$(run_for_target success || true)"
 if [ -z "$run_id" ]; then
-  if [ "$sha" != "$main_sha" ]; then
-    echo "deploy-release-build: $short has no finished build and is not origin/main; the workflow builds a branch head only" >&2
-    exit 1
+  run_id="$(run_for_target "" || true)"
+  if [ -n "$run_id" ]; then
+    echo "==> Joining run $run_id, already building $short for $target"
+  else
+    if [ "$sha" != "$main_sha" ]; then
+      echo "deploy-release-build: $short has no build for $target and is not origin/main; the workflow builds a branch head only" >&2
+      exit 1
+    fi
+    echo "==> Starting the release build of $short for $target"
+    gh workflow run "$WORKFLOW" --ref main -f targets="$target"
+    for _ in $(seq 36); do
+      sleep 5
+      run_id="$(run_for_target "" || true)"
+      [ -n "$run_id" ] && break
+    done
+    [ -n "$run_id" ] || { echo "deploy-release-build: the dispatched run did not show a $target build" >&2; exit 1; }
   fi
-  echo "==> Starting the release build of $short"
-  gh workflow run "$WORKFLOW" --ref main
-  for _ in 1 2 3 4 5 6 7 8 9 10 11 12; do
-    run_id="$(gh run list --workflow "$WORKFLOW" --commit "$sha" --event workflow_dispatch \
-      --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
-    [ -n "$run_id" ] && break
-    sleep 5
-  done
-  [ -n "$run_id" ] || { echo "deploy-release-build: the dispatched run did not appear" >&2; exit 1; }
-  echo "==> Waiting for run $run_id (about an hour)"
-  gh run watch "$run_id" --interval 120 --exit-status >/dev/null
+  echo "==> Waiting for run $run_id"
+  gh run watch "$run_id" --interval 120 >/dev/null || true
+  run_for_target success >/dev/null || {
+    echo "deploy-release-build: run $run_id did not build $target; see gh run view $run_id" >&2
+    exit 1
+  }
 fi
 echo "==> Using run $run_id for $short ($target)"
 
@@ -100,12 +132,15 @@ restart_unit() {
 }
 
 # A machine runs mike either as mike.service on the installed binary, or as
-# the dev stack's mike-stack-proxy, which runs the checkout's
-# .deploy/mike.deployed. The stack unit gets the release binary copied into
-# that slot, keeping the previous binary beside it, so both run the same bytes.
+# the dev stack's mike-stack-proxy, which runs .deploy/mike.deployed in its
+# WorkingDirectory — the unit's checkout, which may not be this one. The binary
+# goes there, the previous one kept beside it, so both run the same bytes.
 deploy_stack_binary() {
-  local deployed="$REPO/.deploy/mike.deployed"
-  mkdir -p "$REPO/.deploy"
+  local unit_dir
+  unit_dir="$(systemctl --user show -p WorkingDirectory --value mike-stack-proxy.service)"
+  [ -n "$unit_dir" ] || unit_dir="$REPO"
+  local deployed="$unit_dir/.deploy/mike.deployed"
+  mkdir -p "$unit_dir/.deploy"
   [ -f "$deployed" ] && cp -p "$deployed" "$deployed.previous"
   cp -L "$(dirname "$mike_bin")/../lib/mike-archive/current/mike" "$deployed.new"
   mv "$deployed.new" "$deployed"

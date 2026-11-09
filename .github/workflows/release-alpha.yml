@@ -10,6 +10,11 @@ on:
     tags:
       - 'v*-alpha.*'
   workflow_dispatch:
+    inputs:
+      targets:
+        description: 'Targets to build: all, or a comma-separated subset (a deploy asks for its own)'
+        required: false
+        default: all
 
 permissions:
   contents: read
@@ -39,23 +44,36 @@ jobs:
           python3 -m unittest discover -s scripts/release -p 'test_homebrew*.py'
           python3 -m unittest discover -s scripts/release -p 'test_targets.py'
 
+  plan:
+    runs-on: ubuntu-22.04
+    outputs:
+      include: ${{ steps.pick.outputs.include }}
+    steps:
+      - id: pick
+        shell: bash
+        env:
+          WANTED: ${{ github.event_name == 'workflow_dispatch' && inputs.targets || 'all' }}
+        run: |
+          set -euo pipefail
+          # ubuntu-22.04 is the glibc 2.35 floor: the archive is built where it must run.
+          # The arm64 runner has the same Ubuntu 22.04 base, so the same floor.
+          # macos-15 is the oldest Apple Silicon image GitHub still hosts.
+          # scripts/release.sh builds natively and supports these three targets only.
+          all='[{"runner":"ubuntu-22.04","target":"x86_64-unknown-linux-gnu"},{"runner":"ubuntu-22.04-arm","target":"aarch64-unknown-linux-gnu"},{"runner":"macos-15","target":"aarch64-apple-darwin"}]'
+          if [ "$WANTED" = all ]; then
+            include="$all"
+          else
+            include="$(jq -c --arg wanted "$WANTED" '[.[] | select(.target as $t | ($wanted | split(",") | map(gsub("^ +| +$"; "")) | index($t)))]' <<<"$all")"
+          fi
+          [ "$(jq length <<<"$include")" -gt 0 ] || { echo "no known target in '$WANTED'" >&2; exit 1; }
+          echo "include=$include" >> "$GITHUB_OUTPUT"
+
   build:
-    needs: validate
+    needs: [validate, plan]
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # ubuntu-22.04 is the glibc 2.35 floor: the archive is built where it must run.
-          - runner: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-          # The arm64 runner has the same Ubuntu 22.04 base, so the same floor.
-          - runner: ubuntu-22.04-arm
-            target: aarch64-unknown-linux-gnu
-          # macos-15 is the oldest Apple Silicon image GitHub still hosts.
-          - runner: macos-15
-            target: aarch64-apple-darwin
-          # scripts/release.sh builds natively and supports these three targets only:
-          # no Intel macOS or Windows archive.
+        include: ${{ fromJSON(needs.plan.outputs.include) }}
     runs-on: ${{ matrix.runner }}
     # scripts/release.sh builds with one Cargo job by contract.
     timeout-minutes: 240

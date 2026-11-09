@@ -1,12 +1,37 @@
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
-use sqlx::PgPool;
 use sqlx::migrate::Migrator;
+use sqlx::{PgConnection, PgPool};
 
 use super::error::PersistError;
 use super::pool;
 
 static MIGRATOR: Migrator = sqlx::migrate!("src/store/persistence/migrations");
+
+static SERVE_MIGRATOR: LazyLock<Migrator> = LazyLock::new(|| {
+    let mut migrator = sqlx::migrate!("src/store/persistence/migrations");
+    migrator.set_ignore_missing(true);
+    migrator
+});
+
+async fn warn_on_newer_migrations(conn: &mut PgConnection) {
+    let applied: Vec<i64> =
+        sqlx::query_scalar("SELECT version FROM _sqlx_migrations WHERE success")
+            .fetch_all(&mut *conn)
+            .await
+            .unwrap_or_default();
+    let newer: Vec<i64> = applied
+        .into_iter()
+        .filter(|version| !MIGRATOR.migrations.iter().any(|m| m.version == *version))
+        .collect();
+    if !newer.is_empty() {
+        tracing::warn!(
+            versions = ?newer,
+            "the database has migrations from a newer mike; serving with this binary's schema until it is deployed"
+        );
+    }
+}
 
 pub async fn run(pool: &PgPool) -> Result<(), PersistError> {
     pool::require_server_version(pool).await?;
@@ -22,7 +47,8 @@ pub(crate) async fn run_patient(database_url: &str) -> Result<(), PersistError> 
     );
     let mut conn = pool::build_migration_connection(database_url).await?;
     pool::require_server_version(&mut conn).await?;
-    MIGRATOR.run(&mut conn).await?;
+    warn_on_newer_migrations(&mut conn).await;
+    SERVE_MIGRATOR.run(&mut conn).await?;
     Ok(())
 }
 
@@ -219,6 +245,10 @@ fn successful_checksums(
 pub fn migration_count() -> usize {
     MIGRATOR.iter().count()
 }
+
+#[cfg(test)]
+#[path = "migrations_newer_tests.rs"]
+mod newer_tests;
 
 #[cfg(test)]
 mod tests {
