@@ -1,3 +1,4 @@
+mod cards;
 mod checkpoint;
 mod criteria;
 mod entries;

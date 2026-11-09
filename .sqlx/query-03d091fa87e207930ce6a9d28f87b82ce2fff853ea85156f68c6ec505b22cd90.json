@@ -1,0 +1,73 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH handoffs AS (\n               SELECT DISTINCT ON (l.thread_id) l.thread_id, l.entry_date\n                 FROM work.thread_log l\n                WHERE l.thread_id = ANY($1) AND l.kind = 'handoff'\n                ORDER BY l.thread_id, l.ord DESC\n           ),\n           bounds AS (\n               SELECT t.id AS thread_id,\n                      GREATEST(now() - make_interval(days => $3),\n                               h.entry_date::timestamp AT TIME ZONE 'UTC') AS since\n                 FROM work.threads t\n                 LEFT JOIN handoffs h ON h.thread_id = t.id\n                WHERE t.id = ANY($1)\n           )\n           SELECT r.thread_id AS \"thread_id!\", r.id AS \"id!\",\n                  r.operator_turn_id AS \"operator_turn_id?\", r.text AS \"text?\",\n                  r.effective_at AS \"effective_at!\"\n             FROM (\n                   SELECT b.thread_id, d.id, d.operator_turn_id, d.effective_at,\n                          CASE WHEN ((d.data -> 'span') ->> 0) ~ '^[0-9]{1,9}$'\n                                AND ((d.data -> 'span') ->> 1) ~ '^[0-9]{1,9}$'\n                               THEN substring(ot.final_assistant_text\n                                     FROM ((d.data -> 'span') ->> 0)::int + 1\n                                     FOR GREATEST(((d.data -> 'span') ->> 1)::int\n                                                  - ((d.data -> 'span') ->> 0)::int, 0))\n                          END AS text,\n                          row_number() OVER (PARTITION BY b.thread_id\n                                             ORDER BY d.effective_at DESC, d.id DESC) AS rn\n                     FROM bounds b\n                     JOIN work.thread_sessions ts ON ts.thread_id = b.thread_id\n                     JOIN sessions.sessions se ON se.session_uuid = ts.session_uuid\n                     JOIN memory.dossier_entries d\n                       ON d.session_id = se.id AND d.kind = 'promise' AND d.status = 'open'\n                      AND d.effective_at > b.since\n                     LEFT JOIN memory.operator_turns ot ON ot.id = d.operator_turn_id\n                  ) r\n            WHERE r.rn <= $2\n            ORDER BY r.thread_id, r.effective_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "thread_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.dossier_entries",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "operator_turn_id?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.dossier_entries",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "text?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "effective_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.dossier_entries",
+            "name": "effective_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      null,
+      false
+    ]
+  },
+  "hash": "03d091fa87e207930ce6a9d28f87b82ce2fff853ea85156f68c6ec505b22cd90"
+}

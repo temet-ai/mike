@@ -1,3 +1,6 @@
-pub(crate) mod arm;
+#[cfg(test)]
+mod arm;
 pub(crate) mod cards;
-pub(crate) mod resolve;
+pub(crate) mod health;
+mod rebuild;
+pub(crate) mod worker;

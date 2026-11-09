@@ -28,10 +28,16 @@ impl Arm {
     }
 }
 
+pub(crate) fn bucket(salt: &str, id: &str) -> u16 {
+    let mut hasher = Sha256::new();
+    hasher.update(salt.as_bytes());
+    hasher.update(id.as_bytes());
+    let digest: [u8; 32] = hasher.finalize().into();
+    u16::from_be_bytes([digest[0], digest[1]]) % 100
+}
+
 pub(crate) fn arm_for(session_id: &str) -> Arm {
-    let digest: [u8; 32] = Sha256::digest(session_id.as_bytes()).into();
-    let bucket = u16::from_be_bytes([digest[0], digest[1]]) % 100;
-    if bucket < CONTROL_PERCENT {
+    if bucket("", session_id) < CONTROL_PERCENT {
         Arm::Control
     } else {
         Arm::Mod
