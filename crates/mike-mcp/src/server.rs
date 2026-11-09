@@ -9,7 +9,7 @@ use rmcp::model::{
     CallToolRequestParams, CallToolResponse, ErrorData as RmcpError, Implementation,
     InitializeResult, ListResourcesResult, ListToolsResult, PaginatedRequestParams,
     ProtocolVersion, ReadResourceRequestParams, ReadResourceResponse, ServerCapabilities,
-    ServerInfo, Tool,
+    ServerConfig, Tool,
 };
 use rmcp::service::{NotificationContext, RequestContext, RoleServer};
 use rmcp::transport::IntoTransport;
@@ -107,7 +107,7 @@ async fn tell_proxy_tools_listed(client: &InspectClient, session: &str) {
 }
 
 impl ServerHandler for McpServer {
-    fn get_info(&self) -> ServerInfo {
+    fn get_info(&self) -> ServerConfig {
         let mut capabilities = ServerCapabilities::builder()
             .enable_tools()
             .enable_resources()
