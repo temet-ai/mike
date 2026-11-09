@@ -2,7 +2,7 @@
 title: Architecture
 status: active
 created: 2026-01-01
-updated: 2026-10-16
+updated: 2026-11-09
 summary: Design rationale, key decisions, and domain layout for mike.
 ---
 
@@ -1236,6 +1236,29 @@ Key properties:
 4. Hard split at Unicode char boundary (never mid-codepoint)
 
 No characters are dropped. Used by the embed worker before batching across turns.
+
+### Reranker server (on demand, one machine serves the others)
+
+A second external process, set up by `mike setup rerank` on a Linux machine with an NVIDIA
+card: llama.cpp's `llama-server --reranking --pooling rank` (pinned build `b11895`, Vulkan)
+serving `bge-reranker-v2-m3` (Q8_0 GGUF), both downloaded with their SHA-256 checked into
+`~/.local/share/mike/`. It reranks a search's candidates by reading the query and each
+candidate together; it finds nothing the first search missed. Wire format: `POST /v1/rerank`
+`{model, query, documents}` → `{results: [{index, relevance_score}]}`; `GET /health` answers
+503 while the model loads and 200 when ready.
+
+Three systemd user units, templates in `scripts/systemd/` compiled into the binary, keep it
+off the graphics card when no one is searching:
+
+| Unit | Role |
+|---|---|
+| `mike-stack-rerank.socket` | Listens on `0.0.0.0:11435`, so the Mac's and infra's mike call this machine directly (omit's inspect API is loopback-only) |
+| `mike-stack-rerank-proxy.service` | `systemd-socket-proxyd --exit-idle-time=600 127.0.0.1:11436`; started by the first connection, exits after 10 idle minutes |
+| `mike-stack-rerank.service` | `llama-server` on `127.0.0.1:11436`, `StopWhenUnneeded=yes`, so it stops with the forwarder; `ExecStartPost` holds the first connection until `/health` is 200 |
+
+mike itself never starts or stops it. `rerank.url`, `rerank.model` and `rerank.enabled`
+(set by the setup step through the running proxy) tell the search tools where it is.
+`deploy-proxy.sh` does not install these units: they are not part of `STACK_UNITS`.
 
 ---
 
