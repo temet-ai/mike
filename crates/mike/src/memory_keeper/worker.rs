@@ -170,9 +170,7 @@ async fn run(
             break;
         }
         keeper.tick(&persist, Instant::now()).await;
-        if let Err(error) = refresh(&persist, &cache).await {
-            tracing::warn!(error = %error, "memory_keeper: card snapshot not refreshed; the previous one stays");
-        }
+        refresh_snapshot(&persist, &cache).await;
         tokio::select! {
             biased;
             () = shutdown.cancelled() => break,
@@ -180,6 +178,12 @@ async fn run(
         }
     }
     health::set_running(false);
+}
+
+async fn refresh_snapshot(persist: &PersistHandle, cache: &KeeperCache) {
+    if let Err(error) = refresh(persist, cache).await {
+        tracing::warn!(error = %error, "memory_keeper: card snapshot not refreshed; the previous one stays");
+    }
 }
 
 #[cfg(test)]
