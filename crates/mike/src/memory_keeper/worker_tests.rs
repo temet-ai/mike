@@ -213,3 +213,51 @@ async fn card_worker_sweep_with_tagged_note_adds_only_the_tagged_note() -> anyho
     assert!(!text.contains("Untagged decision"), "{text}");
     f.db.cleanup().await
 }
+
+#[tokio::test]
+async fn card_worker_after_candidates_are_written_adds_the_related_section() -> anyhow::Result<()> {
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let thread_id = f.checkpoint("candidates arrive").await?;
+    let mut keeper = Keeper::new(Instant::now());
+    keeper.tick(&f.handle, Instant::now()).await;
+    let uuid: Uuid = sqlx::query_scalar(
+        "INSERT INTO memory.lessons (project_id, kind_id, text, stage_id, source_id, topic)
+         SELECT $1, lk.id, 'A reranked lesson reaches the card', ls.id, lsrc.id, 'related'
+           FROM memory.lesson_kinds lk, memory.lesson_stages ls, memory.lesson_sources lsrc
+          WHERE lk.code = 'correction' AND ls.code = 'daily' AND lsrc.code = 'operator'
+      RETURNING uuid",
+    )
+    .bind(f.project)
+    .fetch_one(f.handle.pool())
+    .await?;
+    f.handle
+        .replace_thread_card_candidates(
+            thread_id,
+            &[
+                crate::store::persistence::work_threads::NewThreadCandidate {
+                    reference: format!("lesson:{uuid}"),
+                    kind: "lesson".to_owned(),
+                    score: 0.8,
+                },
+            ],
+        )
+        .await?;
+
+    assert_eq!(
+        written(keeper.tick(&f.handle, Instant::now()).await),
+        Some(1)
+    );
+
+    let (text, _) = card(f.handle.pool(), thread_id)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("no card"))?;
+    assert!(
+        text.contains(&format!(
+            "Related: A reranked lesson reaches the card [lesson:{uuid}]"
+        )),
+        "{text}"
+    );
+    f.db.cleanup().await
+}

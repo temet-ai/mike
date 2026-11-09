@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.lesson_pair_candidates (lesson_a_id, lesson_b_id, score, distance)\n                   SELECT u.lesson_a_id, u.lesson_b_id, u.score, u.distance\n                     FROM UNNEST($1::bigint[], $2::bigint[], $3::real[], $4::float8[])\n                          AS u(lesson_a_id, lesson_b_id, score, distance)\n                   ON CONFLICT (lesson_a_id, lesson_b_id) DO UPDATE\n                      SET score = EXCLUDED.score, distance = EXCLUDED.distance, found_at = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8Array",
+        "Float4Array",
+        "Float8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "307c945c6c99cc4eeb4fcc691704d1a5c56f10fca9e9a1c430fe18e146d2604b"
+}

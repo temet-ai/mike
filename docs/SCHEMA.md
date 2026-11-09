@@ -2291,7 +2291,7 @@ snapshot to reload.
 - `lessons` and `session_projects`: `trg_projects_path_change_generation`/`_upd` on `projects.projects` (insert, delete, change of `project_path`)
 - `session_projects`: `trg_sessions_project_change_generation`/`_del`/`_upd` on `sessions.sessions` (rows with a `location_uuid` or `project_resolution = 'operator'`; updates of `project_id`, `location_uuid`, `project_resolution`)
 - `thread_cards`: `trg_thread_cards_change_generation`/`_upd` on `work.thread_cards` (insert, delete, and an update that changes `card`, `text`, `content_hash` or `refs`; advancing `source_max_at` or `built_at` alone does not bump it)
-- `thread_card_sources`: `trg_threads_card_sources`/`_upd` on `work.threads` (any change), `trg_thread_state_card_sources`/`_upd` on `work.thread_state` (the state fields, `files` and `updated_at`; not the embedding columns), `trg_thread_log_card_sources`/`_upd` on `work.thread_log` (any change), `trg_thread_sessions_card_sources`/`_upd` on `work.thread_sessions` (insert, delete, a change of `contribution`; not `last_seen_at`)
+- `thread_card_sources`: `trg_thread_card_candidates_card_sources` on `work.thread_card_candidates` (insert or delete, once per statement), `trg_threads_card_sources`/`_upd` on `work.threads` (any change), `trg_thread_state_card_sources`/`_upd` on `work.thread_state` (the state fields, `files` and `updated_at`; not the embedding columns), `trg_thread_log_card_sources`/`_upd` on `work.thread_log` (any change), `trg_thread_sessions_card_sources`/`_upd` on `work.thread_sessions` (insert, delete, a change of `contribution`; not `last_seen_at`)
 
 The same migration adds `idx_lessons_expires_at` on `memory.lessons (expires_at) WHERE expires_at IS NOT NULL`
 for the expiry count.
@@ -2618,6 +2618,29 @@ Added in `20261109185000_search_grades.sql`. One row per ranking setting the ove
 | `reason` | `TEXT NOT NULL` | Why it was kept or rejected |
 
 **Indexes:** `idx_search_tuning_runs_ran_at`: `(ran_at)` (BTree) — the tuned-today check.
+
+### `memory.lesson_pair_candidates`
+
+Added in `20261109190001_lesson_pair_candidates.sql`. A queue of lesson pairs the reranker scored as
+near-duplicates, written by the `rerank_nightly` worker (`rerank_nightly/lesson_pairs.rs`,
+`store/persistence/lesson_pair_candidates.rs`) among pairs within the relation detector's distance threshold
+plus 0.10 (at most 0.6), 300 per project. `mike detect-lesson-relations` judges the unjudged pairs first
+(`lesson_relations/reranked.rs`, highest score first, at most 100) and sets `judged_at`. Nothing in this
+table is a relation, and the worker never writes `memory.lesson_relations`.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `lesson_a_id` | `BIGINT NOT NULL` | FK → `memory.lessons(id)` ON DELETE CASCADE; the smaller id |
+| `lesson_b_id` | `BIGINT NOT NULL` | FK → `memory.lessons(id)` ON DELETE CASCADE; the larger id |
+| `score` | `REAL NOT NULL` | Reranker relevance of one lesson to the other, scored both ways; the larger |
+| `distance` | `DOUBLE PRECISION NOT NULL` | Cosine distance of the two embeddings when found |
+| `found_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | When the nightly pass last scored the pair |
+| `judged_at` | `TIMESTAMPTZ NULL` | When the detector handled the pair; a re-found pair keeps it |
+
+**Constraints:** primary key `(lesson_a_id, lesson_b_id)`; `CHECK (lesson_a_id < lesson_b_id)`.
+
+**Indexes:** `idx_lesson_pair_candidates_unjudged`: `(judged_at) WHERE judged_at IS NULL` (partial BTree) — the
+detector's queue read.
 
 ---
 
@@ -5648,6 +5671,29 @@ rebuilds it.
 
 **Triggers:** `trg_thread_cards_change_generation`/`_upd` bump the `thread_cards` row of
 `memory.change_generations` when the content changes.
+
+### `work.thread_card_candidates`
+
+Added in `20261109190000_thread_card_candidates.sql`. The reranked candidates for a thread's card: lessons,
+thread entries, session notes and operator turns of the thread's project that the reranker judged closest
+to the thread's title, goal and latest checkpoint. Written by the `rerank_nightly` worker
+(`rerank_nightly/candidates.rs`, `store/persistence/work_threads/candidates.rs`): one transaction per
+thread deletes the thread's rows and inserts the new top 10 with `UNNEST ... WITH ORDINALITY`. Read by the
+memory-keeper card worker (`store/persistence/work_threads/cards/related.rs`), which keeps the best three
+that are still live and renders them as the card's `Related` section. Derived data: safe to delete.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `thread_id` | `BIGINT NOT NULL` | FK → `work.threads(id)` ON DELETE CASCADE |
+| `rank` | `INT NOT NULL` | 1 for the highest reranker score; primary key with `thread_id` |
+| `ref` | `TEXT NOT NULL` | `lesson:<uuid>`, `entry:<thread_log id>`, `note:<uuid>` or `turn:<id>` |
+| `kind` | `TEXT NOT NULL` | The prefix of `ref`: `lesson`, `entry`, `note` or `turn` |
+| `score` | `REAL NOT NULL` | Reranker relevance to the thread's query text |
+| `built_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | When the nightly pass wrote the row |
+
+**Triggers:** `trg_thread_card_candidates_card_sources` (statement level, insert and delete) bumps the
+`thread_card_sources` row of `memory.change_generations`; `thread_cards_behind_their_threads` counts the
+newest `built_at` as a source change, so the card is rebuilt. The table never writes `work.thread_cards`.
 
 ---
 

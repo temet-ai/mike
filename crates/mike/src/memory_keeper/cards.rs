@@ -40,10 +40,7 @@ fn fitted(raw: Vec<Section>) -> Vec<Section> {
     let mut kept = Vec::new();
     for section in raw {
         let kind = section.kind;
-        let allowance = kind
-            .budget_through()
-            .min(MAX_CARD_BYTES)
-            .saturating_sub(used);
+        let allowance = kind.allowance(used);
         if let Some(items) = fit::fit(kind.heading(), section.items, allowance) {
             used += fit::render(kind.heading(), &items).len() + 1;
             kept.push(Section { kind, items });

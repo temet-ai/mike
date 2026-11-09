@@ -1,10 +1,12 @@
-use super::fit::{Item, squash};
+use super::MAX_CARD_BYTES;
+use super::fit::{Item, ellipsize, squash};
 use crate::store::persistence::work_threads::cards::{
-    CardAsk, CardEntry, CardInputs, CardNote, CardPromise,
+    CardAsk, CardEntry, CardInputs, CardNote, CardPromise, CardRelated,
 };
 
 const SLUG_CHARS: usize = 120;
 const SESSION_PREFIX_CHARS: usize = 8;
+const RELATED_TEXT_BYTES: usize = 80;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SectionKind {
@@ -19,10 +21,11 @@ pub(crate) enum SectionKind {
     DecisionsSince,
     OpenPromises,
     UnmetAsks,
+    Related,
     Footer,
 }
 
-const ORDER: [SectionKind; 12] = [
+const ORDER: [SectionKind; 13] = [
     SectionKind::Header,
     SectionKind::Goal,
     SectionKind::WhereWeAre,
@@ -34,6 +37,7 @@ const ORDER: [SectionKind; 12] = [
     SectionKind::DecisionsSince,
     SectionKind::OpenPromises,
     SectionKind::UnmetAsks,
+    SectionKind::Related,
     SectionKind::Footer,
 ];
 
@@ -60,6 +64,7 @@ impl SectionKind {
             Self::DecisionsSince => "decisions_since",
             Self::OpenPromises => "open_promises",
             Self::UnmetAsks => "unmet_asks",
+            Self::Related => "related",
             Self::Footer => "footer",
         }
     }
@@ -77,7 +82,19 @@ impl SectionKind {
             Self::DecisionsSince => Some("Decisions since"),
             Self::OpenPromises => Some("Open promises"),
             Self::UnmetAsks => Some("Unmet asks"),
+            Self::Related => Some("Related"),
         }
+    }
+
+    pub(crate) fn allowance(self, used: usize) -> usize {
+        let through = self.budget_through().min(MAX_CARD_BYTES);
+        let room = match self {
+            Self::Related => through
+                .min(MAX_CARD_BYTES.saturating_sub(Self::Footer.budget()))
+                .min(used + self.budget()),
+            _ => through,
+        };
+        room.saturating_sub(used)
     }
 
     fn budget(self) -> usize {
@@ -87,6 +104,7 @@ impl SectionKind {
             Self::WhereWeAre => 190,
             Self::NextUp | Self::Footer => 150,
             Self::Blockers => 90,
+            Self::Related => 120,
             Self::OpenQuestions | Self::OpenPromises | Self::UnmetAsks => 70,
             Self::LastHandoff => 130,
         }
@@ -213,6 +231,24 @@ fn ask(ask: &CardAsk) -> Item {
     )
 }
 
+fn related(item: &CardRelated) -> Option<Item> {
+    let body = ellipsize(&squash(&item.text), RELATED_TEXT_BYTES);
+    if body.is_empty() {
+        return None;
+    }
+    Some(Item::new(body, vec![item.reference.clone()]))
+}
+
+fn related_items(inputs: &CardInputs) -> Vec<Item> {
+    let mut ordered: Vec<&CardRelated> = inputs.related.iter().collect();
+    ordered.sort_by(|a, b| {
+        b.score
+            .total_cmp(&a.score)
+            .then_with(|| a.reference.cmp(&b.reference))
+    });
+    ordered.into_iter().filter_map(related).collect()
+}
+
 fn state_sections(inputs: &CardInputs, token: &str) -> Vec<(SectionKind, Vec<Item>)> {
     let Some(state) = inputs.state.as_ref() else {
         return Vec::new();
@@ -270,6 +306,7 @@ pub(crate) fn sections(inputs: &CardInputs) -> Vec<Section> {
             SectionKind::UnmetAsks,
             inputs.unmet_asks.iter().map(ask).collect(),
         ),
+        (SectionKind::Related, related_items(inputs)),
         (
             SectionKind::Footer,
             vec![Item::new(

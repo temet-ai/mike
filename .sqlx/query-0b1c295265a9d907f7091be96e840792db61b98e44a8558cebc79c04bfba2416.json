@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO work.thread_card_candidates (thread_id, rank, ref, kind, score)\n               SELECT $1::bigint, u.ord::int, u.ref, u.kind, u.score\n                 FROM UNNEST($2::text[], $3::text[], $4::real[])\n                      WITH ORDINALITY AS u(ref, kind, score, ord)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "TextArray",
+        "TextArray",
+        "Float4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0b1c295265a9d907f7091be96e840792db61b98e44a8558cebc79c04bfba2416"
+}

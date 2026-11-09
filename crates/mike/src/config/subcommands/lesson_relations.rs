@@ -180,16 +180,26 @@ async fn run_detection_with_clients(
         proposer: &proposer,
         adjudicator: &adjudicator,
     };
+    let reranked = crate::lesson_relations::run_detection_on_reranked(
+        handle,
+        &judge,
+        &project_ids,
+        args.dry_run,
+    )
+    .await?;
     let report = crate::lesson_relations::run_detection(
         handle,
         &judge,
         config.lesson_relations.candidate_distance_threshold,
         &project_ids,
         args.dry_run,
+        &reranked.handled,
     )
     .await?;
     println!(
-        "candidate pairs considered: {}; relations: {}",
+        "reranked pairs considered: {}; relations: {}; candidate pairs considered: {}; relations: {}",
+        reranked.detection.candidate_pairs_considered,
+        reranked.detection.relations.len(),
         report.candidate_pairs_considered,
         report.relations.len()
     );

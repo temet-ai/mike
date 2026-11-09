@@ -57,7 +57,7 @@ pub(super) async fn grade_event(
     Ok(Graded::Recorded)
 }
 
-async fn embed_query(
+pub(super) async fn embed_query(
     state: &AppState,
     query: &str,
 ) -> Option<crate::api::project_knowledge::rerank_page::QueryVector> {
@@ -68,7 +68,7 @@ async fn embed_query(
     query_vector(&service, &model_key(&service), query).await
 }
 
-async fn rerank_all(
+pub(super) async fn rerank_all(
     state: &AppState,
     query: &str,
     documents: &[String],

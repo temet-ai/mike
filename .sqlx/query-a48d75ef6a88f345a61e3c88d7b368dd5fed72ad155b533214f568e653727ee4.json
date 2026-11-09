@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.lesson_pair_candidates p\n                      SET judged_at = now()\n                     FROM UNNEST($1::bigint[], $2::bigint[]) AS u(lesson_a_id, lesson_b_id)\n                    WHERE p.lesson_a_id = u.lesson_a_id AND p.lesson_b_id = u.lesson_b_id",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a48d75ef6a88f345a61e3c88d7b368dd5fed72ad155b533214f568e653727ee4"
+}

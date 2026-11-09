@@ -1,6 +1,12 @@
+mod candidates;
 mod grade;
+mod lesson_pairs;
 mod tune;
 
+#[cfg(test)]
+mod candidates_tests;
+#[cfg(test)]
+mod lesson_pairs_tests;
 #[cfg(test)]
 mod worker_tests;
 
@@ -13,7 +19,9 @@ use crate::config::AppState;
 use crate::lesson_proposer::QuietBudget;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::search_grades::UngradedEvent;
+use candidates::candidates_phase;
 use grade::{Graded, grade_event};
+use lesson_pairs::pairs_phase;
 use tune::{Tuned, tune_if_due};
 
 const LEASE_ROLE: &str = "rerank_nightly";
@@ -32,6 +40,8 @@ enum Tick {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 struct Pass {
     graded: usize,
+    thread_candidates: usize,
+    lesson_pairs: usize,
     stopped: Option<Stop>,
     tuned: Option<Tuned>,
 }
@@ -105,15 +115,36 @@ async fn night_pass(
     pass.stopped = grade_phase(state, persist, idle, &mut pass.graded).await;
     if pass.stopped.is_none() {
         let window_start = window_start(now, budget.start_hour_utc);
-        match tune_if_due(state, persist, window_start, now).await {
-            Ok(tuned) => pass.tuned = Some(tuned),
-            Err(error) => {
-                tracing::warn!(%error, "rerank_nightly: tuning failed");
-                pass.stopped = Some(Stop::DatabaseFailed);
-            }
-        }
+        pass.stopped = tune_phase(state, persist, window_start, now, &mut pass.tuned).await;
+    }
+    if pass.stopped.is_none() {
+        pass.stopped = candidates_phase(state, persist, idle, &mut pass.thread_candidates).await;
+    }
+    if pass.stopped.is_none() {
+        pass.stopped = pairs_phase(state, persist, idle, &mut pass.lesson_pairs).await;
     }
     pass
+}
+
+async fn tune_phase(
+    state: &AppState,
+    persist: &PersistHandle,
+    window_start: DateTime<Utc>,
+    now: DateTime<Utc>,
+    tuned: &mut Option<Tuned>,
+) -> Option<Stop> {
+    match tune_if_due(state, persist, window_start, now).await {
+        Ok(done) => {
+            *tuned = Some(done);
+            None
+        }
+        Err(error) => Some(database_failed(&error, "tuning")),
+    }
+}
+
+fn database_failed(error: &dyn std::fmt::Display, step: &'static str) -> Stop {
+    tracing::warn!(%error, step, "rerank_nightly: a database step failed");
+    Stop::DatabaseFailed
 }
 
 async fn grade_phase(
@@ -209,11 +240,17 @@ fn window_start(now: DateTime<Utc>, start_hour: u32) -> DateTime<Utc> {
 }
 
 fn report(pass: &Pass) {
-    if pass.graded == 0 && pass.tuned.is_none() {
+    if pass.graded == 0
+        && pass.tuned.is_none()
+        && pass.thread_candidates == 0
+        && pass.lesson_pairs == 0
+    {
         return;
     }
     tracing::info!(
         graded = pass.graded,
+        thread_candidates = pass.thread_candidates,
+        lesson_pairs = pass.lesson_pairs,
         stopped = ?pass.stopped,
         tuned = ?pass.tuned,
         "rerank_nightly: pass finished"
