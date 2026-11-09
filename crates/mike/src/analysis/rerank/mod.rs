@@ -29,9 +29,9 @@ pub(crate) const DEFAULT_CANDIDATES: usize = 50;
 
 pub(crate) const HEALTH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 
-pub(crate) const MAX_DOCUMENT_CHARS: usize = 6_000;
+pub(crate) const MAX_DOCUMENT_CHARS: usize = 600;
 
-pub(crate) const MAX_QUERY_CHARS: usize = 2_000;
+pub(crate) const MAX_QUERY_CHARS: usize = 600;
 
 pub(crate) const COLD_AFTER_SECS: i64 = 600;
 
