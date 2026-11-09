@@ -129,6 +129,41 @@ async fn session_binding_second_machine_with_a_different_path_resolves_the_same_
 }
 
 #[tokio::test]
+async fn session_binding_while_a_capture_holds_a_foreign_key_lock_completes() -> anyhow::Result<()>
+{
+    let world = World::boot().await?;
+    let project = world.project("Captured").await?;
+    let location = world
+        .location(&project, Uuid::new_v4(), "/home/dev/app")
+        .await?;
+    let mut capture = world.handle.pool().begin().await?;
+    sqlx::query("SELECT 1 FROM sessions.sessions WHERE session_uuid = $1 FOR KEY SHARE")
+        .bind(world.sessions[0])
+        .execute(&mut *capture)
+        .await?;
+
+    let bound = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        world
+            .handle
+            .bind_session_location(world.sessions[0], location),
+    )
+    .await;
+    capture.rollback().await?;
+
+    assert!(
+        bound.is_ok(),
+        "bind waited on the foreign-key lock a capture transaction holds"
+    );
+    assert_eq!(bound?.map_err(anyhow::Error::from)?.id, project.id);
+    assert_eq!(
+        world.state(world.sessions[0]).await?,
+        (Some(location), project.id, "operator".to_string())
+    );
+    world.cleanup().await
+}
+
+#[tokio::test]
 async fn session_binding_repeated_location_is_idempotent() -> anyhow::Result<()> {
     let world = World::boot().await?;
     let project = world.project("Idempotent").await?;
