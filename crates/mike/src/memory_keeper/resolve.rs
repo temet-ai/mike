@@ -80,7 +80,7 @@ impl Signal {
         )
     }
 
-    fn from_session(self) -> bool {
+    fn is_session_signal(self) -> bool {
         matches!(
             self,
             Self::LinkedSession | Self::CheckoutMatch | Self::BranchMatch | Self::WorktreeMatch
@@ -135,7 +135,7 @@ impl Candidate {
                     || self.shared_words >= WORD_OVERLAP_FLOOR
             }
             Ask::Continuation => true,
-            Ask::Silent => self.has(Signal::from_session),
+            Ask::Silent => self.has(Signal::is_session_signal),
         }
     }
 }
