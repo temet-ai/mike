@@ -92,7 +92,8 @@ fn supply_continue_prompt_with_linked_thread_returns_its_card_in_the_wrapper() -
     };
     assert_eq!(record.thread_slug.as_deref(), Some("alpha"));
     assert_eq!(record.resolution, "one");
-    assert_eq!(record.content_hash, Some(block.hash));
+    assert_eq!(record.content_hash.as_deref(), Some("hash-alpha"));
+    assert_eq!(record.thread_id, Some(1));
     Ok(())
 }
 

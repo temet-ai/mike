@@ -91,7 +91,9 @@ pub(crate) fn supply(snapshot: &KeeperSnapshot, request: &SupplyRequest<'_>) -> 
         thread_slug: single_slug(&resolution),
         thread_id: single_slug(&resolution)
             .and_then(|slug| project.entry(&slug).map(|entry| entry.thread_id)),
-        content_hash: block.as_ref().map(|b| b.hash.clone()),
+        content_hash: single_slug(&resolution)
+            .and_then(|slug| project.entry(&slug).map(|entry| entry.content_hash.clone()))
+            .or_else(|| block.as_ref().map(|b| b.hash.clone())),
         carrier: request.carrier,
         arm,
         resolution: resolution_name(&resolution),
