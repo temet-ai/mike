@@ -46,7 +46,7 @@ def preflight(root, requested, target, glibc=None):
                                "with binfmt and set QEMU_LD_PREFIX to an ARM64 sysroot")
     versions = toolchain(root, env, native)
     if glibc is not None:
-        versions["cargo_zigbuild"] = run(["cargo", "zigbuild", "--version"], cwd=root, env=env)
+        versions["cargo_zigbuild"] = run(["cargo-zigbuild", "--version"], cwd=root, env=env)
     inspector = "readelf" if target.endswith("linux-gnu") else "otool"
     if shutil.which(inspector, path=env.get("PATH")) is None:
         raise ReleaseError(f"install {inspector} before preparing; no tools are installed automatically")

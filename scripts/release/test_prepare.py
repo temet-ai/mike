@@ -50,7 +50,6 @@ elif name == 'pnpm':
 elif name == 'cargo':
     glibc = control.get('glibc')
     if args == ['--version']: print('cargo 1.95.0 (fixture)')
-    elif args == ['zigbuild', '--version']: print('cargo-zigbuild 0.22.0 (fixture)')
     else:
         assert args[:-2] == ['zigbuild' if glibc else 'build','--offline','--locked','--profile','dist',
                              '--target',target + ('.' + glibc if glibc else ''),'-p','mike','-p','mike-mcp']
@@ -86,6 +85,8 @@ elif name == 'cargo':
             if control.get('smoke_fail') and binary == 'mike':
                 text = text.replace('--help) printf', '--help) exit 65; printf')
             (out / binary).write_text(text); (out / binary).chmod(0o755)
+elif name == 'cargo-zigbuild':
+    assert args == ['--version']; print('cargo-zigbuild 0.24.1 (fixture)')
 elif name in ('readelf', 'otool'): print('fixture runtime library report; not real ABI evidence')
 else: sys.exit('unknown stub')
 '''
@@ -112,7 +113,7 @@ class PreparationTests(unittest.TestCase):
                         CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-A all",
                         CARGO_TARGET_DIR=str(self.base / "unrelated-target"),
                         CARGO_BUILD_JOBS="999", CARGO_INCREMENTAL="1")
-        for name in ("cargo", "rustc", "pnpm", "node", "uname", "readelf", "otool", "gh", "brew", "rustup"):
+        for name in ("cargo", "cargo-zigbuild", "rustc", "pnpm", "node", "uname", "readelf", "otool", "gh", "brew", "rustup"):
             path = self.tools / name
             path.write_text(STUB.replace("#!PYTHON", "#!" + sys.executable))
             path.chmod(0o755)
