@@ -44,15 +44,14 @@ else
   roots=("$(dirname "$(dirname "${root}")")" "${HOME}/projects" "${HOME}/.cache")
 fi
 
-# Remove a folder for a reason, or say that it would go.
-remove() {
+# Never unlink whole target directories: a Cargo process may already be waiting
+# on their lock inode. Retain that inode and let cargo-target-sweep reclaim
+# artifacts while holding it, even when the owning checkout is gone.
+retain_for_sweep() {
   local dir="$1" why="$2"
-  if (( dry )); then
-    echo "cargo-sweep-all: ${dir}: would remove, ${why} ($(du -sh "${dir}" 2>/dev/null | cut -f1))"
-  else
-    echo "cargo-sweep-all: ${dir}: removed, ${why} ($(du -sh "${dir}" 2>/dev/null | cut -f1))"
-    rm -rf -- "${dir}" || status=1
-  fi
+  local verb="sweeping"
+  (( dry )) && verb="would sweep"
+  echo "cargo-sweep-all: ${dir}: ${verb} artifacts, ${why}; retaining Cargo lock files"
 }
 
 targets=()
@@ -76,8 +75,8 @@ for base in "${roots[@]}"; do
       seen="${seen}${sub} "
       targets+=("${sub}")
     done
-  done < <(find "${base}" -maxdepth 7 \
-    \( -name node_modules -o -name .git \) -prune -o \
+  done < <(find "${base}" \
+    \( -name node_modules -o -name .git -o -name .venv -o -name venv -o -name vendor -o -name __pycache__ \) -prune -o \
     -type d \( -name target -o -name '*-target' \) -print -prune 2>/dev/null)
 done
 
@@ -118,8 +117,7 @@ for dir in "${targets[@]+"${targets[@]}"}"; do
     why="its worktree's branch is merged or gone"
   fi
   if [[ -n "${why}" ]] && ! written_within "${dir}" "${finished_days}"; then
-    remove "${dir}" "${why} and nothing was built for ${finished_days}d"
-    (( dry )) || continue
+    retain_for_sweep "${dir}" "${why} and nothing was built for ${finished_days}d"
   fi
   kept+=("${dir}")
 done
@@ -132,9 +130,9 @@ fi
 # Cargo build-dirs (build.build-dir = "{cargo-cache-home}/build/<project>/{workspace-path-hash}",
 # holdfast and voxel-lab): the hash is two folders deep, and holdfast's
 # scripts/worktree-warm leaves a .checkout file naming the checkout a build-dir
-# was made for. One whose checkout is gone is removed; one whose checkout exists
-# is swept like a target folder; one with no .checkout is swept and removed
-# whole after 14 idle days.
+# was made for. Every build directory is swept with its Cargo locks retained,
+# including those whose checkout is gone. An unmarked directory also receives
+# the legacy idle hint for diagnostics.
 owned=()
 unowned=()
 for dir in "${HOME}"/.cargo/build/*/*/*; do
@@ -143,8 +141,7 @@ for dir in "${HOME}"/.cargo/build/*/*/*; do
   if [[ -f "${dir}/.checkout" ]]; then
     owner="$(head -n 1 "${dir}/.checkout")"
     if [[ -n "${owner}" && ! -e "${owner}" ]]; then
-      remove "${dir}" "the checkout it was built for (${owner}) no longer exists"
-      (( dry )) || continue
+      retain_for_sweep "${dir}" "the checkout it was built for (${owner}) no longer exists"
     fi
     owned+=("${dir}")
   else

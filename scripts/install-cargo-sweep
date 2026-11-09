@@ -1,0 +1,174 @@
+#!/usr/bin/env python3
+"""Install the Mac build cleaner independently of the active checkout/branch.
+
+Usage: scripts/install-cargo-sweep [--dry-run]
+Copies a versioned runtime, backs up the previous launcher and LaunchAgent,
+then reloads and starts the existing six-hour cleanup job. Its exit status and
+output are available through launchctl and ~/.local/state/mike/cargo-sweep/.
+"""
+
+import argparse
+import datetime
+import hashlib
+import json
+import os
+from pathlib import Path
+import platform
+import plistlib
+import re
+import shlex
+import shutil
+import subprocess
+import tempfile
+
+
+LABEL = "com.dawiddutoit.cargo-sweep"
+FILES = (
+    "scripts/cargo-sweep-all",
+    "scripts/cargo-target-sweep",
+    "scripts/lib/target-dir-guard.sh",
+    "scripts/lib/cargo-profile-sweep.py",
+)
+
+
+def run(*args):
+    return subprocess.run(args, check=True, text=True, capture_output=True)
+
+
+def replace_file(path, contents, mode):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        temporary.write_bytes(contents)
+        temporary.chmod(mode)
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def snapshot(repo, destination, files):
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists():
+        if any((destination / name).read_bytes() != data for name, data in files.items()):
+            raise RuntimeError(f"Installed snapshot differs from its hash: {destination}")
+        return
+    with tempfile.TemporaryDirectory(dir=destination.parent) as temporary:
+        staging = Path(temporary) / "runtime"
+        for name in files:
+            target = staging / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(repo / name, target)
+            if target.read_bytes() != files[name]:
+                raise RuntimeError(f"Source changed during installation: {name}")
+        staging.rename(destination)
+
+
+def configuration(old, home, launcher, state):
+    config = dict(old)
+    env = dict(config.get("EnvironmentVariables", {}))
+    legacy_cap = env.pop("CARGO_SWEEP_MAXSIZE", "25GB")
+    env.pop("CARGO_TARGET_DIR", None)
+    env.pop("CARGO_SWEEP_SCRIPT", None)
+    match = re.fullmatch(r"(\d+)(?:GB|G)", legacy_cap, re.IGNORECASE)
+    env.setdefault("CARGO_SWEEP_MAXSIZE_GB", match.group(1) if match else "25")
+    env.setdefault("CARGO_SWEEP_FLOOR_GB", "30")
+    env.setdefault("CARGO_SWEEP_ROOTS", f"{home}/projects:{home}/.cache")
+    env["GUARD_SWEEP_WAIT_SECS"] = "0"
+    env["PATH"] = f"{home}/.cargo/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    config.update(
+        Label=LABEL,
+        ProgramArguments=[str(launcher)],
+        WorkingDirectory=str(state),
+        EnvironmentVariables=env,
+        StartInterval=config.get("StartInterval", 21600),
+        RunAtLoad=True,
+        ProcessType="Background",
+        LowPriorityIO=True,
+        StandardOutPath=str(state / "sweep.log"),
+        StandardErrorPath=str(state / "sweep.log"),
+    )
+    config.pop("Program", None)
+    return config
+
+
+def activate(base, runtime, launcher, plist, config, backup, previous, service):
+    current = base / "current"
+    if current.exists() and not current.is_symlink():
+        raise RuntimeError(f"Expected a runtime symlink: {current}")
+    old_link = os.readlink(current) if current.is_symlink() else None
+    (backup / "previous-runtime.json").write_text(json.dumps({"current": old_link}) + "\n")
+    if previous.returncode == 0:
+        run("launchctl", "bootout", service)
+    pending = base / f".current-{os.getpid()}"
+    try:
+        pending.symlink_to(runtime)
+        pending.replace(current)
+        command = shlex.quote(str(current / "scripts/cargo-sweep-all"))
+        roots = shlex.quote(config["EnvironmentVariables"]["CARGO_SWEEP_ROOTS"])
+        wrapper = ("#!/bin/sh\nset -eu\nunset CARGO_TARGET_DIR CARGO_SWEEP_SCRIPT\n"
+                   f"export CARGO_SWEEP_ROOTS=${{CARGO_SWEEP_ROOTS:-{roots}}}\n"
+                   f"exec {command} \"$@\"\n")
+        replace_file(launcher, wrapper.encode(), 0o755)
+        replace_file(plist, plistlib.dumps(config), 0o644)
+        run("plutil", "-lint", str(plist))
+        run("launchctl", "enable", service)
+        run("launchctl", "bootstrap", f"gui/{os.getuid()}", str(plist))
+    except Exception:
+        current.unlink(missing_ok=True)
+        if old_link is not None:
+            current.symlink_to(old_link)
+        for path in (launcher, plist):
+            saved = backup / path.name
+            if saved.exists():
+                replace_file(path, saved.read_bytes(), saved.stat().st_mode & 0o777)
+            else:
+                path.unlink(missing_ok=True)
+        if previous.returncode == 0:
+            run("launchctl", "bootstrap", f"gui/{os.getuid()}", str(plist))
+        raise
+    finally:
+        pending.unlink(missing_ok=True)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args()
+    if platform.system() != "Darwin":
+        parser.error("this installer manages macOS launchd; the sweep scripts also work on Linux")
+    repo = Path(__file__).resolve().parent.parent
+    home = Path.home()
+    files = {name: (repo / name).read_bytes() for name in FILES}
+    digest = hashlib.sha256()
+    for name, data in files.items():
+        digest.update(name.encode() + b"\0" + data + b"\0")
+    version = digest.hexdigest()[:16]
+    base = home / ".local/share/mike/cargo-sweep"
+    runtime = base / "versions" / version
+    state = home / ".local/state/mike/cargo-sweep"
+    launcher = home / ".local/bin/cargo-target-sweep.sh"
+    plist = home / "Library/LaunchAgents" / f"{LABEL}.plist"
+    old = plistlib.loads(plist.read_bytes()) if plist.exists() else {}
+    config = configuration(old, home, launcher, state)
+    print(json.dumps({"runtime": str(runtime), "launch_agent": str(plist),
+                      "configuration": config, "dry_run": args.dry_run}, indent=2), flush=True)
+    if args.dry_run:
+        return
+    service = f"gui/{os.getuid()}/{LABEL}"
+    previous = subprocess.run(["launchctl", "print", service], text=True, capture_output=True)
+    if re.search(r"^\s*pid = \d+", previous.stdout, re.MULTILINE):
+        raise RuntimeError("A sweep is running; let it finish before reinstalling")
+    snapshot(repo, runtime, files)
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    backup = state / "backups" / stamp
+    backup.mkdir(parents=True)
+    for path in (launcher, plist):
+        if path.exists():
+            shutil.copy2(path, backup / path.name)
+    activate(base, runtime, launcher, plist, config, backup, previous, service)
+    print(f"Installed {version}; launchd started the cleaner. Backup: {backup}")
+    print(f"Check: launchctl print {service}\nLog: {state / 'sweep.log'}")
+
+
+if __name__ == "__main__":
+    main()
