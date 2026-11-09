@@ -109,8 +109,3 @@ scripts/offline/fixtures/
 # written by scripts/capture-db/move-to-nvme.sh: selects the capture DB volume
 scripts/capture-db/.env
 
-# Architecture model tooling (scripts/arch): the pinned LikeC4 install, and the pictures
-# and site it renders from docs/architecture. Both are rebuilt from the model.
-scripts/likec4/node_modules/
-docs/architecture/out/
-docs/architecture/dist/

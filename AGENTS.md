@@ -3,12 +3,11 @@
 
 ## Links
 Web UI <http://localhost:9990/> · settings <http://localhost:9990/settings> ·
-inspect API <http://localhost:9989/api/requests> · diagrams <http://localhost:9986/> ·
+inspect API <http://localhost:9989/api/requests> ·
 [Roadmap](https://github.com/orgs/temet-ai/projects/1)
 
 Docs: [`SYSTEM_MAP`](docs/SYSTEM_MAP.md) (read first: every capability, where it lives, how to verify) ·
 [`ARCHITECTURE`](docs/ARCHITECTURE.md) ·
-[`architecture/README`](docs/architecture/README.md) ·
 [`REQUEST_FLOW`](docs/REQUEST_FLOW.md) · [`STARTUP_FLOW`](docs/STARTUP_FLOW.md) ·
 [`SCHEMA`](docs/SCHEMA.md) · [`MCP_BRIDGE`](docs/MCP_BRIDGE.md) ·
 [`CHANGE_RECORD`](docs/CHANGE_RECORD.md) ·
@@ -55,12 +54,11 @@ profile membership (`CORE_TOOL_NAMES`, `crates/mike-mcp/src/tools/catalogue.rs`)
 | Launch a session          | `mike spawn open <folder> [claude args…]` · `list` · `kill --session <uuid>` · `doctor` — see [`docs/LAUNCH_DOMAIN.md`](docs/LAUNCH_DOMAIN.md)                                       |
 | Every target              | `make help`                                                                                                                                                                          |
 
-**Stack supervision.** Proxy, sidecar, prompt assistant, SPA, Storybook and
-architecture diagrams run as systemd user units `mike-stack-*` (templates in
+**Stack supervision.** Proxy, sidecar, prompt assistant, SPA and Storybook
+run as systemd user units `mike-stack-*` (templates in
 `scripts/systemd/`); logs in `.deploy/*.log`. Start them through the scripts,
 never with `nohup`. Deploys serialise on `.deploy/deploy.lock`. A deploy never
-starts Storybook or the diagrams: `systemctl --user start mike-stack-storybook
-mike-stack-arch` when you need them. Deploy the shared proxy from the main
+starts Storybook: `systemctl --user start mike-stack-storybook` when you need it. Deploy the shared proxy from the main
 checkout only.
 
 **Checking a change.** Make the change, run one narrow check of what you
@@ -107,7 +105,7 @@ session actually got.
 | Database / migrations / sqlx | `db-dev`                                                                     |
 | Bash under `scripts/`        | `scripts-developer` (`scripts/release/` → `release-tooling-developer`)       |
 | Public guide `docs/user-guide/` | `user-guide-writer`                                                       |
-| Other docs, help, LikeC4     | `docs-writer`                                                                |
+| Other docs, help             | `docs-writer`                                                                |
 
 These are user-level agents (`~/.claude/agents/`), not files in this repository; `.claude/agents/` holds only the
 two fleet agents. Where a named agent is not installed, the general-purpose agent does that work.
@@ -154,7 +152,6 @@ All resolve the repo root themselves.
 | `scripts/component-index [word]`                         | Which component implements each style-guide pattern                                                                      |
 | `scripts/story-shot [--shot] <word>`                     | Find stories; `--shot` saves cropped pictures to Read (needs Storybook running)                                          |
 | `scripts/motion-shot <word> [--do …]`                    | Film one state change in a story frame by frame; never alongside `sb-test`                                               |
-| `scripts/arch check\|serve\|png\|…`                      | The LikeC4 architecture model in `docs/architecture/`; the only way to run LikeC4 here. Live on <http://localhost:9986/> |
 | `scripts/style-guide-render` · `scripts/html-doc-render` | Render HTML docs to text and pictures; `--check` flags stale renders                                                     |
 | `scripts/read-anchored <file> <regex>`                   | Print a region with real line numbers                                                                                    |
 | `scripts/publish-user-guide [--status]`                  | The guide of the latest release onto temet.ai/docs/mike/; `--status` says whether the site is behind                     |

@@ -8,7 +8,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-PROJECTS = ("frontend", "services/prompt-assistant", "scripts/likec4")
+PROJECTS = ("frontend", "services/prompt-assistant")
 SEVERITIES = ("info", "low", "moderate", "high", "critical")
 BLOCKING = ("high", "critical")
 # No fix, ignored advisories, severity downgrade, or dependency-class exclusions.

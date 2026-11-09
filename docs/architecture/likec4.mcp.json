@@ -1,9 +1,0 @@
-{
-	"mcpServers": {
-		"likec4": {
-			"type": "stdio",
-			"command": "scripts/arch",
-			"args": ["mcp"]
-		}
-	}
-}

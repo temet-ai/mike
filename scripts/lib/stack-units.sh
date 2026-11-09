@@ -22,7 +22,7 @@
 # Storybook joined on 2026-10-01: until then it ran in the foreground of whichever
 # terminal ran start-proxy.sh and died with that terminal, which also left the
 # Storybook MCP and the style guide (the Foundations stories) unreachable.
-STACK_UNITS=(mike-stack-proxy mike-stack-forward mike-stack-assistant mike-stack-spa mike-stack-arch mike-stack-storybook)
+STACK_UNITS=(mike-stack-proxy mike-stack-forward mike-stack-assistant mike-stack-spa mike-stack-storybook)
 
 stack_units_enabled() {
     [[ "${MIKE_STACK_SUPERVISOR:-systemd}" == "systemd" ]] || return 1

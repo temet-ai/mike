@@ -2,12 +2,11 @@
 # stop-proxy.sh — gracefully stop the full mike stack.
 #
 # Stops the systemd user units that run the stack (mike-stack-*: the proxy, the
-# sidecar, the prompt assistant, the web UI, Storybook and the architecture
-# diagrams), so systemd does not bring them back, then frees the known ports as
+# sidecar, the prompt assistant, the web UI and Storybook), so systemd does not bring them back, then frees the known ports as
 # a belt-and-suspenders cleanup for anything running outside a unit.
 #
 # Usage:
-#   ./scripts/stop-proxy.sh            # default ports (9988, 9989, 9990, 6006, 9987, 9985, 9986)
+#   ./scripts/stop-proxy.sh            # default ports (9988, 9989, 9990, 6006, 9987, 9985)
 #   STORYBOOK_PORT=6007 ./scripts/stop-proxy.sh
 
 set -euo pipefail
@@ -24,7 +23,6 @@ SPA_PORT=9990
 STORYBOOK_PORT="${MIKE_STORYBOOK_PORT:-6006}"
 MIKE_FORWARD_PORT="${MIKE_FORWARD_PORT:-9987}"   # HTTPS_PROXY MITM sidecar
 PROMPT_ASSISTANT_PORT="${PROMPT_ASSISTANT_PORT:-9985}"   # Claude Agent SDK service (services/prompt-assistant)
-ARCH_PORT="${ARCH_PORT:-9986}"   # architecture diagrams (scripts/arch serve)
 
 MIKE_BIN=""
 if ! command -v cargo >/dev/null 2>&1 && [[ -x "${HOME}/.cargo/bin/cargo" ]]; then
@@ -54,7 +52,7 @@ if [[ -n "${MIKE_BIN}" ]]; then
     fi
 fi
 
-PORTS=("${MIKE_PORT}" "${INSPECT_PORT}" "${SPA_PORT}" "${STORYBOOK_PORT}" "${MIKE_FORWARD_PORT}" "${PROMPT_ASSISTANT_PORT}" "${ARCH_PORT}")
+PORTS=("${MIKE_PORT}" "${INSPECT_PORT}" "${SPA_PORT}" "${STORYBOOK_PORT}" "${MIKE_FORWARD_PORT}" "${PROMPT_ASSISTANT_PORT}")
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 stop_port() {
@@ -95,7 +93,7 @@ if managed_service_installed; then
 fi
 
 if command -v systemctl >/dev/null 2>&1 && systemctl --user show-environment >/dev/null 2>&1; then
-    for unit in mike-stack-storybook mike-stack-arch mike-stack-spa mike-stack-assistant mike-stack-forward mike-stack-proxy; do
+    for unit in mike-stack-storybook mike-stack-spa mike-stack-assistant mike-stack-forward mike-stack-proxy; do
         if systemctl --user is-active --quiet "${unit}.service"; then
             echo "==> Stopping ${unit} (systemd will not restart it until the next start or deploy)"
             systemctl --user stop "${unit}.service" || true
