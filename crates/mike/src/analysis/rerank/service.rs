@@ -8,8 +8,10 @@ use super::{
     HEALTH_TIMEOUT, MAX_DOCUMENT_CHARS, MAX_QUERY_CHARS, RerankConfig, RerankError, RerankScore,
     ServerHealth,
 };
+use crate::search_ranking::RankingConfig;
 
 const ERROR_BODY_CHARS: usize = 500;
+const RANKING_PREFIX: &str = "search.ranking.";
 
 #[derive(Serialize)]
 struct RerankRequest<'a> {
@@ -36,6 +38,7 @@ pub struct RerankService {
 
 struct Inner {
     config: RwLock<RerankConfig>,
+    ranking: RwLock<RankingConfig>,
     client: reqwest::Client,
     runtime: Mutex<Runtime>,
     health_timeout: Duration,
@@ -63,6 +66,7 @@ impl RerankService {
         Self {
             inner: Arc::new(Inner {
                 config: RwLock::new(config),
+                ranking: RwLock::new(RankingConfig::default()),
                 client: reqwest::Client::new(),
                 runtime: Mutex::new(Runtime::new()),
                 health_timeout,
@@ -88,7 +92,37 @@ impl RerankService {
             .status(config.enabled, config.url, config.model)
     }
 
+    pub(crate) fn ranking(&self) -> RankingConfig {
+        self.inner
+            .ranking
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    fn apply_ranking(&self, key: &str, value: &serde_json::Value) -> bool {
+        let mut ranking = self
+            .inner
+            .ranking
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
+        ranking.apply(key, value)
+    }
+
+    fn apply_stored_ranking(&self, key: &str, value: &serde_json::Value) -> bool {
+        let mut ranking = self
+            .inner
+            .ranking
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
+        let before = ranking.clone();
+        ranking.apply(key, value) && *ranking != before
+    }
+
     pub fn apply_setting(&self, key: &str, value: &serde_json::Value) -> bool {
+        if key.starts_with(RANKING_PREFIX) {
+            return self.apply_ranking(key, value);
+        }
         let mut config = self.inner.config.write().unwrap_or_else(|e| e.into_inner());
         let applied = Self::assign_setting(&mut config, key, value);
         drop(config);
@@ -99,6 +133,9 @@ impl RerankService {
     }
 
     pub(crate) fn apply_stored_setting(&self, key: &str, value: &serde_json::Value) -> bool {
+        if key.starts_with(RANKING_PREFIX) {
+            return self.apply_stored_ranking(key, value);
+        }
         let mut config = self.inner.config.write().unwrap_or_else(|e| e.into_inner());
         let before = config.clone();
         let changed = Self::assign_setting(&mut config, key, value) && *config != before;

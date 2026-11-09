@@ -122,3 +122,27 @@ async fn apply_setting_enabled_takes_effect_on_the_next_rerank_call() -> anyhow:
     assert_eq!(scores.len(), 1);
     Ok(())
 }
+
+#[test]
+fn apply_setting_updates_the_ranking_config_and_leaves_the_rerank_config_alone() {
+    let service = service();
+
+    assert!(service.apply_setting("search.ranking.lexical_weight", &json!(2.0)));
+    assert!(service.apply_setting("search.ranking.kind_weights", &json!({"note": 0.5})));
+    assert!(!service.apply_setting("search.ranking.lexical_weight", &json!("heavy")));
+
+    let ranking = service.ranking();
+    assert_eq!(ranking.lexical_weight, 2.0);
+    assert_eq!(ranking.kind_weight("note"), 0.5);
+    assert_eq!(service.current_config(), RerankConfig::default());
+}
+
+#[test]
+fn apply_stored_setting_for_a_ranking_key_reports_only_a_real_change() {
+    let service = service();
+
+    assert!(!service.apply_stored_setting("search.ranking.semantic_weight", &json!(1.0)));
+    assert!(service.apply_stored_setting("search.ranking.semantic_weight", &json!(1.5)));
+    assert!(!service.apply_stored_setting("search.ranking.semantic_weight", &json!(1.5)));
+    assert_eq!(service.ranking().semantic_weight, 1.5);
+}

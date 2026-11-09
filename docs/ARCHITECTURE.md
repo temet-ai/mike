@@ -1289,6 +1289,36 @@ mike itself never starts or stops it. `rerank.url`, `rerank.model` and `rerank.e
 (set by the setup step through the running proxy) tell the search tools where it is.
 `deploy-proxy.sh` does not install these units: they are not part of `STACK_UNITS`.
 
+### Overnight reranker grading and ranking tuner
+
+The ranking values are settings (`search.ranking.lexical_weight`, `semantic_weight`, `semantic_floor`,
+`semantic_window`, `kind_weights`; group "Search ranking"). They reach the running proxy the way
+`rerank.*` does: `RerankService::apply_setting` on a write through the settings API and
+`apply_stored_setting` from the 10-second running-service sync, so `RerankService::ranking()` is a
+`RankingConfig` the handlers read without a query. `api/project_knowledge/rerank_page.rs` reorders the
+candidate rows the (untouched) search SQL returns with `search_ranking::order` whenever the config is
+not the default, then reranks and cuts the page as before; with the default config the answer is
+unchanged. `order` is pure and the night's replay calls the same function, so both score with identical
+arithmetic.
+
+The `rerank_nightly` worker (`rerank_nightly/mod.rs`, lease role `rerank_nightly`, every 10 minutes)
+does nothing unless `rerank.tuning.enabled` is on, the hour is inside the quiet window (the
+`judge_lessons.quiet_*` settings, default 22-04 UTC, `QuietBudget::in_window`), no primary request
+came in during the idle period (`judge_lessons.quiet_idle_secs`, default 300 s) and this machine holds
+the lease. It then grades up to 200 recorded `search_project_knowledge` events whose `used_references`
+are final and non-empty, one at a time and checking for activity before each:
+`rerank_nightly/grade.rs` re-runs the plain search for 200 candidates, reranks all of them in chunks of
+25 and stores the candidates, the reranker's scores and the position of each used reference in the plain
+and in the reranked order in `memory.search_grades`. When nothing is left to grade and no tuning run has
+been recorded since the quiet window opened, `rerank_nightly/tune.rs` reads the last 14 days of grades
+(at least 20, else it records nothing) and runs `search_ranking::tuning::tune`: coordinate descent over
+the five settings from their current values. A candidate value is kept only if the share of used
+references landing in the top 5 improves by at least 0.01 and no result kind's share drops; at most one
+change per setting per night. A kept change is written with `SettingsService::set_with_source` as actor
+`rerank_tuner` (detail: before, after, score_before, score_after, graded_events) and applied to the
+running service; every setting's kept change or best rejected candidate is recorded in
+`memory.search_tuning_runs`.
+
 ---
 
 ## 15. Operator-Turn Lifecycle

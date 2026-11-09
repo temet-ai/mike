@@ -23,7 +23,7 @@ impl Default for QuietBudget {
 }
 
 impl QuietBudget {
-    pub(super) fn apply_row(&mut self, key: &str, value: &Value) {
+    pub(crate) fn apply_row(&mut self, key: &str, value: &Value) {
         let Some(value) = value.as_i64() else {
             return;
         };
@@ -36,7 +36,7 @@ impl QuietBudget {
         }
     }
 
-    fn in_window(&self, hour: u32) -> bool {
+    pub(crate) fn in_window(&self, hour: u32) -> bool {
         if self.start_hour_utc < self.end_hour_utc {
             hour >= self.start_hour_utc && hour < self.end_hour_utc
         } else if self.start_hour_utc > self.end_hour_utc {

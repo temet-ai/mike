@@ -4,7 +4,7 @@ import { cachedGet, invalidateApiCache } from '$lib/stores/cache/apiCache.svelte
 export interface SettingMeta {
 	key: string;
 	group: string;
-	kind: 'bool' | 'int' | 'float' | 'string' | 'text' | 'string_list' | 'enum';
+	kind: 'bool' | 'int' | 'float' | 'string' | 'text' | 'string_list' | 'enum' | 'json';
 	scope: 'session' | 'global';
 	/**
 	 * `next_conversation` covers the prompt assistant's `read_*` sources (G10): the service

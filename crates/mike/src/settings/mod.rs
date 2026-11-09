@@ -20,6 +20,9 @@ mod meta_rerank;
 #[cfg(test)]
 mod meta_rerank_tests;
 pub(crate) mod meta_scheduled_jobs;
+mod meta_search_ranking;
+#[cfg(test)]
+mod meta_search_ranking_tests;
 pub(crate) mod meta_semantic;
 mod meta_session_end;
 mod meta_session_scoped;
@@ -62,6 +65,7 @@ pub enum SettingKind {
     Text,
     StringList,
     Enum,
+    Json,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

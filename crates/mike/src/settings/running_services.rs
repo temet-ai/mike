@@ -29,7 +29,7 @@ fn apply_stored_row(
     if key.starts_with("embedding.") {
         return embedding.apply_stored_setting(key, value);
     }
-    if key.starts_with("rerank.") {
+    if key.starts_with("rerank.") || key.starts_with("search.ranking.") {
         return rerank.apply_stored_setting(key, value);
     }
     false

@@ -26,7 +26,7 @@ fn document(path: &str, title: &str) -> DocumentInput {
     }
 }
 
-async fn seed_project_with_documents(harness: &Harness) -> anyhow::Result<String> {
+pub(crate) async fn seed_project_with_documents(harness: &Harness) -> anyhow::Result<String> {
     let handle = &harness.handle;
     let project = handle
         .define_knowledge_project("Rerank", Uuid::new_v4())

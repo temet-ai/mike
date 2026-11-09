@@ -198,8 +198,8 @@ pub(crate) async fn define_project(
 mod disk_check;
 mod health;
 pub(crate) mod query_vector_cache;
-mod rerank_page;
-mod retrieval;
+pub(crate) mod rerank_page;
+pub(crate) mod retrieval;
 pub(crate) use health::embedding_capability;
 pub(crate) use retrieval::{retrieve, retrieve_without_rerank};
 
@@ -208,6 +208,8 @@ mod disk_check_tests;
 #[cfg(test)]
 mod query_vector_cache_tests;
 #[cfg(test)]
+mod ranking_live_tests;
+#[cfg(test)]
 mod registration_tests;
 #[cfg(test)]
-mod rerank_tests;
+pub(crate) mod rerank_tests;

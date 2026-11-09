@@ -1,0 +1,221 @@
+mod grade;
+mod tune;
+
+#[cfg(test)]
+mod worker_tests;
+
+use std::time::Duration;
+
+use chrono::{DateTime, TimeZone, Timelike, Utc};
+use tokio::time::{MissedTickBehavior, interval};
+
+use crate::config::AppState;
+use crate::lesson_proposer::QuietBudget;
+use crate::store::persistence::PersistHandle;
+use crate::store::persistence::search_grades::UngradedEvent;
+use grade::{Graded, grade_event};
+use tune::{Tuned, tune_if_due};
+
+const LEASE_ROLE: &str = "rerank_nightly";
+const TICK_INTERVAL: Duration = Duration::from_secs(600);
+const GRADE_BATCH: i64 = 200;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Tick {
+    TuningOff,
+    OutsideWindow,
+    Active,
+    NotLeader,
+    Ran(Pass),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct Pass {
+    graded: usize,
+    stopped: Option<Stop>,
+    tuned: Option<Tuned>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Stop {
+    SessionActive,
+    RerankerFailed,
+    DatabaseFailed,
+    MoreToGrade,
+}
+
+pub(crate) fn spawn_rerank_nightly(state: &AppState) {
+    let Some(persist) = state.persist().cloned() else {
+        tracing::debug!("rerank_nightly: no persistence — not spawning");
+        return;
+    };
+    let state = state.clone();
+    let shutdown = state.shutdown();
+    let tracker = state.tracker();
+    tracker.spawn(async move {
+        let mut ticker = interval(TICK_INTERVAL);
+        ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
+        loop {
+            tokio::select! {
+                biased;
+                () = shutdown.cancelled() => break,
+                _ = ticker.tick() => {
+                    run_tick(&state, &persist, Utc::now()).await;
+                }
+            }
+        }
+    });
+    tracing::info!(
+        interval_secs = TICK_INTERVAL.as_secs(),
+        "rerank_nightly: worker spawned"
+    );
+}
+
+async fn run_tick(state: &AppState, persist: &PersistHandle, now: DateTime<Utc>) -> Tick {
+    if !state.rerank_service().current_config().tuning_enabled {
+        return Tick::TuningOff;
+    }
+    let budget = quiet_budget(persist).await;
+    if !budget.in_window(now.hour()) {
+        return Tick::OutsideWindow;
+    }
+    let idle = DbIdle {
+        persist,
+        budget: &budget,
+    };
+    if !idle.is_idle().await {
+        return Tick::Active;
+    }
+    if !persist.holds_worker_role(LEASE_ROLE, TICK_INTERVAL).await {
+        return Tick::NotLeader;
+    }
+    let pass = night_pass(state, persist, &budget, now, &idle).await;
+    report(&pass);
+    Tick::Ran(pass)
+}
+
+async fn night_pass(
+    state: &AppState,
+    persist: &PersistHandle,
+    budget: &QuietBudget,
+    now: DateTime<Utc>,
+    idle: &impl Idle,
+) -> Pass {
+    let mut pass = Pass::default();
+    pass.stopped = grade_phase(state, persist, idle, &mut pass.graded).await;
+    if pass.stopped.is_none() {
+        let window_start = window_start(now, budget.start_hour_utc);
+        match tune_if_due(state, persist, window_start, now).await {
+            Ok(tuned) => pass.tuned = Some(tuned),
+            Err(error) => {
+                tracing::warn!(%error, "rerank_nightly: tuning failed");
+                pass.stopped = Some(Stop::DatabaseFailed);
+            }
+        }
+    }
+    pass
+}
+
+async fn grade_phase(
+    state: &AppState,
+    persist: &PersistHandle,
+    idle: &impl Idle,
+    graded: &mut usize,
+) -> Option<Stop> {
+    let events = match persist.ungraded_search_events(GRADE_BATCH).await {
+        Ok(events) => events,
+        Err(error) => {
+            tracing::warn!(%error, "rerank_nightly: could not list ungraded searches");
+            return Some(Stop::DatabaseFailed);
+        }
+    };
+    let batch_was_full = i64::try_from(events.len()).is_ok_and(|n| n >= GRADE_BATCH);
+    match grade_events(state, persist, events, idle, graded).await {
+        None if batch_was_full => Some(Stop::MoreToGrade),
+        stopped => stopped,
+    }
+}
+
+async fn grade_events(
+    state: &AppState,
+    persist: &PersistHandle,
+    events: Vec<UngradedEvent>,
+    idle: &impl Idle,
+    graded: &mut usize,
+) -> Option<Stop> {
+    for event in events {
+        if !idle.is_idle().await {
+            return Some(Stop::SessionActive);
+        }
+        match grade_event(state, persist, &event).await {
+            Ok(Graded::Recorded) => *graded += 1,
+            Ok(Graded::RerankerFailed) => return Some(Stop::RerankerFailed),
+            Err(error) => {
+                tracing::warn!(%error, event = event.event_id, "rerank_nightly: grading failed");
+                return Some(Stop::DatabaseFailed);
+            }
+        }
+    }
+    None
+}
+
+trait Idle {
+    fn is_idle(&self) -> impl Future<Output = bool> + Send;
+}
+
+struct DbIdle<'a> {
+    persist: &'a PersistHandle,
+    budget: &'a QuietBudget,
+}
+
+impl Idle for DbIdle<'_> {
+    fn is_idle(&self) -> impl Future<Output = bool> + Send {
+        session_is_idle(self.persist, self.budget)
+    }
+}
+
+async fn quiet_budget(persist: &PersistHandle) -> QuietBudget {
+    let mut budget = QuietBudget::default();
+    match persist.fetch_settings().await {
+        Ok(rows) => rows
+            .iter()
+            .for_each(|(key, value)| budget.apply_row(key, value)),
+        Err(error) => {
+            tracing::warn!(%error, "rerank_nightly: stored quiet window unreadable; using 22-04 UTC");
+        }
+    }
+    budget
+}
+
+async fn session_is_idle(persist: &PersistHandle, budget: &QuietBudget) -> bool {
+    let since = Utc::now() - chrono::Duration::seconds(budget.idle_secs);
+    match persist.has_recent_primary_activity(since).await {
+        Ok(active) => !active,
+        Err(error) => {
+            tracing::warn!(%error, "rerank_nightly: activity check failed; treating as active");
+            false
+        }
+    }
+}
+
+fn window_start(now: DateTime<Utc>, start_hour: u32) -> DateTime<Utc> {
+    let today = now.date_naive().and_hms_opt(start_hour, 0, 0);
+    let start = today.map(|t| Utc.from_utc_datetime(&t)).unwrap_or(now);
+    if start > now {
+        start - chrono::Duration::days(1)
+    } else {
+        start
+    }
+}
+
+fn report(pass: &Pass) {
+    if pass.graded == 0 && pass.tuned.is_none() {
+        return;
+    }
+    tracing::info!(
+        graded = pass.graded,
+        stopped = ?pass.stopped,
+        tuned = ?pass.tuned,
+        "rerank_nightly: pass finished"
+    );
+}
