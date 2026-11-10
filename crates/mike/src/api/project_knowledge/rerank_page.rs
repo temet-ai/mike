@@ -47,9 +47,14 @@ pub(super) async fn search(
         .zip(vector)
         .map(|(_, vector)| super::rescue::pool_query(input, &vector.2, rescue_rule));
     let pool = rescue.as_ref().map_or(input, |(pool, _)| pool);
-    let rows = handle
-        .knowledge_candidate_rows(project.id, pool, wanted, vector)
-        .await?;
+    let pool = super::wide::Pool {
+        project,
+        input: pool,
+        wanted,
+        vector,
+        reranked: candidates.is_some(),
+    };
+    let rows = super::wide::candidate_rows(state, handle, pool).await?;
     let rows = if ranking.is_default() {
         rows
     } else {

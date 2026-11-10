@@ -55,6 +55,9 @@ pub struct RerankConfig {
 
     pub rescue_min_kept: usize,
 
+    #[serde(deserialize_with = "deserialize_permissive_bool")]
+    pub search_no_project: bool,
+
     pub nightly: RerankNightly,
 
     #[serde(deserialize_with = "deserialize_permissive_bool")]
@@ -77,6 +80,7 @@ impl Default for RerankConfig {
         Self {
             rescue_score: DEFAULT_RESCUE_SCORE,
             rescue_min_kept: DEFAULT_RESCUE_MIN_KEPT,
+            search_no_project: true,
             nightly: RerankNightly::default(),
             enabled: false,
             url: DEFAULT_RERANK_URL.to_owned(),

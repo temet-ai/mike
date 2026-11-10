@@ -203,6 +203,9 @@ mod rerank_pass;
 pub(crate) use rerank_pass::rerank_pass;
 mod rescue;
 pub(crate) mod retrieval;
+mod wide;
+#[cfg(test)]
+mod wide_tests;
 pub(crate) use health::embedding_capability;
 pub(crate) use retrieval::{retrieve, retrieve_without_rerank};
 

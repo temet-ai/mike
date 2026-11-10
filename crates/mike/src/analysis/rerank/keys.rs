@@ -25,6 +25,7 @@ pub(crate) fn assign_rerank_key(
         ),
         "rerank.tuning.enabled" => set(&mut config.tuning_enabled, value.as_bool()),
         "rerank.rescue_score" => set(&mut config.rescue_score, value.as_f64()),
+        "rerank.search_no_project" => set(&mut config.search_no_project, value.as_bool()),
         "rerank.rescue_min_kept" => set(
             &mut config.rescue_min_kept,
             value.as_u64().and_then(|v| usize::try_from(v).ok()),
