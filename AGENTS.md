@@ -88,8 +88,17 @@ task with `scripts/task-wait`, `sleep` loops or `tail -f`.
 leftover `CARGO_TARGET_DIR` in old shells. A new worktree is a ~30 minute cold
 build of crate `mike` (cargo fingerprints the absolute path, so nothing makes a
 new path warm), so prefer a branch in a warm checkout, reuse a worktree that has
-built, check `git worktree list` first, and remove the worktree when its branch
-lands.
+built, and check `git worktree list` first.
+
+Remove every worktree you made as soon as its work is finished, in the same
+session and without being asked: when its branch merges, when the branch is
+dropped, and when a detached checkout made for a build, a release or a check
+has done its job. Run `git worktree remove <path>`, then `git branch -d
+<branch>`; that deletes its `target/`, `dist-out/` and `frontend/node_modules`
+with it. Each worktree holds 12-21 GB of build output, and the scheduled sweep
+never frees a detached checkout, so a finished worktree left on disk is what
+fills omit and the Mac. Before a session ends, run `git worktree list` and
+remove each worktree of yours that nothing is using.
 
 **Config.** Boot config precedence: defaults < config file < `MIKE_*` env < CLI flags (`mike print-config`, `mike migrate-check`).
 Runtime config lives at
