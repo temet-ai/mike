@@ -43,7 +43,7 @@ WITH knowledge_scope AS MATERIALIZED (
           WHERE $3::text IS NULL OR split_part(reference, ':', 1)
                 = CASE WHEN $3::text IN ('memory', 'skill') THEN 'artifact' ELSE $3::text END
           GROUP BY reference) per_reference
-    WHERE score >= GREATEST(0.6, best - 0.08)
+    WHERE score >= GREATEST($10::float8, best - $11::float8)
 ), q AS (SELECT websearch_to_tsquery('english', $2) AS tsq), superseded AS (
     SELECT DISTINCT rel.to_lesson_id
     FROM memory.lesson_relations rel

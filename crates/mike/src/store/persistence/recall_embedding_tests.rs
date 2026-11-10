@@ -4,7 +4,9 @@ use crate::store::persistence::test_support;
 const PROJECT: &str = "w-recall-embedding";
 const SESSION: &str = "00000000-0000-4000-8000-0000000000f1";
 const OTHER_SESSION: &str = "00000000-0000-4000-8000-0000000000f2";
-const MODEL: &str = "recall-model";
+const NOMIC_MODEL: &str = "nomic-embed-text-v1.5";
+const GEMMA_MODEL: &str = "embeddinggemma:300m";
+const UNKNOWN_MODEL: &str = "recall-model";
 
 fn angled_literal(similarity: f64) -> String {
     let mut vector = vec![0.0_f64; 768];
@@ -62,17 +64,57 @@ async fn add_chunk(
     Ok(())
 }
 
-async fn recalled(fx: &Fixture) -> anyhow::Result<Vec<i64>> {
+async fn recalled_with(fx: &Fixture, model: &str) -> anyhow::Result<Vec<i64>> {
     let rows = fx
         .handle
-        .recall_turns_by_embedding(PROJECT, MODEL, &angled_literal(1.0), 10)
+        .recall_turns_by_embedding(PROJECT, model, &angled_literal(1.0), 10)
         .await?;
     Ok(rows.into_iter().flatten().map(|row| row.turn_id).collect())
 }
 
+async fn recalled(fx: &Fixture) -> anyhow::Result<Vec<i64>> {
+    recalled_with(fx, NOMIC_MODEL).await
+}
+
+#[tokio::test]
+async fn recall_turns_by_embedding_nomic_model_keeps_similarity_062_and_cuts_059()
+-> anyhow::Result<()> {
+    let Some(fx) = fixture(&[(0, 0.62, NOMIC_MODEL), (1, 0.59, NOMIC_MODEL)]).await? else {
+        return Ok(());
+    };
+    assert_eq!(recalled_with(&fx, NOMIC_MODEL).await?, vec![fx.turns[0]]);
+    fx.db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn recall_turns_by_embedding_embeddinggemma_model_keeps_similarity_05_and_cuts_04()
+-> anyhow::Result<()> {
+    let Some(fx) = fixture(&[(0, 0.50, GEMMA_MODEL), (1, 0.40, GEMMA_MODEL)]).await? else {
+        return Ok(());
+    };
+    assert_eq!(recalled_with(&fx, GEMMA_MODEL).await?, vec![fx.turns[0]]);
+    fx.db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn recall_turns_by_embedding_unknown_model_keeps_every_positive_similarity()
+-> anyhow::Result<()> {
+    let Some(fx) = fixture(&[(0, 0.30, UNKNOWN_MODEL), (1, 0.05, UNKNOWN_MODEL)]).await? else {
+        return Ok(());
+    };
+    assert_eq!(
+        recalled_with(&fx, UNKNOWN_MODEL).await?,
+        vec![fx.turns[0], fx.turns[1]]
+    );
+    fx.db.cleanup().await?;
+    Ok(())
+}
+
 #[tokio::test]
 async fn recall_turns_by_embedding_chunk_of_another_model_is_excluded() -> anyhow::Result<()> {
-    let Some(fx) = fixture(&[(0, 0.90, MODEL), (1, 0.99, "other-model")]).await? else {
+    let Some(fx) = fixture(&[(0, 0.90, NOMIC_MODEL), (1, 0.99, "other-model")]).await? else {
         return Ok(());
     };
     assert_eq!(recalled(&fx).await?, vec![fx.turns[0]]);
@@ -83,7 +125,13 @@ async fn recall_turns_by_embedding_chunk_of_another_model_is_excluded() -> anyho
 #[tokio::test]
 async fn recall_turns_by_embedding_hit_more_than_the_window_below_the_best_is_dropped()
 -> anyhow::Result<()> {
-    let Some(fx) = fixture(&[(0, 0.84, MODEL), (1, 0.78, MODEL), (2, 0.70, MODEL)]).await? else {
+    let Some(fx) = fixture(&[
+        (0, 0.84, NOMIC_MODEL),
+        (1, 0.78, NOMIC_MODEL),
+        (2, 0.70, NOMIC_MODEL),
+    ])
+    .await?
+    else {
         return Ok(());
     };
     assert_eq!(recalled(&fx).await?, vec![fx.turns[0], fx.turns[1]]);
@@ -94,7 +142,7 @@ async fn recall_turns_by_embedding_hit_more_than_the_window_below_the_best_is_dr
 #[tokio::test]
 async fn recall_turns_by_embedding_best_hit_below_the_absolute_floor_returns_nothing()
 -> anyhow::Result<()> {
-    let Some(fx) = fixture(&[(0, 0.55, MODEL), (1, 0.52, MODEL)]).await? else {
+    let Some(fx) = fixture(&[(0, 0.55, NOMIC_MODEL), (1, 0.52, NOMIC_MODEL)]).await? else {
         return Ok(());
     };
     assert!(recalled(&fx).await?.is_empty());
@@ -105,7 +153,7 @@ async fn recall_turns_by_embedding_best_hit_below_the_absolute_floor_returns_not
 #[tokio::test]
 async fn recall_turns_by_embedding_turn_with_several_chunks_is_returned_once() -> anyhow::Result<()>
 {
-    let Some(fx) = fixture(&[(0, 0.90, MODEL)]).await? else {
+    let Some(fx) = fixture(&[(0, 0.90, NOMIC_MODEL)]).await? else {
         return Ok(());
     };
     sqlx::query(
@@ -117,7 +165,7 @@ async fn recall_turns_by_embedding_turn_with_several_chunks_is_returned_once() -
     )
     .bind(fx.turns[0])
     .bind(angled_literal(0.88))
-    .bind(MODEL)
+    .bind(NOMIC_MODEL)
     .execute(fx.handle.pool())
     .await?;
     assert_eq!(recalled(&fx).await?, vec![fx.turns[0]]);

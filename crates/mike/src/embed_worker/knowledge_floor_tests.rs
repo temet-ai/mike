@@ -76,11 +76,22 @@ async fn other_project(handle: &PersistHandle, documents: usize) -> anyhow::Resu
     Ok(titles)
 }
 
+const NOMIC: &str = "nomic-embed-text-v1.5";
+const GEMMA: &str = "embeddinggemma:300m";
+const UNKNOWN: &str = "all-minilm";
+
 struct Fixture {
     db: crate::store::persistence::test_support::TestDbHandle,
     handle: PersistHandle,
     project: String,
     embedding: (String, String, String),
+}
+
+impl Fixture {
+    fn using(mut self, model: &str) -> Self {
+        self.embedding.2 = model.to_owned();
+        self
+    }
 }
 
 async fn fixture(documents: &[(&str, &str, f64)]) -> anyhow::Result<Fixture> {
@@ -226,7 +237,8 @@ async fn semantic_search_drops_hits_more_than_the_window_below_the_best_hit() ->
             0.70,
         ),
     ])
-    .await?;
+    .await?
+    .using(NOMIC);
     assert_eq!(
         titles_for(&fx, "unrelated wording").await?,
         ["best", "inside"]
@@ -249,7 +261,8 @@ async fn semantic_search_drops_a_best_hit_below_the_absolute_floor() -> anyhow::
             0.52,
         ),
     ])
-    .await?;
+    .await?
+    .using(NOMIC);
     assert!(titles_for(&fx, "unrelated wording").await?.is_empty());
     fx.db.cleanup().await?;
     Ok(())
@@ -270,7 +283,8 @@ async fn semantic_search_lexical_match_below_the_floor_is_returned_beside_the_se
             0.20,
         ),
     ])
-    .await?;
+    .await?
+    .using(NOMIC);
     assert_eq!(titles_for(&fx, "lexicalonly").await?, ["best", "keyword"]);
     fx.db.cleanup().await?;
     Ok(())
@@ -283,7 +297,8 @@ async fn semantic_search_for_a_project_with_few_chunks_still_returns_them() -> a
         "alpha body text that has no overlap with the query",
         0.91,
     )])
-    .await?;
+    .await?
+    .using(NOMIC);
     assert_eq!(titles_for(&fx, "unrelated wording").await?, ["only"]);
     fx.db.cleanup().await?;
     Ok(())
@@ -300,7 +315,8 @@ async fn semantic_search_small_project_beside_a_large_corpus_still_returns_its_h
         )],
         8,
     )
-    .await?;
+    .await?
+    .using(NOMIC);
     assert_eq!(titles_for(&fx, "unrelated wording").await?, ["mine"]);
     fx.db.cleanup().await?;
     Ok(())
@@ -318,12 +334,77 @@ async fn semantic_search_kind_filter_measures_the_window_from_the_best_hit_of_th
         0,
         Some(0.78),
     )
-    .await?;
+    .await?
+    .using(NOMIC);
     assert_eq!(titles_for(&fx, "unrelated wording").await?, ["strong"]);
     assert_eq!(
         titles_for_kind(&fx, "unrelated wording", Some("lesson")).await?,
         ["a lesson body that shares no words with the query"]
     );
+    fx.db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn semantic_search_nomic_model_keeps_similarity_062_and_cuts_059() -> anyhow::Result<()> {
+    let fx = fixture(&[
+        (
+            "kept",
+            "alpha body text that has no overlap with the query",
+            0.62,
+        ),
+        (
+            "cut",
+            "bravo body text that has no overlap with the query",
+            0.59,
+        ),
+    ])
+    .await?
+    .using(NOMIC);
+    assert_eq!(titles_for(&fx, "unrelated wording").await?, ["kept"]);
+    fx.db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn semantic_search_embeddinggemma_model_keeps_similarity_05_and_cuts_04() -> anyhow::Result<()>
+{
+    let fx = fixture(&[
+        (
+            "kept",
+            "alpha body text that has no overlap with the query",
+            0.50,
+        ),
+        (
+            "cut",
+            "bravo body text that has no overlap with the query",
+            0.40,
+        ),
+    ])
+    .await?
+    .using(GEMMA);
+    assert_eq!(titles_for(&fx, "unrelated wording").await?, ["kept"]);
+    fx.db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn semantic_search_unknown_model_keeps_every_positive_similarity() -> anyhow::Result<()> {
+    let fx = fixture(&[
+        (
+            "high",
+            "alpha body text that has no overlap with the query",
+            0.30,
+        ),
+        (
+            "low",
+            "bravo body text that has no overlap with the query",
+            0.05,
+        ),
+    ])
+    .await?
+    .using(UNKNOWN);
+    assert_eq!(titles_for(&fx, "unrelated wording").await?, ["high", "low"]);
     fx.db.cleanup().await?;
     Ok(())
 }

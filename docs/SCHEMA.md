@@ -2546,7 +2546,7 @@ of one embedded source, written with its `memory.knowledge_embedding_state` row 
 **Primary key:** `(state_id, ordinal)`.
 
 **Indexes:**
-- `idx_knowledge_embedding_chunks_embedding`: `embedding vector_cosine_ops` HNSW m=16 ef=64 (`20261109100001`) — nearest-first chunk search in `search.sql`, which reads the nearest 200 chunks of the project with pgvector's iterative scan and keeps only references within 0.08 of the best score and at or above 0.6
+- `idx_knowledge_embedding_chunks_embedding`: `embedding vector_cosine_ops` HNSW m=16 ef=64 (`20261109100001`) — nearest-first chunk search in `search.sql`, which reads the nearest 200 chunks of the project with pgvector's iterative scan and keeps only references within a window of the best score and at or above a floor, both chosen by the embedding model (`score_floor_for` in `analysis/embeddings/prefixes.rs`: `nomic-embed-text*` floor 0.60 window 0.08, `embeddinggemma*` floor 0.45 window 0.12, any other model floor 0.0 window 1.0, which cuts nothing)
 
 ---
 

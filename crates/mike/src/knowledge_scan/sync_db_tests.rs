@@ -366,18 +366,35 @@ async fn closest_guidance_orders_by_vector_similarity_and_drops_unrelated_docume
         .execute(handle.pool())
         .await?;
     }
-    let vector = (axis_literal(0), "model-a".to_owned());
+    let vector = (
+        axis_literal(0),
+        "model-a".to_owned(),
+        "nomic-embed-text-v1.5".to_owned(),
+    );
     let rows = handle
         .closest_guidance(project_id, "anything at all", Some(&vector), 3)
         .await?;
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].relative_path, "near.md");
     assert!(rows[0].similarity.is_some_and(|s| s > 0.99));
-    let other_model = (axis_literal(0), "model-b".to_owned());
+    let other_model = (
+        axis_literal(0),
+        "model-b".to_owned(),
+        "nomic-embed-text-v1.5".to_owned(),
+    );
     let none = handle
         .closest_guidance(project_id, "zzzz qqqq", Some(&other_model), 3)
         .await?;
     assert!(none.is_empty());
+    let unmeasured = (
+        axis_literal(0),
+        "model-a".to_owned(),
+        "all-minilm".to_owned(),
+    );
+    let every = handle
+        .closest_guidance(project_id, "anything at all", Some(&unmeasured), 3)
+        .await?;
+    assert_eq!(every.len(), 2);
     db.cleanup().await?;
     Ok(())
 }

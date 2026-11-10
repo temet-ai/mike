@@ -14,7 +14,7 @@ mod service;
 mod service_tests;
 
 pub(crate) use chunker::chunk_text;
-pub(crate) use prefixes::prefixes_for;
+pub(crate) use prefixes::{ScoreFloor, prefixes_for, score_floor_for};
 pub use service::EmbeddingService;
 
 pub(crate) const DEFAULT_MODEL: &str = "embeddinggemma";
