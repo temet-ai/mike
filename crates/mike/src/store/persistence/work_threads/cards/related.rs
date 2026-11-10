@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 
-use super::{CardRelated, RELATED_CAP};
+use super::{CardRelated, RELATED_CAP, RELATED_MIN_PROMPT_CHARS, RELATED_MIN_SCORE};
 
 pub(super) async fn related_items(
     pool: &PgPool,
@@ -13,7 +13,7 @@ pub(super) async fn related_items(
                       substr(c.ref, position(':' IN c.ref) + 1) AS key
                  FROM work.thread_card_candidates c
                  JOIN work.threads t ON t.id = c.thread_id
-                WHERE c.thread_id = ANY($1)
+                WHERE c.thread_id = ANY($1) AND c.score >= $3
            ), live AS (
                SELECT w.thread_id, w.ref, w.score,
                       btrim(split_part(btrim(l.text), E'\n', 1)) AS text
@@ -47,10 +47,14 @@ pub(super) async fn related_items(
                   AND COALESCE(n.status, '') NOT IN ('superseded', 'archived', 'rejected')
                UNION ALL
                SELECT w.thread_id, w.ref, w.score,
-                      COALESCE(NULLIF(btrim(split_part(btrim(g.summary), E'\n', 1)), ''), g.kind)
+                      CASE WHEN g.summary LIKE 'Imported worklog %'
+                           THEN 'thread ' || gt.slug || ': ' || COALESCE(NULLIF(gt.title, gt.slug), gt.goal, '')
+                           ELSE COALESCE(NULLIF(btrim(split_part(btrim(g.summary), E'\n', 1)), ''), g.kind)
+                      END
                  FROM wanted w
                  JOIN work.thread_log g
                    ON g.id = CASE WHEN w.key ~ '^[0-9]{1,18}$' THEN w.key::bigint END
+                 JOIN work.threads gt ON gt.id = g.thread_id
                 WHERE w.kind = 'entry'
                UNION ALL
                SELECT w.thread_id, w.ref, w.score,
@@ -60,6 +64,7 @@ pub(super) async fn related_items(
                    ON ot.id = CASE WHEN w.key ~ '^[0-9]{1,18}$' THEN w.key::bigint END
                  JOIN mike.operator_turn_text_v tx ON tx.turn_id = ot.id
                 WHERE w.kind = 'turn'
+                  AND length(btrim(split_part(btrim(COALESCE(tx.user_prompt, '')), E'\n', 1))) >= $4
            ), ranked AS (
                SELECT live.thread_id, live.ref, live.score, live.text,
                       row_number() OVER (PARTITION BY live.thread_id
@@ -73,6 +78,8 @@ pub(super) async fn related_items(
             ORDER BY r.thread_id, r.score DESC, r.ref"#,
         thread_ids,
         RELATED_CAP,
+        RELATED_MIN_SCORE,
+        RELATED_MIN_PROMPT_CHARS,
     )
     .fetch_all(pool)
     .await
