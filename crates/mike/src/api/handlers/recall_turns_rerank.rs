@@ -1,12 +1,45 @@
 use crate::api::rerank_search::{
     RerankReport, arrange, candidates_wanted, score, short_query_report,
 };
+use crate::api::result_order::ResultOrder;
 use crate::config::AppState;
 use crate::store::persistence::RankedTurnRow;
 
 const MAX_FETCH_ROWS: i64 = 200;
 
-pub(super) fn rows_to_fetch(state: &AppState, limit: i64, query: &str) -> (i64, Option<usize>) {
+pub(super) async fn order_turns(
+    state: &AppState,
+    query: &str,
+    rows: Vec<RankedTurnRow>,
+    (candidates, order): (Option<usize>, ResultOrder),
+) -> (Vec<(RankedTurnRow, Option<f32>)>, RerankReport) {
+    if order.is_recent() {
+        newest_first(rows)
+    } else {
+        rerank_turns(state, query, rows, candidates).await
+    }
+}
+
+fn newest_first(mut rows: Vec<RankedTurnRow>) -> (Vec<(RankedTurnRow, Option<f32>)>, RerankReport) {
+    rows.sort_by(|a, b| {
+        b.created_at
+            .cmp(&a.created_at)
+            .then_with(|| format!("turn:{}", a.turn_id).cmp(&format!("turn:{}", b.turn_id)))
+    });
+    (arrange(rows, &[]), RerankReport::recent_order())
+}
+
+pub(super) fn rows_to_fetch(
+    state: &AppState,
+    limit: i64,
+    query: &str,
+    recent: bool,
+) -> (i64, Option<usize>) {
+    if recent {
+        let pool = i64::try_from(state.rerank_service().current_config().candidates)
+            .unwrap_or(MAX_FETCH_ROWS);
+        return (pool.max(limit).min(MAX_FETCH_ROWS), None);
+    }
     match candidates_wanted(state).filter(|_| short_query_report(state, query).is_none()) {
         Some(candidates) => {
             let wanted = i64::try_from(candidates).unwrap_or(MAX_FETCH_ROWS);

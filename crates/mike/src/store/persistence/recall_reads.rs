@@ -175,7 +175,7 @@ impl PersistHandle {
         Ok(sqlx::query_scalar!(
             "SELECT max(t.id) FROM memory.operator_turns t
                JOIN sessions.sessions s ON s.id = t.session_id
-              WHERE s.session_uuid = $1",
+              WHERE s.session_uuid = $1 AND (t.opened_by IS NULL OR t.opened_by = 'operator')",
             session
         )
         .fetch_one(&self.pool)

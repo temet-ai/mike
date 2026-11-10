@@ -41,6 +41,19 @@ fn the_best_scored_rows_stay_up_to_min_kept_even_under_every_line() {
     assert_eq!(kept, vec!["turn:best", "turn:second"]);
 }
 
+#[test]
+fn a_row_with_an_identifier_hit_stays_though_scored_and_matched_below_every_line() {
+    let mut held = row("turn:ticket", under_floor());
+    held["identifier_hits"] = json!(1);
+    let arranged = vec![
+        (row("turn:best", 0.9), scored(2.0)),
+        (held, scored(-9.0)),
+        (row("turn:weak", under_floor()), scored(-9.0)),
+    ];
+
+    assert_eq!(kept(arranged), vec!["turn:best", "turn:ticket"]);
+}
+
 fn scored(offset: f64) -> Option<f32> {
     Some((DEFAULT_RESCUE_SCORE + offset) as f32)
 }

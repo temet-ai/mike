@@ -3,6 +3,7 @@ use serde_json::Value;
 
 use super::invalid;
 use crate::analysis::embeddings::{ScoreFloor, score_floor_for};
+use crate::search_ranking::identifiers::query_identifiers;
 use crate::store::persistence::recall_embedding::set_vector_scan_limits;
 use crate::store::persistence::{PersistError, PersistHandle};
 
@@ -52,6 +53,8 @@ pub struct KnowledgeQuery {
     #[serde(skip)]
     pub any_term: bool,
     #[serde(skip)]
+    pub recent: bool,
+    #[serde(skip)]
     pub caller_session: Option<String>,
     pub project: String,
     #[serde(default)]
@@ -91,14 +94,16 @@ impl<'a> QueryVector<'a> {
     }
 }
 
-struct WriterScope {
+struct CallScope {
     caller: Option<uuid::Uuid>,
     openings: Vec<String>,
+    identifiers: Vec<String>,
 }
 
-impl WriterScope {
+impl CallScope {
     fn of(input: &KnowledgeQuery) -> Self {
         Self {
+            identifiers: query_identifiers(&input.query),
             caller: input
                 .caller_session
                 .as_deref()
@@ -113,7 +118,7 @@ fn fetch_hits<'a>(
     tx: &'a mut sqlx::Transaction<'_, sqlx::Postgres>,
     (project_id, input): (i64, &'a KnowledgeQuery),
     (limit, offset): (i64, i64),
-    (bound, writers): (&'a QueryVector<'_>, &'a WriterScope),
+    (bound, scope): (&'a QueryVector<'_>, &'a CallScope),
 ) -> impl std::future::Future<Output = Result<Vec<Value>, sqlx::Error>> + 'a {
     sqlx::query_file_scalar!(
         "src/store/persistence/project_knowledge/search.sql",
@@ -126,11 +131,11 @@ fn fetch_hits<'a>(
         bound.literal,
         bound.model_key,
         bound.model_name,
-        bound.cut.floor,
-        bound.cut.window,
+        &[bound.cut.floor, bound.cut.window],
         input.any_term,
-        writers.caller,
-        &writers.openings,
+        scope.caller,
+        &scope.openings,
+        &scope.identifiers,
     )
     .fetch_all(&mut **tx)
 }
@@ -209,12 +214,12 @@ impl PersistHandle {
             set_vector_scan_limits(&mut tx).await?;
         }
         let bound = QueryVector::from(vector, input.semantic_cut);
-        let writers = WriterScope::of(input);
+        let scope = CallScope::of(input);
         let rows = fetch_hits(
             &mut tx,
             (project_id, input),
             (limit + 1, offset),
-            (&bound, &writers),
+            (&bound, &scope),
         )
         .await?;
         tx.commit().await?;

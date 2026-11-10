@@ -2,6 +2,7 @@ use serde_json::Value;
 
 use crate::analysis::embeddings::ScoreFloor;
 use crate::api::rerank_search::RerankReport;
+use crate::search_ranking::identifier_hits;
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, SemanticCut, cut_for};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -55,14 +56,20 @@ pub(super) fn keep(
     arranged
         .into_iter()
         .enumerate()
-        .filter(|(rank, (row, score))| match score {
-            Some(score) => {
-                *rank < rescue.min_kept || f64::from(*score) >= rescue.score || over_line(row, line)
-            }
-            None => over_line(row, line) || unscored_without_vector(row),
+        .filter(|(rank, (row, score))| {
+            identifier_hits(row) > 0 || passes(*rank, (row, *score), (rescue, line))
         })
         .map(|(_, kept)| kept)
         .collect()
+}
+
+fn passes(rank: usize, (row, score): (&Value, Option<f32>), (rescue, line): (Rescue, f64)) -> bool {
+    match score {
+        Some(score) => {
+            rank < rescue.min_kept || f64::from(score) >= rescue.score || over_line(row, line)
+        }
+        None => over_line(row, line) || unscored_without_vector(row),
+    }
 }
 
 fn over_line(row: &Value, line: f64) -> bool {

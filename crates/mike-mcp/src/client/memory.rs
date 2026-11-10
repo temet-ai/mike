@@ -30,9 +30,13 @@ impl InspectClient {
         project_path: &str,
         query: &str,
         limit: Option<u64>,
+        order: Option<&str>,
         scope: CallerScope<'_>,
     ) -> Result<Value, McpError> {
         let mut body = serde_json::Map::new();
+        if let Some(order) = order {
+            body.insert("order".to_string(), Value::String(order.to_string()));
+        }
         body.insert(
             "project".to_string(),
             Value::String(project_path.to_string()),

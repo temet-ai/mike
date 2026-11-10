@@ -166,6 +166,10 @@ fn recall_similar_turns_tool() -> Tool {
                 "include_own_turn",
                 json!({"type": "boolean", "description": "Also return the turn that is making this call; omitted, the newest turn of the calling session is left out."}),
             ),
+            (
+                "order",
+                json!({"type": "string", "enum": ["relevance", "recent"], "description": "relevance (default) ranks by similarity; recent takes the strongest matches and lists them newest first, without the reranker."}),
+            ),
         ],
         &["project_path", "query"],
     );
@@ -180,7 +184,8 @@ fn recall_similar_turns_tool() -> Tool {
              turns (each then has `rerank_score`); otherwise `detail` says why they are in plain \
              order. `degraded: true` means embeddings were unavailable and full-text search served \
              the result, so ranking is weaker. `pending_turns`, when present, counts turns without \
-             embeddings; a non-zero value means ranking improves once the back-fill completes.",
+             embeddings; a non-zero value means ranking improves once the back-fill completes. \
+             For questions about the latest or current work, pass `order=recent`.",
         ),
         schema,
     )
@@ -355,6 +360,8 @@ pub(crate) struct RecallSimilarTurnsArgs {
     pub(crate) query: String,
     #[serde(default)]
     pub(crate) limit: Option<u64>,
+    #[serde(default)]
+    pub(crate) order: Option<String>,
     #[serde(flatten)]
     pub(crate) caller: crate::client::CallerArgs,
 }
@@ -438,6 +445,7 @@ pub(crate) async fn call_tool(
                     &args.project_path,
                     &args.query,
                     args.limit,
+                    args.order.as_deref(),
                     args.caller.scope(),
                 )
                 .await

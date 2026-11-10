@@ -126,6 +126,8 @@ async fn caller_project(
 }
 
 #[cfg(test)]
+mod order_tests;
+#[cfg(test)]
 mod own_turn_tests;
 #[cfg(test)]
 mod tests;

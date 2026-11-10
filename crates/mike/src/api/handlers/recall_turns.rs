@@ -1,4 +1,5 @@
 use super::*;
+use crate::api::result_order::ResultOrder;
 use crate::store::persistence::project_knowledge::ProjectIdentity;
 
 #[derive(Debug, Deserialize)]
@@ -11,6 +12,8 @@ pub(crate) struct RecallSimilarTurnsBody {
     pub(crate) session_id: Option<String>,
     #[serde(default)]
     pub(crate) include_own_turn: bool,
+    #[serde(default)]
+    pub(crate) order: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -63,6 +66,7 @@ pub(crate) async fn recall_similar_turns(
         return Err(persist_unavailable_response());
     };
     validate_recall_query(&body).map_err(|e| *e)?;
+    let order = ResultOrder::parse(body.order.as_deref()).map_err(|refusal| *refusal)?;
     let limit = body
         .limit
         .map(|l| l as i64)
@@ -73,7 +77,8 @@ pub(crate) async fn recall_similar_turns(
         .resolve_knowledge_project(&body.project)
         .await
         .map_err(crate::api::project_knowledge::knowledge_error)?;
-    let (fetch, candidates) = recall_turns_rerank::rows_to_fetch(&state, limit, &body.query);
+    let (fetch, candidates) =
+        recall_turns_rerank::rows_to_fetch(&state, limit, &body.query, order.is_recent());
     let exclude_turn =
         own_turn_to_skip(handle, body.session_id.as_deref(), body.include_own_turn).await?;
     let window = RecallWindow {
@@ -83,7 +88,7 @@ pub(crate) async fn recall_similar_turns(
     let (rows, used_embedding) =
         recall_rows_hybrid(handle, &state, (&project, &body.query), window).await?;
     let (ranked, rerank) =
-        recall_turns_rerank::rerank_turns(&state, &body.query, rows, candidates).await;
+        recall_turns_rerank::order_turns(&state, &body.query, rows, (candidates, order)).await;
 
     let degraded = !used_embedding;
     let retrieval_path = if used_embedding { "embedding" } else { "fts" };

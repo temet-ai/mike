@@ -4,8 +4,11 @@ use serde_json::{Map, Value, json};
 
 use crate::store::persistence::project_knowledge::SemanticCut;
 
+pub(crate) mod identifiers;
 pub(crate) mod tuning;
 
+#[cfg(test)]
+mod identifiers_tests;
 #[cfg(test)]
 mod machine_order_tests;
 #[cfg(test)]
@@ -233,6 +236,15 @@ fn text(row: &Value, field: &str) -> String {
 
 fn number(row: &Value, field: &str) -> f64 {
     row[field].as_f64().unwrap_or(0.0)
+}
+
+pub(crate) fn identifier_hits(row: &Value) -> u64 {
+    row["identifier_hits"].as_u64().unwrap_or(0)
+}
+
+pub(crate) fn lift_identifier_rows<T>(mut rows: Vec<(Value, T)>) -> Vec<(Value, T)> {
+    rows.sort_by_key(|(row, _)| std::cmp::Reverse(identifier_hits(row)));
+    rows
 }
 
 pub(crate) fn order(candidates: &[Candidate], config: &RankingConfig) -> Vec<usize> {

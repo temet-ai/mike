@@ -1,9 +1,10 @@
-use super::knowledge_search_fixture::{Fixture, others, query, references};
+use super::knowledge_search_fixture::{Fixture, Session, others, query, references};
 use mike::store::persistence::project_knowledge::KnowledgeQuery;
 
 struct Seeded {
     fx: Fixture,
     session: String,
+    owner: Session,
     older: i64,
     newest: i64,
     verdict: i64,
@@ -32,6 +33,7 @@ async fn seeded() -> anyhow::Result<Option<Seeded>> {
         .await?;
     Ok(Some(Seeded {
         session: session.uuid.to_string(),
+        owner: session,
         fx,
         older,
         newest,
@@ -58,6 +60,31 @@ async fn search_with_a_caller_session_leaves_out_its_newest_turn_and_that_turns_
     let Some(seeded) = seeded().await? else {
         return Ok(());
     };
+
+    let items = seeded
+        .fx
+        .search(KnowledgeQuery {
+            caller_session: Some(seeded.session.clone()),
+            ..query("lemur")
+        })
+        .await?;
+
+    assert_eq!(references(&items), vec![format!("turn:{}", seeded.older)]);
+    assert!(!mentions_own_turn(&items, &seeded));
+    seeded.fx.finish().await
+}
+
+#[tokio::test]
+async fn search_with_a_machine_opened_turn_after_the_prompt_still_leaves_out_the_operators_turn()
+-> anyhow::Result<()> {
+    let Some(seeded) = seeded().await? else {
+        return Ok(());
+    };
+    let wake = seeded.fx.turn(&seeded.owner, "", "").await?;
+    sqlx::query("UPDATE memory.operator_turns SET opened_by = 'machine' WHERE id = $1")
+        .bind(wake)
+        .execute(seeded.fx.handle.pool())
+        .await?;
 
     let items = seeded
         .fx

@@ -9,6 +9,7 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 use crate::api::handlers::{persist_error_response, persist_unavailable_response};
+use crate::api::result_order::ResultOrder;
 use crate::config::AppState;
 use crate::store::persistence::PersistError;
 use crate::store::persistence::project_knowledge::{
@@ -88,6 +89,8 @@ pub(crate) async fn scan(
 pub(crate) struct CallerSession {
     #[serde(default)]
     session_id: Option<String>,
+    #[serde(default)]
+    order: Option<String>,
 }
 
 pub(crate) async fn search(
@@ -95,8 +98,10 @@ pub(crate) async fn search(
     Query(input): Query<KnowledgeQuery>,
     Query(caller): Query<CallerSession>,
 ) -> Result<Json<Value>, Response> {
+    let order = ResultOrder::parse(caller.order.as_deref()).map_err(|refusal| *refusal)?;
     let input = KnowledgeQuery {
         caller_session: caller.session_id.clone(),
+        recent: order.is_recent(),
         ..input
     };
     let answer = retrieve(&state, &input).await?;
@@ -205,6 +210,7 @@ pub(crate) mod query_vector_cache;
 pub(crate) mod rerank_page;
 mod rerank_pass;
 pub(crate) use rerank_pass::rerank_pass;
+mod recent;
 mod rescue;
 pub(crate) mod retrieval;
 mod wide;
@@ -221,6 +227,8 @@ mod query_vector_cache_tests;
 mod ranking_live_tests;
 #[cfg(test)]
 mod registration_tests;
+#[cfg(test)]
+mod rerank_identifier_tests;
 #[cfg(test)]
 mod rerank_machine_tests;
 #[cfg(test)]

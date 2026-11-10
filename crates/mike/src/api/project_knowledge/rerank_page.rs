@@ -6,11 +6,13 @@ use crate::api::rerank_search::{
     RerankReport, arrange, candidates_wanted, score, short_query_report,
 };
 use crate::config::AppState;
-use crate::search_ranking::{Candidate, RankingConfig, order, order_by_position};
+use crate::search_ranking::{
+    Candidate, RankingConfig, lift_identifier_rows, order, order_by_position,
+};
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, ProjectIdentity, search_page};
 use crate::store::persistence::{PersistError, PersistHandle};
 
-const MAX_CANDIDATE_ROWS: i64 = 200;
+pub(super) const MAX_CANDIDATE_ROWS: i64 = 200;
 
 pub(crate) type QueryVector = (String, String, String);
 
@@ -21,6 +23,9 @@ pub(super) async fn search(
     input: &KnowledgeQuery,
     vector: Option<&QueryVector>,
 ) -> Result<(Value, RerankReport), PersistError> {
+    if input.recent {
+        return super::recent::search(state, handle, project, input, vector).await;
+    }
     let ranking = state.rerank_service().ranking();
     let candidates = candidates_wanted(state);
     if candidates.is_none() && ranking.is_default() {
@@ -82,7 +87,7 @@ pub(super) async fn search(
     } else {
         arranged
     };
-    let page: Vec<Value> = arranged
+    let page: Vec<Value> = lift_identifier_rows(arranged)
         .into_iter()
         .skip(usize::try_from(offset).unwrap_or(0))
         .take(usize::try_from(limit + 1).unwrap_or(1))

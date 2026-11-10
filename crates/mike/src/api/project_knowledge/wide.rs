@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use serde_json::Value;
 
 use crate::config::AppState;
+use crate::search_ranking::identifier_hits;
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, ProjectIdentity};
 use crate::store::persistence::{PersistError, PersistHandle};
 
@@ -46,7 +47,11 @@ pub(super) fn merge(own: Vec<Value>, extra: Vec<Value>, wanted: usize) -> Vec<Va
         .chain(extra)
         .filter(|row| seen.insert(reference(row)))
         .collect();
-    merged.sort_by(|a, b| rank(b).total_cmp(&rank(a)));
+    merged.sort_by(|a, b| {
+        identifier_hits(b)
+            .cmp(&identifier_hits(a))
+            .then_with(|| rank(b).total_cmp(&rank(a)))
+    });
     merged.truncate(wanted);
     merged
 }

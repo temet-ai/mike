@@ -109,6 +109,35 @@ async fn recall_similar_turns_with_a_session_id_leaves_out_that_sessions_newest_
 }
 
 #[tokio::test]
+async fn recall_similar_turns_with_a_machine_opened_turn_after_the_prompt_leaves_out_the_operators_turn()
+-> anyhow::Result<()> {
+    let harness = Harness::boot().await?;
+    let seeded = seed(&harness).await?;
+    let pool = harness.handle.pool();
+    let project: i64 =
+        sqlx::query_scalar("SELECT id FROM projects.projects WHERE project_path = $1")
+            .bind(&seeded.path)
+            .fetch_one(pool)
+            .await?;
+    let wake = add_turn(pool, seeded.session, project, "").await?;
+    sqlx::query("UPDATE memory.operator_turns SET opened_by = 'machine' WHERE id = $1")
+        .bind(wake)
+        .execute(pool)
+        .await?;
+
+    let (status, answer) = harness
+        .post(
+            "/api/recall/similar-turns",
+            json!({"project": seeded.path, "query": "gibbon", "session_id": seeded.session}),
+        )
+        .await?;
+
+    assert!(status.is_success(), "{answer}");
+    assert_eq!(turn_ids(&answer), vec![seeded.older]);
+    harness.cleanup().await
+}
+
+#[tokio::test]
 async fn recall_similar_turns_with_include_own_turn_returns_the_newest_turn() -> anyhow::Result<()>
 {
     let harness = Harness::boot().await?;

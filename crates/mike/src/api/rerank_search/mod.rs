@@ -84,6 +84,18 @@ impl RerankReport {
         }
     }
 
+    pub(crate) fn recent_order() -> Self {
+        Self {
+            state: RerankState::Off,
+            ready_in_s: None,
+            detail: Some(
+                "the results are ordered by most recent activity, newest first; the reranker was not used"
+                    .to_owned(),
+            ),
+            left_out: None,
+        }
+    }
+
     pub(crate) fn switched_off() -> Self {
         Self::off("the reranker is switched off (rerank.enabled)")
     }

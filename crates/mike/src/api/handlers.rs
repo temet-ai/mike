@@ -91,6 +91,8 @@ mod prompts_04;
 mod recall_context;
 #[cfg(test)]
 mod recall_own_turn_tests;
+#[cfg(test)]
+mod recall_recent_tests;
 mod recall_turns;
 #[cfg(test)]
 mod recall_turns_ambiguous_tests;

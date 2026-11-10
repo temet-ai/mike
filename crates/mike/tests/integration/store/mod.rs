@@ -35,12 +35,16 @@ pub(crate) mod operator_turns;
 mod project_display_name;
 #[path = "project_knowledge.rs"]
 mod project_knowledge;
+#[path = "project_knowledge_identifiers.rs"]
+mod project_knowledge_identifiers;
 #[path = "project_knowledge_machine_written.rs"]
 mod project_knowledge_machine_written;
 #[path = "project_knowledge_own_turn.rs"]
 mod project_knowledge_own_turn;
 #[path = "project_knowledge_promise.rs"]
 mod project_knowledge_promise;
+#[path = "project_knowledge_recent.rs"]
+mod project_knowledge_recent;
 #[path = "project_knowledge_session_memory.rs"]
 mod project_knowledge_session_memory;
 #[path = "project_knowledge_slots.rs"]
