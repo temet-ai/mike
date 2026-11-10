@@ -17,6 +17,8 @@ pub(crate) const NOTE_CAP: i64 = 2;
 pub(crate) const PROMISE_CAP: i64 = 2;
 pub(crate) const ASK_CAP: i64 = 2;
 pub(crate) const RELATED_CAP: i64 = 3;
+pub(crate) const RELATED_MIN_SCORE: f32 = -1.25;
+pub(crate) const RELATED_MIN_PROMPT_CHARS: i32 = 40;
 pub(crate) const RECENT_DAYS: i32 = 14;
 
 #[derive(Debug, Clone)]

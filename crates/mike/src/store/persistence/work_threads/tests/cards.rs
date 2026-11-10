@@ -152,7 +152,7 @@ async fn lesson_ref(
 }
 
 #[tokio::test]
-async fn card_inputs_for_candidates_leave_out_expired_superseded_and_missing_items()
+async fn card_inputs_for_candidates_leave_out_expired_superseded_missing_and_weak_items()
 -> anyhow::Result<()> {
     let Some(f) = fixture().await? else {
         return Ok(());
@@ -168,6 +168,22 @@ async fn card_inputs_for_candidates_leave_out_expired_superseded_and_missing_ite
     let (_, expired) = lesson_ref(pool, f.project, "Expired lesson", "-1 day").await?;
     let (old_id, superseded) = lesson_ref(pool, f.project, "Superseded lesson", "1 day").await?;
     let (new_id, _) = lesson_ref(pool, f.project, "Replacement lesson", "1 day").await?;
+    let (_, weak) = lesson_ref(pool, f.project, "Weakly related lesson", "1 day").await?;
+    let other = f
+        .handle
+        .checkpoint_work_thread(f.project, &titled("older-effort", "Older effort"))
+        .await?
+        .thread
+        .id;
+    let imported: i64 = sqlx::query_scalar(
+        "INSERT INTO work.thread_log (thread_id, ord, summary, kind)
+         VALUES ($1, 99, 'Imported worklog /work/artifacts/threads/older-effort/worklog.md', 'note')
+         RETURNING id",
+    )
+    .bind(other)
+    .fetch_one(pool)
+    .await?;
+    let imported = format!("entry:{imported}");
     f.handle
         .insert_lesson_relation(&crate::store::persistence::LessonRelationDraft {
             from_lesson_id: new_id,
@@ -191,6 +207,8 @@ async fn card_inputs_for_candidates_leave_out_expired_superseded_and_missing_ite
         (&superseded, 0.9),
         (&"entry:999999999".to_owned(), 0.85),
         (&live, 0.5),
+        (&imported, 0.4),
+        (&weak, -2.0),
     ]
     .into_iter()
     .map(
@@ -215,6 +233,12 @@ async fn card_inputs_for_candidates_leave_out_expired_superseded_and_missing_ite
         .iter()
         .map(|item| (item.reference.as_str(), item.text.as_str()))
         .collect();
-    assert_eq!(related, vec![(live.as_str(), "Live lesson")]);
+    assert_eq!(
+        related,
+        vec![
+            (live.as_str(), "Live lesson"),
+            (imported.as_str(), "thread older-effort: A thread"),
+        ]
+    );
     Ok(())
 }
