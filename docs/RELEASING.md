@@ -282,8 +282,7 @@ archives and their `.sha256` files, the same files the workflow uploads.
 | `aarch64-unknown-linux-gnu` | omit | cross-built with cargo-zigbuild at glibc 2.35; smoke-tested under qemu |
 
 An ARM64 Linux machine (infra, a Raspberry Pi) never builds mike; the script
-refuses there. On Linux the build runs under `flock /tmp/mike-omit-build.lock nice -n 10`
-so it waits for other heavy jobs. The ARM64 smoke tests need qemu-aarch64 registered
+refuses there. The compile runs under `nice -n 10` and takes no machine-wide lock. The ARM64 smoke tests need qemu-aarch64 registered
 with binfmt; the script unpacks Ubuntu 22.04's ARM64 `libc6` and `libgcc-s1`
 packages, pinned by sha256, into `~/.cache/mike-release/` as qemu's sysroot. Node
 comes from mise or nvm at the `.nvmrc` version, and cargo-zigbuild needs zig on
