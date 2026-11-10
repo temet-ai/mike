@@ -129,6 +129,7 @@ async fn earlier(ctx: &StageContext<'_>, session: Uuid, last: Option<&String>) -
         project_path: ctx.project_path,
         prompt: &prompt,
         carrier: Carrier::Proxy,
+        now: Utc::now(),
     };
     let supply = tokio::time::timeout(EARLIER_BUDGET, earlier_work(ctx.state, &ask))
         .await

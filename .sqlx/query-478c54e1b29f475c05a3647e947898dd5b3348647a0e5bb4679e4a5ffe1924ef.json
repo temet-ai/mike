@@ -1,0 +1,85 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH projects AS (\n                       SELECT p.id FROM projects.projects p WHERE p.project_path = ANY($1::text[])\n                       UNION\n                       SELECT l.project_id FROM projects.locations l WHERE l.root_path = ANY($1::text[])\n                   ),\n                   scored AS (\n                       SELECT s.session_uuid, s.title, t.id AS turn_id, t.created_at,\n                              COALESCE(t.user_prompt, '') AS prompt,\n                              1 - (c.chunk_embedding <=> $2::text::public.vector) AS similarity\n                         FROM memory.operator_turns t\n                         JOIN sessions.sessions s ON s.id = t.session_id\n                         JOIN memory.operator_turn_chunks c ON c.turn_id = t.id\n                        WHERE t.project_id IN (SELECT id FROM projects)\n                          AND t.opened_by = 'operator'\n                          AND t.created_at BETWEEN $4 AND $5\n                          AND c.embedding_model = $3\n                          AND s.session_uuid <> $6\n                   ),\n                   best AS (\n                       SELECT DISTINCT ON (session_uuid) *\n                         FROM scored\n                        ORDER BY session_uuid, similarity DESC, turn_id\n                   )\n                   SELECT session_uuid AS \"session_uuid!\",\n                          title AS session_title,\n                          turn_id AS \"turn_id!\",\n                          created_at AS \"created_at!\",\n                          prompt AS \"prompt!\",\n                          similarity AS \"similarity!\"\n                     FROM best\n                    WHERE similarity >= $7\n                    ORDER BY similarity DESC, turn_id\n                    LIMIT $8",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "session_title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "prompt!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "similarity!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Text",
+        "Text",
+        "Timestamptz",
+        "Timestamptz",
+        "Uuid",
+        "Float8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      null,
+      null
+    ]
+  },
+  "hash": "478c54e1b29f475c05a3647e947898dd5b3348647a0e5bb4679e4a5ffe1924ef"
+}
