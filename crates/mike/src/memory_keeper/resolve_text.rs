@@ -73,6 +73,33 @@ impl Text {
     }
 }
 
+const HARNESS_TAGS: &[&str] = &["system-reminder", "task-notification"];
+
+pub(super) fn operator_text(prompt: &str) -> Option<String> {
+    let mut text = prompt.to_owned();
+    for tag in HARNESS_TAGS {
+        text = without_tag(&text, tag);
+    }
+    let trimmed = text.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_owned())
+}
+
+fn without_tag(text: &str, tag: &str) -> String {
+    let open = format!("<{tag}");
+    let close = format!("</{tag}>");
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(start) = rest.find(&open) {
+        out.push_str(&rest[..start]);
+        rest = match rest[start..].find(&close) {
+            Some(end) => &rest[start + end + close.len()..],
+            None => "",
+        };
+    }
+    out.push_str(rest);
+    out
+}
+
 pub(super) fn is_deictic(prompt: &str) -> bool {
     let normalised = prompt.to_lowercase().replace('\u{2019}', "'");
     DEICTIC_PHRASES

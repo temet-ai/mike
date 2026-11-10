@@ -120,6 +120,24 @@ fn resolve_status_prompt_sharing_only_single_words_with_slugs_keeps_both_on_topi
 }
 
 #[test]
+fn resolve_task_notification_sharing_words_with_a_stale_thread_picks_nothing() {
+    let threads = [thread(
+        "judgement-context",
+        "Judgement-context fleet worklog",
+        47,
+    )];
+    let resolution = run(
+        Some(
+            "<system-reminder>[SYSTEM NOTIFICATION]<task-notification><status>completed</status>\
+             <summary>judgement context fleet worklog</summary></task-notification></system-reminder>",
+        ),
+        session(),
+        &threads,
+    );
+    assert_eq!(resolution, Resolution::None);
+}
+
+#[test]
 fn resolve_ticket_in_prompt_matches_thread_title_without_continuation() -> Result<()> {
     let threads = [
         thread("supplier-export", "PROJ-1529 supplier charge export", 12),
