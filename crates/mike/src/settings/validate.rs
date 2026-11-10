@@ -34,6 +34,9 @@ fn validate_float(
     value: serde_json::Value,
     meta: &SettingMeta,
 ) -> Result<serde_json::Value, String> {
+    if value.is_null() && meta.default.is_null() {
+        return Ok(value);
+    }
     let f = value
         .as_f64()
         .ok_or_else(|| format!("setting '{key}' requires a float value"))?;
@@ -141,6 +144,36 @@ fn validate_enum(
     Ok(serde_json::Value::String(s.to_owned()))
 }
 
+fn validate_number_map(
+    key: &str,
+    value: serde_json::Value,
+    meta: &SettingMeta,
+) -> Result<serde_json::Value, String> {
+    let object = value
+        .as_object()
+        .ok_or_else(|| format!("setting '{key}' requires a JSON object of numbers"))?;
+    for (name, entry) in object {
+        let number = entry.as_f64().ok_or_else(|| {
+            format!("setting '{key}' entry \"{name}\" must be a number, got {entry}")
+        })?;
+        if let Some(min) = meta.min_f64
+            && number < min
+        {
+            return Err(format!(
+                "setting '{key}' entry \"{name}\" must be >= {min}, got {number}"
+            ));
+        }
+        if let Some(max) = meta.max_f64
+            && number > max
+        {
+            return Err(format!(
+                "setting '{key}' entry \"{name}\" must be <= {max}, got {number}"
+            ));
+        }
+    }
+    Ok(value)
+}
+
 pub(crate) fn validate_setting_value(
     key: &str,
     value: serde_json::Value,
@@ -158,6 +191,7 @@ pub(crate) fn validate_setting_value(
         SettingKind::Text => validate_text(key, value, meta),
         SettingKind::StringList => validate_string_list(key, value, meta),
         SettingKind::Enum => validate_enum(key, value, meta),
+        SettingKind::Json => validate_number_map(key, value, meta),
     }?;
     crate::llm::provider::validate_setting(key, &validated)?;
     Ok(validated)

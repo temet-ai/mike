@@ -48,6 +48,7 @@ pub enum SettingKind {
     Text,
     StringList,
     Enum,
+    Json,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]

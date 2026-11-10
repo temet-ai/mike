@@ -2,7 +2,7 @@
 title: System map
 status: active
 created: 2026-11-06
-updated: 2026-11-06
+updated: 2026-11-09
 summary: The one page to read first. Everything mike can do, where each ability lives in the code, which surface exposes it (CLI, REST, MCP, web UI, terminal UI), its default, and which doc goes deeper.
 ---
 
@@ -172,6 +172,7 @@ recorded in `llm.calls`.
 | Semantic context | `semantic_context` (on, loopback embedder only) | embedder | Semantic items, pattern tagging and grouping, drift | REST `/api/semantic/*`; MCP `get_semantic_*`; `mike semantic …` | [`ARCHITECTURE.md` §15](ARCHITECTURE.md#semantic-context) |
 | Embed worker and knowledge scan | `embedding.enabled` (off) | embedder at `embedding.url` | Embeds turns, sessions and knowledge chunks; scans `~/.claude` memory and skills into knowledge sources every 120 s | UI `/settings/embedding`; MCP `recall_similar_turns`, `search_project_knowledge` | [`PROJECT_KNOWLEDGE.md`](PROJECT_KNOWLEDGE.md) |
 | Reranker client | `rerank.enabled` (off) | reranker at `rerank.url` | `RerankService` scores search candidates against the query; `search_project_knowledge` and `recall_similar_turns` rerank their top `rerank.candidates` results and report the outcome in a `rerank` object; each call is recorded in `memory.search_events` | REST `/api/health` and `/api/capabilities` (`rerank`); settings `rerank.*` | [`ARCHITECTURE.md`](ARCHITECTURE.md#rerankservice) |
+| Overnight reranker tuner | `rerank.tuning.enabled` (off) | reranker; quiet window (`judge_lessons.quiet_*`) | `rerank_nightly` grades the day's recorded knowledge searches against 200 reranked candidates into `memory.search_grades`, then tunes the `search.ranking.*` settings, keeping a change only when the share of used references in the top 5 improves by 0.01 and no kind drops; each try is recorded in `memory.search_tuning_runs` | settings `search.ranking.*`, `rerank.tuning.enabled` | [`ARCHITECTURE.md`](ARCHITECTURE.md#overnight-reranker-grading-and-ranking-tuner) |
 | Eval metrics | always | no | Daily rollups, rates and alarms over judge output | REST `/api/eval/*`; `mike eval …`; MCP `get_eval_rates`, `list_eval_alarms` | [`IMPROVEMENT_LOOP.md`](IMPROVEMENT_LOOP.md) |
 | Directive proposals | `directive_proposer` (off) | no | Proposes standing directives from corrections the operator restated across sessions, by SQL over captured data; also calibrates guard thresholds across sessions. Proposals wait on `/memory`; nothing is injected | REST `/api/cross-session/*`; MCP `get_cross_session_calibration` | [`ARCHITECTURE.md` §15](ARCHITECTURE.md#cross-session-calibration-and-directive-proposals) |
 | Change record | `change_record` (off) | no | Watches checkouts for file changes, commits, pushes and checks so `what_changed` answers without git | MCP `what_changed`; REST `/api/changes` | [`CHANGE_RECORD.md`](CHANGE_RECORD.md) |

@@ -296,7 +296,7 @@ pub(crate) async fn patch_setting(
                 let embedding_service = state.embedding_service();
                 let _ = embedding_service.apply_setting(&key, &validated_value);
             }
-            if key.starts_with("rerank.") {
+            if key.starts_with("rerank.") || key.starts_with("search.ranking.") {
                 let _ = state.rerank_service().apply_setting(&key, &validated_value);
             }
             let swaps =

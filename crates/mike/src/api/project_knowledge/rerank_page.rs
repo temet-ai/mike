@@ -4,12 +4,13 @@ use serde_json::{Value, json};
 
 use crate::api::rerank_search::{RerankReport, arrange, candidates_wanted, score};
 use crate::config::AppState;
+use crate::search_ranking::{Candidate, RankingConfig, order};
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, ProjectIdentity, search_page};
 use crate::store::persistence::{PersistError, PersistHandle};
 
 const MAX_CANDIDATE_ROWS: i64 = 200;
 
-pub(super) type QueryVector = (String, String, String);
+pub(crate) type QueryVector = (String, String, String);
 
 pub(super) async fn search(
     state: &AppState,
@@ -18,26 +19,40 @@ pub(super) async fn search(
     input: &KnowledgeQuery,
     vector: Option<&QueryVector>,
 ) -> Result<(Value, RerankReport), PersistError> {
-    let Some(candidates) = candidates_wanted(state) else {
+    let ranking = state.rerank_service().ranking();
+    let candidates = candidates_wanted(state);
+    if candidates.is_none() && ranking.is_default() {
         return plain(handle, input, vector, RerankReport::switched_off()).await;
-    };
+    }
     if input.query.trim().is_empty() {
         let report = RerankReport::off("there is no query to rerank against");
         return plain(handle, input, vector, report).await;
     }
     let limit = input.limit.unwrap_or(20).clamp(1, 100);
     let offset = input.offset.unwrap_or(0).max(0);
-    let wanted = i64::try_from(candidates)
+    let window = candidates.unwrap_or_else(|| state.rerank_service().current_config().candidates);
+    let wanted = i64::try_from(window)
         .unwrap_or(MAX_CANDIDATE_ROWS)
         .max(offset + limit);
     if wanted > MAX_CANDIDATE_ROWS {
-        let report = RerankReport::off("pages past the first 200 results are not reranked");
+        let report = match candidates {
+            Some(_) => RerankReport::off("pages past the first 200 results are not reranked"),
+            None => RerankReport::switched_off(),
+        };
         return plain(handle, input, vector, report).await;
     }
     let rows = handle
         .knowledge_candidate_rows(project.id, input, wanted, vector)
         .await?;
-    let (arranged, report) = rerank_rows(state, handle, input, vector, candidates, rows).await;
+    let rows = if ranking.is_default() {
+        rows
+    } else {
+        reorder_rows(rows, &ranking)
+    };
+    let (arranged, report) = match candidates {
+        Some(candidates) => rerank_rows(state, handle, input, vector, candidates, rows).await,
+        None => (arrange(rows, &[]), RerankReport::switched_off()),
+    };
     let page: Vec<Value> = arranged
         .into_iter()
         .skip(usize::try_from(offset).unwrap_or(0))
@@ -48,6 +63,15 @@ pub(super) async fn search(
         search_page(project.project_uuid, vector.is_some(), page, limit, offset),
         report,
     ))
+}
+
+fn reorder_rows(rows: Vec<Value>, ranking: &RankingConfig) -> Vec<Value> {
+    let candidates: Vec<Candidate> = rows.iter().map(Candidate::from_row).collect();
+    let mut slots: Vec<Option<Value>> = rows.into_iter().map(Some).collect();
+    order(&candidates, ranking)
+        .into_iter()
+        .filter_map(|index| slots.get_mut(index).and_then(Option::take))
+        .collect()
 }
 
 async fn plain(
@@ -82,7 +106,7 @@ async fn rerank_rows(
     }
 }
 
-async fn documents_for(
+pub(crate) async fn documents_for(
     handle: &PersistHandle,
     rows: &[Value],
     vector: Option<&QueryVector>,

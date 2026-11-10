@@ -8,7 +8,7 @@ use axum::response::Response;
 use serde_json::{Value, json};
 use std::time::Duration;
 
-async fn query_vector(
+pub(crate) async fn query_vector(
     service: &EmbeddingService,
     key: &str,
     query: &str,

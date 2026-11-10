@@ -2,7 +2,7 @@
 title: Database Schema Reference
 status: active
 created: 2026-05-01
-updated: 2026-11-06
+updated: 2026-11-09
 summary: Reference for mike's multi-schema Postgres database — tables, columns, FKs, indexes, views, and triggers. Every table a migration creates has a section (223 sections); the migrations are the source of truth.
 ---
 
@@ -2581,6 +2581,43 @@ with `store/persistence/search_events/mark_used.sql`. Deleting a session deletes
 - `idx_search_events_session`: `session_id WHERE session_id IS NOT NULL` (BTree partial) — the cascade from `sessions.sessions`
 - `idx_search_events_request`: `request_id WHERE request_id IS NOT NULL` (BTree partial) — the `SET NULL` from `requests.requests`
 - `idx_search_events_open`: `(used_checked_at NULLS FIRST, created_at) WHERE used_final_at IS NULL AND session_id IS NOT NULL AND request_id IS NOT NULL` (BTree partial) — the worker's batch
+
+---
+
+### `memory.search_grades`
+
+Added in `20261109175000_search_grades.sql`. One row per graded `search_project_knowledge` event, written by
+the `rerank_nightly` worker (`rerank_nightly/grade.rs`; SQL `store/persistence/search_grades/`). Deleting
+an event deletes its grade.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `event_id` | `BIGINT` | Primary key and FK → `memory.search_events(id)` ON DELETE CASCADE |
+| `graded_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | The tuner reads the grades of the last 14 days |
+| `candidates` | `JSONB NOT NULL` | CHECK array. Plain order: `{reference, kind, lexical, semantic, rerank_score\|null}` |
+| `used_references` | `TEXT[] NOT NULL` | Copy of the event's used references |
+| `plain_positions` | `INT[] NOT NULL` | 1-based position of each used reference in plain order, 0 = not among the candidates; same length as `used_references` |
+| `reranked_positions` | `INT[] NOT NULL` | The same after the top `rerank.candidates` are reordered by `rerank_score` |
+
+**Indexes:** `idx_search_grades_graded_at`: `(graded_at)` (BTree) — the tuner's 14-day read.
+
+### `memory.search_tuning_runs`
+
+Added in `20261109175000_search_grades.sql`. One row per ranking setting the overnight tuner tried in a run
+(the kept change, or the best rejected candidate).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `ran_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | A run since the start of the current quiet window means tuned today |
+| `setting_key` | `TEXT NOT NULL` | A `search.ranking.*` key |
+| `before`, `after` | `JSONB NOT NULL` | Setting value before, and the candidate value |
+| `score_before`, `score_after` | `DOUBLE PRECISION NOT NULL` | Share of used references in the top 5 |
+| `graded_events` | `INT NOT NULL` | Graded searches measured |
+| `kept` | `BOOLEAN NOT NULL` | Written as a setting (source `rerank_tuner`) |
+| `reason` | `TEXT NOT NULL` | Why it was kept or rejected |
+
+**Indexes:** `idx_search_tuning_runs_ran_at`: `(ran_at)` (BTree) — the tuned-today check.
 
 ---
 
