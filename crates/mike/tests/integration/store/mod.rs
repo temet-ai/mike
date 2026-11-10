@@ -47,6 +47,8 @@ mod project_knowledge_promise;
 mod project_knowledge_recent;
 #[path = "project_knowledge_session_memory.rs"]
 mod project_knowledge_session_memory;
+#[path = "project_knowledge_session_overview.rs"]
+mod project_knowledge_session_overview;
 #[path = "project_knowledge_slots.rs"]
 mod project_knowledge_slots;
 #[path = "project_pin_ttl.rs"]

@@ -3,13 +3,14 @@ use uuid::Uuid;
 use super::invalid;
 use crate::store::persistence::{PersistError, PersistHandle};
 
-const UUID_KEYED_KINDS: [&str; 6] = [
+const UUID_KEYED_KINDS: [&str; 7] = [
     "lesson",
     "note",
     "thread",
     "question_answer",
     "mail",
     "learning",
+    "session",
 ];
 const MIN_PREFIX_CHARS: usize = 8;
 const CANDIDATE_LIMIT: usize = 10;

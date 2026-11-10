@@ -1,7 +1,7 @@
 SELECT (SELECT count(*)
           FROM (SELECT 1
                   FROM memory.knowledge_embedding_state e
-                  JOIN memory.knowledge_embedding_sources_v src
+                  JOIN memory.knowledge_sources_with_sessions_v src
                     ON src.source_kind = e.source_kind AND src.source_id = e.source_id
                  WHERE src.project_id = $1
                    AND e.source_updated_at IS NOT DISTINCT FROM src.source_updated_at

@@ -139,6 +139,7 @@ pub(crate) mod session_projects;
 pub(crate) mod session_prompt_lane_backfill;
 pub(crate) mod session_prompt_repair;
 pub(crate) mod session_request_reads;
+mod session_titles;
 pub mod settings;
 pub mod startup_health;
 pub mod steering;

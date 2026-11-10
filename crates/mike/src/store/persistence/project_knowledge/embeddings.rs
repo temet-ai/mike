@@ -162,7 +162,7 @@ impl PersistHandle {
                  (SELECT count(*) FROM (
                      SELECT 1 FROM memory.knowledge_embedding_state e
                      CROSS JOIN LATERAL (
-                         SELECT 1 FROM memory.knowledge_embedding_sources_v s
+                         SELECT 1 FROM memory.knowledge_sources_with_sessions_v s
                           WHERE s.source_kind = e.source_kind AND s.source_id = e.source_id
                             AND s.source_updated_at IS NOT DISTINCT FROM e.source_updated_at
                             AND s.source_seq IS NOT DISTINCT FROM e.source_seq

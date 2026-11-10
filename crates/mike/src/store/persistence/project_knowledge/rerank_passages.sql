@@ -26,6 +26,12 @@ WITH wanted AS (
       JOIN mailbox.threads t
         ON t.thread_uuid = CASE WHEN w.key ~ '^[0-9a-fA-F-]{36}$' THEN w.key::uuid END
      WHERE w.kind = 'thread'
+    UNION ALL
+    SELECT w.reference, 'session', ov.id
+      FROM wanted w
+      JOIN sessions.sessions ov
+        ON ov.session_uuid = CASE WHEN w.key ~ '^[0-9a-fA-F-]{36}$' THEN w.key::uuid END
+     WHERE w.kind = 'session'
 )
 (SELECT DISTINCT ON (s.reference) s.reference AS "reference!", c.body AS "body!"
    FROM sources s

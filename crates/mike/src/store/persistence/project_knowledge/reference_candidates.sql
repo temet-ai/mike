@@ -39,6 +39,13 @@ SELECT c.reference AS "reference!"
      WHERE ($2::text IS NULL OR $2 = 'learning')
        AND k.session_id BETWEEN $3 AND $4
        AND ($1::bigint IS NULL OR s.project_id = $1)
+    UNION ALL
+    SELECT 'session:' || ov.session_uuid
+      FROM sessions.sessions ov
+     WHERE $2 = 'session'
+       AND ov.session_uuid BETWEEN $3 AND $4
+       AND ($1::bigint IS NULL OR ov.project_id = $1)
+       AND btrim(coalesce(ov.overview, '')) <> ''
   ) c
  ORDER BY c.reference
  LIMIT 10

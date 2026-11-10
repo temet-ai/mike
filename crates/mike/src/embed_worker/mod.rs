@@ -26,6 +26,8 @@ mod knowledge_key_tests;
 #[cfg(test)]
 mod knowledge_report_tests;
 #[cfg(test)]
+mod knowledge_session_tests;
+#[cfg(test)]
 mod knowledge_tests;
 #[cfg(test)]
 mod model_change_tests;

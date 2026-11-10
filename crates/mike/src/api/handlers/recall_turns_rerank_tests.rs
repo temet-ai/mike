@@ -89,6 +89,56 @@ async fn recall_similar_turns_with_rerank_enabled_reorders_turns_and_reports_rer
 }
 
 #[tokio::test]
+async fn recall_similar_turns_sends_documents_that_begin_with_the_turn_header() -> anyhow::Result<()>
+{
+    let harness = Harness::boot().await?;
+    let seeded = seed_turns(&harness).await?;
+    sqlx::query(
+        "UPDATE sessions.sessions SET title = 'Quicksort research' WHERE session_uuid = $1",
+    )
+    .bind(seeded.session)
+    .execute(harness.handle.pool())
+    .await?;
+    harness.enable_rerank(800);
+    harness.reranker_prefers_later_documents(None).await;
+
+    let answer = recall(&harness, &seeded, None).await?;
+
+    let sent = harness.rerank_requests().await?;
+    let documents = sent[0]["documents"].as_array().cloned().unwrap_or_default();
+    assert_eq!(documents.len(), 3);
+    for document in documents.iter().filter_map(Value::as_str) {
+        let header = document.lines().next().unwrap_or_default();
+        assert!(header.starts_with("turn | "), "{header}");
+        assert!(header.ends_with(" | Quicksort research"), "{header}");
+        assert!(document.contains("quicksort question"));
+        assert!(document.chars().count() <= crate::analysis::rerank::MAX_DOCUMENT_CHARS);
+    }
+    assert!(!answer.to_string().contains("turn | "));
+    harness.cleanup().await
+}
+
+#[tokio::test]
+async fn recall_similar_turns_without_a_session_title_sends_a_two_part_header() -> anyhow::Result<()>
+{
+    let harness = Harness::boot().await?;
+    let seeded = seed_turns(&harness).await?;
+    harness.enable_rerank(800);
+    harness.reranker_prefers_later_documents(None).await;
+
+    recall(&harness, &seeded, None).await?;
+
+    let sent = harness.rerank_requests().await?;
+    let documents = sent[0]["documents"].as_array().cloned().unwrap_or_default();
+    assert_eq!(documents.len(), 3);
+    for document in documents.iter().filter_map(Value::as_str) {
+        let header = document.lines().next().unwrap_or_default();
+        assert_eq!(header.split(" | ").count(), 2, "{header}");
+    }
+    harness.cleanup().await
+}
+
+#[tokio::test]
 async fn recall_similar_turns_with_a_limit_cuts_the_reranked_order_to_the_page()
 -> anyhow::Result<()> {
     let harness = Harness::boot().await?;

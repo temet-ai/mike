@@ -12,7 +12,7 @@ WITH own_turn AS (
 ), knowledge_scope AS MATERIALIZED (
     SELECT e.id AS state_id, src.reference
     FROM memory.knowledge_embedding_state e
-    JOIN memory.knowledge_embedding_sources_v src
+    JOIN memory.knowledge_sources_with_sessions_v src
       ON src.source_kind = e.source_kind AND src.source_id = e.source_id
     WHERE src.project_id = 993478
       AND e.source_updated_at IS NOT DISTINCT FROM src.source_updated_at
@@ -42,7 +42,7 @@ WITH own_turn AS (
          JOIN memory.knowledge_embedding_state e ON e.id = n.state_id
          CROSS JOIN LATERAL (
              SELECT src.reference
-             FROM memory.knowledge_embedding_sources_v src
+             FROM memory.knowledge_sources_with_sessions_v src
              WHERE src.source_kind = e.source_kind AND src.source_id = e.source_id
                AND src.project_id = 993478
                AND e.source_updated_at IS NOT DISTINCT FROM src.source_updated_at
@@ -425,6 +425,31 @@ WITH own_turn AS (
        AND ('reranker' = '' OR to_tsvector('english', memory.session_learnings_text(k.learnings)) @@ q.match_tsq
             OR sem.score IS NOT NULL)
     UNION ALL
+    SELECT COALESCE(to_tsvector('english', ss.overview) @@ q.ident_tsq, false),
+           'session:' || ss.session_uuid, 'session',
+           COALESCE(NULLIF(btrim(ss.title), ''), left(regexp_replace(btrim(ss.overview), '\s+', ' ', 'g'), 80)),
+           'historical', NULL, COALESCE(ss.overview_generated_at, ss.last_seen),
+           ts_rank_cd(to_tsvector('english', ss.overview), q.tsq), COALESCE(sem.score, 0),
+           jsonb_build_object('session_uuid', ss.session_uuid, 'topics', COALESCE(k.topics, '{}'::text[])),
+           ss.overview || CASE WHEN cardinality(k.topics) > 0
+                               THEN E'\n\nTopics: ' || array_to_string(k.topics, ', ') ELSE '' END,
+           jsonb_build_object('role', 'judge', 'session_uuid', ss.session_uuid, 'session_title', ss.title),
+           'session:' || ss.session_uuid, NULL, NULL, false
+      FROM (SELECT h.id FROM sessions.sessions h
+             WHERE 'reranker' <> '' AND h.project_id = 993478 AND to_tsvector('english', h.overview) @@ (SELECT match_tsq FROM q)
+            UNION
+            SELECT s0.id FROM semantic s2 JOIN sessions.sessions s0 ON s0.session_uuid = substr(s2.reference, 9)::uuid
+             WHERE s2.reference LIKE 'session:%'
+            UNION
+            (SELECT h.id FROM sessions.sessions h
+             WHERE 'reranker' = '' AND h.project_id = 993478 AND btrim(coalesce(h.overview, '')) <> ''
+             ORDER BY COALESCE(h.overview_generated_at, h.last_seen) DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
+      JOIN sessions.sessions ss ON ss.id = hit.id
+      LEFT JOIN memory.session_knowledge k ON k.session_id = ss.session_uuid
+     CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'session:' || ss.session_uuid
+     WHERE ss.project_id = 993478 AND btrim(coalesce(ss.overview, '')) <> '' AND (NULL::text IS NULL OR NULL::text = 'session')
+       AND ('reranker' = '' OR to_tsvector('english', ss.overview) @@ q.match_tsq OR sem.score IS NOT NULL)
+    UNION ALL
     SELECT COALESCE(m.search_tsv @@ q.ident_tsq, false),
            'mail:' || m.message_uuid, 'mail', btrim(split_part(btrim(m.body), E'\n', 1)),
            CASE WHEN m.dead_lettered_at IS NOT NULL THEN 'dead_lettered'
@@ -530,7 +555,7 @@ WITH own_turn AS (
                 WHEN btrim(COALESCE(d.body, '')) <> ''
                     THEN 'b:' || encode(sha256(convert_to(d.body, 'UTF8')), 'hex')
                 ELSE d.reference END AS slot_key,
-           d.source_kind IN ('seat', 'mail', 'thread')
+           d.source_kind IN ('seat', 'mail', 'thread', 'session')
            OR (d.source_kind = 'note' AND d.provenance ->> 'kind' = 'brief')
            OR COALESCE(ltrim(d.turn_prompt) ^@ ANY (ARRAY['A session-scoped Stop hook is now active with condition:','The tether plugin sent a message:','Perform a web search for the query:','You score how well a stand-in predicted','Coordinator wake for fleet ']::text[]), false) AS machine,
            d.source_kind IN ('seat', 'thread')

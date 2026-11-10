@@ -1,6 +1,7 @@
 use serde_json::{Value, json};
 
 use super::best_lean::{lead_item, lean_envelope};
+use super::item_header;
 use super::passage_excerpt::{Passages, head, show_passage};
 use crate::search_ranking::is_outside_project;
 
@@ -10,7 +11,6 @@ const PART_SEPARATOR: &str = " \u{b7} ";
 const MACHINE_WRITTEN: &str = " \u{b7} machine-written";
 const OUTSIDE_PROJECT: &str = " \u{b7} outside this project";
 const CUT_MARK: &str = "...";
-const DATE_CHARS: usize = 10;
 pub(crate) const HOW_TO_GET_THE_REST: &str =
     "Read one with read_project_knowledge and its reference, or repeat with detail=full.";
 
@@ -47,8 +47,9 @@ fn pointer(item: &Value) -> Value {
 }
 
 pub(crate) fn line(item: &Value) -> String {
-    let kind = item["source_kind"].as_str().unwrap_or("item");
-    let prefix = format!("{kind}{PART_SEPARATOR}{}{PART_SEPARATOR}", day(item));
+    let label = item_header::label(item);
+    let day = item_header::day(item).unwrap_or("undated");
+    let prefix = format!("{label}{PART_SEPARATOR}{day}{PART_SEPARATOR}");
     let machine = item["provenance"]["written_by"].as_str() == Some("machine");
     let suffix = format!(
         "{}{}",
@@ -65,20 +66,6 @@ pub(crate) fn line(item: &Value) -> String {
         "{prefix}{}{suffix}",
         fit(&title, LINE_CHARS.saturating_sub(used))
     )
-}
-
-fn day(item: &Value) -> &str {
-    let stamp = item["updated_at"].as_str().unwrap_or_default();
-    let day = head(stamp, DATE_CHARS);
-    let shaped = day.chars().count() == DATE_CHARS
-        && day.chars().enumerate().all(|(at, c)| {
-            if matches!(at, 4 | 7) {
-                c == '-'
-            } else {
-                c.is_ascii_digit()
-            }
-        });
-    if shaped { day } else { "undated" }
 }
 
 pub(super) fn one_line(text: &str) -> String {
