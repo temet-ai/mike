@@ -13,6 +13,7 @@ impl PersistHandle {
             references,
             vector.map(|v| v.0.as_str()),
             vector.map(|v| v.1.as_str()),
+            vector.map(|v| v.2.as_str()),
         )
         .fetch_all(self.pool())
         .await?;

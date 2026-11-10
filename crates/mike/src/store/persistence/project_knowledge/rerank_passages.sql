@@ -27,10 +27,18 @@ WITH wanted AS (
         ON t.thread_uuid = CASE WHEN w.key ~ '^[0-9a-fA-F-]{36}$' THEN w.key::uuid END
      WHERE w.kind = 'thread'
 )
-SELECT DISTINCT ON (s.reference) s.reference AS "reference!", c.body AS "body!"
-  FROM sources s
-  JOIN memory.knowledge_embedding_state e
-    ON e.source_kind = s.source_kind AND e.source_id = s.source_id
-   AND e.completed_at IS NOT NULL AND ($3::text IS NULL OR e.model_key = $3::text)
-  JOIN memory.knowledge_embedding_chunks c ON c.state_id = e.id
- ORDER BY s.reference, c.embedding <=> $2::text::public.vector NULLS LAST, c.ordinal
+(SELECT DISTINCT ON (s.reference) s.reference AS "reference!", c.body AS "body!"
+   FROM sources s
+   JOIN memory.knowledge_embedding_state e
+     ON e.source_kind = s.source_kind AND e.source_id = s.source_id
+    AND e.completed_at IS NOT NULL AND ($3::text IS NULL OR e.model_key = $3::text)
+   JOIN memory.knowledge_embedding_chunks c ON c.state_id = e.id
+  ORDER BY s.reference, c.embedding <=> $2::text::public.vector NULLS LAST, c.ordinal)
+UNION ALL
+(SELECT DISTINCT ON (w.reference) w.reference, c.chunk_text
+   FROM wanted w
+   JOIN memory.operator_turn_chunks c
+     ON c.turn_id = CASE WHEN w.key ~ '^[0-9]{1,18}$' THEN w.key::bigint END
+    AND ($4::text IS NULL OR c.embedding_model = $4::text)
+  WHERE w.kind = 'turn'
+  ORDER BY w.reference, c.chunk_embedding <=> $2::text::public.vector NULLS LAST, c.chunk_idx)
