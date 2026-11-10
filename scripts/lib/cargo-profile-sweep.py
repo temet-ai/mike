@@ -113,6 +113,11 @@ def sweep(profile, mode, age, dry):
         if mode == 'incremental':
             paths = [profile / 'incremental'] if (profile / 'incremental').is_dir() else []
             return (0, 0, remove(paths, dry))
+        if mode == 'all':
+            # A finished checkout's build: everything goes but the lock files,
+            # whose inodes a waiting Cargo process may hold.
+            paths = [path for path in profile.iterdir() if path.name not in LOCKS]
+            return (remove(paths, dry), 0, 0)
         obsolete = [path for name in ('deps', '.fingerprint', 'build', 'incremental')
                     for path in superseded(profile / name, age)]
         objects = unused_objects(profile, age)

@@ -45,13 +45,15 @@ else
 fi
 
 # Never unlink whole target directories: a Cargo process may already be waiting
-# on their lock inode. Retain that inode and let cargo-target-sweep reclaim
-# artifacts while holding it, even when the owning checkout is gone.
-retain_for_sweep() {
+# on their lock inode. A finished checkout's folder is emptied instead
+# (cargo-target-sweep --empty): every build goes, its Cargo lock files stay.
+finished=()
+empty_finished() {
   local dir="$1" why="$2"
-  local verb="sweeping"
-  (( dry )) && verb="would sweep"
-  echo "cargo-sweep-all: ${dir}: ${verb} artifacts, ${why}; retaining Cargo lock files"
+  local verb="emptying"
+  (( dry )) && verb="would empty"
+  echo "cargo-sweep-all: ${dir}: ${verb}, ${why}; retaining Cargo lock files"
+  finished+=("${dir}")
 }
 
 targets=()
@@ -80,7 +82,31 @@ for base in "${roots[@]}"; do
     -type d \( -name target -o -name '*-target' \) -print -prune 2>/dev/null)
 done
 
-finished_days="${CARGO_SWEEP_FINISHED_DAYS:-3}"
+# A detached checkout (a gate, check or release build) is finished once its
+# commit is on the main branch and nothing was built in it for this many days;
+# so is a target folder no project owns.
+detached_days="${CARGO_SWEEP_DETACHED_DAYS:-1}"
+
+main_branch() {
+  local tree="$1" base
+  base="$(git -C "${tree}" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null)"
+  if [[ -z "${base}" ]]; then
+    for base in origin/main main origin/master master; do
+      git -C "${tree}" rev-parse -q --verify "${base}^{commit}" >/dev/null && break
+      base=""
+    done
+  fi
+  printf '%s' "${base}"
+}
+
+finished_detached() {
+  local tree="$1" base
+  [[ -f "${tree}/.git" ]] || return 1
+  git -C "${tree}" symbolic-ref -q HEAD >/dev/null 2>&1 && return 1
+  [[ -z "$(git -C "${tree}" status --porcelain --untracked-files=no 2>/dev/null)" ]] || return 1
+  base="$(main_branch "${tree}")"
+  [[ -n "${base}" ]] && git -C "${tree}" merge-base --is-ancestor HEAD "${base}" 2>/dev/null
+}
 
 finished_branch() {
   local tree="$1" branch base
@@ -104,6 +130,13 @@ written_within() {
   [[ -n "$(find "$1" -maxdepth 3 -mtime -"$2" -print 2>/dev/null | head -1)" ]]
 }
 
+# A new branch with no commits yet also reads as merged, so a merged or gone
+# branch's folder waits this many minutes after its last build.
+branch_idle_minutes="${CARGO_SWEEP_BRANCH_IDLE_MINUTES:-120}"
+built_in_minutes() {
+  [[ -n "$(find "$1" -maxdepth 3 -mmin -"$2" -print 2>/dev/null | head -1)" ]]
+}
+
 kept=()
 for dir in "${targets[@]+"${targets[@]}"}"; do
   [[ -d "${dir}" ]] || continue
@@ -112,12 +145,18 @@ for dir in "${targets[@]+"${targets[@]}"}"; do
   if [[ -f "${tree}/CACHEDIR.TAG" ]]; then
     why=""   # a target folder inside a target folder goes with its parent
   elif [[ ! -f "${tree}/Cargo.toml" ]]; then
-    why="no project beside it owns it"
+    written_within "${dir}" "${detached_days}" ||
+      why="no project beside it owns it and nothing was built for ${detached_days}d"
   elif [[ "$(basename "${dir}")" == target ]] && finished_branch "${tree}"; then
-    why="its worktree's branch is merged or gone"
+    built_in_minutes "${dir}" "${branch_idle_minutes}" ||
+      why="its worktree's branch is merged or gone and nothing was built for ${branch_idle_minutes}m"
+  elif [[ "$(basename "${dir}")" == target ]] && finished_detached "${tree}" &&
+    ! written_within "${dir}" "${detached_days}"; then
+    why="its detached checkout is on the main branch and nothing was built for ${detached_days}d"
   fi
-  if [[ -n "${why}" ]] && ! written_within "${dir}" "${finished_days}"; then
-    retain_for_sweep "${dir}" "${why} and nothing was built for ${finished_days}d"
+  if [[ -n "${why}" ]]; then
+    empty_finished "${dir}" "${why}"
+    continue
   fi
   kept+=("${dir}")
 done
@@ -141,7 +180,8 @@ for dir in "${HOME}"/.cargo/build/*/*/*; do
   if [[ -f "${dir}/.checkout" ]]; then
     owner="$(head -n 1 "${dir}/.checkout")"
     if [[ -n "${owner}" && ! -e "${owner}" ]]; then
-      retain_for_sweep "${dir}" "the checkout it was built for (${owner}) no longer exists"
+      empty_finished "${dir}" "the checkout it was built for (${owner}) no longer exists"
+      continue
     fi
     owned+=("${dir}")
   else
@@ -154,9 +194,12 @@ fi
 if [[ ${#unowned[@]} -gt 0 ]]; then
   "${sweep}" "${sweep_opts[@]+"${sweep_opts[@]}"}" --remove-idle 14 "${unowned[@]}" || status=1
 fi
+if [[ ${#finished[@]} -gt 0 ]]; then
+  "${sweep}" "${sweep_opts[@]+"${sweep_opts[@]}"}" --empty "${finished[@]}" || status=1
+fi
 
 floor_gb="${CARGO_SWEEP_FLOOR_GB:-30}"
-swept=("${targets[@]+"${targets[@]}"}" "${owned[@]+"${owned[@]}"}" "${unowned[@]+"${unowned[@]}"}")
+swept=("${targets[@]+"${targets[@]}"}" "${owned[@]+"${owned[@]}"}" "${unowned[@]+"${unowned[@]}"}" "${finished[@]+"${finished[@]}"}")
 checked=" "
 for dir in "${swept[@]+"${swept[@]}"}"; do
   [[ -d "${dir}" ]] || continue

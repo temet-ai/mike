@@ -194,9 +194,16 @@ guard_build_leave
 trap - EXIT
 [[ -n "$cx_errlog" ]] && rm -f "$cx_errlog"
 
+swept=0
 if [[ -n "$lock_before" && -f Cargo.lock ]]; then
   lock_after="$(sha256 < Cargo.lock)"
-  [[ "$lock_after" != "$lock_before" ]] && cx_sweep "dependency graph changed"
+  [[ "$lock_after" != "$lock_before" ]] && cx_sweep "dependency graph changed" && swept=1
+fi
+# A build folder over its cap is swept after the build, not hours later by the timer.
+cap_gb="${CARGO_SWEEP_MAXSIZE_GB:-40}"
+size_kb="$(du -sk "$CARGO_TARGET_DIR" 2>/dev/null | cut -f1)"
+if (( ! swept )) && [[ -n "$size_kb" ]] && (( size_kb > cap_gb * 1048576 )); then
+  cx_sweep "$((size_kb / 1048576))G, over the ${cap_gb}G cap"
 fi
 
 exit "$status"

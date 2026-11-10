@@ -86,6 +86,26 @@ busy="$(new_target)"
 [[ -d "$busy" ]] && chk pass "a build directory written recently stays" || chk fail "a build directory written recently stays"
 rm -rf "$idle" "$busy"
 
+echo "cargo-target-sweep — --empty removes every build and keeps the Cargo lock files"
+t="$(new_target)"
+: > "$t/debug/.cargo-lock"
+"$SWEEP" --empty "$t" >/dev/null
+[[ -z "$(find "$t/debug" -mindepth 1 ! -name '.cargo-lock' ! -name '.cargo-build-lock' ! -name '.cargo-artifact-lock' -print -quit)" ]] && chk pass "an emptied profile holds nothing but lock files" || chk fail "an emptied profile holds nothing but lock files"
+[[ -f "$t/debug/.cargo-lock" ]] && chk pass "the profile's lock file stays" || chk fail "the profile's lock file stays"
+rm -rf "$t"
+
+echo "cargo-target-sweep — --empty skips a profile a build holds"
+t="$(new_target)"
+: > "$t/debug/.cargo-lock"
+ready="$(mktemp)"; rm -f "$ready"
+perl -MFcntl=:flock -e 'open(my $h, "<", $ARGV[0]) or die; flock($h, LOCK_EX) or die; open(my $r, ">", $ARGV[1]); close $r; sleep 30' "$t/debug/.cargo-lock" "$ready" &
+holder=$!
+for _ in $(seq 50); do [[ -e "$ready" ]] && break; sleep 0.1; done
+"$SWEEP" --empty "$t" >/dev/null
+[[ -f "$t/debug/deps/libtokio-00112233aabbccdd.rlib" ]] && chk pass "a held profile keeps its builds" || chk fail "a held profile keeps its builds"
+kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null
+rm -rf "$t" "$ready"
+
 echo "cargo-target-sweep — over cap, recent superseded builds go too and the newest stays"
 t="$(new_target)"
 touch "$t/debug/deps/libserde-0123456789abcdef.rlib"
@@ -162,9 +182,19 @@ touch "$home/.cargo/build/proj/aa/gone/CACHEDIR.TAG" "$home/.cargo/build/proj/bb
 printf '%s\n' "$roots/deleted-checkout" > "$home/.cargo/build/proj/aa/gone/.checkout"
 printf '%s\n' "$repo" > "$home/.cargo/build/proj/bb/live/.checkout"
 stub="$roots/stub"
-printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$@" >> "%s/args"\n' "$roots" > "$stub" && chmod +x "$stub"
+printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$@" >> "%s/args"\n[[ "$1" == --empty ]] && printf "%%s\\n" "$@" >> "%s/emptied"\nexit 0\n' "$roots" "$roots" > "$stub" && chmod +x "$stub"
 HOME="$home" CARGO_SWEEP_ROOTS="$roots" CARGO_SWEEP_SCRIPT="$stub" CARGO_SWEEP_FLOOR_GB=0 "$script_dir/cargo-sweep-all" >/dev/null
 args="$(cat "$roots/args" 2>/dev/null)"
+emptied="$(cat "$roots/emptied" 2>/dev/null)"
+real() { cd "$1" && pwd -P; }
+grep -qx "$(real "$roots/proj-merged/target")" <<< "$emptied" && chk pass "a merged worktree's target is emptied" || chk fail "a merged worktree's target is emptied"
+grep -qx "$(real "$roots/proj-detached/target")" <<< "$emptied" && chk pass "an idle detached checkout on main is emptied" || chk fail "an idle detached checkout on main is emptied"
+grep -qx "$(real "$roots/cache/gate-622-target")" <<< "$emptied" && chk pass "an idle target no project owns is emptied" || chk fail "an idle target no project owns is emptied"
+grep -qx "$home/.cargo/build/proj/aa/gone" <<< "$emptied" && chk pass "a build-dir whose checkout is gone is emptied" || chk fail "a build-dir whose checkout is gone is emptied"
+for kept in proj proj-open proj-fresh; do
+  grep -qx "$(real "$roots/$kept/target")" <<< "$emptied" && chk fail "$kept keeps its builds" || chk pass "$kept keeps its builds"
+done
+grep -qx "$(real "$roots/cache/fresh-target")" <<< "$emptied" && chk fail "a recently built target no project owns keeps its builds" || chk pass "a recently built target no project owns keeps its builds"
 [[ -d "$roots/proj-merged/target" ]] && grep -qx "$(cd "$roots/proj-merged/target" && pwd -P)" <<< "$args" && chk pass "an idle merged worktree target is retained and swept" || chk fail "an idle merged worktree target is retained and swept"
 [[ -d "$roots/proj-merged" ]] && chk pass "the worktree itself stays" || chk fail "the worktree itself stays"
 [[ -d "$roots/proj-open/target" ]] && chk pass "a worktree on an unmerged branch keeps its target" || chk fail "a worktree on an unmerged branch keeps its target"
@@ -188,7 +218,7 @@ grep -q "^$projects/" <<< "$listed" && chk pass "the projects folder that holds 
 roots="$(mktemp -d)"
 mkdir -p "$roots/old/target/debug" && touch "$roots/old/target/.rustc_info.json" && find "$roots/old" -exec touch -t 202001010000 {} +
 out="$(HOME="$roots/nohome" CARGO_SWEEP_ROOTS="$roots" CARGO_SWEEP_SCRIPT=true CARGO_SWEEP_FLOOR_GB=0 "$script_dir/cargo-sweep-all" --dry-run)"
-[[ -d "$roots/old/target" ]] && grep -q "would sweep" <<< "$out" && chk pass "a dry run names an idle unowned target and keeps it" || chk fail "a dry run names an idle unowned target and keeps it ($out)"
+[[ -d "$roots/old/target" ]] && grep -q "would empty" <<< "$out" && chk pass "a dry run names an idle unowned target and keeps it" || chk fail "a dry run names an idle unowned target and keeps it ($out)"
 rm -rf "$roots"
 
 echo "cargo-target-sweep — unreferenced compiler objects are reclaimed without breaking debugging"

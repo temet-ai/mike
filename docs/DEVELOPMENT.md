@@ -70,6 +70,12 @@ debug maps. Removing every `*.rcgu.o` indiscriminately leaves binaries runnable
 but can remove their debugger information. Busy profiles are skipped under Cargo
 locks; an over-cap or failed cleanup is reported as a failure.
 
+A finished checkout's build folder is emptied, keeping only its Cargo lock files:
+a worktree whose branch is merged or gone (two hours after its last build), a
+detached checkout whose commit is on main, or a folder no project owns (a day
+after its last build), and a build-dir whose checkout is gone. `scripts/cx` also
+sweeps its own folder after a build that leaves it over the cap.
+
 ### Test database isolation
 
 Database-backed tests require an explicit `MIKE_TEST_ADMIN_URL`. The repository

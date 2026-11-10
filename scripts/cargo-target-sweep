@@ -18,9 +18,12 @@
 #              Legacy idle hint: sweep an idle DIR, retaining its Cargo lock
 #              files. Whole-directory deletion can race a build waiting on the
 #              old lock inode, so idle directories are no longer removed whole.
+#   --empty    The DIRs belong to finished checkouts: remove every build in each
+#              profile, keeping only its Cargo lock files (taken without waiting,
+#              so a profile a build holds is skipped).
 #   --dry-run  Report sizes and what would go, delete nothing.
 #
-# For each DIR:
+# Otherwise, for each DIR:
 #   1. always, unreferenced rcgu.o objects and superseded builds: in deps/, .fingerprint/, build/ and incremental/, an
 #      entry named <crate>-<hash> (cargo's 16 hex characters; in incremental/,
 #      rustc's base-36 crate id) that is older than --age days while a newer
@@ -60,6 +63,7 @@ source "$script_dir/lib/target-dir-guard.sh"
 cap_gb="${CARGO_SWEEP_MAXSIZE_GB:-40}"
 age_days="${CARGO_SWEEP_AGE_DAYS:-3}"
 dry_run=0
+empty=0
 idle_days=""
 dirs=()
 
@@ -68,6 +72,7 @@ while [[ $# -gt 0 ]]; do
     --cap)     cap_gb="${2:?--cap needs a value}"; shift 2 ;;
     --age)     age_days="${2:?--age needs a value}"; shift 2 ;;
     --dry-run) dry_run=1; shift ;;
+    --empty)   empty=1; shift ;;
     --remove-idle) idle_days="${2:?--remove-idle needs a number of days}"; shift 2 ;;
     -h|--help) sed -n '2,34p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*)        echo "cargo-target-sweep: unknown option $1" >&2; exit 2 ;;
@@ -110,6 +115,24 @@ remove_profiles() {
     total=$((total + ${n:-0})); objects=$((objects + ${o:-0})); incremental=$((incremental + ${i:-0}))
   done <<< "$(profiles_of "$dir")"
   printf '%d %d %d' "$total" "$objects" "$incremental"
+}
+
+empty_dir() {
+  local dir="$1" before after removed unused
+  sweep_failed=0
+  before="$(size_kb "$dir")"
+  remove_profiles "$dir" all > "$count_file"
+  read -r removed unused unused < "$count_file"
+  after="$(size_kb "$dir")"
+  local verb="emptied" detail
+  (( dry_run )) && verb="would empty"
+  detail="$(human "$before") -> $(human "$after"), ${removed} item(s), its checkout is finished"
+  (( busy_profiles > 0 )) && detail="${detail}; ${busy_profiles} profile(s) skipped because a cargo build holds them"
+  if (( sweep_failed )); then
+    echo "$(ts) [cargo-sweep] $dir: FAILED: $detail"
+    return 1
+  fi
+  echo "$(ts) [cargo-sweep] $dir: $verb: $detail"
 }
 
 sweep_dir() {
@@ -165,6 +188,10 @@ status=0
 for dir in "${dirs[@]}"; do
   if [[ ! -d "$dir" ]]; then
     echo "$(ts) [cargo-sweep] $dir: not a directory, skipped"
+    continue
+  fi
+  if (( empty )); then
+    empty_dir "$dir" || status=1
     continue
   fi
   if [[ -n "$idle_days" ]] && [[ -z "$(find "$dir" -mtime -"$idle_days" -print 2>/dev/null | head -1)" ]]; then
