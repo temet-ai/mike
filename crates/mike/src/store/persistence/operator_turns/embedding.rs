@@ -87,6 +87,27 @@ impl PersistHandle {
         .await
     }
 
+    pub async fn requeue_turns_marked_embedded_without_chunks(&self) -> Result<u64, PersistError> {
+        crate::metrics::time_db("requeue_turns_marked_embedded_without_chunks", async move {
+            let result = sqlx::query!(
+                "UPDATE memory.operator_turns t
+                    SET embedded_at = NULL
+                  WHERE t.embedded_at IS NOT NULL
+                    AND t.closed_at IS NOT NULL
+                    AND (t.opened_by IS NULL OR t.opened_by = 'operator')
+                    AND (btrim(COALESCE(t.user_prompt, '')) <> ''
+                         OR btrim(COALESCE(t.final_assistant_text, '')) <> '')
+                    AND NOT EXISTS (
+                        SELECT 1 FROM memory.operator_turn_chunks c WHERE c.turn_id = t.id
+                    )"
+            )
+            .execute(&self.pool)
+            .await?;
+            Ok(result.rows_affected())
+        })
+        .await
+    }
+
     pub async fn count_pending_embedding_turns(&self) -> Result<i64, PersistError> {
         crate::metrics::time_db("count_pending_embedding_turns", async move {
             let n: i64 = sqlx::query_scalar!(

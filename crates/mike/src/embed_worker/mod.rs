@@ -144,10 +144,31 @@ pub(crate) async fn requeue_on_model_change(
     {
         Ok(turns) => {
             log_requeued(turns, &model);
+            requeue_turns_without_chunks(persist).await;
             *requeued_for = Some(model);
         }
         Err(error) => log_requeue_failed(&error),
     }
+}
+
+async fn requeue_turns_without_chunks(persist: &PersistHandle) {
+    match persist.requeue_turns_marked_embedded_without_chunks().await {
+        Ok(turns) => log_requeued_without_chunks(turns),
+        Err(error) => log_requeue_without_chunks_failed(&error),
+    }
+}
+
+fn log_requeued_without_chunks(turns: u64) {
+    if turns > 0 {
+        tracing::info!(
+            turns,
+            "embed_backfill: turns marked embedded without chunks queued for embedding"
+        );
+    }
+}
+
+fn log_requeue_without_chunks_failed(error: &PersistError) {
+    tracing::warn!(%error, "embed_backfill: queueing turns without chunks failed");
 }
 
 fn log_requeued(turns: u64, model: &str) {

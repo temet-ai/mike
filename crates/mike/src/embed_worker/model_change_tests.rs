@@ -87,6 +87,81 @@ async fn requeue_on_model_change_with_the_same_model_twice_queues_nothing_more()
     Ok(())
 }
 
+async fn marked_turn_without_chunks(handle: &PersistHandle, prompt: &str) -> anyhow::Result<i64> {
+    let project = seed_project(handle.pool(), &uuid::Uuid::new_v4().to_string()).await?;
+    let session = uuid::Uuid::new_v4().to_string();
+    seed_two_sessions(
+        handle.pool(),
+        &session,
+        &uuid::Uuid::new_v4().to_string(),
+        project,
+    )
+    .await?;
+    seed_session_turns(handle.pool(), &session, project, 1).await?;
+    let turn_id: i64 = sqlx::query_scalar(
+        "SELECT t.id FROM memory.operator_turns t JOIN sessions.sessions s ON s.id = t.session_id
+          WHERE s.session_uuid = $1::text::uuid",
+    )
+    .bind(&session)
+    .fetch_one(handle.pool())
+    .await?;
+    sqlx::query(
+        "UPDATE memory.operator_turns SET user_prompt = $2, final_assistant_text = '' WHERE id = $1",
+    )
+    .bind(turn_id)
+    .bind(prompt)
+    .execute(handle.pool())
+    .await?;
+    handle.mark_turns_embedded(&[turn_id]).await?;
+    Ok(turn_id)
+}
+
+#[tokio::test]
+async fn requeue_on_model_change_with_a_marked_turn_without_chunks_queues_it_again()
+-> anyhow::Result<()> {
+    let db = acquire_ephemeral_db()
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    let lost = marked_turn_without_chunks(&handle, "we fixed the cargo sweep").await?;
+    let blank = marked_turn_without_chunks(&handle, "   ").await?;
+    let current = embedded_turn(&handle, "embeddinggemma").await?;
+
+    let mut requeued_for = None;
+    requeue_on_model_change(&handle, &service("embeddinggemma"), &mut requeued_for).await;
+
+    assert!(is_pending(&handle, lost).await?);
+    assert!(!is_pending(&handle, blank).await?);
+    assert!(!is_pending(&handle, current).await?);
+    db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn embed_turn_with_an_unreachable_embedder_leaves_the_turn_pending() -> anyhow::Result<()> {
+    let db = acquire_ephemeral_db()
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    let turn_id = marked_turn_without_chunks(&handle, "we fixed the cargo sweep").await?;
+    sqlx::query("UPDATE memory.operator_turns SET embedded_at = NULL WHERE id = $1")
+        .bind(turn_id)
+        .execute(handle.pool())
+        .await?;
+    let unreachable = EmbeddingService::new(&EmbeddingConfig {
+        enabled: true,
+        model: "embeddinggemma".into(),
+        url: "http://127.0.0.1:9".into(),
+        ..EmbeddingConfig::default()
+    });
+
+    crate::store::operator_turns::embed_turn(&handle, &unreachable, turn_id).await?;
+
+    assert!(is_pending(&handle, turn_id).await?);
+    db.cleanup().await?;
+    Ok(())
+}
+
 #[tokio::test]
 async fn requeue_on_model_change_with_embedding_disabled_queues_nothing() -> anyhow::Result<()> {
     let db = acquire_ephemeral_db()

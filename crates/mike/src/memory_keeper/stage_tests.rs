@@ -141,7 +141,18 @@ async fn apply_control_arm_session_is_left_unchanged() -> Result<()> {
 }
 
 #[test]
-fn carries_marker_finds_the_marker_only_when_present() {
-    assert!(carries_marker(b"x [keeper:0123] y"));
-    assert!(!carries_marker(b"no card here"));
+fn carries_finds_the_marker_only_when_present() {
+    assert!(carries(b"x [keeper:0123] y", KEEPER_MARKER_OPEN));
+    assert!(!carries(b"no card here", KEEPER_MARKER_OPEN));
+    assert!(carries(b"x [keeper-earlier:0123] y", EARLIER_MARKER_OPEN));
+}
+
+#[tokio::test]
+async fn apply_past_pointing_prompt_without_a_database_still_supplies_the_card() -> Result<()> {
+    let session = session_in(KeeperArm::Keeper)?;
+    let out = run_stage(session, "continue the alpha work we did last week").await?;
+    let text = String::from_utf8_lossy(out.body()).into_owned();
+    assert!(text.contains("Work thread `alpha`"));
+    assert!(!text.contains(EARLIER_MARKER_OPEN));
+    Ok(())
 }
