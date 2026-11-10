@@ -67,6 +67,12 @@ impl Text {
     }
 }
 
+impl Text {
+    pub(super) fn mentions_phrase(&self, phrase: &str) -> bool {
+        contains_bounded(&self.lower, phrase)
+    }
+}
+
 pub(super) fn is_deictic(prompt: &str) -> bool {
     let normalised = prompt.to_lowercase().replace('\u{2019}', "'");
     DEICTIC_PHRASES
