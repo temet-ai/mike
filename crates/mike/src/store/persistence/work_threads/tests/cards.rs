@@ -91,6 +91,12 @@ async fn card_inputs_for_recent_and_old_items_keep_only_the_recent_ones() -> any
         .thread
         .id;
     let pool = f.handle.pool();
+    sqlx::query(
+        "UPDATE work.thread_state SET updated_at = now() - interval '2 days' WHERE thread_id = $1",
+    )
+    .bind(thread_id)
+    .execute(pool)
+    .await?;
     let (session_id, turns) = seeded_turns(pool, session, f.project).await?;
     seed_promises(pool, session_id, &turns).await?;
     seed_verdicts(pool, session_id, &turns).await?;
