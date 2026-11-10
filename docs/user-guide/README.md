@@ -68,6 +68,7 @@ mike runs on Linux x86_64 and ARM64 (glibc 2.35 or newer) and on Apple Silicon M
 - [Run your first fleet](fleets/first-fleet.md): the example from `/fleet` to `done`.
 - [Write a fleet definition](fleets/definition.md): the outcomes, the tasks and their files, and the checks.
 - [How a fleet runs](fleets/how-a-fleet-runs.md): the sessions mike opens and what each one does.
+- [How the sessions work together](fleets/working-together.md): what each session can learn about the others, questions, messages and shared decisions.
 - [Share one checkout](fleets/shared-checkout.md): commits, the rules for the folder, and checks on clean copies.
 - [How work is accepted](fleets/acceptance.md): the report, the floor and the judge.
 - [Watch a fleet and step in](fleets/watch-and-recover.md): the status screen, questions for you, repairs and stopping.

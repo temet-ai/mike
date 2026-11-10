@@ -67,6 +67,9 @@ sessions commit and push to the one branch you name, in your checkout.
   and the checks, with a whole definition to copy.
 - [How a fleet runs](how-a-fleet-runs.md): the sessions mike opens, in what order, and what each
   one does.
+- [How the sessions work together](working-together.md): how a session finds out what the
+  others are doing, asks them questions and shares decisions, and what that gives you over one
+  session or a team working by hand.
 - [Share one checkout](shared-checkout.md): how several sessions edit one folder without
   getting in each other's way, and how commits and checks work.
 - [How work is accepted](acceptance.md): the report, the checks mike runs, and the judge.
