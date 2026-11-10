@@ -7,16 +7,18 @@ use crate::store::persistence::project_knowledge::{KnowledgeQuery, SemanticCut, 
 pub(super) struct Rescue {
     pub(super) cut: ScoreFloor,
     pub(super) score: f64,
+    pub(super) min_kept: usize,
 }
 
 pub(super) fn pool_query(
     input: &KnowledgeQuery,
     model_name: &str,
-    score: f64,
+    (score, min_kept): (f64, usize),
 ) -> (KnowledgeQuery, Rescue) {
     let cut = Rescue {
         cut: cut_for(model_name, input.semantic_cut),
         score,
+        min_kept,
     };
     let pool = KnowledgeQuery {
         semantic_cut: SemanticCut {
@@ -40,10 +42,14 @@ pub(super) fn keep(
     let line = rescue.cut.floor.max(best - rescue.cut.window);
     arranged
         .into_iter()
-        .filter(|(row, score)| match score {
-            Some(score) => f64::from(*score) >= rescue.score || over_line(row, line),
+        .enumerate()
+        .filter(|(rank, (row, score))| match score {
+            Some(score) => {
+                *rank < rescue.min_kept || f64::from(*score) >= rescue.score || over_line(row, line)
+            }
             None => over_line(row, line) || unscored_without_vector(row),
         })
+        .map(|(_, kept)| kept)
         .collect()
 }
 

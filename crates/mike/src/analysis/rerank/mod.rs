@@ -20,8 +20,8 @@ mod warmup;
 mod warmup_tests;
 
 pub(crate) use keys::assign_rerank_key;
-pub(crate) use nightly::DEFAULT_RESCUE_SCORE;
 pub use nightly::RerankNightly;
+pub(crate) use nightly::{DEFAULT_RESCUE_MIN_KEPT, DEFAULT_RESCUE_SCORE};
 pub(crate) use runtime::{RerankPhase, RerankStatus};
 pub use service::RerankService;
 pub(crate) use warmup::spawn_rerank_warmup;
@@ -53,6 +53,8 @@ pub(crate) const BREAKER_MAX_COOLDOWN: std::time::Duration = std::time::Duration
 pub struct RerankConfig {
     pub rescue_score: f64,
 
+    pub rescue_min_kept: usize,
+
     pub nightly: RerankNightly,
 
     #[serde(deserialize_with = "deserialize_permissive_bool")]
@@ -74,6 +76,7 @@ impl Default for RerankConfig {
     fn default() -> Self {
         Self {
             rescue_score: DEFAULT_RESCUE_SCORE,
+            rescue_min_kept: DEFAULT_RESCUE_MIN_KEPT,
             nightly: RerankNightly::default(),
             enabled: false,
             url: DEFAULT_RERANK_URL.to_owned(),

@@ -15,7 +15,29 @@ fn rescue() -> Rescue {
     Rescue {
         cut: score_floor_for(MODEL),
         score: DEFAULT_RESCUE_SCORE,
+        min_kept: 0,
     }
+}
+
+#[test]
+fn the_best_scored_rows_stay_up_to_min_kept_even_under_every_line() {
+    let arranged = vec![
+        (row("turn:best", under_floor()), scored(-3.0)),
+        (row("turn:second", under_floor()), scored(-4.0)),
+        (row("turn:third", under_floor()), scored(-5.0)),
+        (row("seat:unscored", under_floor()), None),
+    ];
+    let rule = Rescue {
+        min_kept: 2,
+        ..rescue()
+    };
+
+    let kept: Vec<String> = keep(arranged, rule)
+        .into_iter()
+        .filter_map(|(row, _)| row["reference"].as_str().map(str::to_owned))
+        .collect();
+
+    assert_eq!(kept, vec!["turn:best", "turn:second"]);
 }
 
 fn scored(offset: f64) -> Option<f32> {
@@ -37,7 +59,7 @@ fn under_floor() -> f64 {
 fn pool_query_takes_every_semantic_hit_and_any_query_term() {
     let input = KnowledgeQuery::default();
 
-    let (pool, cut) = pool_query(&input, MODEL, DEFAULT_RESCUE_SCORE);
+    let (pool, cut) = pool_query(&input, MODEL, (DEFAULT_RESCUE_SCORE, 0));
 
     assert_eq!(cut, rescue());
     assert_eq!(pool.semantic_cut.floor, Some(0.0));
@@ -56,7 +78,7 @@ fn pool_query_reports_a_tuned_floor_and_the_configured_score() {
         ..KnowledgeQuery::default()
     };
 
-    let (_, cut) = pool_query(&input, MODEL, DEFAULT_RESCUE_SCORE + 1.0);
+    let (_, cut) = pool_query(&input, MODEL, (DEFAULT_RESCUE_SCORE + 1.0, 0));
 
     assert_eq!(cut.cut.floor, tuned);
     assert_eq!(cut.score, DEFAULT_RESCUE_SCORE + 1.0);

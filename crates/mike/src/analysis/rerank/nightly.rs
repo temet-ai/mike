@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 
 pub(crate) const DEFAULT_RESCUE_SCORE: f64 = -1.25;
 
+pub(crate) const DEFAULT_RESCUE_MIN_KEPT: usize = 3;
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct RerankNightly {
