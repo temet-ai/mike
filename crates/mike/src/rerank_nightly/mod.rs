@@ -1,6 +1,9 @@
 mod candidates;
 mod grade;
 mod lesson_pairs;
+mod load;
+#[cfg(test)]
+mod load_tests;
 mod run_now;
 mod tune;
 
@@ -37,7 +40,7 @@ const GRADE_BATCH: i64 = 200;
 enum Tick {
     TuningOff,
     OutsideWindow,
-    Active,
+    Busy,
     NotLeader,
     Ran(Pass),
 }
@@ -53,7 +56,7 @@ struct Pass {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Stop {
-    SessionActive,
+    MachineBusy,
     RerankerFailed,
     DatabaseFailed,
     MoreToGrade,
@@ -94,12 +97,9 @@ async fn run_tick(state: &AppState, persist: &PersistHandle, now: DateTime<Utc>)
     if !budget.in_window(now.hour()) {
         return Tick::OutsideWindow;
     }
-    let idle = DbIdle {
-        persist,
-        budget: &budget,
-    };
+    let idle = LoadIdle { state };
     if !idle.is_idle().await {
-        return Tick::Active;
+        return Tick::Busy;
     }
     if !persist.holds_worker_role(LEASE_ROLE, TICK_INTERVAL).await {
         return Tick::NotLeader;
@@ -181,7 +181,7 @@ async fn grade_events(
 ) -> Option<Stop> {
     for event in events {
         if !idle.is_idle().await {
-            return Some(Stop::SessionActive);
+            return Some(Stop::MachineBusy);
         }
         match grade_event(state, persist, &event).await {
             Ok(Graded::Recorded) => *graded += 1,
@@ -199,30 +199,19 @@ trait Idle {
     fn is_idle(&self) -> impl Future<Output = bool> + Send;
 }
 
-struct DbIdle<'a> {
-    persist: &'a PersistHandle,
-    budget: &'a QuietBudget,
+struct LoadIdle<'a> {
+    state: &'a AppState,
 }
 
-impl Idle for DbIdle<'_> {
-    fn is_idle(&self) -> impl Future<Output = bool> + Send {
-        session_is_idle(self.persist, self.budget)
+impl Idle for LoadIdle<'_> {
+    async fn is_idle(&self) -> bool {
+        let ceiling = quiet_budget(self.state).max_load_per_cpu;
+        load::under_ceiling(load::load_per_cpu(), ceiling)
     }
 }
 
 fn quiet_budget(state: &AppState) -> QuietBudget {
     state.rerank_service().current_config().nightly
-}
-
-async fn session_is_idle(persist: &PersistHandle, budget: &QuietBudget) -> bool {
-    let since = Utc::now() - chrono::Duration::seconds(budget.idle_secs);
-    match persist.has_recent_primary_activity(since).await {
-        Ok(active) => !active,
-        Err(error) => {
-            tracing::warn!(%error, "rerank_nightly: activity check failed; treating as active");
-            false
-        }
-    }
 }
 
 fn window_start(now: DateTime<Utc>, start_hour: u32) -> DateTime<Utc> {

@@ -7,7 +7,7 @@ pub(crate) const DEFAULT_RESCUE_SCORE: f64 = -1.25;
 pub struct RerankNightly {
     pub start_hour_utc: u32,
     pub end_hour_utc: u32,
-    pub idle_secs: i64,
+    pub max_load_per_cpu: f64,
     pub lookback_days: i64,
     pub min_graded_searches: usize,
     pub min_gain: f64,
@@ -20,7 +20,7 @@ impl Default for RerankNightly {
         Self {
             start_hour_utc: 22,
             end_hour_utc: 4,
-            idle_secs: 300,
+            max_load_per_cpu: 0.5,
             lookback_days: 14,
             min_graded_searches: crate::search_ranking::tuning::MIN_GRADED_SEARCHES,
             min_gain: crate::search_ranking::tuning::MIN_GAIN,
@@ -36,7 +36,7 @@ impl RerankNightly {
         let applied = match key {
             "rerank.nightly.start_hour_utc" => set(&mut self.start_hour_utc, hour(int)),
             "rerank.nightly.end_hour_utc" => set(&mut self.end_hour_utc, hour(int)),
-            "rerank.nightly.idle_secs" => set(&mut self.idle_secs, int.map(|v| v.max(0))),
+            "rerank.nightly.max_load_per_cpu" => set(&mut self.max_load_per_cpu, value.as_f64()),
             "rerank.tuning.lookback_days" => set(&mut self.lookback_days, int.map(|v| v.max(1))),
             "rerank.tuning.min_graded_searches" => set(&mut self.min_graded_searches, count(int)),
             "rerank.tuning.min_gain" => set(&mut self.min_gain, value.as_f64()),

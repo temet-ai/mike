@@ -229,7 +229,7 @@ async fn night_pass_when_a_session_becomes_active_stops_before_the_next_thread()
     let pass = night_pass(&harness.state, &harness.handle, &budget, at(23), &idle).await;
 
     let pool = harness.handle.pool();
-    assert_eq!(pass.stopped, Some(Stop::SessionActive));
+    assert_eq!(pass.stopped, Some(Stop::MachineBusy));
     assert_eq!(pass.thread_candidates, 1);
     assert!(!rows(pool, first).await?.is_empty());
     assert!(rows(pool, second).await?.is_empty());

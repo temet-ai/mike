@@ -90,7 +90,7 @@ async fn score_pairs(
     for forward in [true, false] {
         for side in sides(pairs, forward) {
             if !idle.is_idle().await {
-                return Err(Stop::SessionActive);
+                return Err(Stop::MachineBusy);
             }
             let Some(scores) = rerank_all(state, side.query, &side.documents).await else {
                 return Err(Stop::RerankerFailed);

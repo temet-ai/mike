@@ -37,8 +37,8 @@ export function describeTuned(tuned: string | null): string {
 /** Why a pass ended before finishing; an unknown name is shown as it came. */
 export function describeStopped(stopped: string): string {
 	switch (stopped) {
-		case 'SessionActive':
-			return 'a session became active';
+		case 'MachineBusy':
+			return 'the machine got busy';
 		case 'RerankerFailed':
 			return 'the reranker did not answer';
 		case 'DatabaseFailed':

@@ -108,15 +108,15 @@ pub(super) fn entries() -> Vec<SettingMeta> {
             0,
             23,
         ),
-        int(
+        float(
             night(
-                "rerank.nightly.idle_secs",
-                json!(d.idle_secs),
-                "Idle before the pass (seconds)",
-                "How long no session may have sent a request before the overnight pass starts, and between each search it grades.",
+                "rerank.nightly.max_load_per_cpu",
+                json!(d.max_load_per_cpu),
+                "Load ceiling per CPU",
+                "The pass starts, and keeps grading, only while the one-minute load average divided by the CPU count is at or under this.",
             ),
-            0,
-            86_400,
+            0.0,
+            4.0,
         ),
         int(
             night(

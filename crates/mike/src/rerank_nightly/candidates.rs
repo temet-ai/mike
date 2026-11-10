@@ -63,7 +63,7 @@ async fn visit(
     written: &mut usize,
 ) -> Option<Stop> {
     if !idle.is_idle().await {
-        return Some(Stop::SessionActive);
+        return Some(Stop::MachineBusy);
     }
     match build_thread(state, persist, thread).await {
         Ok(Built::Written) => {
