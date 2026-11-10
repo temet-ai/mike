@@ -57,6 +57,44 @@ async fn explicit_arguments_are_preserved_without_lookup_or_caller() -> anyhow::
 }
 
 #[tokio::test]
+async fn search_tools_receive_the_caller_without_touching_their_session_scope() -> anyhow::Result<()>
+{
+    let client = InspectClient::new("http://127.0.0.1:1".into());
+    let scope = "22222222-2222-4222-8222-222222222222";
+    for tool in ["find_text", "search_session_content"] {
+        let unscoped = supply_defaults(&client, tool, args(json!({"q": "x"})), Some(SESSION))
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("no arguments"))?;
+        assert_eq!(unscoped.get("caller_session_id"), Some(&json!(SESSION)));
+        assert!(!unscoped.contains_key("session_id"));
+
+        let scoped = supply_defaults(
+            &client,
+            tool,
+            args(json!({"q": "x", "session_id": scope})),
+            Some(SESSION),
+        )
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("no arguments"))?;
+        assert_eq!(scoped.get("caller_session_id"), Some(&json!(SESSION)));
+        assert_eq!(scoped.get("session_id"), Some(&json!(scope)));
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn search_tools_without_a_valid_caller_send_no_caller_session() -> anyhow::Result<()> {
+    let client = InspectClient::new("http://127.0.0.1:1".into());
+    for session in [None, Some("arbitrary")] {
+        let prepared = supply_defaults(&client, "find_text", args(json!({"needle": "x"})), session)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("no arguments"))?;
+        assert!(!prepared.contains_key("caller_session_id"));
+    }
+    Ok(())
+}
+
+#[tokio::test]
 async fn absent_or_invalid_caller_rejects_content_based_impersonation() -> anyhow::Result<()> {
     let client = InspectClient::new("http://127.0.0.1:1".into());
     for session in [

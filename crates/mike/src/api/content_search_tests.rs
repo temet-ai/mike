@@ -97,6 +97,47 @@ async fn search(harness: &Harness, query: &str) -> anyhow::Result<(StatusCode, V
 }
 
 #[tokio::test]
+async fn content_search_with_a_caller_logs_one_row_with_the_sessions_and_match_counts()
+-> anyhow::Result<()> {
+    let harness = Harness::boot().await?;
+    let seeded = seed(&harness).await?;
+
+    let (status, answer) = search(
+        &harness,
+        &format!("q={}&caller_session_id={}", seeded.needle, seeded.newest),
+    )
+    .await?;
+
+    assert_eq!(status, StatusCode::OK, "{answer}");
+    let events = harness.events().await?;
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].tool, "search_session_content");
+    assert_eq!(events[0].query, seeded.needle);
+    assert_eq!(events[0].rerank_state, "off");
+    assert!(events[0].session_id.is_some());
+    assert_eq!(
+        events[0].returned,
+        serde_json::json!([
+            {"reference": format!("session:{}", seeded.crowded), "matches": 3},
+            {"reference": format!("session:{}", seeded.newest), "matches": 1}
+        ])
+    );
+    harness.cleanup().await
+}
+
+#[tokio::test]
+async fn content_search_without_a_caller_logs_no_row() -> anyhow::Result<()> {
+    let harness = Harness::boot().await?;
+    let seeded = seed(&harness).await?;
+
+    let (status, _) = search(&harness, &format!("q={}", seeded.needle)).await?;
+
+    assert_eq!(status, StatusCode::OK);
+    assert!(harness.events().await?.is_empty());
+    harness.cleanup().await
+}
+
+#[tokio::test]
 async fn content_search_project_given_by_name_returns_that_projects_matches() -> anyhow::Result<()>
 {
     let harness = Harness::boot().await?;

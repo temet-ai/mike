@@ -8,7 +8,7 @@ WITH caller AS (
       JOIN caller c ON c.session_id = u.session_id
      WHERE u.created_at > now() - interval '2 minutes'
        AND u.tool_name ~ ('(^|__)' || $2::text || '$')
-       AND COALESCE(u.input ->> 'query', '') = $3::text
+       AND COALESCE(u.input ->> 'query', u.input ->> 'q', u.input ->> 'needle', '') = $3::text
      ORDER BY u.id DESC
      LIMIT 1
 ), newest_request AS (

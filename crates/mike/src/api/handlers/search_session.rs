@@ -130,6 +130,10 @@ mod search_session_test_support;
 mod search_session_tests;
 
 #[cfg(test)]
+#[path = "search_unified_log_tests.rs"]
+mod search_unified_log_tests;
+
+#[cfg(test)]
 #[path = "search_session_filters_tests.rs"]
 mod search_session_filters_tests;
 

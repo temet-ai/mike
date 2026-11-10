@@ -29,6 +29,8 @@ pub(crate) struct ContentSearchParams {
     offset: Option<u32>,
     #[serde(default)]
     order: Option<String>,
+    #[serde(default)]
+    caller_session_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -232,10 +234,23 @@ pub(crate) async fn search_content(
     State(state): State<AppState>,
     Query(params): Query<ContentSearchParams>,
 ) -> Response {
+    let caller = params.caller_session_id.clone();
     match run_search(&state, params).await {
-        Ok(answer) => Json(answer).into_response(),
+        Ok(answer) => {
+            record_answer(&state, caller.as_deref(), &answer);
+            Json(answer).into_response()
+        }
         Err(response) => response,
     }
+}
+
+fn record_answer(state: &AppState, caller: Option<&str>, answer: &ContentSearchResponse) {
+    let sessions: Vec<(String, u64)> = answer
+        .sessions
+        .iter()
+        .map(|session| (session.session_id.clone(), session.match_count))
+        .collect();
+    crate::search_events::record_conversation_search(state, caller, &answer.query, &sessions);
 }
 
 async fn run_search(

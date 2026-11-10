@@ -1,9 +1,36 @@
 use serde_json::{Map, Value, json};
 
+use super::super::text_search_find::{FindTextArgs, find_text_query};
 use super::{
-    FindTextArgs, SearchSessionContentArgs, find_text_query, find_text_tool,
-    search_session_content_query, search_session_content_tool,
+    SearchSessionContentArgs, find_text_tool, search_session_content_query,
+    search_session_content_tool,
 };
+
+#[test]
+fn find_text_query_passes_the_caller_session_under_its_own_key() -> anyhow::Result<()> {
+    let args: FindTextArgs = serde_json::from_value(json!({
+        "needle": "abc",
+        "session_id": "scope",
+        "caller_session_id": "caller"
+    }))?;
+
+    let query = find_text_query(&args);
+
+    assert!(query.contains(&("session_id", "scope".to_owned())));
+    assert!(query.contains(&("caller_session_id", "caller".to_owned())));
+    Ok(())
+}
+
+#[test]
+fn search_session_content_query_passes_the_caller_session() -> anyhow::Result<()> {
+    let args: SearchSessionContentArgs =
+        serde_json::from_value(json!({"q": "abc", "caller_session_id": "caller"}))?;
+
+    let query = search_session_content_query(&args);
+
+    assert!(query.contains(&("caller_session_id", "caller".to_owned())));
+    Ok(())
+}
 
 fn arguments(value: Value) -> anyhow::Result<Map<String, Value>> {
     match value {

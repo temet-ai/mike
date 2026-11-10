@@ -2557,9 +2557,11 @@ of one embedded source, written with its `memory.knowledge_embedding_state` row 
 
 ### `memory.search_events`
 
-Added in `20261109140000_search_events.sql`. One row per `search_project_knowledge` or
-`recall_similar_turns` call, written after the answer is built by a task spawned on `AppState.tracker`
-(`search_events/record.rs`; SQL `store/persistence/search_events/record.sql`). The
+Added in `20261109140000_search_events.sql`; `20261110120000_search_events_conversation_and_text_search.sql`
+widened the `tool` check to the four tools below. One row per `search_project_knowledge`,
+`recall_similar_turns`, `search_session_content` or `find_text` call, written after the answer is built by a
+task spawned on `AppState.tracker` (`search_events/record.rs` and `search_events/lookups.rs`; SQL
+`store/persistence/search_events/record.sql`). The
 `search_events` worker (`search_events/worker.rs`, lease role `search_events_used`) fills the used columns
 with `store/persistence/search_events/mark_used.sql`. Deleting a session deletes its events.
 
@@ -2568,12 +2570,12 @@ with `store/persistence/search_events/mark_used.sql`. Deleting a session deletes
 | `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
 | `session_id` | `BIGINT NULL` | FK → `sessions.sessions(id)` ON DELETE CASCADE; NULL when the caller sent no session id or the id is unknown |
 | `request_id` | `BIGINT NULL` | FK → `requests.requests(id)` ON DELETE SET NULL; the request whose response emitted the calling `tools.uses` row, else the session's newest request |
-| `tool` | `TEXT NOT NULL` | CHECK `IN ('search_project_knowledge', 'recall_similar_turns')` |
-| `query` | `TEXT NOT NULL` | The query as sent, `''` when browsing |
+| `tool` | `TEXT NOT NULL` | CHECK `IN ('search_project_knowledge', 'recall_similar_turns', 'search_session_content', 'find_text')` |
+| `query` | `TEXT NOT NULL` | The query as sent, `''` when browsing; the needle for `find_text` |
 | `kind_filter` | `TEXT NULL` | The `kind` argument of a knowledge search |
-| `returned` | `JSONB NOT NULL DEFAULT '[]'` | Array, in the order the caller saw it, of `{reference, score, rerank_score?}`; `score` is the plain fused rank (knowledge) or rank (turns) |
+| `returned` | `JSONB NOT NULL DEFAULT '[]'` | Array, in the order the caller saw it, of `{reference, score, rerank_score?}`; `score` is the plain fused rank (knowledge) or rank (turns). `search_session_content` stores `{reference: "session:<uuid>", matches: <n>}` per session; `find_text` stores `{reference: "request:<id>"}` per distinct request with a match, at most 50 |
 | `rerank_state` | `TEXT NOT NULL` | CHECK `IN ('reranked', 'loading', 'off', 'unavailable')`, as in the answer's `rerank.state` |
-| `used_references` | `TEXT[] NOT NULL DEFAULT '{}'` | Returned references the same session read with `read_project_knowledge` or `get_operator_turn`, or named in a turn's final reply, from the request after the search through the fifth following operator turn |
+| `used_references` | `TEXT[] NOT NULL DEFAULT '{}'` | Returned references the same session read with `read_project_knowledge` or `get_operator_turn`, or named in a turn's final reply, from the request after the search through the fifth following operator turn; a returned `session:<uuid>` or `request:<id>` counts when a later call names that session id or request id |
 | `used_checked_at` | `TIMESTAMPTZ NULL` | When the worker last evaluated the row; open rows are taken oldest-checked first |
 | `used_final_at` | `TIMESTAMPTZ NULL` | Set when the five following turns have closed or the row is a day old; the used columns no longer change |
 | `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
