@@ -2,7 +2,7 @@
 title: MCP Bridge
 status: active
 created: 2026-07-08
-updated: 2026-11-06
+updated: 2026-11-10
 summary: How to build, register, and use mike-mcp — the MCP bridge that exposes captured proxy traffic as structured tools inside a Claude Code session.
 ---
 
@@ -212,8 +212,8 @@ here.
 
 | Tool | What it does |
 |------|--------------|
-| `recall_project_context` | Bundled project memory: 5 most-recent corrected turns + 3 most-recent shipped turns + active lessons |
-| `recall_similar_turns` | Semantic/full-text recall over `operator_turns` for a project |
+| `recall_project_context` | Bundled project memory: 5 most-recent corrected turns + 3 most-recent shipped turns + active lessons; its knowledge search leaves out the caller's own newest turn unless `include_own_turn` is true |
+| `recall_similar_turns` | Semantic/full-text recall over `operator_turns` for a project; leaves out the caller's own newest turn unless `include_own_turn` is true |
 | `record_lesson` | Record a lesson (correction, convention, warning, or preference) for a project |
 | `list_lessons` | List active (non-expired) lessons for a project, newest-first by default (`order=desc`); pass `order=asc` for oldest-first |
 | `delete_lesson` | Delete a lesson by integer id |
@@ -224,7 +224,7 @@ here.
 | Tool | What it does |
 |------|--------------|
 | `list_project_locations` | Discover project UUIDs and their machine-specific locations |
-| `search_project_knowledge` | Hybrid text/semantic search across artifacts, lessons, notes, turns, comms threads (the mail sessions sent each other, one thread per fleet run), work threads (kind `work_thread`: goal, state and acceptance criteria) and session memory (kinds `thread_entry`, `question_answer`, `unmet_ask`, `correction`, `learning`, `mail`) and fleet seat material (kind `seat`, labelled with author, run, seat and task and ranked below operator material); each item has author, date, excerpt and reference, one per logical document across machines; returns retrieval coverage |
+| `search_project_knowledge` | Hybrid text/semantic search across artifacts, lessons, notes, turns, comms threads (the mail sessions sent each other, one thread per fleet run), work threads (kind `work_thread`: goal, state and acceptance criteria) and session memory (kinds `thread_entry`, `question_answer`, `unmet_ask`, `correction`, `learning`, `mail`) and fleet seat material (kind `seat`, labelled with author, run, seat and task and ranked below operator material); each item has author, date, excerpt and reference, one per logical document across machines; one source moment takes one slot (`also` lists up to 10 folded references, `also_count` their number: the same prompt in several sessions, a turn with its corrections and unmet asks, identical mails or notes); items written by tools or sessions (seat material, mail, comms threads, `brief` notes, turns that begin with a tool's text) carry `provenance.written_by: "machine"` and rank below operator material, also after reranking; the caller's own newest turn and its corrections are left out unless `include_own_turn` is true; an interrupted prompt that was resent is left out unless `include_historical` is true; returns retrieval coverage |
 | `read_project_knowledge` | Read the complete retained source for a reference returned by search, including provenance and revision metadata |
 
 For the portable-project setup and the recommended agent call sequence, see

@@ -113,6 +113,29 @@ pub(crate) struct SessionOverviewQuery<'a> {
     pub(crate) fields: Option<&'a str>,
 }
 
+#[derive(Debug, Default, Clone, Copy)]
+pub(crate) struct CallerScope<'a> {
+    pub(crate) session_id: Option<&'a str>,
+    pub(crate) include_own_turn: Option<bool>,
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+pub(crate) struct CallerArgs {
+    #[serde(default)]
+    pub(crate) session_id: Option<String>,
+    #[serde(default)]
+    pub(crate) include_own_turn: Option<bool>,
+}
+
+impl CallerArgs {
+    pub(crate) fn scope(&self) -> CallerScope<'_> {
+        CallerScope {
+            session_id: self.session_id.as_deref(),
+            include_own_turn: self.include_own_turn,
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub(crate) struct RecordLessonRequest<'a> {
     pub(crate) topic: Option<&'a str>,

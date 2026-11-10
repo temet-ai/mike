@@ -129,6 +129,7 @@ fn top_references<'a>(
             kind: c.kind.clone(),
             lexical: c.lexical,
             semantic: c.semantic,
+            machine: false,
         })
         .collect();
     let scores: Vec<Option<f64>> = grade.candidates.iter().map(|c| c.rerank_score).collect();

@@ -37,18 +37,30 @@ pub(crate) fn cut_for(model_name: &str, cut: SemanticCut) -> ScoreFloor {
     }
 }
 
+pub(crate) const TOOL_WRITTEN_OPENINGS: [&str; 5] = [
+    "A session-scoped Stop hook is now active with condition:",
+    "The tether plugin sent a message:",
+    "Perform a web search for the query:",
+    "You score how well a stand-in predicted",
+    "Coordinator wake for fleet ",
+];
+
 #[derive(Clone, Default, Deserialize)]
 pub struct KnowledgeQuery {
     #[serde(skip)]
     pub semantic_cut: SemanticCut,
     #[serde(skip)]
     pub any_term: bool,
+    #[serde(skip)]
+    pub caller_session: Option<String>,
     pub project: String,
     #[serde(default)]
     pub query: String,
     pub kind: Option<String>,
     #[serde(default)]
     pub include_historical: bool,
+    #[serde(default)]
+    pub include_own_turn: bool,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
@@ -79,19 +91,37 @@ impl<'a> QueryVector<'a> {
     }
 }
 
-async fn fetch_hits(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    (project_id, input): (i64, &KnowledgeQuery),
+struct WriterScope {
+    caller: Option<uuid::Uuid>,
+    openings: Vec<String>,
+}
+
+impl WriterScope {
+    fn of(input: &KnowledgeQuery) -> Self {
+        Self {
+            caller: input
+                .caller_session
+                .as_deref()
+                .filter(|_| !input.include_own_turn)
+                .and_then(|session| uuid::Uuid::parse_str(session.trim()).ok()),
+            openings: TOOL_WRITTEN_OPENINGS.map(String::from).to_vec(),
+        }
+    }
+}
+
+fn fetch_hits<'a>(
+    tx: &'a mut sqlx::Transaction<'_, sqlx::Postgres>,
+    (project_id, input): (i64, &'a KnowledgeQuery),
     (limit, offset): (i64, i64),
-    bound: &QueryVector<'_>,
-) -> Result<Vec<Value>, PersistError> {
-    Ok(sqlx::query_file_scalar!(
+    (bound, writers): (&'a QueryVector<'_>, &'a WriterScope),
+) -> impl std::future::Future<Output = Result<Vec<Value>, sqlx::Error>> + 'a {
+    sqlx::query_file_scalar!(
         "src/store/persistence/project_knowledge/search.sql",
         project_id,
         input.query,
         input.kind,
         input.include_historical,
-        limit + 1,
+        limit,
         offset,
         bound.literal,
         bound.model_key,
@@ -99,9 +129,10 @@ async fn fetch_hits(
         bound.cut.floor,
         bound.cut.window,
         input.any_term,
+        writers.caller,
+        &writers.openings,
     )
     .fetch_all(&mut **tx)
-    .await?)
 }
 
 pub(crate) fn search_page(
@@ -178,7 +209,14 @@ impl PersistHandle {
             set_vector_scan_limits(&mut tx).await?;
         }
         let bound = QueryVector::from(vector, input.semantic_cut);
-        let rows = fetch_hits(&mut tx, (project_id, input), (limit, offset), &bound).await?;
+        let writers = WriterScope::of(input);
+        let rows = fetch_hits(
+            &mut tx,
+            (project_id, input),
+            (limit + 1, offset),
+            (&bound, &writers),
+        )
+        .await?;
         tx.commit().await?;
         Ok(rows)
     }

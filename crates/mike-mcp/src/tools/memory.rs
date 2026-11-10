@@ -113,6 +113,10 @@ fn recall_project_context_tool() -> Tool {
                 json!({"type": "string", "description": "Optional task query; includes relevant artifact, notebook, lesson and turn references with full-content read tool."}),
             ),
             (
+                "include_own_turn",
+                json!({"type": "boolean", "description": "Also return the turn that is making this call (and its corrections); omitted, the newest turn of the calling session is left out."}),
+            ),
+            (
                 "project_path",
                 json!({
                     "type": "string",
@@ -157,6 +161,10 @@ fn recall_similar_turns_tool() -> Tool {
                     "maximum": 50,
                     "description": "Maximum rows (default 5, max 50)."
                 }),
+            ),
+            (
+                "include_own_turn",
+                json!({"type": "boolean", "description": "Also return the turn that is making this call; omitted, the newest turn of the calling session is left out."}),
             ),
         ],
         &["project_path", "query"],
@@ -337,6 +345,8 @@ pub(crate) struct ListAgentDispatchesArgs {
 pub(crate) struct RecallProjectContextArgs {
     pub(crate) project_path: String,
     pub(crate) query: Option<String>,
+    #[serde(flatten)]
+    pub(crate) caller: crate::client::CallerArgs,
 }
 
 #[derive(Debug, Deserialize)]
@@ -345,8 +355,8 @@ pub(crate) struct RecallSimilarTurnsArgs {
     pub(crate) query: String,
     #[serde(default)]
     pub(crate) limit: Option<u64>,
-    #[serde(default)]
-    pub(crate) session_id: Option<String>,
+    #[serde(flatten)]
+    pub(crate) caller: crate::client::CallerArgs,
 }
 
 #[derive(Debug, Deserialize)]
@@ -412,7 +422,11 @@ pub(crate) async fn call_tool(
         TOOL_RECALL_PROJECT_CONTEXT => {
             let args = parse_args_required::<RecallProjectContextArgs>(arguments)?;
             let value = client
-                .recall_project_context(&args.project_path, args.query.as_deref())
+                .recall_project_context(
+                    &args.project_path,
+                    args.query.as_deref(),
+                    args.caller.scope(),
+                )
                 .await
                 .map_err(McpError::into_rmcp)?;
             Ok(wrap_success("project_context", value))
@@ -424,7 +438,7 @@ pub(crate) async fn call_tool(
                     &args.project_path,
                     &args.query,
                     args.limit,
-                    args.session_id.as_deref(),
+                    args.caller.scope(),
                 )
                 .await
                 .map_err(McpError::into_rmcp)?;

@@ -95,6 +95,10 @@ pub(crate) async fn search(
     Query(input): Query<KnowledgeQuery>,
     Query(caller): Query<CallerSession>,
 ) -> Result<Json<Value>, Response> {
+    let input = KnowledgeQuery {
+        caller_session: caller.session_id.clone(),
+        ..input
+    };
     let answer = retrieve(&state, &input).await?;
     crate::search_events::record_knowledge_search(
         &state,
@@ -217,6 +221,8 @@ mod query_vector_cache_tests;
 mod ranking_live_tests;
 #[cfg(test)]
 mod registration_tests;
+#[cfg(test)]
+mod rerank_machine_tests;
 #[cfg(test)]
 pub(crate) mod rerank_tests;
 #[cfg(test)]

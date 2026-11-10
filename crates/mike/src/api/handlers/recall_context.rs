@@ -14,6 +14,22 @@ pub(crate) struct RecallProjectContextDto {
 pub(crate) struct RecallProjectContextParams {
     pub(crate) project: Option<String>,
     pub(crate) query: Option<String>,
+    #[serde(default)]
+    pub(crate) session_id: Option<String>,
+    #[serde(default)]
+    pub(crate) include_own_turn: bool,
+}
+
+fn without_own_turn(
+    rows: Vec<crate::store::operator_turns::OperatorTurnRow>,
+    own_turn: Option<i64>,
+    limit: i64,
+) -> Vec<OperatorTurnDto> {
+    rows.into_iter()
+        .filter(|row| Some(row.turn_id) != own_turn)
+        .take(usize::try_from(limit).unwrap_or(0))
+        .map(OperatorTurnDto::from)
+        .collect()
 }
 
 pub(crate) const RECALL_RECENT_CORRECTED_LIMIT: i64 = 5;
@@ -62,9 +78,16 @@ pub(crate) async fn recall_project_context(
         .await
         .map_err(crate::api::project_knowledge::knowledge_error)?;
     let project_path = project.project_path.clone();
+    let own_turn = own_turn_to_skip(
+        handle,
+        params.session_id.as_deref(),
+        params.include_own_turn,
+    )
+    .await?;
+    let spare = i64::from(own_turn.is_some());
 
     let corrected_rows = handle
-        .list_turns(&recent_turns_filter(&project_path, None, RECALL_RECENT_CORRECTED_LIMIT))
+        .list_turns(&recent_turns_filter(&project_path, None, RECALL_RECENT_CORRECTED_LIMIT + spare))
         .await
         .map_err(|e| {
             tracing::warn!(project = %project_path, error = %e, "recall_project_context: corrected turns failed");
@@ -75,7 +98,7 @@ pub(crate) async fn recall_project_context(
         .list_turns(&recent_turns_filter(
             &project_path,
             Some("shipped"),
-            RECALL_RECENT_SHIPPED_LIMIT,
+            RECALL_RECENT_SHIPPED_LIMIT + spare,
         ))
         .await
         .map_err(|e| {
@@ -98,6 +121,8 @@ pub(crate) async fn recall_project_context(
                     project: project_path.clone(),
                     query,
                     limit: Some(5),
+                    caller_session: params.session_id.clone(),
+                    include_own_turn: params.include_own_turn,
                     ..Default::default()
                 },
             )
@@ -109,14 +134,8 @@ pub(crate) async fn recall_project_context(
     Ok(Json(RecallProjectContextDto {
         knowledge,
         project_path,
-        recent_corrected: corrected_rows
-            .into_iter()
-            .map(OperatorTurnDto::from)
-            .collect(),
-        recent_shipped: shipped_rows
-            .into_iter()
-            .map(OperatorTurnDto::from)
-            .collect(),
+        recent_corrected: without_own_turn(corrected_rows, own_turn, RECALL_RECENT_CORRECTED_LIMIT),
+        recent_shipped: without_own_turn(shipped_rows, own_turn, RECALL_RECENT_SHIPPED_LIMIT),
         lessons,
     }))
 }

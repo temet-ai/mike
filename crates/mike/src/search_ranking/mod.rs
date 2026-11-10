@@ -7,6 +7,8 @@ use crate::store::persistence::project_knowledge::SemanticCut;
 pub(crate) mod tuning;
 
 #[cfg(test)]
+mod machine_order_tests;
+#[cfg(test)]
 mod ranking_tests;
 #[cfg(test)]
 mod tuning_tests;
@@ -35,6 +37,7 @@ pub(crate) const WINDOW_MAX: f64 = 0.2;
 const DEFAULT_WEIGHT: f64 = 1.0;
 const RANK_OFFSET: f64 = 60.0;
 const SEAT_KIND: &str = "seat";
+const MACHINE_WRITER: &str = "machine";
 const SEAT_BASE_WEIGHT: f64 = 0.5;
 pub(crate) const SEAT_MAX_WEIGHT: f64 = 0.9;
 
@@ -178,17 +181,50 @@ pub(crate) struct Candidate {
     pub(crate) kind: String,
     pub(crate) lexical: f64,
     pub(crate) semantic: f64,
+    pub(crate) machine: bool,
 }
 
 impl Candidate {
     pub(crate) fn from_row(row: &Value) -> Self {
+        let kind = text(row, "source_kind");
+        let machine =
+            kind == SEAT_KIND || row["provenance"]["written_by"].as_str() == Some(MACHINE_WRITER);
         Self {
             reference: text(row, "reference"),
-            kind: text(row, "source_kind"),
+            kind,
             lexical: number(row, "lexical_rank"),
             semantic: number(row, "semantic_rank"),
+            machine,
         }
     }
+}
+
+impl RankingConfig {
+    pub(crate) fn weight(&self, candidate: &Candidate) -> f64 {
+        if candidate.machine && candidate.kind != SEAT_KIND {
+            SEAT_BASE_WEIGHT
+        } else {
+            self.kind_weight(&candidate.kind)
+        }
+    }
+}
+
+pub(crate) fn order_by_position(candidates: &[Candidate], config: &RankingConfig) -> Vec<usize> {
+    let scores: Vec<f64> = candidates
+        .iter()
+        .enumerate()
+        .map(|(index, candidate)| {
+            let weight = if candidate.machine {
+                config.weight(candidate)
+            } else {
+                DEFAULT_WEIGHT
+            };
+            weight / (RANK_OFFSET + (index + 1) as f64)
+        })
+        .collect();
+    let mut indices: Vec<usize> = (0..candidates.len()).collect();
+    indices.sort_by(|a, b| scores[*b].total_cmp(&scores[*a]).then(a.cmp(b)));
+    indices
 }
 
 fn text(row: &Value, field: &str) -> String {
@@ -217,7 +253,7 @@ pub(crate) fn order(candidates: &[Candidate], config: &RankingConfig) -> Vec<usi
         .map(|(index, candidate)| {
             let lexical = contribution(config.lexical_weight, lexical[index]);
             let semantic = contribution(config.semantic_weight, semantic[index]);
-            (lexical + semantic) * config.kind_weight(&candidate.kind)
+            (lexical + semantic) * config.weight(candidate)
         })
         .collect();
     let mut indices: Vec<usize> = (0..candidates.len()).collect();

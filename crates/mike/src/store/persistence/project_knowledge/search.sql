@@ -1,4 +1,15 @@
-WITH knowledge_scope AS MATERIALIZED (
+WITH own_turn AS (
+    SELECT max(t.id) AS id
+    FROM memory.operator_turns t JOIN sessions.sessions s ON s.id = t.session_id
+    WHERE s.session_uuid = $13::uuid
+), own_refs AS (
+    SELECT 'turn:' || o.id AS reference FROM own_turn o WHERE o.id IS NOT NULL
+    UNION ALL
+    SELECT vk.kind || ':' || v.id
+    FROM own_turn o
+    JOIN memory.live_turn_verdicts_v v ON v.operator_turn_id = o.id
+    CROSS JOIN (VALUES ('unmet_ask'), ('correction')) vk(kind)
+), knowledge_scope AS MATERIALIZED (
     SELECT e.id AS state_id, src.reference
     FROM memory.knowledge_embedding_state e
     JOIN memory.knowledge_embedding_sources_v src
@@ -40,8 +51,9 @@ WITH knowledge_scope AS MATERIALIZED (
     SELECT reference, score
     FROM (SELECT reference, max(score) AS score, max(max(score)) OVER () AS best
           FROM semantic_chunks
-          WHERE $3::text IS NULL OR split_part(reference, ':', 1)
-                = CASE WHEN $3::text IN ('memory', 'skill') THEN 'artifact' ELSE $3::text END
+          WHERE ($3::text IS NULL OR split_part(reference, ':', 1)
+                = CASE WHEN $3::text IN ('memory', 'skill') THEN 'artifact' ELSE $3::text END)
+            AND NOT EXISTS (SELECT 1 FROM own_refs o WHERE o.reference = semantic_chunks.reference)
           GROUP BY reference) per_reference
     WHERE score >= GREATEST($10::float8, best - $11::float8)
 ), q AS (
@@ -85,7 +97,8 @@ WITH knowledge_scope AS MATERIALIZED (
              'deleted', d.deleted_at IS NOT NULL, 'metadata', r.metadata,
              'freshness', sf.freshness) AS provenance,
            r.body AS body, NULL::jsonb AS author,
-           s.name || ':' || d.relative_path AS dedupe_key
+           s.name || ':' || d.relative_path AS dedupe_key,
+           NULL::bigint AS turn_id, NULL::text AS turn_prompt, false AS answered
       FROM memory.knowledge_documents d
       JOIN memory.knowledge_sources s ON s.source_uuid = d.source_uuid
       JOIN projects.locations loc ON loc.location_uuid = s.location_uuid
@@ -104,7 +117,8 @@ WITH knowledge_scope AS MATERIALIZED (
              'deleted', d.deleted_at IS NOT NULL, 'metadata', r.metadata,
              'freshness', sf.freshness) AS provenance,
            r.body AS body, NULL::jsonb AS author,
-           s.name || ':' || d.relative_path AS dedupe_key
+           s.name || ':' || d.relative_path AS dedupe_key,
+           NULL::bigint AS turn_id, NULL::text AS turn_prompt, false AS answered
       FROM memory.knowledge_documents d
       JOIN memory.knowledge_sources s ON s.source_uuid = d.source_uuid
       JOIN projects.locations loc ON loc.location_uuid = s.location_uuid
@@ -119,7 +133,7 @@ WITH knowledge_scope AS MATERIALIZED (
            ts_rank_cd(to_tsvector('english', l.text), q.tsq), COALESCE(sem.score, 0),
            jsonb_build_object('lesson_id', l.id, 'lesson_kind', k.code, 'topic', l.topic,
              'source_turn_id', l.source_turn_id),
-           l.text, NULL::jsonb, 'lesson:' || l.uuid
+           l.text, NULL::jsonb, 'lesson:' || l.uuid, NULL, NULL, false
       FROM memory.lessons l JOIN memory.lesson_kinds k ON k.id = l.kind_id
       JOIN memory.lesson_stages st ON st.id = l.stage_id
       LEFT JOIN superseded sup ON sup.to_lesson_id = l.id CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'lesson:' || l.uuid
@@ -132,7 +146,7 @@ WITH knowledge_scope AS MATERIALIZED (
            jsonb_build_object('session_uuid', ss.session_uuid, 'kind', n.kind, 'tags', n.tags),
            n.body, jsonb_build_object('role', 'session', 'session_uuid', ss.session_uuid,
              'session_title', ss.title),
-           'note:' || n.note_uuid
+           'note:' || n.note_uuid, NULL, NULL, false
       FROM workspace.session_notes n JOIN sessions.sessions ss ON ss.id = n.session_id CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'note:' || n.note_uuid
      WHERE ss.project_id = $1 AND ($2 = '' OR n.search_tsv @@ q.tsq OR sem.score IS NOT NULL)
        AND ($4 OR COALESCE(n.status, '') NOT IN ('superseded', 'archived', 'rejected'))
@@ -142,7 +156,7 @@ WITH knowledge_scope AS MATERIALIZED (
            jsonb_build_object('session_uuid', ss.session_uuid),
            t.user_prompt, jsonb_build_object('role', 'operator', 'session_uuid', ss.session_uuid,
              'session_title', ss.title),
-           'turn:' || t.id
+           'turn:' || t.id, t.id, t.user_prompt, COALESCE(octet_length(t.final_assistant_text), 0) > 0
       FROM memory.operator_turns t JOIN sessions.sessions ss ON ss.id = t.session_id CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'turn:' || t.id
      WHERE t.project_id = $1 AND ($2 = '' OR t.search_tsv @@ q.tsq OR sem.score IS NOT NULL)
        AND (t.opened_by IS NULL OR t.opened_by = 'operator')
@@ -151,7 +165,7 @@ WITH knowledge_scope AS MATERIALIZED (
            CASE WHEN th.resolved_at IS NULL THEN 'open' ELSE 'resolved' END, NULL,
            th.last_message_at, COALESCE(hit.rank, 0), COALESCE(sem.score, 0),
            jsonb_build_object('thread_uuid', th.thread_uuid, 'fleet_uuid', th.fleet_uuid),
-           th.subject, NULL::jsonb, 'thread:' || th.thread_uuid
+           th.subject, NULL::jsonb, 'thread:' || th.thread_uuid, NULL, NULL, false
       FROM mailbox.threads th CROSS JOIN q
       LEFT JOIN (SELECT m.thread_id, max(ts_rank_cd(m.search_tsv, q.tsq)) AS rank
                    FROM mailbox.messages m CROSS JOIN q
@@ -164,7 +178,7 @@ WITH knowledge_scope AS MATERIALIZED (
            COALESCE(wt.status, 'unknown'), NULL, wt.updated_at,
            ts_rank_cd(doc.tsv, q.tsq), 0::double precision,
            jsonb_build_object('thread_id', wt.id, 'slug', wt.slug, 'goal', wt.goal),
-           doc.txt, NULL::jsonb, 'work_thread:' || wt.slug
+           doc.txt, NULL::jsonb, 'work_thread:' || wt.slug, NULL, NULL, false
       FROM work.threads wt LEFT JOIN work.thread_state wts ON wts.thread_id = wt.id CROSS JOIN q
      CROSS JOIN LATERAL (SELECT concat_ws(E'\n', wt.title, wt.slug, wt.goal,
               wts.tldr, wts.where_we_are, wts.next_up, wts.blockers, wts.open_questions,
@@ -179,7 +193,7 @@ WITH knowledge_scope AS MATERIALIZED (
              'commit_sha', l.commit_sha, 'session_uuid', l.session_uuid),
            doc.txt, CASE WHEN l.session_uuid IS NOT NULL THEN jsonb_build_object('role', 'session',
              'session_uuid', l.session_uuid, 'session_title', ws.title) END,
-           'thread_entry:' || l.id
+           'thread_entry:' || l.id, NULL, NULL, false
       FROM (SELECT h.id FROM work.thread_log h
              WHERE $2 <> '' AND h.search_tsv @@ (SELECT tsq FROM q)
             UNION
@@ -202,7 +216,7 @@ WITH knowledge_scope AS MATERIALIZED (
              'to_task', qa.to_task, 'asker_session_uuid', asker.session_uuid),
            doc.txt, jsonb_build_object('role', 'session', 'session_uuid', settler.session_uuid,
              'session_title', settler.title),
-           'question_answer:' || qa.question_uuid
+           'question_answer:' || qa.question_uuid, NULL, NULL, false
       FROM (SELECT h.id FROM workspace.questions h
              WHERE $2 <> '' AND to_tsvector('english', h.question || ' ' || COALESCE(h.answer, ''))
                    @@ (SELECT tsq FROM q)
@@ -232,7 +246,7 @@ WITH knowledge_scope AS MATERIALIZED (
            concat_ws(E'\n\n', NULLIF(btrim(COALESCE(v.unmet_ask, '')), ''), v.rationale),
            jsonb_build_object('role', 'judge', 'session_uuid', vs.session_uuid,
              'session_title', vs.title),
-           vk.kind || ':' || v.id
+           vk.kind || ':' || v.id, v.operator_turn_id, t.user_prompt, false
       FROM (SELECT h.id FROM memory.turn_verdicts h
              WHERE $2 <> '' AND h.mode = 'live'
                AND to_tsvector('english', h.unmet_ask || ' ' || h.rationale) @@ (SELECT tsq FROM q)
@@ -259,7 +273,7 @@ WITH knowledge_scope AS MATERIALIZED (
            jsonb_build_object('session_uuid', k.session_id, 'topics', k.topics),
            memory.session_learnings_text(k.learnings),
            jsonb_build_object('role', 'judge', 'session_uuid', k.session_id, 'session_title', ls.title),
-           'learning:' || k.session_id
+           'learning:' || k.session_id, NULL, NULL, false
       FROM (SELECT h.session_id FROM memory.session_knowledge h
              WHERE $2 <> '' AND to_tsvector('english', memory.session_learnings_text(h.learnings))
                    @@ (SELECT tsq FROM q)
@@ -288,7 +302,7 @@ WITH knowledge_scope AS MATERIALIZED (
              'to_session_uuid', mto.session_uuid, 'from_session_uuid', mf.session_uuid),
            m.body, jsonb_build_object('role', 'session', 'session_uuid', mf.session_uuid,
              'session_title', mf.title),
-           'mail:' || m.message_uuid
+           'mail:' || m.message_uuid, NULL, NULL, false
       FROM (SELECT h.id FROM mailbox.messages h
              WHERE $2 <> '' AND h.from_session_id IS NOT NULL AND h.search_tsv @@ (SELECT tsq FROM q)
             UNION
@@ -316,7 +330,7 @@ WITH knowledge_scope AS MATERIALIZED (
            si.text,
            jsonb_build_object('role', si.author, 'session_uuid', si.session_uuid,
              'session_title', sts.title, 'seat', si.seat, 'run_id', si.run_id, 'task', si.task),
-           seat_ref.reference
+           seat_ref.reference, NULL, NULL, false
       FROM memory.seat_memory_items si
       LEFT JOIN sessions.sessions sts ON sts.id = si.session_id CROSS JOIN q
      CROSS JOIN LATERAL (SELECT CASE WHEN si.source_ref LIKE 'entry:%'
@@ -324,18 +338,51 @@ WITH knowledge_scope AS MATERIALIZED (
                                      ELSE si.source_ref END AS reference) seat_ref
       LEFT JOIN semantic sem ON sem.reference = seat_ref.reference
      WHERE si.project_id = $1 AND ($2 = '' OR si.search_tsv @@ q.tsq OR sem.score IS NOT NULL)
+), eligible AS (
+    SELECT c.*
+      FROM candidates c
+      LEFT JOIN own_refs o ON o.reference = c.reference
+      LEFT JOIN LATERAL (
+          SELECT nx.user_prompt AS next_prompt
+            FROM memory.operator_turns cur
+            JOIN memory.operator_turns nx ON nx.session_id = cur.session_id AND nx.id > cur.id
+           WHERE cur.id = c.turn_id AND c.source_kind = 'turn' AND NOT c.answered AND NOT $4
+             AND btrim(COALESCE(c.turn_prompt, '')) <> ''
+           ORDER BY nx.id LIMIT 1) resent ON true
+     WHERE ($3::text IS NULL OR c.source_kind = $3)
+       AND o.reference IS NULL
+       AND (resent.next_prompt IS NULL OR NOT starts_with(resent.next_prompt, btrim(c.turn_prompt)))
 ), deduped AS (
     SELECT DISTINCT ON (dedupe_key) *
       FROM (SELECT *, GREATEST(1, count(*) FILTER (WHERE source_kind <> 'seat')
                                     OVER (PARTITION BY dedupe_key)) AS copies
-              FROM candidates WHERE ($3::text IS NULL OR source_kind = $3)) c
+              FROM eligible) c
      ORDER BY dedupe_key, source_kind = 'seat' DESC, semantic_rank DESC, rank DESC,
               updated_at DESC NULLS LAST, reference
+), keyed AS (
+    SELECT d.*,
+           CASE WHEN btrim(COALESCE(d.turn_prompt, '')) <> '' THEN md5('p:' || lower(btrim(d.turn_prompt)))
+                WHEN btrim(COALESCE(d.body, '')) <> '' THEN md5('b:' || d.body)
+                ELSE d.reference END AS slot_key,
+           d.source_kind IN ('seat', 'mail', 'thread')
+           OR (d.source_kind = 'note' AND d.provenance ->> 'kind' = 'brief')
+           OR COALESCE(ltrim(d.turn_prompt) ^@ ANY ($14::text[]), false) AS machine
+      FROM deduped d
+), slotted AS (
+    SELECT k.*, row_number() OVER slot AS slot_pos,
+           array_agg(k.reference) OVER (slot ROWS BETWEEN 1 FOLLOWING AND 10 FOLLOWING) AS also,
+           count(*) OVER (PARTITION BY k.slot_key) - 1 AS also_count
+      FROM keyed k
+    WINDOW slot AS (PARTITION BY k.slot_key
+                    ORDER BY k.semantic_rank DESC, k.rank DESC,
+                             (k.source_kind = 'turn' AND k.answered) DESC,
+                             k.updated_at DESC NULLS LAST, k.reference)
 ), ranked AS (
-    SELECT *, (CASE WHEN rank > 0 THEN 1.0 / (60 + row_number() OVER (ORDER BY rank DESC, reference)) ELSE 0 END
+    SELECT s.*, (CASE WHEN rank > 0 THEN 1.0 / (60 + row_number() OVER (ORDER BY rank DESC, reference)) ELSE 0 END
       + CASE WHEN semantic_rank > 0 THEN 1.0 / (60 + row_number() OVER (ORDER BY semantic_rank DESC, reference)) ELSE 0 END)
-      * CASE WHEN source_kind = 'seat' THEN 0.5 ELSE 1 END AS fused_rank
-    FROM deduped
+      * CASE WHEN machine THEN 0.5 ELSE 1 END AS fused_rank
+    FROM slotted s
+    WHERE slot_pos = 1
 ), page AS (
     SELECT * FROM ranked
     ORDER BY fused_rank DESC, updated_at DESC, reference LIMIT $5 OFFSET $6
@@ -343,10 +390,12 @@ WITH knowledge_scope AS MATERIALIZED (
 SELECT jsonb_build_object('reference' , p.reference, 'source_kind', p.source_kind,
     'title', p.title, 'status', p.status, 'path', p.path, 'updated_at', p.updated_at,
     'author', p.author, 'copies', p.copies,
+    'also', COALESCE(to_jsonb(p.also), '[]'::jsonb), 'also_count', p.also_count,
     'excerpt', substr(COALESCE(p.body, ''),
                       GREATEST(1, strpos(lower(COALESCE(p.body, '')),
                                          lower(split_part(btrim($2), ' ', 1))) - 100), 300),
     'rank', p.fused_rank, 'lexical_rank', p.rank, 'semantic_rank', p.semantic_rank,
-    'provenance', p.provenance) AS "item!"
+    'provenance', CASE WHEN p.machine THEN p.provenance || jsonb_build_object('written_by', 'machine')
+                       ELSE p.provenance END) AS "item!"
 FROM page p
 ORDER BY p.fused_rank DESC, p.updated_at DESC, p.reference

@@ -25,9 +25,9 @@ pub(super) async fn set_vector_scan_limits(
 
 pub(super) fn by_embedding_query(
     project_id: i64,
-    embedding_model: &str,
-    query_vec_literal: &str,
+    (embedding_model, query_vec_literal): (&str, &str),
     limit: i64,
+    exclude_turn: Option<i64>,
 ) -> QueryBuilder<Postgres> {
     let cut = score_floor_for(embedding_model);
     let mut query = QueryBuilder::new(
@@ -52,6 +52,11 @@ pub(super) fn by_embedding_query(
         .push(
             "
                AND (ot.opened_by IS NULL OR ot.opened_by = 'operator')
+               AND ot.id IS DISTINCT FROM ",
+        )
+        .push_bind(exclude_turn)
+        .push(
+            "
              ORDER BY c.chunk_embedding <=> $1::vector
              LIMIT ",
         )

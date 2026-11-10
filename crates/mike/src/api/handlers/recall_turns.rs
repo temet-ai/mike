@@ -9,6 +9,28 @@ pub(crate) struct RecallSimilarTurnsBody {
     pub(crate) limit: Option<usize>,
     #[serde(default)]
     pub(crate) session_id: Option<String>,
+    #[serde(default)]
+    pub(crate) include_own_turn: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct RecallWindow {
+    limit: i64,
+    exclude_turn: Option<i64>,
+}
+
+pub(crate) async fn own_turn_to_skip(
+    handle: &crate::store::persistence::PersistHandle,
+    session: Option<&str>,
+    include_own_turn: bool,
+) -> Result<Option<i64>, Response> {
+    let Some(session) = session.filter(|_| !include_own_turn) else {
+        return Ok(None);
+    };
+    handle
+        .newest_turn_of_session(session)
+        .await
+        .map_err(persist_error_response)
 }
 
 pub(crate) const RECALL_SIMILAR_TURNS_DEFAULT_LIMIT: i64 = 5;
@@ -52,8 +74,14 @@ pub(crate) async fn recall_similar_turns(
         .await
         .map_err(crate::api::project_knowledge::knowledge_error)?;
     let (fetch, candidates) = recall_turns_rerank::rows_to_fetch(&state, limit, &body.query);
+    let exclude_turn =
+        own_turn_to_skip(handle, body.session_id.as_deref(), body.include_own_turn).await?;
+    let window = RecallWindow {
+        limit: fetch,
+        exclude_turn,
+    };
     let (rows, used_embedding) =
-        recall_rows_hybrid(handle, &state, (&project, &body.query), fetch).await?;
+        recall_rows_hybrid(handle, &state, (&project, &body.query), window).await?;
     let (ranked, rerank) =
         recall_turns_rerank::rerank_turns(&state, &body.query, rows, candidates).await;
 
@@ -140,11 +168,11 @@ async fn recall_rows_hybrid(
     handle: &crate::store::persistence::PersistHandle,
     state: &AppState,
     (project, query): (&ProjectIdentity, &str),
-    limit: i64,
+    window: RecallWindow,
 ) -> Result<(Vec<crate::store::persistence::RankedTurnRow>, bool), Response> {
     let embedding_service = state.embedding_service();
     let rows = if embedding_service.is_available() {
-        try_embedding_recall(handle, &embedding_service, project, query, limit).await
+        try_embedding_recall(handle, &embedding_service, (project, query), window).await
     } else {
         None
     };
@@ -152,7 +180,7 @@ async fn recall_rows_hybrid(
     let rows = match rows {
         Some(r) => r,
         None => handle
-            .recall_turns_by_fts(project, query, limit)
+            .recall_turns_by_fts(project, query, window.limit, window.exclude_turn)
             .await
             .map_err(|e| {
                 tracing::warn!(
@@ -170,14 +198,13 @@ async fn recall_rows_hybrid(
 async fn try_embedding_recall(
     handle: &crate::store::persistence::PersistHandle,
     embedding_service: &EmbeddingService,
-    project: &ProjectIdentity,
-    query: &str,
-    limit: i64,
+    (project, query): (&ProjectIdentity, &str),
+    window: RecallWindow,
 ) -> Option<Vec<crate::store::persistence::RankedTurnRow>> {
     let query_vec = embed_recall_query(embedding_service, &project.project_path, query).await?;
     let literal = crate::store::operator_turns::vector_to_text_literal(&query_vec);
     let model = embedding_service.model_name();
-    recall_by_embedding(handle, project, query, (&model, &literal), limit).await
+    recall_by_embedding(handle, (project, query), (&model, &literal), window).await
 }
 
 async fn embed_recall_query(
@@ -208,14 +235,13 @@ async fn embed_recall_query(
 
 async fn recall_by_embedding(
     handle: &crate::store::persistence::PersistHandle,
-    project: &ProjectIdentity,
-    query: &str,
+    (project, query): (&ProjectIdentity, &str),
     (model, literal): (&str, &str),
-    limit: i64,
+    window: RecallWindow,
 ) -> Option<Vec<crate::store::persistence::RankedTurnRow>> {
     let path = project.project_path.as_str();
     match handle
-        .recall_turns_by_embedding(project, model, literal, limit)
+        .recall_turns_by_embedding(project, model, literal, window.limit, window.exclude_turn)
         .await
     {
         Ok(Some(found)) => {

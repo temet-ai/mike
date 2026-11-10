@@ -27,16 +27,24 @@ mod model_usage;
 
 #[path = "knowledge_ingest_noop.rs"]
 mod knowledge_ingest_noop;
+#[path = "knowledge_search_fixture.rs"]
+mod knowledge_search_fixture;
 #[path = "operator_turns/mod.rs"]
 pub(crate) mod operator_turns;
 #[path = "project_display_name.rs"]
 mod project_display_name;
 #[path = "project_knowledge.rs"]
 mod project_knowledge;
+#[path = "project_knowledge_machine_written.rs"]
+mod project_knowledge_machine_written;
+#[path = "project_knowledge_own_turn.rs"]
+mod project_knowledge_own_turn;
 #[path = "project_knowledge_promise.rs"]
 mod project_knowledge_promise;
 #[path = "project_knowledge_session_memory.rs"]
 mod project_knowledge_session_memory;
+#[path = "project_knowledge_slots.rs"]
+mod project_knowledge_slots;
 #[path = "project_pin_ttl.rs"]
 mod project_pin_ttl;
 #[path = "reconstruct.rs"]

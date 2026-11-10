@@ -55,7 +55,7 @@ async fn recall(harness: &Harness, seeded: &Seeded, limit: Option<u64>) -> anyho
         .post(
             ROUTE,
             json!({"project": seeded.project, "query": "quicksort", "limit": limit,
-                   "session_id": seeded.session}),
+                   "session_id": seeded.session, "include_own_turn": true}),
         )
         .await?;
     anyhow::ensure!(status.is_success(), "recall: {status}: {answer}");

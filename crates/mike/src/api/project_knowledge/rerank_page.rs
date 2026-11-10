@@ -6,7 +6,7 @@ use crate::api::rerank_search::{
     RerankReport, arrange, candidates_wanted, score, short_query_report,
 };
 use crate::config::AppState;
-use crate::search_ranking::{Candidate, RankingConfig, order};
+use crate::search_ranking::{Candidate, RankingConfig, order, order_by_position};
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, ProjectIdentity, search_page};
 use crate::store::persistence::{PersistError, PersistHandle};
 
@@ -77,6 +77,11 @@ pub(super) async fn search(
         }
         None => (arrange(rows, &[]), RerankReport::switched_off()),
     };
+    let arranged = if candidates.is_some() {
+        weigh_by_writer(arranged, &ranking)
+    } else {
+        arranged
+    };
     let page: Vec<Value> = arranged
         .into_iter()
         .skip(usize::try_from(offset).unwrap_or(0))
@@ -87,6 +92,21 @@ pub(super) async fn search(
         search_page(project.project_uuid, vector.is_some(), page, limit, offset),
         report,
     ))
+}
+
+pub(super) fn weigh_by_writer(
+    arranged: Vec<(Value, Option<f32>)>,
+    ranking: &RankingConfig,
+) -> Vec<(Value, Option<f32>)> {
+    let candidates: Vec<Candidate> = arranged
+        .iter()
+        .map(|(row, _)| Candidate::from_row(row))
+        .collect();
+    let mut slots: Vec<Option<(Value, Option<f32>)>> = arranged.into_iter().map(Some).collect();
+    order_by_position(&candidates, ranking)
+        .into_iter()
+        .filter_map(|index| slots.get_mut(index).and_then(Option::take))
+        .collect()
 }
 
 fn reorder_rows(rows: Vec<Value>, ranking: &RankingConfig) -> Vec<Value> {
