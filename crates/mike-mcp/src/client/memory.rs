@@ -1,5 +1,6 @@
 use serde_json::Value;
 
+use super::CallerScope;
 use super::InspectClient;
 use super::RecordLessonRequest;
 use crate::error::McpError;
@@ -9,10 +10,17 @@ impl InspectClient {
         &self,
         project_path: &str,
         query: Option<&str>,
+        scope: CallerScope<'_>,
     ) -> Result<Value, McpError> {
         let mut q = vec![("project", project_path.to_string())];
         if let Some(query) = query {
             q.push(("query", query.to_string()));
+        }
+        if let Some(session_id) = scope.session_id {
+            q.push(("session_id", session_id.to_string()));
+        }
+        if let Some(include) = scope.include_own_turn {
+            q.push(("include_own_turn", include.to_string()));
         }
         self.get_json("/api/recall/project-context", &q).await
     }
@@ -22,9 +30,13 @@ impl InspectClient {
         project_path: &str,
         query: &str,
         limit: Option<u64>,
-        session_id: Option<&str>,
+        order: Option<&str>,
+        scope: CallerScope<'_>,
     ) -> Result<Value, McpError> {
         let mut body = serde_json::Map::new();
+        if let Some(order) = order {
+            body.insert("order".to_string(), Value::String(order.to_string()));
+        }
         body.insert(
             "project".to_string(),
             Value::String(project_path.to_string()),
@@ -33,11 +45,14 @@ impl InspectClient {
         if let Some(l) = limit {
             body.insert("limit".to_string(), Value::Number(l.into()));
         }
-        if let Some(session_id) = session_id {
+        if let Some(session_id) = scope.session_id {
             body.insert(
                 "session_id".to_string(),
                 Value::String(session_id.to_string()),
             );
+        }
+        if let Some(include) = scope.include_own_turn {
+            body.insert("include_own_turn".to_string(), Value::Bool(include));
         }
         self.post_json("/api/recall/similar-turns", &Value::Object(body))
             .await

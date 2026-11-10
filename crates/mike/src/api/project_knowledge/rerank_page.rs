@@ -2,13 +2,17 @@ use std::collections::HashMap;
 
 use serde_json::{Value, json};
 
-use crate::api::rerank_search::{RerankReport, arrange, candidates_wanted, score};
+use crate::api::rerank_search::{
+    RerankReport, arrange, candidates_wanted, score, short_query_report,
+};
 use crate::config::AppState;
-use crate::search_ranking::{Candidate, RankingConfig, order};
+use crate::search_ranking::{
+    Candidate, RankingConfig, lift_identifier_rows, order, order_by_position,
+};
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, ProjectIdentity, search_page};
 use crate::store::persistence::{PersistError, PersistHandle};
 
-const MAX_CANDIDATE_ROWS: i64 = 200;
+pub(super) const MAX_CANDIDATE_ROWS: i64 = 200;
 
 pub(crate) type QueryVector = (String, String, String);
 
@@ -19,6 +23,9 @@ pub(super) async fn search(
     input: &KnowledgeQuery,
     vector: Option<&QueryVector>,
 ) -> Result<(Value, RerankReport), PersistError> {
+    if input.recent {
+        return super::recent::search(state, handle, project, input, vector).await;
+    }
     let ranking = state.rerank_service().ranking();
     let candidates = candidates_wanted(state);
     if candidates.is_none() && ranking.is_default() {
@@ -26,6 +33,9 @@ pub(super) async fn search(
     }
     if input.query.trim().is_empty() {
         let report = RerankReport::off("there is no query to rerank against");
+        return plain(handle, input, vector, report).await;
+    }
+    if let Some(report) = candidates.and_then(|_| short_query_report(state, &input.query)) {
         return plain(handle, input, vector, report).await;
     }
     let limit = input.limit.unwrap_or(20).clamp(1, 100);
@@ -64,7 +74,7 @@ pub(super) async fn search(
         Some(candidates) => {
             match rerank_rows(state, handle, input, vector, candidates, rows).await {
                 Ok((arranged, report)) => match &rescue {
-                    Some((_, cut)) => (super::rescue::keep(arranged, *cut), report),
+                    Some((_, cut)) => super::rescue::keep_reporting(arranged, *cut, report),
                     None => (arranged, report),
                 },
                 Err(report) => return plain(handle, input, vector, report).await,
@@ -72,7 +82,12 @@ pub(super) async fn search(
         }
         None => (arrange(rows, &[]), RerankReport::switched_off()),
     };
-    let page: Vec<Value> = arranged
+    let arranged = if candidates.is_some() {
+        weigh_by_writer(arranged, &ranking)
+    } else {
+        arranged
+    };
+    let page: Vec<Value> = lift_identifier_rows(arranged)
         .into_iter()
         .skip(usize::try_from(offset).unwrap_or(0))
         .take(usize::try_from(limit + 1).unwrap_or(1))
@@ -82,6 +97,21 @@ pub(super) async fn search(
         search_page(project.project_uuid, vector.is_some(), page, limit, offset),
         report,
     ))
+}
+
+pub(super) fn weigh_by_writer(
+    arranged: Vec<(Value, Option<f32>)>,
+    ranking: &RankingConfig,
+) -> Vec<(Value, Option<f32>)> {
+    let candidates: Vec<Candidate> = arranged
+        .iter()
+        .map(|(row, _)| Candidate::from_row(row))
+        .collect();
+    let mut slots: Vec<Option<(Value, Option<f32>)>> = arranged.into_iter().map(Some).collect();
+    order_by_position(&candidates, ranking)
+        .into_iter()
+        .filter_map(|index| slots.get_mut(index).and_then(Option::take))
+        .collect()
 }
 
 fn reorder_rows(rows: Vec<Value>, ranking: &RankingConfig) -> Vec<Value> {

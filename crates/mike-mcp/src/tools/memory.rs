@@ -113,6 +113,10 @@ fn recall_project_context_tool() -> Tool {
                 json!({"type": "string", "description": "Optional task query; includes relevant artifact, notebook, lesson and turn references with full-content read tool."}),
             ),
             (
+                "include_own_turn",
+                json!({"type": "boolean", "description": "Also return the turn that is making this call (and its corrections); omitted, the newest turn of the calling session is left out."}),
+            ),
+            (
                 "project_path",
                 json!({
                     "type": "string",
@@ -158,6 +162,14 @@ fn recall_similar_turns_tool() -> Tool {
                     "description": "Maximum rows (default 5, max 50)."
                 }),
             ),
+            (
+                "include_own_turn",
+                json!({"type": "boolean", "description": "Also return the turn that is making this call; omitted, the newest turn of the calling session is left out."}),
+            ),
+            (
+                "order",
+                json!({"type": "string", "enum": ["relevance", "recent"], "description": "relevance (default) ranks by similarity; recent takes the strongest matches and lists them newest first, without the reranker."}),
+            ),
         ],
         &["project_path", "query"],
     );
@@ -172,7 +184,8 @@ fn recall_similar_turns_tool() -> Tool {
              turns (each then has `rerank_score`); otherwise `detail` says why they are in plain \
              order. `degraded: true` means embeddings were unavailable and full-text search served \
              the result, so ranking is weaker. `pending_turns`, when present, counts turns without \
-             embeddings; a non-zero value means ranking improves once the back-fill completes.",
+             embeddings; a non-zero value means ranking improves once the back-fill completes. \
+             For questions about the latest or current work, pass `order=recent`.",
         ),
         schema,
     )
@@ -337,6 +350,8 @@ pub(crate) struct ListAgentDispatchesArgs {
 pub(crate) struct RecallProjectContextArgs {
     pub(crate) project_path: String,
     pub(crate) query: Option<String>,
+    #[serde(flatten)]
+    pub(crate) caller: crate::client::CallerArgs,
 }
 
 #[derive(Debug, Deserialize)]
@@ -346,7 +361,9 @@ pub(crate) struct RecallSimilarTurnsArgs {
     #[serde(default)]
     pub(crate) limit: Option<u64>,
     #[serde(default)]
-    pub(crate) session_id: Option<String>,
+    pub(crate) order: Option<String>,
+    #[serde(flatten)]
+    pub(crate) caller: crate::client::CallerArgs,
 }
 
 #[derive(Debug, Deserialize)]
@@ -412,7 +429,11 @@ pub(crate) async fn call_tool(
         TOOL_RECALL_PROJECT_CONTEXT => {
             let args = parse_args_required::<RecallProjectContextArgs>(arguments)?;
             let value = client
-                .recall_project_context(&args.project_path, args.query.as_deref())
+                .recall_project_context(
+                    &args.project_path,
+                    args.query.as_deref(),
+                    args.caller.scope(),
+                )
                 .await
                 .map_err(McpError::into_rmcp)?;
             Ok(wrap_success("project_context", value))
@@ -424,7 +445,8 @@ pub(crate) async fn call_tool(
                     &args.project_path,
                     &args.query,
                     args.limit,
-                    args.session_id.as_deref(),
+                    args.order.as_deref(),
+                    args.caller.scope(),
                 )
                 .await
                 .map_err(McpError::into_rmcp)?;

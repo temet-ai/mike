@@ -1,3 +1,4 @@
+mod arg_check;
 mod catalogue;
 mod changes;
 mod dispatch;
@@ -7,6 +8,7 @@ mod schema;
 pub mod mail;
 mod select;
 mod select_examples;
+mod select_fallback;
 mod select_hint;
 
 mod config_history;
@@ -41,6 +43,7 @@ mod sessions;
 mod steer_questions;
 mod steering_evaluations;
 mod text_search;
+mod text_search_find;
 mod threads;
 mod time_spent;
 mod turn_verdicts;
@@ -58,6 +61,7 @@ use schema::{
     object_schema, order_property,
 };
 
+pub(crate) use arg_check::{check_arguments, with_corrections};
 pub use catalogue::{CORE_TOOL_NAMES, Profile, all_tools, tools_for_profile};
 pub(crate) use dispatch::call_tool;
 

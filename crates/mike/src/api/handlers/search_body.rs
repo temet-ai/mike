@@ -189,7 +189,7 @@ pub(crate) struct FindTextUnifiedParams {
     #[serde(default)]
     pub(crate) session_id: Option<String>,
     #[serde(default)]
-    pub(crate) source: FindTextSource,
+    pub(crate) source: Option<FindTextSource>,
     #[serde(default = "default_find_text_case_sensitive")]
     pub(crate) case_sensitive: bool,
     #[serde(default)]
@@ -202,11 +202,25 @@ pub(crate) struct FindTextUnifiedParams {
     pub(crate) date_to: Option<String>,
     #[serde(default)]
     pub(crate) cursor: Option<u64>,
+    #[serde(default)]
+    pub(crate) whole_bodies: bool,
+    #[serde(default)]
+    pub(crate) include_reminders: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum TextPositions {
+    #[default]
+    Body,
+    Message,
 }
 
 #[derive(Debug, Serialize)]
 pub(crate) struct UnifiedTextMatch {
     pub(crate) request_id: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) message_ord: Option<i32>,
     pub(crate) session_id: String,
     pub(crate) source: &'static str,
     pub(crate) byte_offset: u64,
@@ -218,11 +232,12 @@ pub(crate) struct UnifiedTextMatch {
     pub(crate) after: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Default, Serialize)]
 pub(crate) struct FindTextUnifiedResponse {
     pub(crate) needle: String,
     pub(crate) case_sensitive: bool,
     pub(crate) context_bytes: u32,
+    pub(crate) positions: TextPositions,
     pub(crate) full_match_count: Option<u64>,
     pub(crate) matches_truncated: bool,
     pub(crate) matches: Vec<UnifiedTextMatch>,
@@ -232,6 +247,16 @@ pub(crate) struct FindTextUnifiedResponse {
     pub(crate) next_cursor: Option<u64>,
     #[serde(default)]
     pub(crate) has_more: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) scan_complete: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) requests_scanned: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) requests_total: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) reminder_matches_skipped: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) own_search_matches_skipped: Option<u64>,
 }
 
 pub(crate) const FIND_TEXT_CORPUS_TIMEOUT_SECS: u64 = 25;
@@ -239,5 +264,9 @@ pub(crate) const FIND_TEXT_CORPUS_TIMEOUT_SECS: u64 = 25;
 pub(crate) const FIND_TEXT_CORPUS_CANDIDATE_CAP: i64 = 200;
 
 pub(crate) const FIND_TEXT_SESSION_PAGE_REQUESTS: usize = 60;
+
+pub(crate) const FIND_TEXT_SESSION_MESSAGE_WINDOW_REQUESTS: usize = 50;
+
+pub(crate) const FIND_TEXT_SESSION_BUDGET_SECS: u64 = 8;
 
 pub(crate) const FIND_TEXT_DEFAULT_CONTEXT_BYTES: u32 = 256;

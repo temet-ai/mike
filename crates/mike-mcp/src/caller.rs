@@ -5,11 +5,12 @@ use crate::client::InspectClient;
 
 pub(crate) mod retrospective;
 
-const SESSION_TAGGED_TOOLS: [&str; 4] = [
+const SESSION_TAGGED_TOOLS: [&str; 5] = [
     "work_thread_checkpoint",
     "work_thread_add_entry",
     "search_project_knowledge",
     "recall_similar_turns",
+    "recall_project_context",
 ];
 
 pub(crate) async fn supply_defaults(
@@ -124,5 +125,9 @@ async fn caller_project(
         })
 }
 
+#[cfg(test)]
+mod order_tests;
+#[cfg(test)]
+mod own_turn_tests;
 #[cfg(test)]
 mod tests;

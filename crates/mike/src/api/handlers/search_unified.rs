@@ -6,6 +6,14 @@ pub(crate) struct FindTextMatchParams<'a> {
     pub(crate) case_sensitive: bool,
     pub(crate) context_bytes: u32,
     pub(crate) max_matches: u32,
+    pub(crate) whole_bodies: bool,
+    pub(crate) include_reminders: bool,
+}
+
+impl FindTextMatchParams<'_> {
+    pub(crate) fn reads_messages(&self) -> bool {
+        self.source == FindTextSource::Request && !self.whole_bodies
+    }
 }
 
 pub(crate) async fn find_text(
@@ -38,36 +46,43 @@ pub(crate) async fn find_text(
         .unwrap_or(FIND_TEXT_DEFAULT_MAX_MATCHES)
         .clamp(1, FIND_TEXT_MAX_MAX_MATCHES);
 
+    let scoped = params.request_id.is_some() || params.session_id.is_some();
+    let source = params.source.unwrap_or(if scoped {
+        FindTextSource::Request
+    } else {
+        FindTextSource::Response
+    });
+    let match_params = FindTextMatchParams {
+        needle: &params.needle,
+        source,
+        case_sensitive: params.case_sensitive,
+        context_bytes,
+        max_matches,
+        whole_bodies: params.whole_bodies,
+        include_reminders: params.include_reminders,
+    };
+
     match (params.request_id, params.session_id.as_deref()) {
-        (Some(rid), _) => {
-            let match_params = FindTextMatchParams {
-                needle: &params.needle,
-                source: params.source,
-                case_sensitive: params.case_sensitive,
-                context_bytes,
-                max_matches,
-            };
-            find_text_scoped_request(&state, rid, &match_params).await
-        }
+        (Some(rid), _) => find_text_scoped_request(&state, rid, &match_params).await,
         (None, Some(sid)) => {
-            let match_params = FindTextMatchParams {
-                needle: &params.needle,
-                source: params.source,
-                case_sensitive: params.case_sensitive,
-                context_bytes,
-                max_matches,
-            };
-            find_text_scoped_session(&state, sid, &match_params, params.cursor).await
+            find_text_scoped_session(
+                &state,
+                sid,
+                &match_params,
+                params.cursor,
+                &ScanLimits::production(),
+            )
+            .await
         }
         (None, None) => {
-            if params.source != FindTextSource::Response {
+            if source != FindTextSource::Response {
                 return Err(find_text_error(
                     StatusCode::BAD_REQUEST,
                     "unscoped search is response-only; pass request_id or session_id for \
                      body search, or use recall_similar_turns to find a session by content",
                 ));
             }
-            find_text_unscoped_corpus(&state, &params, context_bytes, max_matches).await
+            find_text_unscoped_corpus(&state, &params, &match_params).await
         }
     }
 }
@@ -75,9 +90,9 @@ pub(crate) async fn find_text(
 async fn find_text_unscoped_corpus(
     state: &AppState,
     params: &FindTextUnifiedParams,
-    context_bytes: u32,
-    max_matches: u32,
+    match_params: &FindTextMatchParams<'_>,
 ) -> Result<Json<FindTextUnifiedResponse>, (StatusCode, Json<FindTextErrorBody>)> {
+    let context_bytes = match_params.context_bytes;
     let Some(handle) = state.persist() else {
         return Err(find_text_error(
             StatusCode::SERVICE_UNAVAILABLE,
@@ -97,9 +112,9 @@ async fn find_text_unscoped_corpus(
         .unwrap_or_else(|| chrono::Utc::now() - chrono::Duration::days(7));
     let to = window.effective_to.unwrap_or_else(chrono::Utc::now);
 
-    let (full_count, all_matches) = tokio::time::timeout(
+    let (full_count, all_matches, own_skipped) = tokio::time::timeout(
         std::time::Duration::from_secs(FIND_TEXT_CORPUS_TIMEOUT_SECS),
-        scan_corpus_candidates(handle, params, context_bytes, max_matches, from, to),
+        scan_corpus_candidates(handle, match_params, from, to),
     )
     .await
     .map_err(|_| {
@@ -125,19 +140,19 @@ async fn find_text_unscoped_corpus(
         matches_truncated: truncated,
         matches: all_matches,
         window_note,
-        next_cursor: None,
-        has_more: false,
+        own_search_matches_skipped: Some(own_skipped),
+        ..Default::default()
     }))
 }
 
 async fn scan_corpus_candidates(
     handle: &crate::store::persistence::PersistHandle,
-    params: &FindTextUnifiedParams,
-    context_bytes: u32,
-    max_matches: u32,
+    params: &FindTextMatchParams<'_>,
     from: chrono::DateTime<chrono::Utc>,
     to: chrono::DateTime<chrono::Utc>,
-) -> Result<(u64, Vec<UnifiedTextMatch>), (StatusCode, Json<FindTextErrorBody>)> {
+) -> Result<(u64, Vec<UnifiedTextMatch>, u64), (StatusCode, Json<FindTextErrorBody>)> {
+    let context_bytes = params.context_bytes;
+    let max_matches = params.max_matches;
     let body_source = params.source.to_body_source();
     let candidates = crate::store::persistence::rehydrate::find_text_candidates(
         handle.pool(),
@@ -171,6 +186,9 @@ async fn scan_corpus_candidates(
             tracing::warn!(error = %e, "find_text: batched body fetch failed");
             find_text_error(StatusCode::INTERNAL_SERVER_ERROR, "lookup failed")
         })?;
+    let own_requests =
+        own_search_request_ids(handle, &ids, params.needle, params.case_sensitive).await?;
+    let mut own_skipped: u64 = 0;
 
     for candidate in &sorted_candidates {
         let Some(body) = bodies.get(&candidate.request_id) else {
@@ -181,11 +199,15 @@ async fn scan_corpus_candidates(
         };
         let (count_this, new_matches) = crate::api::body_search::find_in_str(
             text,
-            &params.needle,
+            params.needle,
             params.case_sensitive,
             context_bytes,
             max_matches,
         );
+        if own_requests.contains(&candidate.request_id) {
+            own_skipped += count_this;
+            continue;
+        }
         full_count += count_this;
         for m in new_matches {
             if all_matches.len() >= remaining_cap {
@@ -193,6 +215,7 @@ async fn scan_corpus_candidates(
             }
             all_matches.push(UnifiedTextMatch {
                 request_id: candidate.request_id as u64,
+                message_ord: None,
                 session_id: candidate.session_id.clone(),
                 source: source_str,
                 byte_offset: m.byte_offset,
@@ -206,7 +229,7 @@ async fn scan_corpus_candidates(
         }
     }
 
-    Ok((full_count, all_matches))
+    Ok((full_count, all_matches, own_skipped))
 }
 
 pub(crate) async fn find_text_scoped_request(
@@ -263,9 +286,7 @@ pub(crate) async fn find_text_scoped_request(
                 full_match_count: Some(0),
                 matches_truncated: false,
                 matches: Vec::new(),
-                window_note: None,
-                next_cursor: None,
-                has_more: false,
+                ..Default::default()
             }));
         }
     };
@@ -283,6 +304,7 @@ pub(crate) async fn find_text_scoped_request(
         .into_iter()
         .map(|m| UnifiedTextMatch {
             request_id: rid,
+            message_ord: None,
             session_id: session_id.clone(),
             source: source_str,
             byte_offset: m.byte_offset,
@@ -302,8 +324,6 @@ pub(crate) async fn find_text_scoped_request(
         full_match_count: Some(full_count),
         matches_truncated: truncated,
         matches,
-        window_note: None,
-        next_cursor: None,
-        has_more: false,
+        ..Default::default()
     }))
 }

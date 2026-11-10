@@ -11,11 +11,11 @@ pub(crate) struct LessonsListParams {
 
 pub(crate) async fn fetch_lessons_for_project(
     handle: &crate::store::persistence::PersistHandle,
-    project_path: &str,
+    project: &crate::store::persistence::project_knowledge::ProjectIdentity,
     order: SortOrder,
     topic: Option<&str>,
 ) -> Result<Vec<LessonDto>, crate::store::persistence::PersistError> {
-    let mut rows = handle.list_active_lessons(project_path).await?;
+    let mut rows = handle.list_active_lessons(project.id).await?;
     if let Some(want) = topic {
         rows.retain(|r| r.topic.as_deref() == Some(want));
     }
@@ -51,9 +51,13 @@ pub(crate) async fn list_lessons(
             "missing required `project` query parameter",
         ));
     };
+    let project = handle
+        .resolve_knowledge_project(&project_path)
+        .await
+        .map_err(crate::api::project_knowledge::knowledge_error)?;
     let lessons = fetch_lessons_for_project(
         handle,
-        &project_path,
+        &project,
         params.order.unwrap_or_default(),
         params.topic.as_deref(),
     )

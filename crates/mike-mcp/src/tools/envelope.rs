@@ -3,6 +3,7 @@ use serde::Deserialize;
 use serde_json::{Map, Value};
 
 use super::select::project_envelope;
+use super::select_fallback::resolve_under_wrapper;
 use super::select_hint::available_roots;
 
 pub(super) fn arguments_as_value(arguments: Option<Map<String, Value>>) -> Value {
@@ -30,7 +31,7 @@ where
         .map_err(|e| RmcpError::invalid_params(format!("invalid arguments: {e}"), None))
 }
 
-fn result_from_envelope(envelope: Value) -> CallToolResult {
+pub(super) fn result_from_envelope(envelope: Value) -> CallToolResult {
     let mut result = CallToolResult::structured(envelope.clone());
     let pretty = serde_json::to_string_pretty(&envelope).unwrap_or_else(|_| envelope.to_string());
     result.content = vec![ContentBlock::text(pretty)];
@@ -86,10 +87,43 @@ pub(super) fn extract_select(arguments: Arguments) -> Result<(Arguments, Vec<Str
     Ok((arguments, selectors))
 }
 
+const SELECT_EXAMPLE: &str = r#"["/requests/*/id"]"#;
+
+fn select_from_string(text: &str) -> Result<Vec<String>, RmcpError> {
+    let trimmed = text.trim();
+    if let Ok(Value::Array(elements)) = serde_json::from_str::<Value>(trimmed) {
+        return parse_select_elements(&elements);
+    }
+    if trimmed.starts_with('/') {
+        return Ok(vec![trimmed.to_string()]);
+    }
+    Err(RmcpError::invalid_params(
+        format!(
+            "`select` must be an array of JSON pointer strings, for example {SELECT_EXAMPLE}; \
+             got the string {text:?}, which is neither a JSON array of strings nor a single \
+             pointer starting with '/'"
+        ),
+        None,
+    ))
+}
+
 fn parse_select_value(raw: &Value) -> Result<Vec<String>, RmcpError> {
+    if let Some(text) = raw.as_str() {
+        return select_from_string(text);
+    }
     let elements = raw.as_array().ok_or_else(|| {
-        RmcpError::invalid_params("`select` must be an array of JSON pointer strings", None)
+        RmcpError::invalid_params(
+            format!(
+                "`select` must be an array of JSON pointer strings, for example \
+                 {SELECT_EXAMPLE}; got {raw}"
+            ),
+            None,
+        )
     })?;
+    parse_select_elements(elements)
+}
+
+fn parse_select_elements(elements: &[Value]) -> Result<Vec<String>, RmcpError> {
     elements
         .iter()
         .map(|element| {
@@ -122,12 +156,28 @@ pub(super) fn apply_projection(result: CallToolResult, selectors: &[String]) -> 
     let Some(structured) = result.structured_content.as_ref() else {
         return result;
     };
-    let (mut projected, unmatched) = project_envelope(structured, selectors);
+    let resolved = resolve_under_wrapper(structured, selectors);
+    let (mut projected, unmatched) = project_envelope(structured, &resolved.selectors);
     if let Value::Object(map) = &mut projected {
         map.insert(
             "select_applied".to_string(),
-            Value::Array(selectors.iter().cloned().map(Value::String).collect()),
+            Value::Array(
+                resolved
+                    .selectors
+                    .iter()
+                    .cloned()
+                    .map(Value::String)
+                    .collect(),
+            ),
         );
+        if !resolved.corrected.is_empty() {
+            let entries = resolved
+                .corrected
+                .iter()
+                .map(|(sent, used)| serde_json::json!({"sent": sent, "used": used}))
+                .collect();
+            map.insert("select_corrected".to_string(), Value::Array(entries));
+        }
         if !unmatched.is_empty() {
             map.insert(
                 "available_roots".to_string(),

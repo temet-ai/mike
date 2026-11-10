@@ -24,10 +24,10 @@ pub(super) async fn set_vector_scan_limits(
 }
 
 pub(super) fn by_embedding_query(
-    project_path: &str,
-    embedding_model: &str,
-    query_vec_literal: &str,
+    project_id: i64,
+    (embedding_model, query_vec_literal): (&str, &str),
     limit: i64,
+    exclude_turn: Option<i64>,
 ) -> QueryBuilder<Postgres> {
     let cut = score_floor_for(embedding_model);
     let mut query = QueryBuilder::new(
@@ -41,10 +41,9 @@ pub(super) fn by_embedding_query(
             "::vector AS distance
               FROM memory.operator_turn_chunks c
               JOIN memory.operator_turns ot ON c.turn_id = ot.id
-              JOIN projects.projects p ON p.id = ot.project_id
-             WHERE p.project_path = ",
+             WHERE ot.project_id = ",
         )
-        .push_bind(project_path)
+        .push_bind(project_id)
         .push(
             "
                AND c.embedding_model = ",
@@ -53,6 +52,11 @@ pub(super) fn by_embedding_query(
         .push(
             "
                AND (ot.opened_by IS NULL OR ot.opened_by = 'operator')
+               AND ot.id IS DISTINCT FROM ",
+        )
+        .push_bind(exclude_turn)
+        .push(
+            "
              ORDER BY c.chunk_embedding <=> $1::vector
              LIMIT ",
         )

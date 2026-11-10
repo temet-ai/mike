@@ -18,7 +18,7 @@ WITH matches AS (
     JOIN projects.projects     p ON p.id = t.project_id
     WHERE c.chunk_text ILIKE ('%' || $1 || '%')
       AND (t.opened_by IS NULL OR t.opened_by = 'operator')
-      AND p.project_path = $2
+      AND t.project_id = $2
 ),
 session_agg AS (
     SELECT

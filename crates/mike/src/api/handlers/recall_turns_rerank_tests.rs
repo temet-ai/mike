@@ -55,7 +55,7 @@ async fn recall(harness: &Harness, seeded: &Seeded, limit: Option<u64>) -> anyho
         .post(
             ROUTE,
             json!({"project": seeded.project, "query": "quicksort", "limit": limit,
-                   "session_id": seeded.session}),
+                   "session_id": seeded.session, "include_own_turn": true}),
         )
         .await?;
     anyhow::ensure!(status.is_success(), "recall: {status}: {answer}");
@@ -122,6 +122,32 @@ async fn recall_similar_turns_with_a_loading_reranker_keeps_plain_order() -> any
     assert_eq!(turn_ids(&answer), plain);
     assert_eq!(answer["rerank"]["state"], "loading");
     assert_eq!(answer["rerank"]["ready_in_s"], 4);
+    harness.cleanup().await
+}
+
+#[tokio::test]
+async fn recall_similar_turns_with_fewer_words_than_the_setting_keeps_plain_order()
+-> anyhow::Result<()> {
+    let harness = Harness::boot().await?;
+    let seeded = seed_turns(&harness).await?;
+    let plain = turn_ids(&recall(&harness, &seeded, None).await?);
+    harness.enable_rerank(800);
+    harness
+        .state
+        .rerank_service()
+        .apply_setting("rerank.min_query_words", &json!(3));
+    harness.reranker_prefers_later_documents(None).await;
+
+    let answer = recall(&harness, &seeded, None).await?;
+
+    assert_eq!(turn_ids(&answer), plain);
+    assert_eq!(answer["rerank"]["state"], "off");
+    assert!(
+        answer["rerank"]["detail"]
+            .as_str()
+            .is_some_and(|d| d.contains("fewer than 3 words"))
+    );
+    assert!(harness.rerank_requests().await?.is_empty());
     harness.cleanup().await
 }
 

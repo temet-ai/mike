@@ -6,55 +6,38 @@ use serde_json::Value;
 
 use super::support::{PAGE_SIZE, ensure_parents, seed_request_with_body, seed_response_body};
 
-fn assert_first_page_reports_null_not_zero(page1: &Value, last_id: i64) -> anyhow::Result<u64> {
+fn assert_one_call_covers_the_session(answer: &Value, needle_id: i64) -> anyhow::Result<()> {
     anyhow::ensure!(
-        page1["matches"]
-            .as_array()
-            .map(|a| a.is_empty())
-            .unwrap_or(false),
-        "first page must find 0 matches (needle is past the page boundary): {page1}"
+        answer["scan_complete"].as_bool() == Some(true),
+        "a session scan of {} requests must cover the whole session in one call: {answer}",
+        PAGE_SIZE + 2
     );
     anyhow::ensure!(
-        page1["has_more"].as_bool() == Some(true),
-        "first page must report has_more:true (2 requests remain unscanned): {page1}"
+        answer["has_more"].as_bool() == Some(false) && answer["next_cursor"].is_null(),
+        "a complete scan carries no continuation: {answer}"
     );
     anyhow::ensure!(
-        page1["full_match_count"].is_null(),
-        "full_match_count must be null (NOT 0) while has_more is true — a 0 here reads as \
-         false authoritative absence, the issue #175 bug: {page1}"
-    );
-    let cursor = page1["next_cursor"]
-        .as_u64()
-        .ok_or_else(|| anyhow::anyhow!("expected next_cursor on a has_more:true page: {page1}"))?;
-    anyhow::ensure!(
-        cursor as i64 == last_id,
-        "next_cursor must resume after the last scanned id ({last_id}), got {cursor}"
-    );
-    Ok(cursor)
-}
-
-fn assert_final_page_completes_scan(page2: &Value) -> anyhow::Result<()> {
-    anyhow::ensure!(
-        page2["has_more"].as_bool() == Some(false),
-        "second page must complete the scan (only 2 requests remained): {page2}"
+        answer["full_match_count"].as_u64() == Some(1),
+        "a complete scan must report the true total: {answer}"
     );
     anyhow::ensure!(
-        page2["full_match_count"].as_u64() == Some(1),
-        "second page must report an honest full_match_count once the scan completes: {page2}"
+        answer["requests_scanned"].as_u64() == Some(PAGE_SIZE as u64 + 2)
+            && answer["requests_total"].as_u64() == Some(PAGE_SIZE as u64 + 2),
+        "requests_scanned and requests_total must both be the session size: {answer}"
     );
-    let matches2 = page2["matches"]
+    let matches = answer["matches"]
         .as_array()
-        .ok_or_else(|| anyhow::anyhow!("matches must be an array: {page2}"))?;
+        .ok_or_else(|| anyhow::anyhow!("matches must be an array: {answer}"))?;
     anyhow::ensure!(
-        matches2.len() == 1,
-        "expected exactly 1 match on the second page: {page2}"
+        matches.len() == 1 && matches[0]["request_id"].as_u64() == Some(needle_id as u64),
+        "expected exactly the match in the last request ({needle_id}): {answer}"
     );
     Ok(())
 }
 
 #[tokio::test]
-async fn full_match_count_is_null_not_zero_while_session_has_unscanned_pages() -> anyhow::Result<()>
-{
+async fn response_source_session_scan_spanning_two_windows_completes_in_one_call()
+-> anyhow::Result<()> {
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -82,10 +65,9 @@ async fn full_match_count_is_null_not_zero_while_session_has_unscanned_pages() -
     let needle = "UNIQUE_NEEDLE_ISSUE_175_BEYOND_PAGE_ONE";
     let plain_response_body = br#"{"content":[{"type":"text","text":"nothing interesting here"}]}"#;
 
-    let mut last_id = 0i64;
     for i in 0..PAGE_SIZE {
-        last_id = seed_request_with_body(&pool, session_id, project_id, b"{}", i).await?;
-        seed_response_body(&pool, last_id, plain_response_body).await?;
+        let id = seed_request_with_body(&pool, session_id, project_id, b"{}", i).await?;
+        seed_response_body(&pool, id, plain_response_body).await?;
     }
 
     let response_with_needle = format!(r#"{{"content":[{{"type":"text","text":"{needle}"}}]}}"#);
@@ -95,9 +77,7 @@ async fn full_match_count_is_null_not_zero_while_session_has_unscanned_pages() -
         seed_request_with_body(&pool, session_id, project_id, b"{}", PAGE_SIZE + 1).await?;
     seed_response_body(&pool, needle_id, response_with_needle.as_bytes()).await?;
 
-    let client = reqwest::Client::new();
-
-    let resp = client
+    let resp = reqwest::Client::new()
         .get(format!("{inspect_url}/api/body/find"))
         .query(&[
             ("needle", needle),
@@ -108,29 +88,11 @@ async fn full_match_count_is_null_not_zero_while_session_has_unscanned_pages() -
         .await?;
     anyhow::ensure!(
         resp.status().is_success(),
-        "first page returned {}",
+        "call returned {}",
         resp.status()
     );
-    let page1: Value = resp.json().await?;
-    let cursor = assert_first_page_reports_null_not_zero(&page1, last_id)?;
-
-    let resp2 = client
-        .get(format!("{inspect_url}/api/body/find"))
-        .query(&[
-            ("needle", needle),
-            ("session_id", session_id),
-            ("source", "response"),
-            ("cursor", &cursor.to_string()),
-        ])
-        .send()
-        .await?;
-    anyhow::ensure!(
-        resp2.status().is_success(),
-        "second page returned {}",
-        resp2.status()
-    );
-    let page2: Value = resp2.json().await?;
-    assert_final_page_completes_scan(&page2)?;
+    let answer: Value = resp.json().await?;
+    assert_one_call_covers_the_session(&answer, needle_id)?;
 
     shutdown.cancel();
     pool.close().await;

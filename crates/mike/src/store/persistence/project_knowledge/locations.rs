@@ -64,43 +64,6 @@ impl PersistHandle {
         Ok(row)
     }
 
-    pub async fn resolve_knowledge_project(
-        &self,
-        selector: &str,
-    ) -> Result<ProjectIdentity, PersistError> {
-        self.find_knowledge_project(selector)
-            .await?
-            .ok_or_else(|| invalid("Unknown project; use list_project_locations"))
-    }
-
-    pub(crate) async fn find_knowledge_project(
-        &self,
-        selector: &str,
-    ) -> Result<Option<ProjectIdentity>, PersistError> {
-        let uuid = selector.parse::<Uuid>().ok();
-        let rows = sqlx::query_as!(
-            ProjectIdentity,
-            r#"SELECT p.id AS "id!", p.project_uuid AS "project_uuid!",
-                      p.project_path AS "project_path!"
-                 FROM projects.projects p
-                WHERE p.project_uuid = $1 OR p.project_path = $2
-                UNION
-               SELECT p.id, p.project_uuid, p.project_path
-                 FROM projects.locations l
-                 JOIN projects.projects p ON p.id = l.project_id
-                WHERE l.root_path = $2
-                ORDER BY 1"#,
-            uuid,
-            selector,
-        )
-        .fetch_all(self.pool())
-        .await?;
-        if rows.len() > 1 {
-            return Err(invalid("Project is ambiguous; use its project UUID"));
-        }
-        Ok(rows.into_iter().next())
-    }
-
     pub(crate) async fn list_project_locations(
         &self,
         include_all: bool,

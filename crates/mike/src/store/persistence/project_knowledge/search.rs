@@ -3,6 +3,7 @@ use serde_json::Value;
 
 use super::invalid;
 use crate::analysis::embeddings::{ScoreFloor, score_floor_for};
+use crate::search_ranking::identifiers::query_identifiers;
 use crate::store::persistence::recall_embedding::set_vector_scan_limits;
 use crate::store::persistence::{PersistError, PersistHandle};
 
@@ -37,18 +38,32 @@ pub(crate) fn cut_for(model_name: &str, cut: SemanticCut) -> ScoreFloor {
     }
 }
 
+pub(crate) const TOOL_WRITTEN_OPENINGS: [&str; 5] = [
+    "A session-scoped Stop hook is now active with condition:",
+    "The tether plugin sent a message:",
+    "Perform a web search for the query:",
+    "You score how well a stand-in predicted",
+    "Coordinator wake for fleet ",
+];
+
 #[derive(Clone, Default, Deserialize)]
 pub struct KnowledgeQuery {
     #[serde(skip)]
     pub semantic_cut: SemanticCut,
     #[serde(skip)]
     pub any_term: bool,
+    #[serde(skip)]
+    pub recent: bool,
+    #[serde(skip)]
+    pub caller_session: Option<String>,
     pub project: String,
     #[serde(default)]
     pub query: String,
     pub kind: Option<String>,
     #[serde(default)]
     pub include_historical: bool,
+    #[serde(default)]
+    pub include_own_turn: bool,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
@@ -79,29 +94,50 @@ impl<'a> QueryVector<'a> {
     }
 }
 
-async fn fetch_hits(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    (project_id, input): (i64, &KnowledgeQuery),
+struct CallScope {
+    caller: Option<uuid::Uuid>,
+    openings: Vec<String>,
+    identifiers: Vec<String>,
+}
+
+impl CallScope {
+    fn of(input: &KnowledgeQuery) -> Self {
+        Self {
+            identifiers: query_identifiers(&input.query),
+            caller: input
+                .caller_session
+                .as_deref()
+                .filter(|_| !input.include_own_turn)
+                .and_then(|session| uuid::Uuid::parse_str(session.trim()).ok()),
+            openings: TOOL_WRITTEN_OPENINGS.map(String::from).to_vec(),
+        }
+    }
+}
+
+fn fetch_hits<'a>(
+    tx: &'a mut sqlx::Transaction<'_, sqlx::Postgres>,
+    (project_id, input): (i64, &'a KnowledgeQuery),
     (limit, offset): (i64, i64),
-    bound: &QueryVector<'_>,
-) -> Result<Vec<Value>, PersistError> {
-    Ok(sqlx::query_file_scalar!(
+    (bound, scope): (&'a QueryVector<'_>, &'a CallScope),
+) -> impl std::future::Future<Output = Result<Vec<Value>, sqlx::Error>> + 'a {
+    sqlx::query_file_scalar!(
         "src/store/persistence/project_knowledge/search.sql",
         project_id,
         input.query,
         input.kind,
         input.include_historical,
-        limit + 1,
+        limit,
         offset,
         bound.literal,
         bound.model_key,
         bound.model_name,
-        bound.cut.floor,
-        bound.cut.window,
+        &[bound.cut.floor, bound.cut.window],
         input.any_term,
+        scope.caller,
+        &scope.openings,
+        &scope.identifiers,
     )
     .fetch_all(&mut **tx)
-    .await?)
 }
 
 pub(crate) fn search_page(
@@ -117,6 +153,13 @@ pub(crate) fn search_page(
         "retrieval_path": if hybrid { "hybrid" } else { "lexical" }, "items": items, "has_more": has_more,
         "next_offset": if has_more { Some(offset + limit) } else { None },
         "read_tool": "read_project_knowledge"})
+}
+
+fn with_correction(mut item: Value, corrected: Option<String>) -> Value {
+    if let (Some(full), Some(fields)) = (corrected, item.as_object_mut()) {
+        fields.insert("reference_corrected".to_owned(), Value::String(full));
+    }
+    item
 }
 
 impl PersistHandle {
@@ -171,7 +214,14 @@ impl PersistHandle {
             set_vector_scan_limits(&mut tx).await?;
         }
         let bound = QueryVector::from(vector, input.semantic_cut);
-        let rows = fetch_hits(&mut tx, (project_id, input), (limit, offset), &bound).await?;
+        let scope = CallScope::of(input);
+        let rows = fetch_hits(
+            &mut tx,
+            (project_id, input),
+            (limit + 1, offset),
+            (&bound, &scope),
+        )
+        .await?;
         tx.commit().await?;
         Ok(rows)
     }
@@ -185,15 +235,13 @@ impl PersistHandle {
             Some(selector) => Some(self.resolve_knowledge_project(selector).await?.id),
             None => None,
         };
-        let (kind, key) = reference
-            .split_once(':')
-            .ok_or_else(|| invalid("Invalid knowledge reference"))?;
-        if !READABLE_KINDS.contains(&kind) {
-            return Err(invalid("Unknown knowledge source kind"));
-        }
+        let settled = self
+            .settle_reference(project_id, reference, &READABLE_KINDS)
+            .await?;
+        let key = settled.key.as_str();
         let mut found: Vec<Value> = sqlx::query_scalar(include_str!("read.sql"))
             .bind(project_id)
-            .bind(kind)
+            .bind(settled.kind.as_str())
             .bind(key.parse::<i64>().ok())
             .bind(key.parse::<uuid::Uuid>().ok())
             .bind(key)
@@ -202,7 +250,7 @@ impl PersistHandle {
         match (found.len(), project_id) {
             (0, Some(_)) => Err(invalid("Knowledge reference not found in this project")),
             (0, None) => Err(invalid("Knowledge reference not found")),
-            (1, _) => Ok(found.remove(0)),
+            (1, _) => Ok(with_correction(found.remove(0), settled.corrected)),
             _ => Err(invalid(
                 "Knowledge reference matches several projects; pass project",
             )),

@@ -76,6 +76,8 @@ impl McpServer {
         name: &str,
         arguments: Option<serde_json::Map<String, serde_json::Value>>,
     ) -> Result<CallToolResponse, RmcpError> {
+        crate::caller::retrospective::permit(self.profile, name)?;
+        let (arguments, corrections) = tools::check_arguments(name, arguments)?;
         let arguments = crate::caller::retrospective::authorize(
             self.profile,
             name,
@@ -91,6 +93,7 @@ impl McpServer {
         .await?;
         tools::call_tool(&self.client, name, arguments)
             .await
+            .map(|result| tools::with_corrections(result, &corrections))
             .map(CallToolResponse::from)
     }
 }
@@ -253,6 +256,10 @@ impl ServerHandler for McpServer {
             .map(ReadResourceResponse::from)
     }
 }
+
+#[cfg(test)]
+#[path = "server/argument_tests.rs"]
+mod argument_tests;
 
 #[cfg(test)]
 #[path = "server/retrospective_tests.rs"]

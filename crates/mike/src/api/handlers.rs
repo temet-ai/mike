@@ -89,7 +89,13 @@ mod prompts_02;
 mod prompts_03;
 mod prompts_04;
 mod recall_context;
+#[cfg(test)]
+mod recall_own_turn_tests;
+#[cfg(test)]
+mod recall_recent_tests;
 mod recall_turns;
+#[cfg(test)]
+mod recall_turns_ambiguous_tests;
 mod recall_turns_rerank;
 #[cfg(test)]
 mod recall_turns_rerank_tests;
@@ -104,7 +110,11 @@ mod request_summary;
 mod request_transform;
 mod scheduled_jobs;
 mod search_body;
+mod search_own;
+mod search_reminders;
 mod search_session;
+mod search_session_messages;
+mod search_session_scan;
 mod search_unified;
 mod session_admin;
 mod session_detail;
@@ -206,7 +216,11 @@ pub(crate) use request_summary::*;
 pub(crate) use request_transform::*;
 pub(crate) use scheduled_jobs::*;
 pub(crate) use search_body::*;
+use search_own::*;
+use search_reminders::*;
 pub(crate) use search_session::*;
+use search_session_messages::*;
+pub(crate) use search_session_scan::*;
 pub(crate) use search_unified::*;
 pub(crate) use session_admin::*;
 pub(crate) use session_detail::*;

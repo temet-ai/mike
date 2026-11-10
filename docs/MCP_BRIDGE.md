@@ -2,7 +2,7 @@
 title: MCP Bridge
 status: active
 created: 2026-07-08
-updated: 2026-11-06
+updated: 2026-11-10
 summary: How to build, register, and use mike-mcp — the MCP bridge that exposes captured proxy traffic as structured tools inside a Claude Code session.
 ---
 
@@ -179,8 +179,8 @@ here.
 | `get_session` | Fetch a session with its paginated request list |
 | `get_session_head` | Lean polling variant of `get_session` |
 | `list_session_tool_uses` | All tool calls captured for session `id` |
-| `find_text` | Substring search over the RAW captured bytes. **Scope changes what is searched**: with no `request_id` and no `session_id` it searches **response bodies only**, over a 7-day default window; passing `session_id` or `request_id` also searches request bodies, which is where tool calls, tool results, thinking blocks and system prompts live. `request_id` is a single-request fast path, always complete in one call; `session_id` is a bounded session-wide scan — check `has_more`/`next_cursor` and page with `cursor` before treating `full_match_count` as a total |
-| `search_session_content` | Fast literal search over the CONVERSATION corpus (operator prompts + assistant replies, chunked ≤1500 chars each), grouped by session — the first tool to reach for when investigating "which session discussed X". Does **not** see tool-call inputs/results, thinking blocks or system prompts; use `find_text` for those |
+| `find_text` | Substring search over captured text. **Scope changes what is searched**: with no `request_id` and no `session_id` it searches **response bodies** (a `source=request` there is a 400), over a 7-day default window; `session_id` with the default `source=request` reads the session's **messages, each once, at the request where it first appeared** (from `requests.deltas`), so history resent in every later request is not matched again; matches carry `message_ord` and the answer says `positions: "message"`. Matches inside `<system-reminder>` spans are skipped unless `include_reminders` is true, and the caller's own search-tool calls and their results are never counted (both reported as `reminder_matches_skipped` and `own_search_matches_skipped`). `whole_bodies=true` scans every request body in full instead. `request_id` is a single-request fast path. A session scan keeps scanning for up to 8 seconds and reports `scan_complete`, `requests_scanned` and `requests_total`; `full_match_count` is the true count when `scan_complete` is true and null otherwise. The bridge continues an empty incomplete answer with `next_cursor` for up to 30 seconds and then returns an error naming the cursor, so an empty `matches` always means the whole scope was scanned |
+| `search_session_content` | Fast literal search over the CONVERSATION corpus (operator prompts + assistant replies, chunked ≤1500 chars each), grouped by session — the first tool to reach for when investigating "which session discussed X". `project` takes a project UUID, numeric id, path or name; `order` is `matches` (default: most matching chunks, then most matches in operator prompts, then newest) or `recent` (newest first). Does **not** see tool-call inputs/results, thinking blocks or system prompts; use `find_text` for those |
 | `list_projects` | List all known projects with per-project session count, request count, first_seen/last_seen timestamps, and pinned flag |
 | `list_file_writes` | Which sessions wrote to which files, and where two sessions collided on one |
 | `get_time_spent` | Where sessions spent their time waiting on tools, by kind of work (gate, tests, builds, git, subagents, ...), the slowest commands, and how much slower builds ran when other sessions were building at the same time |
@@ -212,8 +212,8 @@ here.
 
 | Tool | What it does |
 |------|--------------|
-| `recall_project_context` | Bundled project memory: 5 most-recent corrected turns + 3 most-recent shipped turns + active lessons |
-| `recall_similar_turns` | Semantic/full-text recall over `operator_turns` for a project |
+| `recall_project_context` | Bundled project memory: 5 most-recent corrected turns + 3 most-recent shipped turns + active lessons; its knowledge search leaves out the caller's own newest turn unless `include_own_turn` is true |
+| `recall_similar_turns` | Semantic/full-text recall over `operator_turns` for a project; leaves out the caller's own newest turn (the newest turn the operator opened) unless `include_own_turn` is true; `order` is `relevance` (default) or `recent` (the strongest matches, newest first by `created_at`, reranker not used, `rerank.state` `off`; pass it for questions about the latest or current work); any other value is a 400 |
 | `record_lesson` | Record a lesson (correction, convention, warning, or preference) for a project |
 | `list_lessons` | List active (non-expired) lessons for a project, newest-first by default (`order=desc`); pass `order=asc` for oldest-first |
 | `delete_lesson` | Delete a lesson by integer id |
@@ -224,7 +224,7 @@ here.
 | Tool | What it does |
 |------|--------------|
 | `list_project_locations` | Discover project UUIDs and their machine-specific locations |
-| `search_project_knowledge` | Hybrid text/semantic search across artifacts, lessons, notes, turns, comms threads (the mail sessions sent each other, one thread per fleet run), work threads (kind `work_thread`: goal, state and acceptance criteria) and session memory (kinds `thread_entry`, `question_answer`, `unmet_ask`, `correction`, `learning`, `mail`) and fleet seat material (kind `seat`, labelled with author, run, seat and task and ranked below operator material); each item has author, date, excerpt and reference, one per logical document across machines; returns retrieval coverage |
+| `search_project_knowledge` | Hybrid text/semantic search across artifacts, lessons, notes, turns, comms threads (the mail sessions sent each other, one thread per fleet run), work threads (kind `work_thread`: goal, state and acceptance criteria) and session memory (kinds `thread_entry`, `question_answer`, `unmet_ask`, `correction`, `learning`, `mail`) and fleet seat material (kind `seat`, labelled with author, run, seat and task and ranked below operator material); each item has author, date, excerpt and reference, one per logical document across machines; one source moment takes one slot (`also` lists up to 10 folded references, `also_count` their number: the same prompt in several sessions, a turn with its corrections and unmet asks, identical mails or notes); items written by tools or sessions (seat material, mail, comms threads, `brief` notes, turns that begin with a tool's text) carry `provenance.written_by: "machine"` and rank below operator material, also after reranking; the caller's own newest turn (the newest turn the operator opened, not a hook or notification turn) and its corrections are left out unless `include_own_turn` is true; identifiers in the query (ticket ids, `#123`, commit hashes, UUIDs, runs of 6 or more digits, code names such as `search_grades`) are matched as whole tokens, each item carries `identifier_hits` (how many of them it contains), and items with hits are always candidates and come first, also after reranking; `order` is `relevance` (default) or `recent` (the strongest matches, the pool a reranker would get, newest first by `updated_at`; the reranker is not used and `rerank.state` is `off`; pass it for questions about the latest or current work; another value is a 400); a work thread imported from a file and not changed since reports the date of its newest log entry as `updated_at`, and an imported log entry reports its `entry_date`; an interrupted prompt that was resent is left out unless `include_historical` is true; returns retrieval coverage |
 | `read_project_knowledge` | Read the complete retained source for a reference returned by search, including provenance and revision metadata |
 
 For the portable-project setup and the recommended agent call sequence, see

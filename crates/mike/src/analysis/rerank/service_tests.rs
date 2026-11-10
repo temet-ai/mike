@@ -171,6 +171,7 @@ async fn rerank_when_server_is_slower_than_the_timeout_returns_timeout() -> anyh
         .await;
     let service = RerankService::new(&RerankConfig {
         timeout_ms: 50,
+        cold_timeout_ms: 50,
         ..enabled(&server.uri())
     });
     assert_eq!(service.health().await, ServerHealth::Ready);
@@ -192,7 +193,10 @@ async fn rerank_when_server_is_loading_returns_loading_and_keeps_the_breaker_clo
         .expect(5)
         .mount(&server)
         .await;
-    let service = RerankService::new(&enabled(&server.uri()));
+    let service = RerankService::new(&RerankConfig {
+        cold_timeout_ms: 100,
+        ..enabled(&server.uri())
+    });
 
     for _ in 0..5 {
         let outcome = service.rerank("query", &documents(2), allow_all).await;

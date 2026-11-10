@@ -1,8 +1,9 @@
 use serde_json::{Value, json};
 
-use super::rescue::{Rescue, keep, pool_query};
+use super::rescue::{Rescue, keep, keep_reporting, pool_query};
 use crate::analysis::embeddings::score_floor_for;
 use crate::analysis::rerank::DEFAULT_RESCUE_SCORE;
+use crate::api::rerank_search::RerankReport;
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, SemanticCut};
 
 const MODEL: &str = "embeddinggemma";
@@ -38,6 +39,19 @@ fn the_best_scored_rows_stay_up_to_min_kept_even_under_every_line() {
         .collect();
 
     assert_eq!(kept, vec!["turn:best", "turn:second"]);
+}
+
+#[test]
+fn a_row_with_an_identifier_hit_stays_though_scored_and_matched_below_every_line() {
+    let mut held = row("turn:ticket", under_floor());
+    held["identifier_hits"] = json!(1);
+    let arranged = vec![
+        (row("turn:best", 0.9), scored(2.0)),
+        (held, scored(-9.0)),
+        (row("turn:weak", under_floor()), scored(-9.0)),
+    ];
+
+    assert_eq!(kept(arranged), vec!["turn:best", "turn:ticket"]);
 }
 
 fn scored(offset: f64) -> Option<f32> {
@@ -127,4 +141,48 @@ fn the_window_under_the_best_row_still_applies_to_rows_the_reranker_rejects() {
     ];
 
     assert_eq!(kept(arranged), vec!["lesson:best", "lesson:rescued"]);
+}
+
+#[test]
+fn keep_reporting_counts_the_rows_it_drops_and_says_so() {
+    let arranged = vec![
+        (row("lesson:match", under_floor()), scored(0.0)),
+        (row("lesson:wrong", under_floor()), scored(-1.0)),
+        (row("turn:lexical-only", 0.0), scored(-1.0)),
+    ];
+
+    let (kept, report) = keep_reporting(arranged, rescue(), RerankReport::reranked());
+
+    assert_eq!(kept.len(), 1);
+    assert_eq!(report.left_out, Some(2));
+    assert_eq!(
+        report.detail.as_deref(),
+        Some("2 candidates scored below the relevance line -1.25 and were left out")
+    );
+    assert_eq!(report.to_json()["left_out"], 2);
+}
+
+#[test]
+fn keep_reporting_with_nothing_dropped_reports_zero_and_no_detail() {
+    let floor = score_floor_for(MODEL).floor;
+    let arranged = vec![(row("lesson:over", floor), scored(-1.0))];
+
+    let (kept, report) = keep_reporting(arranged, rescue(), RerankReport::reranked());
+
+    assert_eq!(kept.len(), 1);
+    assert_eq!(report.left_out, Some(0));
+    assert_eq!(report.detail, None);
+    assert_eq!(report.to_json()["left_out"], 0);
+}
+
+#[test]
+fn keep_reporting_with_one_dropped_row_uses_the_singular() {
+    let arranged = vec![(row("lesson:wrong", under_floor()), scored(-1.0))];
+
+    let (_, report) = keep_reporting(arranged, rescue(), RerankReport::reranked());
+
+    assert_eq!(
+        report.detail.as_deref(),
+        Some("1 candidate scored below the relevance line -1.25 and was left out")
+    );
 }

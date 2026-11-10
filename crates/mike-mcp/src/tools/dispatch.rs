@@ -300,13 +300,99 @@ mod tests {
     async fn call_tool_select_not_an_array_is_invalid_params() -> anyhow::Result<()> {
         let (_server, client) = mock_client().await;
         let mut args = Map::new();
-        args.insert("select".to_string(), Value::String("/requests".to_string()));
+        args.insert("select".to_string(), json!(7));
         let err = call_tool(&client, TOOL_LIST_REQUESTS, Some(args))
             .await
             .err()
             .ok_or_else(|| anyhow::anyhow!("expected invalid_params error"))?;
         assert_eq!(err.code, rmcp::model::ErrorCode::INVALID_PARAMS);
         assert!(err.message.contains("must be an array"));
+        assert!(err.message.contains(r#"["/requests/*/id"]"#));
+        Ok(())
+    }
+
+    async fn select_structured(select: Value) -> anyhow::Result<Value> {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let (server, client) = mock_client().await;
+        Mock::given(method("GET"))
+            .and(path("/api/requests"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!([
+                {"id": 1, "path": "/v1/messages"},
+                {"id": 2, "path": "/v1/messages"}
+            ])))
+            .mount(&server)
+            .await;
+        let mut args = Map::new();
+        args.insert("select".to_string(), select);
+        let result = call_tool(&client, TOOL_LIST_REQUESTS, Some(args)).await?;
+        result
+            .structured_content
+            .ok_or_else(|| anyhow::anyhow!("expected structured_content"))
+    }
+
+    #[tokio::test]
+    async fn call_tool_select_missing_the_wrapper_key_resolves_and_reports_the_correction()
+    -> anyhow::Result<()> {
+        let structured = select_structured(json!(["/*/id"])).await?;
+        assert_eq!(structured["requests"], json!([{"id": 1}, {"id": 2}]));
+        assert_eq!(structured["select_applied"], json!(["/requests/*/id"]));
+        assert_eq!(
+            structured["select_corrected"],
+            json!([{"sent": "/*/id", "used": "/requests/*/id"}])
+        );
+        assert!(structured.get("select_unmatched").is_none());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn call_tool_select_matching_at_the_root_is_not_reported_as_corrected()
+    -> anyhow::Result<()> {
+        let structured = select_structured(json!(["/requests/*/id"])).await?;
+        assert!(structured.get("select_corrected").is_none());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn call_tool_select_matching_nowhere_keeps_the_unmatched_report() -> anyhow::Result<()> {
+        let structured = select_structured(json!(["/nope/*/id"])).await?;
+        assert_eq!(structured["select_unmatched"], json!(["/nope/*/id"]));
+        assert!(structured.get("select_corrected").is_none());
+        assert!(structured.get("available_roots").is_some());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn call_tool_select_as_a_json_array_string_is_used_as_the_array() -> anyhow::Result<()> {
+        let structured = select_structured(json!(r#"["/requests/*/id"]"#)).await?;
+        assert_eq!(structured["requests"], json!([{"id": 1}, {"id": 2}]));
+        assert_eq!(structured["select_applied"], json!(["/requests/*/id"]));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn call_tool_select_as_a_single_pointer_string_is_used_as_one_pointer()
+    -> anyhow::Result<()> {
+        let structured = select_structured(json!("/requests/*/id")).await?;
+        assert_eq!(structured["requests"], json!([{"id": 1}, {"id": 2}]));
+        assert_eq!(structured["select_applied"], json!(["/requests/*/id"]));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn call_tool_select_as_an_unusable_string_is_refused_with_an_example()
+    -> anyhow::Result<()> {
+        let (_server, client) = mock_client().await;
+        let mut args = Map::new();
+        args.insert("select".to_string(), json!("requests.id"));
+        let err = call_tool(&client, TOOL_LIST_REQUESTS, Some(args))
+            .await
+            .err()
+            .ok_or_else(|| anyhow::anyhow!("expected invalid_params error"))?;
+        assert_eq!(err.code, rmcp::model::ErrorCode::INVALID_PARAMS);
+        assert!(err.message.contains(r#"for example ["/requests/*/id"]"#));
+        assert!(err.message.contains("requests.id"));
         Ok(())
     }
 

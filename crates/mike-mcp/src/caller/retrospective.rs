@@ -3,17 +3,22 @@ use serde_json::{Map, Value};
 
 use crate::profiles::{Profile, RETROSPECTIVE_TOOLS};
 
+pub(crate) fn permit(profile: Profile, name: &str) -> Result<(), ErrorData> {
+    if profile == Profile::Retrospective && !RETROSPECTIVE_TOOLS.contains(&name) {
+        return Err(denied(format!("tool {name} is unavailable")));
+    }
+    Ok(())
+}
+
 pub(crate) fn authorize(
     profile: Profile,
     name: &str,
     arguments: Option<Map<String, Value>>,
     session: Option<&str>,
 ) -> Result<Option<Map<String, Value>>, ErrorData> {
+    permit(profile, name)?;
     if profile != Profile::Retrospective {
         return Ok(arguments);
-    }
-    if !RETROSPECTIVE_TOOLS.contains(&name) {
-        return Err(denied(format!("tool {name} is unavailable")));
     }
     if !matches!(name, "write_session_note" | "end_workspace_registration") {
         return Ok(arguments);

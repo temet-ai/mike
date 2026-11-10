@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH matches AS (\n    SELECT\n        t.session_id          AS session_pk,\n        s.session_uuid::text  AS session_id,\n        p.project_path,\n        p.display_name        AS project_display_name,\n        s.title,\n        c.turn_id,\n        t.start_request_id    AS request_id,\n        cr.code               AS role,\n        c.chunk_idx,\n        c.chunk_text,\n        t.created_at\n    FROM memory.operator_turn_chunks c\n    JOIN memory.operator_turns t ON t.id = c.turn_id\n    JOIN memory.chunk_roles    cr ON cr.id = c.chunk_role_id\n    JOIN sessions.sessions     s ON s.id = t.session_id\n    JOIN projects.projects     p ON p.id = t.project_id\n    WHERE c.chunk_text ILIKE ('%' || $1 || '%')\n      AND (t.opened_by IS NULL OR t.opened_by = 'operator')\n      AND t.project_id = $2\n),\nsession_agg AS (\n    SELECT\n        session_pk, session_id, project_path, project_display_name, title,\n        COUNT(*)                AS match_count,\n        COUNT(DISTINCT turn_id) AS turn_count,\n        MAX(created_at)         AS last_match_at\n    FROM matches\n    GROUP BY session_pk, session_id, project_path, project_display_name, title\n)\nSELECT\n    COALESCE(SUM(match_count), 0)::bigint AS \"total_matches!\",\n    COUNT(*)::bigint                       AS \"total_sessions!\"\nFROM session_agg\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "total_matches!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "total_sessions!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "653967ee09439b8b9d3be1dc59bdbfdcf0cb680ae4eb08f8d3f072ab04881560"
+}

@@ -22,6 +22,7 @@ async fn rerank_when_the_first_call_times_out_reports_loading_and_keeps_the_brea
         .await;
     let service = RerankService::new(&RerankConfig {
         timeout_ms: 50,
+        cold_timeout_ms: 50,
         ..enabled(&server.uri())
     });
 

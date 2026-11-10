@@ -16,6 +16,17 @@ pub(crate) fn assign_rerank_key(
         ),
         "rerank.model" => set(&mut config.model, value.as_str().map(str::to_owned)),
         "rerank.timeout_ms" => set(&mut config.timeout_ms, value.as_u64().map(|v| v.max(1))),
+        "rerank.cold_timeout_ms" => set(
+            &mut config.cold_timeout_ms,
+            value.as_u64().map(|v| v.max(1)),
+        ),
+        "rerank.min_query_words" => set(
+            &mut config.min_query_words,
+            value
+                .as_u64()
+                .and_then(|v| usize::try_from(v).ok())
+                .map(|v| v.max(1)),
+        ),
         "rerank.candidates" => set(
             &mut config.candidates,
             value

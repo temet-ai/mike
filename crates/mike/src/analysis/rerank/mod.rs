@@ -9,6 +9,8 @@ mod keys;
 #[cfg(test)]
 mod keys_tests;
 mod nightly;
+#[cfg(test)]
+mod queue_tests;
 mod runtime;
 mod service;
 #[cfg(test)]
@@ -31,6 +33,10 @@ pub(crate) const DEFAULT_RERANK_MODEL: &str = "bge-reranker-v2-m3";
 pub(crate) const DEFAULT_RERANK_URL: &str = "http://127.0.0.1:11435";
 
 pub(crate) const DEFAULT_TIMEOUT_MS: u64 = 800;
+
+pub(crate) const DEFAULT_COLD_TIMEOUT_MS: u64 = 6_000;
+
+pub(crate) const DEFAULT_MIN_QUERY_WORDS: usize = 1;
 
 pub(crate) const DEFAULT_CANDIDATES: usize = 50;
 
@@ -69,10 +75,20 @@ pub struct RerankConfig {
 
     pub timeout_ms: u64,
 
+    pub cold_timeout_ms: u64,
+
+    pub min_query_words: usize,
+
     pub candidates: usize,
 
     #[serde(deserialize_with = "deserialize_permissive_bool")]
     pub tuning_enabled: bool,
+}
+
+impl RerankConfig {
+    pub(crate) fn call_budget(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(self.cold_timeout_ms.saturating_add(self.timeout_ms))
+    }
 }
 
 impl Default for RerankConfig {
@@ -86,6 +102,8 @@ impl Default for RerankConfig {
             url: DEFAULT_RERANK_URL.to_owned(),
             model: DEFAULT_RERANK_MODEL.to_owned(),
             timeout_ms: DEFAULT_TIMEOUT_MS,
+            cold_timeout_ms: DEFAULT_COLD_TIMEOUT_MS,
+            min_query_words: DEFAULT_MIN_QUERY_WORDS,
             candidates: DEFAULT_CANDIDATES,
             tuning_enabled: false,
         }

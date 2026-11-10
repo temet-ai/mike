@@ -9,6 +9,8 @@ mod record;
 #[cfg(test)]
 mod mark_used_tests;
 #[cfg(test)]
+mod mark_used_thread_tests;
+#[cfg(test)]
 mod record_tests;
 
 pub(crate) use mark_used::{USED_BATCH, UsedPass};

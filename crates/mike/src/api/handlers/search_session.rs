@@ -39,90 +39,42 @@ async fn resolve_session_scan_ids(
     Ok((session_db_id, request_ids))
 }
 
-async fn fetch_scan_batch_bodies(
-    handle: &crate::store::persistence::PersistHandle,
-    source: FindTextSource,
-    page_ids: &[i64],
-    session_id: &str,
-) -> Result<std::collections::HashMap<i64, Bytes>, (StatusCode, Json<FindTextErrorBody>)> {
-    match source {
-        FindTextSource::Response => handle
-            .fetch_response_bodies_batch(page_ids)
-            .await
-            .map_err(|e| {
-                tracing::warn!(error = %e, session_id = %session_id, "find_text: batched response body fetch failed");
-                find_text_error(StatusCode::INTERNAL_SERVER_ERROR, "lookup failed")
-            }),
-        FindTextSource::Request => handle
-            .fetch_request_bodies_batch(page_ids)
-            .await
-            .map_err(|e| {
-                tracing::warn!(error = %e, session_id = %session_id, "find_text: batched request body fetch failed");
-                find_text_error(StatusCode::INTERNAL_SERVER_ERROR, "lookup failed")
-            }),
-        FindTextSource::RequestSent => Ok(std::collections::HashMap::new()),
-    }
-}
-
-async fn scan_session_page(
-    state: &AppState,
-    session_id: &str,
-    scan_slice: &[&crate::store::persistence::rehydrate::SessionRequestIdRow],
-    batched_bodies: &std::collections::HashMap<i64, Bytes>,
+fn scoped_session_response(
     params: &FindTextMatchParams<'_>,
-) -> (Vec<UnifiedTextMatch>, u64, Option<u64>) {
-    let source_str = params.source.as_wire_str();
-    let remaining_cap = params.max_matches as usize;
-    let mut all_matches: Vec<UnifiedTextMatch> = Vec::new();
-    let mut full_count: u64 = 0;
-    let mut last_scanned: Option<u64> = None;
-
-    for id_row in scan_slice {
-        let rid = id_row.request_id as u64;
-        last_scanned = Some(rid);
-        let body = if matches!(params.source, FindTextSource::RequestSent) {
-            resolve_body_for_find(state, rid, params.source)
-                .await
-                .ok()
-                .flatten()
-                .flatten()
+    scan: SessionScan,
+    cursor: Option<u64>,
+    requests_total: usize,
+    requests_skipped: usize,
+) -> FindTextUnifiedResponse {
+    let complete = scan.complete;
+    let acc = scan.acc;
+    FindTextUnifiedResponse {
+        needle: params.needle.to_owned(),
+        case_sensitive: params.case_sensitive,
+        context_bytes: params.context_bytes,
+        positions: if params.reads_messages() {
+            TextPositions::Message
         } else {
-            batched_bodies.get(&id_row.request_id).cloned()
-        };
-        let Some(body) = body else {
-            continue;
-        };
-        let Some(text) = std::str::from_utf8(&body).ok() else {
-            continue;
-        };
-        let (count_this, new_matches) = crate::api::body_search::find_in_str(
-            text,
-            params.needle,
-            params.case_sensitive,
-            params.context_bytes,
-            params.max_matches,
-        );
-        full_count += count_this;
-        for m in new_matches {
-            if all_matches.len() >= remaining_cap {
-                continue;
-            }
-            all_matches.push(UnifiedTextMatch {
-                request_id: rid,
-                session_id: session_id.to_owned(),
-                source: source_str,
-                byte_offset: m.byte_offset,
-                match_length: m.match_length,
-                line: m.line,
-                column: m.column,
-                before: m.before,
-                matched: m.matched,
-                after: m.after,
-            });
-        }
+            TextPositions::Body
+        },
+        full_match_count: complete.then_some(acc.full_count),
+        matches_truncated: acc.matches.len() < acc.full_count as usize,
+        matches: acc.matches,
+        window_note: None,
+        next_cursor: if complete {
+            None
+        } else {
+            scan.last_scanned.or(cursor)
+        },
+        has_more: !complete,
+        scan_complete: Some(complete),
+        requests_scanned: Some((requests_skipped + scan.scanned) as u64),
+        requests_total: Some(requests_total as u64),
+        reminder_matches_skipped: params.reads_messages().then_some(acc.reminder_skipped),
+        own_search_matches_skipped: (params.reads_messages()
+            || params.source == FindTextSource::Response)
+            .then_some(acc.own_skipped),
     }
-
-    (all_matches, full_count, last_scanned)
 }
 
 pub(crate) async fn find_text_scoped_session(
@@ -130,6 +82,7 @@ pub(crate) async fn find_text_scoped_session(
     session_id: &str,
     params: &FindTextMatchParams<'_>,
     cursor: Option<u64>,
+    limits: &ScanLimits,
 ) -> Result<Json<FindTextUnifiedResponse>, (StatusCode, Json<FindTextErrorBody>)> {
     if uuid::Uuid::parse_str(session_id).is_err() {
         return Err(find_text_error(StatusCode::NOT_FOUND, "unknown session"));
@@ -142,45 +95,43 @@ pub(crate) async fn find_text_scoped_session(
         ));
     };
 
-    let (_session_db_id, request_ids) =
+    let (session_db_id, request_ids) =
         resolve_session_scan_ids(handle, session_id, "find_text_scoped_session").await?;
 
-    let scan_slice: Vec<_> = request_ids
+    let pending: Vec<i64> = request_ids
         .iter()
-        .filter(|r| cursor.is_none_or(|c| (r.request_id as u64) > c))
-        .take(FIND_TEXT_SESSION_PAGE_REQUESTS)
+        .map(|r| r.request_id)
+        .filter(|id| cursor.is_none_or(|c| (*id as u64) > c))
         .collect();
-
-    let page_ids: Vec<i64> = scan_slice.iter().map(|r| r.request_id).collect();
-    let batched_bodies =
-        fetch_scan_batch_bodies(handle, params.source, &page_ids, session_id).await?;
-
-    let (all_matches, full_count, last_scanned) =
-        scan_session_page(state, session_id, &scan_slice, &batched_bodies, params).await;
-
-    let scan_boundary = last_scanned.or(cursor);
-    let has_more = match scan_boundary {
-        Some(boundary) => request_ids.iter().any(|r| (r.request_id as u64) > boundary),
-        None => false,
+    let ctx = ScanCtx {
+        state,
+        handle,
+        session_db_id,
+        session_id,
+        params,
     };
-    let next_cursor = if has_more { scan_boundary } else { None };
+    let scan = scan_session(&ctx, &pending, limits).await?;
 
-    let truncated = all_matches.len() < full_count as usize;
-
-    let full_match_count = if has_more { None } else { Some(full_count) };
-
-    Ok(Json(FindTextUnifiedResponse {
-        needle: params.needle.to_owned(),
-        case_sensitive: params.case_sensitive,
-        context_bytes: params.context_bytes,
-        full_match_count,
-        matches_truncated: truncated,
-        matches: all_matches,
-        window_note: None,
-        next_cursor,
-        has_more,
-    }))
+    Ok(Json(scoped_session_response(
+        params,
+        scan,
+        cursor,
+        request_ids.len(),
+        request_ids.len() - pending.len(),
+    )))
 }
+
+#[cfg(test)]
+#[path = "search_session_support_tests.rs"]
+mod search_session_test_support;
+
+#[cfg(test)]
+#[path = "search_session_tests.rs"]
+mod search_session_tests;
+
+#[cfg(test)]
+#[path = "search_session_filters_tests.rs"]
+mod search_session_filters_tests;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct SessionTextMatch {

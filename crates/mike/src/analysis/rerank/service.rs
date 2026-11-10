@@ -4,11 +4,10 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 
 use super::runtime::{RerankStatus, Runtime};
-use super::{
-    HEALTH_TIMEOUT, MAX_DOCUMENT_CHARS, MAX_QUERY_CHARS, RerankConfig, RerankError, RerankScore,
-    ServerHealth,
-};
+use super::{HEALTH_TIMEOUT, RerankConfig, RerankError, RerankScore, ServerHealth};
 use crate::search_ranking::RankingConfig;
+
+mod attempt;
 
 const ERROR_BODY_CHARS: usize = 500;
 const RANKING_PREFIX: &str = "search.ranking.";
@@ -41,6 +40,7 @@ struct Inner {
     ranking: RwLock<RankingConfig>,
     client: reqwest::Client,
     runtime: Mutex<Runtime>,
+    turn: tokio::sync::Mutex<()>,
     health_timeout: Duration,
 }
 
@@ -69,6 +69,7 @@ impl RerankService {
                 ranking: RwLock::new(RankingConfig::default()),
                 client: reqwest::Client::new(),
                 runtime: Mutex::new(Runtime::new()),
+                turn: tokio::sync::Mutex::new(()),
                 health_timeout,
             }),
         }
@@ -189,16 +190,26 @@ impl RerankService {
         if documents.is_empty() {
             return Ok(Vec::new());
         }
+        let overall = Instant::now() + config.call_budget();
+        self.ensure_breaker_closed()?;
+        let turn_wait = Duration::from_millis(config.cold_timeout_ms);
+        let Ok(_turn) = tokio::time::timeout(turn_wait, self.inner.turn.lock()).await else {
+            return Err(RerankError::Timeout(config.cold_timeout_ms));
+        };
+        self.ensure_breaker_closed()?;
+        let cold = self.runtime().expects_cold_start();
+        let outcome = self
+            .attempts(&config, query, documents, cold, overall)
+            .await;
+        self.note(&outcome);
+        outcome
+    }
+
+    fn ensure_breaker_closed(&self) -> Result<(), RerankError> {
         if self.runtime().breaker_open(Instant::now()) {
             return Err(RerankError::BreakerOpen);
         }
-        let cold = self.runtime().expects_cold_start();
-        let outcome = match self.post_rerank(&config, query, documents).await {
-            Err(RerankError::Timeout(_)) if cold => Err(RerankError::Loading),
-            other => other,
-        };
-        self.note(&outcome);
-        outcome
+        Ok(())
     }
 
     fn runtime(&self) -> std::sync::MutexGuard<'_, Runtime> {
@@ -250,58 +261,6 @@ impl RerankService {
             ServerHealth::Unavailable(format!("{url} answered HTTP {status}: {}", clip(&body)))
         }
     }
-
-    async fn post_rerank(
-        &self,
-        config: &RerankConfig,
-        query: &str,
-        documents: &[String],
-    ) -> Result<Vec<RerankScore>, RerankError> {
-        let url = format!("{}/v1/rerank", config.url);
-        let bounded: Vec<&str> = documents
-            .iter()
-            .map(|d| truncate_chars(d, MAX_DOCUMENT_CHARS))
-            .collect();
-        let body = RerankRequest {
-            model: &config.model,
-            query: truncate_chars(query, MAX_QUERY_CHARS),
-            documents: &bounded,
-        };
-        let response = self
-            .inner
-            .client
-            .post(&url)
-            .timeout(Duration::from_millis(config.timeout_ms))
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| {
-                if held_open(&e) {
-                    RerankError::Timeout(config.timeout_ms)
-                } else {
-                    RerankError::Http(format!("{url}: {e}"))
-                }
-            })?;
-        let status = response.status();
-        if !status.is_success() {
-            let text = response.text().await.unwrap_or_default();
-            if status.as_u16() == 503 && is_loading_body(&text) {
-                return Err(RerankError::Loading);
-            }
-            return Err(RerankError::Http(format!(
-                "{url} answered HTTP {status}: {}",
-                clip(&text)
-            )));
-        }
-        let parsed: RerankResponse = response.json().await.map_err(|e| {
-            if e.is_timeout() {
-                RerankError::Timeout(config.timeout_ms)
-            } else {
-                RerankError::Parse(e.to_string())
-            }
-        })?;
-        into_scores(parsed, documents.len())
-    }
 }
 
 fn held_open(error: &reqwest::Error) -> bool {
@@ -321,25 +280,4 @@ fn is_loading_body(body: &str) -> bool {
 
 fn clip(body: &str) -> String {
     body.chars().take(ERROR_BODY_CHARS).collect()
-}
-
-fn into_scores(
-    response: RerankResponse,
-    document_count: usize,
-) -> Result<Vec<RerankScore>, RerankError> {
-    let mut scores = Vec::with_capacity(response.results.len());
-    for result in response.results {
-        if result.index >= document_count {
-            return Err(RerankError::Parse(format!(
-                "result index {} is outside the {document_count} documents sent",
-                result.index
-            )));
-        }
-        scores.push(RerankScore {
-            index: result.index,
-            score: result.relevance_score,
-        });
-    }
-    scores.sort_by(|a, b| b.score.total_cmp(&a.score).then(a.index.cmp(&b.index)));
-    Ok(scores)
 }

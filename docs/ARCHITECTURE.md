@@ -1222,7 +1222,9 @@ The registry is hot-swapped on `AppState` via `Arc<ArcSwap<AnalyzerRegistry>>` â
 | `rerank.enabled` | off | Content egress: each reranked search sends the query and candidate passages to `rerank.url`. Off on a fresh install |
 | `rerank.url` | `http://127.0.0.1:11435` | A non-loopback URL needs `semantic.allow_remote_embedding`, the same permission embeddings need (`semantic/egress.rs`) |
 | `rerank.model` | `bge-reranker-v2-m3` | Model name sent with each request |
-| `rerank.timeout_ms` | 800 | Hard limit per request |
+| `rerank.timeout_ms` | 800 | Hard limit per request while the reranker is warm |
+| `rerank.cold_timeout_ms` | 6000 (1000 to 30000) | Limit when a cold start is expected, and the wait of a call queued behind another one; a 503 "loading model" answer is retried every 500 ms until it passes. One call never waits longer than this plus `rerank.timeout_ms`. The service sends one rerank request at a time per process |
+| `rerank.min_query_words` | 1 (1 to 20) | A query with fewer words than this keeps plain order and is not reranked; 1 reranks every query |
 | `rerank.candidates` | 50 | How many top results a search sends to the reranker |
 | `rerank.tuning.enabled` | off | Gate for the overnight tuning worker |
 | `rerank.rescue_score` | -1.25 | Reranker score a result under the embedding floor, or matching only some query words, needs to stay in a reranked search |
