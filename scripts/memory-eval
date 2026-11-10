@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# Scores knowledge search against the memory-keeper evaluation sets (P9).
+#
+#   scripts/memory-eval [--data DIR] [--limit N] [--url URL]
+#
+# recall-searches.jsonl and past-pointing.jsonl: is a labelled answer reference
+# in the top N results of /api/knowledge/search for the row's query (or prompt)?
+# lesson-paraphrase-probes.tsv: is the probed lesson in the top 2 lesson results?
+# Prints one line per set (hits, rows, mean reciprocal rank) and the misses.
+# continue-prompts.jsonl is replayed by the resolver's own test
+# (crates/mike/src/memory_keeper/resolve_eval_tests.rs), not here.
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+data="$root/artifacts/research/session-memory-companion/data"
+limit=10
+url="${MIKE_INSPECT_URL:-http://127.0.0.1:9989}"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --data) data="$2"; shift 2 ;;
+    --limit) limit="$2"; shift 2 ;;
+    --url) url="$2"; shift 2 ;;
+    -h|--help) sed -n 2,11p "$0"; exit 0 ;;
+    *) echo "memory-eval: unknown argument $1" >&2; exit 2 ;;
+  esac
+done
+[ -d "$data" ] || { echo "memory-eval: no evaluation data at $data" >&2; exit 1; }
+
+exec python3 -I - "$data" "$limit" "$url" <<'PY'
+import json, sys, urllib.error, urllib.parse, urllib.request
+
+data, limit, url = sys.argv[1], int(sys.argv[2]), sys.argv[3].rstrip("/")
+
+def get(path, **params):
+    query = urllib.parse.urlencode({k: v for k, v in params.items() if v is not None})
+    with urllib.request.urlopen(f"{url}{path}?{query}", timeout=30) as response:
+        return json.load(response)
+
+lesson_project = "ec5bcb17-7792-47c2-9f7b-c07b1f417f92"
+
+QUERY_CHARS = 500
+
+def refs(project, query, kind=None, n=limit, skip=None):
+    try:
+        body = get("/api/knowledge/search", project=project, query=query[:QUERY_CHARS], kind=kind, limit=n + 1)
+    except urllib.error.HTTPError as error:
+        return None, f"{error.code} {error.read().decode(errors='replace')[:160]}"
+    except Exception as error:
+        return None, str(error)
+    got = [item["reference"] for item in body.get("items", []) if item["reference"] != skip]
+    return got[:n], None
+
+def canonical(ref):
+    kind, _, rest = ref.partition(":")
+    return f"thread_entry:{rest}" if kind == "entry" else ref
+
+def score(name, rows):
+    hits, rr, misses = 0, 0.0, []
+    for label, project, query, wanted, kind, n, skip in rows:
+        wanted = [canonical(w) for w in wanted]
+        got, error = refs(project, query, kind, n, skip)
+        if got is None:
+            misses.append(f"  {label}: error {error}")
+            continue
+        ranks = [got.index(w) + 1 for w in wanted if w in got]
+        if ranks:
+            hits += 1
+            rr += 1 / min(ranks)
+        else:
+            misses.append(f"  {label}: wanted {', '.join(wanted)}; got {', '.join(got[:5]) or 'nothing'}")
+    total = len(rows)
+    mrr = rr / total if total else 0.0
+    print(f"{name}: {hits}/{total} in top {rows[0][5] if rows else limit}, MRR {mrr:.3f}")
+    for line in misses:
+        print(line)
+
+def jsonl(file):
+    with open(f"{data}/{file}") as handle:
+        return [json.loads(line) for line in handle if line.strip()]
+
+recall = [
+    (f"search {r['search_id']}", r["project"], r["query"], r["answer_refs"], r.get("kind"), limit, None)
+    for r in jsonl("recall-searches.jsonl")
+]
+past = [
+    (f"turn {r['turn_id']}", r["project_uuid"], r["prompt"], r["answer_refs"], None, limit, f"turn:{r['turn_id']}")
+    for r in jsonl("past-pointing.jsonl")
+]
+probes = []
+with open(f"{data}/lesson-paraphrase-probes.tsv") as handle:
+    for line in handle:
+        prefix, _, query = line.rstrip("\n").partition("\t")
+        if prefix and query:
+            probes.append((f"lesson {prefix}", lesson_project, query, [], "lesson", 2, None))
+
+score("recall-searches", recall)
+score("past-pointing", past)
+
+hits, misses = 0, []
+for label, project, query, _, kind, n, _skip in probes:
+    got, error = refs(project, query, kind, n)
+    prefix = label.split()[1]
+    if got and any(ref.startswith(f"lesson:{prefix}") for ref in got):
+        hits += 1
+    else:
+        misses.append(f"  {label}: got {', '.join(got or []) or error or 'nothing'}")
+print(f"lesson-probes: {hits}/{len(probes)} in top 2")
+for line in misses:
+    print(line)
+PY
