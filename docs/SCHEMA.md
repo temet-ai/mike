@@ -2282,7 +2282,7 @@ set by time without a write), `lessons/vectors.rs` (`lessons`) and `project_know
 | `changed_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
 
 Seeded rows: `lessons`, `session_projects`; `thread_cards` and `thread_card_sources` are added by
-`20261109120000_thread_cards.sql`. `thread_card_sources` is read every 10 s by the memory-keeper card
+`20261109170000_thread_cards.sql`. `thread_card_sources` is read every 10 s by the memory-keeper card
 worker (`store/persistence/work_threads/cards/scan.rs`); `thread_cards` tells each machine's card
 snapshot to reload.
 
@@ -2300,7 +2300,7 @@ for the expiry count.
 
 ### `memory.keeper_supplies`
 
-Added in `20261109121500_keeper_supplies.sql`. What memory-keeper supplied to each session: one row per
+Added in `20261109170001_keeper_supplies.sql`. What memory-keeper supplied to each session: one row per
 (session, thread, card text), recorded after the block was returned so the route's latency does not include
 it. A repeat of the same card for the same session is not recorded again: the writer inserts with
 `WHERE NOT EXISTS` over `(session_uuid, thread_id, content_hash)`, served by the `(session_uuid, thread_id)`
@@ -5647,7 +5647,7 @@ used to name it.
 
 ### `work.thread_cards`
 
-Added in `20261109120000_thread_cards.sql`. One rendered card per work thread: where it stands, what is
+Added in `20261109170000_thread_cards.sql`. One rendered card per work thread: where it stands, what is
 next, blockers, open questions, decisions in force, the newest handoff, decisions since it (log entries and
 decision or finding notes tagged `thread:<slug>`), open dossier promises and unmet asks of the thread's
 sessions from the last 14 days, each item with a reference token (`thread:`, `entry:`, `note:`,
