@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.operator_turns t\n                    SET embedded_at = NULL\n                  WHERE t.embedded_at IS NOT NULL\n                    AND t.closed_at IS NOT NULL\n                    AND (t.opened_by IS NULL OR t.opened_by = 'operator')\n                    AND (btrim(COALESCE(t.user_prompt, '')) <> ''\n                         OR btrim(COALESCE(t.final_assistant_text, '')) <> '')\n                    AND NOT EXISTS (\n                        SELECT 1 FROM memory.operator_turn_chunks c WHERE c.turn_id = t.id\n                    )",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "3bf6a3c31e2bfaa469d46935bcf56a12da9ac4784f51cec3557be52b856218c8"
+}

@@ -2,6 +2,8 @@ pub(crate) mod arm;
 pub(crate) mod block;
 pub(crate) mod cards;
 pub(crate) mod deliver;
+pub(crate) mod earlier;
+pub(crate) mod earlier_lookup;
 pub(crate) mod health;
 mod rebuild;
 pub(crate) mod record;
