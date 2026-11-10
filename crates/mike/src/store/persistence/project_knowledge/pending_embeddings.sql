@@ -3,7 +3,7 @@ WITH candidates AS (
            s.source_updated_at, s.source_seq, s.source_hash,
            row_number() OVER (PARTITION BY s.project_id
                               ORDER BY e.next_attempt_at NULLS FIRST, s.source_kind, s.source_id) AS project_rank
-      FROM memory.knowledge_embedding_sources_v s
+      FROM memory.knowledge_sources_with_sessions_v s
       LEFT JOIN memory.knowledge_embedding_state e
         ON e.source_kind = s.source_kind AND e.source_id = s.source_id
      WHERE e.id IS NULL OR e.model_key <> $1
@@ -54,6 +54,11 @@ WITH candidates AS (
            concat_ws(E'\n\n', array_to_string(k.topics, ', '), memory.session_learnings_text(k.learnings))
       FROM sessions.sessions s JOIN memory.session_knowledge k ON k.session_id = s.session_uuid
      WHERE s.id = ANY(ARRAY(SELECT source_id FROM picked WHERE source_kind = 'learning'))
+    UNION ALL
+    SELECT 'session', ov.id,
+           concat_ws(E'\n\n', ov.overview, 'Topics: ' || NULLIF(array_to_string(ok.topics, ', '), ''))
+      FROM sessions.sessions ov LEFT JOIN memory.session_knowledge ok ON ok.session_id = ov.session_uuid
+     WHERE ov.id = ANY(ARRAY(SELECT source_id FROM picked WHERE source_kind = 'session'))
     UNION ALL
     SELECT 'mail', m.id, m.body
       FROM mailbox.messages m

@@ -272,7 +272,11 @@ Claude and Codex:
   (`thread`), work threads (`work_thread`), and session memory: work-thread log entries
   (`thread_entry`), answered seat questions (`question_answer`), the turn judge's unmet asks
   and corrections (`unmet_ask`, `correction`, from each turn's newest live verdict), session
-  learnings (`learning`) and each mail message a session sent (`mail`; mike's own notices,
+  learnings (`learning`), session overviews (`session`: the judge's overview of about 500
+  characters plus the session's topics, titled by the session title or the first 80 characters
+  of the overview, opened with `read_project_knowledge` as `session:<uuid>` together with the
+  session's learnings, first and last activity and number of turns) and each mail message a
+  session sent (`mail`; mike's own notices,
   which have no sending session, are left out). Every item carries `author` (role and
   session), `updated_at`, an `excerpt` of about 300 characters around the match, and its
   reference. A document indexed on several machines (same source name and relative path)

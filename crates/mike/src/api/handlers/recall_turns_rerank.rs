@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use crate::analysis::rerank::MAX_DOCUMENT_CHARS;
+use crate::api::project_knowledge::item_header;
 use crate::api::rerank_search::{
     RerankReport, arrange, candidates_wanted, score, short_query_report,
 };
@@ -67,7 +71,11 @@ pub(super) async fn rerank_turns(
         let report = RerankReport::off("there were no results to rerank");
         return (arrange(rows, &[]), report);
     }
-    let documents: Vec<String> = rows[..window].iter().map(document).collect();
+    let titles = session_titles(state, &rows[..window]).await;
+    let documents: Vec<String> = rows[..window]
+        .iter()
+        .map(|row| document(row, titles.get(&row.session_id).map(String::as_str)))
+        .collect();
     match score(state, query, &documents).await {
         Ok(reranked) => (
             arrange(rows, &reranked.scores),
@@ -79,15 +87,33 @@ pub(super) async fn rerank_turns(
 
 const PROMPT_HEAD_CHARS: usize = 200;
 
-fn document(row: &RankedTurnRow) -> String {
-    turn_text(&row.user_prompt, &row.final_assistant_text)
+async fn session_titles(state: &AppState, rows: &[RankedTurnRow]) -> HashMap<String, String> {
+    let Some(handle) = state.persist.as_ref() else {
+        return HashMap::new();
+    };
+    let mut ids: Vec<String> = rows.iter().map(|row| row.session_id.clone()).collect();
+    ids.sort();
+    ids.dedup();
+    match handle.session_titles(&ids).await {
+        Ok(titles) => titles,
+        Err(error) => {
+            tracing::warn!(error = %error, "recall rerank: session title lookup failed; headers carry no title");
+            HashMap::new()
+        }
+    }
 }
 
-fn turn_text(prompt: &str, reply: &str) -> String {
-    let prompt = head(prompt, PROMPT_HEAD_CHARS);
-    let reply_room =
-        crate::analysis::rerank::MAX_DOCUMENT_CHARS.saturating_sub(prompt.chars().count() + 2);
-    format!("{prompt}\n\n{}", head(reply, reply_room))
+fn document(row: &RankedTurnRow, session_title: Option<&str>) -> String {
+    let date = row.created_at.format("%Y-%m-%d").to_string();
+    let header = item_header::turn_header(&date, session_title);
+    turn_text(&header, &row.user_prompt, &row.final_assistant_text)
+}
+
+fn turn_text(header: &str, prompt: &str, reply: &str) -> String {
+    let room = MAX_DOCUMENT_CHARS.saturating_sub(header.chars().count() + 1);
+    let prompt = head(prompt, PROMPT_HEAD_CHARS.min(room));
+    let reply_room = room.saturating_sub(prompt.chars().count() + 2);
+    format!("{header}\n{prompt}\n\n{}", head(reply, reply_room))
 }
 
 #[cfg(test)]

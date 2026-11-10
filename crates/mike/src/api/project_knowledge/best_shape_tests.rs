@@ -307,6 +307,41 @@ fn line_is_kind_date_title_and_marks_machine_written_rows() {
 }
 
 #[test]
+fn line_of_a_note_starts_with_the_note_kind_after_the_item_kind() {
+    let mut row = item("note:3", "note", "Use the shared pool");
+    row["provenance"] = json!({"kind": "decision"});
+
+    assert_eq!(
+        line(&row),
+        "note, decision \u{b7} 2026-11-09 \u{b7} Use the shared pool"
+    );
+}
+
+#[test]
+fn line_of_a_lesson_with_a_topic_cuts_the_title_to_keep_120_characters() {
+    let mut row = item("lesson:4", "lesson", &"word ".repeat(60));
+    row["provenance"] = json!({"lesson_kind": "correction", "topic": "database-migrations"});
+
+    let shaped = line(&row);
+
+    assert!(
+        shaped.starts_with("lesson, correction, database-migrations \u{b7} 2026-11-09 \u{b7} word")
+    );
+    assert!(shaped.ends_with("..."));
+    assert_eq!(shaped.chars().count(), LINE_CHARS);
+}
+
+#[test]
+fn line_of_a_session_overview_starts_with_the_session_kind() {
+    let row = item("session:5", "session", "Reranker header work");
+
+    assert_eq!(
+        line(&row),
+        "session \u{b7} 2026-11-09 \u{b7} Reranker header work"
+    );
+}
+
+#[test]
 fn line_of_an_outside_project_row_ends_with_the_suffix_after_machine_written() {
     let mut row = item("mail:1", "mail", "Stop hook feedback");
     row["provenance"] = json!({"written_by": "machine", "outside_project": true});

@@ -225,6 +225,7 @@ mod best_lean;
 mod best_shape;
 mod disk_check;
 mod health;
+pub(crate) mod item_header;
 mod passage_excerpt;
 pub(crate) mod query_vector_cache;
 mod read_outside;
@@ -255,6 +256,8 @@ mod registration_tests;
 #[cfg(test)]
 mod rerank_cache_tests;
 #[cfg(test)]
+mod rerank_header_tests;
+#[cfg(test)]
 mod rerank_identifier_tests;
 #[cfg(test)]
 mod rerank_machine_tests;
@@ -262,5 +265,7 @@ mod rerank_machine_tests;
 pub(crate) mod rerank_tests;
 #[cfg(test)]
 mod rescue_tests;
+#[cfg(test)]
+mod session_overview_tests;
 #[cfg(test)]
 mod wide_pools_tests;

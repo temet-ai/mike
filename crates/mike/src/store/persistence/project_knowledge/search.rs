@@ -7,7 +7,7 @@ use crate::search_ranking::identifiers::query_identifiers;
 use crate::store::persistence::recall_embedding::set_vector_scan_limits;
 use crate::store::persistence::{PersistError, PersistHandle};
 
-const READABLE_KINDS: [&str; 14] = [
+const READABLE_KINDS: [&str; 15] = [
     "launch",
     "artifact",
     "lesson",
@@ -21,6 +21,7 @@ const READABLE_KINDS: [&str; 14] = [
     "unmet_ask",
     "correction",
     "learning",
+    "session",
     "mail",
 ];
 

@@ -1,5 +1,6 @@
 use serde_json::{Value, json};
 
+use super::item_header;
 use super::passage_excerpt::{Passages, show_reranker_passages};
 use crate::api::rerank_search::{
     RerankReport, arrange, candidates_wanted, score, short_query_report,
@@ -220,13 +221,14 @@ async fn passages_for(
 
 fn document(row: &Value, passages: &Passages) -> String {
     let title = row["title"].as_str().unwrap_or_default();
-    match row["reference"]
+    let body = match row["reference"]
         .as_str()
         .and_then(|reference| passages.get(reference))
     {
         Some(passage) => format!("{title}\n\n{passage}"),
         None => title.to_owned(),
-    }
+    };
+    item_header::with_header(&item_header::header(row), &body)
 }
 
 fn with_rerank_score(mut item: Value, score: Option<f32>) -> Value {

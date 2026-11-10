@@ -2507,8 +2507,8 @@ due retry (`next_attempt_at <= now()` with `attempts < 10` or a `[transient]` er
 | Column | Type | Purpose |
 |---|---|---|
 | `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key (since `20261102210000`) |
-| `source_kind` | `TEXT NOT NULL` | CHECK `IN ('artifact', 'lesson', 'note', 'thread', 'thread_entry', 'question_answer', 'unmet_ask', 'correction', 'learning', 'mail')` (session memory kinds since `20261109160000`) |
-| `source_id` | `BIGINT NOT NULL` | By kind: `memory.knowledge_revisions.id`, `memory.lessons.id`, `workspace.session_notes.id`, `mailbox.threads.id`, `work.thread_log.id`, `workspace.questions.id`, `memory.turn_verdicts.id` (unmet_ask, correction), `sessions.sessions.id` (learning) or `mailbox.messages.id`; no FK |
+| `source_kind` | `TEXT NOT NULL` | CHECK `IN ('artifact', 'lesson', 'note', 'thread', 'thread_entry', 'question_answer', 'unmet_ask', 'correction', 'learning', 'mail', 'session')` (session memory kinds since `20261109160000`, `session` since `20261110130000`) |
+| `source_id` | `BIGINT NOT NULL` | By kind: `memory.knowledge_revisions.id`, `memory.lessons.id`, `workspace.session_notes.id`, `mailbox.threads.id`, `work.thread_log.id`, `workspace.questions.id`, `memory.turn_verdicts.id` (unmet_ask, correction), `sessions.sessions.id` (learning, session) or `mailbox.messages.id`; no FK |
 | `model_key` | `TEXT NOT NULL` | The embedder the vectors came from; a different key re-embeds the source |
 | `completed_at` | `TIMESTAMPTZ NULL` | NULL until the source has vectors |
 | `attempts` | `INTEGER NOT NULL DEFAULT 0` | |
@@ -2519,8 +2519,8 @@ due retry (`next_attempt_at <= now()` with `attempts < 10` or a `[transient]` er
 | `source_hash` | `TEXT NULL` | The lesson's `text_md5` the vectors match; `lesson` only |
 
 **Constraints:**
-- `knowledge_embedding_state_source_kind_check`: the ten kinds above
-- `knowledge_embedding_state_version_shape_check`: `(source_kind IN ('note', 'question_answer', 'learning') OR source_updated_at IS NULL) AND (source_kind = 'thread' OR source_seq IS NULL) AND (source_kind = 'lesson' OR source_hash IS NULL)`. Thread entries, verdicts and mail are immutable, so their id is their version; answered questions use `settled_at`, learnings `generated_at`.
+- `knowledge_embedding_state_source_kind_check`: the eleven kinds above
+- `knowledge_embedding_state_version_shape_check`: `(source_kind IN ('note', 'question_answer', 'learning', 'session') OR source_updated_at IS NULL) AND (source_kind = 'thread' OR source_seq IS NULL) AND (source_kind = 'lesson' OR source_hash IS NULL)`. Thread entries, verdicts and mail are immutable, so their id is their version; answered questions use `settled_at`, learnings and session overviews `generated_at` (`overview_generated_at` for an overview; an overview an operator wrote by hand has none, so it is embedded once and not again when edited).
 
 **Indexes:**
 - `knowledge_embedding_state_source_key`: UNIQUE `(source_kind, source_id)` (BTree)
@@ -2800,6 +2800,20 @@ so session learnings can carry an expression index, and these indexes:
 - `idx_turn_verdicts_live_turn_newest`: `(operator_turn_id, created_at DESC, id DESC) WHERE mode = 'live'`, for the newest-verdict anti-join
 - `idx_session_knowledge_learnings_text`: GIN over `to_tsvector('english', memory.session_learnings_text(learnings))`
 - `idx_mailbox_messages_sent_text`: GIN over `search_tsv` `WHERE from_session_id IS NOT NULL`, for the `mail` kind
+
+Session overviews as the `session` kind (`20261110130000_session_overview_knowledge_kind.sql` and
+`20261110130001_sessions_overview_text_index.sql`): the first widens the two embedding state
+constraints above and adds the view `memory.knowledge_sources_with_sessions_v`: every row of
+`memory.knowledge_embedding_sources_v` plus one source per `sessions.sessions` row with a non-blank
+`overview` and a project, reference `session:<session_uuid>`, `source_id` the session id, version
+`overview_generated_at`. `memory.knowledge_embedding_sources_v` itself is unchanged, because builds that do not know
+the `session` kind read it, and would pick session rows they cannot embed on every sweep. The search, the by-meaning
+size decision (`nearest_first.sql`), the embedding coverage counts, the embedding queue (`pending_embeddings.sql`) and
+the state counts of this build read the new view. The second, a `-- no-transaction` file
+holding one `CREATE INDEX CONCURRENTLY`, adds `idx_sessions_overview_text`: GIN over
+`to_tsvector('english', overview)` on `sessions.sessions`; without it the text match read the vector of
+every session of the project (about 50 ms for 1,800 sessions). The search matches the overview text
+only; the topics are in the embedded text and in the item body, not in the text index.
 
 ---
 

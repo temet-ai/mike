@@ -138,6 +138,21 @@ SELECT jsonb_build_object('reference', 'learning:' || k.session_id,
 FROM memory.session_knowledge k JOIN sessions.sessions s ON s.session_uuid = k.session_id
 WHERE ($1::bigint IS NULL OR s.project_id = $1) AND $2 = 'learning' AND k.session_id = $4
 UNION ALL
+SELECT jsonb_build_object('reference', 'session:' || ov.session_uuid,
+    'body', ov.overview || CASE WHEN cardinality(ok.topics) > 0
+                                THEN E'\n\nTopics: ' || array_to_string(ok.topics, ', ') ELSE '' END,
+    'overview', ov.overview, 'topics', COALESCE(ok.topics, '{}'::text[]),
+    'learnings', COALESCE(ok.learnings, '{}'::text[]), 'session_uuid', ov.session_uuid,
+    'session_title', ov.title, 'overview_generated_at', ov.overview_generated_at,
+    'first_activity', ov.first_seen, 'last_activity', ov.last_seen, 'turn_count', tc.n),
+    ov.project_id
+FROM sessions.sessions ov
+LEFT JOIN memory.session_knowledge ok ON ok.session_id = ov.session_uuid
+CROSS JOIN LATERAL (SELECT count(*) AS n FROM memory.operator_turns ot
+                     WHERE ot.session_id = ov.id AND (ot.opened_by IS NULL OR ot.opened_by = 'operator')) tc
+WHERE ($1::bigint IS NULL OR ov.project_id = $1) AND $2 = 'session' AND ov.session_uuid = $4
+  AND btrim(coalesce(ov.overview, '')) <> ''
+UNION ALL
 SELECT jsonb_build_object('reference', 'launch:' || l.id, 'body', l.brief_text,
     'session_uuid', l.session_uuid, 'run_id', l.run_id, 'seat', l.seat, 'agent', l.agent,
     'model', l.model, 'folder', l.folder, 'result', l.result, 'created_at', l.created_at,
