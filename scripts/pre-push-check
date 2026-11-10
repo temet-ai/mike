@@ -87,6 +87,11 @@ if printf '%s\n' "$changed" | grep -qE '\.rs$|(^|/)Cargo\.toml$|^Cargo\.lock$'; 
     echo "pre-push: cargo fmt --check failed; run make fmt" >&2
     status=1
   }
+  # The push already fails; skip the long lint and tests so the fix is pushed sooner.
+  if [ "$status" -ne 0 ]; then
+    echo "pre-push: fix the failures above; lint-rust and the tests did not run" >&2
+    exit 1
+  fi
   packages=$(rust_packages "$changed")
   # shellcheck disable=SC2086
   "$root/scripts/lint-rust" $packages || status=1

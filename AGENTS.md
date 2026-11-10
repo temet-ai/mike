@@ -68,8 +68,24 @@ changed (`scripts/cx check --lib -p <crate>`, the one test target, `scripts/sb-t
 visible from the code, and only the push hook runs it otherwise. Then commit. The
 commit and push hooks and CI grade the rest: no full suite, no re-run of a check
 that passed. What runs when is in
-[`GITHUB_WORKFLOWS`](docs/GITHUB_WORKFLOWS.md#rust-qualityyml). One heavy cargo job
-at a time — two at once have exhausted memory on this host.
+[`GITHUB_WORKFLOWS`](docs/GITHUB_WORKFLOWS.md#rust-qualityyml).
+
+**Building, pushing and deploying** (the pre-push hook is the only CI while Actions
+minutes are out):
+- Build, test and push on the machine that holds your checkout: omit or the Mac. Never
+  `ssh` to another machine to build or push, never wrap a command in `flock` or a shared
+  lock, and never wait on another session's build. Cargo already locks each `target/`.
+  infra never builds; it runs omit's aarch64 build.
+- Before the first push of a Rust change, run the hook's quick steps on what you
+  touched: `scripts/cx fmt --check`, `scripts/lint-rust -p <crate>`, and `scripts/sb-test
+  --skip-typecheck <filter>` for a frontend change. Then push once, in the background,
+  and let the hook run the tests. Don't also run the crate's whole `nextest` first.
+- When a push fails, fix every failure the log shows, rerun only the failed step, then
+  push again. The hook stops before lint and tests when gitleaks, semgrep or fmt fail.
+- Batch: one branch and one PR per piece of work, with the follow-up fixes in the same
+  push. Deploy omit, the Mac and infra once a batch of PRs has merged, not after each PR.
+- While a build or push runs, do the next piece of work. Don't poll it; the harness
+  re-invokes you when it exits.
 
 **Rust structural limits** (graded by `scripts/lint-rust` in the landing gate):
 files ≤ 500 lines, functions ≤ 100 lines, cognitive complexity ≤ 15, ≤ 6
