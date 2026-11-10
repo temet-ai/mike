@@ -60,11 +60,26 @@ if [ -x "$semgrep_bin" ] && [ "${#scan_files[@]}" -gt 0 ]; then
   }
 fi
 
+# The crates a push must lint and test: each changed crate and every crate that
+# depends on it (proxy-forward <- mike <- mike-mcp). Anything outside one crate
+# (Cargo.lock, the workspace manifest) tests the whole workspace; .sqlx belongs to mike.
+rust_packages() {
+  local paths="$1"
+  if printf '%s\n' "$paths" | grep -qE '^(Cargo\.(toml|lock)|crates/proxy-forward/)' ||
+    printf '%s\n' "$paths" | grep -E '\.rs$|Cargo\.toml$' | grep -qvE '^crates/(mike|mike-mcp)/'; then
+    echo "--workspace"
+  elif printf '%s\n' "$paths" | grep -qE '^(crates/mike/|\.sqlx/)'; then
+    echo "-p mike -p mike-mcp"
+  else
+    echo "-p mike-mcp"
+  fi
+}
+
 if printf '%s\n' "$changed" | grep -qE '\.rs$|(^|/)Cargo\.toml$|^Cargo\.lock$'; then
   # GitHub Actions has no minutes, so this hook is the only lint and test a Rust push gets:
-  # a fresh checkout builds here too. The Pi (aarch64 Linux) must not build; push from omit.
+  # a fresh checkout builds here too. The Pi (aarch64 Linux) must not build; push from omit or the Mac.
   if [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = aarch64 ]; then
-    echo "pre-push: Rust changes are linted and tested by this hook; push them from omit, not this Pi" >&2
+    echo "pre-push: Rust changes are linted and tested by this hook; push them from omit or the Mac, not this Pi" >&2
     exit 1
   fi
   [ -d "$root/target" ] || echo "pre-push: no target/ in this checkout; building it to lint and test this push"
@@ -72,8 +87,11 @@ if printf '%s\n' "$changed" | grep -qE '\.rs$|(^|/)Cargo\.toml$|^Cargo\.lock$'; 
     echo "pre-push: cargo fmt --check failed; run make fmt" >&2
     status=1
   }
-  "$root/scripts/lint-rust" || status=1
-  "$root/scripts/cx" nextest run --all --no-fail-fast || status=1
+  packages=$(rust_packages "$changed")
+  # shellcheck disable=SC2086
+  "$root/scripts/lint-rust" $packages || status=1
+  # shellcheck disable=SC2086
+  "$root/scripts/cx" nextest run $packages --no-fail-fast || status=1
   "$root/scripts/test-area" || status=1
 fi
 

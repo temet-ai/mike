@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Authoritative Rust structural-quality gate. Both checks always run so a large
-# file cannot hide function-level Clippy findings (or vice versa).
+# file cannot hide function-level Clippy findings (or vice versa). Arguments go to
+# clippy (e.g. -p mike-mcp); with none it lints the whole workspace.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -11,7 +12,7 @@ status=0
 "$SCRIPT_DIR/lint-rust-architecture" || status=1
 "$SCRIPT_DIR/lint-rust-log-fields" || status=1
 
-"$SCRIPT_DIR/cx" clippy --all-targets -- \
+"$SCRIPT_DIR/cx" clippy --all-targets "$@" -- \
   -D warnings \
   -D clippy::complexity \
   -D clippy::cognitive_complexity \
