@@ -20,6 +20,29 @@ pub(crate) async fn find_text(
     State(state): State<AppState>,
     Query(params): Query<FindTextUnifiedParams>,
 ) -> Result<Json<FindTextUnifiedResponse>, (StatusCode, Json<FindTextErrorBody>)> {
+    let caller = params.caller_session_id.clone();
+    let answer = find_text_answer(&state, params).await?;
+    record_answer(&state, caller.as_deref(), &answer.0);
+    Ok(answer)
+}
+
+fn record_answer(state: &AppState, caller: Option<&str>, answer: &FindTextUnifiedResponse) {
+    let unfinished_page = answer.matches.is_empty() && answer.scan_complete == Some(false);
+    if unfinished_page {
+        return;
+    }
+    crate::search_events::record_text_search(
+        state,
+        caller,
+        &answer.needle,
+        answer.matches.iter().map(|found| found.request_id),
+    );
+}
+
+async fn find_text_answer(
+    state: &AppState,
+    params: FindTextUnifiedParams,
+) -> Result<Json<FindTextUnifiedResponse>, (StatusCode, Json<FindTextErrorBody>)> {
     if params.needle.is_empty() {
         return Err(find_text_error(
             StatusCode::BAD_REQUEST,
@@ -63,10 +86,10 @@ pub(crate) async fn find_text(
     };
 
     match (params.request_id, params.session_id.as_deref()) {
-        (Some(rid), _) => find_text_scoped_request(&state, rid, &match_params).await,
+        (Some(rid), _) => find_text_scoped_request(state, rid, &match_params).await,
         (None, Some(sid)) => {
             find_text_scoped_session(
-                &state,
+                state,
                 sid,
                 &match_params,
                 params.cursor,
@@ -82,7 +105,7 @@ pub(crate) async fn find_text(
                      body search, or use recall_similar_turns to find a session by content",
                 ));
             }
-            find_text_unscoped_corpus(&state, &params, &match_params).await
+            find_text_unscoped_corpus(state, &params, &match_params).await
         }
     }
 }

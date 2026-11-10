@@ -114,6 +114,14 @@ pub(crate) struct SessionOverviewQuery<'a> {
 }
 
 #[derive(Debug, Default, Clone, Copy)]
+pub(crate) struct RecallShape<'a> {
+    pub(crate) order: Option<&'a str>,
+    pub(crate) detail: Option<&'a str>,
+}
+
+pub(crate) const DEFAULT_DETAIL: &str = "best";
+
+#[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct CallerScope<'a> {
     pub(crate) session_id: Option<&'a str>,
     pub(crate) include_own_turn: Option<bool>,

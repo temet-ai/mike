@@ -18,6 +18,8 @@ pub(crate) const COUNTER_COMPOSITIONS_CLASS_TOTAL: &str = "claude_proxy_composit
 
 pub(crate) const HISTOGRAM_DB_QUERY_DURATION_MS: &str = "db_query_duration_ms";
 
+pub(crate) const HISTOGRAM_SEARCH_PHASE_DURATION_MS: &str = "search_phase_duration_ms";
+
 pub(crate) const GAUGE_DB_POOL_SIZE: &str = "db_pool_size";
 
 pub(crate) const GAUGE_DB_POOL_IDLE: &str = "db_pool_idle";

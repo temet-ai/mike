@@ -8,18 +8,26 @@ const CHUNK_CANDIDATES: i64 = 200;
 pub(super) async fn set_vector_scan_limits(
     tx: &mut sqlx::Transaction<'_, Postgres>,
 ) -> Result<(), PersistError> {
-    sqlx::query!("SET LOCAL hnsw.iterative_scan = relaxed_order")
-        .execute(&mut **tx)
-        .await?;
-    sqlx::query!("SET LOCAL hnsw.ef_search = 1000")
-        .execute(&mut **tx)
-        .await?;
-    sqlx::query!("SET LOCAL hnsw.max_scan_tuples = 100000")
-        .execute(&mut **tx)
-        .await?;
-    sqlx::query!("SET LOCAL max_parallel_workers_per_gather = 0")
-        .execute(&mut **tx)
-        .await?;
+    sqlx::query!(
+        "SELECT set_config('hnsw.iterative_scan', 'relaxed_order', true) AS iterative_scan,
+                set_config('hnsw.ef_search', '1000', true) AS ef_search,
+                set_config('hnsw.max_scan_tuples', '100000', true) AS max_scan_tuples,
+                set_config('max_parallel_workers_per_gather', '0', true) AS parallel_workers"
+    )
+    .fetch_one(&mut **tx)
+    .await?;
+    Ok(())
+}
+
+pub(super) async fn set_recall_timeouts(
+    tx: &mut sqlx::Transaction<'_, Postgres>,
+) -> Result<(), PersistError> {
+    sqlx::query!(
+        "SELECT set_config('jit', 'off', true) AS jit,
+                set_config('statement_timeout', '12s', true) AS statement_timeout"
+    )
+    .fetch_one(&mut **tx)
+    .await?;
     Ok(())
 }
 
@@ -97,11 +105,13 @@ pub(super) fn by_embedding_query(
             ",
                 (1.0 - ranked.min_distance)::real AS rank
            FROM ranked
-           JOIN (",
+          CROSS JOIN LATERAL (",
         )
         .push(crate::store::operator_turns::TURN_SELECT_BASE)
         .push(
-            ") t ON t.turn_id = ranked.turn_id
+            "
+             WHERE t.id = ranked.turn_id
+             OFFSET 0) t
           ORDER BY ranked.min_distance ASC, t.created_at DESC",
         );
     query

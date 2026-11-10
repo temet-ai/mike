@@ -232,6 +232,7 @@ pub struct PersistHandle {
     id_cache: id_cache::IdCache,
     open_changes_memo: change_record::open_memo::OpenChangesMemo,
     feed_memos: feed_memo::FeedMemos,
+    knowledge_memos: Arc<project_knowledge::KnowledgeMemos>,
 }
 
 impl PersistHandle {

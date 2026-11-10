@@ -4,7 +4,7 @@ use serde_json::json;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use super::service_tests::{allow_all, documents, enabled};
+use super::service_tests::{allow_all, documents, enabled, tagged_documents};
 use super::*;
 
 fn answer(delay: Duration) -> ResponseTemplate {
@@ -103,7 +103,9 @@ async fn rerank_when_a_warm_call_times_out_retries_once_and_returns_scores() -> 
         .await;
     mount_rerank(&server, answer(Duration::ZERO)).await;
 
-    let scores = service.rerank("query", &documents(1), allow_all).await?;
+    let scores = service
+        .rerank("query", &tagged_documents("warm", 1), allow_all)
+        .await?;
 
     assert_eq!(scores.len(), 1);
     assert_eq!(requests_seen(&server).await, 2);
@@ -122,7 +124,9 @@ async fn rerank_when_a_warm_call_and_its_retry_both_time_out_returns_timeout() -
     server.reset().await;
     mount_rerank(&server, answer(Duration::from_secs(2))).await;
 
-    let outcome = service.rerank("query", &documents(1), allow_all).await;
+    let outcome = service
+        .rerank("query", &tagged_documents("warm", 1), allow_all)
+        .await;
 
     assert_eq!(outcome, Err(RerankError::Timeout(300)));
     assert_eq!(requests_seen(&server).await, 2);
@@ -163,10 +167,9 @@ async fn rerank_when_queued_behind_a_slow_call_stops_at_the_whole_call_bound() -
     mount_rerank(&server, answer(Duration::from_millis(700))).await;
     let service = RerankService::new(&config(&server.uri(), 200, 1_000));
     service.rerank("query", &documents(1), allow_all).await?;
-    let docs = documents(1);
     let first = tokio::spawn({
         let service = service.clone();
-        let docs = docs.clone();
+        let docs = tagged_documents("first", 1);
         async move { service.rerank("query", &docs, allow_all).await }
     });
     while requests_seen(&server).await < 2 {
@@ -174,7 +177,9 @@ async fn rerank_when_queued_behind_a_slow_call_stops_at_the_whole_call_bound() -
     }
 
     let started = Instant::now();
-    let queued = service.rerank("query", &docs, allow_all).await;
+    let queued = service
+        .rerank("query", &tagged_documents("queued", 1), allow_all)
+        .await;
     let waited = started.elapsed();
 
     assert!(matches!(queued, Err(RerankError::Timeout(_))), "{queued:?}");
@@ -199,17 +204,18 @@ async fn rerank_when_the_turn_is_not_free_within_the_cold_timeout_returns_timeou
     mount_rerank(&server, answer(Duration::from_millis(1_400))).await;
     let service = RerankService::new(&config(&server.uri(), 1_500, 400));
     service.rerank("query", &documents(1), allow_all).await?;
-    let docs = documents(1);
     let first = tokio::spawn({
         let service = service.clone();
-        let docs = docs.clone();
+        let docs = tagged_documents("first", 1);
         async move { service.rerank("query", &docs, allow_all).await }
     });
     while requests_seen(&server).await < 2 {
         tokio::task::yield_now().await;
     }
 
-    let queued = service.rerank("query", &docs, allow_all).await;
+    let queued = service
+        .rerank("query", &tagged_documents("queued", 1), allow_all)
+        .await;
 
     assert_eq!(queued, Err(RerankError::Timeout(400)));
     assert_eq!(first.await?.map(|scores| scores.len())?, 1);

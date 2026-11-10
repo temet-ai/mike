@@ -108,6 +108,25 @@ impl Fixture {
             .await?)
     }
 
+    pub(crate) async fn record_returned(
+        &self,
+        tool: &str,
+        query: &str,
+        returned: &Value,
+    ) -> anyhow::Result<i64> {
+        Ok(self
+            .handle
+            .record_search_event(&NewSearchEvent {
+                session: Some(self.session),
+                tool,
+                query,
+                kind_filter: None,
+                returned,
+                rerank_state: "off",
+            })
+            .await?)
+    }
+
     pub(crate) async fn event(&self, id: i64) -> anyhow::Result<(Option<i64>, Option<i64>)> {
         Ok(
             sqlx::query_as("SELECT session_id, request_id FROM memory.search_events WHERE id = $1")

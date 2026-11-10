@@ -33,6 +33,7 @@ WITH open_events AS (
 ), calls AS (
     SELECT e.id AS event_id, e.session_id AS caller_session_id, k.kind,
            lower(u.input ->> 'session_id') AS session_arg, lower(u.input ->> 'id') AS id_arg,
+           u.input ->> 'request_id' AS request_arg,
            u.input ->> 'reference' AS reference_arg,
            lower(u.input ->> 'reference') AS reference_lower,
            coalesce(u.input ->> 'reference' ~ '^[0-9A-Fa-f]{8,}$', false) AS reference_is_hex,
@@ -50,7 +51,7 @@ WITH open_events AS (
                                      ELSE 'thread' END AS kind) k
      WHERE k.kind <> 'other'
         OR (starts_with(u.tool_name, 'mcp__')
-            AND jsonb_exists_any(u.input, ARRAY['session_id', 'id']))
+            AND jsonb_exists_any(u.input, ARRAY['session_id', 'id', 'request_id']))
 ), reads AS (
     SELECT c.event_id,
            CASE c.kind WHEN 'read' THEN c.reference_arg ELSE 'turn:' || c.id_arg END AS reference
@@ -82,6 +83,26 @@ WITH open_events AS (
            SELECT 1 FROM calls c
             WHERE c.event_id = rt.event_id AND c.caller_session_id <> rt.source_session_id
               AND (c.session_arg = s.session_uuid::text OR c.id_arg = s.session_uuid::text))
+), opened_keys AS (
+    SELECT event_id, caller_session_id, 'session' AS kind, session_arg AS key
+      FROM calls WHERE session_arg IS NOT NULL
+    UNION ALL
+    SELECT event_id, caller_session_id, 'session', id_arg
+      FROM calls WHERE id_arg IS NOT NULL
+    UNION ALL
+    SELECT event_id, caller_session_id, 'request', request_arg
+      FROM calls WHERE request_arg IS NOT NULL
+    UNION ALL
+    SELECT event_id, caller_session_id, 'request', id_arg
+      FROM calls WHERE kind = 'other' AND id_arg IS NOT NULL
+), opened_lookups AS (
+    SELECT r.event_id, r.reference
+      FROM returned r
+      JOIN opened_keys k ON k.event_id = r.event_id AND k.kind = r.kind
+                        AND k.key = CASE r.kind WHEN 'session' THEN r.id_lower ELSE r.id_part END
+      JOIN sessions.sessions cs ON cs.id = k.caller_session_id
+     WHERE r.kind IN ('session', 'request')
+       AND (r.kind = 'request' OR cs.session_uuid::text <> r.id_lower)
 ), thread_reads AS (
     SELECT r.event_id, r.reference
       FROM returned r
@@ -107,6 +128,8 @@ WITH open_events AS (
     SELECT event_id, reference FROM bare_reads
     UNION
     SELECT event_id, reference FROM opened_sessions
+    UNION
+    SELECT event_id, reference FROM opened_lookups
     UNION
     SELECT event_id, reference FROM thread_reads
     UNION

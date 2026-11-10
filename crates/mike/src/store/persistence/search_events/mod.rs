@@ -7,6 +7,8 @@ mod mark_used;
 mod record;
 
 #[cfg(test)]
+mod mark_used_lookup_tests;
+#[cfg(test)]
 mod mark_used_tests;
 #[cfg(test)]
 mod mark_used_thread_tests;

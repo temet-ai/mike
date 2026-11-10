@@ -18,6 +18,10 @@ pub(super) fn documents(count: usize) -> Vec<String> {
     (0..count).map(|i| format!("passage {i}")).collect()
 }
 
+pub(super) fn tagged_documents(tag: &str, count: usize) -> Vec<String> {
+    (0..count).map(|i| format!("{tag} passage {i}")).collect()
+}
+
 pub(super) fn allow_all(_: &RerankConfig) -> bool {
     true
 }

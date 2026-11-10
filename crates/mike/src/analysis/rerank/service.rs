@@ -4,10 +4,16 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 
 use super::runtime::{RerankStatus, Runtime};
-use super::{HEALTH_TIMEOUT, RerankConfig, RerankError, RerankScore, ServerHealth};
+use super::{
+    HEALTH_TIMEOUT, MAX_DOCUMENT_CHARS, MAX_QUERY_CHARS, RerankConfig, RerankError, RerankScore,
+    ServerHealth,
+};
 use crate::search_ranking::RankingConfig;
 
 mod attempt;
+mod score_cache;
+
+use score_cache::ScoreCache;
 
 const ERROR_BODY_CHARS: usize = 500;
 const RANKING_PREFIX: &str = "search.ranking.";
@@ -42,6 +48,13 @@ struct Inner {
     runtime: Mutex<Runtime>,
     turn: tokio::sync::Mutex<()>,
     health_timeout: Duration,
+    scores: ScoreCache,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Reranked {
+    pub(crate) scores: Vec<RerankScore>,
+    pub(crate) cached: usize,
 }
 
 impl std::fmt::Debug for RerankService {
@@ -61,6 +74,10 @@ impl RerankService {
     }
 
     pub(super) fn with_health_timeout(config: &RerankConfig, health_timeout: Duration) -> Self {
+        Self::assemble(config, health_timeout, ScoreCache::new())
+    }
+
+    fn assemble(config: &RerankConfig, health_timeout: Duration, scores: ScoreCache) -> Self {
         let mut config = config.clone();
         config.url = config.url.trim_end_matches('/').to_owned();
         Self {
@@ -71,8 +88,32 @@ impl RerankService {
                 runtime: Mutex::new(Runtime::new()),
                 turn: tokio::sync::Mutex::new(()),
                 health_timeout,
+                scores,
             }),
         }
+    }
+
+    #[cfg(test)]
+    pub(super) fn with_score_limits(
+        config: &RerankConfig,
+        capacity: usize,
+        lifetime: Duration,
+    ) -> Self {
+        Self::assemble(
+            config,
+            HEALTH_TIMEOUT,
+            ScoreCache::with_limits(capacity, lifetime),
+        )
+    }
+
+    #[cfg(test)]
+    pub(super) fn age_cached_scores(&self, by: Duration) {
+        self.inner.scores.advance(by);
+    }
+
+    #[cfg(test)]
+    pub(super) fn cached_score_count(&self) -> usize {
+        self.inner.scores.len()
     }
 
     pub fn current_config(&self) -> RerankConfig {
@@ -180,6 +221,17 @@ impl RerankService {
         documents: &[String],
         allow: impl Fn(&RerankConfig) -> bool,
     ) -> Result<Vec<RerankScore>, RerankError> {
+        self.rerank_counted(query, documents, allow)
+            .await
+            .map(|reranked| reranked.scores)
+    }
+
+    pub(crate) async fn rerank_counted(
+        &self,
+        query: &str,
+        documents: &[String],
+        allow: impl Fn(&RerankConfig) -> bool,
+    ) -> Result<Reranked, RerankError> {
         let config = self.current_config();
         if !config.enabled {
             return Err(RerankError::Disabled);
@@ -188,8 +240,50 @@ impl RerankService {
             return Err(RerankError::Refused(config.url.clone()));
         }
         if documents.is_empty() {
-            return Ok(Vec::new());
+            return Ok(Reranked {
+                scores: Vec::new(),
+                cached: 0,
+            });
         }
+        let sent: Vec<&str> = documents
+            .iter()
+            .map(|document| truncate_chars(document, MAX_DOCUMENT_CHARS))
+            .collect();
+        let lookup =
+            self.inner
+                .scores
+                .lookup(&config.model, truncate_chars(query, MAX_QUERY_CHARS), &sent);
+        let missing = lookup.missing();
+        let cached = lookup.cached();
+        if missing.is_empty() {
+            return Ok(Reranked {
+                scores: lookup.merged(Vec::new(), &missing),
+                cached,
+            });
+        }
+        let subset: Vec<String> = missing
+            .iter()
+            .filter_map(|index| documents.get(*index).cloned())
+            .collect();
+        let asked = if cached == 0 { documents } else { &subset };
+        let fresh = crate::metrics::time_phase(
+            "rerank_request",
+            self.request_scores(&config, query, asked),
+        )
+        .await?;
+        self.inner.scores.store(&lookup, &missing, &fresh);
+        Ok(Reranked {
+            scores: lookup.merged(fresh, &missing),
+            cached,
+        })
+    }
+
+    async fn request_scores(
+        &self,
+        config: &RerankConfig,
+        query: &str,
+        documents: &[String],
+    ) -> Result<Vec<RerankScore>, RerankError> {
         let overall = Instant::now() + config.call_budget();
         self.ensure_breaker_closed()?;
         let turn_wait = Duration::from_millis(config.cold_timeout_ms);
@@ -198,9 +292,7 @@ impl RerankService {
         };
         self.ensure_breaker_closed()?;
         let cold = self.runtime().expects_cold_start();
-        let outcome = self
-            .attempts(&config, query, documents, cold, overall)
-            .await;
+        let outcome = self.attempts(config, query, documents, cold, overall).await;
         self.note(&outcome);
         outcome
     }

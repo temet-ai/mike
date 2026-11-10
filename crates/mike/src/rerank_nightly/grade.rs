@@ -81,7 +81,7 @@ pub(super) async fn rerank_all(
         match score(state, query, chunk).await {
             Ok(chunk_scores) => {
                 answered = true;
-                for chunk_score in chunk_scores {
+                for chunk_score in chunk_scores.scores {
                     if let Some(slot) = scores.get_mut(base + chunk_score.index) {
                         *slot = Some(f64::from(chunk_score.score));
                     }

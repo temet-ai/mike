@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT (SELECT count(*)\n          FROM (SELECT 1\n                  FROM memory.knowledge_embedding_state e\n                  JOIN memory.knowledge_embedding_sources_v src\n                    ON src.source_kind = e.source_kind AND src.source_id = e.source_id\n                 WHERE src.project_id = $1\n                   AND e.source_updated_at IS NOT DISTINCT FROM src.source_updated_at\n                   AND e.source_seq IS NOT DISTINCT FROM src.source_seq\n                   AND e.source_hash IS NOT DISTINCT FROM src.source_hash\n                   AND e.model_key = $2 AND e.completed_at IS NOT NULL\n                 LIMIT (SELECT GREATEST(ceil(reltuples::float8 / 5), 0)::bigint\n                          FROM pg_class WHERE oid = 'memory.knowledge_embedding_state'::regclass)) lim) * 5\n       >= (SELECT reltuples FROM pg_class WHERE oid = 'memory.knowledge_embedding_state'::regclass) AS \"enabled!\"\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "enabled!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "27c5301acaccb942b51b5e5456e3e8a70ab00ac980034cd69eac1cbb8991c0fd"
+}

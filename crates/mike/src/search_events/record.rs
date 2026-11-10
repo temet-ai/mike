@@ -94,7 +94,7 @@ fn state_label(state: Option<&str>) -> &'static str {
     }
 }
 
-fn spawn_record(state: &AppState, session: Option<&str>, draft: Draft) {
+pub(super) fn spawn_record(state: &AppState, session: Option<&str>, draft: Draft) {
     let Some(persist) = state.persist().cloned() else {
         return;
     };

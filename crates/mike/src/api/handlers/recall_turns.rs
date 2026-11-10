@@ -1,4 +1,5 @@
 use super::*;
+use crate::api::detail::Detail;
 use crate::api::result_order::ResultOrder;
 use crate::store::persistence::project_knowledge::ProjectIdentity;
 
@@ -14,6 +15,8 @@ pub(crate) struct RecallSimilarTurnsBody {
     pub(crate) include_own_turn: bool,
     #[serde(default)]
     pub(crate) order: Option<String>,
+    #[serde(default)]
+    pub(crate) detail: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -50,23 +53,33 @@ pub(crate) struct SimilarTurnDto {
 
 #[derive(Debug, Serialize)]
 pub(crate) struct RecallSimilarTurnsResponse {
-    pub(crate) turns: Vec<SimilarTurnDto>,
+    pub(crate) turns: Vec<recall_turns_detail::TurnEntry>,
     pub(crate) retrieval_path: &'static str,
     pub(crate) degraded: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) pending_turns: Option<i64>,
     pub(crate) rerank: crate::api::rerank_search::RerankReport,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) more: Option<serde_json::Value>,
 }
 
 pub(crate) async fn recall_similar_turns(
     State(state): State<AppState>,
     Json(body): Json<RecallSimilarTurnsBody>,
 ) -> Result<Json<RecallSimilarTurnsResponse>, Response> {
+    crate::metrics::time_phase("recall_similar_turns_handler", answer_recall(state, body)).await
+}
+
+async fn answer_recall(
+    state: AppState,
+    body: RecallSimilarTurnsBody,
+) -> Result<Json<RecallSimilarTurnsResponse>, Response> {
     let Some(handle) = state.persist() else {
         return Err(persist_unavailable_response());
     };
     validate_recall_query(&body).map_err(|e| *e)?;
     let order = ResultOrder::parse(body.order.as_deref()).map_err(|refusal| *refusal)?;
+    let detail = Detail::parse(body.detail.as_deref()).map_err(|refusal| *refusal)?;
     let limit = body
         .limit
         .map(|l| l as i64)
@@ -121,7 +134,8 @@ pub(crate) async fn recall_similar_turns(
         &rerank,
     );
     Ok(Json(RecallSimilarTurnsResponse {
-        turns,
+        more: recall_turns_detail::more(&turns, detail),
+        turns: recall_turns_detail::entries(&turns, detail),
         retrieval_path,
         degraded,
         pending_turns,

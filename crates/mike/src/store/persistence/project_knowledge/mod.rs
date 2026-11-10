@@ -4,13 +4,18 @@ mod documents;
 mod embeddings;
 mod guidance;
 mod machine_locations;
+mod memos;
+#[cfg(test)]
+mod memos_tests;
 pub(crate) use embeddings::{
     KNOWLEDGE_COUNT_CAP, KnowledgeEmbeddingSource, KnowledgeStateCounts, PENDING_BATCH,
 };
+pub(crate) use memos::KnowledgeMemos;
 mod health;
 mod lesson_sync;
 mod location_view;
 mod locations;
+mod nearest_first;
 mod reference;
 #[cfg(test)]
 mod reference_tests;
@@ -33,6 +38,7 @@ pub(crate) use location_view::is_scratch;
 pub use locations::{LocationInput, ProjectIdentity};
 pub(crate) use repo_adoption::RepoLocationAdoption;
 pub use search::KnowledgeQuery;
+pub(crate) use search::REFERENCE_NOT_IN_PROJECT;
 pub use search::SemanticCut;
 pub(crate) use search::cut_for;
 pub(crate) use search::search_page;

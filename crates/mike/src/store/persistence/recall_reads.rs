@@ -1,5 +1,5 @@
 use super::project_knowledge::ProjectIdentity;
-use super::recall_embedding::{by_embedding_query, set_vector_scan_limits};
+use super::recall_embedding::{by_embedding_query, set_recall_timeouts, set_vector_scan_limits};
 use super::{PersistError, PersistHandle};
 use sqlx::{Postgres, QueryBuilder};
 
@@ -41,33 +41,49 @@ pub(super) const TURN_COLUMNS: &str =
                         t.created_at, t.updated_at";
 
 fn by_file_query(project_id: i64, file: &str, limit: i64) -> QueryBuilder<Postgres> {
-    let mut query = QueryBuilder::new(crate::store::operator_turns::TURN_SELECT_BASE);
+    let mut query = QueryBuilder::new(
+        "WITH picked AS (
+            SELECT t.id AS turn_id, t.created_at
+              FROM memory.operator_turns t
+              JOIN sessions.sessions s ON s.id = t.session_id
+             WHERE t.project_id = ",
+    );
     query
-        .push(
-            "
-      WHERE t.project_id = ",
-        )
         .push_bind(project_id)
         .push(
             "
-        AND (t.opened_by IS NULL OR t.opened_by = 'operator')
-        AND EXISTS (
-            SELECT 1
-              FROM mike.file_touches_v ft
-              JOIN requests.requests r
-                ON r.id = ft.request_id
-             WHERE ft.file_path = ",
+               AND (t.opened_by IS NULL OR t.opened_by = 'operator')
+               AND EXISTS (
+                   SELECT 1
+                     FROM mike.file_touches_v ft
+                     JOIN requests.requests r
+                       ON r.id = ft.request_id
+                    WHERE ft.file_path = ",
         )
         .push_bind(file)
         .push(
             "
-               AND ft.request_id BETWEEN t.start_request_id AND t.end_request_id
-               AND r.session_id = s.id
+                      AND ft.request_id BETWEEN t.start_request_id AND t.end_request_id
+                      AND r.session_id = s.id
+               )
+             ORDER BY t.created_at DESC
+             LIMIT ",
         )
-      ORDER BY t.created_at DESC
-      LIMIT ",
+        .push_bind(limit)
+        .push(
+            "
+         )
+         SELECT t.*
+           FROM picked
+          CROSS JOIN LATERAL (",
         )
-        .push_bind(limit);
+        .push(crate::store::operator_turns::TURN_SELECT_BASE)
+        .push(
+            "
+             WHERE t.id = picked.turn_id
+             OFFSET 0) t
+          ORDER BY t.created_at DESC",
+        );
     query
 }
 
@@ -154,11 +170,13 @@ fn by_fts_query(
             ",
                 ranked.rank
            FROM ranked
-           JOIN (",
+          CROSS JOIN LATERAL (",
         )
         .push(crate::store::operator_turns::TURN_SELECT_BASE)
         .push(
-            ") t ON t.turn_id = ranked.turn_id
+            "
+             WHERE t.id = ranked.turn_id
+             OFFSET 0) t
           ORDER BY ranked.rank DESC, t.created_at DESC",
         );
     query
@@ -172,14 +190,17 @@ impl PersistHandle {
         let Ok(session) = uuid::Uuid::parse_str(session_uuid.trim()) else {
             return Ok(None);
         };
-        Ok(sqlx::query_scalar!(
-            "SELECT max(t.id) FROM memory.operator_turns t
+        crate::metrics::time_db("newest_turn_of_session", async {
+            Ok(sqlx::query_scalar!(
+                "SELECT max(t.id) FROM memory.operator_turns t
                JOIN sessions.sessions s ON s.id = t.session_id
               WHERE s.session_uuid = $1 AND (t.opened_by IS NULL OR t.opened_by = 'operator')",
-            session
-        )
-        .fetch_one(&self.pool)
-        .await?)
+                session
+            )
+            .fetch_one(&self.pool)
+            .await?)
+        })
+        .await
     }
 
     pub(crate) async fn recall_turns_by_file(
@@ -208,12 +229,7 @@ impl PersistHandle {
     ) -> Result<Option<Vec<RankedTurnRow>>, PersistError> {
         crate::metrics::time_db("recall_turns_by_embedding", async {
             let mut tx = self.pool.begin().await?;
-            sqlx::query!("SET LOCAL jit = off")
-                .execute(&mut *tx)
-                .await?;
-            sqlx::query!("SET LOCAL statement_timeout = '12s'")
-                .execute(&mut *tx)
-                .await?;
+            set_recall_timeouts(&mut tx).await?;
             set_vector_scan_limits(&mut tx).await?;
             let search = (embedding_model, query_vec_literal);
             let rows = by_embedding_query(project.id, search, limit, exclude_turn)
@@ -239,12 +255,7 @@ impl PersistHandle {
     ) -> Result<Vec<RankedTurnRow>, PersistError> {
         crate::metrics::time_db("recall_turns_by_fts", async {
             let mut tx = self.pool.begin().await?;
-            sqlx::query!("SET LOCAL jit = off")
-                .execute(&mut *tx)
-                .await?;
-            sqlx::query!("SET LOCAL statement_timeout = '12s'")
-                .execute(&mut *tx)
-                .await?;
+            set_recall_timeouts(&mut tx).await?;
             let rows = by_fts_query(project.id, query, limit, exclude_turn)
                 .build_query_as::<RankedTurnRow>()
                 .fetch_all(&mut *tx)

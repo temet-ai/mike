@@ -3,11 +3,9 @@ use std::collections::HashSet;
 use serde_json::Value;
 
 use crate::config::AppState;
-use crate::search_ranking::identifier_hits;
+use crate::search_ranking::{identifier_hits, mark_outside_project};
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, ProjectIdentity};
 use crate::store::persistence::{PersistError, PersistHandle};
-
-pub(super) const NO_PROJECT_PATH: &str = "(no project)";
 
 pub(super) struct Pool<'a> {
     pub(super) project: &'a ProjectIdentity,
@@ -22,22 +20,34 @@ pub(super) async fn candidate_rows(
     handle: &PersistHandle,
     pool: Pool<'_>,
 ) -> Result<Vec<Value>, PersistError> {
-    let rows = handle
-        .knowledge_candidate_rows(pool.project.id, pool.input, pool.wanted, pool.vector)
-        .await?;
+    let own =
+        handle.knowledge_candidate_rows(pool.project.id, pool.input, pool.wanted, pool.vector);
     if !pool.reranked || !state.rerank_service().current_config().search_no_project {
-        return Ok(rows);
+        return own.await;
     }
-    let Some(extra) = handle.find_knowledge_project(NO_PROJECT_PATH).await? else {
-        return Ok(rows);
+    let (rows, more) = tokio::join!(own, extra_rows(handle, &pool));
+    let rows = rows?;
+    Ok(match more? {
+        Some(more) => merge(rows, more, usize::try_from(pool.wanted).unwrap_or(0)),
+        None => rows,
+    })
+}
+
+async fn extra_rows(
+    handle: &PersistHandle,
+    pool: &Pool<'_>,
+) -> Result<Option<Vec<Value>>, PersistError> {
+    let Some(extra) = handle.no_project_knowledge_project().await? else {
+        return Ok(None);
     };
     if extra.id == pool.project.id {
-        return Ok(rows);
+        return Ok(None);
     }
-    let more = handle
+    let mut rows = handle
         .knowledge_candidate_rows(extra.id, pool.input, pool.wanted, pool.vector)
         .await?;
-    Ok(merge(rows, more, usize::try_from(pool.wanted).unwrap_or(0)))
+    rows.iter_mut().for_each(mark_outside_project);
+    Ok(Some(rows))
 }
 
 pub(super) fn merge(own: Vec<Value>, extra: Vec<Value>, wanted: usize) -> Vec<Value> {

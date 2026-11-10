@@ -206,6 +206,8 @@ pub(crate) struct FindTextUnifiedParams {
     pub(crate) whole_bodies: bool,
     #[serde(default)]
     pub(crate) include_reminders: bool,
+    #[serde(default)]
+    pub(crate) caller_session_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, PartialEq, Eq)]

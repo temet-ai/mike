@@ -77,6 +77,7 @@ impl PersistHandle {
         .execute(&mut *tx)
         .await?;
         tx.commit().await?;
+        self.forget_knowledge_coverage();
         Ok(())
     }
 
@@ -112,6 +113,7 @@ impl PersistHandle {
         )
         .execute(self.pool())
         .await?;
+        self.forget_knowledge_coverage();
         Ok(())
     }
 
@@ -134,7 +136,7 @@ impl PersistHandle {
         legacy_keys: &[String],
         key: &str,
     ) -> Result<u64, PersistError> {
-        Ok(sqlx::query!(
+        let rekeyed = sqlx::query!(
             "UPDATE memory.knowledge_embedding_state SET model_key = $2
              WHERE model_key = ANY($1) AND model_key <> $2",
             legacy_keys,
@@ -142,7 +144,9 @@ impl PersistHandle {
         )
         .execute(self.pool())
         .await?
-        .rows_affected())
+        .rows_affected();
+        self.forget_knowledge_coverage();
+        Ok(rekeyed)
     }
 
     pub(crate) async fn knowledge_embedding_state_counts(
@@ -178,6 +182,18 @@ impl PersistHandle {
     }
 
     pub(crate) async fn knowledge_embedding_health(
+        &self,
+        project: Option<i64>,
+        model: &str,
+    ) -> Result<Value, PersistError> {
+        crate::metrics::time_db(
+            "knowledge_embedding_health",
+            self.count_embedding_health(project, model),
+        )
+        .await
+    }
+
+    async fn count_embedding_health(
         &self,
         project: Option<i64>,
         model: &str,

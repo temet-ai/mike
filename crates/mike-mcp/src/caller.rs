@@ -13,6 +13,8 @@ const SESSION_TAGGED_TOOLS: [&str; 5] = [
     "recall_project_context",
 ];
 
+const CALLER_IDENTIFIED_TOOLS: [&str; 2] = ["find_text", "search_session_content"];
+
 pub(crate) async fn supply_defaults(
     client: &InspectClient,
     name: &str,
@@ -36,6 +38,23 @@ fn supply_writing_session(
         .filter(|value| SESSION_TAGGED_TOOLS.contains(&name) && !named && is_session_uuid(value))
     {
         arguments.insert("session_id".to_string(), Value::String(session.to_string()));
+    }
+    supply_caller_identity(name, Some(arguments), session)
+}
+
+fn supply_caller_identity(
+    name: &str,
+    arguments: Option<Map<String, Value>>,
+    session: Option<&str>,
+) -> Option<Map<String, Value>> {
+    let mut arguments = arguments?;
+    if let Some(session) =
+        session.filter(|value| CALLER_IDENTIFIED_TOOLS.contains(&name) && is_session_uuid(value))
+    {
+        arguments.insert(
+            "caller_session_id".to_string(),
+            Value::String(session.to_string()),
+        );
     }
     Some(arguments)
 }
@@ -125,6 +144,8 @@ async fn caller_project(
         })
 }
 
+#[cfg(test)]
+mod detail_tests;
 #[cfg(test)]
 mod order_tests;
 #[cfg(test)]

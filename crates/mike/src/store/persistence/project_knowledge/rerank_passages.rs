@@ -8,14 +8,18 @@ impl PersistHandle {
         references: &[String],
         vector: Option<&(String, String, String)>,
     ) -> Result<HashMap<String, String>, PersistError> {
-        let rows = sqlx::query_file!(
-            "src/store/persistence/project_knowledge/rerank_passages.sql",
-            references,
-            vector.map(|v| v.0.as_str()),
-            vector.map(|v| v.1.as_str()),
-            vector.map(|v| v.2.as_str()),
-        )
-        .fetch_all(self.pool())
+        let rows = crate::metrics::time_db("knowledge_rerank_passages", async {
+            let rows = sqlx::query_file!(
+                "src/store/persistence/project_knowledge/rerank_passages.sql",
+                references,
+                vector.map(|v| v.0.as_str()),
+                vector.map(|v| v.1.as_str()),
+                vector.map(|v| v.2.as_str()),
+            )
+            .fetch_all(self.pool())
+            .await?;
+            Ok::<_, PersistError>(rows)
+        })
         .await?;
         Ok(rows
             .into_iter()

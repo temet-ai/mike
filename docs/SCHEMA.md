@@ -1885,6 +1885,7 @@ Operator/agent-authored memory entries scoped to a project. Pulled by `recall_pr
 - `idx_lessons_injectable_project`: `(project_id, agent_id, stage_id, created_at DESC) WHERE stage IN (2,3) AND NOT archived AND project IS NOT NULL` (BTree partial)
 - `idx_lessons_embedding`: `embedding vector_cosine_ops WHERE NOT NULL` HNSW m=16 ef=64 — semantic lesson recall
 - `idx_lessons_topic`: `(project_id, topic) WHERE topic IS NOT NULL AND archived_at IS NULL` (BTree partial) — exact-match topic recall
+- `idx_lessons_text_tsv`: `to_tsvector('english', text)` (GIN expression index, created concurrently by `20261110110002_lessons_text_search_index.sql`) — the knowledge search's lesson branch asks it for matching lessons instead of scanning every lesson
 
 ---
 
@@ -2482,8 +2483,8 @@ embedding source. Read by `read.sql`, `search.sql`, `guidance.sql`, `pending_emb
 **Constraints:**
 - UNIQUE `(document_uuid, id)` — the target of the deferred `knowledge_current_revision` FK
 
-**Indexes:** none. `knowledge_revision_search` (GIN over `search_tsv`, 338 MB, unusable behind the OR in
-`search.sql`) was dropped by `20260930010100_drop_knowledge_revision_search.sql`.
+**Indexes:**
+- `idx_knowledge_revisions_search_tsv`: `search_tsv` (GIN), created concurrently by `20261110110001_knowledge_revisions_search_index.sql`. The search now asks the index for matching revisions and joins them back by id, so the index reads the stored vectors and not the bodies. An earlier index of the same kind, `knowledge_revision_search` (338 MB, unusable behind the OR in the then-current `search.sql`), was dropped by `20260930010100_drop_knowledge_revision_search.sql`.
 
 ---
 
@@ -2556,9 +2557,11 @@ of one embedded source, written with its `memory.knowledge_embedding_state` row 
 
 ### `memory.search_events`
 
-Added in `20261109140000_search_events.sql`. One row per `search_project_knowledge` or
-`recall_similar_turns` call, written after the answer is built by a task spawned on `AppState.tracker`
-(`search_events/record.rs`; SQL `store/persistence/search_events/record.sql`). The
+Added in `20261109140000_search_events.sql`; `20261110120000_search_events_conversation_and_text_search.sql`
+widened the `tool` check to the four tools below. One row per `search_project_knowledge`,
+`recall_similar_turns`, `search_session_content` or `find_text` call, written after the answer is built by a
+task spawned on `AppState.tracker` (`search_events/record.rs` and `search_events/lookups.rs`; SQL
+`store/persistence/search_events/record.sql`). The
 `search_events` worker (`search_events/worker.rs`, lease role `search_events_used`) fills the used columns
 with `store/persistence/search_events/mark_used.sql`. Deleting a session deletes its events.
 
@@ -2567,12 +2570,12 @@ with `store/persistence/search_events/mark_used.sql`. Deleting a session deletes
 | `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
 | `session_id` | `BIGINT NULL` | FK → `sessions.sessions(id)` ON DELETE CASCADE; NULL when the caller sent no session id or the id is unknown |
 | `request_id` | `BIGINT NULL` | FK → `requests.requests(id)` ON DELETE SET NULL; the request whose response emitted the calling `tools.uses` row, else the session's newest request |
-| `tool` | `TEXT NOT NULL` | CHECK `IN ('search_project_knowledge', 'recall_similar_turns')` |
-| `query` | `TEXT NOT NULL` | The query as sent, `''` when browsing |
+| `tool` | `TEXT NOT NULL` | CHECK `IN ('search_project_knowledge', 'recall_similar_turns', 'search_session_content', 'find_text')` |
+| `query` | `TEXT NOT NULL` | The query as sent, `''` when browsing; the needle for `find_text` |
 | `kind_filter` | `TEXT NULL` | The `kind` argument of a knowledge search |
-| `returned` | `JSONB NOT NULL DEFAULT '[]'` | Array, in the order the caller saw it, of `{reference, score, rerank_score?}`; `score` is the plain fused rank (knowledge) or rank (turns) |
+| `returned` | `JSONB NOT NULL DEFAULT '[]'` | Array, in the order the caller saw it, of `{reference, score, rerank_score?}`; `score` is the plain fused rank (knowledge) or rank (turns). `search_session_content` stores `{reference: "session:<uuid>", matches: <n>}` per session; `find_text` stores `{reference: "request:<id>"}` per distinct request with a match, at most 50 |
 | `rerank_state` | `TEXT NOT NULL` | CHECK `IN ('reranked', 'loading', 'off', 'unavailable')`, as in the answer's `rerank.state` |
-| `used_references` | `TEXT[] NOT NULL DEFAULT '{}'` | Returned references the same session read with `read_project_knowledge` or `get_operator_turn`, or named in a turn's final reply, from the request after the search through the fifth following operator turn |
+| `used_references` | `TEXT[] NOT NULL DEFAULT '{}'` | Returned references the same session read with `read_project_knowledge` or `get_operator_turn`, or named in a turn's final reply, from the request after the search through the fifth following operator turn; a returned `session:<uuid>` or `request:<id>` counts when a later call names that session id or request id |
 | `used_checked_at` | `TIMESTAMPTZ NULL` | When the worker last evaluated the row; open rows are taken oldest-checked first |
 | `used_final_at` | `TIMESTAMPTZ NULL` | Set when the five following turns have closed or the row is a day old; the used columns no longer change |
 | `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
@@ -5490,6 +5493,7 @@ parse still gets a row rather than vanishing. `project_merge.rs` moves threads w
 | `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
 | `updated_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
 | `goal` | `TEXT NULL` | What the thread is for, in a sentence or two; not part of the replaced-whole state (`20261022120000`) |
+| `search_tsv` | `TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', title \|\| E'\n' \|\| slug \|\| E'\n' \|\| goal)) STORED` | Each part wrapped in `COALESCE(.., '')`; read by `project_knowledge/search.sql` with the state's vector, so the search no longer builds the thread text on every call (`20261110110000_knowledge_search_stored_text.sql`) |
 
 **Constraints:**
 - `threads_slug_not_blank`: `length(trim(slug)) > 0`
@@ -5526,6 +5530,7 @@ index is partial, so a query must repeat `WHERE embedding IS NOT NULL` to use it
 | `source_updated_at` | `TIMESTAMPTZ NULL` | Worklog mtime when the embedding was taken, so unchanged text is not re-embedded |
 | `decisions` | `TEXT NOT NULL DEFAULT ''` | Decisions in force, replaced whole like the other fields (`20261022120000`) |
 | `files` | `TEXT[] NOT NULL DEFAULT '{}'` | Files the next session must read, relative to the project root (`20261022120000`) |
+| `search_tsv` | `TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', tldr \|\| E'\n' \|\| where_we_are \|\| E'\n' \|\| next_up \|\| E'\n' \|\| blockers \|\| E'\n' \|\| open_questions \|\| E'\n' \|\| decisions)) STORED` | Each part wrapped in `COALESCE(.., '')`; read by `project_knowledge/search.sql` together with `work.threads.search_tsv` (`20261110110000_knowledge_search_stored_text.sql`) |
 
 **Constraints:**
 - `thread_state_embedding_consistent`: `embedding`, `embedded_at` and `embedding_model` all NULL or all non-NULL

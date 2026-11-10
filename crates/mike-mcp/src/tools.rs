@@ -34,6 +34,7 @@ mod launches;
 mod memory;
 mod prompts;
 mod questions;
+mod recall_similar_turns;
 mod requests;
 mod semantic;
 mod session_activity;
