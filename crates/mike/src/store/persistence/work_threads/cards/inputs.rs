@@ -80,9 +80,11 @@ async fn open_promises(pool: &PgPool, thread_ids: &[i64]) -> Result<Vec<CardProm
            bounds AS (
                SELECT t.id AS thread_id,
                       GREATEST(now() - make_interval(days => $3),
-                               h.entry_date::timestamp AT TIME ZONE 'UTC') AS since
+                               h.entry_date::timestamp AT TIME ZONE 'UTC',
+                               st.updated_at) AS since
                  FROM work.threads t
                  LEFT JOIN handoffs h ON h.thread_id = t.id
+                 LEFT JOIN work.thread_state st ON st.thread_id = t.id
                 WHERE t.id = ANY($1)
            )
            SELECT r.thread_id AS "thread_id!", r.id AS "id!",
@@ -92,10 +94,18 @@ async fn open_promises(pool: &PgPool, thread_ids: &[i64]) -> Result<Vec<CardProm
                    SELECT b.thread_id, d.id, d.operator_turn_id, d.effective_at,
                           CASE WHEN ((d.data -> 'span') ->> 0) ~ '^[0-9]{1,9}$'
                                 AND ((d.data -> 'span') ->> 1) ~ '^[0-9]{1,9}$'
-                               THEN substring(ot.final_assistant_text
-                                     FROM ((d.data -> 'span') ->> 0)::int + 1
-                                     FOR GREATEST(((d.data -> 'span') ->> 1)::int
-                                                  - ((d.data -> 'span') ->> 0)::int, 0))
+                               THEN regexp_replace(
+                                        substring(ot.final_assistant_text
+                                          FROM GREATEST(((d.data -> 'span') ->> 0)::int - 299, 1)
+                                          FOR LEAST(((d.data -> 'span') ->> 0)::int, 300)),
+                                        '^.*[.!?\n][[:space:]]*', '')
+                                 || substring(ot.final_assistant_text
+                                      FROM ((d.data -> 'span') ->> 0)::int + 1
+                                      FOR GREATEST(((d.data -> 'span') ->> 1)::int
+                                                   - ((d.data -> 'span') ->> 0)::int, 0))
+                                 || COALESCE(substring(substring(ot.final_assistant_text
+                                                FROM ((d.data -> 'span') ->> 1)::int + 1 FOR 200)
+                                              FROM '^[^.!?\n]*[.!?]?'), '')
                           END AS text,
                           row_number() OVER (PARTITION BY b.thread_id
                                              ORDER BY d.effective_at DESC, d.id DESC) AS rn
@@ -129,9 +139,11 @@ async fn unmet_asks(pool: &PgPool, thread_ids: &[i64]) -> Result<Vec<CardAsk>, s
            bounds AS (
                SELECT t.id AS thread_id,
                       GREATEST(now() - make_interval(days => $3),
-                               h.entry_date::timestamp AT TIME ZONE 'UTC') AS since
+                               h.entry_date::timestamp AT TIME ZONE 'UTC',
+                               st.updated_at) AS since
                  FROM work.threads t
                  LEFT JOIN handoffs h ON h.thread_id = t.id
+                 LEFT JOIN work.thread_state st ON st.thread_id = t.id
                 WHERE t.id = ANY($1)
            )
            SELECT r.thread_id AS "thread_id!", r.operator_turn_id AS "operator_turn_id!",

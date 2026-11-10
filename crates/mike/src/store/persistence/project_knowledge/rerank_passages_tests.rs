@@ -200,3 +200,78 @@ async fn rerank_passages_with_unparseable_or_unembedded_references_returns_nothi
     assert!(passages.is_empty());
     close(seeded).await
 }
+
+async fn turn_with_chunks(
+    seeded: &Seeded,
+    model: &str,
+    chunks: &[(&str, &str, usize)],
+) -> anyhow::Result<String> {
+    let pool = seeded.handle.pool();
+    let project_id =
+        crate::store::persistence::test_support::seed_project(pool, "w-passage-turns").await?;
+    let session = "00000000-0000-4000-8000-0000000000e1";
+    crate::store::persistence::test_support::seed_two_sessions(
+        pool,
+        session,
+        "00000000-0000-4000-8000-0000000000e2",
+        project_id,
+    )
+    .await?;
+    crate::store::persistence::test_support::seed_session_turns(pool, session, project_id, 1)
+        .await?;
+    let turn: i64 =
+        sqlx::query_scalar("SELECT id FROM memory.operator_turns WHERE project_id = $1")
+            .bind(project_id)
+            .fetch_one(pool)
+            .await?;
+    for (index, (role, text, axis_index)) in chunks.iter().enumerate() {
+        sqlx::query(
+            "INSERT INTO memory.operator_turn_chunks
+                (turn_id, chunk_idx, chunk_role_id, chunk_text, chunk_embedding, embedding_model)
+             SELECT $1, $2, cr.id, $3, $4::text::vector, $5
+               FROM memory.chunk_roles cr WHERE cr.code = $6",
+        )
+        .bind(turn)
+        .bind(i32::try_from(index)?)
+        .bind(*text)
+        .bind(vector_to_text_literal(&axis(*axis_index)))
+        .bind(model)
+        .bind(*role)
+        .execute(pool)
+        .await?;
+    }
+    Ok(format!("turn:{turn}"))
+}
+
+#[tokio::test]
+async fn rerank_passages_for_a_turn_returns_its_chunk_nearest_the_query() -> anyhow::Result<()> {
+    let seeded = seeded().await?;
+    let turn = turn_with_chunks(
+        &seeded,
+        "embedder",
+        &[
+            ("prompt", "get the changes ready", 0),
+            ("assistant", "branch feat/ABC-1234-upgrade is ready", 5),
+        ],
+    )
+    .await?;
+
+    let near = seeded
+        .handle
+        .knowledge_rerank_passages(std::slice::from_ref(&turn), Some(&query_vector(5, MODEL)))
+        .await?;
+    let first = seeded
+        .handle
+        .knowledge_rerank_passages(std::slice::from_ref(&turn), None)
+        .await?;
+
+    assert_eq!(
+        near.get(&turn).map(String::as_str),
+        Some("branch feat/ABC-1234-upgrade is ready")
+    );
+    assert_eq!(
+        first.get(&turn).map(String::as_str),
+        Some("get the changes ready")
+    );
+    close(seeded).await
+}

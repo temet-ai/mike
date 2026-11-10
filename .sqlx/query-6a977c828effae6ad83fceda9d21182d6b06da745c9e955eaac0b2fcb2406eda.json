@@ -1,0 +1,66 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH handoffs AS (\n               SELECT DISTINCT ON (l.thread_id) l.thread_id, l.entry_date\n                 FROM work.thread_log l\n                WHERE l.thread_id = ANY($1) AND l.kind = 'handoff'\n                ORDER BY l.thread_id, l.ord DESC\n           ),\n           bounds AS (\n               SELECT t.id AS thread_id,\n                      GREATEST(now() - make_interval(days => $3),\n                               h.entry_date::timestamp AT TIME ZONE 'UTC',\n                               st.updated_at) AS since\n                 FROM work.threads t\n                 LEFT JOIN handoffs h ON h.thread_id = t.id\n                 LEFT JOIN work.thread_state st ON st.thread_id = t.id\n                WHERE t.id = ANY($1)\n           )\n           SELECT r.thread_id AS \"thread_id!\", r.operator_turn_id AS \"operator_turn_id!\",\n                  r.unmet_ask AS \"unmet_ask!\", r.created_at AS \"created_at!\"\n             FROM (\n                   SELECT latest.thread_id, latest.operator_turn_id, latest.unmet_ask, latest.created_at,\n                          row_number() OVER (PARTITION BY latest.thread_id\n                                             ORDER BY latest.created_at DESC,\n                                                      latest.operator_turn_id DESC) AS rn\n                     FROM (\n                           SELECT DISTINCT ON (b.thread_id, v.operator_turn_id)\n                                  b.thread_id, v.operator_turn_id, v.unmet_ask, v.created_at\n                             FROM bounds b\n                             JOIN work.thread_sessions ts ON ts.thread_id = b.thread_id\n                             JOIN sessions.sessions se ON se.session_uuid = ts.session_uuid\n                             JOIN memory.turn_verdicts v\n                               ON v.session_id = se.id AND v.mode = 'live' AND v.created_at > b.since\n                            ORDER BY b.thread_id, v.operator_turn_id, v.created_at DESC, v.id DESC\n                          ) latest\n                    WHERE btrim(latest.unmet_ask) <> ''\n                  ) r\n            WHERE r.rn <= $2\n            ORDER BY r.thread_id, r.created_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "thread_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "operator_turn_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "operator_turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "unmet_ask!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "unmet_ask"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.turn_verdicts",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8Array",
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6a977c828effae6ad83fceda9d21182d6b06da745c9e955eaac0b2fcb2406eda"
+}
