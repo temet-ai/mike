@@ -127,68 +127,48 @@
 	}}
 >
 	{#each sections as [group, rows] (group)}
-		<SettingsSection title={group}>
-			{#if group === NIGHT_GROUP}
-				<div class="rr-run">
-					<Button
-						variant="outline"
-						disabled={!tuningOn || passRunning}
-						aria-busy={passRunning}
-						onclick={() => void runPass()}
-					>
-						<Play aria-hidden="true" />
-						{passRunning ? 'Running overnight pass' : 'Run overnight pass now'}
-					</Button>
-					<p class="rr-run-status" role="status" aria-live="polite">
-						{#if passError !== null}
-							<span class="rr-run-error">{passError}</span>
-						{:else if passResult !== null}
-							{passSummary}
-						{:else if disabledReason !== null}
-							{disabledReason}
-						{:else if passRunning}
-							This can take minutes.
-						{/if}
-					</p>
-				</div>
-			{/if}
-			<div class="rr-rows">
-				{#each rows as s (s.key)}
-					<SettingRow
-						setting={s}
-						loading={settingRowLoading[s.key] ?? false}
-						error={settingRowError[s.key] ?? null}
-						onSave={(k, v) => void handleSettingSave(k, v)}
-					/>
-				{/each}
-			</div>
+		<SettingsSection
+			title={group}
+			action={group === NIGHT_GROUP ? runAction : undefined}
+			description={group === NIGHT_GROUP ? runStatus : undefined}
+		>
+			{#each rows as s (s.key)}
+				<SettingRow
+					setting={s}
+					loading={settingRowLoading[s.key] ?? false}
+					error={settingRowError[s.key] ?? null}
+					onSave={(k, v) => void handleSettingSave(k, v)}
+				/>
+			{/each}
 		</SettingsSection>
 	{/each}
 </SettingsPage>
 
-<style>
-	.rr-run {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--space-3);
-		padding: var(--space-3) calc(var(--edge-md) + var(--space-2));
-		border-bottom: var(--hairline) solid var(--border-subtle);
-	}
-	.rr-run-status {
-		flex: 1 1 16rem;
-		min-height: 1.55em;
-		margin: 0;
-		font-size: var(--text-sm);
-		color: var(--text-2);
-		line-height: var(--leading-body);
-		overflow-wrap: anywhere;
-	}
-	.rr-run-error {
-		color: var(--status-danger-fg);
-	}
-	.rr-rows {
-		display: flex;
-		flex-direction: column;
-	}
-</style>
+{#snippet runAction()}
+	<Button
+		variant="outline"
+		size="sm"
+		disabled={!tuningOn || passRunning}
+		aria-busy={passRunning}
+		onclick={() => void runPass()}
+	>
+		<Play aria-hidden="true" />
+		{passRunning ? 'Running overnight pass' : 'Run overnight pass now'}
+	</Button>
+{/snippet}
+
+{#snippet runStatus()}
+	<span role="status" aria-live="polite">
+		{#if passError !== null}
+			Could not run the pass: {passError}
+		{:else if passResult !== null}
+			{passSummary}
+		{:else if disabledReason !== null}
+			{disabledReason}
+		{:else if passRunning}
+			This can take minutes.
+		{:else}
+			Runs the overnight pass now, outside the window.
+		{/if}
+	</span>
+{/snippet}
