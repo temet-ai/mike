@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH matched AS (\n    SELECT e.id, u.session_id, u.request_id\n      FROM memory.search_events e\n      CROSS JOIN LATERAL (\n          SELECT u.session_id, u.request_id\n            FROM tools.uses u\n           WHERE u.created_at BETWEEN e.created_at - make_interval(secs => $3::float8) AND e.created_at\n             AND u.tool_name LIKE '%' || e.tool\n             AND u.input ->> 'query' = e.query\n             AND u.session_id IS NOT NULL\n           ORDER BY u.created_at DESC, u.id DESC\n           LIMIT 1\n      ) u\n     WHERE e.session_id IS NULL\n       AND e.created_at > now() - make_interval(secs => $2::float8)\n     ORDER BY e.id\n     LIMIT $1::bigint\n)\nUPDATE memory.search_events e\n   SET session_id = m.session_id, request_id = m.request_id\n  FROM matched m\n WHERE e.id = m.id\nRETURNING e.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.search_events",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Float8",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f8238214950bad3d414df861d9928a77bd03dbebf602292b51e7138f3fb4fd49"
+}
