@@ -1,0 +1,60 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT p.id AS \"id!\", p.project_uuid AS \"project_uuid!\",\n                      p.project_path AS \"project_path!\",\n                      COALESCE(p.custom_name, p.display_name) AS \"name!\"\n                 FROM projects.projects p\n                WHERE p.merged_into_id IS NULL AND p.project_path <> '(no project)'\n                  AND (strpos(lower(p.project_path), lower($1)) > 0\n                       OR strpos(lower(COALESCE(p.custom_name, p.display_name)), lower($1)) > 0)\n                ORDER BY p.id\n                LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "project_path!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "projects.projects",
+            "name": "project_path"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "name!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "123d9f8a95a94d7b1f0fae81584f197811466421e5d13cfa2e8c37bbbd1fdb37"
+}

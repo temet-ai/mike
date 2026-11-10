@@ -127,13 +127,14 @@ async fn recall_reads_skip_machine_rows() -> anyhow::Result<()> {
     };
     add_chunk(fx.handle.pool(), fx.machine).await?;
     add_chunk(fx.handle.pool(), fx.operator).await?;
-    let fts = fx.handle.recall_turns_by_fts(PROJECT, "zebra", 10).await?;
+    let project = fx.handle.resolve_knowledge_project(PROJECT).await?;
+    let fts = fx.handle.recall_turns_by_fts(&project, "zebra", 10).await?;
     let ids: Vec<i64> = fts.iter().map(|row| row.turn_id).collect();
     assert_eq!(ids, vec![fx.operator]);
     let vector = format!("[{}]", vec!["0.1"; 768].join(","));
     let semantic = fx
         .handle
-        .recall_turns_by_embedding(PROJECT, "test-model", &vector, 10)
+        .recall_turns_by_embedding(&project, "test-model", &vector, 10)
         .await?;
     let semantic_ids: Vec<i64> = semantic.iter().flatten().map(|row| row.turn_id).collect();
     assert_eq!(semantic_ids, vec![fx.operator]);
@@ -193,7 +194,8 @@ async fn recall_by_file_skips_machine_rows() -> anyhow::Result<()> {
     let file = "src/zebra_needle.rs";
     add_file_touch(fx.handle.pool(), fx.machine, file).await?;
     add_file_touch(fx.handle.pool(), fx.operator, file).await?;
-    let rows = fx.handle.recall_turns_by_file(PROJECT, file, 10).await?;
+    let project = fx.handle.resolve_knowledge_project(PROJECT).await?;
+    let rows = fx.handle.recall_turns_by_file(&project, file, 10).await?;
     let ids: Vec<i64> = rows.iter().map(|row| row.turn_id).collect();
     assert_eq!(
         ids,

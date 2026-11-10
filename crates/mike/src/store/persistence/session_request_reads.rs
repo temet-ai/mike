@@ -106,32 +106,23 @@ impl PersistHandle {
     pub(crate) async fn search_content_totals(
         &self,
         query: &str,
-        project_path: Option<&str>,
+        project_id: Option<i64>,
     ) -> Result<content_search::ContentSearchTotals, PersistError> {
-        let project_path = project_path.map(str::to_owned);
         crate::metrics::time_db(
             "search_content_totals",
-            content_search::search_content_totals(&self.pool, query, project_path.as_deref()),
+            content_search::search_content_totals(&self.pool, query, project_id),
         )
         .await
     }
     pub(crate) async fn search_content_page(
         &self,
         query: &str,
-        project_path: Option<&str>,
-        limit: i64,
-        offset: i64,
+        project_id: Option<i64>,
+        page: &content_search::PageRequest,
     ) -> Result<Vec<content_search::ContentSearchRow>, PersistError> {
-        let project_path = project_path.map(str::to_owned);
         crate::metrics::time_db(
             "search_content_page",
-            content_search::search_content_page(
-                &self.pool,
-                query,
-                project_path.as_deref(),
-                limit,
-                offset,
-            ),
+            content_search::search_content_page(&self.pool, query, project_id, page),
         )
         .await
     }

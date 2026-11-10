@@ -5,12 +5,8 @@ use crate::store::persistence::{PersistError, PersistHandle};
 impl PersistHandle {
     pub(crate) async fn list_active_lessons(
         &self,
-        project_path: &str,
+        project_id: i64,
     ) -> Result<Vec<LessonRow>, PersistError> {
-        let project_path = self
-            .resolve_knowledge_project(project_path)
-            .await?
-            .project_path;
         crate::metrics::time_db("list_active_lessons", async move {
             let rows = sqlx::query_as!(
                 LessonRow,
@@ -21,11 +17,11 @@ impl PersistHandle {
                      LEFT JOIN projects.projects p ON p.id = l.project_id
                      JOIN memory.lesson_kinds lk ON lk.id = l.kind_id
                      JOIN memory.lesson_stages ls ON ls.id = l.stage_id
-                    WHERE p.project_path = $1
+                    WHERE l.project_id = $1
                       AND ls.code != 'archived'
                       AND (l.expires_at IS NULL OR l.expires_at > NOW())
                     ORDER BY l.created_at DESC"#,
-                project_path,
+                project_id,
             )
             .fetch_all(&self.pool)
             .await?;

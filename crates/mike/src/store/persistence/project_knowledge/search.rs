@@ -119,6 +119,13 @@ pub(crate) fn search_page(
         "read_tool": "read_project_knowledge"})
 }
 
+fn with_correction(mut item: Value, corrected: Option<String>) -> Value {
+    if let (Some(full), Some(fields)) = (corrected, item.as_object_mut()) {
+        fields.insert("reference_corrected".to_owned(), Value::String(full));
+    }
+    item
+}
+
 impl PersistHandle {
     pub async fn search_project_knowledge(
         &self,
@@ -185,15 +192,13 @@ impl PersistHandle {
             Some(selector) => Some(self.resolve_knowledge_project(selector).await?.id),
             None => None,
         };
-        let (kind, key) = reference
-            .split_once(':')
-            .ok_or_else(|| invalid("Invalid knowledge reference"))?;
-        if !READABLE_KINDS.contains(&kind) {
-            return Err(invalid("Unknown knowledge source kind"));
-        }
+        let settled = self
+            .settle_reference(project_id, reference, &READABLE_KINDS)
+            .await?;
+        let key = settled.key.as_str();
         let mut found: Vec<Value> = sqlx::query_scalar(include_str!("read.sql"))
             .bind(project_id)
-            .bind(kind)
+            .bind(settled.kind.as_str())
             .bind(key.parse::<i64>().ok())
             .bind(key.parse::<uuid::Uuid>().ok())
             .bind(key)
@@ -202,7 +207,7 @@ impl PersistHandle {
         match (found.len(), project_id) {
             (0, Some(_)) => Err(invalid("Knowledge reference not found in this project")),
             (0, None) => Err(invalid("Knowledge reference not found")),
-            (1, _) => Ok(found.remove(0)),
+            (1, _) => Ok(with_correction(found.remove(0), settled.corrected)),
             _ => Err(invalid(
                 "Knowledge reference matches several projects; pass project",
             )),

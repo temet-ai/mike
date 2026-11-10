@@ -69,7 +69,9 @@ pub(super) fn tools() -> Vec<Tool> {
                     ),
                     (
                         "reference",
-                        text("Reference returned by search_project_knowledge, e.g. artifact:123."),
+                        text(
+                            "Reference returned by search_project_knowledge, e.g. artifact:123. A lesson, note, thread, question_answer, mail or learning may also be given as a bare UUID or its first 8 characters when that names one item; the answer then carries `reference_corrected`, the full `kind:uuid`.",
+                        ),
                     ),
                 ],
                 &["reference"],

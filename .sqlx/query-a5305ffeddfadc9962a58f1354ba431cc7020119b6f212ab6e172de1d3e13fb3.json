@@ -183,7 +183,7 @@
     "nullable": [
       false,
       false,
-      false,
+      true,
       false,
       false,
       true,
@@ -195,8 +195,8 @@
       false,
       true,
       null,
-      false,
-      false
+      true,
+      true
     ]
   },
   "hash": "a5305ffeddfadc9962a58f1354ba431cc7020119b6f212ab6e172de1d3e13fb3"

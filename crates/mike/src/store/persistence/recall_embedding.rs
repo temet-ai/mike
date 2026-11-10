@@ -24,7 +24,7 @@ pub(super) async fn set_vector_scan_limits(
 }
 
 pub(super) fn by_embedding_query(
-    project_path: &str,
+    project_id: i64,
     embedding_model: &str,
     query_vec_literal: &str,
     limit: i64,
@@ -41,10 +41,9 @@ pub(super) fn by_embedding_query(
             "::vector AS distance
               FROM memory.operator_turn_chunks c
               JOIN memory.operator_turns ot ON c.turn_id = ot.id
-              JOIN projects.projects p ON p.id = ot.project_id
-             WHERE p.project_path = ",
+             WHERE ot.project_id = ",
         )
-        .push_bind(project_path)
+        .push_bind(project_id)
         .push(
             "
                AND c.embedding_model = ",

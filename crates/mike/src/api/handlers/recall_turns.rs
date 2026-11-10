@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::project_knowledge::ProjectIdentity;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct RecallSimilarTurnsBody {
@@ -46,8 +47,13 @@ pub(crate) async fn recall_similar_turns(
         .unwrap_or(RECALL_SIMILAR_TURNS_DEFAULT_LIMIT)
         .clamp(1, RECALL_SIMILAR_TURNS_MAX_LIMIT);
 
+    let project = handle
+        .resolve_knowledge_project(&body.project)
+        .await
+        .map_err(crate::api::project_knowledge::knowledge_error)?;
     let (fetch, candidates) = recall_turns_rerank::rows_to_fetch(&state, limit, &body.query);
-    let (rows, used_embedding) = recall_rows_hybrid(handle, &state, &body, fetch).await?;
+    let (rows, used_embedding) =
+        recall_rows_hybrid(handle, &state, (&project, &body.query), fetch).await?;
     let (ranked, rerank) =
         recall_turns_rerank::rerank_turns(&state, &body.query, rows, candidates).await;
 
@@ -133,19 +139,12 @@ fn validate_recall_query(body: &RecallSimilarTurnsBody) -> Result<(), Box<Respon
 async fn recall_rows_hybrid(
     handle: &crate::store::persistence::PersistHandle,
     state: &AppState,
-    body: &RecallSimilarTurnsBody,
+    (project, query): (&ProjectIdentity, &str),
     limit: i64,
 ) -> Result<(Vec<crate::store::persistence::RankedTurnRow>, bool), Response> {
     let embedding_service = state.embedding_service();
     let rows = if embedding_service.is_available() {
-        try_embedding_recall(
-            handle,
-            &embedding_service,
-            &body.project,
-            &body.query,
-            limit,
-        )
-        .await
+        try_embedding_recall(handle, &embedding_service, project, query, limit).await
     } else {
         None
     };
@@ -153,12 +152,12 @@ async fn recall_rows_hybrid(
     let rows = match rows {
         Some(r) => r,
         None => handle
-            .recall_turns_by_fts(&body.project, &body.query, limit)
+            .recall_turns_by_fts(project, query, limit)
             .await
             .map_err(|e| {
                 tracing::warn!(
-                    project = %body.project,
-                    query = %body.query,
+                    project = %project.project_path,
+                    query = %query,
                     error = %e,
                     "recall_similar_turns: FTS query failed"
                 );
@@ -171,11 +170,11 @@ async fn recall_rows_hybrid(
 async fn try_embedding_recall(
     handle: &crate::store::persistence::PersistHandle,
     embedding_service: &EmbeddingService,
-    project: &str,
+    project: &ProjectIdentity,
     query: &str,
     limit: i64,
 ) -> Option<Vec<crate::store::persistence::RankedTurnRow>> {
-    let query_vec = embed_recall_query(embedding_service, project, query).await?;
+    let query_vec = embed_recall_query(embedding_service, &project.project_path, query).await?;
     let literal = crate::store::operator_turns::vector_to_text_literal(&query_vec);
     let model = embedding_service.model_name();
     recall_by_embedding(handle, project, query, (&model, &literal), limit).await
@@ -209,25 +208,26 @@ async fn embed_recall_query(
 
 async fn recall_by_embedding(
     handle: &crate::store::persistence::PersistHandle,
-    project: &str,
+    project: &ProjectIdentity,
     query: &str,
     (model, literal): (&str, &str),
     limit: i64,
 ) -> Option<Vec<crate::store::persistence::RankedTurnRow>> {
+    let path = project.project_path.as_str();
     match handle
         .recall_turns_by_embedding(project, model, literal, limit)
         .await
     {
         Ok(Some(found)) => {
-            log_embedding_recall_hit(project, found.len());
+            log_embedding_recall_hit(path, found.len());
             Some(found)
         }
         Ok(None) => {
-            log_embedding_recall_empty(project);
+            log_embedding_recall_empty(path);
             None
         }
         Err(e) => {
-            log_embedding_recall_query_failed(project, query, &e);
+            log_embedding_recall_query_failed(path, query, &e);
             None
         }
     }

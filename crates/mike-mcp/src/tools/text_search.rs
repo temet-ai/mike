@@ -17,6 +17,10 @@ pub const TEXT_SEARCH_TOOL_NAMES: &[&str] = &[
     TOOL_LIST_TOOL_ERRORS,
 ];
 
+#[cfg(test)]
+#[path = "text_search_tests.rs"]
+mod text_search_tests;
+
 pub const TOOL_FIND_TEXT: &str = "find_text";
 pub const TOOL_SEARCH_SESSION_CONTENT: &str = "search_session_content";
 pub const TOOL_LIST_TOOL_ERRORS: &str = "list_tool_errors";
@@ -152,7 +156,7 @@ fn search_session_content_tool() -> Tool {
                 "project",
                 json!({
                     "type": "string",
-                    "description": "Restrict to sessions under this project path."
+                    "description": "Restrict to one project, given as its project UUID, numeric id, path or name (the values list_project_locations prints). An unknown or ambiguous project is an error that lists the matching projects."
                 }),
             ),
             (
@@ -172,6 +176,14 @@ fn search_session_content_tool() -> Tool {
                     "description": "Skip this many sessions before returning results."
                 }),
             ),
+            (
+                "order",
+                json!({
+                    "type": "string",
+                    "enum": ["matches", "recent"],
+                    "description": "Session order. `matches` (default): most matching chunks first, then most matches in operator prompts, then newest. `recent`: newest match first."
+                }),
+            ),
         ],
         &["q"],
     );
@@ -181,10 +193,12 @@ fn search_session_content_tool() -> Tool {
             "Literal search over the conversation (operator prompts and assistant replies, matched in \
              chunks of at most 1500 characters), grouped by session; use it first for 'which session \
              discussed X'. It does not search tool-call inputs or results, thinking blocks or system \
-             prompts: use find_text for those. Returns {query, total_matches, total_sessions, sessions, \
-             has_more, next_offset}; `total_matches` and `total_sessions` are corpus-wide totals \
-             independent of paging. Each session: {session_id, project_path, project_display_name, title, \
-             match_count, turn_count, last_match_at, matches, matches_truncated}. Each match: {turn_id, \
+             prompts: use find_text for those. Sessions come back strongest match first (`order=matches`, \
+             the default) or newest first (`order=recent`). Returns {query, order, total_matches, \
+             total_sessions, sessions, has_more, next_offset}; `total_matches` and `total_sessions` are \
+             corpus-wide totals independent of paging. Each session: {session_id, project_path, \
+             project_display_name, title, match_count, prompt_match_count, turn_count, last_match_at, \
+             matches, matches_truncated}. Each match: {turn_id, \
              request_id, role, chunk_idx, byte_offset, match_length, line, column, before, matched, after, \
              created_at}. `matches_truncated=true` means the session has more matching chunks than are \
              returned: narrow `q`, or use find_text or get_session_operator_turns for the rest.",
@@ -302,6 +316,8 @@ pub(crate) struct SearchSessionContentArgs {
     pub(crate) limit: Option<u32>,
     #[serde(default)]
     pub(crate) offset: Option<u32>,
+    #[serde(default)]
+    pub(crate) order: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -360,7 +376,7 @@ fn find_text_query(args: &FindTextArgs) -> Vec<(&'static str, String)> {
 }
 
 fn search_session_content_query(args: &SearchSessionContentArgs) -> Vec<(&'static str, String)> {
-    let mut query: Vec<(&'static str, String)> = Vec::with_capacity(4);
+    let mut query: Vec<(&'static str, String)> = Vec::with_capacity(5);
     query.push(("q", args.q.clone()));
     if let Some(ref p) = args.project {
         query.push(("project", p.clone()));
@@ -370,6 +386,9 @@ fn search_session_content_query(args: &SearchSessionContentArgs) -> Vec<(&'stati
     }
     if let Some(o) = args.offset {
         query.push(("offset", o.to_string()));
+    }
+    if let Some(ref order) = args.order {
+        query.push(("order", order.clone()));
     }
     query
 }

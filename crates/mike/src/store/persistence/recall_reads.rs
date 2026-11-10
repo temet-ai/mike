@@ -1,3 +1,4 @@
+use super::project_knowledge::ProjectIdentity;
 use super::recall_embedding::{by_embedding_query, set_vector_scan_limits};
 use super::{PersistError, PersistHandle};
 use sqlx::{Postgres, QueryBuilder};
@@ -39,15 +40,14 @@ pub(super) const TURN_COLUMNS: &str =
                         t.interrupted, t.outcome, t.outcome_evidence, t.classified_at,
                         t.created_at, t.updated_at";
 
-fn by_file_query(project_path: &str, file: &str, limit: i64) -> QueryBuilder<Postgres> {
+fn by_file_query(project_id: i64, file: &str, limit: i64) -> QueryBuilder<Postgres> {
     let mut query = QueryBuilder::new(crate::store::operator_turns::TURN_SELECT_BASE);
     query
         .push(
             "
-       JOIN projects.projects p ON p.id = t.project_id
-      WHERE p.project_path = ",
+      WHERE t.project_id = ",
         )
-        .push_bind(project_path)
+        .push_bind(project_id)
         .push(
             "
         AND (t.opened_by IS NULL OR t.opened_by = 'operator')
@@ -73,7 +73,7 @@ fn by_file_query(project_path: &str, file: &str, limit: i64) -> QueryBuilder<Pos
 
 const FTS_TEXT_VECTOR: &str = "to_tsvector('english', COALESCE(tx.user_prompt, '') || ' ' || COALESCE(tx.final_assistant_text, ''))";
 
-fn by_fts_query(project_path: &str, text_query: &str, limit: i64) -> QueryBuilder<Postgres> {
+fn by_fts_query(project_id: i64, text_query: &str, limit: i64) -> QueryBuilder<Postgres> {
     let mut query = QueryBuilder::new("WITH q AS (SELECT websearch_to_tsquery('english', ");
     query
         .push_bind(text_query)
@@ -84,11 +84,10 @@ fn by_fts_query(project_path: &str, text_query: &str, limit: i64) -> QueryBuilde
             SELECT t.id AS turn_id,
                    ts_rank_cd(t.search_tsv, q.tsq)::real AS rank
               FROM memory.operator_turns t
-              JOIN projects.projects p ON p.id = t.project_id
               CROSS JOIN q
-             WHERE p.project_path = ",
+             WHERE t.project_id = ",
         )
-        .push_bind(project_path)
+        .push_bind(project_id)
         .push(
             "
                AND (t.opened_by IS NULL OR t.opened_by = 'operator')
@@ -102,12 +101,11 @@ fn by_fts_query(project_path: &str, text_query: &str, limit: i64) -> QueryBuilde
         .push(
             ", q.tsq)::real AS rank
               FROM memory.operator_turns t
-              JOIN projects.projects p ON p.id = t.project_id
               JOIN mike.operator_turn_text_v tx ON tx.turn_id = t.id
               CROSS JOIN q
-             WHERE p.project_path = ",
+             WHERE t.project_id = ",
         )
-        .push_bind(project_path)
+        .push_bind(project_id)
         .push(
             "
                AND (t.opened_by IS NULL OR t.opened_by = 'operator')
@@ -154,16 +152,12 @@ fn by_fts_query(project_path: &str, text_query: &str, limit: i64) -> QueryBuilde
 impl PersistHandle {
     pub(crate) async fn recall_turns_by_file(
         &self,
-        project_path: &str,
+        project: &ProjectIdentity,
         file: &str,
         limit: i64,
     ) -> Result<Vec<crate::store::operator_turns::OperatorTurnRow>, PersistError> {
-        let project_path = self
-            .resolve_knowledge_project(project_path)
-            .await?
-            .project_path;
         crate::metrics::time_db("recall_turns_by_file", async {
-            let rows = by_file_query(&project_path, file, limit)
+            let rows = by_file_query(project.id, file, limit)
                 .build_query_as::<crate::store::operator_turns::OperatorTurnRow>()
                 .fetch_all(&self.pool)
                 .await?;
@@ -174,15 +168,11 @@ impl PersistHandle {
 
     pub(crate) async fn recall_turns_by_embedding(
         &self,
-        project_path: &str,
+        project: &ProjectIdentity,
         embedding_model: &str,
         query_vec_literal: &str,
         limit: i64,
     ) -> Result<Option<Vec<RankedTurnRow>>, PersistError> {
-        let project_path = self
-            .resolve_knowledge_project(project_path)
-            .await?
-            .project_path;
         crate::metrics::time_db("recall_turns_by_embedding", async {
             let mut tx = self.pool.begin().await?;
             sqlx::query!("SET LOCAL jit = off")
@@ -192,7 +182,7 @@ impl PersistHandle {
                 .execute(&mut *tx)
                 .await?;
             set_vector_scan_limits(&mut tx).await?;
-            let rows = by_embedding_query(&project_path, embedding_model, query_vec_literal, limit)
+            let rows = by_embedding_query(project.id, embedding_model, query_vec_literal, limit)
                 .build_query_as::<RankedTurnRow>()
                 .fetch_all(&mut *tx)
                 .await?;
@@ -208,14 +198,10 @@ impl PersistHandle {
 
     pub(crate) async fn recall_turns_by_fts(
         &self,
-        project_path: &str,
+        project: &ProjectIdentity,
         query: &str,
         limit: i64,
     ) -> Result<Vec<RankedTurnRow>, PersistError> {
-        let project_path = self
-            .resolve_knowledge_project(project_path)
-            .await?
-            .project_path;
         crate::metrics::time_db("recall_turns_by_fts", async {
             let mut tx = self.pool.begin().await?;
             sqlx::query!("SET LOCAL jit = off")
@@ -224,7 +210,7 @@ impl PersistHandle {
             sqlx::query!("SET LOCAL statement_timeout = '12s'")
                 .execute(&mut *tx)
                 .await?;
-            let rows = by_fts_query(&project_path, query, limit)
+            let rows = by_fts_query(project.id, query, limit)
                 .build_query_as::<RankedTurnRow>()
                 .fetch_all(&mut *tx)
                 .await?;

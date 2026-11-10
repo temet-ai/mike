@@ -11,10 +11,16 @@ mod health;
 mod lesson_sync;
 mod location_view;
 mod locations;
+mod reference;
+#[cfg(test)]
+mod reference_tests;
 mod repo_adoption;
 mod rerank_passages;
 #[cfg(test)]
 mod rerank_passages_tests;
+mod resolve;
+#[cfg(test)]
+mod resolve_tests;
 mod search;
 mod session_binding;
 mod session_scope;

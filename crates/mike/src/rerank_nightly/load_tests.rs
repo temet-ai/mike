@@ -1,4 +1,17 @@
-use super::load::{load_per_cpu, one_minute, under_ceiling};
+use super::load::{load_per_cpu, one_minute, one_minute_from_sysctl, under_ceiling};
+
+#[test]
+fn one_minute_from_sysctl_reads_the_first_field_inside_the_braces() {
+    assert_eq!(one_minute_from_sysctl("{ 1.83 2.01 2.10 }\n"), Some(1.83));
+    assert_eq!(one_minute_from_sysctl("{0.5 0.4 0.3}"), Some(0.5));
+}
+
+#[test]
+fn one_minute_from_sysctl_unparsable_output_is_none() {
+    assert_eq!(one_minute_from_sysctl(""), None);
+    assert_eq!(one_minute_from_sysctl("{ }"), None);
+    assert_eq!(one_minute_from_sysctl("sysctl: unknown oid"), None);
+}
 
 #[test]
 fn one_minute_reads_the_first_field_of_proc_loadavg() {

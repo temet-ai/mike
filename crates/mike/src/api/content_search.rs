@@ -7,7 +7,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::config::AppState;
 use crate::store::persistence::PersistHandle;
-use crate::store::persistence::content_search::ContentSearchRow;
+use crate::store::persistence::content_search::{ContentSearchRow, PageRequest, SessionOrder};
+
+#[cfg(test)]
+#[path = "content_search_tests.rs"]
+mod content_search_tests;
 
 const CONTENT_SEARCH_MAX_QUERY_BYTES: usize = 8192;
 const DEFAULT_SESSION_LIMIT: u32 = 20;
@@ -23,6 +27,8 @@ pub(crate) struct ContentSearchParams {
     limit: Option<u32>,
     #[serde(default)]
     offset: Option<u32>,
+    #[serde(default)]
+    order: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -48,6 +54,7 @@ pub(crate) struct ContentSearchSessionDto {
     project_display_name: String,
     title: Option<String>,
     match_count: u64,
+    prompt_match_count: u64,
     turn_count: u64,
     last_match_at: DateTime<Utc>,
     matches: Vec<ContentSearchMatchDto>,
@@ -57,6 +64,7 @@ pub(crate) struct ContentSearchSessionDto {
 #[derive(Debug, Serialize)]
 pub(crate) struct ContentSearchResponse {
     query: String,
+    order: &'static str,
     total_matches: u64,
     total_sessions: u64,
     sessions: Vec<ContentSearchSessionDto>,
@@ -107,26 +115,54 @@ fn validate_query(q: &str) -> Result<(), QueryValidationError> {
     Ok(())
 }
 
+fn parse_order(order: Option<&str>) -> Result<SessionOrder, Box<Response>> {
+    let Some(order) = order else {
+        return Ok(SessionOrder::Matches);
+    };
+    SessionOrder::parse(order).ok_or_else(|| {
+        Box::new(content_search_error(
+            StatusCode::BAD_REQUEST,
+            &format!("order must be `matches` or `recent` (got `{order}`)"),
+        ))
+    })
+}
+
+async fn resolve_project(
+    handle: &PersistHandle,
+    selector: Option<&str>,
+) -> Result<Option<i64>, Response> {
+    let Some(selector) = selector.filter(|s| !s.trim().is_empty()) else {
+        return Ok(None);
+    };
+    handle
+        .resolve_knowledge_project(selector)
+        .await
+        .map(|project| Some(project.id))
+        .map_err(crate::api::project_knowledge::knowledge_error)
+}
+
 async fn fetch_search_totals(
     handle: &PersistHandle,
     q: &str,
-    project: Option<&str>,
+    project_id: Option<i64>,
 ) -> Result<crate::store::persistence::content_search::ContentSearchTotals, Response> {
-    handle.search_content_totals(q, project).await.map_err(|e| {
-        tracing::warn!(error = %e, "content_search: totals query failed");
-        content_search_error(StatusCode::INTERNAL_SERVER_ERROR, "lookup failed")
-    })
+    handle
+        .search_content_totals(q, project_id)
+        .await
+        .map_err(|e| {
+            tracing::warn!(error = %e, "content_search: totals query failed");
+            content_search_error(StatusCode::INTERNAL_SERVER_ERROR, "lookup failed")
+        })
 }
 
 async fn fetch_search_page(
     handle: &PersistHandle,
     q: &str,
-    project: Option<&str>,
-    limit: u32,
-    offset: u32,
+    project_id: Option<i64>,
+    page: &PageRequest,
 ) -> Result<Vec<ContentSearchRow>, Response> {
     handle
-        .search_content_page(q, project, i64::from(limit), i64::from(offset))
+        .search_content_page(q, project_id, page)
         .await
         .map_err(|e| {
             tracing::warn!(error = %e, "content_search: page query failed");
@@ -147,6 +183,7 @@ fn push_new_session_if_needed(sessions: &mut Vec<ContentSearchSessionDto>, row: 
         project_display_name: row.project_display_name.clone(),
         title: row.title.clone(),
         match_count: row.match_count.max(0) as u64,
+        prompt_match_count: row.prompt_match_count.max(0) as u64,
         turn_count: row.turn_count.max(0) as u64,
         last_match_at: row.last_match_at,
         matches: Vec::new(),
@@ -195,29 +232,34 @@ pub(crate) async fn search_content(
     State(state): State<AppState>,
     Query(params): Query<ContentSearchParams>,
 ) -> Response {
-    if let Err(err) = validate_query(&params.q) {
-        return query_validation_error_response(err);
+    match run_search(&state, params).await {
+        Ok(answer) => Json(answer).into_response(),
+        Err(response) => response,
     }
-    let Some(handle) = state.persist() else {
-        return content_search_error(StatusCode::SERVICE_UNAVAILABLE, "persistence unavailable");
-    };
+}
 
+async fn run_search(
+    state: &AppState,
+    params: ContentSearchParams,
+) -> Result<ContentSearchResponse, Response> {
+    validate_query(&params.q).map_err(query_validation_error_response)?;
+    let order = parse_order(params.order.as_deref()).map_err(|response| *response)?;
+    let handle = state.persist().ok_or_else(|| {
+        content_search_error(StatusCode::SERVICE_UNAVAILABLE, "persistence unavailable")
+    })?;
     let limit = params
         .limit
         .unwrap_or(DEFAULT_SESSION_LIMIT)
         .clamp(1, MAX_SESSION_LIMIT);
     let offset = params.offset.unwrap_or(0);
-    let project = params.project.as_deref();
-
-    let totals = match fetch_search_totals(handle, &params.q, project).await {
-        Ok(t) => t,
-        Err(resp) => return resp,
+    let project_id = resolve_project(handle, params.project.as_deref()).await?;
+    let totals = fetch_search_totals(handle, &params.q, project_id).await?;
+    let page = PageRequest {
+        order,
+        limit: i64::from(limit),
+        offset: i64::from(offset),
     };
-    let rows = match fetch_search_page(handle, &params.q, project, limit, offset).await {
-        Ok(r) => r,
-        Err(resp) => return resp,
-    };
-
+    let rows = fetch_search_page(handle, &params.q, project_id, &page).await?;
     let sessions = group_rows_by_session(rows, &params.q);
 
     let returned_sessions = sessions.len() as u32;
@@ -225,13 +267,13 @@ pub(crate) async fn search_content(
         u64::from(offset) + u64::from(returned_sessions) < totals.total_sessions.max(0) as u64;
     let next_offset = has_more.then_some(offset + returned_sessions);
 
-    Json(ContentSearchResponse {
+    Ok(ContentSearchResponse {
         query: params.q,
+        order: order.as_str(),
         total_matches: totals.total_matches.max(0) as u64,
         total_sessions: totals.total_sessions.max(0) as u64,
         sessions,
         has_more,
         next_offset,
     })
-    .into_response()
 }
