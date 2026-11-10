@@ -17,7 +17,7 @@ use crate::store::persistence::search_events::NewSearchEvent;
 use crate::store::persistence::search_grades::NewGrade;
 use crate::store::persistence::test_support::seed_session_turns;
 
-struct IdleOnce(AtomicUsize);
+pub(super) struct IdleOnce(pub(super) AtomicUsize);
 
 impl Idle for IdleOnce {
     async fn is_idle(&self) -> bool {
@@ -25,7 +25,7 @@ impl Idle for IdleOnce {
     }
 }
 
-struct AlwaysIdle;
+pub(super) struct AlwaysIdle;
 
 impl Idle for AlwaysIdle {
     async fn is_idle(&self) -> bool {
@@ -33,7 +33,7 @@ impl Idle for AlwaysIdle {
     }
 }
 
-fn at(hour: u32) -> DateTime<Utc> {
+pub(super) fn at(hour: u32) -> DateTime<Utc> {
     Utc.with_ymd_and_hms(2026, 11, 9, hour, 30, 0)
         .single()
         .unwrap_or_default()

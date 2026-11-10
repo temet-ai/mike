@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 use super::PersistError;
 
+mod candidates;
 pub(crate) mod cards;
 mod checkpoint;
 mod criteria;
@@ -19,6 +20,7 @@ mod validate;
 #[cfg(test)]
 mod tests;
 
+pub(crate) use candidates::{CandidateThread, NewThreadCandidate};
 pub use checkpoint::{CheckpointInput, CheckpointOutcome, StateFields};
 pub use entry::{EntryInput, EntryOutcome};
 pub use import::{ImportOutcome, ImportedEntry, ImportedState, ImportedThread};

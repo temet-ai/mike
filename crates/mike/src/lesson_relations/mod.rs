@@ -2,11 +2,16 @@ pub(crate) mod evidence;
 
 mod adjudication;
 mod detection;
+mod reranked;
 mod rules;
 mod schema;
 
 #[cfg(test)]
 mod detection_tests;
+#[cfg(test)]
+mod reranked_tests;
+
+pub(crate) use reranked::run_detection_on_reranked;
 
 use crate::llm::{LlmError, OpenRouterClient};
 use crate::store::persistence::PersistError;
@@ -118,6 +123,7 @@ pub(crate) async fn run_detection(
     distance_threshold: f64,
     project_ids: &[i64],
     dry_run: bool,
+    already_handled: &[(i64, i64)],
 ) -> Result<DetectionReport, LessonRelationsError> {
     let mut report = DetectionReport::default();
 
@@ -125,6 +131,10 @@ pub(crate) async fn run_detection(
         let pairs = persist
             .find_candidate_relation_pairs(project_id, distance_threshold)
             .await?;
+        let pairs: Vec<_> = pairs
+            .into_iter()
+            .filter(|pair| !already_handled.contains(&(pair.lesson_a_id, pair.lesson_b_id)))
+            .collect();
         report.candidate_pairs_considered += pairs.len();
 
         for pair in &pairs {

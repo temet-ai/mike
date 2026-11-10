@@ -54,6 +54,10 @@ async fn retrieve_with(
     input: &KnowledgeQuery,
     rerank: bool,
 ) -> Result<Value, Response> {
+    let input = &KnowledgeQuery {
+        semantic_cut: state.rerank_service().ranking().semantic_cut(),
+        ..input.clone()
+    };
     let handle = state
         .persist()
         .ok_or_else(crate::api::handlers::persist_unavailable_response)?;

@@ -123,3 +123,92 @@ async fn card_inputs_for_unknown_thread_are_empty() -> anyhow::Result<()> {
     );
     Ok(())
 }
+
+async fn lesson_ref(
+    pool: &sqlx::PgPool,
+    project: i64,
+    text: &str,
+    expires: &str,
+) -> anyhow::Result<(i64, String)> {
+    let (id, uuid): (i64, Uuid) = sqlx::query_as(
+        "INSERT INTO memory.lessons (project_id, kind_id, text, stage_id, source_id, topic, expires_at)
+         SELECT $1, lk.id, $2, ls.id, lsrc.id, 'related', now() + ($3::text)::interval
+           FROM memory.lesson_kinds lk, memory.lesson_stages ls, memory.lesson_sources lsrc
+          WHERE lk.code = 'correction' AND ls.code = 'daily' AND lsrc.code = 'operator'
+      RETURNING id, uuid",
+    )
+    .bind(project)
+    .bind(text)
+    .bind(expires)
+    .fetch_one(pool)
+    .await?;
+    Ok((id, format!("lesson:{uuid}")))
+}
+
+#[tokio::test]
+async fn card_inputs_for_candidates_leave_out_expired_superseded_and_missing_items()
+-> anyhow::Result<()> {
+    let Some(f) = fixture().await? else {
+        return Ok(());
+    };
+    let thread_id = f
+        .handle
+        .checkpoint_work_thread(f.project, &titled("related-inputs", "related inputs"))
+        .await?
+        .thread
+        .id;
+    let pool = f.handle.pool();
+    let (_, live) = lesson_ref(pool, f.project, "Live lesson\nsecond line", "1 day").await?;
+    let (_, expired) = lesson_ref(pool, f.project, "Expired lesson", "-1 day").await?;
+    let (old_id, superseded) = lesson_ref(pool, f.project, "Superseded lesson", "1 day").await?;
+    let (new_id, _) = lesson_ref(pool, f.project, "Replacement lesson", "1 day").await?;
+    f.handle
+        .insert_lesson_relation(&crate::store::persistence::LessonRelationDraft {
+            from_lesson_id: new_id,
+            to_lesson_id: old_id,
+            kind: "supersedes",
+            method: "declared",
+            status: "confirmed",
+            candidate_distance: None,
+            evidence_json: serde_json::json!({}),
+            proposer_model: None,
+            proposer_rationale: None,
+            adjudicator_model: None,
+            adjudicator_agrees: None,
+            adjudicator_rationale: None,
+            detector_version: "test",
+            decided_by: Some("test"),
+        })
+        .await?;
+    let candidates: Vec<_> = [
+        (&expired, 0.95),
+        (&superseded, 0.9),
+        (&"entry:999999999".to_owned(), 0.85),
+        (&live, 0.5),
+    ]
+    .into_iter()
+    .map(
+        |(reference, score)| crate::store::persistence::work_threads::NewThreadCandidate {
+            kind: reference.split(':').next().unwrap_or_default().to_owned(),
+            reference: reference.clone(),
+            score,
+        },
+    )
+    .collect();
+    f.handle
+        .replace_thread_card_candidates(thread_id, &candidates)
+        .await?;
+
+    let inputs = f.handle.work_thread_card_inputs(&[thread_id]).await?;
+
+    let [card] = inputs.as_slice() else {
+        anyhow::bail!("expected one thread's inputs, got {}", inputs.len());
+    };
+    let related: Vec<(&str, &str)> = card
+        .related
+        .iter()
+        .map(|item| (item.reference.as_str(), item.text.as_str()))
+        .collect();
+    assert_eq!(related, vec![(live.as_str(), "Live lesson")]);
+    Ok(())
+}

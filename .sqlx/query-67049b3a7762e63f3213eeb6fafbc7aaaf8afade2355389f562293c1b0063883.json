@@ -1,0 +1,45 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.id AS \"thread_id!\", t.project_id AS \"project_id!\",\n                          concat_ws(E'\\n', NULLIF(btrim(t.title), ''), NULLIF(btrim(t.goal), ''),\n                                    NULLIF(btrim(s.tldr), ''), NULLIF(btrim(s.where_we_are), ''),\n                                    NULLIF(btrim(s.next_up), '')) AS \"query_text!\"\n                     FROM work.threads t\n                     LEFT JOIN work.thread_state s ON s.thread_id = t.id\n                    WHERE t.status IS NULL\n                       OR t.status NOT IN ('done', 'complete', 'parked', 'superseded')\n                    ORDER BY t.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "thread_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "project_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "project_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "query_text!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "67049b3a7762e63f3213eeb6fafbc7aaaf8afade2355389f562293c1b0063883"
+}

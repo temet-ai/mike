@@ -1319,6 +1319,31 @@ change per setting per night. A kept change is written with `SettingsService::se
 running service; every setting's kept change or best rejected candidate is recorded in
 `memory.search_tuning_runs`.
 
+After tuning, and under the same quiet window, idle check before each unit of work and lease, the night
+pass builds two more derived sets. `rerank_nightly/candidates.rs` visits each open work thread (any status
+but done, complete, parked or superseded): the query text is the thread's title, goal and the latest
+checkpoint's tldr, where_we_are and next_up, cut to the reranker's 600-character query cap. It runs the
+project's knowledge search for 100 candidates (the query's terms joined with `or`, so a long text matches
+documents that share any term; the embedding comes from the text as written), keeps lessons, thread entries
+(stored as `entry:<id>`), notes and turns, drops every entry of the thread itself, reranks the rest in
+chunks of 25 and replaces the thread's rows in `work.thread_card_candidates` with the top 10 in one
+transaction. A reranker failure leaves the thread's rows alone and ends the pass. The card worker
+(`memory_keeper/cards/build.rs`) reads the best three rows per thread that are still live (a lesson that
+passes the `list_injectable_lessons` predicate, a note that is not superseded, archived or rejected, an
+entry or turn that exists), ordered by score descending then reference ascending, and renders a `Related`
+section after `Unmet asks` (120 bytes; lessons show the reference and the first line cut to 80 bytes). The
+section is the first to go when the card is full and is absent when a thread has no rows, so such a card is
+byte-identical to one built before the table existed. A write to the table bumps `thread_card_sources` and
+counts as a source change, so the card is rebuilt.
+
+`rerank_nightly/lesson_pairs.rs` takes, for each project with embedded lessons, the pairs
+`find_candidate_relation_pairs` returns at the configured `lesson_relations.candidate_distance_threshold`
+plus 0.10 (capped at 0.6), at most 300 by distance, and reranks each lesson against its partners in both
+directions. Pairs whose larger score is at least 0.5 are upserted into `memory.lesson_pair_candidates`.
+`mike detect-lesson-relations` first judges the unjudged queued pairs (`run_detection_on_reranked`, highest
+score first, at most 100) through the same `detect_one_pair` as the distance pass, marks them judged, and
+tells the distance pass to skip them. The worker never writes `memory.lesson_relations`.
+
 ---
 
 ## 15. Operator-Turn Lifecycle

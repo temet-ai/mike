@@ -23,8 +23,24 @@ const READABLE_KINDS: [&str; 14] = [
     "mail",
 ];
 
-#[derive(Default, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct SemanticCut {
+    pub floor: Option<f64>,
+    pub window: Option<f64>,
+}
+
+pub(crate) fn cut_for(model_name: &str, cut: SemanticCut) -> ScoreFloor {
+    let model = score_floor_for(model_name);
+    ScoreFloor {
+        floor: cut.floor.unwrap_or(model.floor),
+        window: cut.window.unwrap_or(model.window),
+    }
+}
+
+#[derive(Clone, Default, Deserialize)]
 pub struct KnowledgeQuery {
+    #[serde(skip)]
+    pub semantic_cut: SemanticCut,
     pub project: String,
     #[serde(default)]
     pub query: String,
@@ -43,13 +59,13 @@ struct QueryVector<'a> {
 }
 
 impl<'a> QueryVector<'a> {
-    fn from(vector: Option<&'a (String, String, String)>) -> Self {
+    fn from(vector: Option<&'a (String, String, String)>, cut: SemanticCut) -> Self {
         match vector {
             Some((literal, key, name)) => Self {
                 literal: Some(literal),
                 model_key: Some(key),
                 model_name: Some(name),
-                cut: score_floor_for(name),
+                cut: cut_for(name, cut),
             },
             None => Self {
                 literal: None,
@@ -151,7 +167,7 @@ impl PersistHandle {
         if vector.is_some() {
             set_vector_scan_limits(&mut tx).await?;
         }
-        let bound = QueryVector::from(vector);
+        let bound = QueryVector::from(vector, input.semantic_cut);
         let rows = fetch_hits(&mut tx, (project_id, input), (limit, offset), &bound).await?;
         tx.commit().await?;
         Ok(rows)

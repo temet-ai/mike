@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use super::{MAX_CARD_BYTES, render};
 use crate::store::persistence::work_threads::cards::{
-    CardAsk, CardEntry, CardInputs, CardNote, CardPromise,
+    CardAsk, CardEntry, CardInputs, CardNote, CardPromise, CardRelated,
 };
 use crate::store::persistence::work_threads::{ThreadIdentity, ThreadState};
 
@@ -85,6 +85,15 @@ fn ask(turn: i64, unmet: &str) -> CardAsk {
     }
 }
 
+fn related(n: u128, score: f32, text: &str) -> CardRelated {
+    CardRelated {
+        thread_id: 1,
+        reference: format!("lesson:{}", Uuid::from_u128(n)),
+        score,
+        text: text.to_owned(),
+    }
+}
+
 fn small_inputs() -> CardInputs {
     CardInputs {
         thread: thread("mike-tui-finish"),
@@ -97,6 +106,7 @@ fn small_inputs() -> CardInputs {
             Some("I will report back once the sweep has run"),
         )],
         unmet_asks: vec![ask(41, "Show the card in the thread page")],
+        related: Vec::new(),
     }
 }
 
@@ -114,6 +124,7 @@ fn oversized_inputs(slug: &str, filler: &str) -> CardInputs {
         notes: (1..3).map(|n| note(n, &long)).collect(),
         promises: (1..3).map(|id| promise(id, Some(&long))).collect(),
         unmet_asks: (40..42).map(|turn| ask(turn, &long)).collect(),
+        related: (1..4).map(|n| related(n, 0.9, &long)).collect(),
     }
 }
 
@@ -125,7 +136,7 @@ fn bracket_groups(text: &str) -> Vec<&str> {
 }
 
 fn is_reference(token: &str) -> bool {
-    ["thread:", "entry:", "note:", "promise:", "turn:"]
+    ["thread:", "entry:", "note:", "promise:", "turn:", "lesson:"]
         .iter()
         .any(|prefix| {
             token
@@ -274,4 +285,88 @@ fn render_refs_list_each_token_once() {
     let mut deduped = refs.clone();
     deduped.dedup();
     assert_eq!(refs.len(), deduped.len());
+}
+
+#[test]
+fn render_with_related_items_adds_a_related_section_within_card_bytes() {
+    let mut inputs = small_inputs();
+    inputs.related = vec![related(
+        5,
+        0.8,
+        "Cards are rebuilt when a candidate changes",
+    )];
+    let card = render(&inputs);
+    assert!(
+        card.text
+            .contains("Related: Cards are rebuilt when a candidate changes [lesson:00000000-0000-0000-0000-000000000005]"),
+        "{}",
+        card.text
+    );
+    assert!(
+        card.text.len() <= MAX_CARD_BYTES,
+        "{} bytes",
+        card.text.len()
+    );
+    let related_at = card.text.find("Related:");
+    let footer_at = card.text.find("Full state:");
+    assert!(related_at < footer_at, "{}", card.text);
+    assert!(card.text.find("Unmet asks:") < related_at, "{}", card.text);
+}
+
+#[test]
+fn render_without_related_items_matches_the_card_without_the_section() {
+    let without = render(&small_inputs());
+    assert!(!without.text.contains("Related"), "{}", without.text);
+    let mut with_empty = small_inputs();
+    with_empty.related = Vec::new();
+    assert_eq!(render(&with_empty).text, without.text);
+    assert_eq!(render(&with_empty).content_hash, without.content_hash);
+}
+
+#[test]
+fn render_related_in_any_input_order_gives_the_same_text() {
+    let items = vec![
+        related(3, 0.5, "third by score"),
+        related(1, 0.9, "tied first"),
+        related(2, 0.9, "tied second"),
+    ];
+    let mut forward = small_inputs();
+    forward.related = items.clone();
+    let mut backward = small_inputs();
+    backward.related = items.into_iter().rev().collect();
+    assert_eq!(render(&forward).text, render(&backward).text);
+    assert_eq!(
+        render(&forward).content_hash,
+        render(&backward).content_hash
+    );
+}
+
+#[test]
+fn render_related_cuts_a_long_lesson_line_to_eighty_bytes_before_fitting() {
+    let mut inputs = small_inputs();
+    inputs.state = None;
+    inputs.related = vec![related(4, 0.7, &"lesson words ".repeat(30))];
+    let card = render(&inputs);
+    let line = card
+        .text
+        .lines()
+        .find(|line| line.starts_with("Related:"))
+        .unwrap_or_default();
+    let body = line
+        .trim_start_matches("Related: ")
+        .split(" [lesson:")
+        .next()
+        .unwrap_or_default();
+    assert!(body.len() <= 80, "{} bytes in {line:?}", body.len());
+}
+
+#[test]
+fn render_with_full_sections_and_related_candidates_keeps_the_footer() {
+    let card = render(&oversized_inputs("mike-tui-finish", "word "));
+    assert!(card.text.contains("Full state:"), "{}", card.text);
+    assert!(
+        card.text.len() <= MAX_CARD_BYTES,
+        "{} bytes",
+        card.text.len()
+    );
 }

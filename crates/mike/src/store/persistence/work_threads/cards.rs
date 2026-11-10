@@ -5,6 +5,7 @@ use uuid::Uuid;
 use super::{ThreadIdentity, ThreadState};
 
 mod inputs;
+mod related;
 mod scan;
 mod snapshot;
 mod write;
@@ -15,6 +16,7 @@ pub(crate) const DECISION_CAP: i64 = 3;
 pub(crate) const NOTE_CAP: i64 = 2;
 pub(crate) const PROMISE_CAP: i64 = 2;
 pub(crate) const ASK_CAP: i64 = 2;
+pub(crate) const RELATED_CAP: i64 = 3;
 pub(crate) const RECENT_DAYS: i32 = 14;
 
 #[derive(Debug, Clone)]
@@ -53,6 +55,14 @@ pub(crate) struct CardAsk {
     pub(crate) created_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct CardRelated {
+    pub(crate) thread_id: i64,
+    pub(crate) reference: String,
+    pub(crate) score: f32,
+    pub(crate) text: String,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct CardInputs {
     pub(crate) thread: ThreadIdentity,
@@ -62,6 +72,7 @@ pub(crate) struct CardInputs {
     pub(crate) notes: Vec<CardNote>,
     pub(crate) promises: Vec<CardPromise>,
     pub(crate) unmet_asks: Vec<CardAsk>,
+    pub(crate) related: Vec<CardRelated>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

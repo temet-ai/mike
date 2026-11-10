@@ -30,6 +30,7 @@ pub(super) async fn grade_event(
         project: event.project_uuid.to_string(),
         query: event.query.clone(),
         kind: event.kind_filter.clone(),
+        semantic_cut: state.rerank_service().ranking().semantic_cut(),
         ..KnowledgeQuery::default()
     };
     let mut rows = persist
@@ -57,7 +58,7 @@ pub(super) async fn grade_event(
     Ok(Graded::Recorded)
 }
 
-async fn embed_query(
+pub(super) async fn embed_query(
     state: &AppState,
     query: &str,
 ) -> Option<crate::api::project_knowledge::rerank_page::QueryVector> {
@@ -68,7 +69,7 @@ async fn embed_query(
     query_vector(&service, &model_key(&service), query).await
 }
 
-async fn rerank_all(
+pub(super) async fn rerank_all(
     state: &AppState,
     query: &str,
     documents: &[String],

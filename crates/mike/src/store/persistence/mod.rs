@@ -51,6 +51,7 @@ pub(crate) mod judge_ownership;
 pub mod keyset;
 pub mod launch;
 pub mod lesson_injections;
+pub(crate) mod lesson_pair_candidates;
 pub mod lesson_relations;
 pub mod lessons;
 pub(crate) mod listings;

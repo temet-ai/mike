@@ -154,6 +154,7 @@ async fn project_knowledge_search_skips_machine_turns() -> anyhow::Result<()> {
         include_historical: true,
         limit: Some(10),
         offset: None,
+        ..Default::default()
     };
     let found = fx.handle.search_project_knowledge(&query).await?;
     let references: Vec<String> = found["items"]

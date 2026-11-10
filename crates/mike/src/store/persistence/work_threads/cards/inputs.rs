@@ -4,9 +4,10 @@ use sqlx::PgPool;
 
 use super::super::WorkThreadError;
 use super::super::reads::{ThreadStateRow, identities_by_ids, states_by_ids};
+use super::related::related_items;
 use super::{
-    ASK_CAP, CardAsk, CardEntry, CardInputs, CardNote, CardPromise, DECISION_CAP, NOTE_CAP,
-    PROMISE_CAP, RECENT_DAYS,
+    ASK_CAP, CardAsk, CardEntry, CardInputs, CardNote, CardPromise, CardRelated, DECISION_CAP,
+    NOTE_CAP, PROMISE_CAP, RECENT_DAYS,
 };
 use crate::store::persistence::PersistHandle;
 
@@ -176,6 +177,7 @@ struct Gathered {
     notes: HashMap<i64, Vec<CardNote>>,
     promises: HashMap<i64, Vec<CardPromise>>,
     asks: HashMap<i64, Vec<CardAsk>>,
+    related: HashMap<i64, Vec<CardRelated>>,
 }
 
 impl Gathered {
@@ -195,6 +197,7 @@ impl Gathered {
             notes: self.notes.remove(&id).unwrap_or_default(),
             promises: self.promises.remove(&id).unwrap_or_default(),
             unmet_asks: self.asks.remove(&id).unwrap_or_default(),
+            related: self.related.remove(&id).unwrap_or_default(),
         }
     }
 }
@@ -205,13 +208,14 @@ impl PersistHandle {
         thread_ids: &[i64],
     ) -> Result<Vec<CardInputs>, WorkThreadError> {
         let pool = self.pool();
-        let (threads, states, log, notes, promises, asks) = tokio::try_join!(
+        let (threads, states, log, notes, promises, asks, related) = tokio::try_join!(
             identities_by_ids(pool, thread_ids),
             states_by_ids(pool, thread_ids),
             log_entries(pool, thread_ids),
             tagged_notes(pool, thread_ids),
             open_promises(pool, thread_ids),
             unmet_asks(pool, thread_ids),
+            related_items(pool, thread_ids),
         )?;
         let mut gathered = Gathered {
             states: states.into_iter().map(|row| (row.thread_id, row)).collect(),
@@ -219,6 +223,7 @@ impl PersistHandle {
             notes: group(notes, |note| note.thread_id),
             promises: group(promises, |promise| promise.thread_id),
             asks: group(asks, |ask| ask.thread_id),
+            related: group(related, |item| item.thread_id),
         };
         Ok(threads
             .into_iter()
