@@ -16,6 +16,7 @@ const BRANCH_WEIGHT: f64 = 0.6;
 const WORKTREE_WEIGHT: f64 = 0.5;
 const RECENT_MENTION_WEIGHT: f64 = 0.45;
 const CHECKOUT_WEIGHT: f64 = 0.4;
+const OWN_LATEST_WEIGHT: f64 = 0.3;
 
 const RECENCY_WEIGHT: f64 = 0.5;
 const RECENCY_HALF_LIFE_DAYS: f64 = 3.0;
@@ -65,6 +66,7 @@ pub(crate) enum Signal {
     ExplicitMention,
     RecentMention,
     LinkedSession,
+    OwnLatest,
     CheckoutMatch,
     SharedCheckout,
     BranchMatch,
@@ -117,6 +119,7 @@ struct Context<'a> {
     prompt_words: BTreeSet<String>,
     session: &'a SessionFacts<'a>,
     checkout_threads: usize,
+    own_latest: Option<&'a str>,
     now: DateTime<Utc>,
     ask: Ask,
 }
@@ -179,7 +182,7 @@ fn keep_on_topic(candidates: &mut Vec<Candidate>) {
     }
 }
 
-fn build_context<'a>(input: &'a ResolveInput<'a>, open: &[&ThreadFacts]) -> Context<'a> {
+fn build_context<'a>(input: &'a ResolveInput<'a>, open: &[&'a ThreadFacts]) -> Context<'a> {
     let turns = &input.session.recent_turn_text;
     let skip = turns.len().saturating_sub(RECENT_TURN_LIMIT);
     let prompt = input.prompt.unwrap_or_default();
@@ -197,6 +200,15 @@ fn build_context<'a>(input: &'a ResolveInput<'a>, open: &[&ThreadFacts]) -> Cont
             .iter()
             .filter(|thread| checkout_matches(thread, &input.session))
             .count(),
+        own_latest: open
+            .iter()
+            .filter(|thread| thread.last_session_uuid == Some(input.session.session_uuid))
+            .max_by(|a, b| {
+                a.last_checkpoint_at
+                    .cmp(&b.last_checkpoint_at)
+                    .then_with(|| b.slug.cmp(&a.slug))
+            })
+            .map(|thread| thread.slug.as_str()),
         now: input.now,
         ask,
     }
@@ -250,6 +262,11 @@ fn score_thread(thread: &ThreadFacts, ctx: &Context<'_>) -> Candidate {
             Signal::LinkedSession,
             linked(thread, ctx.session),
             LINKED_SESSION_WEIGHT,
+        ),
+        (
+            Signal::OwnLatest,
+            ctx.own_latest == Some(thread.slug.as_str()),
+            OWN_LATEST_WEIGHT,
         ),
         (
             Signal::CheckoutMatch,
