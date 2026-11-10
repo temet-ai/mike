@@ -2,6 +2,8 @@ use std::collections::BTreeMap;
 
 use serde_json::{Map, Value, json};
 
+use crate::store::persistence::project_knowledge::SemanticCut;
+
 pub(crate) mod tuning;
 
 #[cfg(test)]
@@ -76,6 +78,13 @@ impl Default for RankingConfig {
 impl RankingConfig {
     pub(crate) fn is_default(&self) -> bool {
         *self == Self::default()
+    }
+
+    pub(crate) fn semantic_cut(&self) -> SemanticCut {
+        SemanticCut {
+            floor: self.semantic_floor,
+            window: self.semantic_window,
+        }
     }
 
     pub(crate) fn kind_weight(&self, kind: &str) -> f64 {

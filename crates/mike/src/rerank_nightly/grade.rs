@@ -30,6 +30,7 @@ pub(super) async fn grade_event(
         project: event.project_uuid.to_string(),
         query: event.query.clone(),
         kind: event.kind_filter.clone(),
+        semantic_cut: state.rerank_service().ranking().semantic_cut(),
         ..KnowledgeQuery::default()
     };
     let mut rows = persist

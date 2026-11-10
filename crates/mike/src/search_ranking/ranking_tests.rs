@@ -191,6 +191,25 @@ fn seat_rows_count_half_by_default_and_never_reach_operator_weight() {
 }
 
 #[test]
+fn semantic_cut_keeps_the_model_values_unless_a_setting_overrides_them() {
+    use crate::store::persistence::project_knowledge::cut_for;
+
+    let model = cut_for("embeddinggemma", RankingConfig::default().semantic_cut());
+    let floored = cut_for(
+        "embeddinggemma",
+        config_with(KEY_SEMANTIC_FLOOR, json!(0.55)).semantic_cut(),
+    );
+    let windowed = cut_for(
+        "nomic-embed-text:latest",
+        config_with(KEY_SEMANTIC_WINDOW, json!(0.05)).semantic_cut(),
+    );
+
+    assert_eq!((model.floor, model.window), (0.45, 0.12));
+    assert_eq!((floored.floor, floored.window), (0.55, 0.12));
+    assert_eq!((windowed.floor, windowed.window), (0.60, 0.05));
+}
+
+#[test]
 fn is_default_turns_false_after_any_value_moves() {
     assert!(RankingConfig::default().is_default());
     assert!(!config_with(KEY_SEMANTIC_WEIGHT, json!(1.5)).is_default());

@@ -89,6 +89,7 @@ async fn build_thread(
     let vector = embed_query(state, &query).await;
     let input = KnowledgeQuery {
         query: lexical_query(&query),
+        semantic_cut: state.rerank_service().ranking().semantic_cut(),
         ..KnowledgeQuery::default()
     };
     let rows = persist
