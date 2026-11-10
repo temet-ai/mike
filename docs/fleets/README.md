@@ -9,10 +9,17 @@ they commit, judges their reports against the definition and closes the run. The
 
 The public user guide, published on <https://temet.ai/docs/mike/fleets/>:
 
-- [Run several sessions on one goal](../user-guide/fleets/README.md): define, start, watch and
-  stop a fleet.
-- [How a fleet runs](../user-guide/fleets/how-a-fleet-runs.md): the sessions in a fleet, the
-  shared checkout, checks, acceptance, recovery and the close.
+- [Fleets: several sessions on one goal](../user-guide/fleets/README.md): the overview, the
+  example and what a fleet needs.
+- [Run your first fleet](../user-guide/fleets/first-fleet.md),
+  [Write a fleet definition](../user-guide/fleets/definition.md),
+  [How a fleet runs](../user-guide/fleets/how-a-fleet-runs.md),
+  [Share one checkout](../user-guide/fleets/shared-checkout.md),
+  [How work is accepted](../user-guide/fleets/acceptance.md),
+  [Watch a fleet and step in](../user-guide/fleets/watch-and-recover.md) and
+  [After a run](../user-guide/fleets/after-a-run.md).
+
+The diagrams on those pages are animated SVGs in `docs/user-guide/images/fleet-*.svg`.
 
 ## For people changing mike
 
