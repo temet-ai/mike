@@ -4,6 +4,7 @@ use rmcp::model::{CallToolResult, ErrorData as RmcpError, Tool};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
+use super::text_search_find::{FIND_TEXT_SETTLE_BUDGET, find_text_settled};
 use super::{
     object_schema, order_property, parse_args_default, parse_args_required, wrap_success,
     wrap_success_with_note,
@@ -59,7 +60,7 @@ fn find_text_properties() -> Vec<(&'static str, Value)> {
             "session_id",
             json!({
                 "type": "string",
-                "description": "Scope to a session (UUID). All bodies in the session are scanned."
+                "description": "Scope to a session (UUID). The whole session is scanned in one call, or the answer says how far it got."
             }),
         ),
         (
@@ -67,7 +68,21 @@ fn find_text_properties() -> Vec<(&'static str, Value)> {
             json!({
                 "type": "string",
                 "enum": ["request", "request_sent", "response"],
-                "description": "Which captured body to search. Default `request`. Without request_id or session_id only `response` is permitted; use recall_similar_turns for unscoped request-body search."
+                "description": "Which captured text to search. Default `request` with request_id or session_id, `response` without either. Asking for `request` without a scope is an error; use recall_similar_turns to find a session by content."
+            }),
+        ),
+        (
+            "whole_bodies",
+            json!({
+                "type": "boolean",
+                "description": "Default false. Session scope with source=request only: true scans every request body in full, so history resent in each later request, system reminders included, is matched again in every request. Ignored for other sources, which always scan bodies."
+            }),
+        ),
+        (
+            "include_reminders",
+            json!({
+                "type": "boolean",
+                "description": "Default false. Session scope with source=request and whole_bodies false: true also counts matches inside <system-reminder> spans. They are skipped by default and counted in `reminder_matches_skipped`."
             }),
         ),
         (
@@ -92,7 +107,7 @@ fn find_text_properties() -> Vec<(&'static str, Value)> {
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 500,
-                "description": "Cap on returned matches. Default 50, max 500. `full_match_count` is the honest total for the scanned scope — null while `has_more` is true (see `cursor`)."
+                "description": "Cap on returned matches. Default 50, max 500. Counting continues past the cap: `full_match_count` is the true total when `scan_complete` is true and null otherwise (see `cursor`)."
             }),
         ),
         (
@@ -114,7 +129,7 @@ fn find_text_properties() -> Vec<(&'static str, Value)> {
             json!({
                 "type": "integer",
                 "minimum": 0,
-                "description": "Session scope only: resume scanning after this request id. Pass the previous call's `next_cursor` when `has_more` was true."
+                "description": "Session scope only: resume scanning after this request id. Pass the previous answer's `next_cursor` when it came back with matches and `has_more` true; an empty incomplete scan is continued for you, or returned as an error that names the cursor."
             }),
         ),
     ]
@@ -125,17 +140,29 @@ fn find_text_tool() -> Tool {
     Tool::new(
         Cow::Borrowed(TOOL_FIND_TEXT),
         Cow::Borrowed(
-            "Substring search over the raw captured bytes of request, request_sent or response bodies: \
-             the only way to find text that appears solely inside a tool call, tool result, thinking block \
-             or system prompt. Scope: `request_id` scans that one request, complete in one call; \
-             `session_id` scans the session, bounded per call (while `has_more` is true, pass \
-             `next_cursor` back as `cursor`); neither scans response bodies only (source=response, 7-day \
-             default window, widen with date_from and date_to), so pass session_id or request_id to search \
-             request bodies. Returns matches {request_id, session_id, source, byte_offset, match_length, \
-             line, column, before, matched, after}. `full_match_count` is the total for the scope scanned, \
-             or null while `has_more` is true; a 0 is not absence until `has_more` is false. Binary \
-             bodies give full_match_count 0, which is complete. For the conversation itself (operator \
-             prompts and assistant replies) use search_session_content.",
+            "Substring search over captured text: the only way to find text that appears solely inside a \
+             tool call, tool result, thinking block or system prompt. `session_id` with the default \
+             source=request reads the session's messages, each once, at the request where it first \
+             appeared (not the whole request bodies, which resend the history every turn); matches carry \
+             `message_ord` and `positions` is \"message\", so byte_offset, line and column are positions \
+             inside that message's JSON text. Matches inside <system-reminder> spans are skipped unless \
+             include_reminders is true, and the calls and results of the search tools (find_text, \
+             search_session_content, search_project_knowledge, recall_similar_turns, \
+             recall_project_context) that contain the needle are never counted (a response scan drops \
+             responses that issued such a call); both are reported in \
+             `reminder_matches_skipped` and `own_search_matches_skipped`. whole_bodies=true scans every \
+             request body in full instead (`positions` \"body\"). source=response and request_sent always \
+             scan bodies. `request_id` scans that one request. With neither id the search reads response \
+             bodies (7-day default window, widen with date_from and date_to); asking for source=request \
+             without an id is an error. A session scan covers the whole session in one call or reports \
+             `scan_complete` false with `requests_scanned`, `requests_total`, `has_more` and `next_cursor` \
+             (pass it back as `cursor`). An empty `matches` always means the whole scope was scanned: an \
+             incomplete empty scan is continued for up to 30 seconds and then returned as an error naming \
+             the cursor. `full_match_count` is the true total when `scan_complete` is true, else null. \
+             Matches: {request_id, message_ord (message scans), session_id, source, byte_offset, \
+             match_length, line, column, before, matched, after}. Binary bodies give 0, which is complete. \
+             For the conversation itself (operator prompts and assistant replies) use \
+             search_session_content.",
         ),
         schema,
     )
@@ -305,6 +332,10 @@ pub(crate) struct FindTextArgs {
     pub(crate) date_to: Option<String>,
     #[serde(default)]
     pub(crate) cursor: Option<u64>,
+    #[serde(default)]
+    pub(crate) whole_bodies: Option<bool>,
+    #[serde(default)]
+    pub(crate) include_reminders: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -342,8 +373,8 @@ pub(crate) struct ListToolErrorsArgs {
     pub(crate) cursor: Option<String>,
 }
 
-fn find_text_query(args: &FindTextArgs) -> Vec<(&'static str, String)> {
-    let mut query: Vec<(&'static str, String)> = Vec::with_capacity(9);
+pub(super) fn find_text_query(args: &FindTextArgs) -> Vec<(&'static str, String)> {
+    let mut query: Vec<(&'static str, String)> = Vec::with_capacity(11);
     query.push(("needle", args.needle.clone()));
     if let Some(rid) = args.request_id {
         query.push(("request_id", rid.to_string()));
@@ -371,6 +402,12 @@ fn find_text_query(args: &FindTextArgs) -> Vec<(&'static str, String)> {
     }
     if let Some(c) = args.cursor {
         query.push(("cursor", c.to_string()));
+    }
+    if let Some(whole) = args.whole_bodies {
+        query.push(("whole_bodies", whole.to_string()));
+    }
+    if let Some(include) = args.include_reminders {
+        query.push(("include_reminders", include.to_string()));
     }
     query
 }
@@ -433,11 +470,7 @@ pub(crate) async fn call_tool(
     match name {
         TOOL_FIND_TEXT => {
             let args = parse_args_required::<FindTextArgs>(arguments)?;
-            let query = find_text_query(&args);
-            let value = client
-                .get_json("/api/body/find", &query)
-                .await
-                .map_err(McpError::into_rmcp)?;
+            let value = find_text_settled(client, args, FIND_TEXT_SETTLE_BUDGET).await?;
             Ok(wrap_success("find", value))
         }
         TOOL_SEARCH_SESSION_CONTENT => {

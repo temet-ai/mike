@@ -103,6 +103,44 @@ impl PersistHandle {
         )
         .await
     }
+    pub(crate) async fn find_first_appearance_messages(
+        &self,
+        session_db_id: i64,
+        request_ids: &[i64],
+        needle: &str,
+        case_sensitive: bool,
+    ) -> Result<Vec<rehydrate::FirstAppearanceMessage>, PersistError> {
+        crate::metrics::time_db(
+            "find_first_appearance_messages",
+            rehydrate::find_first_appearance_messages(
+                &self.pool,
+                session_db_id,
+                request_ids,
+                needle,
+                case_sensitive,
+            ),
+        )
+        .await
+    }
+    pub(crate) async fn find_own_search_request_ids(
+        &self,
+        request_ids: &[i64],
+        needle: &str,
+        case_sensitive: bool,
+        tool_name_suffixes: &[String],
+    ) -> Result<Vec<i64>, PersistError> {
+        crate::metrics::time_db(
+            "find_own_search_request_ids",
+            rehydrate::find_own_search_request_ids(
+                &self.pool,
+                request_ids,
+                needle,
+                case_sensitive,
+                tool_name_suffixes,
+            ),
+        )
+        .await
+    }
     pub(crate) async fn search_content_totals(
         &self,
         query: &str,

@@ -14,6 +14,7 @@ mod session_search;
 mod session_summary;
 mod streaming;
 mod text_search;
+mod text_search_messages;
 mod workflow;
 
 #[cfg(test)]
@@ -33,4 +34,5 @@ pub use session_search::*;
 pub use session_summary::*;
 pub(crate) use streaming::*;
 pub(crate) use text_search::*;
+pub(crate) use text_search_messages::*;
 pub(crate) use workflow::*;

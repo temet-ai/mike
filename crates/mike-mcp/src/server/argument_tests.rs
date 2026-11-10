@@ -43,6 +43,42 @@ async fn dispatch_tool_find_text_query_is_sent_as_needle_and_reported() -> anyho
 }
 
 #[tokio::test]
+async fn dispatch_tool_find_text_whole_bodies_and_include_reminders_are_declared_and_passed_through()
+-> anyhow::Result<()> {
+    let mock = MockServer::start().await;
+    Mock::given(any())
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "matches": [], "scan_complete": true, "full_match_count": 0
+        })))
+        .mount(&mock)
+        .await;
+
+    server(&mock)
+        .dispatch_tool(
+            "find_text",
+            args(json!({
+                "needle": "abc",
+                "session_id": "11111111-1111-4111-8111-111111111111",
+                "whole_bodies": true,
+                "include_reminders": true
+            })),
+        )
+        .await?;
+
+    let requests = mock
+        .received_requests()
+        .await
+        .ok_or_else(|| anyhow::anyhow!("mock did not record requests"))?;
+    let query = requests
+        .first()
+        .and_then(|sent| sent.url.query())
+        .ok_or_else(|| anyhow::anyhow!("no request reached the inspect API"))?;
+    assert!(query.contains("whole_bodies=true"), "{query}");
+    assert!(query.contains("include_reminders=true"), "{query}");
+    Ok(())
+}
+
+#[tokio::test]
 async fn dispatch_tool_unknown_argument_is_refused_without_an_http_call() -> anyhow::Result<()> {
     let mock = MockServer::start().await;
     let error = server(&mock)

@@ -122,7 +122,11 @@ async fn find_text_scoped_by_session_id_returns_session_matches() -> anyhow::Res
 
     let resp = reqwest::Client::new()
         .get(format!("{inspect_url}/api/body/find"))
-        .query(&[("needle", needle), ("session_id", session_id)])
+        .query(&[
+            ("needle", needle),
+            ("session_id", session_id),
+            ("whole_bodies", "true"),
+        ])
         .send()
         .await?;
     anyhow::ensure!(
@@ -207,6 +211,7 @@ async fn find_text_scoped_session_request_source_finds_needle_in_any_request() -
             ("needle", old_needle),
             ("session_id", session_id),
             ("source", "request"),
+            ("whole_bodies", "true"),
         ])
         .send()
         .await?;
@@ -244,6 +249,7 @@ async fn find_text_scoped_session_request_source_finds_needle_in_any_request() -
             ("needle", latest_needle),
             ("session_id", session_id),
             ("source", "request"),
+            ("whole_bodies", "true"),
         ])
         .send()
         .await?;

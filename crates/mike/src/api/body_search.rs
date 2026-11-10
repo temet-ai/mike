@@ -18,50 +18,54 @@ pub(crate) fn find_in_str(
     context_bytes: u32,
     max_matches: u32,
 ) -> (u64, Vec<TextMatch>) {
+    let offsets = match_offsets(haystack, needle, case_sensitive);
+    let matches = offsets
+        .iter()
+        .take(max_matches as usize)
+        .map(|&offset| text_match_at(haystack, offset, needle.len(), context_bytes))
+        .collect();
+    (offsets.len() as u64, matches)
+}
+
+pub(crate) fn match_offsets(haystack: &str, needle: &str, case_sensitive: bool) -> Vec<usize> {
     if needle.is_empty() {
-        return (0, Vec::new());
+        return Vec::new();
     }
-
-    let context_window = context_bytes as usize;
-    let max_matches_usize = max_matches as usize;
-    let needle_len = needle.len();
-
-    let mut matches: Vec<TextMatch> = Vec::with_capacity(max_matches_usize.min(64));
-    let mut full_count: u64 = 0;
-
     let (search_haystack, search_needle): (String, String) = if case_sensitive {
         (haystack.to_string(), needle.to_string())
     } else {
         (haystack.to_ascii_lowercase(), needle.to_ascii_lowercase())
     };
-
+    let mut offsets = Vec::new();
     let mut start = 0usize;
     while start <= search_haystack.len() {
         let Some(rel) = search_haystack[start..].find(&search_needle) else {
             break;
         };
         let absolute = start + rel;
-        full_count = full_count.saturating_add(1);
-
-        if matches.len() < max_matches_usize {
-            let matched = &haystack[absolute..absolute + needle_len];
-            let before = slice_before(haystack, absolute, context_window);
-            let after = slice_after(haystack, absolute + needle_len, context_window);
-            let (line, column) = line_column_for_offset(haystack, absolute);
-            matches.push(TextMatch {
-                byte_offset: absolute as u64,
-                match_length: u32::try_from(needle_len).unwrap_or(u32::MAX),
-                line,
-                column,
-                before: before.to_string(),
-                matched: matched.to_string(),
-                after: after.to_string(),
-            });
-        }
-        start = absolute + needle_len.max(1);
+        offsets.push(absolute);
+        start = absolute + needle.len().max(1);
     }
+    offsets
+}
 
-    (full_count, matches)
+pub(crate) fn text_match_at(
+    haystack: &str,
+    absolute: usize,
+    needle_len: usize,
+    context_bytes: u32,
+) -> TextMatch {
+    let context_window = context_bytes as usize;
+    let (line, column) = line_column_for_offset(haystack, absolute);
+    TextMatch {
+        byte_offset: absolute as u64,
+        match_length: u32::try_from(needle_len).unwrap_or(u32::MAX),
+        line,
+        column,
+        before: slice_before(haystack, absolute, context_window).to_string(),
+        matched: haystack[absolute..absolute + needle_len].to_string(),
+        after: slice_after(haystack, absolute + needle_len, context_window).to_string(),
+    }
 }
 
 fn slice_before(haystack: &str, match_start: usize, window: usize) -> &str {
@@ -173,6 +177,31 @@ mod tests {
         let (_, matches) = find_in_str(h, "match", true, 0, 10);
         assert_eq!(matches[0].line, 3);
         assert_eq!(matches[0].column, 7);
+    }
+
+    #[test]
+    fn match_offsets_lists_every_non_overlapping_start() {
+        assert_eq!(match_offsets("abcabcabc", "abc", true), vec![0, 3, 6]);
+        assert_eq!(match_offsets("aaaa", "aa", true), vec![0, 2]);
+        assert!(match_offsets("abc", "", true).is_empty());
+    }
+
+    #[test]
+    fn match_offsets_case_insensitive_folds_ascii_only() {
+        assert_eq!(match_offsets("Foo fOO", "foo", false), vec![0, 4]);
+        assert!(match_offsets("Foo fOO", "foo", true).is_empty());
+    }
+
+    #[test]
+    fn text_match_at_carries_line_column_and_context() {
+        let h = "one\ntwo match three";
+        let m = text_match_at(h, 8, 5, 3);
+        assert_eq!(m.byte_offset, 8);
+        assert_eq!(m.line, 2);
+        assert_eq!(m.column, 5);
+        assert_eq!(m.matched, "match");
+        assert_eq!(m.before, "wo ");
+        assert_eq!(m.after, " th");
     }
 
     #[test]

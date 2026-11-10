@@ -6,69 +6,32 @@ use serde_json::Value;
 
 use super::support::{PAGE_SIZE, ensure_parents, seed_request_with_body};
 
-async fn scan_all_pages_accumulating_matches(
+async fn scan_whole_bodies_once(
     client: &reqwest::Client,
     inspect_url: &str,
     needle: &str,
     session_id: &str,
-) -> anyhow::Result<(Vec<Value>, u32)> {
-    let mut page: Value = client
+) -> anyhow::Result<Value> {
+    let resp = client
         .get(format!("{inspect_url}/api/body/find"))
         .query(&[
             ("needle", needle),
             ("session_id", session_id),
             ("source", "request"),
+            ("whole_bodies", "true"),
         ])
         .send()
-        .await?
-        .json()
         .await?;
-
-    let mut accumulated_matches: Vec<Value> = Vec::new();
-    let mut pages_scanned = 1;
-    loop {
-        let has_more = page["has_more"].as_bool();
-        if has_more == Some(true) {
-            anyhow::ensure!(
-                page["full_match_count"].is_null(),
-                "an incomplete session scan must report full_match_count:null, never a page-scoped zero: {page}"
-            );
-        }
-        let page_matches = page["matches"]
-            .as_array()
-            .ok_or_else(|| anyhow::anyhow!("matches must be an array: {page}"))?;
-        accumulated_matches.extend(page_matches.iter().cloned());
-
-        if has_more != Some(true) {
-            break;
-        }
-        let cursor = page["next_cursor"]
-            .as_u64()
-            .ok_or_else(|| anyhow::anyhow!("has_more:true page missing next_cursor: {page}"))?;
-        page = client
-            .get(format!("{inspect_url}/api/body/find"))
-            .query(&[
-                ("needle", needle),
-                ("session_id", session_id),
-                ("source", "request"),
-                ("cursor", &cursor.to_string()),
-            ])
-            .send()
-            .await?
-            .json()
-            .await?;
-        pages_scanned += 1;
-        anyhow::ensure!(
-            pages_scanned <= 5,
-            "runaway pagination — did not converge: {page}"
-        );
-    }
-
-    Ok((accumulated_matches, pages_scanned))
+    anyhow::ensure!(
+        resp.status().is_success(),
+        "call returned {}",
+        resp.status()
+    );
+    Ok(resp.json().await?)
 }
 
 #[tokio::test]
-async fn request_source_session_scope_finds_needle_earlier_request_scope_finds()
+async fn request_source_whole_bodies_scope_finds_needle_earlier_request_scope_finds()
 -> anyhow::Result<()> {
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -86,7 +49,7 @@ async fn request_source_session_scope_finds_needle_earlier_request_scope_finds()
 
     let Some(proxy) = db_helpers::start_proxy_with_shared_db(&upstream.uri()).await? else {
         eprintln!(
-            "MIKE_TEST_ADMIN_URL unset; skipping request_source_session_scope_finds_needle_earlier_request_scope_finds"
+            "MIKE_TEST_ADMIN_URL unset; skipping request_source_whole_bodies_scope_finds_needle_earlier_request_scope_finds"
         );
         return Ok(());
     };
@@ -124,24 +87,27 @@ async fn request_source_session_scope_finds_needle_earlier_request_scope_finds()
         "control: request-scope must find the needle directly in request {needle_id}: {request_scope}"
     );
 
-    let (accumulated_matches, pages_scanned) =
-        scan_all_pages_accumulating_matches(&client, &inspect_url, needle, session_id).await?;
+    let answer = scan_whole_bodies_once(&client, &inspect_url, needle, session_id).await?;
 
+    let matches = answer["matches"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("matches must be an array: {answer}"))?;
     anyhow::ensure!(
-        accumulated_matches.len() == 1,
-        "session-scope must find exactly the 1 needle across all pages — issues #100/#109/#127 \
-         regression: session scope reported authoritative zero for a needle request-scope found. \
-         accumulated matches: {accumulated_matches:?}"
+        matches.len() == 1 && matches[0]["request_id"].as_u64() == Some(needle_id as u64),
+        "session scope must find the one needle in the request that holds it ({needle_id}) in a \
+         single call, not report an absence for it: {answer}"
     );
     anyhow::ensure!(
-        accumulated_matches[0]["request_id"].as_u64() == Some(needle_id as u64),
-        "the match must be attributed to the request that actually holds it ({needle_id}): \
-         {accumulated_matches:?}"
+        answer["scan_complete"].as_bool() == Some(true)
+            && answer["full_match_count"].as_u64() == Some(1)
+            && answer["requests_total"].as_u64() == Some(PAGE_SIZE as u64 + 1),
+        "{} requests span more than one {PAGE_SIZE}-request window and must be covered in one \
+         call: {answer}",
+        PAGE_SIZE + 1
     );
     anyhow::ensure!(
-        pages_scanned >= 2,
-        "expected the scan to span at least 2 pages (61 requests > {PAGE_SIZE}-request page size), \
-         got {pages_scanned} — the test no longer exercises pagination"
+        answer["positions"].as_str() == Some("body"),
+        "whole_bodies positions are body offsets: {answer}"
     );
 
     shutdown.cancel();

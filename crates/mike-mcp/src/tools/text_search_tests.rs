@@ -1,6 +1,9 @@
 use serde_json::{Map, Value, json};
 
-use super::{SearchSessionContentArgs, search_session_content_query, search_session_content_tool};
+use super::{
+    FindTextArgs, SearchSessionContentArgs, find_text_query, find_text_tool,
+    search_session_content_query, search_session_content_tool,
+};
 
 fn arguments(value: Value) -> anyhow::Result<Map<String, Value>> {
     match value {
@@ -19,6 +22,54 @@ fn search_session_content_schema_declares_order_with_both_values() -> anyhow::Re
         .ok_or_else(|| anyhow::anyhow!("`order` is not in the schema"))?;
 
     assert_eq!(order["enum"], json!(["matches", "recent"]));
+    Ok(())
+}
+
+#[test]
+fn find_text_schema_declares_whole_bodies_and_include_reminders_as_booleans() -> anyhow::Result<()>
+{
+    let tool = find_text_tool();
+    let properties = tool
+        .input_schema
+        .get("properties")
+        .ok_or_else(|| anyhow::anyhow!("no properties in the schema"))?;
+
+    assert_eq!(properties["whole_bodies"]["type"], json!("boolean"));
+    assert_eq!(properties["include_reminders"]["type"], json!("boolean"));
+    Ok(())
+}
+
+#[test]
+fn find_text_query_passes_whole_bodies_and_include_reminders_through() -> anyhow::Result<()> {
+    let args: FindTextArgs = serde_json::from_value(
+        json!({"needle": "abc", "whole_bodies": true, "include_reminders": false}),
+    )?;
+
+    let query = find_text_query(&args);
+
+    assert!(
+        query.contains(&("whole_bodies", "true".to_owned())),
+        "{query:?}"
+    );
+    assert!(
+        query.contains(&("include_reminders", "false".to_owned())),
+        "{query:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn find_text_query_without_the_new_arguments_leaves_defaults_to_the_server() -> anyhow::Result<()> {
+    let args: FindTextArgs = serde_json::from_value(json!({"needle": "abc"}))?;
+
+    let query = find_text_query(&args);
+
+    assert!(
+        query
+            .iter()
+            .all(|(name, _)| *name != "whole_bodies" && *name != "include_reminders"),
+        "{query:?}"
+    );
     Ok(())
 }
 
