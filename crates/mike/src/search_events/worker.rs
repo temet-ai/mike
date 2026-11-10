@@ -36,6 +36,17 @@ pub(super) async fn run_pass(persist: &PersistHandle) {
     if !persist.holds_worker_role(LEASE_ROLE, PASS_INTERVAL).await {
         return;
     }
+    attribute_callers(persist).await;
+    mark_used(persist).await;
+}
+
+async fn attribute_callers(persist: &PersistHandle) {
+    if let Err(error) = persist.attribute_search_callers().await {
+        tracing::warn!(error = %error, "search_events: caller attribution failed");
+    }
+}
+
+async fn mark_used(persist: &PersistHandle) {
     match persist.mark_used_search_references(USED_BATCH).await {
         Ok(pass) => report(&pass),
         Err(error) => tracing::warn!(error = %error, "search_events: used-mark pass failed"),

@@ -174,9 +174,11 @@ pub(crate) fn local_router(state: AppState, policy: host_guard::LocalAccessPolic
         StatusCode::REQUEST_TIMEOUT,
         INSPECT_TIMEOUT,
     ));
-    let waited_for = fleets::register_waited(Router::new()).route_layer(
-        TimeoutLayer::with_status_code(StatusCode::REQUEST_TIMEOUT, WAITED_TIMEOUT),
-    );
+    let waited = knowledge::register_waited(fleets::register_waited(Router::new()));
+    let waited_for = waited.route_layer(TimeoutLayer::with_status_code(
+        StatusCode::REQUEST_TIMEOUT,
+        WAITED_TIMEOUT,
+    ));
 
     answered_at_once
         .merge(waited_for)

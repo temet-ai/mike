@@ -76,6 +76,10 @@ pub(super) const ROUTES: &[RouteEntry] = &[
     ),
 ];
 
+pub(super) fn register_waited(router: Router<AppState>) -> Router<AppState> {
+    router.route("/api/knowledge/rerank-pass", post(api::rerank_pass))
+}
+
 pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
     router
         .route("/api/knowledge/projects", post(api::define_project))
@@ -90,7 +94,6 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
         )
         .route("/api/knowledge/search", get(api::search))
         .route("/api/knowledge/read", get(api::read))
-        .route("/api/knowledge/rerank-pass", post(api::rerank_pass))
         .route(
             "/api/knowledge/lessons",
             get(api::lesson_files).post(api::import_lesson),
