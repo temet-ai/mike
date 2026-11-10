@@ -105,6 +105,19 @@ fn search_entries() -> Vec<SettingMeta> {
             0,
             20,
         ),
+        meta(
+            Entry {
+                key: "rerank.search_no_project",
+                group: SEARCH_GROUP,
+                applies: SettingApplies::NextMessage,
+                default: json!(true),
+                label: "Also search sessions with no project",
+                description: "A reranked search also draws candidates from sessions started outside any project, such as in the home folder, and the reranker ranks both together.",
+            },
+            SettingKind::Bool,
+            (None, None),
+            (None, None),
+        ),
     ]
 }
 
