@@ -111,7 +111,7 @@ fn resolve_continue_prompt_fixture_names_the_thread_worked_on_and_rarely_a_wrong
         grade(&row, &mut tally);
     }
     ensure!(
-        tally.right >= 9 && tally.wrong <= 2 && tally.spoke_unasked == 0,
+        tally.right >= 10 && tally.wrong <= 1 && tally.spoke_unasked == 0,
         "resolver regressed on the continue-prompt fixture: {tally:?}"
     );
     Ok(())

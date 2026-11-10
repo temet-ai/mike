@@ -83,6 +83,43 @@ fn resolve_slug_named_in_prompt_wins_over_fresher_thread() -> Result<()> {
 }
 
 #[test]
+fn resolve_status_prompt_naming_slug_words_beats_a_fresher_thread_whose_goal_names_them()
+-> Result<()> {
+    let mut sibling = thread(
+        "compression-and-tui-blocks",
+        "compression-and-tui-blocks",
+        0,
+    );
+    sibling.goal = "Compression toolset, claimed from the execute-triage-map owner".to_owned();
+    let threads = [
+        thread("execute-triage-map", "execute-triage-map", 5),
+        sibling,
+    ];
+    let pick = expect_one(run(
+        Some("whats the status of the triage map?"),
+        session(),
+        &threads,
+    ))?;
+    assert_eq!(pick.slug, "execute-triage-map");
+    Ok(())
+}
+
+#[test]
+fn resolve_status_prompt_sharing_only_single_words_with_slugs_keeps_both_on_topic() -> Result<()> {
+    let threads = [
+        thread("getting-started-guide", "Getting Started guide", 1),
+        thread("tui-design-system", "TUI Design", 1),
+    ];
+    let resolution = run(
+        Some("continue getting the system in shape"),
+        session(),
+        &threads,
+    );
+    assert!(!matches!(resolution, Resolution::One(_)), "{resolution:?}");
+    Ok(())
+}
+
+#[test]
 fn resolve_ticket_in_prompt_matches_thread_title_without_continuation() -> Result<()> {
     let threads = [
         thread("supplier-export", "PROJ-1529 supplier charge export", 12),

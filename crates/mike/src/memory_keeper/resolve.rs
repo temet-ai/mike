@@ -27,6 +27,7 @@ const WORD_WEIGHT: f64 = 0.2;
 const WORD_COUNT_CAP: usize = 3;
 const WORD_OVERLAP_FLOOR: usize = 2;
 const MIN_SINGLE_WORD_SLUG_CHARS: usize = 6;
+const MIN_SLUG_PHRASE_PARTS: usize = 2;
 
 const OPEN_STATUSES: &[&str] = &["active", "implementing", "review", "in-progress"];
 const DEFAULT_BRANCHES: &[&str] = &["main", "master"];
@@ -127,6 +128,7 @@ struct Context<'a> {
 struct Candidate {
     pick: Pick,
     shared_words: usize,
+    name_words: usize,
 }
 
 impl Candidate {
@@ -179,6 +181,10 @@ fn keep_on_topic(candidates: &mut Vec<Candidate>) {
     let top = candidates.iter().map(|c| c.shared_words).max().unwrap_or(0);
     if top > 0 {
         candidates.retain(|c| c.shared_words == top || c.has(|s| s == Signal::ExplicitMention));
+    }
+    let top_name = candidates.iter().map(|c| c.name_words).max().unwrap_or(0);
+    if top_name > 0 {
+        candidates.retain(|c| c.name_words == top_name || c.has(|s| s == Signal::ExplicitMention));
     }
 }
 
@@ -313,6 +319,7 @@ fn score_thread(thread: &ThreadFacts, ctx: &Context<'_>) -> Candidate {
             signals,
         },
         shared_words,
+        name_words: name_word_count(thread, ctx),
     }
 }
 
@@ -327,6 +334,19 @@ fn distinctive(slug: &str) -> &str {
 fn shared_word_count(thread: &ThreadFacts, ctx: &Context<'_>) -> usize {
     let thread_words = tokenize(&format!("{} {} {}", thread.slug, thread.title, thread.goal));
     thread_words.intersection(&ctx.prompt_words).count()
+}
+
+fn name_word_count(thread: &ThreadFacts, ctx: &Context<'_>) -> usize {
+    let lower = thread.slug.to_lowercase();
+    let parts: Vec<&str> = lower.split('-').filter(|part| !part.is_empty()).collect();
+    (MIN_SLUG_PHRASE_PARTS..=parts.len())
+        .rev()
+        .find(|&len| {
+            parts
+                .windows(len)
+                .any(|run| ctx.prompt.mentions_phrase(&run.join(" ")))
+        })
+        .unwrap_or(0)
 }
 
 fn linked(thread: &ThreadFacts, session: &SessionFacts<'_>) -> bool {
