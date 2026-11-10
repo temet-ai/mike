@@ -181,6 +181,20 @@ fn resolve_two_equally_linked_threads_give_several_by_slug() -> Result<()> {
 }
 
 #[test]
+fn resolve_session_linked_to_several_threads_picks_the_one_it_checkpointed_last() -> Result<()> {
+    let mut older = linked_thread("alpha-rollout", 1);
+    older.last_session_uuid = Some(Uuid::from_u128(ME));
+    let mut latest = linked_thread("beta-cleanup", 1);
+    latest.last_session_uuid = Some(Uuid::from_u128(ME));
+    latest.last_checkpoint_at += chrono::Duration::hours(1);
+    let threads = [older, latest, linked_thread("gamma-work", 1)];
+    let pick = expect_one(run(Some("where are we?"), session(), &threads))?;
+    assert_eq!(pick.slug, "beta-cleanup");
+    assert!(pick.signals.contains(&Signal::OwnLatest));
+    Ok(())
+}
+
+#[test]
 fn resolve_two_threads_known_only_by_recency_abstain() {
     let threads = [
         thread("zeta-work", "Zeta work", 1),
