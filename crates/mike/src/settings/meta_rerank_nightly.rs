@@ -1,7 +1,10 @@
 use serde_json::{Value, json};
 
 use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
-use crate::analysis::rerank::{DEFAULT_RESCUE_MIN_KEPT, DEFAULT_RESCUE_SCORE, RerankNightly};
+use crate::analysis::rerank::{
+    DEFAULT_COLD_TIMEOUT_MS, DEFAULT_MIN_QUERY_WORDS, DEFAULT_RESCUE_MIN_KEPT,
+    DEFAULT_RESCUE_SCORE, RerankNightly,
+};
 
 const SEARCH_GROUP: &str = "Reranker";
 const NIGHT_GROUP: &str = "Overnight reranking";
@@ -103,6 +106,30 @@ fn search_entries() -> Vec<SettingMeta> {
                 description: "A reranked search always keeps this many of its best-scored results, so a search with real candidates never comes back empty.",
             },
             0,
+            20,
+        ),
+        int(
+            Entry {
+                key: "rerank.cold_timeout_ms",
+                group: SEARCH_GROUP,
+                applies: SettingApplies::NextMessage,
+                default: json!(DEFAULT_COLD_TIMEOUT_MS),
+                label: "Reranker cold-start timeout (ms)",
+                description: "How long a search waits for a reranker that is loading its model, or that may have unloaded since the last search, before it returns its plain order. A search never waits longer than this plus the reranker timeout in total.",
+            },
+            1_000,
+            30_000,
+        ),
+        int(
+            Entry {
+                key: "rerank.min_query_words",
+                group: SEARCH_GROUP,
+                applies: SettingApplies::NextMessage,
+                default: json!(DEFAULT_MIN_QUERY_WORDS),
+                label: "Fewest words in a reranked query",
+                description: "A query with fewer words than this keeps its plain order and is not reranked. 1 reranks every query.",
+            },
+            1,
             20,
         ),
         meta(

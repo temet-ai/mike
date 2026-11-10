@@ -126,6 +126,32 @@ async fn recall_similar_turns_with_a_loading_reranker_keeps_plain_order() -> any
 }
 
 #[tokio::test]
+async fn recall_similar_turns_with_fewer_words_than_the_setting_keeps_plain_order()
+-> anyhow::Result<()> {
+    let harness = Harness::boot().await?;
+    let seeded = seed_turns(&harness).await?;
+    let plain = turn_ids(&recall(&harness, &seeded, None).await?);
+    harness.enable_rerank(800);
+    harness
+        .state
+        .rerank_service()
+        .apply_setting("rerank.min_query_words", &json!(3));
+    harness.reranker_prefers_later_documents(None).await;
+
+    let answer = recall(&harness, &seeded, None).await?;
+
+    assert_eq!(turn_ids(&answer), plain);
+    assert_eq!(answer["rerank"]["state"], "off");
+    assert!(
+        answer["rerank"]["detail"]
+            .as_str()
+            .is_some_and(|d| d.contains("fewer than 3 words"))
+    );
+    assert!(harness.rerank_requests().await?.is_empty());
+    harness.cleanup().await
+}
+
+#[tokio::test]
 async fn recall_similar_turns_with_rerank_disabled_reports_off_and_calls_nothing()
 -> anyhow::Result<()> {
     let harness = Harness::boot().await?;

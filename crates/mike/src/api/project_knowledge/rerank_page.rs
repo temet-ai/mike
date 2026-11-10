@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use serde_json::{Value, json};
 
-use crate::api::rerank_search::{RerankReport, arrange, candidates_wanted, score};
+use crate::api::rerank_search::{
+    RerankReport, arrange, candidates_wanted, score, short_query_report,
+};
 use crate::config::AppState;
 use crate::search_ranking::{Candidate, RankingConfig, order};
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, ProjectIdentity, search_page};
@@ -26,6 +28,9 @@ pub(super) async fn search(
     }
     if input.query.trim().is_empty() {
         let report = RerankReport::off("there is no query to rerank against");
+        return plain(handle, input, vector, report).await;
+    }
+    if let Some(report) = candidates.and_then(|_| short_query_report(state, &input.query)) {
         return plain(handle, input, vector, report).await;
     }
     let limit = input.limit.unwrap_or(20).clamp(1, 100);
@@ -64,7 +69,7 @@ pub(super) async fn search(
         Some(candidates) => {
             match rerank_rows(state, handle, input, vector, candidates, rows).await {
                 Ok((arranged, report)) => match &rescue {
-                    Some((_, cut)) => (super::rescue::keep(arranged, *cut), report),
+                    Some((_, cut)) => super::rescue::keep_reporting(arranged, *cut, report),
                     None => (arranged, report),
                 },
                 Err(report) => return plain(handle, input, vector, report).await,

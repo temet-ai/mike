@@ -46,6 +46,7 @@ impl Harness {
         let service = self.state.rerank_service();
         service.apply_setting("rerank.url", &json!(self.reranker.uri()));
         service.apply_setting("rerank.timeout_ms", &json!(timeout_ms));
+        service.apply_setting("rerank.cold_timeout_ms", &json!(timeout_ms));
         service.apply_setting("rerank.enabled", &json!(true));
     }
 

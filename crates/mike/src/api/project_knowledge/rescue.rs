@@ -1,6 +1,7 @@
 use serde_json::Value;
 
 use crate::analysis::embeddings::ScoreFloor;
+use crate::api::rerank_search::RerankReport;
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, SemanticCut, cut_for};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -29,6 +30,17 @@ pub(super) fn pool_query(
         ..input.clone()
     };
     (pool, cut)
+}
+
+pub(super) fn keep_reporting(
+    arranged: Vec<(Value, Option<f32>)>,
+    rescue: Rescue,
+    report: RerankReport,
+) -> (Vec<(Value, Option<f32>)>, RerankReport) {
+    let before = arranged.len();
+    let kept = keep(arranged, rescue);
+    let left_out = before - kept.len();
+    (kept, report.with_left_out(left_out, rescue.score))
 }
 
 pub(super) fn keep(

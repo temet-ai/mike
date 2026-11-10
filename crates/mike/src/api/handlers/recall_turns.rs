@@ -46,7 +46,7 @@ pub(crate) async fn recall_similar_turns(
         .unwrap_or(RECALL_SIMILAR_TURNS_DEFAULT_LIMIT)
         .clamp(1, RECALL_SIMILAR_TURNS_MAX_LIMIT);
 
-    let (fetch, candidates) = recall_turns_rerank::rows_to_fetch(&state, limit);
+    let (fetch, candidates) = recall_turns_rerank::rows_to_fetch(&state, limit, &body.query);
     let (rows, used_embedding) = recall_rows_hybrid(handle, &state, &body, fetch).await?;
     let (ranked, rerank) =
         recall_turns_rerank::rerank_turns(&state, &body.query, rows, candidates).await;

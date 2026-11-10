@@ -107,6 +107,7 @@ async fn knowledge_search_with_rerank_enabled_reorders_items_and_reports_reranke
     assert_eq!(references(&answer), expected);
     assert_eq!(answer["rerank"]["state"], "reranked");
     assert_eq!(answer["rerank"]["ready_in_s"], 0);
+    assert_eq!(answer["rerank"]["left_out"], 0);
     assert!(answer["rerank"].get("detail").is_none());
     assert!(
         answer["items"][0]["rerank_score"]
@@ -312,5 +313,67 @@ async fn knowledge_search_with_an_unknown_session_id_records_a_null_session() ->
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].session_id, None);
     assert_eq!(events[0].rerank_state, "off");
+    harness.cleanup().await
+}
+
+#[tokio::test]
+async fn knowledge_search_with_fewer_words_than_the_setting_keeps_plain_order_and_says_why()
+-> anyhow::Result<()> {
+    let harness = Harness::boot().await?;
+    let project = seed_project_with_documents(&harness).await?;
+    let plain = plain_order(&harness, &project).await?;
+    harness.enable_rerank(800);
+    harness
+        .state
+        .rerank_service()
+        .apply_setting("rerank.min_query_words", &json!(3));
+    harness.reranker_prefers_later_documents(None).await;
+
+    let (status, answer) = harness
+        .get(&format!(
+            "/api/knowledge/search?project={project}&query=cache%20warm"
+        ))
+        .await?;
+
+    assert!(status.is_success(), "{answer}");
+    assert_eq!(references(&answer), plain);
+    assert_eq!(answer["rerank"]["state"], "off");
+    assert!(
+        answer["rerank"]["detail"]
+            .as_str()
+            .is_some_and(|d| { d.contains("fewer than 3 words") && d.ends_with("plain order") })
+    );
+    assert!(harness.rerank_requests().await?.is_empty());
+    harness.cleanup().await
+}
+
+#[tokio::test]
+async fn knowledge_search_with_a_one_word_query_is_reranked_by_default() -> anyhow::Result<()> {
+    let harness = Harness::boot().await?;
+    let project = seed_project_with_documents(&harness).await?;
+    harness.enable_rerank(800);
+    harness.reranker_prefers_later_documents(None).await;
+
+    let (_, answer) = harness.get(&search_route(&project, "")).await?;
+
+    assert_eq!(answer["rerank"]["state"], "reranked");
+    assert_eq!(harness.rerank_requests().await?.len(), 1);
+    harness.cleanup().await
+}
+
+#[tokio::test]
+async fn knowledge_search_with_the_setting_back_at_one_reranks_a_short_query() -> anyhow::Result<()>
+{
+    let harness = Harness::boot().await?;
+    let project = seed_project_with_documents(&harness).await?;
+    harness.enable_rerank(800);
+    let service = harness.state.rerank_service();
+    service.apply_setting("rerank.min_query_words", &json!(3));
+    service.apply_setting("rerank.min_query_words", &json!(1));
+    harness.reranker_prefers_later_documents(None).await;
+
+    let (_, answer) = harness.get(&search_route(&project, "")).await?;
+
+    assert_eq!(answer["rerank"]["state"], "reranked");
     harness.cleanup().await
 }

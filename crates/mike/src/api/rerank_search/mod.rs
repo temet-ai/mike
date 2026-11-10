@@ -9,6 +9,11 @@ use crate::semantic::egress::allow_rerank;
 pub(crate) mod harness;
 #[cfg(test)]
 mod rerank_search_tests;
+mod short_query;
+#[cfg(test)]
+mod short_query_tests;
+
+pub(crate) use short_query::short_query_report;
 
 pub(crate) const COLD_START_ESTIMATE_SECS: u64 = 4;
 
@@ -40,6 +45,8 @@ pub(crate) struct RerankReport {
     pub(crate) ready_in_s: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) detail: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) left_out: Option<usize>,
 }
 
 impl RerankReport {
@@ -48,7 +55,24 @@ impl RerankReport {
             state: RerankState::Reranked,
             ready_in_s: Some(0),
             detail: None,
+            left_out: Some(0),
         }
+    }
+
+    pub(crate) fn with_left_out(mut self, count: usize, line: f64) -> Self {
+        self.left_out = Some(count);
+        if count > 0 {
+            let noun = if count == 1 {
+                "candidate"
+            } else {
+                "candidates"
+            };
+            self.detail = Some(format!(
+                "{count} {noun} scored below the relevance line {line} and {} left out",
+                if count == 1 { "was" } else { "were" }
+            ));
+        }
+        self
     }
 
     pub(crate) fn off(reason: &str) -> Self {
@@ -56,6 +80,7 @@ impl RerankReport {
             state: RerankState::Off,
             ready_in_s: None,
             detail: Some(format!("{reason}; {PLAIN_ORDER}")),
+            left_out: None,
         }
     }
 
@@ -72,6 +97,7 @@ impl RerankReport {
                 detail: Some(format!(
                     "the reranker is loading, ready in about {COLD_START_ESTIMATE_SECS} s; {PLAIN_ORDER}"
                 )),
+                left_out: None,
             },
             other => Self::unavailable(&unavailable_reason(other)),
         }
@@ -82,6 +108,7 @@ impl RerankReport {
             state: RerankState::Unavailable,
             ready_in_s: None,
             detail: Some(format!("{reason}; {PLAIN_ORDER}")),
+            left_out: None,
         }
     }
 
