@@ -2586,7 +2586,7 @@ with `store/persistence/search_events/mark_used.sql`. Deleting a session deletes
 
 ### `memory.search_grades`
 
-Added in `20261109175000_search_grades.sql`. One row per graded `search_project_knowledge` event, written by
+Added in `20261109185000_search_grades.sql`. One row per graded `search_project_knowledge` event, written by
 the `rerank_nightly` worker (`rerank_nightly/grade.rs`; SQL `store/persistence/search_grades/`). Deleting
 an event deletes its grade.
 
@@ -2603,7 +2603,7 @@ an event deletes its grade.
 
 ### `memory.search_tuning_runs`
 
-Added in `20261109175000_search_grades.sql`. One row per ranking setting the overnight tuner tried in a run
+Added in `20261109185000_search_grades.sql`. One row per ranking setting the overnight tuner tried in a run
 (the kept change, or the best rejected candidate).
 
 | Column | Type | Purpose |
