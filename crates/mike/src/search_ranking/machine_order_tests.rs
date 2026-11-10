@@ -2,13 +2,13 @@ use serde_json::json;
 
 use super::{Candidate, RankingConfig, SEAT_BASE_WEIGHT, order, order_by_position};
 
-fn candidate(reference: &str, kind: &str, machine: bool) -> Candidate {
+fn candidate(reference: &str, kind: &str, ranked_lower: bool) -> Candidate {
     Candidate {
         reference: reference.to_owned(),
         kind: kind.to_owned(),
         lexical: 0.5,
         semantic: 0.5,
-        machine,
+        ranked_lower,
     }
 }
 
@@ -30,9 +30,9 @@ fn order_by_position_with_equal_weights_keeps_the_rerank_order() {
 }
 
 #[test]
-fn order_by_position_with_only_machine_rows_keeps_the_rerank_order() {
+fn order_by_position_with_only_ranked_lower_rows_keeps_the_rerank_order() {
     let candidates: Vec<Candidate> = (0..6)
-        .map(|index| candidate(&format!("mail:{index}"), "mail", true))
+        .map(|index| candidate(&format!("thread:{index}"), "thread", true))
         .collect();
 
     let order = order_by_position(&candidates, &RankingConfig::default());
@@ -41,7 +41,7 @@ fn order_by_position_with_only_machine_rows_keeps_the_rerank_order() {
 }
 
 #[test]
-fn order_by_position_moves_a_machine_row_the_reranker_put_first_below_operator_rows() {
+fn order_by_position_moves_a_ranked_lower_row_the_reranker_put_first_below_operator_rows() {
     let candidates = vec![
         candidate("note:brief", "note", true),
         candidate("turn:1", "turn", false),
@@ -51,6 +51,21 @@ fn order_by_position_moves_a_machine_row_the_reranker_put_first_below_operator_r
     let order = order_by_position(&candidates, &RankingConfig::default());
 
     assert_eq!(order, vec![1, 2, 0]);
+}
+
+#[test]
+fn order_by_position_keeps_a_mail_row_the_reranker_put_first_above_operator_rows() {
+    let mail = Candidate::from_row(&json!({"reference":"mail:1","source_kind":"mail",
+        "provenance":{"written_by":"machine"}}));
+    let candidates = vec![
+        mail,
+        candidate("turn:1", "turn", false),
+        candidate("turn:2", "turn", false),
+    ];
+
+    let order = order_by_position(&candidates, &RankingConfig::default());
+
+    assert_eq!(order, vec![0, 1, 2]);
 }
 
 #[test]
@@ -71,14 +86,15 @@ fn order_by_position_on_an_empty_list_returns_nothing() {
 }
 
 #[test]
-fn weight_of_a_machine_row_that_is_not_a_seat_row_is_the_seat_base_weight() -> anyhow::Result<()> {
-    let config = kind_weights(json!({"mail": 2.0}))?;
+fn weight_of_a_ranked_lower_row_that_is_not_a_seat_row_is_the_seat_base_weight()
+-> anyhow::Result<()> {
+    let config = kind_weights(json!({"thread": 2.0}))?;
 
     assert_eq!(
-        config.weight(&candidate("mail:a", "mail", true)),
+        config.weight(&candidate("thread:a", "thread", true)),
         SEAT_BASE_WEIGHT
     );
-    assert_eq!(config.weight(&candidate("mail:a", "mail", false)), 2.0);
+    assert_eq!(config.weight(&candidate("thread:a", "thread", false)), 2.0);
     Ok(())
 }
 
@@ -95,7 +111,7 @@ fn weight_of_a_seat_row_is_the_weight_configured_for_its_kind() -> anyhow::Resul
 }
 
 #[test]
-fn order_sorts_a_machine_turn_below_an_operator_turn_that_matches_equally() {
+fn order_sorts_a_ranked_lower_turn_below_an_operator_turn_that_matches_equally() {
     let candidates = vec![
         candidate("turn:machine", "turn", true),
         candidate("turn:operator", "turn", false),
@@ -105,13 +121,23 @@ fn order_sorts_a_machine_turn_below_an_operator_turn_that_matches_equally() {
 }
 
 #[test]
-fn from_row_marks_a_row_written_by_a_machine_and_every_seat_row() {
-    let machine = json!({"reference":"note:1","source_kind":"note",
+fn order_keeps_a_mail_row_level_with_an_operator_turn_that_matches_equally() {
+    let mail = Candidate::from_row(&json!({"reference":"mail:1","source_kind":"mail",
+        "lexical_rank":0.5,"semantic_rank":0.5,"provenance":{"written_by":"machine"}}));
+    let candidates = vec![mail, candidate("turn:operator", "turn", false)];
+
+    assert_eq!(order(&candidates, &RankingConfig::default()), vec![0, 1]);
+}
+
+#[test]
+fn from_row_reads_ranked_lower_and_ignores_the_machine_label() {
+    let lowered = json!({"reference":"note:1","source_kind":"note",
+        "provenance":{"written_by":"machine","ranked_lower":true}});
+    let mail = json!({"reference":"mail:1","source_kind":"mail",
         "provenance":{"written_by":"machine"}});
-    let seat = json!({"reference":"seat:1","source_kind":"seat","provenance":{}});
     let operator = json!({"reference":"turn:1","source_kind":"turn","provenance":{}});
 
-    assert!(Candidate::from_row(&machine).machine);
-    assert!(Candidate::from_row(&seat).machine);
-    assert!(!Candidate::from_row(&operator).machine);
+    assert!(Candidate::from_row(&lowered).ranked_lower);
+    assert!(!Candidate::from_row(&mail).ranked_lower);
+    assert!(!Candidate::from_row(&operator).ranked_lower);
 }

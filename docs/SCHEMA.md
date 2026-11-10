@@ -1885,6 +1885,7 @@ Operator/agent-authored memory entries scoped to a project. Pulled by `recall_pr
 - `idx_lessons_injectable_project`: `(project_id, agent_id, stage_id, created_at DESC) WHERE stage IN (2,3) AND NOT archived AND project IS NOT NULL` (BTree partial)
 - `idx_lessons_embedding`: `embedding vector_cosine_ops WHERE NOT NULL` HNSW m=16 ef=64 — semantic lesson recall
 - `idx_lessons_topic`: `(project_id, topic) WHERE topic IS NOT NULL AND archived_at IS NULL` (BTree partial) — exact-match topic recall
+- `idx_lessons_text_tsv`: `to_tsvector('english', text)` (GIN expression index, created concurrently by `20261110110002_lessons_text_search_index.sql`) — the knowledge search's lesson branch asks it for matching lessons instead of scanning every lesson
 
 ---
 
@@ -2482,8 +2483,8 @@ embedding source. Read by `read.sql`, `search.sql`, `guidance.sql`, `pending_emb
 **Constraints:**
 - UNIQUE `(document_uuid, id)` — the target of the deferred `knowledge_current_revision` FK
 
-**Indexes:** none. `knowledge_revision_search` (GIN over `search_tsv`, 338 MB, unusable behind the OR in
-`search.sql`) was dropped by `20260930010100_drop_knowledge_revision_search.sql`.
+**Indexes:**
+- `idx_knowledge_revisions_search_tsv`: `search_tsv` (GIN), created concurrently by `20261110110001_knowledge_revisions_search_index.sql`. The search now asks the index for matching revisions and joins them back by id, so the index reads the stored vectors and not the bodies. An earlier index of the same kind, `knowledge_revision_search` (338 MB, unusable behind the OR in the then-current `search.sql`), was dropped by `20260930010100_drop_knowledge_revision_search.sql`.
 
 ---
 
@@ -5490,6 +5491,7 @@ parse still gets a row rather than vanishing. `project_merge.rs` moves threads w
 | `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
 | `updated_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
 | `goal` | `TEXT NULL` | What the thread is for, in a sentence or two; not part of the replaced-whole state (`20261022120000`) |
+| `search_tsv` | `TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', title \|\| E'\n' \|\| slug \|\| E'\n' \|\| goal)) STORED` | Each part wrapped in `COALESCE(.., '')`; read by `project_knowledge/search.sql` with the state's vector, so the search no longer builds the thread text on every call (`20261110110000_knowledge_search_stored_text.sql`) |
 
 **Constraints:**
 - `threads_slug_not_blank`: `length(trim(slug)) > 0`
@@ -5526,6 +5528,7 @@ index is partial, so a query must repeat `WHERE embedding IS NOT NULL` to use it
 | `source_updated_at` | `TIMESTAMPTZ NULL` | Worklog mtime when the embedding was taken, so unchanged text is not re-embedded |
 | `decisions` | `TEXT NOT NULL DEFAULT ''` | Decisions in force, replaced whole like the other fields (`20261022120000`) |
 | `files` | `TEXT[] NOT NULL DEFAULT '{}'` | Files the next session must read, relative to the project root (`20261022120000`) |
+| `search_tsv` | `TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', tldr \|\| E'\n' \|\| where_we_are \|\| E'\n' \|\| next_up \|\| E'\n' \|\| blockers \|\| E'\n' \|\| open_questions \|\| E'\n' \|\| decisions)) STORED` | Each part wrapped in `COALESCE(.., '')`; read by `project_knowledge/search.sql` together with `work.threads.search_tsv` (`20261110110000_knowledge_search_stored_text.sql`) |
 
 **Constraints:**
 - `thread_state_embedding_consistent`: `embedding`, `embedded_at` and `embedding_model` all NULL or all non-NULL

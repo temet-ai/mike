@@ -73,22 +73,33 @@ struct QueryVector<'a> {
     model_key: Option<&'a str>,
     model_name: Option<&'a str>,
     cut: ScoreFloor,
+    nearest_first: bool,
 }
 
 impl<'a> QueryVector<'a> {
-    fn from(vector: Option<&'a (String, String, String)>, cut: SemanticCut) -> Self {
+    fn cut_bounds(&self) -> [f64; 2] {
+        [self.cut.floor, self.cut.window]
+    }
+
+    fn from(
+        vector: Option<&'a (String, String, String)>,
+        cut: SemanticCut,
+        nearest_first: bool,
+    ) -> Self {
         match vector {
             Some((literal, key, name)) => Self {
                 literal: Some(literal),
                 model_key: Some(key),
                 model_name: Some(name),
                 cut: cut_for(name, cut),
+                nearest_first,
             },
             None => Self {
                 literal: None,
                 model_key: None,
                 model_name: None,
                 cut: ScoreFloor::NO_CUT,
+                nearest_first: false,
             },
         }
     }
@@ -131,8 +142,8 @@ fn fetch_hits<'a>(
         bound.literal,
         bound.model_key,
         bound.model_name,
-        &[bound.cut.floor, bound.cut.window],
-        input.any_term,
+        &bound.cut_bounds(),
+        &[input.any_term, bound.nearest_first],
         scope.caller,
         &scope.openings,
         &scope.identifiers,
@@ -209,17 +220,24 @@ impl PersistHandle {
         offset: i64,
         vector: Option<&(String, String, String)>,
     ) -> Result<Vec<Value>, PersistError> {
+        let nearest_first = match vector {
+            Some((_, model_key, _)) => self.knowledge_nearest_first(project_id, model_key).await?,
+            None => false,
+        };
         let mut tx = self.pool().begin().await?;
         if vector.is_some() {
             set_vector_scan_limits(&mut tx).await?;
         }
-        let bound = QueryVector::from(vector, input.semantic_cut);
+        let bound = QueryVector::from(vector, input.semantic_cut, nearest_first);
         let scope = CallScope::of(input);
-        let rows = fetch_hits(
-            &mut tx,
-            (project_id, input),
-            (limit + 1, offset),
-            (&bound, &scope),
+        let rows = crate::metrics::time_db(
+            "knowledge_search",
+            fetch_hits(
+                &mut tx,
+                (project_id, input),
+                (limit + 1, offset),
+                (&bound, &scope),
+            ),
         )
         .await?;
         tx.commit().await?;

@@ -20,12 +20,11 @@ WITH own_turn AS (
       AND e.source_hash IS NOT DISTINCT FROM src.source_hash
       AND e.model_key = NULL AND e.completed_at IS NOT NULL AND NULL::text IS NOT NULL
 ), nearest_first AS (
-    SELECT (SELECT count(*) FROM knowledge_scope) * 5
-           >= (SELECT reltuples FROM pg_class WHERE oid = 'memory.knowledge_embedding_state'::regclass) AS enabled
+    SELECT (ARRAY[false,true]::bool[]::bool[])[2] AS enabled
 ), nearest_knowledge_chunks AS MATERIALIZED (
     SELECT c.state_id, c.embedding <=> NULL::text::public.vector AS distance
     FROM memory.knowledge_embedding_chunks c
-    WHERE (SELECT enabled FROM nearest_first)
+    WHERE (SELECT enabled FROM nearest_first) AND NULL::text IS NOT NULL
     ORDER BY c.embedding <=> NULL::text::public.vector
     LIMIT 1000
 ), semantic_chunks AS (
@@ -36,9 +35,35 @@ WITH own_turn AS (
      ORDER BY c.embedding <=> NULL::text::public.vector
      LIMIT 200)
     UNION ALL
-    (SELECT s.reference, 1 - n.distance
-     FROM nearest_knowledge_chunks n JOIN knowledge_scope s ON s.state_id = n.state_id
-     ORDER BY n.distance
+    (SELECT p.reference, p.score
+     FROM (
+         SELECT s.reference, 1 - n.distance AS score, n.distance
+         FROM nearest_knowledge_chunks n
+         JOIN memory.knowledge_embedding_state e ON e.id = n.state_id
+         CROSS JOIN LATERAL (
+             SELECT src.reference
+             FROM memory.knowledge_embedding_sources_v src
+             WHERE src.source_kind = e.source_kind AND src.source_id = e.source_id
+               AND src.project_id = 993478
+               AND e.source_updated_at IS NOT DISTINCT FROM src.source_updated_at
+               AND e.source_seq IS NOT DISTINCT FROM src.source_seq
+               AND e.source_hash IS NOT DISTINCT FROM src.source_hash
+             OFFSET 0) s
+         WHERE e.model_key = NULL AND e.completed_at IS NOT NULL AND NULL::text IS NOT NULL
+           AND e.source_kind <> 'artifact'
+         UNION ALL
+         SELECT 'artifact:' || r.id, 1 - n.distance, n.distance
+         FROM nearest_knowledge_chunks n
+         JOIN memory.knowledge_embedding_state e ON e.id = n.state_id AND e.source_kind = 'artifact'
+         JOIN memory.knowledge_revisions r ON r.id = e.source_id
+         JOIN memory.knowledge_documents d
+           ON d.document_uuid = r.document_uuid AND d.current_revision = r.id AND d.deleted_at IS NULL
+         JOIN memory.knowledge_sources s ON s.source_uuid = d.source_uuid
+         JOIN projects.locations loc ON loc.location_uuid = s.location_uuid AND loc.project_id = 993478
+         WHERE e.model_key = NULL AND e.completed_at IS NOT NULL AND NULL::text IS NOT NULL
+           AND e.source_updated_at IS NULL AND e.source_seq IS NULL AND e.source_hash IS NULL
+     ) p
+     ORDER BY p.distance
      LIMIT 200)
     UNION ALL
     (SELECT 'turn:' || c.turn_id, 1 - (c.chunk_embedding <=> NULL::text::public.vector)
@@ -55,7 +80,7 @@ WITH own_turn AS (
                 = CASE WHEN NULL::text IN ('memory', 'skill') THEN 'artifact' ELSE NULL::text END)
             AND NOT EXISTS (SELECT 1 FROM own_refs o WHERE o.reference = semantic_chunks.reference)
           GROUP BY reference) per_reference
-    WHERE score >= GREATEST((ARRAY[NULL,NULL]::float8[]::float8[])[1], best - (ARRAY[NULL,NULL]::float8[]::float8[])[2])
+    WHERE score >= GREATEST((ARRAY[0.0,1.0]::float8[]::float8[])[1], best - (ARRAY[0.0,1.0]::float8[]::float8[])[2])
 ), idents AS (
     SELECT h.txt, h.pos, h.is_hash,
            '(^|[^[:alnum:]])' || regexp_replace(h.txt, '([^[:alnum:]])', '\\\1', 'g')
@@ -71,8 +96,9 @@ WITH own_turn AS (
     WHERE numnode(i.tsq) > 0
 ), q AS (
     SELECT base.tsq,
-           CASE WHEN ident_tsq.tsq IS NULL THEN base.tsq ELSE base.tsq || ident_tsq.tsq END AS match_tsq
-      FROM (SELECT CASE WHEN false::bool AND strpos(w::text, '!') = 0 AND numnode(w) > 0
+           CASE WHEN ident_tsq.tsq IS NULL THEN base.tsq ELSE base.tsq || ident_tsq.tsq END AS match_tsq,
+           ident_tsq.tsq AS ident_tsq
+      FROM (SELECT CASE WHEN (ARRAY[false,true]::bool[]::bool[])[1] AND strpos(w::text, '!') = 0 AND numnode(w) > 0
                         THEN replace(w::text, ' & ', ' | ')::tsquery ELSE w END AS tsq
               FROM websearch_to_tsquery('english', 'reranker') w) base
      CROSS JOIN ident_tsq
@@ -104,8 +130,15 @@ WITH own_turn AS (
          WHERE f.reason IS NOT NULL
      ) fr
      WHERE sl.project_id = 993478
+), bound AS (
+    -- The page needs the best N = limit + offset rows. A row beyond position M in both the words and the
+    -- meaning list scores below 2/(60 + M), under half of the worst possible score of the N-th row (half,
+    -- because rows ranked lower count at 0.5), so only the best M of each list, and the newest M of the
+    -- rows without any score (an empty query), are kept.
+    SELECT 4 * (51::bigint + 0::bigint) + 180 AS m
 ), candidates AS (
-    SELECT 'artifact:' || r.id AS reference, 'artifact' AS source_kind, r.title,
+    SELECT COALESCE(r.search_tsv @@ q.ident_tsq, false) AS is_ident,
+           'artifact:' || r.id AS reference, 'artifact' AS source_kind, r.title,
            r.status, d.relative_path AS path, r.observed_at AS updated_at,
            ts_rank_cd(r.search_tsv, q.tsq) AS rank, COALESCE(sem.score, 0) AS semantic_rank,
            jsonb_build_object('document_uuid', d.document_uuid, 'revision', r.id,
@@ -115,16 +148,31 @@ WITH own_turn AS (
            r.body AS body, NULL::jsonb AS author,
            s.name || ':' || d.relative_path AS dedupe_key,
            NULL::bigint AS turn_id, NULL::text AS turn_prompt, false AS answered
-      FROM memory.knowledge_documents d
+      FROM (SELECT h.id FROM memory.knowledge_revisions h
+             WHERE 'reranker' <> '' AND h.search_tsv @@ (SELECT match_tsq FROM q)
+            UNION
+            SELECT split_part(s2.reference, ':', 2)::bigint FROM semantic s2
+             WHERE s2.reference LIKE 'artifact:%'
+            UNION
+            (SELECT d0.current_revision FROM memory.knowledge_documents d0
+              JOIN memory.knowledge_sources s0 ON s0.source_uuid = d0.source_uuid
+              JOIN projects.locations l0 ON l0.location_uuid = s0.location_uuid
+              JOIN memory.knowledge_revisions r0 ON r0.id = d0.current_revision
+             WHERE 'reranker' = '' AND l0.project_id = 993478
+             ORDER BY r0.observed_at DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
+      JOIN memory.knowledge_revisions r ON r.id = hit.id
+      JOIN memory.knowledge_documents d ON d.document_uuid = r.document_uuid AND d.current_revision = r.id
       JOIN memory.knowledge_sources s ON s.source_uuid = d.source_uuid
       JOIN projects.locations loc ON loc.location_uuid = s.location_uuid
       JOIN source_freshness sf ON sf.source_uuid = s.source_uuid
-      JOIN memory.knowledge_revisions r ON r.id = d.current_revision CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'artifact:' || r.id
+      CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'artifact:' || r.id
      WHERE loc.project_id = 993478 AND ('reranker' = '' OR r.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
+       AND (NULL::text IS NULL OR NULL::text = 'artifact')
        AND s.name NOT IN ('claude-memory', 'skills')
        AND (false OR (d.deleted_at IS NULL AND r.status NOT IN ('superseded', 'archived', 'rejected')))
     UNION ALL
-    SELECT 'artifact:' || r.id AS reference,
+    SELECT COALESCE(r.search_tsv @@ q.ident_tsq, false),
+           'artifact:' || r.id AS reference,
            CASE s.name WHEN 'claude-memory' THEN 'memory' ELSE 'skill' END AS source_kind, r.title,
            r.status, d.relative_path AS path, r.observed_at AS updated_at,
            ts_rank_cd(r.search_tsv, q.tsq) AS rank, COALESCE(sem.score, 0) AS semantic_rank,
@@ -135,62 +183,113 @@ WITH own_turn AS (
            r.body AS body, NULL::jsonb AS author,
            s.name || ':' || d.relative_path AS dedupe_key,
            NULL::bigint AS turn_id, NULL::text AS turn_prompt, false AS answered
-      FROM memory.knowledge_documents d
+      FROM (SELECT h.id FROM memory.knowledge_revisions h
+             WHERE 'reranker' <> '' AND h.search_tsv @@ (SELECT match_tsq FROM q)
+            UNION
+            SELECT split_part(s2.reference, ':', 2)::bigint FROM semantic s2
+             WHERE s2.reference LIKE 'artifact:%'
+            UNION
+            (SELECT d0.current_revision FROM memory.knowledge_documents d0
+              JOIN memory.knowledge_sources s0 ON s0.source_uuid = d0.source_uuid
+              JOIN projects.locations l0 ON l0.location_uuid = s0.location_uuid
+              JOIN memory.knowledge_revisions r0 ON r0.id = d0.current_revision
+             WHERE 'reranker' = '' AND l0.project_id = 993478
+             ORDER BY r0.observed_at DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
+      JOIN memory.knowledge_revisions r ON r.id = hit.id
+      JOIN memory.knowledge_documents d ON d.document_uuid = r.document_uuid AND d.current_revision = r.id
       JOIN memory.knowledge_sources s ON s.source_uuid = d.source_uuid
       JOIN projects.locations loc ON loc.location_uuid = s.location_uuid
       JOIN source_freshness sf ON sf.source_uuid = s.source_uuid
-      JOIN memory.knowledge_revisions r ON r.id = d.current_revision CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'artifact:' || r.id
+      CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'artifact:' || r.id
      WHERE loc.project_id = 993478 AND ('reranker' = '' OR r.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
+       AND (NULL::text IS NULL OR NULL::text IN ('memory', 'skill'))
        AND s.name IN ('claude-memory', 'skills')
        AND (false OR (d.deleted_at IS NULL AND r.status NOT IN ('superseded', 'archived', 'rejected')))
     UNION ALL
-    SELECT 'lesson:' || l.uuid, 'lesson', btrim(split_part(btrim(l.text), E'\n', 1)), st.code,
+    SELECT COALESCE(to_tsvector('english', l.text) @@ q.ident_tsq, false),
+           'lesson:' || l.uuid, 'lesson', btrim(split_part(btrim(l.text), E'\n', 1)), st.code,
            NULL, l.created_at,
            ts_rank_cd(to_tsvector('english', l.text), q.tsq), COALESCE(sem.score, 0),
            jsonb_build_object('lesson_id', l.id, 'lesson_kind', k.code, 'topic', l.topic,
              'source_turn_id', l.source_turn_id),
            l.text, NULL::jsonb, 'lesson:' || l.uuid, NULL, NULL, false
-      FROM memory.lessons l JOIN memory.lesson_kinds k ON k.id = l.kind_id
+      FROM (SELECT h.id FROM memory.lessons h
+             WHERE 'reranker' <> '' AND h.project_id = 993478 AND to_tsvector('english', h.text) @@ (SELECT match_tsq FROM q)
+            UNION
+            SELECT l0.id FROM semantic s2 JOIN memory.lessons l0 ON l0.uuid = substr(s2.reference, 8)::uuid
+             WHERE s2.reference LIKE 'lesson:%'
+            UNION
+            SELECT h.id FROM memory.lessons h WHERE 'reranker' = '' AND h.project_id = 993478) hit
+      JOIN memory.lessons l ON l.id = hit.id
+      JOIN memory.lesson_kinds k ON k.id = l.kind_id
       JOIN memory.lesson_stages st ON st.id = l.stage_id
       LEFT JOIN superseded sup ON sup.to_lesson_id = l.id CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'lesson:' || l.uuid
-     WHERE l.project_id = 993478 AND ('reranker' = '' OR to_tsvector('english', l.text) @@ q.match_tsq OR sem.score IS NOT NULL)
+     WHERE l.project_id = 993478 AND (NULL::text IS NULL OR NULL::text = 'lesson')
+       AND ('reranker' = '' OR to_tsvector('english', l.text) @@ q.match_tsq OR sem.score IS NOT NULL)
        AND (false OR (l.archived_at IS NULL AND (l.expires_at IS NULL OR l.expires_at > now())
          AND sup.to_lesson_id IS NULL))
     UNION ALL
-    SELECT 'note:' || n.note_uuid, 'note', n.title, COALESCE(n.status, 'unknown'), NULL,
+    SELECT COALESCE(n.search_tsv @@ q.ident_tsq, false),
+           'note:' || n.note_uuid, 'note', n.title, COALESCE(n.status, 'unknown'), NULL,
            n.updated_at, ts_rank_cd(n.search_tsv, q.tsq), COALESCE(sem.score, 0),
            jsonb_build_object('session_uuid', ss.session_uuid, 'kind', n.kind, 'tags', n.tags),
            n.body, jsonb_build_object('role', 'session', 'session_uuid', ss.session_uuid,
              'session_title', ss.title),
            'note:' || n.note_uuid, NULL, NULL, false
-      FROM workspace.session_notes n JOIN sessions.sessions ss ON ss.id = n.session_id CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'note:' || n.note_uuid
-     WHERE ss.project_id = 993478 AND ('reranker' = '' OR n.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
+      FROM (SELECT h.id FROM workspace.session_notes h
+             WHERE 'reranker' <> '' AND h.search_tsv @@ (SELECT match_tsq FROM q)
+            UNION
+            SELECT n0.id FROM semantic s JOIN workspace.session_notes n0 ON n0.note_uuid = substr(s.reference, 6)::uuid
+             WHERE s.reference LIKE 'note:%'
+            UNION
+            (SELECT h.id FROM workspace.session_notes h JOIN sessions.sessions hs ON hs.id = h.session_id
+             WHERE 'reranker' = '' AND hs.project_id = 993478
+             ORDER BY h.updated_at DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
+      JOIN workspace.session_notes n ON n.id = hit.id
+      JOIN sessions.sessions ss ON ss.id = n.session_id CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'note:' || n.note_uuid
+     WHERE ss.project_id = 993478 AND (NULL::text IS NULL OR NULL::text = 'note')
+       AND ('reranker' = '' OR n.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
        AND (false OR COALESCE(n.status, '') NOT IN ('superseded', 'archived', 'rejected'))
     UNION ALL
-    SELECT 'turn:' || t.id, 'turn', COALESCE(t.user_prompt, ''), 'historical', NULL,
+    SELECT COALESCE(t.search_tsv @@ q.ident_tsq, false),
+           'turn:' || t.id, 'turn', COALESCE(t.user_prompt, ''), 'historical', NULL,
            t.created_at, ts_rank_cd(t.search_tsv, q.tsq), COALESCE(sem.score, 0),
            jsonb_build_object('session_uuid', ss.session_uuid),
            t.user_prompt, jsonb_build_object('role', 'operator', 'session_uuid', ss.session_uuid,
              'session_title', ss.title),
            'turn:' || t.id, t.id, t.user_prompt, COALESCE(octet_length(t.final_assistant_text), 0) > 0
-      FROM memory.operator_turns t JOIN sessions.sessions ss ON ss.id = t.session_id CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'turn:' || t.id
-     WHERE t.project_id = 993478 AND ('reranker' = '' OR t.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
+      FROM (SELECT h.id FROM memory.operator_turns h
+             WHERE 'reranker' <> '' AND h.project_id = 993478 AND h.search_tsv @@ (SELECT match_tsq FROM q)
+            UNION
+            SELECT split_part(s.reference, ':', 2)::bigint FROM semantic s
+             WHERE s.reference LIKE 'turn:%'
+            UNION
+            (SELECT h.id FROM memory.operator_turns h WHERE 'reranker' = '' AND h.project_id = 993478
+             ORDER BY h.created_at DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
+      JOIN memory.operator_turns t ON t.id = hit.id
+      JOIN sessions.sessions ss ON ss.id = t.session_id CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'turn:' || t.id
+     WHERE t.project_id = 993478 AND (NULL::text IS NULL OR NULL::text = 'turn')
+       AND ('reranker' = '' OR t.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
        AND (t.opened_by IS NULL OR t.opened_by = 'operator')
     UNION ALL
-    SELECT 'thread:' || th.thread_uuid, 'thread', th.subject,
+    SELECT COALESCE(hit.is_ident, false),
+           'thread:' || th.thread_uuid, 'thread', th.subject,
            CASE WHEN th.resolved_at IS NULL THEN 'open' ELSE 'resolved' END, NULL,
            th.last_message_at, COALESCE(hit.rank, 0), COALESCE(sem.score, 0),
            jsonb_build_object('thread_uuid', th.thread_uuid, 'fleet_uuid', th.fleet_uuid),
            th.subject, NULL::jsonb, 'thread:' || th.thread_uuid, NULL, NULL, false
       FROM mailbox.threads th CROSS JOIN q
-      LEFT JOIN (SELECT m.thread_id, max(ts_rank_cd(m.search_tsv, q.tsq)) AS rank
-                   FROM mailbox.messages m CROSS JOIN q
-                  WHERE 'reranker' <> '' AND m.thread_id IS NOT NULL AND m.search_tsv @@ q.match_tsq
+      LEFT JOIN (SELECT m.thread_id, max(ts_rank_cd(m.search_tsv, q.tsq)) AS rank,
+                        bool_or(COALESCE(m.search_tsv @@ q.ident_tsq, false)) AS is_ident
+                   FROM mailbox.messages m JOIN mailbox.threads pt ON pt.id = m.thread_id CROSS JOIN q
+                  WHERE 'reranker' <> '' AND pt.project_id = 993478 AND m.search_tsv @@ q.match_tsq
                   GROUP BY m.thread_id) hit ON hit.thread_id = th.id
       LEFT JOIN semantic sem ON sem.reference = 'thread:' || th.thread_uuid
-     WHERE th.project_id = 993478 AND ('reranker' = '' OR hit.thread_id IS NOT NULL OR sem.score IS NOT NULL)
+     WHERE th.project_id = 993478 AND (NULL::text IS NULL OR NULL::text = 'thread')
+       AND ('reranker' = '' OR hit.thread_id IS NOT NULL OR sem.score IS NOT NULL)
     UNION ALL
-    SELECT 'work_thread:' || wt.slug, 'work_thread', COALESCE(wt.title, wt.slug),
+    SELECT COALESCE(doc.tsv @@ q.ident_tsq, false),
+           'work_thread:' || wt.slug, 'work_thread', COALESCE(wt.title, wt.slug),
            COALESCE(wt.status, 'unknown'), NULL,
            CASE WHEN wlast.entry_date IS NOT NULL THEN wlast.entry_date::timestamp AT TIME ZONE 'UTC'
                 ELSE wt.updated_at END,
@@ -203,10 +302,13 @@ WITH own_turn AS (
      CROSS JOIN LATERAL (SELECT concat_ws(E'\n', wt.title, wt.slug, wt.goal,
               wts.tldr, wts.where_we_are, wts.next_up, wts.blockers, wts.open_questions,
               wts.decisions) AS txt) txt
-     CROSS JOIN LATERAL (SELECT txt.txt, to_tsvector('english', txt.txt) AS tsv) doc
-     WHERE wt.project_id = 993478 AND ('reranker' = '' OR doc.tsv @@ q.match_tsq)
+     CROSS JOIN LATERAL (SELECT txt.txt,
+              COALESCE(wt.search_tsv, ''::tsvector) || COALESCE(wts.search_tsv, ''::tsvector) AS tsv) doc
+     WHERE wt.project_id = 993478 AND (NULL::text IS NULL OR NULL::text = 'work_thread')
+       AND ('reranker' = '' OR doc.tsv @@ q.match_tsq)
     UNION ALL
-    SELECT 'thread_entry:' || l.id, 'thread_entry',
+    SELECT COALESCE(doc.tsv @@ q.ident_tsq, false),
+           'thread_entry:' || l.id, 'thread_entry',
            COALESCE(NULLIF(btrim(split_part(btrim(l.summary), E'\n', 1)), ''), l.kind),
            l.kind, NULL,
            CASE WHEN l.entry_date < (l.created_at AT TIME ZONE 'UTC')::date
@@ -223,16 +325,19 @@ WITH own_turn AS (
             SELECT split_part(s.reference, ':', 2)::bigint FROM semantic s
              WHERE s.reference LIKE 'thread_entry:%'
             UNION
-            SELECT h.id FROM work.thread_log h JOIN work.threads ht ON ht.id = h.thread_id
-             WHERE 'reranker' = '' AND ht.project_id = 993478) hit
+            (SELECT h.id FROM work.thread_log h JOIN work.threads ht ON ht.id = h.thread_id
+             WHERE 'reranker' = '' AND ht.project_id = 993478
+             ORDER BY h.created_at DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
       JOIN work.thread_log l ON l.id = hit.id JOIN work.threads wt ON wt.id = l.thread_id
       LEFT JOIN sessions.sessions ws ON ws.session_uuid = l.session_uuid CROSS JOIN q
      CROSS JOIN LATERAL (SELECT concat_ws(E'\n\n', l.summary, l.body) AS txt, l.search_tsv AS tsv) doc
       LEFT JOIN semantic sem ON sem.reference = 'thread_entry:' || l.id
-     WHERE wt.project_id = 993478 AND ('reranker' = '' OR doc.tsv @@ q.match_tsq OR sem.score IS NOT NULL)
+     WHERE wt.project_id = 993478 AND (NULL::text IS NULL OR NULL::text = 'thread_entry')
+       AND ('reranker' = '' OR doc.tsv @@ q.match_tsq OR sem.score IS NOT NULL)
        AND (false OR l.kind IS DISTINCT FROM 'state-replaced')
     UNION ALL
-    SELECT 'question_answer:' || qa.question_uuid, 'question_answer',
+    SELECT COALESCE(doc.tsv @@ q.ident_tsq, false),
+           'question_answer:' || qa.question_uuid, 'question_answer',
            btrim(split_part(btrim(qa.question), E'\n', 1)), qa.state, NULL, qa.settled_at,
            ts_rank_cd(doc.tsv, q.tsq), COALESCE(sem.score, 0),
            jsonb_build_object('question_uuid', qa.question_uuid, 'run_id', qa.run_id,
@@ -255,14 +360,15 @@ WITH own_turn AS (
      CROSS JOIN LATERAL (SELECT 'Question: ' || qa.question || E'\n\nAnswer: ' || qa.answer AS txt,
               to_tsvector('english', qa.question || ' ' || COALESCE(qa.answer, '')) AS tsv) doc
       LEFT JOIN semantic sem ON sem.reference = 'question_answer:' || qa.question_uuid
-     WHERE qa.project_id = 993478 AND qa.answer IS NOT NULL
+     WHERE qa.project_id = 993478 AND qa.answer IS NOT NULL AND (NULL::text IS NULL OR NULL::text = 'question_answer')
        AND ('reranker' = '' OR doc.tsv @@ q.match_tsq OR sem.score IS NOT NULL)
     UNION ALL
-    SELECT vk.kind || ':' || v.id, vk.kind,
+    SELECT COALESCE(vt.tsv @@ q.ident_tsq, false),
+           vk.kind || ':' || v.id, vk.kind,
            CASE vk.kind WHEN 'unmet_ask' THEN btrim(split_part(btrim(v.unmet_ask), E'\n', 1))
                 ELSE btrim(split_part(btrim(COALESCE(t.user_prompt, '')), E'\n', 1)) END,
            v.reaction, NULL, v.created_at,
-           ts_rank_cd(to_tsvector('english', v.unmet_ask || ' ' || v.rationale), q.tsq),
+           ts_rank_cd(vt.tsv, q.tsq),
            COALESCE(sem.score, 0),
            jsonb_build_object('verdict_id', v.id, 'turn_reference', 'turn:' || v.operator_turn_id,
              'reaction', v.reaction, 'session_uuid', vs.session_uuid),
@@ -277,19 +383,22 @@ WITH own_turn AS (
             SELECT split_part(s.reference, ':', 2)::bigint FROM semantic s
              WHERE s.reference LIKE 'unmet_ask:%' OR s.reference LIKE 'correction:%'
             UNION
-            SELECT h.id FROM memory.live_turn_verdicts_v h WHERE 'reranker' = '' AND h.project_id = 993478) hit
+            (SELECT h.id FROM memory.live_turn_verdicts_v h WHERE 'reranker' = '' AND h.project_id = 993478
+             ORDER BY h.created_at DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
       JOIN memory.live_turn_verdicts_v v ON v.id = hit.id
       JOIN memory.operator_turns t ON t.id = v.operator_turn_id
       LEFT JOIN sessions.sessions vs ON vs.id = v.session_id
+     CROSS JOIN LATERAL (SELECT to_tsvector('english', v.unmet_ask || ' ' || v.rationale) AS tsv OFFSET 0) vt
      CROSS JOIN LATERAL (VALUES ('unmet_ask'), ('correction')) vk(kind) CROSS JOIN q
       LEFT JOIN semantic sem ON sem.reference = vk.kind || ':' || v.id
-     WHERE v.project_id = 993478
+     WHERE v.project_id = 993478 AND (NULL::text IS NULL OR NULL::text IN ('unmet_ask', 'correction'))
        AND CASE vk.kind WHEN 'unmet_ask' THEN btrim(COALESCE(v.unmet_ask, '')) <> ''
                 ELSE v.reaction IN ('corrected', 'redirected') END
-       AND ('reranker' = '' OR to_tsvector('english', v.unmet_ask || ' ' || v.rationale) @@ q.match_tsq
+       AND ('reranker' = '' OR vt.tsv @@ q.match_tsq
             OR sem.score IS NOT NULL)
     UNION ALL
-    SELECT 'learning:' || k.session_id, 'learning', btrim(split_part(btrim(k.learnings[1]), E'\n', 1)),
+    SELECT COALESCE(to_tsvector('english', memory.session_learnings_text(k.learnings)) @@ q.ident_tsq, false),
+           'learning:' || k.session_id, 'learning', btrim(split_part(btrim(k.learnings[1]), E'\n', 1)),
            'historical', NULL, k.generated_at,
            ts_rank_cd(to_tsvector('english', memory.session_learnings_text(k.learnings)), q.tsq),
            COALESCE(sem.score, 0),
@@ -305,17 +414,19 @@ WITH own_turn AS (
                 ON s.reference = 'learning:' || h.session_id
              WHERE s.reference LIKE 'learning:%'
             UNION
-            SELECT h.session_id FROM memory.session_knowledge h
+            (SELECT h.session_id FROM memory.session_knowledge h
               JOIN sessions.sessions hs ON hs.session_uuid = h.session_id
-             WHERE 'reranker' = '' AND hs.project_id = 993478) hit
+             WHERE 'reranker' = '' AND hs.project_id = 993478 AND cardinality(h.learnings) > 0
+             ORDER BY h.generated_at DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
       JOIN memory.session_knowledge k ON k.session_id = hit.session_id
       JOIN sessions.sessions ls ON ls.session_uuid = k.session_id
      CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'learning:' || k.session_id
-     WHERE ls.project_id = 993478 AND cardinality(k.learnings) > 0
+     WHERE ls.project_id = 993478 AND cardinality(k.learnings) > 0 AND (NULL::text IS NULL OR NULL::text = 'learning')
        AND ('reranker' = '' OR to_tsvector('english', memory.session_learnings_text(k.learnings)) @@ q.match_tsq
             OR sem.score IS NOT NULL)
     UNION ALL
-    SELECT 'mail:' || m.message_uuid, 'mail', btrim(split_part(btrim(m.body), E'\n', 1)),
+    SELECT COALESCE(m.search_tsv @@ q.ident_tsq, false),
+           'mail:' || m.message_uuid, 'mail', btrim(split_part(btrim(m.body), E'\n', 1)),
            CASE WHEN m.dead_lettered_at IS NOT NULL THEN 'dead_lettered'
                 WHEN m.consumed_at IS NOT NULL THEN 'consumed'
                 WHEN m.sent_at IS NOT NULL OR m.channel_delivered_at IS NOT NULL THEN 'delivered'
@@ -333,16 +444,18 @@ WITH own_turn AS (
                 ON s.reference = 'mail:' || h.message_uuid
              WHERE s.reference LIKE 'mail:%'
             UNION
-            SELECT h.id FROM mailbox.messages h WHERE 'reranker' = '' AND h.from_session_id IS NOT NULL) hit
+            (SELECT h.id FROM mailbox.messages h WHERE 'reranker' = '' AND h.from_session_id IS NOT NULL
+             ORDER BY h.queued_at DESC NULLS LAST LIMIT (SELECT m FROM bound))) hit
       JOIN mailbox.messages m ON m.id = hit.id
       JOIN sessions.sessions mf ON mf.id = m.from_session_id
       LEFT JOIN mailbox.threads mt ON mt.id = m.thread_id
       LEFT JOIN sessions.sessions mto ON mto.id = m.to_session_id CROSS JOIN q
       LEFT JOIN semantic sem ON sem.reference = 'mail:' || m.message_uuid
-     WHERE COALESCE(mt.project_id, mf.project_id) = 993478
+     WHERE COALESCE(mt.project_id, mf.project_id) = 993478 AND (NULL::text IS NULL OR NULL::text = 'mail')
        AND ('reranker' = '' OR m.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
     UNION ALL
-    SELECT seat_ref.reference, 'seat', btrim(split_part(btrim(si.text), E'\n', 1)), si.item_kind,
+    SELECT COALESCE(si.search_tsv @@ q.ident_tsq, false),
+           seat_ref.reference, 'seat', btrim(split_part(btrim(si.text), E'\n', 1)), si.item_kind,
            NULL, si.at, ts_rank_cd(si.search_tsv, q.tsq), COALESCE(sem.score, 0),
            jsonb_build_object('tier', 'seat', 'item_kind', si.item_kind, 'run_id', si.run_id,
              'seat', si.seat, 'task', si.task, 'session_uuid', si.session_uuid,
@@ -354,17 +467,41 @@ WITH own_turn AS (
            jsonb_build_object('role', si.author, 'session_uuid', si.session_uuid,
              'session_title', sts.title, 'seat', si.seat, 'run_id', si.run_id, 'task', si.task),
            seat_ref.reference, NULL, NULL, false
-      FROM memory.seat_memory_items si
+      FROM (SELECT s0.* FROM memory.seat_memory_items s0
+             WHERE s0.project_id = 993478
+             ORDER BY CASE WHEN 'reranker' = '' THEN s0.at END DESC NULLS LAST
+             LIMIT CASE WHEN 'reranker' = '' THEN (SELECT m FROM bound) END) si
       LEFT JOIN sessions.sessions sts ON sts.id = si.session_id CROSS JOIN q
      CROSS JOIN LATERAL (SELECT CASE WHEN si.source_ref LIKE 'entry:%'
                                      THEN 'thread_entry:' || substr(si.source_ref, 7)
                                      ELSE si.source_ref END AS reference) seat_ref
       LEFT JOIN semantic sem ON sem.reference = seat_ref.reference
-     WHERE si.project_id = 993478 AND ('reranker' = '' OR si.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
-), eligible AS (
-    SELECT c.*
+     WHERE si.project_id = 993478 AND (NULL::text IS NULL OR NULL::text = 'seat') AND ('reranker' = '' OR si.search_tsv @@ q.match_tsq OR sem.score IS NOT NULL)
+), cheap AS MATERIALIZED (
+    SELECT c.*, row_number() OVER () AS rid
       FROM candidates c
       LEFT JOIN own_refs o ON o.reference = c.reference
+     WHERE (NULL::text IS NULL OR c.source_kind = NULL)
+       AND o.reference IS NULL
+), positioned AS (
+    SELECT p.rid,
+           row_number() OVER (ORDER BY p.rank DESC, p.reference) AS lex_pos,
+           row_number() OVER (ORDER BY p.semantic_rank DESC, p.reference) AS sem_pos,
+           row_number() OVER (PARTITION BY (p.rank > 0 OR p.semantic_rank > 0)
+                              ORDER BY p.updated_at DESC NULLS LAST, p.reference) AS new_pos,
+           (p.rank > 0) AS has_lex, (p.semantic_rank > 0) AS has_sem
+      FROM cheap p
+), bounded AS (
+    SELECT c.*, p.lex_pos, p.sem_pos
+      FROM cheap c
+      JOIN positioned p ON p.rid = c.rid
+     WHERE (p.has_lex AND p.lex_pos <= (SELECT m FROM bound))
+        OR (p.has_sem AND p.sem_pos <= (SELECT m FROM bound))
+        OR (NOT p.has_lex AND NOT p.has_sem AND p.new_pos <= (SELECT m FROM bound))
+        OR c.is_ident
+), eligible AS (
+    SELECT c.*
+      FROM bounded c
       LEFT JOIN LATERAL (
           SELECT nx.user_prompt AS next_prompt
             FROM memory.operator_turns cur
@@ -372,9 +509,7 @@ WITH own_turn AS (
            WHERE cur.id = c.turn_id AND c.source_kind = 'turn' AND NOT c.answered AND NOT false
              AND btrim(COALESCE(c.turn_prompt, '')) <> ''
            ORDER BY nx.id LIMIT 1) resent ON true
-     WHERE (NULL::text IS NULL OR c.source_kind = NULL)
-       AND o.reference IS NULL
-       AND (resent.next_prompt IS NULL OR NOT starts_with(resent.next_prompt, btrim(c.turn_prompt)))
+     WHERE (resent.next_prompt IS NULL OR NOT starts_with(resent.next_prompt, btrim(c.turn_prompt)))
 ), deduped AS (
     SELECT DISTINCT ON (dedupe_key) *
       FROM (SELECT *, GREATEST(1, count(*) FILTER (WHERE source_kind <> 'seat')
@@ -384,13 +519,27 @@ WITH own_turn AS (
               updated_at DESC NULLS LAST, reference
 ), keyed AS (
     SELECT d.*,
-           CASE WHEN btrim(COALESCE(d.turn_prompt, '')) <> '' THEN md5('p:' || lower(btrim(d.turn_prompt)))
-                WHEN btrim(COALESCE(d.body, '')) <> '' THEN md5('b:' || d.body)
+           CASE WHEN btrim(COALESCE(d.turn_prompt, '')) <> '' THEN 'p:' || md5(lower(btrim(d.turn_prompt)))
+                WHEN d.source_kind IN ('artifact', 'memory', 'skill')
+                    -- content_hash is the sha256 of the body, written with the revision. The blank test reads only
+                    -- the first 64 characters unless they are all spaces.
+                    THEN CASE WHEN kr.content_hash IS NOT NULL
+                               AND CASE WHEN btrim(substr(kr.body, 1, 64)) <> '' THEN true
+                                        ELSE btrim(kr.body) <> '' END
+                              THEN 'b:' || kr.content_hash ELSE d.reference END
+                WHEN btrim(COALESCE(d.body, '')) <> ''
+                    THEN 'b:' || encode(sha256(convert_to(d.body, 'UTF8')), 'hex')
                 ELSE d.reference END AS slot_key,
            d.source_kind IN ('seat', 'mail', 'thread')
            OR (d.source_kind = 'note' AND d.provenance ->> 'kind' = 'brief')
-           OR COALESCE(ltrim(d.turn_prompt) ^@ ANY (ARRAY['A session-scoped Stop hook is now active with condition:','The tether plugin sent a message:','Perform a web search for the query:','You score how well a stand-in predicted','Coordinator wake for fleet ']::text[]), false) AS machine
+           OR COALESCE(ltrim(d.turn_prompt) ^@ ANY (ARRAY['A session-scoped Stop hook is now active with condition:','The tether plugin sent a message:','Perform a web search for the query:','You score how well a stand-in predicted','Coordinator wake for fleet ']::text[]), false) AS machine,
+           d.source_kind IN ('seat', 'thread')
+           OR (d.source_kind = 'note' AND d.provenance ->> 'kind' = 'brief')
+           OR COALESCE(ltrim(d.turn_prompt) ^@ ANY (ARRAY['A session-scoped Stop hook is now active with condition:','The tether plugin sent a message:','Perform a web search for the query:','You score how well a stand-in predicted','Coordinator wake for fleet ']::text[]), false) AS ranked_lower
       FROM deduped d
+      LEFT JOIN memory.knowledge_revisions kr
+        ON kr.id = CASE WHEN d.source_kind IN ('artifact', 'memory', 'skill')
+                        THEN substr(d.reference, 10)::bigint END
 ), slotted AS (
     SELECT k.*, row_number() OVER slot AS slot_pos,
            array_agg(k.reference) OVER (slot ROWS BETWEEN 1 FOLLOWING AND 10 FOLLOWING) AS also,
@@ -400,16 +549,31 @@ WITH own_turn AS (
                     ORDER BY k.semantic_rank DESC, k.rank DESC,
                              (k.source_kind = 'turn' AND k.answered) DESC,
                              k.updated_at DESC NULLS LAST, k.reference)
-), ranked AS (
-    SELECT s.*, ih.hits AS identifier_hits,
-      (CASE WHEN rank > 0 THEN 1.0 / (60 + row_number() OVER (ORDER BY rank DESC, reference)) ELSE 0 END
-      + CASE WHEN semantic_rank > 0 THEN 1.0 / (60 + row_number() OVER (ORDER BY semantic_rank DESC, reference)) ELSE 0 END)
-      * CASE WHEN machine THEN 0.5 ELSE 1 END AS fused_rank
+), winners AS (
+    SELECT s.*, (rank > 0 AND lex_pos <= (SELECT m FROM bound)) AS in_lex,
+           (semantic_rank > 0 AND sem_pos <= (SELECT m FROM bound)) AS in_sem
     FROM slotted s
+    WHERE slot_pos = 1
+), placed AS (
+    -- A row kept because it is in one list but beyond M in the other is placed after the winners of that list,
+    -- by its distance beyond M among all candidates, so that bounding the other list does not lift it.
+    SELECT w.*,
+           row_number() OVER (PARTITION BY in_lex ORDER BY rank DESC, reference) AS lex_rn,
+           row_number() OVER (PARTITION BY in_sem ORDER BY semantic_rank DESC, reference) AS sem_rn,
+           count(*) FILTER (WHERE in_lex) OVER () AS lex_w,
+           count(*) FILTER (WHERE in_sem) OVER () AS sem_w
+    FROM winners w
+), ranked AS (
+    SELECT p.*, ih.hits AS identifier_hits,
+      (CASE WHEN rank > 0 THEN 1.0 / (60 + CASE WHEN in_lex THEN lex_rn
+                       ELSE lex_w + GREATEST(lex_pos - (SELECT m FROM bound), 1) END) ELSE 0 END
+      + CASE WHEN semantic_rank > 0 THEN 1.0 / (60 + CASE WHEN in_sem THEN sem_rn
+                       ELSE sem_w + GREATEST(sem_pos - (SELECT m FROM bound), 1) END) ELSE 0 END)
+      * CASE WHEN ranked_lower THEN 0.5 ELSE 1 END AS fused_rank
+    FROM placed p
     CROSS JOIN LATERAL (
         SELECT count(*) AS hits FROM idents i
-         WHERE COALESCE(s.title, '') ~* i.pattern OR COALESCE(s.body, '') ~* i.pattern) ih
-    WHERE slot_pos = 1
+         WHERE COALESCE(p.title, '') ~* i.pattern OR COALESCE(p.body, '') ~* i.pattern) ih
 ), page AS (
     SELECT * FROM ranked
     ORDER BY identifier_hits DESC, fused_rank DESC, updated_at DESC, reference LIMIT 51 OFFSET 0
@@ -426,8 +590,10 @@ SELECT jsonb_build_object('reference' , p.reference, 'source_kind', p.source_kin
                                   END - 100), 300),
     'rank', p.fused_rank, 'lexical_rank', p.rank, 'semantic_rank', p.semantic_rank,
     'identifier_hits', p.identifier_hits,
-    'provenance', CASE WHEN p.machine THEN p.provenance || jsonb_build_object('written_by', 'machine')
-                       ELSE p.provenance END) AS "item!"
+    'provenance', p.provenance
+                  || CASE WHEN p.machine THEN jsonb_build_object('written_by', 'machine') ELSE '{}'::jsonb END
+                  || CASE WHEN p.ranked_lower THEN jsonb_build_object('ranked_lower', true) ELSE '{}'::jsonb END
+    ) AS "item!"
 FROM page p
 LEFT JOIN LATERAL (
     SELECT regexp_match(p.body, '^(.*?)' || i.pattern, 'i') AS m

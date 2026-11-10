@@ -11,6 +11,7 @@ mod health;
 mod lesson_sync;
 mod location_view;
 mod locations;
+mod nearest_first;
 mod reference;
 #[cfg(test)]
 mod reference_tests;

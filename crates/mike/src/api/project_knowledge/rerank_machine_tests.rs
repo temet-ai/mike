@@ -9,6 +9,7 @@ struct Seeded {
     path: String,
     turns: Vec<String>,
     brief: String,
+    mail: String,
 }
 
 async fn add_turn(pool: &PgPool, session: Uuid, project: i64, prompt: &str) -> anyhow::Result<i64> {
@@ -49,10 +50,18 @@ async fn seed(harness: &Harness) -> anyhow::Result<Seeded> {
     .bind(session_id)
     .fetch_one(pool)
     .await?;
+    let mail: Uuid = sqlx::query_scalar(
+        "INSERT INTO mailbox.messages (message_uuid, from_session_id, to_session_id, body)
+         VALUES (gen_random_uuid(), $1, $1, 'cache mail between two seats') RETURNING message_uuid",
+    )
+    .bind(session_id)
+    .fetch_one(pool)
+    .await?;
     Ok(Seeded {
         path,
         turns: vec![format!("turn:{first}"), format!("turn:{second}")],
         brief: format!("note:{brief}"),
+        mail: format!("mail:{mail}"),
     })
 }
 
@@ -69,7 +78,7 @@ fn references(answer: &Value) -> Vec<String> {
 }
 
 #[tokio::test]
-async fn knowledge_search_rerank_puts_a_brief_note_the_reranker_scored_first_below_operator_turns()
+async fn knowledge_search_rerank_puts_a_brief_note_below_operator_turns_and_leaves_mail_in_the_reranker_order()
 -> anyhow::Result<()> {
     let harness = Harness::boot().await?;
     let seeded = seed(&harness).await?;
@@ -86,16 +95,38 @@ async fn knowledge_search_rerank_puts_a_brief_note_the_reranker_scored_first_bel
     assert!(status.is_success(), "{answer}");
     assert_eq!(answer["rerank"]["state"], "reranked");
     let found = references(&answer);
-    assert_eq!(found.len(), 3, "{answer}");
-    assert_eq!(found[2], seeded.brief);
+    assert_eq!(found.len(), 4, "{answer}");
+    assert_eq!(found[3], seeded.brief);
     for turn in &seeded.turns {
-        assert!(found[..2].contains(turn), "{turn} in {found:?}");
+        assert!(found[..3].contains(turn), "{turn} in {found:?}");
     }
-    let brief = answer["items"]
-        .as_array()
-        .and_then(|items| items.iter().find(|item| item["reference"] == seeded.brief))
-        .ok_or_else(|| anyhow::anyhow!("brief missing from {answer}"))?;
+    let find = |reference: &str| {
+        answer["items"]
+            .as_array()
+            .and_then(|items| items.iter().find(|item| item["reference"] == reference))
+            .ok_or_else(|| anyhow::anyhow!("{reference} missing from {answer}"))
+    };
+    let brief = find(&seeded.brief)?;
     assert_eq!(brief["provenance"]["written_by"], "machine");
+    assert_eq!(brief["provenance"]["ranked_lower"], true);
+    let mail = find(&seeded.mail)?;
+    assert_eq!(mail["provenance"]["written_by"], "machine");
+    assert!(mail["provenance"]["ranked_lower"].is_null());
+    let scores: Vec<f64> = answer["items"]
+        .as_array()
+        .map(|items| {
+            items
+                .iter()
+                .filter(|item| item["reference"] != seeded.brief)
+                .filter_map(|item| item["rerank_score"].as_f64())
+                .collect()
+        })
+        .unwrap_or_default();
+    assert_eq!(scores.len(), 3, "{answer}");
+    assert!(
+        scores.windows(2).all(|pair| pair[0] >= pair[1]),
+        "{scores:?}"
+    );
     harness.cleanup().await
 }
 

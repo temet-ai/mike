@@ -11,7 +11,7 @@ fn candidate(reference: &str, kind: &str, lexical: f64, semantic: f64) -> Candid
         kind: kind.to_owned(),
         lexical,
         semantic,
-        machine: false,
+        ranked_lower: false,
     }
 }
 

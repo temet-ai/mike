@@ -40,7 +40,6 @@ pub(crate) const WINDOW_MAX: f64 = 0.2;
 const DEFAULT_WEIGHT: f64 = 1.0;
 const RANK_OFFSET: f64 = 60.0;
 const SEAT_KIND: &str = "seat";
-const MACHINE_WRITER: &str = "machine";
 const SEAT_BASE_WEIGHT: f64 = 0.5;
 pub(crate) const SEAT_MAX_WEIGHT: f64 = 0.9;
 
@@ -184,27 +183,24 @@ pub(crate) struct Candidate {
     pub(crate) kind: String,
     pub(crate) lexical: f64,
     pub(crate) semantic: f64,
-    pub(crate) machine: bool,
+    pub(crate) ranked_lower: bool,
 }
 
 impl Candidate {
     pub(crate) fn from_row(row: &Value) -> Self {
-        let kind = text(row, "source_kind");
-        let machine =
-            kind == SEAT_KIND || row["provenance"]["written_by"].as_str() == Some(MACHINE_WRITER);
         Self {
             reference: text(row, "reference"),
-            kind,
+            kind: text(row, "source_kind"),
             lexical: number(row, "lexical_rank"),
             semantic: number(row, "semantic_rank"),
-            machine,
+            ranked_lower: row["provenance"]["ranked_lower"].as_bool() == Some(true),
         }
     }
 }
 
 impl RankingConfig {
     pub(crate) fn weight(&self, candidate: &Candidate) -> f64 {
-        if candidate.machine && candidate.kind != SEAT_KIND {
+        if candidate.ranked_lower && candidate.kind != SEAT_KIND {
             SEAT_BASE_WEIGHT
         } else {
             self.kind_weight(&candidate.kind)
@@ -217,7 +213,7 @@ pub(crate) fn order_by_position(candidates: &[Candidate], config: &RankingConfig
         .iter()
         .enumerate()
         .map(|(index, candidate)| {
-            let weight = if candidate.machine {
+            let weight = if candidate.ranked_lower {
                 config.weight(candidate)
             } else {
                 DEFAULT_WEIGHT
