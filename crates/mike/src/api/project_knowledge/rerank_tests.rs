@@ -196,7 +196,7 @@ async fn knowledge_search_when_a_warm_reranker_times_out_reports_unavailable_in_
         .reranker_answers(slow_answer(Duration::from_secs(5)))
         .await;
 
-    let (_, answer) = harness.get(&search_route(&project, "")).await?;
+    let (_, answer) = harness.get(&search_route(&project, "s")).await?;
 
     assert_eq!(references(&answer), plain);
     assert_eq!(answer["rerank"]["state"], "unavailable");

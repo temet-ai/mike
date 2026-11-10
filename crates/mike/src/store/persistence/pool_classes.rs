@@ -164,6 +164,7 @@ impl PersistHandle {
             id_cache: id_cache::IdCache::default(),
             open_changes_memo: Default::default(),
             feed_memos: Default::default(),
+            knowledge_memos: Default::default(),
         }
     }
 

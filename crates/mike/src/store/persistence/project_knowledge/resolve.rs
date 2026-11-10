@@ -62,6 +62,13 @@ impl PersistHandle {
         &self,
         selector: &str,
     ) -> Result<Option<ProjectIdentity>, PersistError> {
+        crate::metrics::time_db("knowledge_resolve_project", self.lookup_project(selector)).await
+    }
+
+    pub(super) async fn lookup_project(
+        &self,
+        selector: &str,
+    ) -> Result<Option<ProjectIdentity>, PersistError> {
         let mut candidates = sqlx::query_file_as!(
             Candidate,
             "src/store/persistence/project_knowledge/resolve.sql",

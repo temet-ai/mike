@@ -3,7 +3,8 @@ use std::cmp::Ordering;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 
-use super::rerank_page::{MAX_CANDIDATE_ROWS, QueryVector};
+use super::passage_excerpt::Passages;
+use super::rerank_page::{MAX_CANDIDATE_ROWS, QueryVector, Searched};
 use crate::api::rerank_search::RerankReport;
 use crate::config::AppState;
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, ProjectIdentity, search_page};
@@ -15,7 +16,7 @@ pub(super) async fn search(
     project: &ProjectIdentity,
     input: &KnowledgeQuery,
     vector: Option<&QueryVector>,
-) -> Result<(Value, RerankReport), PersistError> {
+) -> Result<Searched, PersistError> {
     let limit = input.limit.unwrap_or(20).clamp(1, 100);
     let offset = input.offset.unwrap_or(0).max(0);
     let window = i64::try_from(state.rerank_service().current_config().candidates)
@@ -39,6 +40,7 @@ pub(super) async fn search(
     Ok((
         search_page(project.project_uuid, vector.is_some(), page, limit, offset),
         RerankReport::recent_order(),
+        Passages::new(),
     ))
 }
 

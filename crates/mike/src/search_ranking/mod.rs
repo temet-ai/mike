@@ -5,7 +5,10 @@ use serde_json::{Map, Value, json};
 use crate::store::persistence::project_knowledge::SemanticCut;
 
 pub(crate) mod identifiers;
+mod outside_project;
 pub(crate) mod tuning;
+
+pub(crate) use outside_project::{is_outside_project, mark_outside_project, weigh_outside_project};
 
 #[cfg(test)]
 mod identifiers_tests;
@@ -42,6 +45,7 @@ const RANK_OFFSET: f64 = 60.0;
 const SEAT_KIND: &str = "seat";
 const SEAT_BASE_WEIGHT: f64 = 0.5;
 pub(crate) const SEAT_MAX_WEIGHT: f64 = 0.9;
+pub(crate) const OUTSIDE_PROJECT_SCORE_MARGIN: f64 = 3.0;
 
 pub(crate) fn base_kind_weight(kind: &str) -> f64 {
     if kind == SEAT_KIND {

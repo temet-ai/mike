@@ -8,6 +8,7 @@ pub(crate) mod content_search;
 pub(crate) mod cross_session;
 pub mod cross_session_approve;
 pub(crate) mod db_cost;
+pub(crate) mod detail;
 pub(crate) mod dossier;
 pub(crate) mod embedding_graph;
 pub(crate) mod eval;

@@ -190,14 +190,17 @@ impl PersistHandle {
         let Ok(session) = uuid::Uuid::parse_str(session_uuid.trim()) else {
             return Ok(None);
         };
-        Ok(sqlx::query_scalar!(
-            "SELECT max(t.id) FROM memory.operator_turns t
+        crate::metrics::time_db("newest_turn_of_session", async {
+            Ok(sqlx::query_scalar!(
+                "SELECT max(t.id) FROM memory.operator_turns t
                JOIN sessions.sessions s ON s.id = t.session_id
               WHERE s.session_uuid = $1 AND (t.opened_by IS NULL OR t.opened_by = 'operator')",
-            session
-        )
-        .fetch_one(&self.pool)
-        .await?)
+                session
+            )
+            .fetch_one(&self.pool)
+            .await?)
+        })
+        .await
     }
 
     pub(crate) async fn recall_turns_by_file(

@@ -24,6 +24,8 @@ impl InspectClient {
             "read_project_knowledge" => "/api/knowledge/read",
             _ => return Err(McpError::Parse(format!("Unknown knowledge tool: {name}"))),
         };
+        let default_detail = (name == "search_project_knowledge" && !args.contains_key("detail"))
+            .then(|| ("detail", super::DEFAULT_DETAIL.to_string()));
         let query: Vec<(&str, String)> = args
             .iter()
             .map(|(key, value)| {
@@ -35,6 +37,7 @@ impl InspectClient {
                         .unwrap_or_else(|| value.to_string()),
                 )
             })
+            .chain(default_detail)
             .collect();
         self.get_json(path, &query).await
     }

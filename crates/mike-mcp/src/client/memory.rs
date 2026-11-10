@@ -1,7 +1,9 @@
 use serde_json::Value;
 
 use super::CallerScope;
+use super::DEFAULT_DETAIL;
 use super::InspectClient;
+use super::RecallShape;
 use super::RecordLessonRequest;
 use crate::error::McpError;
 
@@ -30,13 +32,17 @@ impl InspectClient {
         project_path: &str,
         query: &str,
         limit: Option<u64>,
-        order: Option<&str>,
+        shape: RecallShape<'_>,
         scope: CallerScope<'_>,
     ) -> Result<Value, McpError> {
         let mut body = serde_json::Map::new();
-        if let Some(order) = order {
+        if let Some(order) = shape.order {
             body.insert("order".to_string(), Value::String(order.to_string()));
         }
+        body.insert(
+            "detail".to_string(),
+            Value::String(shape.detail.unwrap_or(DEFAULT_DETAIL).to_string()),
+        );
         body.insert(
             "project".to_string(),
             Value::String(project_path.to_string()),

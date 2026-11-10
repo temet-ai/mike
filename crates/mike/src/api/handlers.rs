@@ -96,6 +96,9 @@ mod recall_recent_tests;
 mod recall_turns;
 #[cfg(test)]
 mod recall_turns_ambiguous_tests;
+mod recall_turns_detail;
+#[cfg(test)]
+mod recall_turns_detail_tests;
 mod recall_turns_rerank;
 #[cfg(test)]
 mod recall_turns_rerank_tests;

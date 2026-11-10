@@ -31,7 +31,7 @@ pub fn memory_tools() -> Vec<Tool> {
     vec![
         list_agent_dispatches_tool(),
         recall_project_context_tool(),
-        recall_similar_turns_tool(),
+        super::recall_similar_turns::tool(),
         record_lesson_tool(),
         list_lessons_tool(),
         delete_lesson_tool(),
@@ -131,61 +131,6 @@ fn recall_project_context_tool() -> Tool {
         Cow::Borrowed(
             "Return a project's memory in one call: the 5 most recent corrected turns, the 3 most \
              recent shipped turns and the active lessons, all in full. Use it at session start.",
-        ),
-        schema,
-    )
-}
-
-fn recall_similar_turns_tool() -> Tool {
-    let schema = object_schema(
-        vec![
-            (
-                "project_path",
-                json!({
-                    "type": "string",
-                    "description": "Stable project UUID or unambiguous registered project path."
-                }),
-            ),
-            (
-                "query",
-                json!({
-                    "type": "string",
-                    "description": "Free-text query for semantic/FTS recall."
-                }),
-            ),
-            (
-                "limit",
-                json!({
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 50,
-                    "description": "Maximum rows (default 5, max 50)."
-                }),
-            ),
-            (
-                "include_own_turn",
-                json!({"type": "boolean", "description": "Also return the turn that is making this call; omitted, the newest turn of the calling session is left out."}),
-            ),
-            (
-                "order",
-                json!({"type": "string", "enum": ["relevance", "recent"], "description": "relevance (default) ranks by similarity; recent takes the strongest matches and lists them newest first, without the reranker."}),
-            ),
-        ],
-        &["project_path", "query"],
-    );
-    Tool::new(
-        Cow::Borrowed(TOOL_RECALL_SIMILAR_TURNS),
-        Cow::Borrowed(
-            "Find the operator turns of a project that resemble a query: by embedding similarity \
-             when embeddings are available, otherwise by hybrid text and semantic search. Returns \
-             `{turns, retrieval_path, degraded, pending_turns?, rerank}`; `turns` are full \
-             operator-turn rows. `rerank` is `{state: reranked|loading|off|unavailable, \
-             ready_in_s, detail?}`: when state is reranked, a reranker model has reordered the \
-             turns (each then has `rerank_score`); otherwise `detail` says why they are in plain \
-             order. `degraded: true` means embeddings were unavailable and full-text search served \
-             the result, so ranking is weaker. `pending_turns`, when present, counts turns without \
-             embeddings; a non-zero value means ranking improves once the back-fill completes. \
-             For questions about the latest or current work, pass `order=recent`.",
         ),
         schema,
     )
@@ -362,6 +307,8 @@ pub(crate) struct RecallSimilarTurnsArgs {
     pub(crate) limit: Option<u64>,
     #[serde(default)]
     pub(crate) order: Option<String>,
+    #[serde(default)]
+    pub(crate) detail: Option<String>,
     #[serde(flatten)]
     pub(crate) caller: crate::client::CallerArgs,
 }
@@ -438,20 +385,7 @@ pub(crate) async fn call_tool(
                 .map_err(McpError::into_rmcp)?;
             Ok(wrap_success("project_context", value))
         }
-        TOOL_RECALL_SIMILAR_TURNS => {
-            let args = parse_args_required::<RecallSimilarTurnsArgs>(arguments)?;
-            let value = client
-                .recall_similar_turns(
-                    &args.project_path,
-                    &args.query,
-                    args.limit,
-                    args.order.as_deref(),
-                    args.caller.scope(),
-                )
-                .await
-                .map_err(McpError::into_rmcp)?;
-            Ok(wrap_success("similar_turns", value))
-        }
+        TOOL_RECALL_SIMILAR_TURNS => super::recall_similar_turns::call(client, arguments).await,
         TOOL_RECORD_LESSON => {
             let args = parse_args_required::<RecordLessonArgs>(arguments)?;
             let value = client

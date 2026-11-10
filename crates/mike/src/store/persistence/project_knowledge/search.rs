@@ -24,6 +24,8 @@ const READABLE_KINDS: [&str; 14] = [
     "mail",
 ];
 
+pub(crate) const REFERENCE_NOT_IN_PROJECT: &str = "Knowledge reference not found in this project";
+
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct SemanticCut {
     pub floor: Option<f64>,
@@ -187,6 +189,16 @@ impl PersistHandle {
         vector: Option<&(String, String, String)>,
     ) -> Result<Value, PersistError> {
         let project = self.resolve_knowledge_project(&input.project).await?;
+        self.search_resolved_knowledge(&project, input, vector)
+            .await
+    }
+
+    pub(crate) async fn search_resolved_knowledge(
+        &self,
+        project: &super::ProjectIdentity,
+        input: &KnowledgeQuery,
+        vector: Option<&(String, String, String)>,
+    ) -> Result<Value, PersistError> {
         let limit = input.limit.unwrap_or(20).clamp(1, 100);
         let offset = input.offset.unwrap_or(0).max(0);
         let rows = self
@@ -266,7 +278,7 @@ impl PersistHandle {
             .fetch_all(self.pool())
             .await?;
         match (found.len(), project_id) {
-            (0, Some(_)) => Err(invalid("Knowledge reference not found in this project")),
+            (0, Some(_)) => Err(invalid(REFERENCE_NOT_IN_PROJECT)),
             (0, None) => Err(invalid("Knowledge reference not found")),
             (1, _) => Ok(with_correction(found.remove(0), settled.corrected)),
             _ => Err(invalid(

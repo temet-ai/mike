@@ -8,6 +8,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
+use crate::api::detail::Detail;
 use crate::api::handlers::{persist_error_response, persist_unavailable_response};
 use crate::api::result_order::ResultOrder;
 use crate::config::AppState;
@@ -91,6 +92,8 @@ pub(crate) struct CallerSession {
     session_id: Option<String>,
     #[serde(default)]
     order: Option<String>,
+    #[serde(default)]
+    detail: Option<String>,
 }
 
 pub(crate) async fn search(
@@ -98,19 +101,36 @@ pub(crate) async fn search(
     Query(input): Query<KnowledgeQuery>,
     Query(caller): Query<CallerSession>,
 ) -> Result<Json<Value>, Response> {
+    crate::metrics::time_phase(
+        "knowledge_search_handler",
+        answer_search(state, input, caller),
+    )
+    .await
+}
+
+async fn answer_search(
+    state: AppState,
+    input: KnowledgeQuery,
+    caller: CallerSession,
+) -> Result<Json<Value>, Response> {
     let order = ResultOrder::parse(caller.order.as_deref()).map_err(|refusal| *refusal)?;
+    let detail = Detail::parse(caller.detail.as_deref()).map_err(|refusal| *refusal)?;
     let input = KnowledgeQuery {
         caller_session: caller.session_id.clone(),
         recent: order.is_recent(),
         ..input
     };
-    let answer = retrieve(&state, &input).await?;
+    let found = retrieve_page(&state, &input).await?;
     crate::search_events::record_knowledge_search(
         &state,
         caller.session_id.as_deref(),
         &input,
-        &answer,
+        &found.answer,
     );
+    let mut answer = found.answer;
+    if detail.is_best() {
+        best_shape::best_only(&mut answer, &found.passages);
+    }
     Ok(Json(answer))
 }
 
@@ -125,12 +145,9 @@ pub(crate) async fn read(
     State(state): State<AppState>,
     Query(input): Query<ReadQuery>,
 ) -> Result<Json<Value>, Response> {
-    let mut read = state
-        .persist()
-        .ok_or_else(persist_unavailable_response)?
-        .read_project_knowledge(input.project.as_deref(), &input.reference)
-        .await
-        .map_err(knowledge_error)?;
+    let handle = state.persist().ok_or_else(persist_unavailable_response)?;
+    let named = input.project.as_deref().filter(|p| !p.trim().is_empty());
+    let mut read = read_outside::read(&state, handle, named, &input.reference).await?;
     disk_check::annotate(&mut read).await;
     Ok(Json(read))
 }
@@ -204,9 +221,13 @@ pub(crate) async fn define_project(
     Ok(Json(json!(project)))
 }
 
+mod best_lean;
+mod best_shape;
 mod disk_check;
 mod health;
+mod passage_excerpt;
 pub(crate) mod query_vector_cache;
+mod read_outside;
 pub(crate) mod rerank_page;
 mod rerank_pass;
 pub(crate) use rerank_pass::rerank_pass;
@@ -217,16 +238,22 @@ mod wide;
 #[cfg(test)]
 mod wide_tests;
 pub(crate) use health::embedding_capability;
-pub(crate) use retrieval::{retrieve, retrieve_without_rerank};
+pub(crate) use retrieval::{retrieve_page, retrieve_without_rerank};
 
 #[cfg(test)]
+mod detail_tests;
+#[cfg(test)]
 mod disk_check_tests;
+#[cfg(test)]
+mod outside_project_tests;
 #[cfg(test)]
 mod query_vector_cache_tests;
 #[cfg(test)]
 mod ranking_live_tests;
 #[cfg(test)]
 mod registration_tests;
+#[cfg(test)]
+mod rerank_cache_tests;
 #[cfg(test)]
 mod rerank_identifier_tests;
 #[cfg(test)]
@@ -235,3 +262,5 @@ mod rerank_machine_tests;
 pub(crate) mod rerank_tests;
 #[cfg(test)]
 mod rescue_tests;
+#[cfg(test)]
+mod wide_pools_tests;

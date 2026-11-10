@@ -79,6 +79,11 @@ fn describe_core_metrics() {
         metrics::Unit::Milliseconds,
         "Latency of persistence-layer database calls; labels: method + outcome (ok|err for a completed call; dropped_before_completion for a wait abandoned before its result arrived, timed to the drop, whose database outcome is unknown and is not proof of rollback)"
     );
+    metrics::describe_histogram!(
+        HISTOGRAM_SEARCH_PHASE_DURATION_MS,
+        metrics::Unit::Milliseconds,
+        "Time spent in one phase of a knowledge search or similar-turn recall that is not a database call; label `phase` names it (knowledge_search_handler, recall_similar_turns_handler, rerank_request)"
+    );
     metrics::describe_gauge!(
         GAUGE_DB_POOL_SIZE,
         "Total connections currently held by the persistence PgPool (idle + in-use)"

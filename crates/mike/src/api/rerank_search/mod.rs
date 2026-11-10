@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use crate::analysis::RerankError;
-use crate::analysis::rerank::RerankScore;
+use crate::analysis::rerank::{RerankScore, Reranked};
 use crate::config::AppState;
 use crate::semantic::egress::allow_rerank;
 
@@ -47,6 +47,8 @@ pub(crate) struct RerankReport {
     pub(crate) detail: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) left_out: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) cached: Option<usize>,
 }
 
 impl RerankReport {
@@ -56,7 +58,13 @@ impl RerankReport {
             ready_in_s: Some(0),
             detail: None,
             left_out: Some(0),
+            cached: None,
         }
+    }
+
+    pub(crate) fn with_cached(mut self, cached: usize) -> Self {
+        self.cached = Some(cached);
+        self
     }
 
     pub(crate) fn with_left_out(mut self, count: usize, line: f64) -> Self {
@@ -81,6 +89,7 @@ impl RerankReport {
             ready_in_s: None,
             detail: Some(format!("{reason}; {PLAIN_ORDER}")),
             left_out: None,
+            cached: None,
         }
     }
 
@@ -93,6 +102,7 @@ impl RerankReport {
                     .to_owned(),
             ),
             left_out: None,
+            cached: None,
         }
     }
 
@@ -110,6 +120,7 @@ impl RerankReport {
                     "the reranker is loading, ready in about {COLD_START_ESTIMATE_SECS} s; {PLAIN_ORDER}"
                 )),
                 left_out: None,
+                cached: None,
             },
             other => Self::unavailable(&unavailable_reason(other)),
         }
@@ -121,6 +132,7 @@ impl RerankReport {
             ready_in_s: None,
             detail: Some(format!("{reason}; {PLAIN_ORDER}")),
             left_out: None,
+            cached: None,
         }
     }
 
@@ -153,11 +165,11 @@ pub(crate) async fn score(
     state: &AppState,
     query: &str,
     documents: &[String],
-) -> Result<Vec<RerankScore>, RerankReport> {
+) -> Result<Reranked, RerankReport> {
     let allow_remote = state.semantic().config().allow_remote_embedding;
     state
         .rerank_service()
-        .rerank(query, documents, |config| {
+        .rerank_counted(query, documents, |config| {
             allow_rerank(config, allow_remote)
         })
         .await

@@ -1,13 +1,12 @@
-use std::collections::HashMap;
-
 use serde_json::{Value, json};
 
+use super::passage_excerpt::{Passages, show_reranker_passages};
 use crate::api::rerank_search::{
     RerankReport, arrange, candidates_wanted, score, short_query_report,
 };
 use crate::config::AppState;
 use crate::search_ranking::{
-    Candidate, RankingConfig, lift_identifier_rows, order, order_by_position,
+    Candidate, RankingConfig, lift_identifier_rows, order, order_by_position, weigh_outside_project,
 };
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, ProjectIdentity, search_page};
 use crate::store::persistence::{PersistError, PersistHandle};
@@ -16,27 +15,29 @@ pub(super) const MAX_CANDIDATE_ROWS: i64 = 200;
 
 pub(crate) type QueryVector = (String, String, String);
 
+pub(super) type Searched = (Value, RerankReport, Passages);
+
 pub(super) async fn search(
     state: &AppState,
     handle: &PersistHandle,
     project: &ProjectIdentity,
     input: &KnowledgeQuery,
     vector: Option<&QueryVector>,
-) -> Result<(Value, RerankReport), PersistError> {
+) -> Result<Searched, PersistError> {
     if input.recent {
         return super::recent::search(state, handle, project, input, vector).await;
     }
     let ranking = state.rerank_service().ranking();
     let candidates = candidates_wanted(state);
     if candidates.is_none() && ranking.is_default() {
-        return plain(handle, input, vector, RerankReport::switched_off()).await;
+        return plain(handle, project, input, vector, RerankReport::switched_off()).await;
     }
     if input.query.trim().is_empty() {
         let report = RerankReport::off("there is no query to rerank against");
-        return plain(handle, input, vector, report).await;
+        return plain(handle, project, input, vector, report).await;
     }
     if let Some(report) = candidates.and_then(|_| short_query_report(state, &input.query)) {
-        return plain(handle, input, vector, report).await;
+        return plain(handle, project, input, vector, report).await;
     }
     let limit = input.limit.unwrap_or(20).clamp(1, 100);
     let offset = input.offset.unwrap_or(0).max(0);
@@ -49,7 +50,7 @@ pub(super) async fn search(
             Some(_) => RerankReport::off("pages past the first 200 results are not reranked"),
             None => RerankReport::switched_off(),
         };
-        return plain(handle, input, vector, report).await;
+        return plain(handle, project, input, vector, report).await;
     }
     let config = state.rerank_service().current_config();
     let rescue_rule = (config.rescue_score, config.rescue_min_kept);
@@ -70,39 +71,68 @@ pub(super) async fn search(
     } else {
         reorder_rows(rows, &ranking)
     };
-    let (arranged, report) = match candidates {
-        Some(candidates) => {
-            match rerank_rows(state, handle, input, vector, candidates, rows).await {
-                Ok((arranged, report)) => match &rescue {
-                    Some((_, cut)) => super::rescue::keep_reporting(arranged, *cut, report),
-                    None => (arranged, report),
-                },
-                Err(report) => return plain(handle, input, vector, report).await,
-            }
-        }
-        None => (arrange(rows, &[]), RerankReport::switched_off()),
+    let stage = Stage {
+        candidates,
+        rescue: rescue.as_ref().map(|(_, cut)| *cut),
     };
+    let (arranged, report, passages) =
+        match arrange_stage(state, handle, (input, vector), stage, rows).await {
+            Ok(staged) => staged,
+            Err(report) => return plain(handle, project, input, vector, report).await,
+        };
     let arranged = if candidates.is_some() {
         weigh_by_writer(arranged, &ranking)
     } else {
         arranged
     };
-    let page: Vec<Value> = lift_identifier_rows(arranged)
+    let mut page: Vec<Value> = lift_identifier_rows(arranged)
         .into_iter()
         .skip(usize::try_from(offset).unwrap_or(0))
         .take(usize::try_from(limit + 1).unwrap_or(1))
         .map(|(item, score)| with_rerank_score(item, score))
         .collect();
+    show_reranker_passages(&mut page, &passages);
     Ok((
         search_page(project.project_uuid, vector.is_some(), page, limit, offset),
         report,
+        passages,
     ))
+}
+
+struct Stage {
+    candidates: Option<usize>,
+    rescue: Option<super::rescue::Rescue>,
+}
+
+type Staged = (Vec<(Value, Option<f32>)>, RerankReport, Passages);
+
+async fn arrange_stage(
+    state: &AppState,
+    handle: &PersistHandle,
+    (input, vector): (&KnowledgeQuery, Option<&QueryVector>),
+    stage: Stage,
+    rows: Vec<Value>,
+) -> Result<Staged, RerankReport> {
+    let Some(candidates) = stage.candidates else {
+        let report = RerankReport::switched_off();
+        return Ok((arrange(rows, &[]), report, Passages::new()));
+    };
+    let (arranged, report, passages) =
+        rerank_rows(state, handle, input, vector, candidates, rows).await?;
+    Ok(match stage.rescue {
+        Some(cut) => {
+            let (kept, report) = super::rescue::keep_reporting(arranged, cut, report);
+            (kept, report, passages)
+        }
+        None => (arranged, report, passages),
+    })
 }
 
 pub(super) fn weigh_by_writer(
     arranged: Vec<(Value, Option<f32>)>,
     ranking: &RankingConfig,
 ) -> Vec<(Value, Option<f32>)> {
+    let arranged = weigh_outside_project(arranged);
     let candidates: Vec<Candidate> = arranged
         .iter()
         .map(|(row, _)| Candidate::from_row(row))
@@ -125,14 +155,15 @@ fn reorder_rows(rows: Vec<Value>, ranking: &RankingConfig) -> Vec<Value> {
 
 async fn plain(
     handle: &PersistHandle,
+    project: &ProjectIdentity,
     input: &KnowledgeQuery,
     vector: Option<&QueryVector>,
     report: RerankReport,
-) -> Result<(Value, RerankReport), PersistError> {
+) -> Result<Searched, PersistError> {
     let page = handle
-        .search_project_knowledge_hybrid(input, vector)
+        .search_resolved_knowledge(project, input, vector)
         .await?;
-    Ok((page, report))
+    Ok((page, report, Passages::new()))
 }
 
 async fn rerank_rows(
@@ -142,15 +173,17 @@ async fn rerank_rows(
     vector: Option<&QueryVector>,
     candidates: usize,
     rows: Vec<Value>,
-) -> Result<(Vec<(Value, Option<f32>)>, RerankReport), RerankReport> {
+) -> Result<Staged, RerankReport> {
     let window = rows.len().min(candidates);
     if window == 0 {
         let report = RerankReport::off("there were no results to rerank");
-        return Ok((arrange(rows, &[]), report));
+        return Ok((arrange(rows, &[]), report, Passages::new()));
     }
-    let documents = documents_for(handle, &rows[..window], vector).await;
-    let scores = score(state, &input.query, &documents).await?;
-    Ok((arrange(rows, &scores), RerankReport::reranked()))
+    let passages = passages_for(handle, &rows[..window], vector).await;
+    let documents = documents_from(&rows[..window], &passages);
+    let reranked = score(state, &input.query, &documents).await?;
+    let report = RerankReport::reranked().with_cached(reranked.cached);
+    Ok((arrange(rows, &reranked.scores), report, passages))
 }
 
 pub(crate) async fn documents_for(
@@ -158,22 +191,34 @@ pub(crate) async fn documents_for(
     rows: &[Value],
     vector: Option<&QueryVector>,
 ) -> Vec<String> {
+    let passages = passages_for(handle, rows, vector).await;
+    documents_from(rows, &passages)
+}
+
+fn documents_from(rows: &[Value], passages: &Passages) -> Vec<String> {
+    rows.iter().map(|row| document(row, passages)).collect()
+}
+
+async fn passages_for(
+    handle: &PersistHandle,
+    rows: &[Value],
+    vector: Option<&QueryVector>,
+) -> Passages {
     let references: Vec<String> = rows
         .iter()
         .filter_map(|row| row["reference"].as_str())
         .map(str::to_owned)
         .collect();
-    let passages = match handle.knowledge_rerank_passages(&references, vector).await {
+    match handle.knowledge_rerank_passages(&references, vector).await {
         Ok(passages) => passages,
         Err(error) => {
             tracing::warn!(error = %error, "knowledge rerank: passage lookup failed; ranking on titles");
-            HashMap::new()
+            Passages::new()
         }
-    };
-    rows.iter().map(|row| document(row, &passages)).collect()
+    }
 }
 
-fn document(row: &Value, passages: &HashMap<String, String>) -> String {
+fn document(row: &Value, passages: &Passages) -> String {
     let title = row["title"].as_str().unwrap_or_default();
     match row["reference"]
         .as_str()

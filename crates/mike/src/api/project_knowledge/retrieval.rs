@@ -1,9 +1,13 @@
 use super::knowledge_error;
+use super::passage_excerpt::Passages;
 use super::query_vector_cache::QUERY_VECTORS;
+use super::rerank_page::QueryVector;
 use crate::analysis::EmbeddingService;
+use crate::api::rerank_search::RerankReport;
 use crate::config::AppState;
 use crate::embed_worker::knowledge::{model_key, valid_vector};
-use crate::store::persistence::project_knowledge::KnowledgeQuery;
+use crate::store::persistence::project_knowledge::{KnowledgeQuery, ProjectIdentity};
+use crate::store::persistence::{PersistError, PersistHandle};
 use axum::response::Response;
 use serde_json::{Value, json};
 use std::time::Duration;
@@ -38,7 +42,15 @@ pub(crate) async fn query_vector(
     ))
 }
 
-pub(crate) async fn retrieve(state: &AppState, input: &KnowledgeQuery) -> Result<Value, Response> {
+pub(crate) struct Retrieved {
+    pub(crate) answer: Value,
+    pub(crate) passages: Passages,
+}
+
+pub(crate) async fn retrieve_page(
+    state: &AppState,
+    input: &KnowledgeQuery,
+) -> Result<Retrieved, Response> {
     retrieve_with(state, input, true).await
 }
 
@@ -46,14 +58,53 @@ pub(crate) async fn retrieve_without_rerank(
     state: &AppState,
     input: &KnowledgeQuery,
 ) -> Result<Value, Response> {
-    retrieve_with(state, input, false).await
+    retrieve_with(state, input, false)
+        .await
+        .map(|found| found.answer)
+}
+
+async fn embed_for(
+    service: &EmbeddingService,
+    key: &str,
+    query: &str,
+) -> (Option<QueryVector>, Option<&'static str>) {
+    if query.trim().is_empty() {
+        return (None, Some("empty_query"));
+    }
+    if !service.is_available() {
+        return (None, Some("embedding_disabled"));
+    }
+    match query_vector(service, key, query).await {
+        Some(vector) => (Some(vector), None),
+        None => (None, Some("embedding_unavailable")),
+    }
+}
+
+type Searched = (Value, Option<RerankReport>, Passages);
+
+async fn search_stage(
+    state: &AppState,
+    handle: &PersistHandle,
+    project: &ProjectIdentity,
+    (input, vector): (&KnowledgeQuery, Option<&QueryVector>),
+    rerank: bool,
+) -> Result<Searched, PersistError> {
+    if rerank {
+        let (page, report, passages) =
+            super::rerank_page::search(state, handle, project, input, vector).await?;
+        return Ok((page, Some(report), passages));
+    }
+    let page = handle
+        .search_resolved_knowledge(project, input, vector)
+        .await?;
+    Ok((page, None, Passages::new()))
 }
 
 async fn retrieve_with(
     state: &AppState,
     input: &KnowledgeQuery,
     rerank: bool,
-) -> Result<Value, Response> {
+) -> Result<Retrieved, Response> {
     let input = &KnowledgeQuery {
         semantic_cut: state.rerank_service().ranking().semantic_cut(),
         ..input.clone()
@@ -63,44 +114,20 @@ async fn retrieve_with(
         .ok_or_else(crate::api::handlers::persist_unavailable_response)?;
     let service = state.embedding_service();
     let key = model_key(&service);
-    let mut fallback = None;
-    let vector = if input.query.trim().is_empty() || !service.is_available() {
-        fallback = Some(if input.query.trim().is_empty() {
-            "empty_query"
-        } else {
-            "embedding_disabled"
-        });
-        None
-    } else {
-        let embedded = query_vector(&service, &key, &input.query).await;
-        if embedded.is_none() {
-            fallback = Some("embedding_unavailable");
-        }
-        embedded
-    };
+    let (vector, fallback) = embed_for(&service, &key, &input.query).await;
     let project = handle
         .resolve_knowledge_project(&input.project)
         .await
         .map_err(knowledge_error)?;
-    let (mut result, report) = if rerank {
-        super::rerank_page::search(state, handle, &project, input, vector.as_ref())
-            .await
-            .map(|(page, report)| (page, Some(report)))
-    } else {
-        handle
-            .search_project_knowledge_hybrid(input, vector.as_ref())
-            .await
-            .map(|page| (page, None))
-    }
-    .map_err(knowledge_error)?;
-    let coverage = handle
-        .knowledge_embedding_health(Some(project.id), &key)
-        .await
-        .map_err(knowledge_error)?;
-    result["embedding"] = json!({"coverage":coverage, "model":service.model_name(), "fallback":fallback,
+    let searching = search_stage(state, handle, &project, (input, vector.as_ref()), rerank);
+    let counting = handle.knowledge_coverage(project.id, &key);
+    let (searched, coverage) = tokio::join!(searching, counting);
+    let (mut answer, report, passages) = searched.map_err(knowledge_error)?;
+    let coverage = coverage.map_err(knowledge_error)?;
+    answer["embedding"] = json!({"coverage":coverage, "model":service.model_name(), "fallback":fallback,
         "scope":"artifact_lesson_note", "turns":"existing model-matched turn embeddings"});
     if let Some(report) = report {
-        result["rerank"] = report.to_json();
+        answer["rerank"] = report.to_json();
     }
-    Ok(result)
+    Ok(Retrieved { answer, passages })
 }

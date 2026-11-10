@@ -69,7 +69,10 @@ pub(super) async fn rerank_turns(
     }
     let documents: Vec<String> = rows[..window].iter().map(document).collect();
     match score(state, query, &documents).await {
-        Ok(scores) => (arrange(rows, &scores), RerankReport::reranked()),
+        Ok(reranked) => (
+            arrange(rows, &reranked.scores),
+            RerankReport::reranked().with_cached(reranked.cached),
+        ),
         Err(report) => (arrange(rows, &[]), report),
     }
 }
