@@ -10,7 +10,6 @@ use crate::store::persistence::{PersistError, PersistHandle};
 const THRESHOLD_MARGIN: f64 = 0.10;
 const THRESHOLD_CAP: f64 = 0.6;
 const PAIRS_PER_PROJECT: usize = 300;
-const MIN_SCORE: f32 = 0.5;
 
 struct Side<'a> {
     query: &'a str,
@@ -59,6 +58,11 @@ async fn project_pairs(
         .find_candidate_relation_pairs(project_id, threshold)
         .await?;
     pairs.truncate(PAIRS_PER_PROJECT);
+    let min_score = state
+        .rerank_service()
+        .current_config()
+        .nightly
+        .lesson_pair_min_score;
     let scores = match score_pairs(state, idle, &pairs).await {
         Ok(scores) => scores,
         Err(stop) => return Ok(Err(stop)),
@@ -66,7 +70,7 @@ async fn project_pairs(
     let kept: Vec<NewPairCandidate> = pairs
         .iter()
         .zip(scores)
-        .filter(|(_, score)| *score >= MIN_SCORE)
+        .filter(|(_, score)| f64::from(*score) >= min_score)
         .map(|(pair, score)| NewPairCandidate {
             lesson_a_id: pair.lesson_a_id,
             lesson_b_id: pair.lesson_b_id,

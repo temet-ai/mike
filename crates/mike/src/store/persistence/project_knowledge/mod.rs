@@ -28,7 +28,6 @@ pub use locations::{LocationInput, ProjectIdentity};
 pub(crate) use repo_adoption::RepoLocationAdoption;
 pub use search::KnowledgeQuery;
 pub use search::SemanticCut;
-#[cfg(test)]
 pub(crate) use search::cut_for;
 pub(crate) use search::search_page;
 

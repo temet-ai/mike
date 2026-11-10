@@ -39,7 +39,7 @@ pub(super) fn at(hour: u32) -> DateTime<Utc> {
         .unwrap_or_default()
 }
 
-fn tuning_on(harness: &Harness) {
+pub(super) fn tuning_on(harness: &Harness) {
     harness
         .state
         .rerank_service()
@@ -50,7 +50,7 @@ async fn project_id(harness: &Harness, project: &str) -> anyhow::Result<i64> {
     Ok(harness.handle.resolve_knowledge_project(project).await?.id)
 }
 
-async fn seed_events(
+pub(super) async fn seed_events(
     harness: &Harness,
     project: i64,
     used: &[&str],
@@ -91,7 +91,7 @@ async fn seed_events(
     Ok((session, events))
 }
 
-async fn graded_count(harness: &Harness, events: &[i64]) -> anyhow::Result<i64> {
+pub(super) async fn graded_count(harness: &Harness, events: &[i64]) -> anyhow::Result<i64> {
     Ok(
         sqlx::query_scalar("SELECT count(*) FROM memory.search_grades WHERE event_id = ANY($1)")
             .bind(events)
@@ -100,7 +100,7 @@ async fn graded_count(harness: &Harness, events: &[i64]) -> anyhow::Result<i64> 
     )
 }
 
-async fn seeded_documents(harness: &Harness) -> anyhow::Result<(i64, Vec<String>)> {
+pub(super) async fn seeded_documents(harness: &Harness) -> anyhow::Result<(i64, Vec<String>)> {
     let project = seed_project_with_documents(harness).await?;
     let page = harness
         .handle
@@ -226,7 +226,7 @@ async fn night_pass_stops_grading_when_a_session_becomes_active_between_two_even
     let (project, references) = seeded_documents(&harness).await?;
     let (_, events) = seed_events(&harness, project, &[&references[0]], 2).await?;
     let idle = IdleOnce(AtomicUsize::new(0));
-    let budget = quiet_budget(&harness.handle).await;
+    let budget = quiet_budget(&harness.state);
 
     let pass = night_pass(&harness.state, &harness.handle, &budget, at(23), &idle).await;
 
@@ -246,7 +246,7 @@ async fn night_pass_when_the_reranker_fails_leaves_the_search_ungraded() -> anyh
         .await;
     let (project, references) = seeded_documents(&harness).await?;
     let (_, events) = seed_events(&harness, project, &[&references[0]], 2).await?;
-    let budget = quiet_budget(&harness.handle).await;
+    let budget = quiet_budget(&harness.state);
 
     let pass = night_pass(
         &harness.state,

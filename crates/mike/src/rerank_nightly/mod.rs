@@ -1,12 +1,17 @@
 mod candidates;
 mod grade;
 mod lesson_pairs;
+mod run_now;
 mod tune;
+
+pub(crate) use run_now::{RunNow, run_pass_now};
 
 #[cfg(test)]
 mod candidates_tests;
 #[cfg(test)]
 mod lesson_pairs_tests;
+#[cfg(test)]
+mod run_now_tests;
 #[cfg(test)]
 mod worker_tests;
 
@@ -15,8 +20,8 @@ use std::time::Duration;
 use chrono::{DateTime, TimeZone, Timelike, Utc};
 use tokio::time::{MissedTickBehavior, interval};
 
+use crate::analysis::rerank::RerankNightly as QuietBudget;
 use crate::config::AppState;
-use crate::lesson_proposer::QuietBudget;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::search_grades::UngradedEvent;
 use candidates::candidates_phase;
@@ -85,7 +90,7 @@ async fn run_tick(state: &AppState, persist: &PersistHandle, now: DateTime<Utc>)
     if !state.rerank_service().current_config().tuning_enabled {
         return Tick::TuningOff;
     }
-    let budget = quiet_budget(persist).await;
+    let budget = quiet_budget(state);
     if !budget.in_window(now.hour()) {
         return Tick::OutsideWindow;
     }
@@ -205,17 +210,8 @@ impl Idle for DbIdle<'_> {
     }
 }
 
-async fn quiet_budget(persist: &PersistHandle) -> QuietBudget {
-    let mut budget = QuietBudget::default();
-    match persist.fetch_settings().await {
-        Ok(rows) => rows
-            .iter()
-            .for_each(|(key, value)| budget.apply_row(key, value)),
-        Err(error) => {
-            tracing::warn!(%error, "rerank_nightly: stored quiet window unreadable; using 22-04 UTC");
-        }
-    }
-    budget
+fn quiet_budget(state: &AppState) -> QuietBudget {
+    state.rerank_service().current_config().nightly
 }
 
 async fn session_is_idle(persist: &PersistHandle, budget: &QuietBudget) -> bool {

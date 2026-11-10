@@ -14,6 +14,7 @@
 		Activity,
 		Cpu,
 		Boxes,
+		ArrowDownWideNarrow,
 		ScanText,
 		Plug,
 		Settings,
@@ -71,6 +72,7 @@
 		| '/settings/workers'
 		| '/settings/assistants'
 		| '/settings/embedding'
+		| '/settings/reranker'
 		| '/settings/flagging'
 		| '/settings/integrations'
 		| '/help';
@@ -278,6 +280,13 @@
 					href: '/settings/embedding',
 					icon: Boxes,
 					hint: 'Embedding model + endpoint for memory recall',
+					indent: true
+				},
+				{
+					label: 'Reranker',
+					href: '/settings/reranker',
+					icon: ArrowDownWideNarrow,
+					hint: 'Reranker model, endpoint, search ranking and the overnight pass that tunes it',
 					indent: true
 				},
 				{

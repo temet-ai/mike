@@ -17,6 +17,7 @@ mod meta_llm_provider;
 mod meta_operations;
 mod meta_pipeline;
 mod meta_rerank;
+mod meta_rerank_nightly;
 #[cfg(test)]
 mod meta_rerank_tests;
 pub(crate) mod meta_scheduled_jobs;

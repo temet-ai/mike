@@ -111,7 +111,7 @@ fn verdict_with_a_gain_under_the_minimum_is_refused() {
     let before = evaluation(0.40, &[("lesson", 0.40)]);
     let after = evaluation(0.40 + MIN_GAIN / 2.0, &[("lesson", 0.45)]);
 
-    let reason = verdict(&before, &after).err().unwrap_or_default();
+    let reason = verdict(&before, &after, MIN_GAIN).err().unwrap_or_default();
 
     assert!(reason.contains("under the 0.01 needed"), "{reason}");
 }
@@ -121,7 +121,7 @@ fn verdict_when_a_kind_drops_is_refused_even_with_a_larger_overall_gain() {
     let before = evaluation(0.40, &[("lesson", 0.50), ("turn", 0.30)]);
     let after = evaluation(0.60, &[("lesson", 0.90), ("turn", 0.20)]);
 
-    let reason = verdict(&before, &after).err().unwrap_or_default();
+    let reason = verdict(&before, &after, MIN_GAIN).err().unwrap_or_default();
 
     assert!(reason.contains("share for turn would drop"), "{reason}");
 }
@@ -131,7 +131,7 @@ fn verdict_with_exactly_the_minimum_gain_and_no_drop_is_kept() {
     let before = evaluation(0.40, &[("lesson", 0.40)]);
     let after = evaluation(0.40 + MIN_GAIN, &[("lesson", 0.41)]);
 
-    assert!(verdict(&before, &after).is_ok());
+    assert!(verdict(&before, &after, MIN_GAIN).is_ok());
 }
 
 #[test]
@@ -139,7 +139,7 @@ fn tune_keeps_the_one_kind_weight_that_brings_the_used_reference_into_the_top_fi
 -> anyhow::Result<()> {
     let grades: Vec<Grade> = (0..20).map(|_| target_last()).collect();
 
-    let attempts = tune(&grades, &RankingConfig::default(), 0);
+    let attempts = tune(&grades, &RankingConfig::default(), 0, MIN_GAIN);
 
     assert_eq!(attempts.len(), 5);
     let kept: Vec<_> = attempts.iter().filter(|a| a.kept).collect();
@@ -158,7 +158,7 @@ fn tune_keeps_the_one_kind_weight_that_brings_the_used_reference_into_the_top_fi
 fn tune_records_the_best_rejected_value_for_a_setting_that_cannot_help() -> anyhow::Result<()> {
     let grades: Vec<Grade> = (0..20).map(|_| target_last()).collect();
 
-    let attempts = tune(&grades, &RankingConfig::default(), 0);
+    let attempts = tune(&grades, &RankingConfig::default(), 0, MIN_GAIN);
 
     let Some(lexical) = attempts.iter().find(|a| a.key == KEY_LEXICAL_WEIGHT) else {
         anyhow::bail!("the lexical weight must be tried: {attempts:?}");
@@ -175,7 +175,7 @@ fn tune_with_nothing_to_improve_keeps_no_change() {
     grade.used = vec!["lesson:0".to_owned()];
     let grades: Vec<Grade> = (0..20).map(|_| grade.clone()).collect();
 
-    let attempts = tune(&grades, &RankingConfig::default(), 0);
+    let attempts = tune(&grades, &RankingConfig::default(), 0, MIN_GAIN);
 
     assert!(attempts.iter().all(|attempt| !attempt.kept));
 }
@@ -186,7 +186,7 @@ fn tune_from_a_config_that_already_ranks_the_used_reference_high_keeps_nothing()
     let mut start = RankingConfig::default();
     start.apply(KEY_KIND_WEIGHTS, &json!({"turn": 1.5}));
 
-    let attempts = tune(&grades, &start, 0);
+    let attempts = tune(&grades, &start, 0, MIN_GAIN);
 
     assert!(!attempts.is_empty());
     assert!(
@@ -217,7 +217,7 @@ fn tune_tries_whatever_kind_the_grades_hold() -> anyhow::Result<()> {
     }
     let grades: Vec<Grade> = (0..20).map(|_| grade.clone()).collect();
 
-    let attempts = tune(&grades, &RankingConfig::default(), 0);
+    let attempts = tune(&grades, &RankingConfig::default(), 0, MIN_GAIN);
 
     let Some(kept) = attempts.iter().find(|a| a.kept) else {
         anyhow::bail!("a change must be kept: {attempts:?}");

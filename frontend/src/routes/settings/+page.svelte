@@ -32,9 +32,16 @@
 
 	function isMovedGroup(group: string): boolean {
 		const g = group.toLowerCase();
-		return ['steer', 'embedding', 'weasel', 'analysis', 'lesson', 'judge'].some((m) =>
-			g.includes(m)
-		);
+		return [
+			'steer',
+			'embedding',
+			'weasel',
+			'analysis',
+			'lesson',
+			'judge',
+			'rerank',
+			'search ranking'
+		].some((m) => g.includes(m));
 	}
 
 	const { data }: { data: SettingsPageData } = $props();
@@ -300,7 +307,7 @@
 	{#snippet lede()}
 		Features that apply to a session, and every other setting. The steerer<HelpHint
 			slug="steerer"
-		/>, workers, embedding and flagging have their own pages.
+		/>, workers, embedding, reranker and flagging have their own pages.
 	{/snippet}
 
 	<div class="cfg-find">

@@ -67,6 +67,13 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         "/api/knowledge/read",
         Coverage::Tool("read_project_knowledge"),
     ),
+    route(
+        "POST",
+        "/api/knowledge/rerank-pass",
+        Coverage::Exempt {
+            reason: "operator runs the overnight rerank pass now",
+        },
+    ),
 ];
 
 pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
@@ -83,6 +90,7 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
         )
         .route("/api/knowledge/search", get(api::search))
         .route("/api/knowledge/read", get(api::read))
+        .route("/api/knowledge/rerank-pass", post(api::rerank_pass))
         .route(
             "/api/knowledge/lessons",
             get(api::lesson_files).post(api::import_lesson),

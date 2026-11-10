@@ -15,7 +15,6 @@ use crate::store::persistence::work_threads::{
 };
 
 const CANDIDATE_ROWS: i64 = 100;
-const KEPT_PER_THREAD: usize = 10;
 const LEXICAL_TERMS: usize = 40;
 const MIN_TERM_CHARS: usize = 3;
 
@@ -104,7 +103,12 @@ async fn build_thread(
     if scores.iter().any(Option::is_none) {
         return Ok(Built::RerankerFailed);
     }
-    let best = best_of(contenders, &scores);
+    let kept = state
+        .rerank_service()
+        .current_config()
+        .nightly
+        .related_per_thread;
+    let best = best_of(contenders, &scores, kept);
     persist
         .replace_thread_card_candidates(thread.thread_id, &best)
         .await?;
@@ -171,7 +175,11 @@ async fn without_own_entries(
         .collect())
 }
 
-fn best_of(contenders: Vec<Contender>, scores: &[Option<f64>]) -> Vec<NewThreadCandidate> {
+fn best_of(
+    contenders: Vec<Contender>,
+    scores: &[Option<f64>],
+    kept: usize,
+) -> Vec<NewThreadCandidate> {
     let mut scored: Vec<NewThreadCandidate> = contenders
         .into_iter()
         .zip(scores)
@@ -184,7 +192,7 @@ fn best_of(contenders: Vec<Contender>, scores: &[Option<f64>]) -> Vec<NewThreadC
         })
         .collect();
     scored.sort_by(by_score_then_reference);
-    scored.truncate(KEPT_PER_THREAD);
+    scored.truncate(kept);
     scored
 }
 

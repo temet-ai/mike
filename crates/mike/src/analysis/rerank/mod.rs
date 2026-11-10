@@ -5,6 +5,10 @@ use crate::config::deserialize_permissive_bool;
 
 #[cfg(test)]
 mod cold_start_tests;
+mod keys;
+#[cfg(test)]
+mod keys_tests;
+mod nightly;
 mod runtime;
 mod service;
 #[cfg(test)]
@@ -15,6 +19,9 @@ mod warmup;
 #[cfg(test)]
 mod warmup_tests;
 
+pub(crate) use keys::assign_rerank_key;
+pub(crate) use nightly::DEFAULT_RESCUE_SCORE;
+pub use nightly::RerankNightly;
 pub(crate) use runtime::{RerankPhase, RerankStatus};
 pub use service::RerankService;
 pub(crate) use warmup::spawn_rerank_warmup;
@@ -41,9 +48,13 @@ pub(crate) const BREAKER_BASE_COOLDOWN: std::time::Duration = std::time::Duratio
 
 pub(crate) const BREAKER_MAX_COOLDOWN: std::time::Duration = std::time::Duration::from_secs(300);
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct RerankConfig {
+    pub rescue_score: f64,
+
+    pub nightly: RerankNightly,
+
     #[serde(deserialize_with = "deserialize_permissive_bool")]
     pub enabled: bool,
 
@@ -62,6 +73,8 @@ pub struct RerankConfig {
 impl Default for RerankConfig {
     fn default() -> Self {
         Self {
+            rescue_score: DEFAULT_RESCUE_SCORE,
+            nightly: RerankNightly::default(),
             enabled: false,
             url: DEFAULT_RERANK_URL.to_owned(),
             model: DEFAULT_RERANK_MODEL.to_owned(),
