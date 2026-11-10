@@ -1,4 +1,11 @@
-use super::load::{load_per_cpu, under_ceiling};
+use super::load::{load_per_cpu, one_minute, under_ceiling};
+
+#[test]
+fn one_minute_reads_the_first_field_of_proc_loadavg() {
+    assert_eq!(one_minute("12.32 7.24 4.48 3/2917 3786592\n"), Some(12.32));
+    assert_eq!(one_minute(""), None);
+    assert_eq!(one_minute("busy"), None);
+}
 
 #[test]
 fn load_per_cpu_reads_a_non_negative_average_on_this_machine() {
