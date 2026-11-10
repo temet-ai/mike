@@ -75,7 +75,8 @@ minutes are out):
 - Build, test and push on the machine that holds your checkout: omit or the Mac. Never
   `ssh` to another machine to build or push, never wrap a command in `flock` or a shared
   lock, and never wait on another session's build. Cargo already locks each `target/`.
-  infra never builds; it runs omit's aarch64 build.
+  infra never builds: an infra session builds in its own omit worktree over `ssh`,
+  without a lock, and infra runs omit's aarch64 build.
 - Before the first push of a Rust change, run the hook's quick steps on what you
   touched: `scripts/cx fmt --check`, `scripts/lint-rust -p <crate>`, and `scripts/sb-test
   --skip-typecheck <filter>` for a frontend change. Then push once, in the background,
