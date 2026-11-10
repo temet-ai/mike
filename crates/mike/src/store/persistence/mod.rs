@@ -48,9 +48,6 @@ pub mod improvement;
 pub mod judge;
 pub mod judge_digest;
 pub(crate) mod judge_ownership;
-pub(crate) mod keeper_earlier;
-#[cfg(test)]
-mod keeper_earlier_tests;
 pub mod keyset;
 pub mod launch;
 pub mod lesson_injections;

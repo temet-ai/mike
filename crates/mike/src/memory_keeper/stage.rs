@@ -1,12 +1,8 @@
-use std::time::Duration;
-
 use bytes::Bytes;
 use chrono::Utc;
 use uuid::Uuid;
 
 use super::block::{Block, KEEPER_MARKER_OPEN};
-use super::earlier::{EARLIER_MARKER_OPEN, operator_words};
-use super::earlier_lookup::{EarlierAsk, earlier_work};
 use super::record::spawn_record;
 use super::served::served_by_client;
 use super::supply::{Carrier, SupplyRequest, supply};
@@ -17,7 +13,6 @@ use crate::reminders::session_lessons_query::recent_user_prompts;
 
 pub(crate) const STAGE: &str = "memory_keeper";
 const RECENT_PROMPTS: usize = 4;
-const EARLIER_BUDGET: Duration = Duration::from_millis(900);
 
 pub(crate) struct MemoryKeeperStage;
 
@@ -34,69 +29,50 @@ impl RequestStage for MemoryKeeperStage {
     }
 
     async fn apply(&self, ctx: &StageContext<'_>, body: &mut StageBody) {
+        if served_by_client(ctx.session_id) || carries_marker(body.body()) {
+            body.record_unchanged(STAGE, STAGE, "memory_keeper_served_by_client");
+            return;
+        }
         let Ok(session) = Uuid::parse_str(ctx.session_id) else {
             return;
         };
-        let (prompts, _) = recent_user_prompts(body.body(), RECENT_PROMPTS);
-        let card_served =
-            served_by_client(ctx.session_id) || carries(body.body(), KEEPER_MARKER_OPEN);
-        let card = if card_served {
-            None
-        } else {
-            card(ctx, session, &prompts)
-        };
-        let earlier = earlier(ctx, session, prompts.first()).await;
-        let blocks: Vec<Block> = card.into_iter().chain(earlier).collect();
-        if blocks.is_empty() {
-            let reason = if card_served {
-                "memory_keeper_served_by_client"
-            } else {
-                "memory_keeper_nothing_to_supply"
-            };
-            body.record_unchanged(STAGE, STAGE, reason);
+        let Some(block) = card(ctx, session, body.body()) else {
+            body.record_unchanged(STAGE, STAGE, "memory_keeper_nothing_to_supply");
             return;
-        }
-        supply_blocks(ctx, body, &blocks);
+        };
+        let Some(new_body) =
+            append_block_to_last_user_message(body.body(), &block.text, ctx.request_id)
+        else {
+            body.record_unchanged(STAGE, STAGE, "memory_keeper_no_user_turn");
+            return;
+        };
+        let new_bytes = Bytes::from(new_body);
+        body.rewrite(
+            new_bytes.clone(),
+            AppliedStage {
+                stage: STAGE,
+                policy_id: STAGE,
+                policy_version: 1,
+                resolved_parameters: serde_json::json!({ "card_hash": block.hash }),
+                new_bytes: new_bytes.as_ref(),
+                targets: Vec::new(),
+                reason_code: "memory_keeper_card_supplied",
+                detail: Some(format!(
+                    "supplied {} bytes of thread card",
+                    block.text.len()
+                )),
+            },
+        );
     }
 }
 
-fn supply_blocks(ctx: &StageContext<'_>, body: &mut StageBody, blocks: &[Block]) {
-    let text = blocks
-        .iter()
-        .map(|block| block.text.as_str())
-        .collect::<Vec<_>>()
-        .join("\n");
-    let Some(new_body) = append_block_to_last_user_message(body.body(), &text, ctx.request_id)
-    else {
-        body.record_unchanged(STAGE, STAGE, "memory_keeper_no_user_turn");
-        return;
-    };
-    let hashes: Vec<&str> = blocks.iter().map(|block| block.hash.as_str()).collect();
-    let new_bytes = Bytes::from(new_body);
-    body.rewrite(
-        new_bytes.clone(),
-        AppliedStage {
-            stage: STAGE,
-            policy_id: STAGE,
-            policy_version: 1,
-            resolved_parameters: serde_json::json!({ "block_hashes": hashes }),
-            new_bytes: new_bytes.as_ref(),
-            targets: Vec::new(),
-            reason_code: "memory_keeper_card_supplied",
-            detail: Some(format!(
-                "supplied {} bytes of memory-keeper context",
-                text.len()
-            )),
-        },
-    );
-}
-
-fn carries(body: &[u8], marker: &str) -> bool {
-    let marker = marker.as_bytes();
+fn carries_marker(body: &[u8]) -> bool {
+    let marker = KEEPER_MARKER_OPEN.as_bytes();
     body.windows(marker.len()).any(|window| window == marker)
 }
 
-fn card(ctx: &StageContext<'_>, session: Uuid, prompts: &[String]) -> Option<Block> {
+fn card(ctx: &StageContext<'_>, session: Uuid, body: &[u8]) -> Option<Block> {
+    let (prompts, _) = recent_user_prompts(body, RECENT_PROMPTS);
     let (prompt, recent) = prompts.split_first()?;
     let snapshot = ctx.state.keeper_snapshot.load();
     let outcome = supply(
@@ -116,27 +92,6 @@ fn card(ctx: &StageContext<'_>, session: Uuid, prompts: &[String]) -> Option<Blo
         spawn_record(ctx.state.persist().cloned(), record);
     }
     outcome.block
-}
-
-async fn earlier(ctx: &StageContext<'_>, session: Uuid, last: Option<&String>) -> Option<Block> {
-    let last = last?;
-    if last.contains(EARLIER_MARKER_OPEN) {
-        return None;
-    }
-    let prompt = operator_words(last);
-    let ask = EarlierAsk {
-        session,
-        project_path: ctx.project_path,
-        prompt: &prompt,
-        carrier: Carrier::Proxy,
-        now: Utc::now(),
-    };
-    let supply = tokio::time::timeout(EARLIER_BUDGET, earlier_work(ctx.state, &ask))
-        .await
-        .ok()
-        .flatten()?;
-    spawn_record(ctx.state.persist().cloned(), supply.record);
-    supply.block
 }
 
 #[cfg(test)]
