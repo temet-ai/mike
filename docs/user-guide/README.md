@@ -59,10 +59,19 @@ mike runs on Linux x86_64 and ARM64 (glibc 2.35 or newer) and on Apple Silicon M
 
 - [MCP](mcp.md): let Claude Code query what mike has captured.
 - [Start and manage sessions](sessions.md): open Claude Code sessions from mike.
-- [Fleets](fleets/README.md): several sessions working towards one goal.
-- [How a fleet runs](fleets/how-a-fleet-runs.md): what mike does from the moment a fleet starts until it closes, and what each session in it does.
 - [Work threads](threads.md): keep work going across sessions.
 - [Mods](mods.md): the panes and buttons mike adds inside Claude Code.
+
+**Fleets**
+
+- [Fleets: several sessions on one goal](fleets/README.md): what a fleet is, when to use one, and what you need first.
+- [Run your first fleet](fleets/first-fleet.md): the example from `/fleet` to `done`.
+- [Write a fleet definition](fleets/definition.md): the outcomes, the tasks and their files, and the checks.
+- [How a fleet runs](fleets/how-a-fleet-runs.md): the sessions mike opens and what each one does.
+- [Share one checkout](fleets/shared-checkout.md): commits, the rules for the folder, and checks on clean copies.
+- [How work is accepted](fleets/acceptance.md): the report, the floor and the judge.
+- [Watch a fleet and step in](fleets/watch-and-recover.md): the status screen, questions for you, repairs and stopping.
+- [After a run](fleets/after-a-run.md): the record, the retrospective and lessons for the next fleet.
 
 **Reference**
 
