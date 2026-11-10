@@ -1,6 +1,29 @@
 use super::*;
 
 #[test]
+fn operator_text_with_only_a_task_notification_is_none() {
+    let prompt = "<system-reminder>\n[SYSTEM NOTIFICATION]\n<task-notification><status>completed</status></task-notification>\n</system-reminder>";
+    assert_eq!(operator_text(prompt), None);
+}
+
+#[test]
+fn operator_text_keeps_the_operator_words_around_a_reminder() {
+    let prompt = "continue <system-reminder>lesson text</system-reminder>with the epic";
+    assert_eq!(
+        operator_text(prompt).as_deref(),
+        Some("continue with the epic")
+    );
+}
+
+#[test]
+fn operator_text_with_an_unclosed_tag_drops_the_rest() {
+    assert_eq!(
+        operator_text("status<task-notification>done").as_deref(),
+        Some("status")
+    );
+}
+
+#[test]
 fn tokenize_mixed_text_drops_stopwords_short_words_and_case() {
     let words: Vec<String> = tokenize("The Quick fox AND is on a Plan")
         .into_iter()

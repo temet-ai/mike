@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use super::resolve_text::{Text, contains_bounded, is_deictic, tokenize};
+use super::resolve_text::{Text, contains_bounded, is_deictic, operator_text, tokenize};
 
 const MIN_SCORE: f64 = 0.3;
 const LEAD_MARGIN: f64 = 0.15;
@@ -191,8 +191,9 @@ fn keep_on_topic(candidates: &mut Vec<Candidate>) {
 fn build_context<'a>(input: &'a ResolveInput<'a>, open: &[&'a ThreadFacts]) -> Context<'a> {
     let turns = &input.session.recent_turn_text;
     let skip = turns.len().saturating_sub(RECENT_TURN_LIMIT);
-    let prompt = input.prompt.unwrap_or_default();
-    let ask = match input.prompt {
+    let operator = input.prompt.and_then(operator_text);
+    let prompt = operator.as_deref().unwrap_or_default();
+    let ask = match operator.as_deref() {
         None => Ask::Silent,
         Some(text) if is_deictic(text) => Ask::Continuation,
         Some(_) => Ask::Named,
