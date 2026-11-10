@@ -25,6 +25,7 @@ const SECONDS_PER_DAY: f64 = 86_400.0;
 const WORD_WEIGHT: f64 = 0.2;
 const WORD_COUNT_CAP: usize = 3;
 const WORD_OVERLAP_FLOOR: usize = 2;
+const MIN_SINGLE_WORD_SLUG_CHARS: usize = 6;
 
 const OPEN_STATUSES: &[&str] = &["active", "implementing", "review", "in-progress"];
 const DEFAULT_BRANCHES: &[&str] = &["main", "master"];
@@ -65,6 +66,7 @@ pub(crate) enum Signal {
     RecentMention,
     LinkedSession,
     CheckoutMatch,
+    SharedCheckout,
     BranchMatch,
     WorktreeMatch,
     RecentCheckpoint,
@@ -76,7 +78,7 @@ impl Signal {
     fn anchors(self) -> bool {
         !matches!(
             self,
-            Self::RecentCheckpoint | Self::PromptWords | Self::Deictic
+            Self::SharedCheckout | Self::RecentCheckpoint | Self::PromptWords | Self::Deictic
         )
     }
 
@@ -114,6 +116,7 @@ struct Context<'a> {
     turns: Text,
     prompt_words: BTreeSet<String>,
     session: &'a SessionFacts<'a>,
+    checkout_threads: usize,
     now: DateTime<Utc>,
     ask: Ask,
 }
@@ -126,6 +129,10 @@ struct Candidate {
 impl Candidate {
     fn has(&self, wanted: impl Fn(Signal) -> bool) -> bool {
         self.pick.signals.iter().any(|signal| wanted(*signal))
+    }
+
+    fn anchored(&self) -> bool {
+        self.has(Signal::anchors) || self.shared_words > 0
     }
 
     fn qualifies(&self, ask: Ask) -> bool {
@@ -141,11 +148,14 @@ impl Candidate {
 }
 
 pub(crate) fn resolve(input: &ResolveInput<'_>) -> Resolution {
-    let ctx = build_context(input);
-    let mut candidates: Vec<Candidate> = input
+    let open: Vec<&ThreadFacts> = input
         .threads
         .iter()
         .filter(|thread| OPEN_STATUSES.contains(&thread.status.as_str()))
+        .collect();
+    let ctx = build_context(input, &open);
+    let mut candidates: Vec<Candidate> = open
+        .iter()
         .map(|thread| score_thread(thread, &ctx))
         .filter(|candidate| candidate.pick.score >= MIN_SCORE && candidate.qualifies(ctx.ask))
         .collect();
@@ -156,20 +166,20 @@ pub(crate) fn resolve(input: &ResolveInput<'_>) -> Resolution {
             .then_with(|| a.pick.slug.cmp(&b.pick.slug))
     });
     if ctx.ask == Ask::Continuation {
-        keep_anchored_unless_alone(&mut candidates);
+        keep_on_topic(&mut candidates);
+        candidates.retain(Candidate::anchored);
     }
     decide(candidates.into_iter().map(|c| c.pick).collect())
 }
 
-fn keep_anchored_unless_alone(candidates: &mut Vec<Candidate>) {
-    if candidates.iter().any(|c| c.has(Signal::anchors)) {
-        candidates.retain(|c| c.has(Signal::anchors));
-    } else if candidates.len() > 1 {
-        candidates.clear();
+fn keep_on_topic(candidates: &mut Vec<Candidate>) {
+    let top = candidates.iter().map(|c| c.shared_words).max().unwrap_or(0);
+    if top > 0 {
+        candidates.retain(|c| c.shared_words == top || c.has(|s| s == Signal::ExplicitMention));
     }
 }
 
-fn build_context<'a>(input: &'a ResolveInput<'a>) -> Context<'a> {
+fn build_context<'a>(input: &'a ResolveInput<'a>, open: &[&ThreadFacts]) -> Context<'a> {
     let turns = &input.session.recent_turn_text;
     let skip = turns.len().saturating_sub(RECENT_TURN_LIMIT);
     let prompt = input.prompt.unwrap_or_default();
@@ -183,6 +193,10 @@ fn build_context<'a>(input: &'a ResolveInput<'a>) -> Context<'a> {
         turns: Text::new(&turns[skip..].join("\n")),
         prompt_words: tokenize(prompt),
         session: &input.session,
+        checkout_threads: open
+            .iter()
+            .filter(|thread| checkout_matches(thread, &input.session))
+            .count(),
         now: input.now,
         ask,
     }
@@ -218,15 +232,18 @@ fn score_thread(thread: &ThreadFacts, ctx: &Context<'_>) -> Candidate {
     );
     let shared_words = shared_word_count(thread, ctx);
     let words_weight = WORD_WEIGHT * shared_words.min(WORD_COUNT_CAP) as f64;
+    let named_by = distinctive(&slug);
+    let in_checkout = checkout_matches(thread, ctx.session);
+    let unique_checkout = ctx.checkout_threads == 1;
     let contributions = [
         (
             Signal::ExplicitMention,
-            ctx.prompt.mentions(&slug, &haystack),
+            ctx.prompt.mentions(named_by, &haystack),
             EXPLICIT_MENTION_WEIGHT,
         ),
         (
             Signal::RecentMention,
-            ctx.turns.mentions(&slug, &haystack),
+            ctx.turns.mentions(named_by, &haystack),
             RECENT_MENTION_WEIGHT,
         ),
         (
@@ -236,8 +253,13 @@ fn score_thread(thread: &ThreadFacts, ctx: &Context<'_>) -> Candidate {
         ),
         (
             Signal::CheckoutMatch,
-            checkout_matches(thread, ctx.session),
+            in_checkout && unique_checkout,
             CHECKOUT_WEIGHT,
+        ),
+        (
+            Signal::SharedCheckout,
+            in_checkout && !unique_checkout,
+            CHECKOUT_WEIGHT / ctx.checkout_threads.max(1) as f64,
         ),
         (
             Signal::BranchMatch,
@@ -274,6 +296,14 @@ fn score_thread(thread: &ThreadFacts, ctx: &Context<'_>) -> Candidate {
             signals,
         },
         shared_words,
+    }
+}
+
+fn distinctive(slug: &str) -> &str {
+    if slug.contains('-') || slug.chars().count() >= MIN_SINGLE_WORD_SLUG_CHARS {
+        slug
+    } else {
+        ""
     }
 }
 
@@ -330,3 +360,7 @@ fn recency(thread: &ThreadFacts, now: DateTime<Utc>) -> f64 {
 #[cfg(test)]
 #[path = "resolve_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "resolve_eval_tests.rs"]
+mod eval_tests;
