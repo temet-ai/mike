@@ -44,7 +44,11 @@ WITH knowledge_scope AS MATERIALIZED (
                 = CASE WHEN $3::text IN ('memory', 'skill') THEN 'artifact' ELSE $3::text END
           GROUP BY reference) per_reference
     WHERE score >= GREATEST($10::float8, best - $11::float8)
-), q AS (SELECT websearch_to_tsquery('english', $2) AS tsq), superseded AS (
+), q AS (
+    SELECT CASE WHEN $12::bool AND strpos(w::text, '!') = 0 AND numnode(w) > 0
+                THEN replace(w::text, ' & ', ' | ')::tsquery ELSE w END AS tsq
+      FROM websearch_to_tsquery('english', $2) w
+), superseded AS (
     SELECT DISTINCT rel.to_lesson_id
     FROM memory.lesson_relations rel
     JOIN memory.lesson_relation_kinds rk ON rk.id = rel.kind_id AND rk.code = 'supersedes'

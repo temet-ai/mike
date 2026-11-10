@@ -27,6 +27,7 @@ pub static SETTINGS_META: std::sync::LazyLock<Vec<super::SettingMeta>> =
         entries.extend(super::meta_improvement::entries());
         entries.extend(super::meta_scheduled_jobs::entries());
         entries.extend(super::meta_rerank::entries());
+        entries.extend(super::meta_rerank_nightly::entries());
         entries.extend(super::meta_search_ranking::entries());
         entries
     });

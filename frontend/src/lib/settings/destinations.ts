@@ -7,7 +7,8 @@ import {
 	ScanText,
 	Plug,
 	History,
-	ListChecks
+	ListChecks,
+	ArrowDownWideNarrow
 } from '@lucide/svelte';
 
 export const SETTINGS_DESTINATIONS = [
@@ -16,6 +17,7 @@ export const SETTINGS_DESTINATIONS = [
 	{ href: '/settings/workers', label: 'Workers', icon: Cpu },
 	{ href: '/settings/assistants', label: 'Assistants', icon: Bot },
 	{ href: '/settings/embedding', label: 'Embedding', icon: Boxes },
+	{ href: '/settings/reranker', label: 'Reranker', icon: ArrowDownWideNarrow },
 	{ href: '/settings/flagging', label: 'Flagging', icon: ScanText },
 	{ href: '/settings/integrations', label: 'Integrations', icon: Plug },
 	{ href: '/settings/setup', label: 'Setup', icon: ListChecks },

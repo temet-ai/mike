@@ -106,6 +106,7 @@ fn rerank_persisted_rows_fold_into_the_boot_config() {
             timeout_ms: 750,
             candidates: 30,
             tuning_enabled: true,
+            ..RerankConfig::default()
         }
     );
 }

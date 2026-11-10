@@ -153,24 +153,7 @@ impl RerankService {
     }
 
     fn assign_setting(config: &mut RerankConfig, key: &str, value: &serde_json::Value) -> bool {
-        match key {
-            "rerank.enabled" => assign(&mut config.enabled, value.as_bool()),
-            "rerank.url" => assign(
-                &mut config.url,
-                value.as_str().map(|v| v.trim_end_matches('/').to_owned()),
-            ),
-            "rerank.model" => assign(&mut config.model, value.as_str().map(str::to_owned)),
-            "rerank.timeout_ms" => assign(&mut config.timeout_ms, value.as_u64().map(|v| v.max(1))),
-            "rerank.candidates" => assign(
-                &mut config.candidates,
-                value
-                    .as_u64()
-                    .and_then(|v| usize::try_from(v).ok())
-                    .map(|v| v.max(1)),
-            ),
-            "rerank.tuning.enabled" => assign(&mut config.tuning_enabled, value.as_bool()),
-            _ => false,
-        }
+        super::assign_rerank_key(config, key, value)
     }
 
     pub async fn health(&self) -> ServerHealth {
@@ -329,16 +312,6 @@ pub(super) fn truncate_chars(text: &str, max_chars: usize) -> &str {
     match text.char_indices().nth(max_chars) {
         Some((end, _)) => &text[..end],
         None => text,
-    }
-}
-
-fn assign<T>(slot: &mut T, value: Option<T>) -> bool {
-    match value {
-        Some(v) => {
-            *slot = v;
-            true
-        }
-        None => false,
     }
 }
 

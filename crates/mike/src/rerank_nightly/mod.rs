@@ -1,12 +1,20 @@
 mod candidates;
 mod grade;
 mod lesson_pairs;
+mod load;
+#[cfg(test)]
+mod load_tests;
+mod run_now;
 mod tune;
+
+pub(crate) use run_now::{RunNow, run_pass_now};
 
 #[cfg(test)]
 mod candidates_tests;
 #[cfg(test)]
 mod lesson_pairs_tests;
+#[cfg(test)]
+mod run_now_tests;
 #[cfg(test)]
 mod worker_tests;
 
@@ -15,8 +23,8 @@ use std::time::Duration;
 use chrono::{DateTime, TimeZone, Timelike, Utc};
 use tokio::time::{MissedTickBehavior, interval};
 
+use crate::analysis::rerank::RerankNightly as QuietBudget;
 use crate::config::AppState;
-use crate::lesson_proposer::QuietBudget;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::search_grades::UngradedEvent;
 use candidates::candidates_phase;
@@ -32,7 +40,7 @@ const GRADE_BATCH: i64 = 200;
 enum Tick {
     TuningOff,
     OutsideWindow,
-    Active,
+    Busy,
     NotLeader,
     Ran(Pass),
 }
@@ -48,7 +56,7 @@ struct Pass {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Stop {
-    SessionActive,
+    MachineBusy,
     RerankerFailed,
     DatabaseFailed,
     MoreToGrade,
@@ -85,16 +93,13 @@ async fn run_tick(state: &AppState, persist: &PersistHandle, now: DateTime<Utc>)
     if !state.rerank_service().current_config().tuning_enabled {
         return Tick::TuningOff;
     }
-    let budget = quiet_budget(persist).await;
+    let budget = quiet_budget(state);
     if !budget.in_window(now.hour()) {
         return Tick::OutsideWindow;
     }
-    let idle = DbIdle {
-        persist,
-        budget: &budget,
-    };
+    let idle = LoadIdle { state };
     if !idle.is_idle().await {
-        return Tick::Active;
+        return Tick::Busy;
     }
     if !persist.holds_worker_role(LEASE_ROLE, TICK_INTERVAL).await {
         return Tick::NotLeader;
@@ -176,7 +181,7 @@ async fn grade_events(
 ) -> Option<Stop> {
     for event in events {
         if !idle.is_idle().await {
-            return Some(Stop::SessionActive);
+            return Some(Stop::MachineBusy);
         }
         match grade_event(state, persist, &event).await {
             Ok(Graded::Recorded) => *graded += 1,
@@ -194,39 +199,19 @@ trait Idle {
     fn is_idle(&self) -> impl Future<Output = bool> + Send;
 }
 
-struct DbIdle<'a> {
-    persist: &'a PersistHandle,
-    budget: &'a QuietBudget,
+struct LoadIdle<'a> {
+    state: &'a AppState,
 }
 
-impl Idle for DbIdle<'_> {
-    fn is_idle(&self) -> impl Future<Output = bool> + Send {
-        session_is_idle(self.persist, self.budget)
+impl Idle for LoadIdle<'_> {
+    async fn is_idle(&self) -> bool {
+        let ceiling = quiet_budget(self.state).max_load_per_cpu;
+        load::under_ceiling(load::load_per_cpu(), ceiling)
     }
 }
 
-async fn quiet_budget(persist: &PersistHandle) -> QuietBudget {
-    let mut budget = QuietBudget::default();
-    match persist.fetch_settings().await {
-        Ok(rows) => rows
-            .iter()
-            .for_each(|(key, value)| budget.apply_row(key, value)),
-        Err(error) => {
-            tracing::warn!(%error, "rerank_nightly: stored quiet window unreadable; using 22-04 UTC");
-        }
-    }
-    budget
-}
-
-async fn session_is_idle(persist: &PersistHandle, budget: &QuietBudget) -> bool {
-    let since = Utc::now() - chrono::Duration::seconds(budget.idle_secs);
-    match persist.has_recent_primary_activity(since).await {
-        Ok(active) => !active,
-        Err(error) => {
-            tracing::warn!(%error, "rerank_nightly: activity check failed; treating as active");
-            false
-        }
-    }
+fn quiet_budget(state: &AppState) -> QuietBudget {
+    state.rerank_service().current_config().nightly
 }
 
 fn window_start(now: DateTime<Utc>, start_hour: u32) -> DateTime<Utc> {

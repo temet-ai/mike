@@ -41,6 +41,8 @@ pub(crate) fn cut_for(model_name: &str, cut: SemanticCut) -> ScoreFloor {
 pub struct KnowledgeQuery {
     #[serde(skip)]
     pub semantic_cut: SemanticCut,
+    #[serde(skip)]
+    pub any_term: bool,
     pub project: String,
     #[serde(default)]
     pub query: String,
@@ -96,6 +98,7 @@ async fn fetch_hits(
         bound.model_name,
         bound.cut.floor,
         bound.cut.window,
+        input.any_term,
     )
     .fetch_all(&mut **tx)
     .await?)

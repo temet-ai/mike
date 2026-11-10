@@ -83,7 +83,7 @@ async fn night_pass_with_a_pair_the_reranker_rates_high_queues_it_and_writes_no_
     harness.enable_rerank(2_000);
     answering(&harness, 0.9).await;
     let (a, b) = embedded_pair(&harness).await?;
-    let budget = quiet_budget(&harness.handle).await;
+    let budget = quiet_budget(&harness.state);
 
     let pass = night_pass(
         &harness.state,
@@ -113,7 +113,7 @@ async fn night_pass_with_a_pair_the_reranker_rates_low_queues_nothing() -> anyho
     harness.enable_rerank(2_000);
     answering(&harness, 0.2).await;
     let (a, _) = embedded_pair(&harness).await?;
-    let budget = quiet_budget(&harness.handle).await;
+    let budget = quiet_budget(&harness.state);
 
     let pass = night_pass(
         &harness.state,
@@ -135,7 +135,7 @@ async fn night_pass_with_a_queued_pair_found_again_keeps_its_judged_mark() -> an
     harness.enable_rerank(2_000);
     answering(&harness, 0.9).await;
     let (a, _) = embedded_pair(&harness).await?;
-    let budget = quiet_budget(&harness.handle).await;
+    let budget = quiet_budget(&harness.state);
     night_pass(
         &harness.state,
         &harness.handle,
@@ -172,7 +172,7 @@ async fn night_pass_when_the_reranker_fails_queues_no_pair() -> anyhow::Result<(
     harness.enable_rerank(2_000);
     harness.reranker_answers(failing_answer()).await;
     let (a, _) = embedded_pair(&harness).await?;
-    let budget = quiet_budget(&harness.handle).await;
+    let budget = quiet_budget(&harness.state);
 
     let pass = night_pass(
         &harness.state,

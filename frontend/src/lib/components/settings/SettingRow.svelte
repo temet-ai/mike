@@ -53,16 +53,45 @@
 
 	function handleNumberChange(event: Event): void {
 		const input = event.currentTarget as HTMLInputElement;
+		if (input.value.trim() === '' && setting.default === null) {
+			localValue = null;
+			return;
+		}
 		const raw = parseFloat(input.value);
 		if (!isNaN(raw)) {
 			localValue = raw;
 		}
 	}
 
+	// An optional number (default null) saves as null when emptied; the server then uses its own value.
 	function handleNumberBlur(): void {
-		if (typeof localValue === 'number') {
-			onSave?.(setting.key, localValue);
+		if (typeof localValue === 'number' || (localValue === null && setting.default === null)) {
+			if (localValue !== setting.value) onSave?.(setting.key, localValue);
 		}
+	}
+
+	let jsonDraft = $state(untrack(() => JSON.stringify(setting.value ?? {})));
+	let jsonError = $state<string | null>(null);
+	$effect(() => {
+		jsonDraft = JSON.stringify(setting.value ?? {});
+		jsonError = null;
+	});
+
+	function handleJsonBlur(): void {
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(jsonDraft);
+		} catch {
+			jsonError = 'Not valid JSON.';
+			return;
+		}
+		if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+			jsonError = 'Expected a JSON object.';
+			return;
+		}
+		jsonError = null;
+		if (JSON.stringify(parsed) !== JSON.stringify(setting.value ?? {}))
+			onSave?.(setting.key, parsed as Record<string, number>);
 	}
 
 	function handleStringChange(event: Event): void {
@@ -179,6 +208,9 @@
 			{#if error !== null}
 				<p class="cfg-row-error" id={errorId} role="alert">{error}</p>
 			{/if}
+			{#if jsonError !== null}
+				<p class="cfg-row-error" role="alert">{jsonError}</p>
+			{/if}
 		</div>
 
 		<div class="cfg-row-control">
@@ -200,7 +232,7 @@
 				<Field
 					type="number"
 					class="cfg-control cfg-control--number"
-					value={String(localValue)}
+					value={localValue === null ? '' : String(localValue)}
 					step={numberStep}
 					min={numberMin}
 					max={numberMax}
@@ -242,6 +274,19 @@
 				maxLen={setting.max_len}
 				disabled={loading || disabled}
 				onSave={handleListSave}
+			/>
+		</div>
+	{/if}
+
+	{#if setting.kind === 'json'}
+		<div class="cfg-row-list">
+			<Field
+				multiline
+				rows={2}
+				bind:value={jsonDraft}
+				disabled={loading || disabled}
+				aria-label={setting.label}
+				onblur={handleJsonBlur}
 			/>
 		</div>
 	{/if}

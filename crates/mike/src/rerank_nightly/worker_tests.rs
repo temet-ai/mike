@@ -15,7 +15,6 @@ use crate::config::SettingsWriteGuard;
 use crate::settings::service::SettingsService;
 use crate::store::persistence::search_events::NewSearchEvent;
 use crate::store::persistence::search_grades::NewGrade;
-use crate::store::persistence::test_support::seed_session_turns;
 
 pub(super) struct IdleOnce(pub(super) AtomicUsize);
 
@@ -39,18 +38,17 @@ pub(super) fn at(hour: u32) -> DateTime<Utc> {
         .unwrap_or_default()
 }
 
-fn tuning_on(harness: &Harness) {
-    harness
-        .state
-        .rerank_service()
-        .apply_setting("rerank.tuning.enabled", &json!(true));
+pub(super) fn tuning_on(harness: &Harness) {
+    let service = harness.state.rerank_service();
+    service.apply_setting("rerank.tuning.enabled", &json!(true));
+    service.apply_setting("rerank.nightly.max_load_per_cpu", &json!(f64::MAX));
 }
 
 async fn project_id(harness: &Harness, project: &str) -> anyhow::Result<i64> {
     Ok(harness.handle.resolve_knowledge_project(project).await?.id)
 }
 
-async fn seed_events(
+pub(super) async fn seed_events(
     harness: &Harness,
     project: i64,
     used: &[&str],
@@ -91,7 +89,7 @@ async fn seed_events(
     Ok((session, events))
 }
 
-async fn graded_count(harness: &Harness, events: &[i64]) -> anyhow::Result<i64> {
+pub(super) async fn graded_count(harness: &Harness, events: &[i64]) -> anyhow::Result<i64> {
     Ok(
         sqlx::query_scalar("SELECT count(*) FROM memory.search_grades WHERE event_id = ANY($1)")
             .bind(events)
@@ -100,7 +98,7 @@ async fn graded_count(harness: &Harness, events: &[i64]) -> anyhow::Result<i64> 
     )
 }
 
-async fn seeded_documents(harness: &Harness) -> anyhow::Result<(i64, Vec<String>)> {
+pub(super) async fn seeded_documents(harness: &Harness) -> anyhow::Result<(i64, Vec<String>)> {
     let project = seed_project_with_documents(harness).await?;
     let page = harness
         .handle
@@ -158,18 +156,21 @@ async fn run_tick_outside_the_quiet_window_grades_nothing() -> anyhow::Result<()
 }
 
 #[tokio::test]
-async fn run_tick_with_recent_primary_activity_grades_nothing() -> anyhow::Result<()> {
+async fn run_tick_with_the_machine_over_its_load_ceiling_grades_nothing() -> anyhow::Result<()> {
     let harness = Harness::boot().await?;
     harness.enable_rerank(2_000);
     harness.reranker_prefers_later_documents(None).await;
     tuning_on(&harness);
+    harness
+        .state
+        .rerank_service()
+        .apply_setting("rerank.nightly.max_load_per_cpu", &json!(-1.0));
     let (project, references) = seeded_documents(&harness).await?;
-    let (session, events) = seed_events(&harness, project, &[&references[0]], 1).await?;
-    seed_session_turns(harness.handle.pool(), &session.to_string(), project, 1).await?;
+    let (_, events) = seed_events(&harness, project, &[&references[0]], 1).await?;
 
     let tick = run_tick(&harness.state, &harness.handle, at(23)).await;
 
-    assert_eq!(tick, Tick::Active);
+    assert_eq!(tick, Tick::Busy);
     assert_eq!(graded_count(&harness, &events).await?, 0);
     assert!(harness.rerank_requests().await?.is_empty());
     harness.cleanup().await
@@ -218,7 +219,7 @@ async fn run_tick_in_the_quiet_window_grades_the_search_and_records_both_orders(
 }
 
 #[tokio::test]
-async fn night_pass_stops_grading_when_a_session_becomes_active_between_two_events()
+async fn night_pass_stops_grading_when_the_machine_gets_busy_between_two_events()
 -> anyhow::Result<()> {
     let harness = Harness::boot().await?;
     harness.enable_rerank(2_000);
@@ -226,12 +227,12 @@ async fn night_pass_stops_grading_when_a_session_becomes_active_between_two_even
     let (project, references) = seeded_documents(&harness).await?;
     let (_, events) = seed_events(&harness, project, &[&references[0]], 2).await?;
     let idle = IdleOnce(AtomicUsize::new(0));
-    let budget = quiet_budget(&harness.handle).await;
+    let budget = quiet_budget(&harness.state);
 
     let pass = night_pass(&harness.state, &harness.handle, &budget, at(23), &idle).await;
 
     assert_eq!(pass.graded, 1);
-    assert_eq!(pass.stopped, Some(Stop::SessionActive));
+    assert_eq!(pass.stopped, Some(Stop::MachineBusy));
     assert_eq!(graded_count(&harness, &events).await?, 1);
     assert_eq!(graded_count(&harness, &events[..1]).await?, 1);
     harness.cleanup().await
@@ -246,7 +247,7 @@ async fn night_pass_when_the_reranker_fails_leaves_the_search_ungraded() -> anyh
         .await;
     let (project, references) = seeded_documents(&harness).await?;
     let (_, events) = seed_events(&harness, project, &[&references[0]], 2).await?;
-    let budget = quiet_budget(&harness.handle).await;
+    let budget = quiet_budget(&harness.state);
 
     let pass = night_pass(
         &harness.state,

@@ -99,7 +99,7 @@ fn limit_entries() -> Vec<SettingMeta> {
         },
         SettingMeta {
             key: "rerank.tuning.enabled",
-            group: "Reranker",
+            group: "Overnight reranking",
             kind: SettingKind::Bool,
             scope: SettingScope::Global,
             applies: SettingApplies::NextCycle,

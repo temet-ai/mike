@@ -9,7 +9,7 @@ use super::{
 };
 
 pub(crate) const TOP_N: usize = 5;
-pub(crate) const MIN_GRADED_EVENTS: usize = 20;
+pub(crate) const MIN_GRADED_SEARCHES: usize = 20;
 pub(crate) const MIN_GAIN: f64 = 0.01;
 
 const TOLERANCE: f64 = 1e-9;
@@ -139,11 +139,15 @@ fn top_references<'a>(
         .collect()
 }
 
-pub(crate) fn verdict(before: &Evaluation, after: &Evaluation) -> Result<String, String> {
+pub(crate) fn verdict(
+    before: &Evaluation,
+    after: &Evaluation,
+    min_gain: f64,
+) -> Result<String, String> {
     let gain = after.overall - before.overall;
-    if gain < MIN_GAIN - TOLERANCE {
+    if gain < min_gain - TOLERANCE {
         return Err(format!(
-            "the share of used references in the top {TOP_N} moved {gain:+.4}, under the {MIN_GAIN} needed"
+            "the share of used references in the top {TOP_N} moved {gain:+.4}, under the {min_gain} needed"
         ));
     }
     for (kind, was) in &before.by_kind {
@@ -159,12 +163,17 @@ pub(crate) fn verdict(before: &Evaluation, after: &Evaluation) -> Result<String,
     ))
 }
 
-pub(crate) fn tune(grades: &[Grade], start: &RankingConfig, window: usize) -> Vec<Attempt> {
+pub(crate) fn tune(
+    grades: &[Grade],
+    start: &RankingConfig,
+    window: usize,
+    min_gain: f64,
+) -> Vec<Attempt> {
     let kinds = used_kinds(grades);
     let mut config = start.clone();
     let mut attempts = Vec::new();
     for key in RANKING_KEYS {
-        if let Some(attempt) = tune_setting(key, grades, &config, window, &kinds) {
+        if let Some(attempt) = tune_setting(key, grades, (&config, window, min_gain), &kinds) {
             if attempt.kept {
                 config.apply(key, &attempt.after);
             }
@@ -184,8 +193,7 @@ fn used_kinds(grades: &[Grade]) -> BTreeSet<String> {
 fn tune_setting(
     key: &'static str,
     grades: &[Grade],
-    config: &RankingConfig,
-    window: usize,
+    (config, window, min_gain): (&RankingConfig, usize, f64),
     kinds: &BTreeSet<String>,
 ) -> Option<Attempt> {
     let before = evaluate(grades, config, window);
@@ -196,7 +204,7 @@ fn tune_setting(
         let mut trial = config.clone();
         trial.apply(key, &value);
         let after = evaluate(grades, &trial, window);
-        let (slot, reason) = match verdict(&before, &after) {
+        let (slot, reason) = match verdict(&before, &after, min_gain) {
             Ok(reason) => (&mut best_kept, reason),
             Err(reason) => (&mut best_rejected, reason),
         };

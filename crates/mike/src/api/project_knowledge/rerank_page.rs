@@ -41,8 +41,13 @@ pub(super) async fn search(
         };
         return plain(handle, input, vector, report).await;
     }
+    let rescue_score = state.rerank_service().current_config().rescue_score;
+    let rescue = candidates
+        .zip(vector)
+        .map(|(_, vector)| super::rescue::pool_query(input, &vector.2, rescue_score));
+    let pool = rescue.as_ref().map_or(input, |(pool, _)| pool);
     let rows = handle
-        .knowledge_candidate_rows(project.id, input, wanted, vector)
+        .knowledge_candidate_rows(project.id, pool, wanted, vector)
         .await?;
     let rows = if ranking.is_default() {
         rows
@@ -50,7 +55,15 @@ pub(super) async fn search(
         reorder_rows(rows, &ranking)
     };
     let (arranged, report) = match candidates {
-        Some(candidates) => rerank_rows(state, handle, input, vector, candidates, rows).await,
+        Some(candidates) => {
+            match rerank_rows(state, handle, input, vector, candidates, rows).await {
+                Ok((arranged, report)) => match &rescue {
+                    Some((_, cut)) => (super::rescue::keep(arranged, *cut), report),
+                    None => (arranged, report),
+                },
+                Err(report) => return plain(handle, input, vector, report).await,
+            }
+        }
         None => (arrange(rows, &[]), RerankReport::switched_off()),
     };
     let page: Vec<Value> = arranged
@@ -93,17 +106,15 @@ async fn rerank_rows(
     vector: Option<&QueryVector>,
     candidates: usize,
     rows: Vec<Value>,
-) -> (Vec<(Value, Option<f32>)>, RerankReport) {
+) -> Result<(Vec<(Value, Option<f32>)>, RerankReport), RerankReport> {
     let window = rows.len().min(candidates);
     if window == 0 {
         let report = RerankReport::off("there were no results to rerank");
-        return (arrange(rows, &[]), report);
+        return Ok((arrange(rows, &[]), report));
     }
     let documents = documents_for(handle, &rows[..window], vector).await;
-    match score(state, &input.query, &documents).await {
-        Ok(scores) => (arrange(rows, &scores), RerankReport::reranked()),
-        Err(report) => (arrange(rows, &[]), report),
-    }
+    let scores = score(state, &input.query, &documents).await?;
+    Ok((arrange(rows, &scores), RerankReport::reranked()))
 }
 
 pub(crate) async fn documents_for(

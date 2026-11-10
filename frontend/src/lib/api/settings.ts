@@ -25,7 +25,11 @@ export interface SettingMeta {
 	enum_variants?: string[];
 }
 
-export type SettingValue = boolean | number | string | string[];
+/**
+ * `null` is an optional number left empty (the server then uses its own default); a
+ * number map is the value of a `json` setting.
+ */
+export type SettingValue = boolean | number | string | string[] | null | Record<string, number>;
 
 export interface CompressionEffective {
 	state: 'pure_shadow' | 'sampled_forwarding' | 'forced_forwarding' | 'off' | (string & {});

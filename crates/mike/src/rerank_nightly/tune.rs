@@ -3,11 +3,10 @@ use serde_json::json;
 
 use crate::change_log::{ChangeSource, ChangeVia};
 use crate::config::AppState;
-use crate::search_ranking::tuning::{Attempt, Grade, MIN_GRADED_EVENTS, tune};
+use crate::search_ranking::tuning::{Attempt, Grade, tune};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::search_grades::NewTuningRun;
 
-pub(super) const LOOKBACK_DAYS: i64 = 14;
 pub(super) const ACTOR: &str = "rerank_tuner";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,22 +26,27 @@ pub(super) async fn tune_if_due(
     if persist.search_tuned_since(window_start).await? {
         return Ok(Tuned::AlreadyToday);
     }
+    let service = state.rerank_service();
+    let config = service.current_config();
     let stored = persist
-        .search_grades_since(now - Duration::days(LOOKBACK_DAYS))
+        .search_grades_since(now - Duration::days(config.nightly.lookback_days))
         .await?;
     let grades: Vec<Grade> = stored
         .into_iter()
         .filter_map(|grade| Grade::from_stored(grade.candidates, grade.used_references))
         .collect();
-    if grades.len() < MIN_GRADED_EVENTS {
+    if grades.len() < config.nightly.min_graded_searches {
         return Ok(Tuned::TooFewGrades(grades.len()));
     }
     let Some(settings) = state.settings_service() else {
         return Ok(Tuned::NoSettingsService);
     };
-    let service = state.rerank_service();
-    let window = service.current_config().candidates;
-    let attempts = tune(&grades, &service.ranking(), window);
+    let attempts = tune(
+        &grades,
+        &service.ranking(),
+        config.candidates,
+        config.nightly.min_gain,
+    );
     let mut runs = Vec::with_capacity(attempts.len());
     for attempt in attempts {
         let run = apply(state, settings, &attempt, grades.len()).await;

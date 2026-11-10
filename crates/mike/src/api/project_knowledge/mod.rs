@@ -199,6 +199,9 @@ mod disk_check;
 mod health;
 pub(crate) mod query_vector_cache;
 pub(crate) mod rerank_page;
+mod rerank_pass;
+pub(crate) use rerank_pass::rerank_pass;
+mod rescue;
 pub(crate) mod retrieval;
 pub(crate) use health::embedding_capability;
 pub(crate) use retrieval::{retrieve, retrieve_without_rerank};
@@ -213,3 +216,5 @@ mod ranking_live_tests;
 mod registration_tests;
 #[cfg(test)]
 pub(crate) mod rerank_tests;
+#[cfg(test)]
+mod rescue_tests;
