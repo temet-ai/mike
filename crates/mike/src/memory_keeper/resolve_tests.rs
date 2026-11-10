@@ -190,15 +190,61 @@ fn resolve_two_threads_known_only_by_recency_abstain() {
 }
 
 #[test]
-fn resolve_the_only_recent_thread_with_continue_prompt_gives_one() -> Result<()> {
+fn resolve_the_only_recent_thread_without_an_anchor_abstains() {
     let threads = [thread("alpha-rollout", "Alpha rollout", 0)];
+    assert_eq!(
+        run(
+            Some("can we continue with the open epic"),
+            session(),
+            &threads
+        ),
+        Resolution::None
+    );
+}
+
+#[test]
+fn resolve_checkout_shared_by_several_threads_does_not_anchor() {
+    let mut first = thread("alpha-rollout", "Alpha rollout", 0);
+    first.checkout_dirs.insert("/work/app".to_owned());
+    let mut second = thread("beta-cleanup", "Beta cleanup", 2);
+    second.checkout_dirs.insert("/work/app".to_owned());
+    let threads = [first, second];
+    let mut facts = session();
+    facts.cwd = Some("/work/app");
+    assert_eq!(run(Some("continue"), facts, &threads), Resolution::None);
+}
+
+#[test]
+fn resolve_continuation_naming_a_topic_keeps_the_thread_sharing_most_words() -> Result<()> {
+    let mut wanted = thread("compressor-results", "Compressor results", 2);
+    wanted.checkout_dirs.insert("/work/app".to_owned());
+    let mut fresher = thread("release-train", "Release train", 0);
+    fresher.checkout_dirs.insert("/work/app".to_owned());
+    let threads = [fresher, wanted];
+    let mut facts = session();
+    facts.cwd = Some("/work/app");
     let pick = expect_one(run(
-        Some("can we continue with the open epic"),
-        session(),
+        Some("so where are we with the compressor?"),
+        facts,
         &threads,
     ))?;
-    assert_eq!(pick.slug, "alpha-rollout");
+    assert_eq!(pick.slug, "compressor-results");
+    assert!(pick.signals.contains(&Signal::SharedCheckout));
     Ok(())
+}
+
+#[test]
+fn resolve_short_one_word_slug_in_prose_is_not_a_mention() {
+    let threads = [linked_thread("ui", 0), linked_thread("bid", 0)];
+    let mut facts = session();
+    facts.recent_turn_text = vec!["the ui shows the bid"];
+    let resolution = run(Some("where are we?"), facts, &threads);
+    let picks = expect_several(resolution).unwrap_or_default();
+    assert!(
+        picks
+            .iter()
+            .all(|pick| !pick.signals.contains(&Signal::RecentMention))
+    );
 }
 
 #[test]
@@ -248,8 +294,8 @@ fn resolve_two_shared_words_without_continuation_resolves() -> Result<()> {
 #[test]
 fn resolve_stale_thread_drops_out_and_fresh_one_resolves() -> Result<()> {
     let threads = [
-        thread("old-effort", "Old effort", 30),
-        thread("new-effort", "New effort", 0),
+        linked_thread("old-effort", 30),
+        linked_thread("new-effort", 0),
     ];
     assert_eq!(
         expect_one(run(Some("where are we"), session(), &threads))?.slug,

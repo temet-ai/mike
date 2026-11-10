@@ -17,7 +17,7 @@ const DEICTIC_PHRASES: &[&str] = &[
     "what's the status",
     "whats the status",
     "what is the status",
-    "status update",
+    "status",
     "pick up",
     "pick this up",
     "pick it up",
