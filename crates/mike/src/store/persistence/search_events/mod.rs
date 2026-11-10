@@ -1,3 +1,6 @@
+mod attribute_callers;
+#[cfg(test)]
+mod attribute_callers_tests;
 #[cfg(test)]
 pub(crate) mod fixture_tests;
 mod mark_used;
