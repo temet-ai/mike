@@ -41,10 +41,11 @@ pub(super) async fn search(
         };
         return plain(handle, input, vector, report).await;
     }
-    let rescue_score = state.rerank_service().current_config().rescue_score;
+    let config = state.rerank_service().current_config();
+    let rescue_rule = (config.rescue_score, config.rescue_min_kept);
     let rescue = candidates
         .zip(vector)
-        .map(|(_, vector)| super::rescue::pool_query(input, &vector.2, rescue_score));
+        .map(|(_, vector)| super::rescue::pool_query(input, &vector.2, rescue_rule));
     let pool = rescue.as_ref().map_or(input, |(pool, _)| pool);
     let rows = handle
         .knowledge_candidate_rows(project.id, pool, wanted, vector)

@@ -1,7 +1,7 @@
 use serde_json::{Value, json};
 
 use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
-use crate::analysis::rerank::{DEFAULT_RESCUE_SCORE, RerankNightly};
+use crate::analysis::rerank::{DEFAULT_RESCUE_MIN_KEPT, DEFAULT_RESCUE_SCORE, RerankNightly};
 
 const SEARCH_GROUP: &str = "Reranker";
 const NIGHT_GROUP: &str = "Overnight reranking";
@@ -74,7 +74,12 @@ fn night(
 }
 
 pub(super) fn entries() -> Vec<SettingMeta> {
-    let d = RerankNightly::default();
+    let mut entries = search_entries();
+    entries.extend(night_entries());
+    entries
+}
+
+fn search_entries() -> Vec<SettingMeta> {
     vec![
         float(
             Entry {
@@ -88,6 +93,24 @@ pub(super) fn entries() -> Vec<SettingMeta> {
             -10.0,
             10.0,
         ),
+        int(
+            Entry {
+                key: "rerank.rescue_min_kept",
+                group: SEARCH_GROUP,
+                applies: SettingApplies::NextMessage,
+                default: json!(DEFAULT_RESCUE_MIN_KEPT),
+                label: "Results kept whatever their score",
+                description: "A reranked search always keeps this many of its best-scored results, so a search with real candidates never comes back empty.",
+            },
+            0,
+            20,
+        ),
+    ]
+}
+
+fn night_entries() -> Vec<SettingMeta> {
+    let d = RerankNightly::default();
+    vec![
         int(
             night(
                 "rerank.nightly.start_hour_utc",

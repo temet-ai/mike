@@ -1226,6 +1226,7 @@ The registry is hot-swapped on `AppState` via `Arc<ArcSwap<AnalyzerRegistry>>` â
 | `rerank.candidates` | 50 | How many top results a search sends to the reranker |
 | `rerank.tuning.enabled` | off | Gate for the overnight tuning worker |
 | `rerank.rescue_score` | -1.25 | Reranker score a result under the embedding floor, or matching only some query words, needs to stay in a reranked search |
+| `rerank.rescue_min_kept` | 3 | A reranked search keeps at least this many of its best-scored results, so it never comes back empty when it had candidates |
 | `rerank.nightly.start_hour_utc` / `end_hour_utc` | 22 / 4 | Window in which the overnight pass may start on its own |
 | `rerank.nightly.max_load_per_cpu` | 0.5 | The pass starts, and keeps grading, only while the one-minute load average per CPU is at or under this; sessions may keep working overnight |
 | `rerank.tuning.lookback_days` / `min_graded_searches` / `min_gain` | 14 / 20 / 0.01 | What the tuner learns from and how large a gain it keeps |
