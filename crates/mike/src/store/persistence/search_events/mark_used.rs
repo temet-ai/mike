@@ -1,3 +1,4 @@
+use super::open_shown::quoted_pairs;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 pub(crate) const USED_BATCH: i64 = 250;
@@ -26,11 +27,14 @@ impl PersistHandle {
         window_turns: i64,
         max_open_secs: f64,
     ) -> Result<UsedPass, PersistError> {
+        let quoted = quoted_pairs(self.open_shown_rows(batch, window_turns).await?);
         let rows = sqlx::query_file!(
             "src/store/persistence/search_events/mark_used.sql",
             batch,
             window_turns,
             max_open_secs,
+            &quoted.event_ids,
+            &quoted.references,
         )
         .fetch_all(self.pool())
         .await?;

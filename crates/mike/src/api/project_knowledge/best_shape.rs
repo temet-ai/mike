@@ -12,12 +12,15 @@ const MACHINE_WRITTEN: &str = " \u{b7} machine-written";
 const OUTSIDE_PROJECT: &str = " \u{b7} outside this project";
 const CUT_MARK: &str = "...";
 pub(crate) const HOW_TO_GET_THE_REST: &str =
-    "Read one with read_project_knowledge and its reference, or repeat with detail=full.";
+    "Read one with read_project_knowledge or use detail=full. Cite the reference you use.";
 
 pub(crate) fn best_only(answer: &mut Value, passages: &Passages) {
     let has_more = answer["has_more"].as_bool().unwrap_or(false);
+    let has_items = answer["items"]
+        .as_array()
+        .is_some_and(|items| !items.is_empty());
     let pointers = shape_items(answer, passages);
-    if pointers > 0 || has_more {
+    if has_items || has_more {
         answer["more"] = json!({
             "shown_in_full": 1,
             "pointers": pointers,

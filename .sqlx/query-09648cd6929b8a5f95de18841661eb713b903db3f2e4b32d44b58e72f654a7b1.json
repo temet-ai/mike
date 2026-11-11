@@ -1,0 +1,59 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH open_events AS (\n    SELECT e.id, e.session_id, e.request_id, e.created_at, e.returned\n      FROM memory.search_events e\n     WHERE e.used_final_at IS NULL AND e.session_id IS NOT NULL AND e.request_id IS NOT NULL\n     ORDER BY e.used_checked_at NULLS FIRST, e.created_at\n     LIMIT $1::bigint\n), shown AS (\n    SELECT e.id AS event_id, r.value ->> 'reference' AS reference,\n           left(r.value ->> 'shown', 1500) AS shown_text, r.ordinality AS position\n      FROM open_events e\n      CROSS JOIN LATERAL jsonb_array_elements(e.returned) WITH ORDINALITY AS r(value, ordinality)\n     WHERE r.ordinality <= 10 AND jsonb_typeof(r.value -> 'shown') = 'string'\n), shown_events AS (\n    SELECT DISTINCT event_id FROM shown\n), windows AS (\n    SELECT s.event_id, w.final_assistant_text, w.user_prompt, w.start_request_id\n      FROM shown_events s\n      JOIN open_events e ON e.id = s.event_id\n      CROSS JOIN LATERAL (\n          SELECT t.final_assistant_text, t.user_prompt, t.start_request_id\n            FROM memory.operator_turns t\n           WHERE t.session_id = e.session_id AND t.end_request_id >= e.request_id\n           ORDER BY t.start_request_id\n           LIMIT $2::bigint\n      ) w\n     WHERE w.final_assistant_text IS NOT NULL\n)\nSELECT s.event_id AS \"event_id!\", s.position AS \"position!\", s.reference AS \"reference?\",\n       s.shown_text AS \"shown_text?\", NULL::text AS \"answer?\", NULL::text AS \"prompt?\"\n  FROM shown s\nUNION ALL\nSELECT w.event_id, 0::bigint, NULL::text, NULL::text, w.final_assistant_text, w.user_prompt\n  FROM windows w\n ORDER BY 1, 2\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "event_id!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "position!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "reference?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "shown_text?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "answer?",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "prompt?",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "09648cd6929b8a5f95de18841661eb713b903db3f2e4b32d44b58e72f654a7b1"
+}

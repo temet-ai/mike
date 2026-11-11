@@ -142,6 +142,63 @@ async fn knowledge_search_detail_best_is_recorded_from_the_whole_answer() -> any
 }
 
 #[tokio::test]
+async fn knowledge_search_detail_best_logs_the_first_passage_as_shown_and_nothing_for_the_rest()
+-> anyhow::Result<()> {
+    let harness = Harness::boot().await?;
+    let project = seed_project_with_documents(&harness).await?;
+    let references = references_of(&harness, &project).await?;
+    embed_passages(&harness, &references, &"p".repeat(2_000)).await?;
+    harness.enable_rerank(800);
+    harness.reranker_prefers_later_documents(None).await;
+
+    let (_, best) = harness.get(&route(&project, "&detail=best")).await?;
+
+    let events = harness.events().await?;
+    let returned = events
+        .last()
+        .and_then(|event| event.returned.as_array().cloned())
+        .unwrap_or_default();
+    assert_eq!(returned.len(), 3);
+    assert_eq!(returned[0]["shown"], items_of(&best)[0]["excerpt"]);
+    assert_eq!(
+        returned[0]["shown"]
+            .as_str()
+            .map(|text| text.chars().count()),
+        Some(FIRST_PASSAGE_CHARS)
+    );
+    assert!(
+        returned[1..]
+            .iter()
+            .all(|entry| entry.get("shown").is_none())
+    );
+    harness.cleanup().await
+}
+
+#[tokio::test]
+async fn knowledge_search_detail_full_logs_every_excerpt_as_shown() -> anyhow::Result<()> {
+    let harness = Harness::boot().await?;
+    let project = seed_project_with_documents(&harness).await?;
+
+    let (_, full) = harness.get(&route(&project, "&detail=full")).await?;
+
+    let events = harness.events().await?;
+    let returned = events
+        .first()
+        .and_then(|event| event.returned.as_array().cloned())
+        .unwrap_or_default();
+    let items = items_of(&full);
+    assert_eq!(returned.len(), items.len());
+    assert!(returned.iter().any(|entry| entry.get("shown").is_some()));
+    for (entry, item) in returned.iter().zip(&items) {
+        let excerpt = item["excerpt"]
+            .as_str()
+            .filter(|text| !text.trim().is_empty());
+        assert_eq!(entry["shown"].as_str(), excerpt, "{entry}");
+    }
+    harness.cleanup().await
+}
+
+#[tokio::test]
 async fn knowledge_search_with_another_detail_value_is_a_400_naming_both() -> anyhow::Result<()> {
     let harness = Harness::boot().await?;
     let project = seed_project_with_documents(&harness).await?;
