@@ -37,3 +37,4 @@ mod test_support;
 mod usage_tests;
 
 pub mod history;
+pub mod ingest;
