@@ -2,9 +2,7 @@ mod late;
 mod ledger;
 
 pub(crate) use late::record_late;
-pub(crate) use ledger::{
-    CaptureRetryHealth, UnrecordedCapture, defer, health, is_deferred, note_unrecorded,
-};
+pub(crate) use ledger::{CaptureRetryHealth, defer, health, is_deferred, note_unrecorded};
 
 use super::PersistError;
 
