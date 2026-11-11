@@ -73,6 +73,30 @@ fn collect_skills_reads_only_skill_files_one_level_down() -> anyhow::Result<()> 
 }
 
 #[test]
+fn collect_tree_leaves_out_thread_worklogs_that_live_in_work_threads() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    write(
+        dir.path(),
+        "threads/spawn-into-mike/worklog.md",
+        "# Thread: spawn",
+    )?;
+    write(dir.path(), "threads/spawn-into-mike/notes.md", "# Notes")?;
+    write(dir.path(), "research/worklog.md", "# A research log")?;
+    write(dir.path(), "plan.md", "# Plan")?;
+    let documents = collect(dir.path(), SourceKind::Tree)?;
+    let paths: Vec<&str> = documents.iter().map(|d| d.relative_path.as_str()).collect();
+    assert_eq!(
+        paths,
+        vec![
+            "plan.md",
+            "research/worklog.md",
+            "threads/spawn-into-mike/notes.md"
+        ]
+    );
+    Ok(())
+}
+
+#[test]
 fn collect_records_a_frontmatter_problem_without_dropping_the_document() -> anyhow::Result<()> {
     let dir = tempfile::tempdir()?;
     write(dir.path(), "odd.md", "---\nname: x\nbroken line\n---\nbody")?;

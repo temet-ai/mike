@@ -62,7 +62,7 @@ async fn importing_the_fixture_repo_twice_creates_then_updates_without_duplicate
     let entry = missing_entry(&repo);
     let mut first = Report::default();
     import_repo(&handle, &repo, &[&entry], false, &mut first).await;
-    assert_eq!(first.created.len(), 5, "{}", first.render(false));
+    assert_eq!(first.created.len(), 6, "{}", first.render(false));
     assert!(first.updated.is_empty());
     assert!(first.skipped_repos.is_empty());
     let errors: Vec<&str> = first
@@ -90,12 +90,12 @@ async fn importing_the_fixture_repo_twice_creates_then_updates_without_duplicate
     let mut second = Report::default();
     import_repo(&handle, &repo, &[&entry], false, &mut second).await;
     assert!(second.created.is_empty(), "{}", second.render(false));
-    assert_eq!(second.updated.len(), 5);
+    assert_eq!(second.updated.len(), 6);
 
     let listed = handle
         .list_work_threads(project, ListFilter::default())
         .await?;
-    assert_eq!(listed.total, 5);
+    assert_eq!(listed.total, 6);
     let motion = handle
         .get_work_thread(project, "frontend-motion", HistoryPage::everything())
         .await?;
@@ -121,6 +121,11 @@ async fn importing_the_fixture_repo_twice_creates_then_updates_without_duplicate
     assert_eq!(stub.thread.status.as_deref(), Some("review"));
     assert_eq!(stub.thread.worktree.as_deref(), Some("platform/x"));
     assert_eq!(stub.thread.title, None);
+    let legacy = handle
+        .get_work_thread(project, "legacy-labels", HistoryPage::default())
+        .await?;
+    assert_eq!(legacy.thread.title.as_deref(), Some("Legacy labels"));
+    assert_eq!(legacy.thread.status.as_deref(), Some("done"));
     Ok(())
 }
 
@@ -132,7 +137,7 @@ async fn a_dry_run_reports_what_would_happen_and_writes_nothing() -> anyhow::Res
     };
     let mut report = Report::default();
     import_repo(&handle, &repo, &[], true, &mut report).await;
-    assert_eq!(report.created.len(), 4, "{}", report.render(true));
+    assert_eq!(report.created.len(), 5, "{}", report.render(true));
     assert_eq!(
         handle
             .list_work_threads(project, ListFilter::default())
@@ -142,7 +147,7 @@ async fn a_dry_run_reports_what_would_happen_and_writes_nothing() -> anyhow::Res
     );
     let text = report.render(true);
     assert!(text.starts_with("Dry run: nothing was written to the database."));
-    assert!(text.contains("Threads would be created: 4"));
+    assert!(text.contains("Threads would be created: 5"));
     Ok(())
 }
 
