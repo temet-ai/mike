@@ -1,4 +1,4 @@
-.PHONY: test-area rc-protocol-recordrc-protocol-check lint-mods test-mods bootstrap preflight build build-release test test-db test-all test-p test-t test-repo-fast test-frontend-fast test-frontend test-e2e test-scripts test-repo test-timing lint fmt fmt-check deny check install spa ast-grep-report mcp-fallback-report fidelity gate-tests doc-animations doc-recordings arch-check help
+.PHONY: test-area rc-protocol-recordrc-protocol-check lint-mods test-mods bootstrap preflight build build-release test test-db test-all test-p test-t test-repo-fast test-frontend-fast test-frontend test-e2e test-scripts test-repo test-timing lint fmt fmt-check deny check gate-quick install spa ast-grep-report mcp-fallback-report fidelity gate-tests doc-animations doc-recordings arch-check help
 
 INSTALL_DIR     ?= $(HOME)/.local/bin
 CARGO_TARGET_DIR ?= $(CURDIR)/target
@@ -185,6 +185,11 @@ deny:
 
 ## Full pre-completion gate: fmt-check + lint + ALL tests (fast + DB) + deny.
 check: fmt-check lint test-all deny gate-tests
+
+## Quick gate for a fleet's start and its pushed commits: format and compile only.
+## The full gate (`check`) runs once, when the work is finished.
+gate-quick: fmt-check
+	CARGO_TARGET_DIR=$(CARGO_TARGET_DIR) ./scripts/cx check --workspace --all-targets
 
 ## ast-grep compliance: compare ast-grep vs grep/LSP navigation calls from the proxy store.
 ## Optional args: make ast-grep-report SINCE="30 days"
