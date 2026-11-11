@@ -164,6 +164,6 @@ async fn seat_thread_binding_survives_a_restart_and_keeps_fork_ancestry() -> any
             .await
             .is_err()
     );
-    db.cleanup().await;
+    db.cleanup().await?;
     Ok(())
 }
