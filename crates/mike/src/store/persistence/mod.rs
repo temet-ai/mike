@@ -176,9 +176,9 @@ pub(crate) mod work_items_ledger;
 pub(crate) mod work_items_reconcile;
 pub mod work_threads;
 pub mod worker_leases;
-pub(crate) mod wright;
 pub(crate) mod workflow_judge_reads;
 pub mod workspace;
+pub(crate) mod wright;
 
 use std::collections::HashSet;
 use std::sync::Arc;
