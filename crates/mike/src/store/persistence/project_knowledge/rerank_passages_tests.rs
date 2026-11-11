@@ -99,10 +99,10 @@ async fn embed_chunks(
     Ok(())
 }
 
-fn query_vector(axis_index: usize, model: &str) -> (String, String, String) {
+fn query_vector(axis_index: usize, model: &str) -> super::QueryEmbedding {
     (
         vector_to_text_literal(&axis(axis_index)),
-        model.to_owned(),
+        super::ModelKeys::only(model),
         "embedder".to_owned(),
     )
 }

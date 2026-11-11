@@ -1,4 +1,4 @@
-use super::knowledge::{model_key, sweep};
+use super::knowledge::{model_keys, sweep};
 use super::knowledge_tests::{breaker, embedding_server, vector};
 use crate::store::persistence::{
     PersistHandle,
@@ -47,9 +47,10 @@ async fn sweep_embeds_a_session_overview_with_its_topics_and_search_finds_it_by_
         .await?;
     let session = session_with_overview(&handle, &project).await?;
     let (_server, service) = embedding_server().await;
-    let key = model_key(&service);
+    let keys = model_keys(&service);
+    let key = keys.current().to_owned();
     let before = handle
-        .knowledge_embedding_health(Some(project.id), &key)
+        .knowledge_embedding_health(Some(project.id), &keys)
         .await?;
     assert_eq!(
         (before["total"].as_i64(), before["ready"].as_i64()),
@@ -59,7 +60,7 @@ async fn sweep_embeds_a_session_overview_with_its_topics_and_search_finds_it_by_
     sweep(&handle, &service, &mut breaker()).await?;
 
     let after = handle
-        .knowledge_embedding_health(Some(project.id), &key)
+        .knowledge_embedding_health(Some(project.id), &keys)
         .await?;
     assert_eq!(
         (after["total"].as_i64(), after["ready"].as_i64()),
@@ -81,7 +82,7 @@ async fn sweep_embeds_a_session_overview_with_its_topics_and_search_finds_it_by_
     );
     let embedding = (
         crate::store::operator_turns::vector_to_text_literal(&vector()),
-        key,
+        keys,
         service.model_name(),
     );
     let query = KnowledgeQuery {

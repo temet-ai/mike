@@ -23,7 +23,11 @@ fn report(pending: usize, pending_more: bool) -> KnowledgeSweepReport {
 }
 
 fn counts(ready: i64, failed: i64) -> KnowledgeStateCounts {
-    KnowledgeStateCounts { ready, failed }
+    KnowledgeStateCounts {
+        ready,
+        failed,
+        current_version: ready,
+    }
 }
 
 #[test]

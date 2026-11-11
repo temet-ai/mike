@@ -1,10 +1,10 @@
 use std::time::Duration;
 
 use super::ProposerDeps;
-use crate::embed_worker::knowledge::{model_key, valid_vector};
+use crate::embed_worker::knowledge::{model_key, model_keys, valid_vector};
 use crate::steerer::guard::gates::tail_chars;
 use crate::store::persistence::lessons::proposals::CorrectionCandidate;
-use crate::store::persistence::project_knowledge::{GuidanceRow, ShownGuidance};
+use crate::store::persistence::project_knowledge::{GuidanceRow, QueryEmbedding, ShownGuidance};
 
 const GUIDANCE_K: i64 = 3;
 const QUERY_CHARS: usize = 1_500;
@@ -19,7 +19,7 @@ fn query_text(candidate: &CorrectionCandidate) -> String {
     tail_chars(text.trim(), QUERY_CHARS).to_owned()
 }
 
-async fn query_vector(deps: &ProposerDeps<'_>, text: &str) -> Option<(String, String, String)> {
+async fn query_vector(deps: &ProposerDeps<'_>, text: &str) -> Option<QueryEmbedding> {
     let service = deps.embedding;
     if !service.is_available() {
         return None;
@@ -29,7 +29,7 @@ async fn query_vector(deps: &ProposerDeps<'_>, text: &str) -> Option<(String, St
         Ok(Ok(vector)) if valid_vector(&vector, service.dim()) && model_key(service) == key => {
             Some((
                 crate::store::operator_turns::vector_to_text_literal(&vector),
-                key,
+                model_keys(service),
                 service.model_name(),
             ))
         }

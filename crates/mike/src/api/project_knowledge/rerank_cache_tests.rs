@@ -149,7 +149,7 @@ async fn knowledge_search_two_searches_inside_the_lifetime_run_the_coverage_coun
         second["embedding"]["coverage"]
     );
     let id = harness.handle.resolve_knowledge_project(&project).await?.id;
-    let key = crate::embed_worker::knowledge::model_key(&harness.state.embedding_service());
+    let key = crate::embed_worker::knowledge::model_keys(&harness.state.embedding_service());
     let direct = harness
         .handle
         .knowledge_embedding_health(Some(id), &key)

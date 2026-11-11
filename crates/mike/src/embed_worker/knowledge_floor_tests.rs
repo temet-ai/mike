@@ -1,4 +1,4 @@
-use super::knowledge::{model_key, sweep};
+use super::knowledge::{model_keys, sweep};
 use super::knowledge_tests::{breaker, embedding_server, source};
 use crate::store::persistence::{
     PersistHandle, project_knowledge::KnowledgeQuery, test_support::acquire_ephemeral_db,
@@ -84,7 +84,7 @@ struct Fixture {
     db: crate::store::persistence::test_support::TestDbHandle,
     handle: PersistHandle,
     project: String,
-    embedding: (String, String, String),
+    embedding: crate::store::persistence::project_knowledge::QueryEmbedding,
 }
 
 impl Fixture {
@@ -177,7 +177,7 @@ async fn fixture_with_lesson(
         .await?;
     let embedding = (
         angled_literal(1.0),
-        model_key(&service),
+        model_keys(&service),
         service.model_name(),
     );
     Ok(Fixture {

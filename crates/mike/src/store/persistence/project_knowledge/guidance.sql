@@ -13,7 +13,7 @@ WITH docs AS (
     SELECT docs.reference, max(1 - (c.embedding <=> $3::text::public.vector)) AS score
     FROM docs
     JOIN memory.knowledge_embedding_state e ON e.source_kind = 'artifact'
-         AND e.source_id = docs.revision_id AND e.model_key = $4
+         AND e.source_id = docs.revision_id AND e.model_key = ANY($4::text[])
          AND e.completed_at IS NOT NULL
     JOIN memory.knowledge_embedding_chunks c ON c.state_id = e.id
     WHERE $3::text IS NOT NULL

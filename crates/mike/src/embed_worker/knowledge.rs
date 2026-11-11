@@ -1,5 +1,5 @@
-pub(crate) use super::knowledge_key::model_key;
 use super::knowledge_key::{LEASE_ROLE, rekey_url_keyed_rows};
+pub(crate) use super::knowledge_key::{model_key, model_keys};
 use super::knowledge_report::{KnowledgeSweepReport, SweepTally, publish};
 use crate::analysis::{EmbeddingService, embeddings::chunk_text};
 use crate::circuit_breaker::CircuitBreaker;
@@ -86,7 +86,8 @@ async fn embed_source(
     let texts = chunk_text(&source.body, service.chunk_max_chars());
     let mut records = Vec::new();
     for batch in texts.chunks(16) {
-        let vectors = tokio::time::timeout(Duration::from_secs(30), service.embed_documents(batch))
+        let request = service.embed_titled_chunks(&source.header, batch);
+        let vectors = tokio::time::timeout(Duration::from_secs(30), request)
             .await
             .map_err(|_| "[transient] embedding request timed out".to_string())?
             .map_err(classify_embedding_error)?;

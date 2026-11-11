@@ -4,14 +4,16 @@ use serde_json::Value;
 
 use crate::config::AppState;
 use crate::search_ranking::{identifier_hits, mark_outside_project};
-use crate::store::persistence::project_knowledge::{KnowledgeQuery, ProjectIdentity};
+use crate::store::persistence::project_knowledge::{
+    KnowledgeQuery, ProjectIdentity, QueryEmbedding,
+};
 use crate::store::persistence::{PersistError, PersistHandle};
 
 pub(super) struct Pool<'a> {
     pub(super) project: &'a ProjectIdentity,
     pub(super) input: &'a KnowledgeQuery,
     pub(super) wanted: i64,
-    pub(super) vector: Option<&'a (String, String, String)>,
+    pub(super) vector: Option<&'a QueryEmbedding>,
     pub(super) reranked: bool,
 }
 

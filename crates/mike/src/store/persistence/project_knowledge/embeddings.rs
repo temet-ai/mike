@@ -1,3 +1,4 @@
+use super::ModelKeys;
 use crate::store::persistence::{PersistError, PersistHandle};
 use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
@@ -9,6 +10,7 @@ pub(crate) const KNOWLEDGE_COUNT_CAP: i64 = 1000;
 pub(crate) struct KnowledgeStateCounts {
     pub ready: i64,
     pub failed: i64,
+    pub current_version: i64,
 }
 
 pub(crate) struct KnowledgeEmbeddingSource {
@@ -18,6 +20,7 @@ pub(crate) struct KnowledgeEmbeddingSource {
     pub source_updated_at: Option<DateTime<Utc>>,
     pub source_seq: Option<i64>,
     pub source_hash: Option<String>,
+    pub header: String,
     pub body: String,
 }
 
@@ -151,14 +154,18 @@ impl PersistHandle {
 
     pub(crate) async fn knowledge_embedding_state_counts(
         &self,
-        model: &str,
+        keys: &ModelKeys,
     ) -> Result<KnowledgeStateCounts, PersistError> {
         let counts = sqlx::query!(
             r#"SELECT
                  (SELECT count(*) FROM (
                      SELECT 1 FROM memory.knowledge_embedding_state e
-                      WHERE e.model_key = $1 AND e.completed_at IS NOT NULL
+                      WHERE e.model_key = ANY($1::text[]) AND e.completed_at IS NOT NULL
                       LIMIT $2) ready) AS "ready!",
+                 (SELECT count(*) FROM (
+                     SELECT 1 FROM memory.knowledge_embedding_state e
+                      WHERE e.model_key = $3 AND e.completed_at IS NOT NULL
+                      LIMIT $2) current_version) AS "current_version!",
                  (SELECT count(*) FROM (
                      SELECT 1 FROM memory.knowledge_embedding_state e
                      CROSS JOIN LATERAL (
@@ -168,27 +175,29 @@ impl PersistHandle {
                             AND s.source_seq IS NOT DISTINCT FROM e.source_seq
                             AND s.source_hash IS NOT DISTINCT FROM e.source_hash
                           LIMIT 1) current_source
-                      WHERE e.model_key = $1 AND e.last_error IS NOT NULL
+                      WHERE e.model_key = ANY($1::text[]) AND e.last_error IS NOT NULL
                       LIMIT $2) failed) AS "failed!""#,
-            model,
-            KNOWLEDGE_COUNT_CAP + 1
+            &keys.accepted(),
+            KNOWLEDGE_COUNT_CAP + 1,
+            keys.current()
         )
         .fetch_one(self.pool())
         .await?;
         Ok(KnowledgeStateCounts {
             ready: counts.ready,
             failed: counts.failed,
+            current_version: counts.current_version,
         })
     }
 
     pub(crate) async fn knowledge_embedding_health(
         &self,
         project: Option<i64>,
-        model: &str,
+        keys: &ModelKeys,
     ) -> Result<Value, PersistError> {
         crate::metrics::time_db(
             "knowledge_embedding_health",
-            self.count_embedding_health(project, model),
+            self.count_embedding_health(project, keys),
         )
         .await
     }
@@ -196,29 +205,45 @@ impl PersistHandle {
     async fn count_embedding_health(
         &self,
         project: Option<i64>,
-        model: &str,
+        keys: &ModelKeys,
     ) -> Result<Value, PersistError> {
-        let (total, ready, failed) = match project {
+        let accepted = keys.accepted();
+        let (total, ready, failed, current) = match project {
             Some(project) => {
                 let counts = sqlx::query_file!(
                     "src/store/persistence/project_knowledge/embedding_health_project.sql",
                     project,
-                    model
+                    &accepted,
+                    keys.current()
                 )
                 .fetch_one(self.pool())
                 .await?;
-                (counts.total, counts.ready, counts.failed)
+                (
+                    counts.total,
+                    counts.ready,
+                    counts.failed,
+                    counts.current_version,
+                )
             }
             None => {
                 let counts = sqlx::query_file!(
                     "src/store/persistence/project_knowledge/embedding_health_all.sql",
-                    model
+                    &accepted,
+                    keys.current()
                 )
                 .fetch_one(self.pool())
                 .await?;
-                (counts.total, counts.ready, counts.failed)
+                (
+                    counts.total,
+                    counts.ready,
+                    counts.failed,
+                    counts.current_version,
+                )
             }
         };
-        Ok(json!({"total":total,"ready":ready,"pending":total-ready,"failed":failed}))
+        Ok(
+            json!({"total":total,"ready":ready,"pending":total-ready,"failed":failed,
+            "current_version":current}),
+        )
     }
 }

@@ -1,9 +1,9 @@
-use super::knowledge::{model_key, sweep};
+use super::knowledge::{model_key, model_keys, sweep};
 use crate::analysis::{EmbeddingConfig, EmbeddingService};
 use crate::circuit_breaker::CircuitBreaker;
 use crate::store::persistence::{
     PersistHandle,
-    project_knowledge::{KnowledgeQuery, LocationInput, SourceInput},
+    project_knowledge::{KnowledgeQuery, LocationInput, ModelKeys, SourceInput},
     test_support::acquire_ephemeral_db,
 };
 use serde_json::{Value, json};
@@ -78,7 +78,7 @@ async fn project_knowledge_semantic_worker_scope_revision_and_retry() -> anyhow:
     .await?;
     let (server, service) = embedding_server().await;
     sweep(&handle, &service, &mut breaker()).await?;
-    let key = model_key(&service);
+    let key = model_keys(&service);
     let health = handle
         .knowledge_embedding_health(Some(project.id), &key)
         .await?;
@@ -176,7 +176,7 @@ async fn verify_retry(
     handle: &PersistHandle,
     server: &MockServer,
     service: &EmbeddingService,
-    key: &str,
+    keys: &ModelKeys,
     project: i64,
 ) -> anyhow::Result<()> {
     server.reset().await;
@@ -185,10 +185,15 @@ async fn verify_retry(
         .mount(server)
         .await;
     sweep(handle, service, &mut breaker()).await?;
-    assert!(handle.pending_knowledge_embeddings(key).await?.is_empty());
+    assert!(
+        handle
+            .pending_knowledge_embeddings(keys.current())
+            .await?
+            .is_empty()
+    );
     assert_eq!(
         handle
-            .knowledge_embedding_health(Some(project), key)
+            .knowledge_embedding_health(Some(project), keys)
             .await?["failed"],
         1
     );
