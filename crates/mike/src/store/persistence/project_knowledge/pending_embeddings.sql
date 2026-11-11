@@ -7,6 +7,7 @@ WITH candidates AS (
       LEFT JOIN memory.knowledge_embedding_state e
         ON e.source_kind = s.source_kind AND e.source_id = s.source_id
      WHERE e.id IS NULL OR e.model_key <> $1
+        OR e.project_id IS DISTINCT FROM s.project_id
         OR e.source_updated_at IS DISTINCT FROM s.source_updated_at
         OR e.source_seq IS DISTINCT FROM s.source_seq
         OR e.source_hash IS DISTINCT FROM s.source_hash
@@ -79,10 +80,10 @@ WITH candidates AS (
       LEFT JOIN sessions.sessions mf ON mf.id = m.from_session_id
      WHERE m.id = ANY(ARRAY(SELECT source_id FROM picked WHERE source_kind = 'mail'))
 )
-SELECT p.source_kind AS "source_kind!", p.source_id AS "source_id!", p.reference AS "reference!",
+SELECT p.source_kind AS source_kind, p.source_id AS source_id, p.reference AS reference,
        p.source_updated_at, p.source_seq, p.source_hash,
-       btrim(left(concat_ws(': ', regexp_replace(b.label, '\s+', ' ', 'g'), n.name), 120)) AS "header!",
-       b.body AS "body!"
+       btrim(left(concat_ws(': ', regexp_replace(b.label, '\s+', ' ', 'g'), n.name), 120)) AS header,
+       b.body AS body
   FROM picked p
   JOIN bodies b ON b.source_kind = p.source_kind AND b.source_id = p.source_id
   CROSS JOIN LATERAL (SELECT NULLIF(btrim(regexp_replace(b.name, '\s+', ' ', 'g')), '') AS name) n
