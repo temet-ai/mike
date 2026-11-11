@@ -4,7 +4,7 @@ use uuid::Uuid;
 use super::{CodexCaptureOutcome, CodexItemPage};
 use crate::runtime::codex::ingest::transcript::{Direction, LIVE_TURN, RECONNECT, Transcript};
 use crate::runtime::codex::ingest::{IngestConnection, IngestOutcome};
-use crate::runtime::codex::{ProjectionStatus, TextChannel};
+use crate::runtime::codex::{Field, ProjectionStatus, TextChannel};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::runtime::tests::database;
 
@@ -84,6 +84,12 @@ async fn recorded_session_and_reconnect_project_into_one_item_per_provider_id() 
         .ok_or_else(|| anyhow::anyhow!("no command output stored"))?;
     assert!(command.item.terminal);
     assert!(command.latest_capture_sequence > command.first_capture_sequence);
-    assert!(items.iter().any(|stored| !stored.item.terminal));
+    let interrupted = items
+        .iter()
+        .find(|stored| stored.item.key.item_id.starts_with("exec-71ce8f25"))
+        .and_then(|stored| stored.item.snapshot.as_ref())
+        .ok_or_else(|| anyhow::anyhow!("interrupted command missing"))?;
+    assert_eq!(interrupted.status, Field::Value("failed".into()));
+    assert!(items.iter().all(|stored| stored.item.terminal));
     Ok(())
 }
