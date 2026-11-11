@@ -27,7 +27,7 @@ pub(in crate::launch::fleet) async fn observe(
 }
 
 async fn session_ended(persist: &PersistHandle, seat: &UnsettledFleetLaunch) -> bool {
-    let Some(session) = seat.session_uuid else {
+    let Some(session) = seat.session_uuid.filter(|_| seat.opened) else {
         return false;
     };
     matches!(
