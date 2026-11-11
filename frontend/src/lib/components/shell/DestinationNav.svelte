@@ -30,7 +30,7 @@
 		Sparkles,
 		BellRing
 	} from '@lucide/svelte';
-	import { BookOpen, FilePen } from '@lucide/svelte';
+	import { BookOpen, FilePen, ListTodo } from '@lucide/svelte';
 	import type { Component } from 'svelte';
 	import Tooltip from '$lib/components/shared/Tooltip.svelte';
 	import { toggleSessionsCollapsed } from '$lib/stores/shellState.svelte';
@@ -60,6 +60,7 @@
 		| '/agents'
 		| '/fleet'
 		| '/comms'
+		| '/threads'
 		| '/tools'
 		| '/compression-review'
 		| '/diagnostics/agent-dispatches'
@@ -149,6 +150,12 @@
 					href: '/comms',
 					icon: MessagesSquare,
 					hint: 'Every mailbox thread across every session and project'
+				},
+				{
+					label: 'Threads',
+					href: '/threads',
+					icon: ListTodo,
+					hint: 'The work each project has under way: state, acceptance criteria, history and sessions'
 				}
 			]
 		},
