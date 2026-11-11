@@ -1,3 +1,7 @@
+## Where to find it
+
+Click **Threads** in the left navigation (Overview group, under Comms). The project selector at the top of the page picks the project; the status selector narrows the list. The address keeps your choices (`?project=`, `?status=`, `?thread=`), so a link to a thread opens that same thread.
+
 ## What a thread is
 
 A thread is one piece of work in a project that takes more than one session. mike's database holds it, so every machine with a location for the project sees the same threads. Open [Threads](/threads), pick a project, then pick a thread from the list.
