@@ -9,10 +9,19 @@ UPDATE launch.launches AS launch
    AND launch.opened_at IS NULL
    AND launch.surface_ref IS NULL
    AND launch.created_at < now() - make_interval(secs => $4)
-   AND NOT EXISTS (
-       SELECT 1
-         FROM sessions.sessions AS session
-         JOIN requests.requests AS request ON request.session_id = session.id
-        WHERE session.session_uuid = launch.session_uuid
+   AND (
+       NOT EXISTS (
+           SELECT 1
+             FROM sessions.sessions AS session
+             JOIN requests.requests AS request ON request.session_id = session.id
+            WHERE session.session_uuid = launch.session_uuid
+       )
+       OR EXISTS (
+           SELECT 1
+             FROM sessions.sessions AS session
+             JOIN workspace.session_registrations AS registration ON registration.session_id = session.id
+            WHERE session.session_uuid = launch.session_uuid
+              AND registration.released_at IS NOT NULL
+       )
    )
 RETURNING launch.id
