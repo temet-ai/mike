@@ -181,7 +181,7 @@ async fn observed(
         .filter(|l| l.opened && l.session_uuid == Some(session))
     {
         if matches!(
-            crate::launch::fleet::shutdown::seat_exit::observe(run, seat).await,
+            crate::launch::fleet::shutdown::seat_exit::observe(persist, run, seat).await,
             Ok(Some(true))
         ) {
             process_gone = true;
