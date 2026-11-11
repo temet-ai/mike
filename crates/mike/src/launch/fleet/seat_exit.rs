@@ -1,6 +1,8 @@
 use crate::launch::local_root::{self, RootKey};
 use crate::launch::{LaunchError, backend_for};
+use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::UnsettledFleetLaunch;
+use crate::workspace::Liveness;
 
 pub(super) fn key(run: &str, seat: &UnsettledFleetLaunch) -> Option<RootKey> {
     RootKey::from_record(
@@ -14,9 +16,27 @@ pub(super) fn key(run: &str, seat: &UnsettledFleetLaunch) -> Option<RootKey> {
 }
 
 pub(in crate::launch::fleet) async fn observe(
+    persist: &PersistHandle,
     run: &str,
     seat: &UnsettledFleetLaunch,
 ) -> Result<Option<bool>, LaunchError> {
+    if let Some(exited) = observe_root(run, seat).await? {
+        return Ok(Some(exited));
+    }
+    Ok(session_ended(persist, seat).await.then_some(true))
+}
+
+async fn session_ended(persist: &PersistHandle, seat: &UnsettledFleetLaunch) -> bool {
+    let Some(session) = seat.session_uuid else {
+        return false;
+    };
+    matches!(
+        persist.fetch_session_liveness(session).await,
+        Ok(Some(Liveness::Ended))
+    )
+}
+
+async fn observe_root(run: &str, seat: &UnsettledFleetLaunch) -> Result<Option<bool>, LaunchError> {
     let Some(key) = key(run, seat) else {
         return Ok(None);
     };
@@ -40,3 +60,7 @@ pub(super) fn forget(run: &str, seat: &UnsettledFleetLaunch) {
         local_root::forget(&key);
     }
 }
+
+#[cfg(test)]
+#[path = "seat_exit_tests.rs"]
+mod tests;

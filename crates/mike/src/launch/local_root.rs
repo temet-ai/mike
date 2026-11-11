@@ -42,7 +42,7 @@ impl RootKey {
             && key.pid > 0
             && matches!(
                 key.backend,
-                BackendId::Herdr | BackendId::Tmux | BackendId::Terminal
+                BackendId::Herdr | BackendId::HerdrCore | BackendId::Tmux | BackendId::Terminal
             ))
         .then_some(key)
     }
@@ -174,17 +174,7 @@ pub(crate) fn process_present(pid: i32) -> Option<bool> {
     if pid <= 0 {
         return None;
     }
-    let result = unsafe { libc::kill(pid, 0) };
-    presence_from_probe(result, std::io::Error::last_os_error().raw_os_error())
-}
-
-#[cfg(unix)]
-fn presence_from_probe(result: i32, error: Option<i32>) -> Option<bool> {
-    match (result, error) {
-        (0, _) => Some(true),
-        (_, Some(libc::ESRCH)) => Some(false),
-        _ => None,
-    }
+    Some(crate::workspace_reaper::is_process_alive(pid))
 }
 
 #[cfg(not(unix))]

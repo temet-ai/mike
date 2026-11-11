@@ -65,6 +65,7 @@ pub async fn confirmed_pane_closure_preserves_exit_evidence() -> anyhow::Result<
 pub fn root_origin_contract() -> anyhow::Result<()> {
     crate::launch::local_root::tests::foreign_origin_and_witness_loss_never_prove_exit()?;
     crate::launch::local_root::tests::linux_and_macos_marker_parsers_require_exact_identity();
+    crate::launch::local_root::tests::a_herdr_core_seat_has_a_root_key();
     Ok(())
 }
 

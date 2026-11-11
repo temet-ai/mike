@@ -22,6 +22,7 @@ pub static SETTINGS_META: std::sync::LazyLock<Vec<super::SettingMeta>> =
         entries.extend(super::meta_eval_alarms::entries());
         entries.extend(super::meta_turn_judge::entries());
         entries.extend(super::meta_semantic::entries());
+        entries.extend(super::meta_knowledge_embedding::entries());
         entries.extend(super::meta_turn_guard::entries());
         entries.extend(super::meta_cross_session::entries());
         entries.extend(super::meta_improvement::entries());
