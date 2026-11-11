@@ -115,7 +115,7 @@ These are off, and none of the first four sends text to another service:
 | `change_record` | Keeps a record of what happened in each checkout a session works in, so fleets can ask what others changed without git. Nothing leaves the machine. |
 | `change_record_tail` | Adds a few lines saying what others changed to some answers inside a fleet. Needs `change_record`. |
 
-`workspace_briefing`, `context_focus_question`, `launch_brief`, `native_peer_mail`, `mod_lesson_delivery` and the `client_serves_*` switches other than `client_serves_self_identity` are also off. They relate to fleets, messages between sessions and mods; the settings page describes each.
+`workspace_briefing`, `context_focus_question`, `native_peer_mail`, `mod_lesson_delivery` and the `client_serves_*` switches other than `client_serves_self_identity` are also off. They relate to fleets, messages between sessions and mods; the settings page describes each.
 
 ### On by default
 
@@ -130,6 +130,7 @@ These are off, and none of the first four sends text to another service:
 | `semantic_context` | Uses search by meaning, only while the embedding address is on your machine. |
 | `fleet_auto_start` | Starts a fleet when its definition is ready. Off means it waits for `mike fleet start`. |
 | `prompt_assistant` | The prompt assistant; its sign-in and limits are on `/settings/assistants`. |
+| `launch_brief` | Sends a started session's long brief as mail from mike and keeps it as the session's note. Off, the brief is written to a file the session is told to read. |
 | `client_serves_self_identity` | When a client such as a Claude Code mod supplies a session's identity note, mike stands aside for that session. |
 
 A switch can be on in this list and still do nothing. `semantic_context` needs an embedding service, and `embedding.enabled` is off in the boot defaults. If the settings page shows `embedding.enabled` or `lesson_relations.enabled` as on in a fresh install, that is the page's own default and the capability panel says whether it works.

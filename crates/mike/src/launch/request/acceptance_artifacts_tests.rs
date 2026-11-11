@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use super::*;
-use crate::launch::fleet::acceptance_artifacts::MANIFEST_ENV;
+use crate::launch::fleet::acceptance_artifacts::EVIDENCE_ENV;
 
 const RUN: &str = "fleet-example-a1234567";
 
@@ -19,7 +19,7 @@ fn launch(root: &Path, args: &[&str], prompt: Option<&str>) -> Result<LaunchSpec
 }
 
 #[test]
-fn initial_and_manual_acceptance_successor_share_only_a_manifest_reference() -> anyhow::Result<()> {
+fn initial_and_manual_acceptance_successor_share_one_evidence_folder() -> anyhow::Result<()> {
     let root = tempfile::tempdir()?;
     let initial = launch(
         root.path(),
@@ -31,18 +31,25 @@ fn initial_and_manual_acceptance_successor_share_only_a_manifest_reference() -> 
         &["--run", RUN, "--seat", "acceptance-2"],
         Some("Continue judging C1"),
     )?;
-    let path = initial
+    let folder = initial
         .env
-        .get(MANIFEST_ENV)
-        .ok_or_else(|| anyhow::anyhow!("no manifest"))?;
-    assert_eq!(successor.env.get(MANIFEST_ENV), Some(path));
-    assert!(Path::new(path).is_absolute());
-    assert!(Path::new(path).is_file());
-    for spec in [initial, successor] {
+        .get(EVIDENCE_ENV)
+        .cloned()
+        .ok_or_else(|| anyhow::anyhow!("no evidence folder"))?;
+    assert_eq!(successor.env.get(EVIDENCE_ENV), Some(&folder));
+    let path = Path::new(&folder);
+    assert!(path.is_absolute());
+    assert!(path.join("comparisons").is_dir());
+    assert!(path.join("artifacts").is_dir());
+    assert!(!path.join("manifest.json").exists());
+    for (spec, task) in [(initial, "Judge C1"), (successor, "Continue judging C1")] {
         let prompt = spec.prompt.ok_or_else(|| anyhow::anyhow!("no prompt"))?;
-        assert!(prompt.contains("manifest.json"));
-        assert!(prompt.contains("supersede only changed ones"));
-        assert!(!prompt.contains("created_by_session"));
+        assert!(prompt.starts_with(task));
+        assert!(prompt.contains(folder.as_str()));
+        assert!(prompt.contains(RUN));
+        assert!(prompt.contains("acceptance-record"));
+        assert!(prompt.contains("session notes"));
+        assert!(!prompt.contains("manifest"));
     }
     Ok(())
 }
@@ -56,7 +63,7 @@ fn promptless_successor_gets_pointer_but_positional_prompt_is_preserved() -> any
         empty
             .prompt
             .as_deref()
-            .is_some_and(|p| p.contains("manifest.json"))
+            .is_some_and(|p| p.contains("acceptance-record"))
     );
     for extra in [
         vec!["Continue the live check"],
@@ -73,15 +80,15 @@ fn promptless_successor_gets_pointer_but_positional_prompt_is_preserved() -> any
                 .any(|arg| arg == "Continue the live check")
         );
         assert_eq!(
-            positional.env.get(MANIFEST_ENV),
-            empty.env.get(MANIFEST_ENV)
+            positional.env.get(EVIDENCE_ENV),
+            empty.env.get(EVIDENCE_ENV)
         );
     }
     Ok(())
 }
 
 #[test]
-fn only_acceptance_fleet_launches_create_artifact_storage() -> anyhow::Result<()> {
+fn only_acceptance_fleet_launches_get_an_evidence_folder() -> anyhow::Result<()> {
     let root = tempfile::tempdir()?;
     for args in [
         vec![],
@@ -91,7 +98,7 @@ fn only_acceptance_fleet_launches_create_artifact_storage() -> anyhow::Result<()
         vec!["--run", RUN, "--seat", "acceptance-2", "--role", "worker"],
     ] {
         let spec = launch(root.path(), &args, Some("Original brief"))?;
-        assert!(!spec.env.contains_key(MANIFEST_ENV));
+        assert!(!spec.env.contains_key(EVIDENCE_ENV));
         assert_eq!(spec.prompt.as_deref(), Some("Original brief"));
     }
     assert_eq!(std::fs::read_dir(root.path())?.count(), 0);
