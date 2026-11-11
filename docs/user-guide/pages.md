@@ -57,6 +57,7 @@ The menu on the left groups the pages as Overview, Levers, Insight and System. P
 | Workers | `/settings/workers` | [Settings](settings.md) |
 | Assistants | `/settings/assistants` | [Settings](settings.md) |
 | Embedding | `/settings/embedding` | [Settings](settings.md) |
+| Reranker | `/settings/reranker` | [Settings](settings.md) |
 | Flagging settings | `/settings/flagging` | [Flagged responses](flagged-responses.md) |
 | Integrations | `/settings/integrations` | [Settings](settings.md) |
 | Configuration history | `/settings/history` | [Settings](settings.md) |

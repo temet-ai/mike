@@ -114,6 +114,8 @@ These are off, and none of the first four sends text to another service:
 | `directive_proposer` | Proposes standing directives from corrections you restated across sessions. Proposals wait on [Memory](memory.md); nothing is injected. No model call. |
 | `change_record` | Keeps a record of what happened in each checkout a session works in, so fleets can ask what others changed without git. Nothing leaves the machine. |
 | `change_record_tail` | Adds a few lines saying what others changed to some answers inside a fleet. Needs `change_record`. |
+| `memory_keeper` | Keeps a short card for each open work thread: where it stands, what is next, blockers, the last handoff and decisions since. Built from the database; nothing leaves the machine. Turning it back on needs a restart. |
+| `seat_memory_index` | Knowledge search also finds fleet seats' briefs, reports and mail, labelled by seat and run and ranked below your own material. Turning it back on needs a restart. |
 
 `workspace_briefing`, `context_focus_question`, `native_peer_mail`, `mod_lesson_delivery` and the `client_serves_*` switches other than `client_serves_self_identity` are also off. They relate to fleets, messages between sessions and mods; the settings page describes each.
 
