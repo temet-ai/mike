@@ -105,7 +105,7 @@ async fn responses_chatgpt_sse_turn_is_relayed_byte_for_byte_and_recorded() -> a
     let Some(mut h) = harness("http://127.0.0.1:1", &base).await? else {
         return Ok(());
     };
-    let session = uuid::Uuid::now_v7();
+    let session = uuid::Uuid::new_v4();
     let cwd = format!("/tmp/responses-fx-{session}");
     let request = Request::post("/codex/responses")
         .header("content-type", "application/json")
