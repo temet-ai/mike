@@ -5,9 +5,9 @@ use serde_json::Value;
 use super::transcript::{LIVE_TURN, RECONNECT, SYNTHETIC_ITEMS, Transcript, connection, replay};
 use super::{FrameRoute, IngestConnection, IngestOutcome};
 use crate::runtime::codex::{
-    ExclusionReason, Field, ItemCategory, ItemKey, ItemUpdate, ProjectedItem, ProjectionBatch,
-    ProjectionEffect, ProjectionStatus, ReceiptApplication, ReductionStatus, SignalKind,
-    TextChannel, decode_observation, reduce_item,
+    ExclusionReason, Field, ItemKey, ItemUpdate, ProjectedItem, ProjectionBatch, ProjectionEffect,
+    ProjectionStatus, ReceiptApplication, ReductionStatus, SignalKind, TextChannel,
+    decode_observation, reduce_item,
 };
 
 struct Ingested {
