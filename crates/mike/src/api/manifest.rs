@@ -14,6 +14,7 @@ use crate::config::AppState;
 
 mod anthropic;
 mod changes;
+mod codex_observe;
 mod compression_review;
 mod config_history;
 mod cross_session;
@@ -114,6 +115,7 @@ pub fn inspect_route_manifest() -> Vec<RouteEntry> {
         questions::ROUTES,
         skills::ROUTES,
         skill_outcomes::ROUTES,
+        codex_observe::ROUTES,
         proposals::ROUTES,
         setup::ROUTES,
         work_threads::ROUTES,
@@ -166,6 +168,7 @@ pub(crate) fn local_router(state: AppState, policy: host_guard::LocalAccessPolic
     let router = questions::register(router);
     let router = skills::register(router);
     let router = skill_outcomes::register(router);
+    let router = codex_observe::register(router);
     let router = proposals::register(router);
     let router = setup::register(router);
     let router = work_threads::register(router);
