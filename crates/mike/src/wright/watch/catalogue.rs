@@ -99,10 +99,6 @@ pub(crate) const CHECKS: &[CheckSpec] = &[
     },
 ];
 
-pub(crate) fn find(name: &str) -> Option<&'static CheckSpec> {
-    CHECKS.iter().find(|spec| spec.name == name)
-}
-
 #[derive(Debug, Clone)]
 pub(crate) struct WatchContext {
     pub(crate) persist: PersistHandle,
