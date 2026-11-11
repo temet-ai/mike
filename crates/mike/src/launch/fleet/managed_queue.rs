@@ -12,6 +12,34 @@ const FALLBACK_PATIENCE: Duration = Duration::from_secs(1800);
 const PATIENCE_FLOOR: Duration = Duration::from_secs(600);
 const PATIENCE_CEILING: Duration = Duration::from_secs(7200);
 const PATIENCE_PER_RUN: u32 = 3;
+pub(super) const RESERVED_FOR_CHECK: &str = "#reserved-for-the-commit-check";
+
+pub(super) fn reserve_for_commit_check(
+    ledger: &str,
+    operation: Option<super::operation::Operation>,
+) -> Option<super::operation::Operation> {
+    if ledger.contains('#') {
+        return operation;
+    }
+    operation.map(|mut operation| {
+        for claim in &mut operation.resources {
+            *claim = reserved(claim);
+        }
+        operation
+    })
+}
+
+fn reserved(claim: &super::operation::ResourceClaim) -> super::operation::ResourceClaim {
+    use super::operation::{CountedResource, ResourceClaim};
+    let name = format!("{}{RESERVED_FOR_CHECK}", claim.name().trim());
+    match claim {
+        ResourceClaim::Name(_) => ResourceClaim::Name(name),
+        ResourceClaim::Counted(counted) => ResourceClaim::Counted(CountedResource {
+            name,
+            capacity: counted.capacity,
+        }),
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(super) enum Lane {

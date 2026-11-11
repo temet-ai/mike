@@ -87,7 +87,7 @@ async fn lock(repo: &str, names: &[String]) -> Result<(File, String), String> {
 
 fn candidates(operation: &Operation, at: &Target) -> Vec<String> {
     match operation {
-        Operation::Check { .. } => super::CHECK_SLOT_NAMES
+        Operation::Check { configured, .. } => super::check_slot_names(*configured)
             .iter()
             .map(|name| (*name).to_string())
             .collect(),
@@ -216,6 +216,9 @@ async fn checkout(repo: &str, at: &Target) -> Result<Option<String>, String> {
             "isolated path is not a detached worktree of this repository; no checkout was changed"
                 .to_string(),
         );
+    }
+    if super::CHECK_SLOT_NAMES.contains(&name) {
+        super::keep_warm(Path::new(repo), slot).await;
     }
     let restored = reset(slot, &at.commit).await?;
     if git(slot, &["rev-parse", "HEAD"]).await? != at.commit {

@@ -157,6 +157,53 @@ fn a_path_is_under_a_prefix_only_at_a_directory_boundary() {
 }
 
 #[test]
+fn whole_crate_and_full_suite_floor_commands_are_named_heavy() {
+    for heavy in [
+        "scripts/cx nextest run --profile ci -p mike",
+        "scripts/cx nextest run --profile ci -p mike --lib",
+        "cargo test -p mike --lib",
+        "scripts/gate --json check",
+        "make check",
+        "make test-p p=mike",
+        "cargo clippy --workspace --all-targets",
+        "scripts/cx nextest run -p mike-mcp && echo done",
+    ] {
+        assert!(super::heavy_reason(heavy).is_some(), "{heavy}");
+    }
+    for focused in [
+        "scripts/cx nextest run --profile ci -p mike --lib launch::fleet::floor",
+        "cargo test -p mike --lib -- floor",
+        "scripts/cx nextest run -p mike -E 'test(floor)'",
+        "make test-t t=launch::fleet",
+        "rustfmt --check --edition 2024 crates/mike/src/x.rs",
+        "CARGO_TARGET_DIR=target/fleet-check scripts/cx check -p mike --lib --tests",
+    ] {
+        assert_eq!(super::heavy_reason(focused), None, "{focused}");
+    }
+}
+
+#[test]
+fn define_fleet_warns_about_a_floor_that_runs_a_whole_crate_and_not_a_focused_one() {
+    let def = crate::launch::fleet::tests::changed(serde_json::json!({
+        "execution": {"operations": {
+            "all-mike": {"command": "scripts/cx nextest run --profile ci -p mike", "purpose": "every mike test"},
+            "floor-tests": {"command": "scripts/cx nextest run --profile ci -p mike --lib launch::fleet::floor", "purpose": "the floor tests"}
+        }},
+        "tasks": {
+            "T1": {"done_when": {"checks": [{"operation": "all-mike", "expected_exit": 0}]}},
+            "T2": {"done_when": {"checks": [{"operation": "floor-tests", "expected_exit": 0}]}}
+        }
+    }));
+    let warned = super::heavy_floor_warnings(&def);
+    let items: Vec<&str> = warned.iter().map(|w| w.item.as_str()).collect();
+    assert_eq!(items, vec!["tasks.T1.done_when"], "{warned:?}");
+    assert!(
+        warned[0].problem.contains("every test of a crate"),
+        "{warned:?}"
+    );
+}
+
+#[test]
 fn commit_files_are_read_with_their_status() {
     let (touched, added) = parse_name_status("M\ta/b.rs\nA\ta/new_tests.rs\n\nD\ta/gone.rs\n");
     assert_eq!(touched, vec!["a/b.rs", "a/new_tests.rs", "a/gone.rs"]);

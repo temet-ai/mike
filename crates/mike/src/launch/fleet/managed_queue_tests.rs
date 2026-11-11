@@ -142,3 +142,54 @@ fn default_patience_follows_the_measured_run_within_bounds() {
         Duration::from_secs(7200)
     );
 }
+
+fn build_operation() -> crate::launch::fleet::operation::Operation {
+    crate::launch::fleet::operation::Operation {
+        command: "CARGO_TARGET_DIR=target/fleet-check scripts/cx check -p mike --lib --tests"
+            .into(),
+        resources: vec!["mike-rust-build".into()],
+        ..Default::default()
+    }
+}
+
+#[tokio::test]
+async fn a_commit_check_is_admitted_while_a_gate_holds_the_shared_build_and_a_floor_waits()
+-> anyhow::Result<()> {
+    use crate::launch::fleet::operation_admission::acquire;
+    let root = tempfile::tempdir()?;
+    let token = tokio_util::sync::CancellationToken::new();
+    let gate = build_operation();
+    let _gate_running = acquire(root.path(), &gate.resources, &token)
+        .await
+        .map_err(anyhow::Error::msg)?;
+
+    let check =
+        super::reserve_for_commit_check("fleet-open-issues-0c16da5b", Some(build_operation()))
+            .ok_or_else(|| anyhow::anyhow!("operation dropped"))?;
+    let admitted = tokio::time::timeout(
+        Duration::from_secs(5),
+        acquire(root.path(), &check.resources, &token),
+    )
+    .await;
+    assert!(
+        matches!(admitted, Ok(Ok(_))),
+        "the commit check must not wait behind the gate"
+    );
+
+    let floor = super::reserve_for_commit_check(
+        "fleet-open-issues-0c16da5b#ruling:floor-unit#baseline:abc",
+        Some(build_operation()),
+    )
+    .ok_or_else(|| anyhow::anyhow!("operation dropped"))?;
+    assert_eq!(floor.resources, build_operation().resources);
+    let waited = tokio::time::timeout(
+        Duration::from_millis(300),
+        acquire(root.path(), &floor.resources, &token),
+    )
+    .await;
+    assert!(
+        waited.is_err(),
+        "a floor keeps sharing the build resource with the gate"
+    );
+    Ok(())
+}
