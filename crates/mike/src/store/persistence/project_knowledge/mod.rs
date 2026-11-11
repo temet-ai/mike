@@ -31,6 +31,7 @@ mod resolve_tests;
 mod search;
 mod session_binding;
 mod session_scope;
+mod window;
 
 pub use documents::{DocumentInput, RegisteredSource, ScanInput, SourceInput};
 pub(crate) use guidance::{AGENTS_SOURCE, MEMORY_SOURCE, RULES_SOURCE, SKILLS_SOURCE};
@@ -53,6 +54,8 @@ fn invalid(message: &str) -> PersistError {
 
 #[cfg(test)]
 mod health_tests;
+#[cfg(test)]
+mod search_filters_tests;
 #[cfg(test)]
 mod session_binding_tests;
 #[cfg(test)]

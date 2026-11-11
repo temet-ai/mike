@@ -115,6 +115,9 @@ async fn answer_search(
 ) -> Result<Json<Value>, Response> {
     let order = ResultOrder::parse(caller.order.as_deref()).map_err(|refusal| *refusal)?;
     let detail = Detail::parse(caller.detail.as_deref()).map_err(|refusal| *refusal)?;
+    if let Err(refusal) = input.window() {
+        return Err((StatusCode::BAD_REQUEST, Json(json!({"error": refusal}))).into_response());
+    }
     let input = KnowledgeQuery {
         caller_session: caller.session_id.clone(),
         recent: order.is_recent(),
