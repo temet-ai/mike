@@ -39,11 +39,25 @@ because another session's migration has not been applied to the shared database.
 items that hold something worth finding again: a decision, a fix, a cause found, an explanation, a status,
 a dead end. Never invent what the item does not contain. Answer with JSON only."""
 
-INSTRUCTION = """Write between 2 and 10 situation notes for the session below. Each note points at one item by
+INSTRUCTIONS = {
+    "per-session-v1": """Write between 2 and 10 situation notes for the session below. Each note points at one item by
 its reference, exactly as written in brackets. Prefer the item that holds the answer itself.
 Answer with a JSON array only: [{"ref": "<reference>", "note": "Useful when ..."}]
 
-"""
+""",
+    "per-part-v2": """Split the session below into its parts: each separate piece of work, ticket, question, fix,
+decision or dead end. For each part write two situation notes, both pointing at the item that holds the
+part's outcome (its reference exactly as written in brackets):
+1. a return note, in the plain words of someone coming back to it days later who remembers it only
+   vaguely, naming the topic, product, ticket or tool in everyday words: "Useful when asking what happened
+   with the compressor work, or where the Keycloak upgrade ticket got to";
+2. a recurrence note, for when the same problem or question comes up again, written as the symptom:
+   "Useful when old Rust build folders are filling the disk again".
+Keep each note under 30 words and leave out the solution's details. Answer with a JSON array only:
+[{"ref": "<reference>", "note": "Useful when ..."}]
+
+""",
+}
 
 
 def env(name):
@@ -218,7 +232,7 @@ def write_notes(capture, session, workdir):
                "--no-session-persistence", "--system-prompt", SYSTEM]
     child_env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_BASE_URL", "CLAUDE_CODE_SESSION_ID")}
     for attempt in range(2):
-        done = subprocess.run(command, input=INSTRUCTION + text, capture_output=True, text=True, cwd=workdir, env=child_env, timeout=600)
+        done = subprocess.run(command, input=INSTRUCTIONS[NOTE_PROMPT_VERSION] + text, capture_output=True, text=True, cwd=workdir, env=child_env, timeout=600)
         try:
             answer = json.loads(done.stdout)
             result = answer.get("result") or ""
@@ -268,10 +282,10 @@ def step_index(opts):
     if not exists:
         psql(admin, f"CREATE DATABASE {SCRATCH_DB}", read_only=False)
     psql(url, """CREATE EXTENSION IF NOT EXISTS vector;
-DROP TABLE IF EXISTS situation_notes;
-CREATE TABLE situation_notes (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, prompt_version text NOT NULL, session_uuid uuid NOT NULL,
+CREATE TABLE IF NOT EXISTS situation_notes (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, prompt_version text NOT NULL, session_uuid uuid NOT NULL,
   ref text NOT NULL, note text NOT NULL, search_tsv tsvector GENERATED ALWAYS AS (to_tsvector('english', note)) STORED, embedding vector(768) NOT NULL);
-CREATE INDEX ON situation_notes USING gin (search_tsv);""", read_only=False)
+CREATE INDEX IF NOT EXISTS situation_notes_search_tsv ON situation_notes USING gin (search_tsv);""", read_only=False)
+    psql(url, f"DELETE FROM situation_notes WHERE prompt_version = '{NOTE_PROMPT_VERSION}'", read_only=False)
     path = os.path.join(opts.out, f"notes-{NOTE_PROMPT_VERSION}.jsonl")
     notes = [(r["session"], n["ref"], n["note"]) for r in map(json.loads, open(path)) for n in r["notes"]]
     vectors = embed([f"title: note: {ref.split(':')[0]} | text: {note}" for _, ref, note in notes])
@@ -350,10 +364,10 @@ def with_notes(case, base, hits):
     added = [h for h in hits if h["ref"] not in have]
     scores = rerank(case["query"], [passage(case, h["ref"]) for h in added])
     ranked = [dict(i) for i in base["ranked"]]
-    for hit, score in zip(added, scores):
-        if score is not None and score >= RESCUE:
-            ranked.append({"reference": hit["ref"], "rerank_score": score, "identifier_hits": 0, "via_note": hit["note"]})
-    ranked.sort(key=lambda i: (0 if (i.get("identifier_hits") or 0) > 0 else 1, -(i["rerank_score"] if i["rerank_score"] is not None else -99)))
+    kept = sorted(((s, h) for h, s in zip(added, scores) if s is not None and s >= RESCUE), key=lambda pair: -pair[0])
+    for score, hit in kept:
+        at = next((n for n, i in enumerate(ranked) if not i.get("identifier_hits") and (i["rerank_score"] is None or i["rerank_score"] < score)), len(ranked))
+        ranked.insert(at, {"reference": hit["ref"], "rerank_score": score, "identifier_hits": 0, "via_note": hit["note"]})
     pool = [i["reference"] for i in base["pool"]] + [h["ref"] for h in hits if h["ref"] not in {i["reference"] for i in base["pool"]}]
     return ranked, pool
 
@@ -403,7 +417,7 @@ def step_report(opts):
         decision = "build"
     elif first_loss > 2:
         decision = "stop"
-    elif past_top10 > count("past", "without", "top10"):
+    elif past_top10 > count("past", "without", "top10") or count("past", "with", "candidate") > count("past", "without", "candidate"):
         decision = "adjust" if NOTE_PROMPT_VERSION == "per-session-v1" else "stop"
     else:
         decision = "stop"
