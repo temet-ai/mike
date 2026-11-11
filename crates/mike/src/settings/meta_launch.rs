@@ -37,9 +37,25 @@ fn described(mut m: SettingMeta, label: &'static str, description: &'static str)
     m
 }
 
+pub(super) const MACHINE_KEYS: &[&str] = &[
+    "launch_backend",
+    "launch_backend_follow_caller",
+    "launch_use_sidecar",
+    "launch_proxy_forward_url",
+    "launch_no_proxy",
+    "launch_ca_cert",
+    "launch_claude_args",
+    "launch_worktree_config",
+];
+
 pub(super) fn entries() -> Vec<SettingMeta> {
     let mut v = wiring_entries();
     v.extend(budget_entries());
+    for m in &mut v {
+        if MACHINE_KEYS.contains(&m.key) {
+            m.scope = SettingScope::Machine;
+        }
+    }
     v
 }
 
@@ -210,6 +226,25 @@ mod tests {
         }
         assert_eq!(entries.len(), compiled.len(), "no entry without a field");
         Ok(())
+    }
+
+    #[test]
+    fn launch_machine_keys_are_machine_scoped_and_the_rest_shared() {
+        for meta in entries() {
+            let expected = if MACHINE_KEYS.contains(&meta.key) {
+                SettingScope::Machine
+            } else {
+                SettingScope::Global
+            };
+            assert_eq!(meta.scope, expected, "{}", meta.key);
+        }
+        assert_eq!(
+            entries()
+                .iter()
+                .filter(|m| m.scope == SettingScope::Machine)
+                .count(),
+            MACHINE_KEYS.len()
+        );
     }
 
     #[test]

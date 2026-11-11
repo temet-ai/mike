@@ -115,12 +115,24 @@ pub(crate) async fn render_workspace_briefing(
     };
 
     let busy_ids = state.in_flight.busy_session_ids();
+    let own_path = match registered.project_path.as_deref() {
+        Some(stored) => Some(
+            path_on_machine(
+                handle,
+                registered.project_id,
+                stored,
+                state.resolve_host_machine_uuid().await,
+            )
+            .await,
+        ),
+        None => None,
+    };
     let build_result = build_workspace_briefing(BriefingBuildRequest {
         handle,
         busy_ids: &busy_ids,
         self_session_uuid,
         project_id: registered.project_id,
-        project_path: registered.project_path.as_deref(),
+        project_path: own_path.as_deref(),
         registered_via: registered.registered_via,
         intent: None,
         cwd: project_path,
@@ -132,6 +144,28 @@ pub(crate) async fn render_workspace_briefing(
 
     let peer_count = roster.iter().filter(|r| !r.is_self).count();
     Ok((briefing, peer_count))
+}
+
+pub(crate) const NO_LOCATION_ON_THIS_MACHINE: &str =
+    "this machine has no registered location for this project";
+
+pub(crate) async fn path_on_machine(
+    handle: &crate::store::persistence::PersistHandle,
+    project_id: i64,
+    stored: &str,
+    machine: Option<uuid::Uuid>,
+) -> String {
+    let Some(machine) = machine else {
+        return stored.to_owned();
+    };
+    match handle.machine_location_root(project_id, machine).await {
+        Ok(Some(root)) => root,
+        Ok(None) => NO_LOCATION_ON_THIS_MACHINE.to_owned(),
+        Err(error) => {
+            tracing::warn!(%error, project_id, "workspace briefing: could not read this machine's project location; showing the stored path");
+            stored.to_owned()
+        }
+    }
 }
 
 pub(crate) fn briefing_reminder(text: &str) -> String {

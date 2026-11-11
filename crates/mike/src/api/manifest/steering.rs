@@ -208,6 +208,13 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         },
     ),
     route(
+        "DELETE",
+        "/api/settings/{key}",
+        Coverage::Exempt {
+            reason: "Issue #84: clear a machine's own value of a machine-scoped setting so it reads the shared default; SPA-driven settings page, not needed via MCP",
+        },
+    ),
+    route(
         "POST",
         "/api/settings/steerer/openrouter/verify",
         Coverage::Exempt {
@@ -315,7 +322,10 @@ fn register_settings(router: Router<AppState>) -> Router<AppState> {
             "/api/settings/steerer/openrouter/key",
             put(handlers::put_steerer_openrouter_key),
         )
-        .route("/api/settings/{key}", patch(handlers::patch_setting))
+        .route(
+            "/api/settings/{key}",
+            patch(handlers::patch_setting).delete(handlers::clear_machine_setting),
+        )
         .route(
             "/api/steering/verifier-rate",
             get(handlers::get_verifier_rate),

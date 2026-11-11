@@ -13,6 +13,7 @@ use crate::launch::{LaunchError, PaneRequest, RunSeat, Surface, backend_for};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 use crate::store::persistence::launch::NewRun;
+use crate::store::persistence::settings::RepoLocation;
 
 const STATUS_REFRESH_SECONDS: &str = "5";
 const DELETED_SUFFIX: &str = " (deleted)";
@@ -55,6 +56,7 @@ async fn fail(state: &AppState, fleet: Uuid, problem: &str) {
     {
         tracing::error!(%fleet, error = %err, "mike could not record that the fleet failed to start");
     }
+    super::start_failure::tell(persist, &row, problem).await;
 }
 
 async fn start(state: &AppState, fleet: Uuid) -> Result<(), String> {
@@ -126,7 +128,8 @@ async fn prepare(
     if row.state != "starting" {
         return Err("fleet startup was cancelled before preparation".into());
     }
-    let def = FleetDefinition::from_value(&row.definition)?;
+    let mut def = FleetDefinition::from_value(&row.definition)?;
+    resolve_repo_on_this_machine(state, persist, fleet, &mut def).await?;
     let run_id = run_id_for(&row);
     let fence = super::owned_execution::registry().fence(&run_id).await;
     if fence.is_stopping() {
@@ -148,6 +151,50 @@ async fn prepare(
         paths: super::bundle::paths_for(&def.repo),
     };
     Ok((def, facts))
+}
+
+async fn resolve_repo_on_this_machine(
+    state: &AppState,
+    persist: &PersistHandle,
+    fleet: Uuid,
+    def: &mut FleetDefinition,
+) -> Result<(), String> {
+    let Some(machine) = state.resolve_host_machine_uuid().await else {
+        return Ok(());
+    };
+    let location = persist
+        .repo_location_on_machine(&def.repo, machine)
+        .await
+        .map_err(|error| error.to_string())?;
+    let Some(repo) = repo_for_machine(&def.repo, machine, &location)? else {
+        return Ok(());
+    };
+    if !seat::patch_definition(persist, fleet, &json!({"repo": repo})).await {
+        return Err(format!(
+            "the fleet's repo {} is {repo} on this machine, but the definition could not be updated",
+            def.repo
+        ));
+    }
+    tracing::info!(%fleet, from = %def.repo, to = %repo, "fleet repo resolved through this machine's project location");
+    def.repo = repo;
+    Ok(())
+}
+
+pub(crate) fn repo_for_machine(
+    repo: &str,
+    machine: Uuid,
+    location: &RepoLocation,
+) -> Result<Option<String>, String> {
+    match (&location.own_root, location.known) {
+        (Some(own), _) if own == repo => Ok(None),
+        (Some(own), _) => Ok(Some(own.clone())),
+        (None, true) => Err(format!(
+            "this machine ({machine}) has no location for the project the fleet's repo {repo} \
+             belongs to; register this machine's checkout with register_project_location, or \
+             start the fleet on a machine that has one"
+        )),
+        (None, false) => Ok(None),
+    }
 }
 
 async fn open_rest(
@@ -314,4 +361,51 @@ pub fn running_binary() -> Result<PathBuf, LaunchError> {
         return Ok(path);
     }
     Ok(PathBuf::from("mike"))
+}
+
+#[cfg(test)]
+mod repo_for_machine_tests {
+    use super::{RepoLocation, repo_for_machine};
+
+    const MACHINE: uuid::Uuid = uuid::Uuid::from_u128(0x7d0a_6f8e_0000_4000_8000_0000_0000_0001);
+
+    fn location(known: bool, own_root: Option<&str>) -> RepoLocation {
+        RepoLocation {
+            known,
+            own_root: own_root.map(str::to_owned),
+        }
+    }
+
+    #[test]
+    fn repo_for_machine_rewrites_another_machines_path_to_this_machines_checkout() {
+        let resolved = repo_for_machine(
+            "/mnt/data/projects/temet/temet-proxy",
+            MACHINE,
+            &location(true, Some("/Users/dawid/projects/temet/temet-proxy")),
+        );
+        assert_eq!(
+            resolved,
+            Ok(Some("/Users/dawid/projects/temet/temet-proxy".to_owned()))
+        );
+    }
+
+    #[test]
+    fn repo_for_machine_keeps_this_machines_own_path_and_unknown_paths() {
+        assert_eq!(
+            repo_for_machine("/repo", MACHINE, &location(true, Some("/repo"))),
+            Ok(None)
+        );
+        assert_eq!(
+            repo_for_machine("/repo", MACHINE, &location(false, None)),
+            Ok(None)
+        );
+    }
+
+    #[test]
+    fn repo_for_machine_refuses_a_known_project_this_machine_has_no_location_for() {
+        let refused = repo_for_machine("/repo", MACHINE, &location(true, None));
+        let message = refused.err().unwrap_or_default();
+        assert!(message.contains("no location"), "{message}");
+        assert!(message.contains(&MACHINE.to_string()), "{message}");
+    }
 }

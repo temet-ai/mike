@@ -1,5 +1,9 @@
 use super::*;
 
+#[path = "settings_01_machine.rs"]
+mod machine;
+pub(crate) use machine::*;
+
 #[derive(Debug, Serialize)]
 pub(crate) struct FeatureToggleDto {
     pub(crate) key: &'static str,
@@ -96,40 +100,39 @@ pub(crate) struct SettingErrorBody {
     pub error: String,
 }
 
-pub(crate) async fn list_settings(State(state): State<AppState>) -> Json<serde_json::Value> {
-    let db_values: std::collections::HashMap<String, serde_json::Value> = match state
-        .settings_service()
-    {
-        Some(svc) => match svc.fetch_all().await {
-            Ok(rows) => rows.into_iter().collect(),
-            Err(e) => {
-                tracing::warn!(error = %e, "failed to fetch settings from DB; falling back to compiled defaults");
-                std::collections::HashMap::new()
-            }
-        },
-        None => std::collections::HashMap::new(),
-    };
+pub(crate) async fn list_settings(
+    State(state): State<AppState>,
+    Query(query): Query<MachineQuery>,
+) -> Json<serde_json::Value> {
+    let view = machine_view_or_empty(&state, query.machine).await;
     let launch_resolved = super::settings_01_launch_values::launch_resolved_values(&state);
 
     let settings: Vec<serde_json::Value> = crate::settings::SETTINGS_META
         .iter()
         .map(|m| {
-            let value = db_values
-                .get(m.key)
+            let value = view
+                .value(m.key)
                 .cloned()
                 .or_else(|| launch_resolved.get(m.key).cloned())
                 .unwrap_or_else(|| m.default.clone());
             let mut entry = serde_json::to_value(m).unwrap_or(serde_json::Value::Null);
             if let Some(obj) = entry.as_object_mut() {
                 obj.insert("value".to_owned(), value);
+                if m.scope == crate::settings::SettingScope::Machine {
+                    obj.insert("source".to_owned(), serde_json::json!(view.source(m.key)));
+                    obj.insert(
+                        "shared_value".to_owned(),
+                        json_or_null(view.shared.get(m.key)),
+                    );
+                }
             }
             entry
         })
         .collect();
 
     let env_var_name = {
-        let db_name = db_values
-            .get("steerer.openrouter_api_key_env")
+        let db_name = view
+            .value("steerer.openrouter_api_key_env")
             .and_then(|v| v.as_str())
             .map(str::to_owned);
         db_name.unwrap_or_else(|| "MIKE_STEERER_OPENROUTER_API_KEY".to_owned())
@@ -173,6 +176,7 @@ pub(crate) async fn list_settings(State(state): State<AppState>) -> Json<serde_j
     );
 
     Json(serde_json::json!({
+        "machine": { "uuid": view.machine_uuid, "name": view.machine_name },
         "settings": settings,
         "steerer_openrouter_configured_via_env": steerer_openrouter_configured_via_env,
         "file_read_compression_effective": file_read_compression_effective,
@@ -216,6 +220,8 @@ fn compression_effective_reports_off_when_the_switch_is_off_whatever_the_share()
 #[derive(Debug, Deserialize)]
 pub(crate) struct PatchSettingBody {
     pub value: serde_json::Value,
+    #[serde(default)]
+    pub machine: Option<uuid::Uuid>,
 }
 
 async fn follow_live_bundle(
@@ -267,90 +273,61 @@ pub(crate) async fn patch_setting(
     Path(key): Path<String>,
     headers: HeaderMap,
     Json(body): Json<PatchSettingBody>,
-) -> Result<Json<serde_json::Value>, (StatusCode, Json<SettingErrorBody>)> {
-    let Some(svc) = state.settings_service() else {
-        return Err((
+) -> Result<Json<serde_json::Value>, SettingError> {
+    let svc = state.settings_service().ok_or_else(|| {
+        setting_error(
             StatusCode::SERVICE_UNAVAILABLE,
-            Json(SettingErrorBody {
-                error: "session persistence is disabled; settings mutation is not available"
-                    .to_owned(),
-            }),
-        ));
-    };
-
-    super::embedding_change::validate_disable(&key, &body.value, &headers).map_err(
-        |(status, error)| {
-            (
-                status,
-                Json(SettingErrorBody {
-                    error: error.to_owned(),
-                }),
-            )
-        },
-    )?;
+            "session persistence is disabled; settings mutation is not available".to_owned(),
+        )
+    })?;
+    super::embedding_change::validate_disable(&key, &body.value, &headers)
+        .map_err(|(status, error)| setting_error(status, error.to_owned()))?;
     let source = crate::api::change_source::change_source_from_headers(&headers);
     let previous_pointer = svc.live_pointer(&key);
-    match svc.set_with_source(&key, body.value, &source).await {
-        Ok((validated_value, _change_ids)) => {
-            if key.starts_with("embedding.") {
-                let embedding_service = state.embedding_service();
-                let _ = embedding_service.apply_setting(&key, &validated_value);
-            }
-            if key.starts_with("rerank.") || key.starts_with("search.ranking.") {
-                let _ = state.rerank_service().apply_setting(&key, &validated_value);
-            }
-            let swaps =
-                follow_live_bundle(svc, &key, &validated_value, previous_pointer, &source).await;
-            let meta = crate::settings::SETTINGS_META
-                .iter()
-                .find(|m| m.key == key.as_str())
-                .ok_or_else(|| {
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(SettingErrorBody {
-                            error: "internal: key not found in SETTINGS_META after set succeeded"
-                                .to_owned(),
-                        }),
-                    )
-                })?;
-            let mut entry = serde_json::to_value(meta).map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(SettingErrorBody {
-                        error: format!("internal: failed to serialize setting meta: {e}"),
-                    }),
-                )
-            })?;
-            if let Some(obj) = entry.as_object_mut() {
-                obj.insert("value".to_owned(), validated_value);
-                insert_swaps(obj, &key, swaps);
-            }
-            Ok(Json(entry))
-        }
-        Err(crate::settings::service::SettingsServiceError::NotFound(k)) => Err((
-            StatusCode::NOT_FOUND,
-            Json(SettingErrorBody {
-                error: format!("unknown setting: {k}"),
-            }),
-        )),
-        Err(crate::settings::service::SettingsServiceError::InvalidValue { key: k, reason }) => {
-            Err((
-                StatusCode::BAD_REQUEST,
-                Json(SettingErrorBody {
-                    error: format!("invalid value for setting '{k}': {reason}"),
-                }),
-            ))
-        }
-        Err(crate::settings::service::SettingsServiceError::Persistence(e)) => {
-            tracing::error!(error = %e, "failed to persist settings update");
-            Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(SettingErrorBody {
-                    error: format!("persistence error: {e}"),
-                }),
-            ))
-        }
+    let (validated_value, _change_ids) = svc
+        .set_for_machine_with_source(&key, body.value, body.machine, &source)
+        .await
+        .map_err(service_error)?;
+    if key.starts_with("embedding.") {
+        let _ = state
+            .embedding_service()
+            .apply_setting(&key, &validated_value);
     }
+    if key.starts_with("rerank.") || key.starts_with("search.ranking.") {
+        let _ = state.rerank_service().apply_setting(&key, &validated_value);
+    }
+    let swaps = follow_live_bundle(svc, &key, &validated_value, previous_pointer, &source).await;
+    let meta = crate::settings::SETTINGS_META
+        .iter()
+        .find(|m| m.key == key.as_str())
+        .ok_or_else(|| {
+            setting_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "internal: key not found in SETTINGS_META after set succeeded".to_owned(),
+            )
+        })?;
+    let mut entry = serde_json::to_value(meta).map_err(|e| {
+        setting_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("internal: failed to serialize setting meta: {e}"),
+        )
+    })?;
+    if let Some(obj) = entry.as_object_mut() {
+        obj.insert("value".to_owned(), validated_value);
+        if meta.scope == crate::settings::SettingScope::Machine {
+            let view = svc
+                .machine_view(body.machine)
+                .await
+                .map_err(service_error)?;
+            obj.insert("source".to_owned(), serde_json::json!(view.source(&key)));
+            obj.insert(
+                "machine".to_owned(),
+                serde_json::json!({ "uuid": view.machine_uuid, "name": view.machine_name }),
+            );
+        }
+        insert_swaps(obj, &key, swaps);
+    }
+    Ok(Json(entry))
 }
 
 #[derive(Debug, serde::Serialize)]

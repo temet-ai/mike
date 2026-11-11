@@ -301,3 +301,50 @@ async fn stage_and_capture_path_share_one_registration() -> anyhow::Result<()> {
 
     env.cleanup().await
 }
+
+#[tokio::test]
+async fn briefing_path_is_the_reading_machines_own_location_or_says_it_has_none()
+-> anyhow::Result<()> {
+    let Some(env) = Env::boot().await? else {
+        return Ok(());
+    };
+    let stored = format!("/mnt/data/projects/briefing-path-{}", Uuid::new_v4());
+    let project_id: i64 = sqlx::query_scalar(
+        "INSERT INTO projects.projects (project_path, display_name) VALUES ($1, $1) RETURNING id",
+    )
+    .bind(&stored)
+    .fetch_one(env.persist.pool())
+    .await?;
+    let (linux, mac, bare) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
+    let mac_root = format!("/Users/dawid/projects/briefing-path-{}", Uuid::new_v4());
+    for (machine, name, root) in [
+        (linux, "omit", stored.as_str()),
+        (mac, "mac", mac_root.as_str()),
+    ] {
+        sqlx::query("INSERT INTO projects.machines (machine_uuid, name) VALUES ($1, $2)")
+            .bind(machine)
+            .bind(name)
+            .execute(env.persist.pool())
+            .await?;
+        sqlx::query(
+            "INSERT INTO projects.locations (project_id, machine_uuid, root_path) VALUES ($1, $2, $3)",
+        )
+        .bind(project_id)
+        .bind(machine)
+        .bind(root)
+        .execute(env.persist.pool())
+        .await?;
+    }
+
+    let on = |machine| super::path_on_machine(&env.persist, project_id, &stored, machine);
+    assert_eq!(on(Some(linux)).await, stored);
+    assert_eq!(on(Some(mac)).await, mac_root);
+    assert_eq!(
+        on(Some(bare)).await,
+        super::NO_LOCATION_ON_THIS_MACHINE,
+        "a machine with no location must say so, never show another machine's path"
+    );
+    assert_eq!(on(None).await, stored);
+
+    env.cleanup().await
+}
