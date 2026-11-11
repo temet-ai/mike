@@ -204,6 +204,7 @@ pub async fn staff(
         seats,
         paths: super::bundle::paths_for(&def.repo),
     };
+    super::run_text_notes::record(persist, (&def, &facts)).await;
     let (room, surfaces) = room(state).await;
     if ready.len() > room {
         tell_no_room(row.fleet_uuid, &ready[room..], &surfaces);

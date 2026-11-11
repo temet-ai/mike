@@ -220,7 +220,7 @@ wins over a code default, so an upgrade never changes what an install does.
   `retention_sweep`, `channel_link_sweep`, `workspace_capture_registration`,
   `fleet_auto_start`, `prompt_assistant` (read only by the SPA),
   `semantic_context` (refuses a non-loopback embedder),
-  `client_serves_self_identity`.
+  `client_serves_self_identity`, `launch_brief` (mails a long launch brief from mike).
 - **Off by default, rewrite traffic:** `reminders`, `recall_injector`,
   `agent_lessons`, `self_identity_reminder`, `workspace_briefing`,
   `mailbox_redelivery`, `repeated_notices`, `reminder_on_token`,
@@ -230,7 +230,7 @@ wins over a code default, so an upgrade never changes what an install does.
 - **Off by default, call a model:** `steerer`, `judge_worker`,
   `session_judge`, `session_end_shadow`, `turn_guard`, `judge_lessons`.
 - **Off by default, local:** `dossier_builder`, `directive_proposer`,
-  `change_record`, `launch_brief`, `native_peer_mail`, `mod_lesson_delivery`,
+  `change_record`, `native_peer_mail`, `mod_lesson_delivery`,
   ten `client_serves_*` keys.
 
 Presets (`feature_presets/plan.rs`): **watch-only** is every default;

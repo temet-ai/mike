@@ -159,11 +159,17 @@ pub async fn stop(
             let fresh = finish_stop(persist, &stopped).await?;
             if fresh.state == DONE {
                 super::status_pane::close(state, &fresh).await;
+                record_close(state, persist, &fresh).await;
             }
             report.state = fresh.state;
         }
     }
     Ok(report)
+}
+
+async fn record_close(state: &AppState, persist: &PersistHandle, row: &FleetRow) {
+    let status = super::status::assemble(state, row).await.ok();
+    super::close_note::record(persist, row, status.as_ref()).await;
 }
 
 pub const ABANDON_AFTER_SECONDS: f64 = 7200.0 + 600.0;

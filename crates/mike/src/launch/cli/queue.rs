@@ -106,8 +106,15 @@ impl LocalQueue {
 
     pub(crate) fn save_launch(&self, launch: &NewLaunch) -> Result<i64, String> {
         let key = u32::try_from(Uuid::new_v4().as_u128() & 0x7fff_ffff).unwrap_or(1);
+        let mut launch = launch.clone();
+        if launch.session_uuid.is_some()
+            && launch.brief_text.is_some()
+            && launch.brief_note_uuid.is_none()
+        {
+            launch.brief_note_uuid = Some(Uuid::new_v4());
+        }
         let queued = QueuedLaunch {
-            launch: launch.clone(),
+            launch,
             opened: None,
             outcome: None,
             closed: None,
