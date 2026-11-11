@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use super::protocol::{Evidence, Field, field};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ItemKey {
     pub namespace_id: Uuid,
     pub thread_id: String,
