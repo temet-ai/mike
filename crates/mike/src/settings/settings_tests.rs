@@ -304,3 +304,56 @@ async fn existing_shared_rows_stay_the_value_every_machine_reads_after_the_upgra
     }
     db.cleanup().await
 }
+
+#[tokio::test]
+async fn repo_location_on_machine_finds_own_root_another_machines_path_and_no_location()
+-> anyhow::Result<()> {
+    let Some(db) = crate::store::persistence::test_support::acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let svc = machine_settings_service(&db.database_url).await?;
+    let pool = svc.persist.pool();
+    let linux_root = format!("/mnt/data/projects/repo-{}", uuid::Uuid::new_v4());
+    let mac_root = format!("/Users/dawid/projects/repo-{}", uuid::Uuid::new_v4());
+    let project_id: i64 = sqlx::query_scalar(
+        "INSERT INTO projects.projects (project_path, display_name) VALUES ($1, $1) RETURNING id",
+    )
+    .bind(&linux_root)
+    .fetch_one(pool)
+    .await?;
+    let (linux, mac, bare) = (
+        uuid::Uuid::new_v4(),
+        uuid::Uuid::new_v4(),
+        uuid::Uuid::new_v4(),
+    );
+    for (machine, root) in [(linux, &linux_root), (mac, &mac_root)] {
+        sqlx::query("INSERT INTO projects.machines (machine_uuid, name) VALUES ($1, 'm')")
+            .bind(machine)
+            .execute(pool)
+            .await?;
+        sqlx::query(
+            "INSERT INTO projects.locations (project_id, machine_uuid, root_path) VALUES ($1, $2, $3)",
+        )
+        .bind(project_id)
+        .bind(machine)
+        .bind(root)
+        .execute(pool)
+        .await?;
+    }
+    let found = |machine| svc.persist.repo_location_on_machine(&linux_root, machine);
+    let own = found(linux).await?;
+    assert_eq!((own.known, own.own_root), (true, Some(linux_root.clone())));
+    let other = found(mac).await?;
+    assert_eq!(
+        (other.known, other.own_root),
+        (true, Some(mac_root.clone()))
+    );
+    let none = found(bare).await?;
+    assert_eq!((none.known, none.own_root), (true, None));
+    let unknown = svc
+        .persist
+        .repo_location_on_machine("/nowhere/at/all", linux)
+        .await?;
+    assert_eq!((unknown.known, unknown.own_root), (false, None));
+    db.cleanup().await
+}
