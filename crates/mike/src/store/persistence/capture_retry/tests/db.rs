@@ -50,7 +50,8 @@ async fn nul_in_tool_result_records_request_byte_for_byte_with_derived_rows() ->
     };
     let session_id = uuid::Uuid::new_v4().to_string();
     let tool_id = format!("tu-nul-{session_id}");
-    let req = nul_request(363_001, &session_id, &tool_id);
+    let mut req = nul_request(363_001, &session_id, &tool_id);
+    req.completed_at = Some(chrono::Utc::now());
     handle
         .insert_request_initial(&req, true, IdMode::Ensure)
         .await?;
@@ -81,23 +82,22 @@ async fn nul_in_tool_result_records_request_byte_for_byte_with_derived_rows() ->
 }
 
 async fn seed_session(handle: &PersistHandle, session_id: &str) -> anyhow::Result<i64> {
-    let first = crate::store::tests::make_test_request(
-        Some(RequestId::from_raw(363_100 + rand_suffix())),
-        session_id,
-    );
-    handle
-        .insert_request_initial(&first, true, IdMode::Ensure)
+    let mut first = crate::store::tests::make_test_request(None, session_id);
+    first.request_body = Some(bytes::Bytes::from_static(
+        br#"{"messages":[{"role":"user","content":"first"}]}"#,
+    ));
+    let outcome = handle
+        .insert_request_initial(&first, true, IdMode::Mint)
         .await?;
+    first.id = RequestId::from_raw(outcome.id as u64);
+    first.completed_at = Some(chrono::Utc::now());
+    handle.snapshot_request(&first).await?;
     Ok(
         sqlx::query_scalar("SELECT id FROM sessions.sessions WHERE session_uuid = $1::uuid")
             .bind(session_id)
             .fetch_one(handle.pool())
             .await?,
     )
-}
-
-fn rand_suffix() -> u64 {
-    u64::from(uuid::Uuid::new_v4().as_u128() as u16)
 }
 
 #[tokio::test]
