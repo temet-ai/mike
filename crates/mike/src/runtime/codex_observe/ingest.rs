@@ -123,12 +123,12 @@ fn envelope(
     }
 }
 
-async fn record(
-    persist: &PersistHandle,
+async fn record<'p>(
+    persist: &'p PersistHandle,
     namespace: &RuntimeNamespace,
     envelope: RuntimeEventEnvelope,
     raw: &[u8],
-) -> Result<(Delivery<'_>, bool), IngestError> {
+) -> Result<(Delivery<'p>, bool), IngestError> {
     persist.register_runtime_namespace(namespace).await?;
     let at = envelope.received_at;
     let ingestion_id = envelope.ingestion_id;
