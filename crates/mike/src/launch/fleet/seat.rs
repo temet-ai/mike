@@ -72,9 +72,9 @@ pub async fn begin(
             forked_from: None,
         };
     }
-    if let Err(error) = seat.runtime.ensure_managed_launch_supported() {
+    if !seat.runtime.controls_through_terminal() {
         return Begun {
-            started: Err(error.to_string()),
+            started: begin_codex(persist, def, run_id, seat).await,
             forked_from: None,
         };
     }
@@ -128,6 +128,27 @@ pub async fn begin(
         started,
         forked_from,
     }
+}
+
+async fn begin_codex(
+    persist: &PersistHandle,
+    def: &FleetDefinition,
+    run_id: &str,
+    seat: &SeatPlan,
+) -> Result<(), String> {
+    let state = bundle::default_state_dir(&bundle::home());
+    let scratch = seat_settings::scratch_dir(&state, &def.repo);
+    let started = crate::launch::codex::begin_planned(
+        persist,
+        def,
+        run_id,
+        seat,
+        &scratch,
+        &seat_name(&seat.seat, seat.session),
+    )
+    .await;
+    record_launch(persist, run_id, seat, &started).await;
+    started
 }
 
 async fn record_launch(

@@ -19,10 +19,10 @@ impl RuntimeKind {
         }
     }
 
-    pub fn ensure_managed_launch_supported(self) -> Result<(), RuntimeContractError> {
+    pub fn controls_through_terminal(self) -> bool {
         match self {
-            Self::Claude => Ok(()),
-            Self::Codex => Err(RuntimeContractError::UnsupportedManagedRuntime),
+            Self::Claude => true,
+            Self::Codex => false,
         }
     }
 }

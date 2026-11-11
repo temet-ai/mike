@@ -3,6 +3,7 @@ pub mod backend_choice;
 pub mod brief;
 pub mod channel_link;
 pub mod cli;
+pub mod codex;
 pub mod env;
 pub mod error;
 pub mod fleet;
