@@ -392,6 +392,7 @@ fn project_gate() -> GateDefinition {
         timeout_pattern: r"TIMEOUT (?P<test>\S+)".to_string(),
         failure_pattern: r"FAIL (?P<test>\S+)".to_string(),
         rerun_command: "t {test}".to_string(),
+        ..GateDefinition::default()
     }
 }
 

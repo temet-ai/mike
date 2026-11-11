@@ -62,15 +62,16 @@ pub async fn reconcile(
         }
     }
     if !persist.unsettled_fleet_launches(run).await?.is_empty()
-        || left_unchecked(persist, &fresh).await
+        || left_unchecked(state, persist, &fresh).await
     {
         return Ok(false);
     }
     Ok(stop(state, persist, &fresh).await?.state == DONE)
 }
 
-async fn left_unchecked(persist: &PersistHandle, row: &FleetRow) -> bool {
-    let Some(commit) = super::gate_queue::unchecked(persist, row).await else {
+async fn left_unchecked(state: &AppState, persist: &PersistHandle, row: &FleetRow) -> bool {
+    let Some(commit) = super::gate::full::unchecked_at_close(&state.tracker, persist, row).await
+    else {
         return false;
     };
     tracing::info!(fleet = %row.slug, %commit, "fleet: every seat has exited, but the branch's newest commit has no passing gate yet, so the fleet stays open");

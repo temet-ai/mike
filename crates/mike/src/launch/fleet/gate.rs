@@ -34,6 +34,8 @@ const JOINED: &str = "joined";
 pub(super) mod admission;
 #[path = "gate_execution.rs"]
 mod execution;
+#[path = "gate_full.rs"]
+pub mod full;
 pub(super) use execution::{execute_verified, start};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -90,13 +92,18 @@ pub fn ledger(run: &str) -> String {
 }
 
 pub fn ledger_for(def: &FleetDefinition, run: &str) -> String {
+    let base = if full::is_full(def) {
+        format!("{}{}", ledger(run), full::LEDGER_SUFFIX)
+    } else {
+        ledger(run)
+    };
     let operation = def.execution.operation(&def.gate.command);
     if operation.is_none() && def.execution.strip_environment.is_empty() {
-        return ledger(run);
+        return base;
     }
     let policy = serde_json::json!([def.execution.environment_policy(), operation]).to_string();
     let identity = super::check_state::command_state(&policy, &def.gate.command);
-    format!("{}:{identity}", ledger(run))
+    format!("{base}:{identity}")
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -136,6 +143,8 @@ pub async fn gate(
     seated: &Seated,
     request: &GateRequest,
 ) -> GateReport {
+    let full = full::definition(def);
+    let def = full.as_ref();
     let seat = asker(def, seated, request.session).map(|who| who.seat);
     let Some(seat) = seat else {
         return refused(

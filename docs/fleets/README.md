@@ -30,6 +30,24 @@ The diagrams on those pages are animated SVGs in `docs/user-guide/images/fleet-*
 | [`isolated-checks.md`](isolated-checks.md) | How the check and the gate grade an exact commit in the managed worktrees under `.claude/worktrees/`, and where a working-tree command differs. |
 | [`../animations/fleet-run.html`](../animations/fleet-run.html) | An interactive walkthrough of a run. It shows the coordinator, acceptance and observer seats of an earlier design; a fleet now opens none of them. |
 
+## What to put in `gate`
+
+A definition's `gate` has two commands:
+
+- `gate.command` is the **quick** gate: format and compile, nothing slower (in this repository
+  `make gate-quick`). mike runs it once on a clean copy of the branch before any seat opens, and
+  again on every pushed commit, so a slow command here holds every seat at start and queues a
+  long run per push.
+- `gate.full_command` is the **full** gate (in this repository `scripts/gate --json check`). mike
+  runs it once when the work is done: when every seat has exited, at the branch's newest commit,
+  and when the acceptance seat asks with `mike fleet gate`. The fleet stays open until it passes.
+  Left empty, `gate.command` is used in its place.
+
+`define_fleet` answers with a warning under `at_ready.missing` when `gate.command` looks like a
+full gate and `gate.full_command` is empty: its declared operation's name or purpose says
+"full", the operation allows more than ten minutes, or a recorded run took more than ten
+minutes. The code is `launch/fleet/gate_full.rs`.
+
 The files a running fleet reads, under `.claude/fleet/`:
 
 | File | What it is |

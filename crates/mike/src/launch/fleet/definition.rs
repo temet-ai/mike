@@ -88,6 +88,7 @@ pub struct BriefsDefinition {
 #[serde(default)]
 pub struct GateDefinition {
     pub command: String,
+    pub full_command: String,
     pub timeout_pattern: String,
     pub failure_pattern: String,
     pub rerun_command: String,
