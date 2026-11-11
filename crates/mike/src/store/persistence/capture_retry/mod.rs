@@ -58,4 +58,7 @@ fn classify_code(code: Option<&str>, message: &str) -> WriteFailure {
 }
 
 #[cfg(test)]
+#[path = "tests/db.rs"]
+mod db_tests;
+#[cfg(test)]
 mod tests;

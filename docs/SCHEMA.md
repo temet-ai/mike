@@ -759,6 +759,19 @@ request the listing exposes as `dispatch_request_id`. Historical rows were popul
 
 **Trigger:** `trg_requests_row_changed` — AFTER INSERT OR UPDATE OR DELETE; NOTIFY `proxy.row_changed`
 
+**NUL characters** (temet-ai/mike#156). Postgres stores no NUL character in `jsonb` or
+`text`. `request_body` is `bytea` and keeps the body byte for byte, `\u0000` escapes and
+raw NUL bytes included; it is the complete copy. In every derived column a NUL is stored as
+U+2400 `␀` (`store/persistence/text_sanitize.rs`): `last_user_message`, `human_prompt`,
+`request_headers`, `params`, `messages.messages.body` (whose `message_sha256` is then the
+hash of the cleaned canonical bytes), `tools.uses.input`, `tools.results.content`,
+`responses.stream_blocks.content` on the terminal retry and `memory.operator_turns.user_prompt`.
+A request whose body carries a NUL keeps `request_envelope` NULL, so body compaction never
+drops its raw body. A `␀` in a derived column can therefore stand for either character;
+read `request_body` when it matters. If a derived row is still refused, the request row and
+raw body are kept and only the derived rows are dropped (see
+[`CAPTURE_OUTAGES.md`](CAPTURE_OUTAGES.md)).
+
 ---
 
 Columns added by the judgement-context migrations (definition as migrated):
@@ -2302,11 +2315,13 @@ for the expiry count.
 ### `memory.keeper_supplies`
 
 Added in `20261109170001_keeper_supplies.sql`. What memory-keeper supplied to each session: one row per
-(session, thread, card text), recorded after the block was returned so the route's latency does not include
-it. A repeat of the same card for the same session is not recorded again: the writer inserts with
-`WHERE NOT EXISTS` over `(session_uuid, thread_id, content_hash)`, served by the `(session_uuid, thread_id)`
-index; there is no UNIQUE or index on `content_hash`. The source of the supply rate and of resolution
-accuracy. No writer exists yet; the supply path that records into it is the next memory-keeper step.
+supply, recorded after the block was returned so the route's latency does not include it
+(`memory_keeper/record.rs`). Since `20261111170500_supplied_items.sql` every supply is recorded, not
+only the first per session and card, and the row also keeps `block_hash` (the `[keeper:<hash>]`
+marker), `card_text` (the block supplied, whole), `score` (the resolver score of the best thread) and
+`chance` (the keeper arm share, the same for both arms). There is no UNIQUE or index on
+`content_hash` or `block_hash`. The source of the supply rate and of resolution accuracy, and of the
+route, score and chance `memory.supplied_items` copies for a card.
 
 | Column | Type | Purpose |
 |---|---|---|
@@ -2322,6 +2337,67 @@ accuracy. No writer exists yet; the supply path that records into it is the next
 
 **Indexes:**
 - `idx_keeper_supplies_session_thread`: `(session_uuid, thread_id)` (BTree)
+
+---
+
+### `memory.supplied_items`
+
+Added in `20261111170500_supplied_items.sql` (issue #164). One row per lesson or work-thread card
+supplied with a request, written from a task spawned right after the request id is minted
+(`lesson_delivery/supplied.rs`, called from `proxy/engine/capture_register.rs`; SQL
+`store/persistence/supplied_items/record_lessons.sql`, `record_cards.sql`). Lessons the proxy stage
+added come from the stage's injected ids; lessons the mike mod added are the `[lesson:<id>]` lines under
+its heading, tether's the `Lesson recorded from earlier sessions in this project [lesson:<id>]` lines;
+cards are the `[keeper:<hash>]` markers, in the client's body (mod or tether) or only in the forwarded
+body (proxy), joined to the newest `memory.keeper_supplies` row of the session with that `block_hash`.
+A client-added item is in every later request of the session, so it is recorded once per session and
+route, on the first request that carried it; a proxy-added item is recorded on each request. Read by
+`GET /api/supplied-items` (MCP `list_supplied_items`) and `/figures`, and by the overnight verdict pass.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
+| `session_id` | `BIGINT NOT NULL` | FK → `sessions.sessions(id)` ON DELETE CASCADE |
+| `request_id` | `BIGINT NOT NULL` | FK → `requests.requests(id)` ON DELETE CASCADE; the request that carried the item |
+| `item_kind` | `TEXT NOT NULL` | CHECK `IN ('lesson', 'card')` |
+| `lesson_id` | `BIGINT NULL` | FK → `memory.lessons(id)` ON DELETE CASCADE; set exactly for a lesson |
+| `thread_id` | `BIGINT NULL` | FK → `work.threads(id)` ON DELETE SET NULL; a card's thread when it named one |
+| `card_hash` | `TEXT NULL` | The card's marker hash; set exactly for a card; not indexed |
+| `route` | `TEXT NOT NULL` | CHECK `IN ('proxy', 'mod', 'tether')` |
+| `score` | `DOUBLE PRECISION NULL` | Lesson: the ranker relevance that chose it, remembered in process (`lesson_delivery::remember_scores`). Card: the resolver score. NULL when not known |
+| `chance` | `DOUBLE PRECISION NULL` | Probability that a request like this is given the item: 1 for a lesson (no lesson holdout, deterministic ranker), the keeper arm share for a card; CHECK 0 to 1 |
+| `item_text` | `TEXT NOT NULL` | The text supplied, whole |
+| `supplied_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+
+**Indexes:** `idx_supplied_items_request` (`request_id`), `idx_supplied_items_session_supplied`
+(`session_id, supplied_at`), `idx_supplied_items_lesson` (`lesson_id`, partial), `idx_supplied_items_thread`
+(`thread_id`, partial), `idx_supplied_items_supplied_at` (`supplied_at`).
+
+### `memory.supplied_item_verdicts`
+
+Added in the same migration. One verdict per supplied item from the overnight pass
+(`judge_worker/supply_verdict/`, lease `supply_verdict`, behind the `judge_lessons` toggle, inside the
+`judge_lessons.quiet_*` window and only while no primary request came in during the idle period, up to 25
+items a tick every 10 minutes, model `judge_lessons.model`, LLM role `judge_worker`). An item is judged once
+its turn closed 30 minutes ago and its next genuine message is resolved, within 14 days of the supply.
+`used`: the turn acted on it; `corrected_anyway`: the operator corrected the turn on what it covered;
+`ignored`: no sign it was used, counted as a cost (`bytes_ignored` in `/api/supplied-items/figures`).
+`input_text` is the exact message sent to the model. `hand_verdict`, `hand_checked_by` and
+`hand_checked_at` hold a person's check of the weekly sample (`GET /api/supplied-items/hand-check?week=`,
+100 to 200 verdicts of that week chosen by `md5(id || week)`, with the agreement rate; written by
+`POST /api/supplied-items/{id}/hand-check`).
+
+| Column | Type | Purpose |
+|---|---|---|
+| `supplied_item_id` | `BIGINT PRIMARY KEY` | FK → `memory.supplied_items(id)` ON DELETE CASCADE |
+| `verdict` | `TEXT NOT NULL` | CHECK `IN ('used', 'corrected_anyway', 'ignored')` |
+| `rationale`, `evidence` | `TEXT NOT NULL` | The model's reason and the words that decided it |
+| `model`, `input_text` | `TEXT NOT NULL` | The model and the exact input |
+| `judged_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | |
+| `hand_verdict` | `TEXT NULL` | Same CHECK set; NULL exactly when `hand_checked_at` is |
+| `hand_checked_by`, `hand_checked_at` | `TEXT`, `TIMESTAMPTZ` | Who checked and when |
+
+**Indexes:** `idx_supplied_item_verdicts_judged_at` (`judged_at`).
 
 ---
 
@@ -4191,22 +4267,10 @@ The delivery rate is exposed via `steering.verifier_rate_v`, which counts `deliv
 
 ### `steering.thread_acceptance_criteria`
 
-Added in migration `20260805300003_thread_acceptance_criteria.sql` ([issue #119](https://github.com/temet-ai/mike-private/issues/119)).
-Bridges thread-worklog acceptance criteria into steering: one row per thread (`thread_slug` primary key),
-upserted on demand by `steerer::thread_criteria::discover_for_session_text` whenever the verifier judge's
-accumulated-ask text for a session plausibly mentions a registered `artifacts/threads/<slug>/worklog.md` —
-no periodic sweep, no new background worker.
-
-| Column | Type | Purpose |
-|---|---|---|
-| `thread_slug` | `TEXT PRIMARY KEY` | Thread identifier, from the worklog's `thread:` frontmatter field (falls back to the directory name) |
-| `criteria_text` | `TEXT NULL` | The `<acceptance-criteria>` block's trimmed inner text; `NULL` when `parse_error` is set |
-| `source_path` | `TEXT NOT NULL` | Worklog path the criteria were parsed from |
-| `parsed_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | Last (re)parse time |
-| `parse_error` | `TEXT NULL` | Set when the worklog was read but no criteria block could be extracted — the row still exists so the failure is visible, never silently swallowed |
-
-When a row's `criteria_text` is present, the verifier judge prompt uses it as the checklist source
-directly instead of decomposing the accumulated ask into criteria itself (see `build_judge_user_message`).
+Dropped by `20261111170900_work_threads_cleanup.sql` ([issue #67](https://github.com/temet-ai/mike/issues/67)).
+Added in `20260805300003_thread_acceptance_criteria.sql` to hold criteria parsed from worklog files;
+the verifier bridge reads `work.thread_acceptance_criteria` instead, and the dropping migration first
+copied each row whose slug names exactly one work thread that had no criteria.
 
 ---
 
@@ -5497,7 +5561,7 @@ parse still gets a row rather than vanishing. `project_merge.rs` moves threads w
 | `project_id` | `BIGINT NOT NULL` | FK → `projects.projects(id)` ON DELETE CASCADE |
 | `slug` | `TEXT NOT NULL` | The thread's name in routes and tools; unique per project; CHECK not blank |
 | `title` | `TEXT NULL` | |
-| `status` | `TEXT NULL` | CHECK `IN ('active', 'implementing', 'review', 'parked', 'done', 'complete', 'in-progress')` |
+| `status` | `TEXT NULL` | CHECK `IN ('active', 'implementing', 'review', 'parked', 'done')` (`20261111170900` mapped `complete` to `done` and `in-progress` to `implementing`; the import maps them the same way) |
 | `branch` | `TEXT NULL` | |
 | `worktree` | `TEXT NULL` | Path of the thread's git worktree, relative to the project root |
 | `last_session_uuid` | `UUID NULL` | Soft reference to `sessions.sessions.session_uuid` |
@@ -5511,7 +5575,7 @@ parse still gets a row rather than vanishing. `project_merge.rs` moves threads w
 
 **Constraints:**
 - `threads_slug_not_blank`: `length(trim(slug)) > 0`
-- `threads_status_check`: the status list above (dropped and re-added unchanged by `20261022120000`)
+- `threads_status_check`: the status list above (narrowed by `20261111170900`, which also removed the `Thread: ` label from titles)
 - `threads_has_title_or_error`: `title IS NOT NULL OR parse_error IS NOT NULL`
 - `threads_project_slug_uniq`: UNIQUE `(project_id, slug)`
 
@@ -5558,9 +5622,11 @@ index is partial, so a query must repeat `WHERE embedding IS NOT NULL` to use it
 ### `work.thread_acceptance_criteria`
 
 The parsed `<acceptance-criteria>` block of a thread, one row per thread, with an embedding for
-similarity retrieval. Same ingestion-honesty shape as `steering.thread_acceptance_criteria`, which
-is a separate table still used by the false-done judge bridge (the migration header marks the two
-as needing reconciliation). Written by `work_threads/criteria.rs` and the import.
+similarity retrieval. The verifier judge's criteria bridge reads it
+(`store/persistence/work_threads/criteria.rs`, `fetch_thread_criteria_for_session`): the thread
+linked to the session first, else a thread the ask names. Written by `work_threads/meta.rs` and the
+import. `20261111170900_work_threads_cleanup.sql` copied every row of the retired
+`steering.thread_acceptance_criteria` whose slug names exactly one thread with no criteria here.
 
 | Column | Type | Purpose |
 |---|---|---|

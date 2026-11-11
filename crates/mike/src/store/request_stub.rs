@@ -4,7 +4,7 @@ use tokio::sync::RwLock;
 
 use super::RequestStore;
 use super::models::{InterceptedRequest, RequestId};
-use super::persistence::{self, IdMode, PersistHandle};
+use super::persistence::{self, IdMode, PersistHandle, capture_retry};
 
 impl RequestStore {
     pub(crate) async fn insert_request_stub_to_db(
@@ -50,21 +50,66 @@ impl RequestStore {
                     );
                 }
                 Err(e) => {
-                    return Self::warn_stub_insert_failed(&req.session_id, &e);
+                    return Self::stub_insert_failed(req, &e);
                 }
             }
         }
     }
 
-    fn warn_stub_insert_failed(session_id: &str, error: &persistence::PersistError) -> RequestId {
+    fn stub_insert_failed(
+        req: &InterceptedRequest,
+        error: &persistence::PersistError,
+    ) -> RequestId {
         let fallback = RequestId::fallback();
-        tracing::warn!(
-            request_id = %fallback,
-            session_id = %session_id,
-            error = %error,
-            "insert_request_stub_to_db failed — minting non-persisted fallback id; chunk FK writes will fail; terminal snapshot skips persistence"
-        );
+        match capture_retry::classify(error) {
+            capture_retry::WriteFailure::Temporary(reason) => {
+                capture_retry::defer(fallback, req, &reason);
+                tracing::warn!(
+                    request_id = %fallback,
+                    session_id = %req.session_id,
+                    reason,
+                    "first write of the request failed on a temporary database error; \
+                     it is kept and written when its answer completes"
+                );
+            }
+            other => {
+                tracing::warn!(
+                    request_id = %fallback,
+                    session_id = %req.session_id,
+                    error = %error,
+                    "first write of the request was refused by the database; it is not recorded"
+                );
+                capture_retry::note_unrecorded(&req.session_id, req.created_at, other.reason());
+            }
+        }
         fallback
+    }
+
+    pub(crate) async fn hand_off_deferred(
+        store: &Arc<RwLock<RequestStore>>,
+        request_id: RequestId,
+    ) -> bool {
+        if !super::models::is_fallback(request_id.as_u64())
+            || !capture_retry::is_deferred(request_id)
+        {
+            return false;
+        }
+        let taken = {
+            let mut s = store.write().await;
+            let persist = s.persist().cloned();
+            let req = s
+                .get(&request_id)
+                .filter(|r| r.status.is_terminal())
+                .cloned();
+            if req.is_some() {
+                s.remove_entry(&request_id);
+            }
+            persist.zip(req)
+        };
+        if let Some((persist, req)) = taken {
+            capture_retry::record_late(persist, req).await;
+        }
+        true
     }
 
     async fn stamp_session_db_id(
@@ -86,6 +131,9 @@ impl RequestStore {
         store: &Arc<RwLock<RequestStore>>,
         request_id: RequestId,
     ) {
+        if Self::hand_off_deferred(store, request_id).await {
+            return;
+        }
         let persist = {
             let s = store.read().await;
             let Some(handle) = s.persist().cloned() else {

@@ -3,7 +3,7 @@ use serde_json::Value as JsonValue;
 use super::PersistError;
 use super::capture_classification::classify_author_kind;
 use super::id_resolvers::resolve_session_and_project_id;
-use super::{messages, reconstruct};
+use super::{messages, reconstruct, text_sanitize};
 use crate::store::models::{self, InterceptedRequest};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,7 +42,9 @@ impl<'a> RequestEnvelopePrep<'a> {
     pub(crate) fn compute(req: &'a InterceptedRequest) -> Result<Self, PersistError> {
         let request_body_bytes = req.request_body.as_deref();
         let request_body_size = request_body_bytes.map(|b| b.len() as i32).unwrap_or(0);
-        let request_envelope = request_body_bytes.and_then(reconstruct::strip_bulk_arrays);
+        let request_envelope = request_body_bytes
+            .filter(|bytes| !text_sanitize::body_carries_nul(bytes))
+            .and_then(reconstruct::strip_bulk_arrays);
         let filtered_request_body_bytes =
             match (req.filter_applied, req.filtered_request_body.as_ref()) {
                 (true, Some(bytes)) => Some(bytes.as_ref()),
@@ -50,8 +52,10 @@ impl<'a> RequestEnvelopePrep<'a> {
             };
         let envelope_patch = compute_envelope_patch_for_insert(req, request_body_bytes);
 
-        let request_headers = serde_json::to_value(&req.request_headers)?;
-        let params = serde_json::to_value(&req.params)?;
+        let mut request_headers = serde_json::to_value(&req.request_headers)?;
+        text_sanitize::clean_json(&mut request_headers);
+        let mut params = serde_json::to_value(&req.params)?;
+        text_sanitize::clean_json(&mut params);
         let message_count = req.message_count as i32;
         let request_id = req.id.as_u64() as i64;
         let author_kind_code = classify_author_kind(
@@ -124,7 +128,7 @@ pub(crate) fn fallback_id_skip_outcome(
     if matches!(id_mode, IdMode::Ensure) && models::is_fallback(req.id.as_u64()) {
         tracing::warn!(
             request_id = req.id.as_u64(),
-            "skipping initial persist for fallback request id (stub INSERT was in DB-down mode)"
+            "skipping initial persist for fallback request id: its first write failed, capture_retry owns it"
         );
         return Some(RequestInsertOutcome {
             id: req.id.as_u64() as i64,

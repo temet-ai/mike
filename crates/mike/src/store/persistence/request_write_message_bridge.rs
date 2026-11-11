@@ -1,8 +1,11 @@
 use std::collections::HashSet;
 
+use sha2::{Digest, Sha256};
+
 use super::PersistError;
 use super::messages;
 use super::session_locks;
+use super::text_sanitize;
 use crate::store::models::InterceptedRequest;
 
 async fn stamp_predecessor_and_request_number(
@@ -111,6 +114,31 @@ fn attach_added_row_patches(
     }
 }
 
+fn clean_canonical_message(message: messages::CanonicalMessage) -> messages::CanonicalMessage {
+    if !text_sanitize::body_carries_nul(&message.body_canonical_bytes) {
+        return message;
+    }
+    let Ok(mut body) = serde_json::from_slice::<serde_json::Value>(&message.body_canonical_bytes)
+    else {
+        return message;
+    };
+    if !text_sanitize::clean_json(&mut body) {
+        return message;
+    }
+    let Ok(bytes) = serde_json::to_vec(&body) else {
+        return message;
+    };
+    let Ok(byte_size) = i32::try_from(bytes.len()) else {
+        return message;
+    };
+    messages::CanonicalMessage {
+        sha: hex::encode(Sha256::digest(&bytes)),
+        body_canonical_bytes: bytes,
+        byte_size,
+        ..message
+    }
+}
+
 pub(crate) async fn write_message_dedup_bridge(
     tx: &mut sqlx::PgConnection,
     req: &InterceptedRequest,
@@ -134,6 +162,8 @@ pub(crate) async fn write_message_dedup_bridge(
     if canonical.is_empty() {
         return Ok(());
     }
+    let canonical: Vec<messages::CanonicalMessage> =
+        canonical.into_iter().map(clean_canonical_message).collect();
 
     let messages::PredecessorDelta {
         predecessor_request_id,

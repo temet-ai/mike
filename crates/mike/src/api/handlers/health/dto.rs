@@ -52,6 +52,7 @@ pub(crate) struct HealthResponse {
     pub(crate) rerank: RerankHealth,
     pub(crate) persistence: PersistenceHealth,
     pub(crate) capture_gap: gap::CaptureGapHealth,
+    pub(crate) unrecorded_captures: crate::store::persistence::capture_retry::CaptureRetryHealth,
     pub(crate) llm: SteeringHealth,
     pub(crate) judge: JudgeHealth,
     pub(crate) db_cost: Option<crate::db_cost::health::DbCostHealth>,
