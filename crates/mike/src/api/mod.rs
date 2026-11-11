@@ -38,6 +38,7 @@ pub(crate) mod session_delivery;
 pub(crate) mod session_flow;
 pub(crate) mod session_mail;
 pub(crate) mod session_proxy_tools;
+pub(crate) mod supplied_items;
 pub(crate) mod session_recall;
 pub(crate) mod session_reconcile;
 pub(crate) mod session_verdicts;

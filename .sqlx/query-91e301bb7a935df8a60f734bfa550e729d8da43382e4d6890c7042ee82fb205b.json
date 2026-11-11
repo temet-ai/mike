@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE memory.supplied_item_verdicts\n   SET hand_verdict = $2, hand_checked_by = $3, hand_checked_at = now()\n WHERE supplied_item_id = $1\nRETURNING supplied_item_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "supplied_item_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_item_verdicts",
+            "name": "supplied_item_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "91e301bb7a935df8a60f734bfa550e729d8da43382e4d6890c7042ee82fb205b"
+}

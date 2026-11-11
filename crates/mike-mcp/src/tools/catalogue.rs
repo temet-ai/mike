@@ -124,6 +124,7 @@ pub fn all_tools() -> Vec<Tool> {
     tools.extend(super::work_threads::work_threads_tools());
     tools.extend(cross_session::cross_session_tools());
     tools.extend(improvement::improvement_tools());
+    tools.extend(super::supplied::supplied_tools());
     tools
         .into_iter()
         .map(super::select_examples::with_select_example)

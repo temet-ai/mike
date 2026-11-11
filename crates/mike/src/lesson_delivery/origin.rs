@@ -19,7 +19,7 @@ pub(super) fn mod_lesson_ids(body: &[u8]) -> Vec<i64> {
     ids
 }
 
-fn tether_line_ids(body: &[u8]) -> Vec<i64> {
+pub(super) fn tether_line_ids(body: &[u8]) -> Vec<i64> {
     let prefix = TETHER_LESSON_PREFIX.as_bytes();
     let mut ids = Vec::new();
     let mut from = 0;
@@ -35,7 +35,7 @@ fn tether_line_ids(body: &[u8]) -> Vec<i64> {
     ids
 }
 
-fn heading_block_ids(body: &[u8]) -> Vec<i64> {
+pub(super) fn heading_block_ids(body: &[u8]) -> Vec<i64> {
     let heading = LESSONS_HEADING.as_bytes();
     let mut ids = Vec::new();
     let mut from = 0;

@@ -156,6 +156,7 @@ const EXAMPLES: &[(&str, &str)] = &[
     ),
     ("list_directive_proposals", "/cross_session/proposals/*/id"),
     ("get_improvement_effects", "/improvement/actions/*/kind"),
+    ("list_supplied_items", "/supplied/items/*/verdict"),
 ];
 
 pub(super) fn select_example(tool: &str) -> Option<&'static str> {

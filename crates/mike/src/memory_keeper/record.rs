@@ -22,14 +22,9 @@ impl PersistHandle {
         crate::metrics::time_db("record_keeper_supply", async move {
             sqlx::query!(
                 r#"INSERT INTO memory.keeper_supplies
-                       (session_uuid, thread_id, content_hash, carrier, arm, resolution, signals)
-                   SELECT $1, $2, $3, $4, $5, $6, $7
-                    WHERE NOT EXISTS (
-                          SELECT 1 FROM memory.keeper_supplies k
-                           WHERE k.session_uuid = $1
-                             AND k.thread_id IS NOT DISTINCT FROM $2
-                             AND k.content_hash IS NOT DISTINCT FROM $3
-                             AND k.resolution = $6)"#,
+                       (session_uuid, thread_id, content_hash, carrier, arm, resolution, signals,
+                        block_hash, card_text, score, chance)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)"#,
                 record.session,
                 record.thread_id,
                 record.content_hash.as_deref(),
@@ -37,6 +32,10 @@ impl PersistHandle {
                 arm,
                 record.resolution,
                 &record.signals,
+                record.block_hash.as_deref(),
+                record.card_text.as_deref(),
+                record.score,
+                record.chance,
             )
             .execute(self.pool())
             .await

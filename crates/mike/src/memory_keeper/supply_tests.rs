@@ -94,6 +94,10 @@ fn supply_continue_prompt_with_linked_thread_returns_its_card_in_the_wrapper() -
     assert_eq!(record.resolution, "one");
     assert_eq!(record.content_hash.as_deref(), Some("hash-alpha"));
     assert_eq!(record.thread_id, Some(1));
+    assert_eq!(record.block_hash.as_deref(), Some(block.hash.as_str()));
+    assert_eq!(record.card_text.as_deref(), Some(block.text.as_str()));
+    assert!(record.score.is_some_and(|s| s > 0.0));
+    assert!((record.chance - 0.8).abs() < 1e-9);
     Ok(())
 }
 

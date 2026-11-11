@@ -89,17 +89,19 @@ impl LessonRelevance {
             .collect();
         ranked.sort_by(|a, b| b.1.total_cmp(&a.1));
         let mut remaining = 6000usize;
-        ranked
+        let chosen: Vec<_> = ranked
             .into_iter()
-            .filter_map(|(lesson, _)| {
+            .filter(|(lesson, _)| {
                 if lesson.text.len() > remaining {
-                    return None;
+                    return false;
                 }
                 remaining -= lesson.text.len();
-                Some(lesson)
+                true
             })
             .take(limit)
-            .collect()
+            .collect();
+        crate::lesson_delivery::remember_scores(session, &chosen);
+        chosen.into_iter().map(|(lesson, _)| lesson).collect()
     }
 
     pub(crate) fn observe_context(&self, session: &str, messages: usize) {

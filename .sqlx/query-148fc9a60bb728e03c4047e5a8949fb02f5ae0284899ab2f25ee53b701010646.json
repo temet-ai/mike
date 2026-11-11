@@ -1,0 +1,162 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT i.id, i.item_kind, i.route, i.item_text, i.session_id, ot.id AS turn_id,\n       ot.user_prompt, ot.final_assistant_text, ot.tools_used, ot.files_touched,\n       ot.reaction, nxt.human_prompt AS \"next_message?\"\n  FROM memory.supplied_items i\n  JOIN requests.requests r ON r.id = i.request_id\n  JOIN memory.operator_turns ot ON ot.id = r.operator_turn_id\n  LEFT JOIN memory.turn_facts f ON f.operator_turn_id = ot.id\n  LEFT JOIN requests.requests nxt ON nxt.id = f.next_genuine_request_id\n WHERE i.supplied_at >= $2\n   AND ot.closed_at IS NOT NULL\n   AND ot.closed_at < $3\n   AND (f.next_state IS NULL OR f.next_state <> 'pending')\n   AND NOT EXISTS (\n       SELECT 1 FROM memory.supplied_item_verdicts v WHERE v.supplied_item_id = i.id)\n ORDER BY i.supplied_at, i.id\n LIMIT $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "item_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_items",
+            "name": "item_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "route",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_items",
+            "name": "route"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "item_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_items",
+            "name": "item_text"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_items",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "turn_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "user_prompt",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "user_prompt"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "final_assistant_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "final_assistant_text"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "tools_used",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "tools_used"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "files_touched",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "files_touched"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "reaction",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.operator_turns",
+            "name": "reaction"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "next_message?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "human_prompt"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "148fc9a60bb728e03c4047e5a8949fb02f5ae0284899ab2f25ee53b701010646"
+}

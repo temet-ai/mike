@@ -110,6 +110,16 @@ pub(super) async fn capture_and_register(
     let request_id =
         capture::insert_stub_and_mint_id(&state.store, &mut intercepted, is_new_session).await;
 
+    crate::lesson_delivery::supplied::spawn_supply_records(
+        state,
+        crate::lesson_delivery::supplied::SupplyCapture {
+            request_id,
+            session_id: &session_id,
+            original: body_bytes,
+            sent: upstream_body,
+            proxy_lessons: &injected_lesson_ids,
+        },
+    );
     run_post_mint_attribution(PostMintAttributionArgs {
         state,
         request_id,

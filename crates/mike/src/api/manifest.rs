@@ -28,6 +28,7 @@ mod improvement;
 mod knowledge;
 mod launches;
 mod lesson_delivery;
+mod supplied_items;
 mod memory;
 mod projects;
 mod prompt_shaping;
@@ -97,6 +98,7 @@ pub fn inspect_route_manifest() -> Vec<RouteEntry> {
         fleets::ROUTES,
         changes::ROUTES,
         lesson_delivery::ROUTES,
+        supplied_items::ROUTES,
         session_proxy_tools::ROUTES,
         session_reconcile::ROUTES,
         knowledge::ROUTES,
@@ -150,6 +152,7 @@ pub(crate) fn local_router(state: AppState, policy: host_guard::LocalAccessPolic
     let router = fleets::register(router);
     let router = changes::register(router);
     let router = lesson_delivery::register(router);
+    let router = supplied_items::register(router);
     let router = session_proxy_tools::register(router);
     let router = session_reconcile::register(router);
     let router = knowledge::register(router);

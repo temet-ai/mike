@@ -14,6 +14,7 @@ mod questions;
 mod semantic;
 mod session_verdicts;
 mod steer_questions;
+mod supplied;
 mod steering_evaluations;
 mod turn_verdicts;
 pub(crate) use config_history::ConfigChangesQuery;
