@@ -121,7 +121,7 @@ async fn create_answers_201_with_a_draft_view_that_lists_what_is_missing() -> an
     assert_eq!(view["project_path"], "/repo");
     assert_eq!(view["state"], "draft");
     assert_eq!(view["ready"], false);
-    assert_eq!(view["definition"], json!({}));
+    assert_eq!(view["definition"], json!({"briefs": {"as_notes": true}}));
     assert!(missing_items(&view).contains(&"goal".to_string()), "{view}");
     h.cleanup().await
 }
@@ -296,7 +296,10 @@ async fn patch_with_the_wrong_shape_is_400_names_the_item_and_saves_nothing() ->
     let message = body["message"].as_str().unwrap_or_default();
     assert!(message.contains("`workers.rust.contract`"), "{message}");
     let (_, stored) = h.get(&format!("/api/fleets/{id}")).await?;
-    assert_eq!(stored["definition"], json!({"goal": "keep me"}));
+    assert_eq!(
+        stored["definition"],
+        json!({"briefs": {"as_notes": true}, "goal": "keep me"})
+    );
     let (status, body) = h.patch(&id, json!({"patch": "goal"})).await?;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
     h.cleanup().await
@@ -313,7 +316,7 @@ async fn patch_while_the_fleet_is_starting_is_409_fleet_starting() -> anyhow::Re
     assert_eq!(status, StatusCode::CONFLICT, "{body}");
     assert_eq!(body["error"], "fleet_starting");
     let (_, stored) = h.get(&format!("/api/fleets/{id}")).await?;
-    assert_eq!(stored["definition"], json!({}));
+    assert_eq!(stored["definition"], json!({"briefs": {"as_notes": true}}));
     h.cleanup().await
 }
 
