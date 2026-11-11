@@ -9,6 +9,7 @@ pub fn proxy_router(state: AppState) -> Router {
     Router::new()
         .route("/v1/{*rest}", any(proxy_handler))
         .route("/v2/{*rest}", any(proxy_handler))
+        .merge(crate::responses_capture::router(&state))
         .layer(axum::middleware::from_fn_with_state(
             policy,
             crate::api::host_guard::guard,
