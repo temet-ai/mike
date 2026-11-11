@@ -31,6 +31,26 @@ async fn capture(handle: &PersistHandle, raw_id: u64, prompt: &str) -> anyhow::R
     handle
         .insert_request_initial(&req, true, IdMode::Ensure)
         .await?;
+    let session_db_id: i64 =
+        sqlx::query_scalar("SELECT id FROM sessions.sessions WHERE session_uuid = $1::text::uuid")
+            .bind(&session_id)
+            .fetch_one(&handle.pool)
+            .await?;
+    crate::store::operator_turns::record_prompt_kind_classification(
+        Some(handle),
+        crate::store::operator_turns::PromptKindClassificationInput {
+            turn_origin: &crate::extract::request::TurnOrigin::Primary,
+            turn_type: &crate::extract::request::TurnType::UserPrompt,
+            request_id: req.id,
+            session_id: &session_id,
+            session_db_id: Some(session_db_id),
+            human_prompt: prompt,
+            last_user_message: prompt,
+            author: "operator",
+            has_agent_id: false,
+        },
+    )
+    .await;
     handle.snapshot_request(&req).await?;
     Ok(session_id)
 }
