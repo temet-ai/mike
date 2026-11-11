@@ -168,7 +168,18 @@ async fn insert(
     let stream_events = record
         .response_is_event_stream
         .then(|| i32::try_from(summary.events).unwrap_or(i32::MAX));
-    let error = finished.error.clone().or_else(|| summary.error.clone());
+    let error = finished
+        .error
+        .clone()
+        .or_else(|| summary.error.clone())
+        .or_else(|| {
+            (summary.undecodable_frames > 0).then(|| {
+                format!(
+                    "{} stream frame(s) were not JSON; the raw response body is kept whole",
+                    summary.undecodable_frames
+                )
+            })
+        });
     sqlx::query_scalar::<_, i64>(INSERT_EXCHANGE)
         .bind(c.session_uuid)
         .bind(&c.provider_session_id)

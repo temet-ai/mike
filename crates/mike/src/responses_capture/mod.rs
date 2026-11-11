@@ -108,6 +108,7 @@ pub(crate) fn router(state: &AppState) -> Router<AppState> {
     routes_with(responses)
 }
 
+#[cfg(test)]
 pub(crate) fn routes(state: ResponsesState) -> Router {
     routes_with(state)
 }
