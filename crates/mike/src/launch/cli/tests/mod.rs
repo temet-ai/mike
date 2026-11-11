@@ -12,6 +12,7 @@ mod open_prompt_tests;
 mod open_tests;
 mod prompt_turn_tests;
 mod proxy_ledger_tests;
+mod queue_brief_tests;
 mod queue_tests;
 
 use std::path::{Path, PathBuf};

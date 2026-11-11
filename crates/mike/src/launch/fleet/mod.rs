@@ -27,6 +27,7 @@ pub mod checks_proof;
 mod checks_scope;
 mod checks_target;
 mod cleanup;
+mod close_note;
 pub mod command;
 pub mod commit;
 pub mod commit_check;
@@ -91,7 +92,9 @@ mod rule_audit;
 pub mod ruling;
 pub mod ruling_notice;
 pub mod ruling_proof;
+mod run_notebook;
 pub mod run_record;
+mod run_text_notes;
 mod seat;
 pub(crate) mod seat_helpers;
 pub(crate) mod seat_settings;
@@ -162,6 +165,8 @@ mod push_tests;
 mod questions_tests;
 #[cfg(test)]
 mod report_tests;
+#[cfg(test)]
+mod run_notes_tests;
 #[cfg(test)]
 mod run_record_tests;
 #[cfg(test)]

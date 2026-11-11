@@ -95,6 +95,7 @@ async fn record_control_and_brief_notes(
         )
         .await;
     }
+    super::run_text_notes::record(persist, (def, facts)).await;
     Ok(())
 }
 
