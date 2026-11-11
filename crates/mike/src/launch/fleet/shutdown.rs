@@ -352,7 +352,7 @@ async fn close_if_never_started(
             report.closed = true;
             report.process_exited = Some(true);
             report.note = Some(format!(
-                "{NEVER_STARTED}: the launch has no pane, no open time and no request, so there is no process to wait for"
+                "{NEVER_STARTED}: the launch never recorded a pane or an open time, and its session has no request or has ended, so there is no process to wait for"
             ));
             true
         }

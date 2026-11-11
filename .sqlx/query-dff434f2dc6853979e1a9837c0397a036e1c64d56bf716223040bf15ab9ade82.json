@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE launch.launches AS launch\n   SET closed_at = COALESCE(launch.closed_at, now()),\n       close_reason = COALESCE(launch.close_reason, $3),\n       close_process_exited = TRUE,\n       result = 'failed',\n       reason = COALESCE(launch.reason, 'never_started')\n WHERE launch.id = $1\n   AND launch.run_id = $2\n   AND launch.opened_at IS NULL\n   AND launch.surface_ref IS NULL\n   AND launch.created_at < now() - make_interval(secs => $4)\n   AND (\n       NOT EXISTS (\n           SELECT 1\n             FROM sessions.sessions AS session\n             JOIN requests.requests AS request ON request.session_id = session.id\n            WHERE session.session_uuid = launch.session_uuid\n       )\n       OR EXISTS (\n           SELECT 1\n             FROM sessions.sessions AS session\n             JOIN workspace.session_registrations AS registration ON registration.session_id = session.id\n            WHERE session.session_uuid = launch.session_uuid\n              AND registration.released_at IS NOT NULL\n       )\n   )\nRETURNING launch.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "dff434f2dc6853979e1a9837c0397a036e1c64d56bf716223040bf15ab9ade82"
+}

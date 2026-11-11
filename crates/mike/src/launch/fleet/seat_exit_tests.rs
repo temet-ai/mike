@@ -65,3 +65,71 @@ async fn a_seat_whose_session_ended_is_exited_and_a_live_one_is_not() -> anyhow:
     db.cleanup().await?;
     Ok(())
 }
+
+async fn unopened_launch(handle: &PersistHandle, session: Uuid, run: &str) -> anyhow::Result<i64> {
+    let mut new = crate::store::persistence::launch::NewLaunch::new("herdr", "/tmp/seat-exit");
+    new.session_uuid = Some(session);
+    new.run_id = Some(run.into());
+    new.seat = Some("worker".into());
+    let id = handle.insert_launch(&new).await?;
+    sqlx::query("UPDATE launch.launches SET created_at = now() - interval '1 hour' WHERE id = $1")
+        .bind(id)
+        .execute(handle.pool())
+        .await?;
+    Ok(id)
+}
+
+async fn make_requests(handle: &PersistHandle, session: Uuid) -> anyhow::Result<()> {
+    sqlx::query(
+        "INSERT INTO requests.requests (
+             session_id, project_id, method_id, path, is_streaming, message_count,
+             is_tool_loop, status_id, params, last_user_message, human_prompt,
+             turn_type_id, turn_origin_id, created_at, completed_at)
+         SELECT s.id, s.project_id, rm.id, '/v1/messages', true, 1, false, rs.id, '{}'::jsonb,
+                '', '', rtt.id, rto.id, NOW(), NOW()
+           FROM sessions.sessions s, requests.methods rm, requests.statuses rs,
+                requests.turn_types rtt, requests.turn_origins rto
+          WHERE s.session_uuid = $1 AND rm.code = 'POST' AND rs.code = 'complete'
+            AND rtt.code = 'user_prompt' AND rto.code = 'primary'",
+    )
+    .bind(session)
+    .execute(handle.pool())
+    .await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_never_opened_launch_closes_when_its_session_ended_even_with_requests()
+-> anyhow::Result<()> {
+    let Some(db) = test_util::acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    let run = "fleet-unopened";
+    sqlx::query("INSERT INTO launch.runs (run_id, backend) VALUES ($1, 'herdr')")
+        .bind(run)
+        .execute(handle.pool())
+        .await?;
+    let ended = Uuid::new_v4();
+    let live = Uuid::new_v4();
+    register(&handle, ended).await?;
+    register(&handle, live).await?;
+    make_requests(&handle, ended).await?;
+    make_requests(&handle, live).await?;
+    handle.end_workspace_registration(ended, None).await?;
+    let ended_launch = unopened_launch(&handle, ended, run).await?;
+    let live_launch = unopened_launch(&handle, live, run).await?;
+    assert!(
+        handle
+            .close_never_started_fleet_launch(ended_launch, run, "never started", 300.0)
+            .await?
+    );
+    assert!(
+        !handle
+            .close_never_started_fleet_launch(live_launch, run, "never started", 300.0)
+            .await?
+    );
+    assert_eq!(handle.unsettled_fleet_launches(run).await?.len(), 1);
+    db.cleanup().await?;
+    Ok(())
+}
