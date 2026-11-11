@@ -50,6 +50,7 @@ mod verdicts;
 mod websocket;
 mod work_threads;
 mod workspace;
+mod wright;
 
 const REQUEST_ID_HEADER: HeaderName = HeaderName::from_static("x-request-id");
 const INSPECT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -116,6 +117,7 @@ pub fn inspect_route_manifest() -> Vec<RouteEntry> {
         proposals::ROUTES,
         setup::ROUTES,
         work_threads::ROUTES,
+        wright::ROUTES,
         session_recall::ROUTES,
         session_agent_context::ROUTES,
     ]
@@ -167,6 +169,7 @@ pub(crate) fn local_router(state: AppState, policy: host_guard::LocalAccessPolic
     let router = proposals::register(router);
     let router = setup::register(router);
     let router = work_threads::register(router);
+    let router = wright::register(router);
     let router = session_recall::register(router);
     let router = session_agent_context::register(router);
     let router = websocket::register(router);

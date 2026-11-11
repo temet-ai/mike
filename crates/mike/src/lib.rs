@@ -101,3 +101,4 @@ pub mod work_registry_worker;
 pub mod work_threads;
 pub mod workspace;
 pub mod workspace_reaper;
+pub mod wright;

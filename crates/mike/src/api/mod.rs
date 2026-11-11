@@ -55,4 +55,5 @@ pub(crate) mod turn_verdicts;
 pub(crate) mod usage;
 pub(crate) mod work_threads;
 pub(crate) mod workspace;
+pub(crate) mod wright;
 pub(crate) mod ws;
