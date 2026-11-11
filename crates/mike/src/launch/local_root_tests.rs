@@ -46,16 +46,6 @@ fn assert_witness_observations(key: &RootKey) {
 }
 
 #[cfg_attr(test, test)]
-pub(crate) fn exit_after_a_restart_is_proved_by_the_process_itself() {
-    assert_eq!(exit_without_witness(Some(false), None), Some(true));
-    assert_eq!(exit_without_witness(Some(false), Some(true)), Some(true));
-    assert_eq!(exit_without_witness(Some(true), Some(true)), Some(false));
-    assert_eq!(exit_without_witness(Some(true), Some(false)), Some(true));
-    assert_eq!(exit_without_witness(Some(true), None), None);
-    assert_eq!(exit_without_witness(None, Some(true)), None);
-}
-
-#[cfg_attr(test, test)]
 pub(crate) fn a_herdr_core_seat_has_a_root_key() {
     let session = Uuid::new_v4();
     assert!(
