@@ -285,7 +285,7 @@ pub(in crate::launch::fleet) async fn execute(
     let held = tokio::select! {
         biased;
         _ = context.owner.token().cancelled() => return (None, crate::launch::fleet::managed_command::cancelled(&context.owner), false),
-        held = tokio::time::timeout(operation.timeout(), lock(repo, &names)) => held,
+        held = tokio::time::timeout(crate::launch::fleet::managed_queue::waiting_limit(operation.timeout()), lock(repo, &names)) => held,
     };
     let (_held, name) = match held {
         Ok(Ok(held)) => held,

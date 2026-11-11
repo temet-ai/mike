@@ -13,6 +13,11 @@ const PATIENCE_FLOOR: Duration = Duration::from_secs(600);
 const PATIENCE_CEILING: Duration = Duration::from_secs(7200);
 const PATIENCE_PER_RUN: u32 = 3;
 pub(super) const RESERVED_FOR_CHECK: &str = "#reserved-for-the-commit-check";
+pub(super) const QUEUE_WAIT: Duration = PATIENCE_CEILING;
+
+pub(super) fn waiting_limit(run_budget: Duration) -> Duration {
+    run_budget.max(QUEUE_WAIT)
+}
 
 pub(super) fn reserve_for_commit_check(
     ledger: &str,

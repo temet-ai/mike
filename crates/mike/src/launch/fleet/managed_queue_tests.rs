@@ -193,3 +193,16 @@ async fn a_commit_check_is_admitted_while_a_gate_holds_the_shared_build_and_a_fl
     );
     Ok(())
 }
+
+#[test]
+fn waiting_for_a_slot_or_resource_does_not_spend_the_run_budget() {
+    assert_eq!(
+        super::waiting_limit(Duration::from_secs(600)),
+        super::QUEUE_WAIT
+    );
+    assert!(super::QUEUE_WAIT >= Duration::from_secs(7200));
+    assert_eq!(
+        super::waiting_limit(Duration::from_secs(9000)),
+        Duration::from_secs(9000)
+    );
+}
