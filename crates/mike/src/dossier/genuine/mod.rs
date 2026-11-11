@@ -17,7 +17,7 @@ mod stream_tests;
 #[cfg(test)]
 mod templates_tests;
 
-pub const CLASSIFIER_VERSION: &str = "genuine-v2";
+pub const CLASSIFIER_VERSION: &str = "genuine-v3";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PromptKind {
@@ -38,6 +38,7 @@ pub enum PromptKind {
     SessionRecap,
     HarnessAuthored,
     AgentLineage,
+    ToolPrompt,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,7 +79,7 @@ pub struct PromptClass {
 }
 
 impl PromptKind {
-    pub const ALL: [PromptKind; 17] = [
+    pub const ALL: [PromptKind; 18] = [
         PromptKind::Genuine,
         PromptKind::Empty,
         PromptKind::PeerMessage,
@@ -96,6 +97,7 @@ impl PromptKind {
         PromptKind::SessionRecap,
         PromptKind::HarnessAuthored,
         PromptKind::AgentLineage,
+        PromptKind::ToolPrompt,
     ];
 
     pub fn stored_code(self) -> &'static str {
@@ -117,6 +119,7 @@ impl PromptKind {
             PromptKind::SessionRecap => "session-recap",
             PromptKind::HarnessAuthored => "harness-authored",
             PromptKind::AgentLineage => "agent-lineage",
+            PromptKind::ToolPrompt => "tool-prompt",
         }
     }
 
@@ -132,7 +135,7 @@ impl PromptKind {
             }
             PromptKind::ChannelWake => "channel-wake",
             PromptKind::TaskNotification => "task-notification",
-            PromptKind::BackgroundEvent => "background-event",
+            PromptKind::BackgroundEvent | PromptKind::ToolPrompt => "background-event",
             PromptKind::ToolLoaded => "tool-loaded",
             PromptKind::HookFeedback => "hook-feedback",
             PromptKind::Compaction => "compaction",
@@ -222,6 +225,10 @@ pub fn is_genuine_text(text: &str) -> bool {
     })
     .kind
         == PromptKind::Genuine
+}
+
+pub fn is_tool_prompt(text: &str) -> bool {
+    templates::match_template(text) == Some(PromptKind::ToolPrompt)
 }
 
 pub fn opened_by_something_else(opened_by: Option<&str>, prompt: Option<&str>) -> bool {

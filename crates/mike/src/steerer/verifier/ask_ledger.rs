@@ -35,6 +35,7 @@ pub(crate) fn classify_ask_kind(is_first: bool, text: &str) -> &'static str {
 
 pub(crate) fn is_operator_ask(text: &str) -> bool {
     crate::steerer::machine_text::classify(text).is_none()
+        && !crate::dossier::genuine::is_tool_prompt(text)
 }
 
 pub(crate) fn written_by_the_operator(entries: Vec<AskLedgerEntryRow>) -> Vec<AskLedgerEntryRow> {
