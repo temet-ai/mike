@@ -72,7 +72,7 @@ async fn recorded_session_and_reconnect_project_into_one_item_per_provider_id() 
     ids.sort();
     ids.dedup();
     assert_eq!(ids.len(), count);
-    assert!(count >= 14, "{count}");
+    assert_eq!(count, 13);
     let command = items
         .iter()
         .find(|stored| {

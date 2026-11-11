@@ -85,10 +85,20 @@ fn live_transcript_every_server_frame_is_captured_or_excluded_with_reason() -> a
     let (transcript, ingested) = load(LIVE_TURN)?;
     let received = transcript.received().count();
     assert_eq!(ingested.batches.len() + ingested.excluded.len(), received);
-    for (reason, route, _) in &ingested.excluded {
-        assert_eq!(*route, FrameRoute::Response);
-        assert_eq!(*reason, ExclusionReason::UnreviewedResponse);
+    let mut authentication = 0;
+    for (reason, route, method) in &ingested.excluded {
+        match reason {
+            ExclusionReason::Authentication => {
+                assert_eq!(method.as_deref(), Some("account/updated"));
+                authentication += 1;
+            }
+            _ => {
+                assert_eq!(*route, FrameRoute::Response);
+                assert_eq!(*reason, ExclusionReason::UnreviewedResponse);
+            }
+        }
     }
+    assert_eq!(authentication, 1);
     for batch in &ingested.batches {
         assert_ne!(batch.status, ProjectionStatus::Malformed, "{batch:?}");
         assert_ne!(batch.status, ProjectionStatus::Excluded, "{batch:?}");
