@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# install — let mike observe Codex sessions it did not launch.
+#
+# Usage: scripts/codex-hooks/install --codex-home <dir> [--mike-url <url>] [--source <label>] [--print]
+#
+# Writes into <dir>:
+#   hooks.json   one observe-only handler per Codex 0.167.1 hook event, each running
+#                mike-codex-hook (copied to <dir>/mike/). An existing hooks.json is kept: the
+#                mike handlers are added beside the handlers already there, never replacing them.
+#   config.toml  an [otel] block exporting logs and traces as OTLP/JSON to mike's
+#                /api/codex/observe/otel/v1/{logs,traces}, unless the file already has [otel],
+#                in which case the block is printed for you to merge and nothing is changed.
+# Codex asks you to trust new hooks (`/hooks` in the TUI); until you do they do not run.
+# Nothing in mike can steer an observed session: the handlers print nothing and exit 0.
+# --codex-home is required so tests and trials never touch ~/.codex by accident; pass
+# --codex-home ~/.codex yourself to install for your own sessions.
+# --print writes nothing and prints the hooks.json and [otel] block it would write.
+set -euo pipefail
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+home=""; mike_url="http://127.0.0.1:9989"; label="$(hostname 2>/dev/null || echo unknown)"; print=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --codex-home) home="${2:?--codex-home needs a directory}"; shift 2 ;;
+    --mike-url) mike_url="${2:?}"; shift 2 ;;
+    --source) label="${2:?}"; shift 2 ;;
+    --print) print=1; shift ;;
+    -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "install: unknown argument $1" >&2; exit 2 ;;
+  esac
+done
+[[ -n "$home" ]] || { echo "install: --codex-home <dir> is required" >&2; exit 2; }
+
+events=(SessionStart SessionEnd UserPromptSubmit PreModelRequest PostModelRequest PreToolUse
+  PostToolUse PermissionRequest SubagentStart SubagentStop Stop PreCompact PostCompact Interrupt)
+hook_bin="$home/mike/mike-codex-hook"
+command="MIKE_INSPECT_URL='$mike_url' MIKE_CODEX_SOURCE='$label' bash '$hook_bin'"
+
+otel_block="[otel]
+exporter = { otlp-http = { endpoint = \"$mike_url/api/codex/observe/otel/v1/logs\", protocol = \"json\", headers = { \"x-mike-codex-source\" = \"$label\" } } }
+trace_exporter = { otlp-http = { endpoint = \"$mike_url/api/codex/observe/otel/v1/traces\", protocol = \"json\", headers = { \"x-mike-codex-source\" = \"$label\" } } }"
+
+merged="$(python3 - "$home/hooks.json" "$command" "${events[@]}" <<'EOF'
+import json, os, sys
+path, command, events = sys.argv[1], sys.argv[2], sys.argv[3:]
+doc = json.load(open(path)) if os.path.exists(path) else {}
+hooks = doc.setdefault("hooks", {})
+for event in events:
+    groups = hooks.setdefault(event, [])
+    present = any(h.get("command") == command for g in groups for h in g.get("hooks", []))
+    if not present:
+        timeout = 3 if event in ("SessionEnd", "Interrupt") else 5
+        groups.append({"hooks": [{"type": "command", "command": command, "timeout": timeout, "async": True}]})
+print(json.dumps(doc, indent=2))
+EOF
+)"
+
+if (( print )); then
+  printf '%s\n\n%s\n' "$merged" "$otel_block"; exit 0
+fi
+mkdir -p "$home/mike"
+install -m 755 "$script_dir/mike-codex-hook" "$hook_bin"
+printf '%s\n' "$merged" > "$home/hooks.json.mike-tmp" && mv "$home/hooks.json.mike-tmp" "$home/hooks.json"
+if [[ -f "$home/config.toml" ]] && grep -q '^\[otel\]' "$home/config.toml"; then
+  echo "install: $home/config.toml already has [otel]; merge this yourself:"; echo "$otel_block"
+else
+  grep -q '^\[features\]' "$home/config.toml" 2>/dev/null || printf '\n[features]\nhooks = true\n' >> "$home/config.toml"
+  printf '\n%s\n' "$otel_block" >> "$home/config.toml"
+fi
+echo "install: mike observes Codex in $home; trust the new hooks in Codex (/hooks) to start."
