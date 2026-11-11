@@ -1,6 +1,7 @@
 use super::knowledge_key::{LEASE_ROLE, rekey_url_keyed_rows};
 pub(crate) use super::knowledge_key::{model_key, model_keys};
 use super::knowledge_report::{KnowledgeSweepReport, SweepTally, publish};
+use super::knowledge_settings::KnowledgeSweepSettings;
 use crate::analysis::{EmbeddingService, embeddings::chunk_text};
 use crate::circuit_breaker::CircuitBreaker;
 use crate::store::persistence::{
@@ -22,8 +23,9 @@ pub async fn sweep(
         return Ok(None);
     }
     let model = model_key(service);
+    let settings = KnowledgeSweepSettings::load(persist).await;
     let mut tally = SweepTally::default();
-    sweep_rounds(persist, service, breaker, &model, &mut tally).await?;
+    sweep_rounds(persist, service, breaker, &model, &mut tally, &settings).await?;
     Ok(Some(tally.report(&model, chrono::Utc::now())))
 }
 
@@ -33,34 +35,43 @@ async fn sweep_rounds(
     breaker: &mut CircuitBreaker,
     model: &str,
     tally: &mut SweepTally,
+    settings: &KnowledgeSweepSettings,
 ) -> Result<(), PersistError> {
     let started = Instant::now();
-    for _ in 0..8 {
-        let sources = persist.pending_knowledge_embeddings(model).await?;
+    while started.elapsed() < settings.budget {
+        let sources = persist
+            .pending_knowledge_embeddings_limited(model, settings.batch_sources)
+            .await?;
         tally.read(sources.len());
         if sources.is_empty() {
             break;
         }
-        for (attempted, source) in sources.iter().enumerate() {
-            if breaker.should_skip(Instant::now()) || started.elapsed() >= Duration::from_secs(10) {
-                tally.stopped_with(sources.len() - attempted);
+        for (index, window) in sources.chunks(settings.concurrency).enumerate() {
+            if breaker.should_skip(Instant::now()) || started.elapsed() >= settings.budget {
+                tally.stopped_with(sources.len() - index * settings.concurrency);
                 return Ok(());
             }
-            embed_one(persist, service, breaker, source, model, tally).await?;
+            let results = futures::future::join_all(window.iter().map(|source| {
+                embed_source(persist, service, source, model, settings.chunks_per_call)
+            }))
+            .await;
+            for (source, result) in window.iter().zip(results) {
+                record_outcome(persist, breaker, source, model, tally, result).await?;
+            }
         }
     }
     Ok(())
 }
 
-async fn embed_one(
+async fn record_outcome(
     persist: &PersistHandle,
-    service: &EmbeddingService,
     breaker: &mut CircuitBreaker,
     source: &KnowledgeEmbeddingSource,
     model: &str,
     tally: &mut SweepTally,
+    result: Result<(), String>,
 ) -> Result<(), PersistError> {
-    match embed_source(persist, service, source, model).await {
+    match result {
         Ok(()) => {
             breaker.record(true, Instant::now());
             tally.embedded();
@@ -82,10 +93,11 @@ async fn embed_source(
     service: &EmbeddingService,
     source: &KnowledgeEmbeddingSource,
     model: &str,
+    chunks_per_call: usize,
 ) -> Result<(), String> {
     let texts = chunk_text(&source.body, service.chunk_max_chars());
     let mut records = Vec::new();
-    for batch in texts.chunks(16) {
+    for batch in texts.chunks(chunks_per_call) {
         let request = service.embed_titled_chunks(&source.header, batch);
         let vectors = tokio::time::timeout(Duration::from_secs(30), request)
             .await
@@ -108,14 +120,16 @@ async fn embed_source(
         .map_err(|e| format!("[transient] {e}"))
 }
 
-const SWEEP_INTERVAL: Duration = Duration::from_secs(30);
-
 pub(crate) async fn sweep_if_leader(
     persist: &PersistHandle,
     service: &EmbeddingService,
     breaker: &mut CircuitBreaker,
 ) -> Result<bool, PersistError> {
-    if !service.is_available() || !persist.holds_worker_role(LEASE_ROLE, SWEEP_INTERVAL).await {
+    if !service.is_available() {
+        return Ok(false);
+    }
+    let interval = KnowledgeSweepSettings::load(persist).await.interval;
+    if !persist.holds_worker_role(LEASE_ROLE, interval).await {
         return Ok(false);
     }
     if let Some(report) = sweep(persist, service, breaker).await? {
@@ -146,19 +160,26 @@ pub(crate) async fn run(
     shutdown: tokio_util::sync::CancellationToken,
 ) {
     rekey_at_start(&persist, &service).await;
-    let mut interval = tokio::time::interval(SWEEP_INTERVAL);
-    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut breaker = CircuitBreaker::new(3, Duration::from_secs(30), Duration::from_secs(300));
     loop {
+        let interval = KnowledgeSweepSettings::load(&persist).await.interval;
         tokio::select! {
             biased;
             _ = shutdown.cancelled() => return,
-            _ = interval.tick() => {
-                if let Err(error) = sweep_if_leader(&persist, &service, &mut breaker).await {
-                    tracing::warn!(%error, "knowledge embedding sweep failed");
-                }
+            _ = tokio::time::sleep(interval) => {
+                sweep_logging_errors(&persist, &service, &mut breaker).await;
             }
         }
+    }
+}
+
+async fn sweep_logging_errors(
+    persist: &PersistHandle,
+    service: &EmbeddingService,
+    breaker: &mut CircuitBreaker,
+) {
+    if let Err(error) = sweep_if_leader(persist, service, breaker).await {
+        tracing::warn!(%error, "knowledge embedding sweep failed");
     }
 }
 

@@ -25,15 +25,25 @@ pub(crate) struct KnowledgeEmbeddingSource {
 }
 
 impl PersistHandle {
+    #[cfg(test)]
     pub(crate) async fn pending_knowledge_embeddings(
         &self,
         model: &str,
+    ) -> Result<Vec<KnowledgeEmbeddingSource>, PersistError> {
+        self.pending_knowledge_embeddings_limited(model, PENDING_BATCH)
+            .await
+    }
+
+    pub(crate) async fn pending_knowledge_embeddings_limited(
+        &self,
+        model: &str,
+        limit: i64,
     ) -> Result<Vec<KnowledgeEmbeddingSource>, PersistError> {
         Ok(sqlx::query_file_as!(
             KnowledgeEmbeddingSource,
             "src/store/persistence/project_knowledge/pending_embeddings.sql",
             model,
-            PENDING_BATCH
+            limit
         )
         .fetch_all(self.pool())
         .await?)

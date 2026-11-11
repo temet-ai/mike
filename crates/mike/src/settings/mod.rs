@@ -11,6 +11,7 @@ pub(crate) mod meta_eval;
 pub(crate) mod meta_eval_alarms;
 mod meta_global;
 mod meta_improvement;
+pub(crate) mod meta_knowledge_embedding;
 mod meta_launch;
 mod meta_llm_budget;
 mod meta_llm_provider;

@@ -12,6 +12,7 @@ use crate::store::persistence::PersistHandle;
 pub mod knowledge;
 mod knowledge_key;
 pub mod knowledge_report;
+mod knowledge_settings;
 mod vectors;
 
 pub use vectors::SessionVectorSweepOutcome;

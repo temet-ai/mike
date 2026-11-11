@@ -567,6 +567,10 @@ Toggle `semantic_context` (global, applies immediately, default on) runs the sem
 
 `mike semantic backfill --from <date> [--to <date>] [--execute]`, `embedders verify --since <time> [--execute]`, `anchors import --dir <fleet-mirror dir> [--execute]`, `floors recompute [--execute]`, `floors promote --pair <p> --from-id <id> [--rebundle] [--execute]`, `prune --embedder-key <key> [--execute]` and `group [--execute]` are dry runs unless `--execute` is given; `backtest retrieval|tagger|drift` are read-only.
 
+### Knowledge embedding (runtime settings)
+
+The "Knowledge embedding" group on `/settings` sets how fast the knowledge sweep (`embed_worker/knowledge.rs`) embeds a backlog, for example after an embedding-form change. Every sweep reads them afresh, so a change applies on the next sweep with no restart, and the defaults match the behaviour before they existed: `knowledge_embedding.interval_secs` (30, rest between sweeps), `knowledge_embedding.budget_secs` (10, work per sweep), `knowledge_embedding.batch_sources` (16, sources claimed per round), `knowledge_embedding.concurrency` (1, sources sent to the embedding model at once) and `knowledge_embedding.chunks_per_call` (16, chunks per embedding request). Only the machine holding the `knowledge_embedding` lease sweeps; raise `concurrency` a step at a time on a shared machine, because the embedding server is the limit.
+
 ### Turn judge promotion (runtime settings)
 
 Five settings in the "Turn judge" group on `/settings/workers`, all read on the next cycle with no restart:
