@@ -9,6 +9,8 @@ mod rerank;
 #[cfg(test)]
 mod rerank_tests;
 mod stored;
+#[cfg(test)]
+mod unrecorded_captures_tests;
 
 pub(crate) use dto::*;
 pub(crate) use probe::ProbeState;
