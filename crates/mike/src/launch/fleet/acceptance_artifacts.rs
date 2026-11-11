@@ -106,8 +106,8 @@ Record each obligation, comparison, artifact and the close handoff as a note on 
 with write_session_note, tagged {run} and acceptance-record (obligations keep their \
 acceptance-obligation tag). An artifact note gives the absolute path of any file, commit SHA, \
 features, environment, outcome and cleanup status. A successor reads the record with \
-list_session_notes project_path=<this repository> tag=acceptance-record (and \
-tag=acceptance-obligation), keeping this run's notes. Existing notes stay authoritative: add \
+list_session_notes project_path=<this repository> tag={run}, which returns this run's \
+record and no other run's; obligations are read as before. Existing notes stay authoritative: add \
 only missing ones, supersede only changed ones. Put only binary evidence, such as screenshots and \
 logs, in {folder} ({EVIDENCE_ENV}), under comparisons/ and artifacts/, and name each file's \
 absolute path in its note. Missing notes or files remain unknown, never proof. Keep the \

@@ -200,7 +200,7 @@ A fresh install is already in this state. To confirm or restore it:
    `steerer`, `judge_worker`, `session_judge`, `judge_lessons`, `session_end_shadow`,
    `turn_guard`, `agent_lessons`, `file_read_compression`, `shell_output_compression`,
    `proxy_tools`, `self_identity_reminder`, `repeated_notices`, `workspace_briefing`,
-   `native_peer_mail`, `mod_lesson_delivery`, `context_focus_question` and `launch_brief`;
+   `native_peer_mail`, `mod_lesson_delivery` and `context_focus_question`;
    [`FEATURES.md`](FEATURES.md) lists every switch with its default. Switches that are on by
    default work on local state only, and `semantic_context` refuses a non-loopback embedder.
 3. **Author no filter rules, lazy sections or prompt compositions.** All three rewrite the
