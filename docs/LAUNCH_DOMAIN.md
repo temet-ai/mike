@@ -200,7 +200,7 @@ that uuid (`kind` `brief`, tags `brief`/`launch`, `data` carrying launch id, run
 agent), so `list_session_notes` with `kind: "brief"` finds what any spawned session was told.
 
 **Over the limit, the brief is pushed over Remote Control, or staged to a file.** With the
-`launch_brief` feature toggle on (global, default off, `/settings`; the launcher reads it at each
+`launch_brief` feature toggle on (global, default on, `/settings`; the launcher reads it at each
 spawn), the launch's `brief_mode` is `note` and nothing is typed into the session. Once the
 channel check links the session's Remote Control stream, the launcher calls
 `POST /api/launches/{session}/brief`. mike mails the brief from itself (no sending session) under
@@ -215,11 +215,15 @@ Control stream, no proxy, a failed call), the launcher types a short pointer ins
 operator's own first message telling the session to read its brief note with
 `list_session_notes`. With the toggle off, the session id unknown, or the launch row not written,
 mike falls back to `brief_mode` `file`: it stages the text to a private 0600 file under its briefs
-directory (`~/.local/state/mike/briefs/<session>.md`) and tells the session to read it.
+directory (`~/.local/state/mike/briefs/<session>.md`) and tells the session to read it. The file
+is the last resort for a launch mike cannot record; a brief kept only in a file cannot be read
+from another machine or by a later session.
 
-**A fleet can keep its briefs as notes.** A fleet whose definition carries
-`briefs: {"as_notes": true}` (default off; `define_fleet` accepts it and `get_fleet` shows it)
-stores each brief in parts instead of as one text per seat. A note of kind `brief` tagged `part:run`
+**A fleet keeps its briefs as notes.** A fleet whose definition carries
+`briefs: {"as_notes": true}` stores each brief as notes. `define_fleet` writes that value into
+every new definition (`api/fleet/definition_patch.rs`, `parse_new`), and a definition may set it
+to `false`. A definition stored before that default, with no `briefs` field, reads as `false`,
+so a fleet that was already defined keeps the delivery it started with. A fleet stores each brief in parts instead of as one text per seat. A note of kind `brief` tagged `part:run`
 holds the run's part: the goal, the ask, the criteria, the rules, how the project is built and
 checked, and the shared files. One note tagged `part:task` and `task:<id>` holds each task's part:
 its name, brief, criteria and files. The discipline's template is given the run's part when it is
@@ -365,7 +369,7 @@ The drawing is `launch::fleet::render::render(&FleetStatus, width)`, a pure func
 
 ### What mike carries
 
-The `fleet-rule-auditor` and `fleet-capability-author` agent files, the `fleet-worker` skill (appended to every worker seat), the shared rules, the three leaf prompts, the outcome-check script and the `/fleet` command are compiled into the binary (`launch/fleet/bundle.rs`). When a fleet is checked for readiness, mike writes the rules, leaf prompts and script to `~/.local/state/mike/fleet/`, the agents and skill under `~/.claude/` (only files it wrote before, never one the operator edited) and the command to `~/.claude/commands/fleet.md` (only when nothing is there). A project's own copy under its `.claude/fleet/` or `.claude/agents/` takes precedence, file by file; a project says how it is built in `.claude/fleet/project.md`, which every brief names when it exists. So a fleet starts in any project mike runs, and a project that wants different seats or rules keeps its own versions.
+The `fleet-rule-auditor` and `fleet-capability-author` agent files, the `fleet-worker` skill (appended to every worker seat), the shared rules, the three leaf prompts, the outcome-check script and the `/fleet` command are compiled into the binary (`launch/fleet/bundle.rs`). mike calls the leaf prompts from the binary and never writes them to disk. When a fleet is checked for readiness, mike writes the rules, the worker contract and the outcome-check script to `~/.local/state/mike/fleet/` (seats read the rules by path, Claude Code takes the contract with `--append-system-prompt-file`, and the script is run), the agents and skill under `~/.claude/` (only files it wrote before, never one the operator edited) and the command to `~/.claude/commands/fleet.md` (only when nothing is there). A project's own copy under its `.claude/fleet/` or `.claude/agents/` takes precedence, file by file; a project says how it is built in `.claude/fleet/project.md`, which every brief names when it exists. So a fleet starts in any project mike runs, and a project that wants different seats or rules keeps its own versions.
 
 ### How a fleet starts and staffs itself
 

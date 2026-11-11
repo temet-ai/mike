@@ -178,10 +178,18 @@ fn merged_accepts_a_stored_definition_carrying_retired_settings() -> anyhow::Res
 }
 
 #[test]
-fn parse_new_accepts_no_definition_as_an_empty_one() -> anyhow::Result<()> {
+fn parse_new_accepts_no_definition_as_one_that_keeps_briefs_as_notes() -> anyhow::Result<()> {
     let (value, parsed) = parse_new(None)?;
-    assert_eq!(value, json!({}));
+    assert_eq!(value, json!({"briefs": {"as_notes": true}}));
     assert!(parsed.tasks.is_empty());
+    assert!(parsed.briefs.as_notes);
+    Ok(())
+}
+
+#[test]
+fn parse_new_lets_a_definition_keep_briefs_as_files() -> anyhow::Result<()> {
+    let (_, parsed) = parse_new(Some(json!({"briefs": {"as_notes": false}})))?;
+    assert!(!parsed.briefs.as_notes);
     Ok(())
 }
 

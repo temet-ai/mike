@@ -464,7 +464,7 @@ underscore: `MIKE_LAUNCH_BACKEND`, not `MIKE_LAUNCH__BACKEND`. Each has a matchi
 | `launch_ca_cert` | `MIKE_LAUNCH_CA_CERT` | unset | The sidecar CA for `NODE_EXTRA_CA_CERTS`. Unset resolves at use to the first existing of `~/.local/share/proxy-forward/ca-cert.pem` and `<cwd>/.deploy/proxy-forward-ca.pem`. |
 | `launch_claude_args` | `MIKE_LAUNCH_CLAUDE_ARGS` | empty | Operator flags prepended to every launch. Whitespace-separated in the env form. |
 | `launch_worktree_config` | `MIKE_LAUNCH_WORKTREE_CONFIG` | unset | Colon-separated list of files carried into a worktree launch. |
-| `launch_brief_inline_max` | `MIKE_LAUNCH_BRIEF_INLINE_MAX` | `800` | Prompts longer than this are staged to a private brief file the session is told to read. |
+| `launch_brief_inline_max` | `MIKE_LAUNCH_BRIEF_INLINE_MAX` | `800` | Prompts longer than this are not typed: they are mailed from mike and kept as the session's brief note (a private brief file only when the launch cannot be recorded). |
 | `launch_channel_check_enabled` | `MIKE_LAUNCH_CHANNEL_CHECK_ENABLED` | `true` | Wait for the session's Remote Control channel after a launch. |
 | `launch_channel_check_timeout_secs` | `MIKE_LAUNCH_CHANNEL_CHECK_TIMEOUT_SECS` | `90` | The channel check's wait budget. |
 | `launch_channel_check_interval_secs` | `MIKE_LAUNCH_CHANNEL_CHECK_INTERVAL_SECS` | `3` | The channel check's poll interval. |

@@ -16,7 +16,6 @@ fn feature_toggles_mutation_and_egress_default_off() {
     assert!(!t.self_identity_reminder);
     assert!(!t.proxy_tools);
     assert!(!t.workspace_briefing);
-    assert!(!t.launch_brief);
 }
 
 #[test]

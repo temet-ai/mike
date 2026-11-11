@@ -68,8 +68,7 @@ impl LaunchSpec {
         }
         let caller_args = substitute_all(&split.claude_args, session)?;
         let prompt = prompt.map(|p| substitute_text(&p, session)).transpose()?;
-        let acceptance =
-            super::fleet::acceptance_artifacts::for_launch(opts.briefs_dir, &split, session)?;
+        let acceptance = super::fleet::acceptance_artifacts::for_launch(opts.briefs_dir, &split)?;
         let prompt = with_acceptance_reference(prompt, &split, acceptance.as_deref());
         let file_id = session.unwrap_or_else(Uuid::new_v4);
         let staging = BriefStaging {
@@ -108,7 +107,7 @@ impl LaunchSpec {
         seat_env(&mut env, session, &split);
         if let Some(path) = acceptance {
             env.insert(
-                super::fleet::acceptance_artifacts::MANIFEST_ENV.to_string(),
+                super::fleet::acceptance_artifacts::EVIDENCE_ENV.to_string(),
                 path.to_string_lossy().into_owned(),
             );
         }
@@ -142,12 +141,12 @@ fn read_permission(staged: &StagedBrief) -> Option<String> {
 fn with_acceptance_reference(
     prompt: Option<String>,
     split: &SplitLaunchArgs,
-    manifest: Option<&Path>,
+    folder: Option<&Path>,
 ) -> Option<String> {
-    let Some(manifest) = manifest else {
+    let (Some(folder), Some(run)) = (folder, split.run.as_deref()) else {
         return prompt;
     };
-    let reference = super::fleet::acceptance_artifacts::brief_reference(manifest);
+    let reference = super::fleet::acceptance_artifacts::brief_reference(run, folder);
     match prompt {
         Some(prompt) => Some(format!("{prompt}\n\n{reference}")),
         None if split.claude_args.iter().any(|arg| !arg.starts_with('-')) => None,

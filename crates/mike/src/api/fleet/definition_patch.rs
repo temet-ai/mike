@@ -106,7 +106,7 @@ fn check_changed_overlaps(
 pub(super) fn parse_new(
     definition: Option<Value>,
 ) -> Result<(Value, FleetDefinition), DefinitionError> {
-    merged(&json!({}), definition.as_ref())
+    merged(&json!({"briefs": {"as_notes": true}}), definition.as_ref())
 }
 
 fn shape_message(definition: &Value, problem: &str) -> String {

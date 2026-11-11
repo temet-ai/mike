@@ -153,7 +153,7 @@ impl Default for FeatureToggles {
             self_identity_reminder: false,
             workspace_briefing: false,
             repeated_notices: false,
-            launch_brief: false,
+            launch_brief: true,
             native_peer_mail: false,
             mod_lesson_delivery: false,
             fleet_auto_start: true,

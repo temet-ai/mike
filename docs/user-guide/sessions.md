@@ -99,11 +99,12 @@ channel is found, then returns. Exit codes: `0` done, `1` refused or failed, `2`
 backend cannot do that or the result could not be confirmed, `69` no backend chosen or
 the backend is not answering, `127` a program is missing.
 
-A brief over 800 characters is not typed into the pane. With the launch-brief switch on
-(default off), mike mails it to the session over Remote Control. Otherwise it saves the
-text to a private file under `~/.local/state/mike/briefs/` and tells the session to read
-it. Either way the whole brief stays in the launch record and shows up as a session note
-of kind `brief`.
+A brief over 800 characters is not typed into the pane. mike mails it to the session over
+Remote Control and keeps it as the session's note of kind `brief`, so you can read what any
+session was told later and from any machine. A file is written only when mike cannot record
+the launch: the launch-brief switch is off, the session id is not known, or the database and
+the proxy are both out of reach. The file goes under `~/.local/state/mike/briefs/` and the
+session is told to read it.
 
 The brief is the session's first message, so it goes to Anthropic like any other
 prompt. See [Privacy](privacy.md).

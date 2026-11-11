@@ -16,15 +16,12 @@ const AGENTS: [(&str, &str); 2] = [
     ),
 ];
 
-const FILES: [(&str, &str); 6] = [
+const FILES: [(&str, &str); 3] = [
     (
         "rules.md",
         include_str!("../../../../../.claude/fleet/rules.md"),
     ),
     ("worker-contract.md", WORKER_SKILL),
-    ("leaves/judge.md", super::leaves::JUDGE_PROMPT),
-    ("leaves/checker.md", super::leaves::CHECKER_PROMPT),
-    ("leaves/problem-solver.md", super::leaves::SOLVER_PROMPT),
     (
         "outcome-checks.sh",
         include_str!("../../../../../.claude/fleet/outcome-checks.sh"),
@@ -353,7 +350,7 @@ mod tests {
     }
 
     #[test]
-    fn the_leaf_prompts_are_installed_and_no_control_seat_role_file_is() -> anyhow::Result<()> {
+    fn neither_the_leaf_prompts_nor_a_control_seat_role_file_is_written() -> anyhow::Result<()> {
         for control in ["fleet-coordinator", "fleet-acceptance", "fleet-observer"] {
             assert!(generic_agent(control).is_none(), "{control}");
         }
@@ -361,13 +358,8 @@ mod tests {
         let dir = tempfile::tempdir()?;
         let state = dir.path().join("state");
         install_files(&state).map_err(anyhow::Error::msg)?;
-        for leaf in ["judge", "checker", "problem-solver"] {
-            let name = format!("leaves/{leaf}.md");
-            assert_eq!(
-                std::fs::read_to_string(state.join(&name))?,
-                generic_file(&name).unwrap_or_default()
-            );
-        }
+        assert!(state.join("rules.md").is_file());
+        assert!(!state.join("leaves").exists());
         Ok(())
     }
 }
