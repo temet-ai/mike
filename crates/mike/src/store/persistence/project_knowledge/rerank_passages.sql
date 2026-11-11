@@ -37,7 +37,7 @@ WITH wanted AS (
    FROM sources s
    JOIN memory.knowledge_embedding_state e
      ON e.source_kind = s.source_kind AND e.source_id = s.source_id
-    AND e.completed_at IS NOT NULL AND ($3::text IS NULL OR e.model_key = $3::text)
+    AND e.completed_at IS NOT NULL AND ($3::text[] IS NULL OR e.model_key = ANY($3::text[]))
    JOIN memory.knowledge_embedding_chunks c ON c.state_id = e.id
   ORDER BY s.reference, c.embedding <=> $2::text::public.vector NULLS LAST, c.ordinal)
 UNION ALL

@@ -272,13 +272,21 @@ fn best_only_says_how_to_get_the_rest() {
 }
 
 #[test]
-fn best_only_single_result_without_a_next_page_adds_no_more() {
+fn best_only_single_result_without_a_next_page_keeps_more_with_no_pointers() {
     let mut shaped = answer(vec![item("turn:1", "turn", "only")]);
     shaped["has_more"] = json!(false);
 
     best_only(&mut shaped, &Passages::new());
 
-    assert!(shaped.get("more").is_none());
+    assert_eq!(
+        shaped["more"],
+        json!({"shown_in_full": 1, "pointers": 0, "how": HOW_TO_GET_THE_REST})
+    );
+}
+
+#[test]
+fn best_only_how_asks_the_session_to_cite_the_reference() {
+    assert!(HOW_TO_GET_THE_REST.contains("Cite the reference you use."));
 }
 
 #[test]

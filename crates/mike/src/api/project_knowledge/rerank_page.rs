@@ -14,7 +14,7 @@ use crate::store::persistence::{PersistError, PersistHandle};
 
 pub(super) const MAX_CANDIDATE_ROWS: i64 = 200;
 
-pub(crate) type QueryVector = (String, String, String);
+pub(crate) type QueryVector = crate::store::persistence::project_knowledge::QueryEmbedding;
 
 pub(super) type Searched = (Value, RerankReport, Passages);
 

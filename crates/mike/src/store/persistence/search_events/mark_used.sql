@@ -122,7 +122,12 @@ WITH open_events AS (
       JOIN windows w ON w.event_id = r.event_id
      WHERE r.kind = 'work_thread'
        AND w.final_assistant_text ~ ('(^|[^0-9A-Za-z_-])' || r.id_pattern || '($|[^0-9A-Za-z_-])')
+), quoted AS (
+    SELECT q.event_id, q.reference
+      FROM unnest($4::bigint[], $5::text[]) AS q(event_id, reference)
 ), used AS (
+    SELECT event_id, reference FROM quoted
+    UNION
     SELECT event_id, reference FROM reads
     UNION
     SELECT event_id, reference FROM bare_reads

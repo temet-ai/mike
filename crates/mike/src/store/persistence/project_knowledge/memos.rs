@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 use dashmap::DashMap;
 use serde_json::Value;
 
-use super::ProjectIdentity;
+use super::{ModelKeys, ProjectIdentity};
 use crate::store::persistence::{PersistError, PersistHandle, SENTINEL_PROJECT_PATH};
 
 pub(super) const COVERAGE_LIFETIME: Duration = Duration::from_secs(60);
@@ -105,12 +105,12 @@ impl PersistHandle {
     pub(crate) async fn knowledge_coverage(
         &self,
         project_id: i64,
-        model_key: &str,
+        keys: &ModelKeys,
     ) -> Result<Value, PersistError> {
         self.knowledge_memos
             .coverage
-            .get_or_fetch((project_id, model_key.to_owned()), || {
-                self.knowledge_embedding_health(Some(project_id), model_key)
+            .get_or_fetch((project_id, keys.current().to_owned()), || {
+                self.knowledge_embedding_health(Some(project_id), keys)
             })
             .await
     }

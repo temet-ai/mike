@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"total!\",\n       count(*) FILTER (WHERE e.completed_at IS NOT NULL AND e.model_key = ANY($2::text[])\n           AND e.source_updated_at IS NOT DISTINCT FROM s.source_updated_at\n           AND e.source_seq IS NOT DISTINCT FROM s.source_seq\n           AND e.source_hash IS NOT DISTINCT FROM s.source_hash) AS \"ready!\",\n       count(*) FILTER (WHERE e.last_error IS NOT NULL AND e.model_key = ANY($2::text[])\n           AND e.source_updated_at IS NOT DISTINCT FROM s.source_updated_at\n           AND e.source_seq IS NOT DISTINCT FROM s.source_seq\n           AND e.source_hash IS NOT DISTINCT FROM s.source_hash) AS \"failed!\",\n       count(*) FILTER (WHERE e.completed_at IS NOT NULL AND e.model_key = $3\n           AND e.source_updated_at IS NOT DISTINCT FROM s.source_updated_at\n           AND e.source_seq IS NOT DISTINCT FROM s.source_seq\n           AND e.source_hash IS NOT DISTINCT FROM s.source_hash) AS \"current_version!\"\n  FROM memory.knowledge_sources_with_sessions_v s\n  LEFT JOIN memory.knowledge_embedding_state e\n    ON e.source_kind = s.source_kind AND e.source_id = s.source_id\n WHERE s.project_id = $1\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "total!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "ready!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "failed!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "current_version!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "TextArray",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "007bd6d9c77b20e6c1f61f1f35c2f55e565c2bbc0b101e1c419a11204dbb9943"
+}

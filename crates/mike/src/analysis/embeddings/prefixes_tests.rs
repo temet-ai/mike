@@ -27,8 +27,48 @@ fn prefixes_for_embeddinggemma_names_returns_model_card_prefixes() {
         let prefixes = prefixes_for(model);
         assert_eq!(prefixes.document, "title: none | text: ", "{model}");
         assert_eq!(prefixes.query, "task: search result | query: ", "{model}");
-        assert_eq!(prefixes.version, "embeddinggemma-v1", "{model}");
+        assert_eq!(prefixes.version, "embeddinggemma-v2", "{model}");
+        assert_eq!(
+            prefixes.previous_version,
+            Some("embeddinggemma-v1"),
+            "{model}"
+        );
     }
+}
+
+#[test]
+fn titled_document_for_embeddinggemma_fills_the_title_slot() {
+    let prefixes = prefixes_for("embeddinggemma");
+    assert_eq!(
+        prefixes.titled_document("note, decision: Pick", "body"),
+        "title: note, decision: Pick | text: body"
+    );
+    assert_eq!(
+        prefixes.titled_document("  ", "body"),
+        "title: none | text: body"
+    );
+}
+
+#[test]
+fn titled_document_for_a_model_without_a_title_slot_puts_the_header_on_the_first_line() {
+    assert_eq!(
+        prefixes_for("nomic-embed-text").titled_document("lesson, correction", "body"),
+        "search_document: lesson, correction\nbody"
+    );
+    assert_eq!(
+        prefixes_for("all-minilm").titled_document("lesson", "body"),
+        "lesson\nbody"
+    );
+    assert_eq!(
+        prefixes_for("all-minilm").titled_document("", "body"),
+        "body"
+    );
+}
+
+#[test]
+fn only_embeddinggemma_has_a_previous_version() {
+    assert_eq!(prefixes_for("nomic-embed-text").previous_version, None);
+    assert_eq!(prefixes_for("all-minilm").previous_version, None);
 }
 
 #[test]

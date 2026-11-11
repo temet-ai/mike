@@ -21,8 +21,9 @@ pub(crate) async fn embedding_capability(state: &AppState) -> CapabilityRow {
         row.detail = "Knowledge embeddings require persistence".into();
         return row;
     };
-    let model = crate::embed_worker::knowledge::model_key(&service);
-    match handle.knowledge_embedding_state_counts(&model).await {
+    let keys = crate::embed_worker::knowledge::model_keys(&service);
+    let model = keys.current().to_owned();
+    match handle.knowledge_embedding_state_counts(&keys).await {
         Ok(counts) => {
             let sweep = fresh_report(&model, chrono::Utc::now());
             apply_coverage(&mut row, counts, sweep.as_deref());
@@ -45,13 +46,14 @@ pub(crate) fn capped_label(count: i64) -> String {
 fn coverage_detail(counts: KnowledgeStateCounts, sweep: Option<&KnowledgeSweepReport>) -> String {
     let ready = capped_label(counts.ready);
     let failed = capped_label(counts.failed);
+    let current = capped_label(counts.current_version);
     match sweep {
         Some(report) => format!(
-            "{ready} sources embedded, {} pending, {failed} with recorded failures; lexical retrieval remains available",
+            "{ready} sources embedded, {} pending, {failed} with recorded failures, {current} embedded with the current header form; lexical retrieval remains available",
             report.pending_label()
         ),
         None => format!(
-            "{ready} sources embedded, {failed} with recorded failures; the pending count comes from the knowledge sweep, which has not reported on this machine recently; lexical retrieval remains available"
+            "{ready} sources embedded, {failed} with recorded failures, {current} embedded with the current header form; the pending count comes from the knowledge sweep, which has not reported on this machine recently; lexical retrieval remains available"
         ),
     }
 }

@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::invalid;
+use super::{QueryEmbedding, invalid};
 use crate::analysis::embeddings::{ScoreFloor, score_floor_for};
 use crate::search_ranking::identifiers::query_identifiers;
 use crate::store::persistence::recall_embedding::set_vector_scan_limits;
@@ -73,7 +73,7 @@ pub struct KnowledgeQuery {
 
 struct QueryVector<'a> {
     literal: Option<&'a str>,
-    model_key: Option<&'a str>,
+    model_keys: Option<Vec<String>>,
     model_name: Option<&'a str>,
     cut: ScoreFloor,
     nearest_first: bool,
@@ -84,22 +84,18 @@ impl<'a> QueryVector<'a> {
         [self.cut.floor, self.cut.window]
     }
 
-    fn from(
-        vector: Option<&'a (String, String, String)>,
-        cut: SemanticCut,
-        nearest_first: bool,
-    ) -> Self {
+    fn from(vector: Option<&'a QueryEmbedding>, cut: SemanticCut, nearest_first: bool) -> Self {
         match vector {
-            Some((literal, key, name)) => Self {
+            Some((literal, keys, name)) => Self {
                 literal: Some(literal),
-                model_key: Some(key),
+                model_keys: Some(keys.accepted()),
                 model_name: Some(name),
                 cut: cut_for(name, cut),
                 nearest_first,
             },
             None => Self {
                 literal: None,
-                model_key: None,
+                model_keys: None,
                 model_name: None,
                 cut: ScoreFloor::NO_CUT,
                 nearest_first: false,
@@ -143,7 +139,7 @@ fn fetch_hits<'a>(
         limit,
         offset,
         bound.literal,
-        bound.model_key,
+        bound.model_keys.as_deref(),
         bound.model_name,
         &bound.cut_bounds(),
         &[input.any_term, bound.nearest_first],
@@ -187,7 +183,7 @@ impl PersistHandle {
     pub(crate) async fn search_project_knowledge_hybrid(
         &self,
         input: &KnowledgeQuery,
-        vector: Option<&(String, String, String)>,
+        vector: Option<&QueryEmbedding>,
     ) -> Result<Value, PersistError> {
         let project = self.resolve_knowledge_project(&input.project).await?;
         self.search_resolved_knowledge(&project, input, vector)
@@ -198,7 +194,7 @@ impl PersistHandle {
         &self,
         project: &super::ProjectIdentity,
         input: &KnowledgeQuery,
-        vector: Option<&(String, String, String)>,
+        vector: Option<&QueryEmbedding>,
     ) -> Result<Value, PersistError> {
         let limit = input.limit.unwrap_or(20).clamp(1, 100);
         let offset = input.offset.unwrap_or(0).max(0);
@@ -219,7 +215,7 @@ impl PersistHandle {
         project_id: i64,
         input: &KnowledgeQuery,
         count: i64,
-        vector: Option<&(String, String, String)>,
+        vector: Option<&QueryEmbedding>,
     ) -> Result<Vec<Value>, PersistError> {
         self.knowledge_search_rows(project_id, input, count, 0, vector)
             .await
@@ -231,10 +227,10 @@ impl PersistHandle {
         input: &KnowledgeQuery,
         limit: i64,
         offset: i64,
-        vector: Option<&(String, String, String)>,
+        vector: Option<&QueryEmbedding>,
     ) -> Result<Vec<Value>, PersistError> {
         let nearest_first = match vector {
-            Some((_, model_key, _)) => self.knowledge_nearest_first(project_id, model_key).await?,
+            Some((_, keys, _)) => self.knowledge_nearest_first(project_id, keys).await?,
             None => false,
         };
         let mut tx = self.pool().begin().await?;

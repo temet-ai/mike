@@ -1,6 +1,7 @@
 use serde_json::{Value, json};
 use uuid::Uuid;
 
+use super::shown;
 use crate::api::handlers::SimilarTurnDto;
 use crate::api::rerank_search::RerankReport;
 use crate::config::AppState;
@@ -18,13 +19,21 @@ pub(super) struct Draft {
     pub(super) rerank_state: &'static str,
 }
 
-pub(crate) fn record_knowledge_search(
-    state: &AppState,
-    session: Option<&str>,
-    input: &KnowledgeQuery,
-    answer: &Value,
-) {
-    spawn_record(state, session, knowledge_draft(input, answer));
+pub(crate) struct SearchLog(Draft);
+
+impl SearchLog {
+    pub(crate) fn knowledge(input: &KnowledgeQuery, answer: &Value) -> Self {
+        Self(knowledge_draft(input, answer))
+    }
+
+    pub(crate) fn delivered_as(mut self, delivered: &Value) -> Self {
+        shown::set_from_items(&mut self.0.returned, &delivered["items"]);
+        self
+    }
+
+    pub(crate) fn record(self, state: &AppState, session: Option<&str>) {
+        spawn_record(state, session, self.0);
+    }
 }
 
 pub(crate) fn record_turn_recall(
@@ -39,11 +48,13 @@ pub(crate) fn record_turn_recall(
 
 pub(super) fn knowledge_draft(input: &KnowledgeQuery, answer: &Value) -> Draft {
     let items = answer["items"].as_array().map(Vec::as_slice).unwrap_or(&[]);
+    let mut returned = Value::Array(items.iter().map(knowledge_entry).collect());
+    shown::set_from_items(&mut returned, &answer["items"]);
     Draft {
         tool: KNOWLEDGE_TOOL,
         query: input.query.clone(),
         kind_filter: input.kind.clone(),
-        returned: Value::Array(items.iter().map(knowledge_entry).collect()),
+        returned,
         rerank_state: state_label(answer["rerank"]["state"].as_str()),
     }
 }
@@ -57,7 +68,7 @@ fn knowledge_entry(item: &Value) -> Value {
 }
 
 pub(super) fn turns_draft(query: &str, turns: &[SimilarTurnDto], report: &RerankReport) -> Draft {
-    let returned = turns
+    let entries = turns
         .iter()
         .map(|turn| {
             let rerank_score = turn.rerank_score.map(Value::from);
@@ -68,11 +79,13 @@ pub(super) fn turns_draft(query: &str, turns: &[SimilarTurnDto], report: &Rerank
             )
         })
         .collect();
+    let mut returned = Value::Array(entries);
+    shown::set_first_turn(&mut returned, turns);
     Draft {
         tool: TURNS_TOOL,
         query: query.to_owned(),
         kind_filter: None,
-        returned: Value::Array(returned),
+        returned,
         rerank_state: report.state.as_str(),
     }
 }

@@ -83,6 +83,20 @@ impl Fixture {
         Ok(())
     }
 
+    pub(crate) async fn user_prompt(&self, turn_index: usize, text: &str) -> anyhow::Result<()> {
+        sqlx::query(
+            "UPDATE memory.operator_turns SET user_prompt = $2
+              WHERE session_id = (SELECT id FROM sessions.sessions WHERE session_uuid = $3)
+                AND start_request_id = $1",
+        )
+        .bind(self.turns[turn_index])
+        .bind(text)
+        .bind(self.session)
+        .execute(self.handle.pool())
+        .await?;
+        Ok(())
+    }
+
     pub(crate) async fn record(
         &self,
         session: Option<Uuid>,

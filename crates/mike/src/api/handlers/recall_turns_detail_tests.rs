@@ -94,6 +94,11 @@ async fn recall_similar_turns_detail_best_keeps_the_first_turn_whole_and_points_
         );
     }
     assert_eq!(answer["more"]["pointers"], 2);
+    assert!(
+        answer["more"]["how"]
+            .as_str()
+            .is_some_and(|how| how.contains("Cite the reference you use."))
+    );
     harness.cleanup().await
 }
 
@@ -111,6 +116,34 @@ async fn recall_similar_turns_without_detail_or_with_full_returns_every_turn_who
         assert!(turn.get("user_prompt").is_some(), "{turn}");
     }
     assert!(plain.get("more").is_none());
+    harness.cleanup().await
+}
+
+#[tokio::test]
+async fn recall_similar_turns_logs_the_first_turns_prompt_and_answer_as_shown() -> anyhow::Result<()>
+{
+    let harness = Harness::boot().await?;
+    let seeded = seed_turns(&harness).await?;
+
+    let (_, answer) = recall(&harness, &seeded, Some("best")).await?;
+
+    let events = harness.events().await?;
+    let returned = events
+        .first()
+        .and_then(|event| event.returned.as_array().cloned())
+        .unwrap_or_default();
+    let first = &answer["turns"][0];
+    let shown = returned[0]["shown"].as_str().unwrap_or_default();
+    let prompt = first["user_prompt"].as_str().unwrap_or_default();
+    let reply = first["final_assistant_text"].as_str().unwrap_or_default();
+    assert!(shown.starts_with(&prompt.chars().take(300).collect::<String>()));
+    let expected: String = format!("{prompt}\n\n{reply}").chars().take(1_500).collect();
+    assert_eq!(shown, expected);
+    assert!(
+        returned[1..]
+            .iter()
+            .all(|entry| entry.get("shown").is_none())
+    );
     harness.cleanup().await
 }
 

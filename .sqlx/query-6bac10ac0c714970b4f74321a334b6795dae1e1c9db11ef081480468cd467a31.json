@@ -1,0 +1,103 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH candidates AS (\n    SELECT s.source_kind, s.source_id, s.reference, s.project_id,\n           s.source_updated_at, s.source_seq, s.source_hash,\n           row_number() OVER (PARTITION BY s.project_id\n                              ORDER BY e.next_attempt_at NULLS FIRST, s.source_kind, s.source_id) AS project_rank\n      FROM memory.knowledge_sources_with_sessions_v s\n      LEFT JOIN memory.knowledge_embedding_state e\n        ON e.source_kind = s.source_kind AND e.source_id = s.source_id\n     WHERE e.id IS NULL OR e.model_key <> $1\n        OR e.source_updated_at IS DISTINCT FROM s.source_updated_at\n        OR e.source_seq IS DISTINCT FROM s.source_seq\n        OR e.source_hash IS DISTINCT FROM s.source_hash\n        OR (e.completed_at IS NULL AND e.next_attempt_at <= now()\n            AND (e.attempts < 10 OR e.last_error LIKE '[transient]%'))\n), picked AS MATERIALIZED (\n    SELECT source_kind, source_id, reference, project_id,\n           source_updated_at, source_seq, source_hash, project_rank\n      FROM candidates\n     ORDER BY project_rank, project_id, source_kind, source_id\n     LIMIT $2\n), bodies AS (\n    SELECT 'artifact'::text AS source_kind, r.id AS source_id,\n           CASE src.name WHEN 'claude-memory' THEN 'memory' WHEN 'skills' THEN 'skill' ELSE 'artifact' END AS label,\n           r.title AS name, r.title || E'\\n\\n' || r.body AS body\n      FROM memory.knowledge_revisions r\n      LEFT JOIN memory.knowledge_documents d ON d.document_uuid = r.document_uuid\n      LEFT JOIN memory.knowledge_sources src ON src.source_uuid = d.source_uuid\n     WHERE r.id = ANY(ARRAY(SELECT source_id FROM picked WHERE source_kind = 'artifact'))\n    UNION ALL\n    SELECT 'lesson', l.id, concat_ws(', ', 'lesson', k.code, NULLIF(btrim(l.topic), '')), ls.title, l.text\n      FROM memory.lessons l\n      JOIN memory.lesson_kinds k ON k.id = l.kind_id\n      LEFT JOIN memory.operator_turns lt ON lt.id = l.source_turn_id\n      LEFT JOIN sessions.sessions ls ON ls.id = COALESCE(l.session_id, lt.session_id)\n     WHERE l.id = ANY(ARRAY(SELECT source_id FROM picked WHERE source_kind = 'lesson'))\n    UNION ALL\n    SELECT 'note', n.id, concat_ws(', ', 'note', NULLIF(btrim(n.kind), '')),\n           COALESCE(NULLIF(btrim(n.title), ''), ns.title), n.title || E'\\n\\n' || n.body\n      FROM workspace.session_notes n\n      LEFT JOIN sessions.sessions ns ON ns.id = n.session_id\n     WHERE n.id = ANY(ARRAY(SELECT source_id FROM picked WHERE source_kind = 'note'))\n    UNION ALL\n    SELECT 'thread', tx.thread_id, 'thread', th.subject, tx.body\n      FROM mailbox.thread_text_v tx\n      LEFT JOIN mailbox.threads th ON th.id = tx.thread_id\n     WHERE tx.thread_id = ANY(ARRAY(SELECT source_id FROM picked WHERE source_kind = 'thread'))\n    UNION ALL\n    SELECT 'thread_entry', l.id, 'thread_entry', wt.slug,\n           concat_ws(E'\\n\\n', 'Work thread ' || wt.slug || ': ' || l.kind, l.summary, l.body)\n      FROM work.thread_log l JOIN work.threads wt ON wt.id = l.thread_id\n     WHERE l.id = ANY(ARRAY(SELECT source_id FROM picked WHERE source_kind = 'thread_entry'))\n    UNION ALL\n    SELECT 'question_answer', q.id, 'question_answer', COALESCE(settler.title, asker.title),\n           concat_ws(E'\\n\\n', q.question, q.answer)\n      FROM workspace.questions q\n      LEFT JOIN sessions.sessions asker ON asker.id = q.asker_session_id\n      LEFT JOIN sessions.sessions settler ON settler.id = q.settled_by_session_id\n     WHERE q.id = ANY(ARRAY(SELECT source_id FROM picked WHERE source_kind = 'question_answer'))\n    UNION ALL\n    SELECT v.kind, v.id, v.kind, vs.title, concat_ws(E'\\n\\n', t.user_prompt, v.unmet_ask, v.rationale)\n      FROM (SELECT tv.*, p.source_kind AS kind\n              FROM picked p JOIN memory.turn_verdicts tv ON tv.id = p.source_id\n             WHERE p.source_kind IN ('unmet_ask', 'correction')) v\n      JOIN memory.operator_turns t ON t.id = v.operator_turn_id\n      LEFT JOIN sessions.sessions vs ON vs.id = v.session_id\n    UNION ALL\n    SELECT 'learning', s.id, 'learning', s.title,\n           concat_ws(E'\\n\\n', array_to_string(k.topics, ', '), memory.session_learnings_text(k.learnings))\n      FROM sessions.sessions s JOIN memory.session_knowledge k ON k.session_id = s.session_uuid\n     WHERE s.id = ANY(ARRAY(SELECT source_id FROM picked WHERE source_kind = 'learning'))\n    UNION ALL\n    SELECT 'session', ov.id, 'session', ov.title,\n           concat_ws(E'\\n\\n', ov.overview, 'Topics: ' || NULLIF(array_to_string(ok.topics, ', '), ''))\n      FROM sessions.sessions ov LEFT JOIN memory.session_knowledge ok ON ok.session_id = ov.session_uuid\n     WHERE ov.id = ANY(ARRAY(SELECT source_id FROM picked WHERE source_kind = 'session'))\n    UNION ALL\n    SELECT 'mail', m.id, 'mail', mf.title, m.body\n      FROM mailbox.messages m\n      LEFT JOIN sessions.sessions mf ON mf.id = m.from_session_id\n     WHERE m.id = ANY(ARRAY(SELECT source_id FROM picked WHERE source_kind = 'mail'))\n)\nSELECT p.source_kind AS \"source_kind!\", p.source_id AS \"source_id!\", p.reference AS \"reference!\",\n       p.source_updated_at, p.source_seq, p.source_hash,\n       btrim(left(concat_ws(': ', regexp_replace(b.label, '\\s+', ' ', 'g'), n.name), 120)) AS \"header!\",\n       b.body AS \"body!\"\n  FROM picked p\n  JOIN bodies b ON b.source_kind = p.source_kind AND b.source_id = p.source_id\n  CROSS JOIN LATERAL (SELECT NULLIF(btrim(regexp_replace(b.name, '\\s+', ' ', 'g')), '') AS name) n\n ORDER BY p.project_rank, p.project_id, p.source_kind, p.source_id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "source_kind!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_sources_with_sessions_v",
+            "name": "source_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "source_id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_sources_with_sessions_v",
+            "name": "source_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "reference!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_sources_with_sessions_v",
+            "name": "reference"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "source_updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_sources_with_sessions_v",
+            "name": "source_updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "source_seq",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_sources_with_sessions_v",
+            "name": "source_seq"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "source_hash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.knowledge_sources_with_sessions_v",
+            "name": "source_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "header!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "body!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      null,
+      null
+    ]
+  },
+  "hash": "6bac10ac0c714970b4f74321a334b6795dae1e1c9db11ef081480468cd467a31"
+}

@@ -1,5 +1,6 @@
 use crate::analysis::embeddings::prefixes_for;
 use crate::analysis::{EmbeddingConfig, EmbeddingService};
+use crate::store::persistence::project_knowledge::ModelKeys;
 use crate::store::persistence::{PersistError, PersistHandle};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
@@ -13,11 +14,31 @@ fn hex_digest(text: &str) -> String {
         .collect()
 }
 
-pub(crate) fn key_for(model: &str, chunk_max_chars: usize) -> String {
-    let prefix_version = prefixes_for(model).version;
+fn key_with_version(model: &str, chunk_max_chars: usize, prefix_version: &str) -> String {
     hex_digest(&format!(
         "knowledge-v2:{model}:{chunk_max_chars}:{prefix_version}"
     ))
+}
+
+pub(crate) fn key_for(model: &str, chunk_max_chars: usize) -> String {
+    key_with_version(model, chunk_max_chars, prefixes_for(model).version)
+}
+
+pub(crate) fn previous_key_for(model: &str, chunk_max_chars: usize) -> Option<String> {
+    prefixes_for(model)
+        .previous_version
+        .map(|version| key_with_version(model, chunk_max_chars, version))
+}
+
+pub(crate) fn keys_for(model: &str, chunk_max_chars: usize) -> ModelKeys {
+    ModelKeys::new(
+        key_for(model, chunk_max_chars),
+        previous_key_for(model, chunk_max_chars),
+    )
+}
+
+pub(crate) fn model_keys(service: &EmbeddingService) -> ModelKeys {
+    keys_for(&service.model_name(), service.chunk_max_chars())
 }
 
 #[cfg(test)]
@@ -55,8 +76,10 @@ pub(crate) async fn rekey_url_keyed_rows(
     service: &EmbeddingService,
 ) -> Result<u64, PersistError> {
     let stored = persist.knowledge_embedding_url_candidates().await?;
+    let keys = model_keys(service).accepted();
+    let target = keys.last().cloned().unwrap_or_else(|| model_key(service));
     persist
-        .rekey_knowledge_embeddings(&url_v1_keys(stored, service), &model_key(service))
+        .rekey_knowledge_embeddings(&url_v1_keys(stored, service), &target)
         .await
 }
 
@@ -96,7 +119,7 @@ mod tests {
     fn key_includes_the_prefix_version_of_the_model() {
         assert_eq!(
             key_for("embeddinggemma", 1024),
-            hex_digest("knowledge-v2:embeddinggemma:1024:embeddinggemma-v1")
+            hex_digest("knowledge-v2:embeddinggemma:1024:embeddinggemma-v2")
         );
         assert_ne!(
             key_for("embeddinggemma", 1024),

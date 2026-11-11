@@ -63,11 +63,11 @@ impl TurnPointer {
     }
 }
 
-pub(crate) const HOW_TO_GET_THE_REST: &str = "Read one with read_project_knowledge and its reference, or repeat the recall with detail=full to get every turn in full.";
+pub(crate) const HOW_TO_GET_THE_REST: &str = "Read one with read_project_knowledge and its reference, or repeat the recall with detail=full to get every turn in full. Cite the reference you use.";
 
 pub(crate) fn more(turns: &[SimilarTurnDto], detail: Detail) -> Option<serde_json::Value> {
     let pointers = turns.len().saturating_sub(1);
-    (detail.is_best() && pointers > 0).then(|| {
+    (detail.is_best() && !turns.is_empty()).then(|| {
         serde_json::json!({
             "shown_in_full": 1,
             "pointers": pointers,

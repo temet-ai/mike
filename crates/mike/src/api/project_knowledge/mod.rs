@@ -121,16 +121,13 @@ async fn answer_search(
         ..input
     };
     let found = retrieve_page(&state, &input).await?;
-    crate::search_events::record_knowledge_search(
-        &state,
-        caller.session_id.as_deref(),
-        &input,
-        &found.answer,
-    );
+    let mut log = crate::search_events::SearchLog::knowledge(&input, &found.answer);
     let mut answer = found.answer;
     if detail.is_best() {
         best_shape::best_only(&mut answer, &found.passages);
+        log = log.delivered_as(&answer);
     }
+    log.record(&state, caller.session_id.as_deref());
     Ok(Json(answer))
 }
 

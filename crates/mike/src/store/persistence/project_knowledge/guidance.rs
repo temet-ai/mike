@@ -70,24 +70,25 @@ pub struct ShownGuidance<'a> {
 }
 
 impl PersistHandle {
-    pub async fn closest_guidance(
+    pub(crate) async fn closest_guidance(
         &self,
         project_id: i64,
         query: &str,
-        vector: Option<&(String, String, String)>,
+        vector: Option<&super::QueryEmbedding>,
         limit: i64,
     ) -> Result<Vec<GuidanceRow>, PersistError> {
         if query.trim().is_empty() {
             return Ok(Vec::new());
         }
         let cut = vector.map_or(ScoreFloor::NO_CUT, |v| score_floor_for(&v.2));
+        let accepted = vector.map(|v| v.1.accepted());
         Ok(sqlx::query_file_as!(
             GuidanceRow,
             "src/store/persistence/project_knowledge/guidance.sql",
             project_id,
             query,
             vector.map(|v| v.0.as_str()),
-            vector.map(|v| v.1.as_str()),
+            accepted.as_deref(),
             limit.clamp(1, 10),
             cut.floor,
             cut.window

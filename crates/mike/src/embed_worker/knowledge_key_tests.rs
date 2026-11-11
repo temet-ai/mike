@@ -1,4 +1,4 @@
-use super::knowledge::{model_key, sweep_if_leader};
+use super::knowledge::{model_key, model_keys, sweep_if_leader};
 use super::knowledge_key::{LEASE_ROLE, rekey_url_keyed_rows, unversioned_v2_key};
 use super::knowledge_tests::{breaker, embedding_server, scan, source, vector};
 use crate::analysis::{EmbeddingConfig, EmbeddingService};
@@ -181,7 +181,7 @@ async fn sweep_runs_only_on_the_machine_holding_the_lease() -> anyhow::Result<()
     let location = source(&seed, &project.project_uuid.to_string()).await?;
     scan(&seed, location, 0, &"Leased sweep evidence. ".repeat(12)).await?;
     let (_server, service) = embedding_server().await;
-    let key = model_key(&service);
+    let key = model_keys(&service);
     let first = machine_handle(&db.database_url).await?;
     let second = machine_handle(&db.database_url).await?;
 

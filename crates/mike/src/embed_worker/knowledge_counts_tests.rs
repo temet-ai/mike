@@ -1,8 +1,10 @@
-use super::knowledge::{model_key, sweep};
+use super::knowledge::{model_keys, sweep};
 use super::knowledge_tests::{breaker, scan, source};
 use crate::analysis::{EmbeddingConfig, EmbeddingService};
 use crate::store::persistence::{
-    PersistHandle, project_knowledge::KNOWLEDGE_COUNT_CAP, test_support::acquire_ephemeral_db,
+    PersistHandle,
+    project_knowledge::{KNOWLEDGE_COUNT_CAP, ModelKeys},
+    test_support::acquire_ephemeral_db,
 };
 use serde_json::json;
 use uuid::Uuid;
@@ -46,7 +48,7 @@ async fn knowledge_state_counts_track_ready_and_current_failures() -> anyhow::Re
     scan(&handle, location, 0, "Counted evidence").await?;
     let healthy = answering(200).await;
     let service = service_at(&healthy);
-    let key = model_key(&service);
+    let key = model_keys(&service);
 
     let report = sweep(&handle, &service, &mut breaker())
         .await?
@@ -102,7 +104,9 @@ async fn knowledge_state_counts_stop_one_past_the_cap() -> anyhow::Result<()> {
     .execute(handle.pool())
     .await?;
 
-    let counts = handle.knowledge_embedding_state_counts(&key).await?;
+    let counts = handle
+        .knowledge_embedding_state_counts(&ModelKeys::only(key))
+        .await?;
 
     assert_eq!(counts.ready, KNOWLEDGE_COUNT_CAP + 1);
     assert_eq!(
@@ -120,7 +124,7 @@ async fn knowledge_state_counts_unknown_model_is_zero() -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
     let handle = PersistHandle::connect(&db.database_url).await?;
     let counts = handle
-        .knowledge_embedding_state_counts(&format!("none-{}", Uuid::new_v4()))
+        .knowledge_embedding_state_counts(&ModelKeys::only(format!("none-{}", Uuid::new_v4())))
         .await?;
     assert_eq!((counts.ready, counts.failed), (0, 0));
     db.cleanup().await?;

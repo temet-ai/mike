@@ -162,6 +162,22 @@ impl EmbeddingService {
         self.embed_batch(prefixed).await
     }
 
+    pub(crate) async fn embed_titled_chunks(
+        &self,
+        header: &str,
+        chunks: &[String],
+    ) -> Result<Vec<Vec<f32>>, EmbedError> {
+        if chunks.is_empty() {
+            return Ok(Vec::new());
+        }
+        let prefixes = prefixes_for(&self.snapshot_config().model);
+        let texts = chunks
+            .iter()
+            .map(|chunk| prefixes.titled_document(header, chunk))
+            .collect();
+        self.embed_batch(texts).await
+    }
+
     pub async fn embed_documents_checked(
         &self,
         texts: &[String],

@@ -18,7 +18,7 @@ WITH own_turn AS (
       AND e.source_updated_at IS NOT DISTINCT FROM src.source_updated_at
       AND e.source_seq IS NOT DISTINCT FROM src.source_seq
       AND e.source_hash IS NOT DISTINCT FROM src.source_hash
-      AND e.model_key = $8 AND e.completed_at IS NOT NULL AND $7::text IS NOT NULL
+      AND e.model_key = ANY($8::text[]) AND e.completed_at IS NOT NULL AND $7::text IS NOT NULL
 ), nearest_first AS (
     SELECT ($11::bool[])[2] AS enabled
 ), nearest_knowledge_chunks AS MATERIALIZED (
@@ -49,7 +49,7 @@ WITH own_turn AS (
                AND e.source_seq IS NOT DISTINCT FROM src.source_seq
                AND e.source_hash IS NOT DISTINCT FROM src.source_hash
              OFFSET 0) s
-         WHERE e.model_key = $8 AND e.completed_at IS NOT NULL AND $7::text IS NOT NULL
+         WHERE e.model_key = ANY($8::text[]) AND e.completed_at IS NOT NULL AND $7::text IS NOT NULL
            AND e.source_kind <> 'artifact'
          UNION ALL
          SELECT 'artifact:' || r.id, 1 - n.distance, n.distance
@@ -60,7 +60,7 @@ WITH own_turn AS (
            ON d.document_uuid = r.document_uuid AND d.current_revision = r.id AND d.deleted_at IS NULL
          JOIN memory.knowledge_sources s ON s.source_uuid = d.source_uuid
          JOIN projects.locations loc ON loc.location_uuid = s.location_uuid AND loc.project_id = $1
-         WHERE e.model_key = $8 AND e.completed_at IS NOT NULL AND $7::text IS NOT NULL
+         WHERE e.model_key = ANY($8::text[]) AND e.completed_at IS NOT NULL AND $7::text IS NOT NULL
            AND e.source_updated_at IS NULL AND e.source_seq IS NULL AND e.source_hash IS NULL
      ) p
      ORDER BY p.distance

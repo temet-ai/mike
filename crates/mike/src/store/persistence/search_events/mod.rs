@@ -4,16 +4,22 @@ mod attribute_callers_tests;
 #[cfg(test)]
 pub(crate) mod fixture_tests;
 mod mark_used;
+mod open_shown;
+mod quoted;
 mod record;
 
 #[cfg(test)]
 mod mark_used_lookup_tests;
+#[cfg(test)]
+mod mark_used_quote_tests;
 #[cfg(test)]
 mod mark_used_session_kind_tests;
 #[cfg(test)]
 mod mark_used_tests;
 #[cfg(test)]
 mod mark_used_thread_tests;
+#[cfg(test)]
+mod quoted_tests;
 #[cfg(test)]
 mod record_tests;
 

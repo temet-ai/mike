@@ -26,7 +26,7 @@ pub(crate) fn with_header(header: &str, body: &str) -> String {
     head(&format!("{header}\n{body}"), MAX_DOCUMENT_CHARS).to_owned()
 }
 
-pub(super) fn label(item: &Value) -> String {
+pub(crate) fn label(item: &Value) -> String {
     let kind = item["source_kind"].as_str().unwrap_or("item");
     let provenance = &item["provenance"];
     let fields: &[&str] = match kind {

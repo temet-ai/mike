@@ -1,5 +1,7 @@
 use super::sync::{ScanMemo, encode_project_dir, scan_machine};
-use crate::store::persistence::project_knowledge::{KnowledgeQuery, LocationInput, ShownGuidance};
+use crate::store::persistence::project_knowledge::{
+    KnowledgeQuery, LocationInput, ModelKeys, ShownGuidance,
+};
 use crate::store::persistence::{
     PersistHandle,
     test_support::{acquire_ephemeral_db, seed_project},
@@ -368,7 +370,7 @@ async fn closest_guidance_orders_by_vector_similarity_and_drops_unrelated_docume
     }
     let vector = (
         axis_literal(0),
-        "model-a".to_owned(),
+        ModelKeys::only("model-a"),
         "nomic-embed-text-v1.5".to_owned(),
     );
     let rows = handle
@@ -379,7 +381,7 @@ async fn closest_guidance_orders_by_vector_similarity_and_drops_unrelated_docume
     assert!(rows[0].similarity.is_some_and(|s| s > 0.99));
     let other_model = (
         axis_literal(0),
-        "model-b".to_owned(),
+        ModelKeys::only("model-b"),
         "nomic-embed-text-v1.5".to_owned(),
     );
     let none = handle
@@ -388,7 +390,7 @@ async fn closest_guidance_orders_by_vector_similarity_and_drops_unrelated_docume
     assert!(none.is_empty());
     let unmeasured = (
         axis_literal(0),
-        "model-a".to_owned(),
+        ModelKeys::only("model-a"),
         "all-minilm".to_owned(),
     );
     let every = handle

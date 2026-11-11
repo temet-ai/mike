@@ -3,8 +3,8 @@ use std::time::Duration;
 use serde_json::Value;
 use uuid::Uuid;
 
-use super::KnowledgeEmbeddingSource;
 use super::memos::{COVERAGE_LIFETIME, NEAREST_FIRST_LIFETIME, NO_PROJECT_LIFETIME};
+use super::{KnowledgeEmbeddingSource, ModelKeys};
 use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db, seed_project};
 use crate::store::persistence::{PersistHandle, SENTINEL_PROJECT_PATH};
 
@@ -34,8 +34,14 @@ async fn knowledge_coverage_two_calls_inside_the_lifetime_run_the_count_once() -
     let fx = fixture().await?;
     let id = project(&fx.handle, "Coverage memo").await?;
 
-    let first = fx.handle.knowledge_coverage(id, "model-a").await?;
-    let second = fx.handle.knowledge_coverage(id, "model-a").await?;
+    let first = fx
+        .handle
+        .knowledge_coverage(id, &ModelKeys::only("model-a"))
+        .await?;
+    let second = fx
+        .handle
+        .knowledge_coverage(id, &ModelKeys::only("model-a"))
+        .await?;
 
     assert_eq!(first, second);
     assert_eq!(fx.handle.knowledge_memos().counts_fetched().1, 1);
@@ -47,10 +53,13 @@ async fn knowledge_coverage_figures_equal_the_uncached_count() -> anyhow::Result
     let fx = fixture().await?;
     let id = project(&fx.handle, "Coverage figures").await?;
 
-    let remembered = fx.handle.knowledge_coverage(id, "model-a").await?;
+    let remembered = fx
+        .handle
+        .knowledge_coverage(id, &ModelKeys::only("model-a"))
+        .await?;
     let direct: Value = fx
         .handle
-        .knowledge_embedding_health(Some(id), "model-a")
+        .knowledge_embedding_health(Some(id), &ModelKeys::only("model-a"))
         .await?;
 
     assert_eq!(remembered, direct);
@@ -61,12 +70,16 @@ async fn knowledge_coverage_figures_equal_the_uncached_count() -> anyhow::Result
 async fn knowledge_coverage_after_the_lifetime_runs_the_count_again() -> anyhow::Result<()> {
     let fx = fixture().await?;
     let id = project(&fx.handle, "Coverage expiry").await?;
-    fx.handle.knowledge_coverage(id, "model-a").await?;
+    fx.handle
+        .knowledge_coverage(id, &ModelKeys::only("model-a"))
+        .await?;
 
     fx.handle
         .knowledge_memos()
         .advance_all(COVERAGE_LIFETIME + Duration::from_secs(1));
-    fx.handle.knowledge_coverage(id, "model-a").await?;
+    fx.handle
+        .knowledge_coverage(id, &ModelKeys::only("model-a"))
+        .await?;
 
     assert_eq!(fx.handle.knowledge_memos().counts_fetched().1, 2);
     fx.db.cleanup().await
@@ -77,7 +90,9 @@ async fn knowledge_coverage_after_an_embedding_is_recorded_is_counted_again() ->
 {
     let fx = fixture().await?;
     let id = project(&fx.handle, "Coverage invalidation").await?;
-    fx.handle.knowledge_coverage(id, "model-a").await?;
+    fx.handle
+        .knowledge_coverage(id, &ModelKeys::only("model-a"))
+        .await?;
     let source = KnowledgeEmbeddingSource {
         reference: "artifact:1".into(),
         source_kind: "artifact".into(),
@@ -85,13 +100,16 @@ async fn knowledge_coverage_after_an_embedding_is_recorded_is_counted_again() ->
         source_updated_at: None,
         source_seq: None,
         source_hash: None,
+        header: "artifact".into(),
         body: "text".into(),
     };
 
     fx.handle
         .fail_knowledge_embedding(&source, "model-a", "embedder down")
         .await?;
-    fx.handle.knowledge_coverage(id, "model-a").await?;
+    fx.handle
+        .knowledge_coverage(id, &ModelKeys::only("model-a"))
+        .await?;
 
     assert_eq!(fx.handle.knowledge_memos().counts_fetched().1, 2);
     fx.db.cleanup().await
@@ -104,9 +122,15 @@ async fn knowledge_coverage_for_another_model_or_project_is_counted_separately()
     let first = project(&fx.handle, "Coverage one").await?;
     let second = project(&fx.handle, "Coverage two").await?;
 
-    fx.handle.knowledge_coverage(first, "model-a").await?;
-    fx.handle.knowledge_coverage(first, "model-b").await?;
-    fx.handle.knowledge_coverage(second, "model-a").await?;
+    fx.handle
+        .knowledge_coverage(first, &ModelKeys::only("model-a"))
+        .await?;
+    fx.handle
+        .knowledge_coverage(first, &ModelKeys::only("model-b"))
+        .await?;
+    fx.handle
+        .knowledge_coverage(second, &ModelKeys::only("model-a"))
+        .await?;
 
     assert_eq!(fx.handle.knowledge_memos().counts_fetched().1, 3);
     fx.db.cleanup().await
@@ -118,8 +142,14 @@ async fn knowledge_nearest_first_two_calls_inside_the_lifetime_run_the_count_onc
     let fx = fixture().await?;
     let id = project(&fx.handle, "Nearest memo").await?;
 
-    let first = fx.handle.knowledge_nearest_first(id, "model-a").await?;
-    let second = fx.handle.knowledge_nearest_first(id, "model-a").await?;
+    let first = fx
+        .handle
+        .knowledge_nearest_first(id, &ModelKeys::only("model-a"))
+        .await?;
+    let second = fx
+        .handle
+        .knowledge_nearest_first(id, &ModelKeys::only("model-a"))
+        .await?;
 
     assert_eq!(first, second);
     assert_eq!(fx.handle.knowledge_memos().counts_fetched().0, 1);
@@ -130,18 +160,24 @@ async fn knowledge_nearest_first_two_calls_inside_the_lifetime_run_the_count_onc
 async fn knowledge_nearest_first_after_its_lifetime_runs_the_count_again() -> anyhow::Result<()> {
     let fx = fixture().await?;
     let id = project(&fx.handle, "Nearest expiry").await?;
-    fx.handle.knowledge_nearest_first(id, "model-a").await?;
+    fx.handle
+        .knowledge_nearest_first(id, &ModelKeys::only("model-a"))
+        .await?;
 
     fx.handle
         .knowledge_memos()
         .advance_all(NEAREST_FIRST_LIFETIME - Duration::from_secs(1));
-    fx.handle.knowledge_nearest_first(id, "model-a").await?;
+    fx.handle
+        .knowledge_nearest_first(id, &ModelKeys::only("model-a"))
+        .await?;
     assert_eq!(fx.handle.knowledge_memos().counts_fetched().0, 1);
 
     fx.handle
         .knowledge_memos()
         .advance_all(Duration::from_secs(2));
-    fx.handle.knowledge_nearest_first(id, "model-a").await?;
+    fx.handle
+        .knowledge_nearest_first(id, &ModelKeys::only("model-a"))
+        .await?;
     assert_eq!(fx.handle.knowledge_memos().counts_fetched().0, 2);
     fx.db.cleanup().await
 }
