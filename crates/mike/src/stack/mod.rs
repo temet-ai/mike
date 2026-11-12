@@ -12,17 +12,32 @@ mod startup_policy;
 mod summary;
 mod supervisor;
 
-use std::path::PathBuf;
-
 pub(crate) use control::ControlServer;
 pub use engine::{probe_selected, stop_stack};
 pub(crate) use instance::DaemonOwner;
 pub use summary::render_stack_summary;
 
-#[derive(Debug)]
-pub enum EnsureOutcome {
-    AlreadyRunning,
-    Spawned { pid: u32, log_path: PathBuf },
+pub use crate::launch::stack_starter::EnsureOutcome;
+
+/// The stack as `mike spawn` starts it (installed by the binary).
+pub struct ProxyStack;
+
+impl crate::launch::stack_starter::StackStarter for ProxyStack {
+    fn ensure_serving<'a>(
+        &'a self,
+        config: &'a crate::config::ProxyConfig,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = anyhow::Result<EnsureOutcome>> + Send + 'a>,
+    > {
+        Box::pin(ensure_serving(config))
+    }
+
+    fn probe_health<'a>(
+        &'a self,
+        inspect_addr: &'a str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + 'a>> {
+        Box::pin(probe_health(inspect_addr))
+    }
 }
 
 #[derive(Debug)]

@@ -38,7 +38,7 @@ impl From<crate::store::persistence::operator_turns::SessionOverviewTurnRow>
 {
     fn from(r: crate::store::persistence::operator_turns::SessionOverviewTurnRow) -> Self {
         let (legacy, pending) =
-            super::operator_turns::projection_flags(r.outcome_source.as_deref(), &r.outcome);
+            crate::store::operator_turns::projection_flags(r.outcome_source.as_deref(), &r.outcome);
         Self {
             turn_id: r.turn_id,
             user_prompt: r.user_prompt,

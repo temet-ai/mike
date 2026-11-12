@@ -1,5 +1,6 @@
 mod anomalies;
 mod crud;
+mod for_agents;
 #[cfg(test)]
 mod tests;
 

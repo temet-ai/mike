@@ -20,7 +20,10 @@ pub(crate) async fn sidecar_reachable(url: &str) -> Result<u16, String> {
 }
 
 pub(crate) async fn inspect_api_reachable(inspect_addr: &str) -> bool {
-    crate::stack::probe_health(inspect_addr).await
+    match crate::launch::stack_starter::starter() {
+        Ok(starter) => starter.probe_health(inspect_addr).await,
+        Err(_) => false,
+    }
 }
 
 pub(crate) fn locate_executable(bin: &str, path: Option<&OsStr>) -> Option<PathBuf> {

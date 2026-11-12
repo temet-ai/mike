@@ -288,3 +288,12 @@ pub async fn record_prompt_kind_classification(
 
 #[cfg(test)]
 mod tests;
+
+/// Whether a turn's outcome predates projection (legacy) or awaits it (pending).
+pub(crate) fn projection_flags(outcome_source: Option<&str>, outcome: &str) -> (bool, bool) {
+    let unprojected = outcome_source.is_none();
+    (
+        unprojected && outcome != "unknown",
+        unprojected && outcome == "unknown",
+    )
+}

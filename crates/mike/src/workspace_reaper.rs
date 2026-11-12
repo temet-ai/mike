@@ -3,12 +3,16 @@ use std::time::Duration;
 use tokio::time::{MissedTickBehavior, interval};
 use tokio_util::sync::CancellationToken;
 
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::workspace::boot_id::CURRENT_BOOT_ID;
 
-pub fn spawn_workspace_reaper(state: &AppState) {
-    let Some(persist) = state.persist().cloned() else {
+pub fn spawn_workspace_reaper(
+    persist: Option<PersistHandle>,
+    shutdown: CancellationToken,
+    interval_secs: u64,
+    tracker: &tokio_util::task::TaskTracker,
+) {
+    let Some(persist) = persist else {
         log_not_spawning_no_persistence();
         return;
     };
@@ -17,14 +21,11 @@ pub fn spawn_workspace_reaper(state: &AppState) {
         return;
     };
 
-    let shutdown = state.shutdown();
-    let interval_secs = state.config().workspace_reap_interval_secs.max(1);
+    let interval_secs = interval_secs.max(1);
 
     log_spawned(interval_secs, &boot_id);
 
-    state
-        .tracker
-        .spawn(run_reaper_loop(persist, boot_id, shutdown, interval_secs));
+    tracker.spawn(run_reaper_loop(persist, boot_id, shutdown, interval_secs));
 }
 
 fn log_not_spawning_no_persistence() {

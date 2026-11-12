@@ -150,9 +150,13 @@ async fn launch_runner<'a>(
     if backend.id() == BackendId::None {
         return build_runner(config, backend, Ledger::none());
     }
-    let outcome = crate::stack::ensure_serving(config)
-        .await
-        .map_err(|e| LaunchError::Failed(format!("mike could not use the proxy stack: {e:#}")))?;
+    let outcome = async {
+        crate::launch::stack_starter::starter()?
+            .ensure_serving(config)
+            .await
+    }
+    .await
+    .map_err(|e| LaunchError::Failed(format!("mike could not use the proxy stack: {e:#}")))?;
     if !json {
         eprintln!("mike spawn: {}", stack_line(config, &outcome));
         eprintln!("mike spawn: opening in {} because {reason}", backend.id());
@@ -233,10 +237,15 @@ async fn run_open(
     Ok(render::print_open(&result, json))
 }
 
-fn stack_line(config: &ProxyConfig, outcome: &crate::stack::EnsureOutcome) -> String {
+fn stack_line(
+    config: &ProxyConfig,
+    outcome: &crate::launch::stack_starter::EnsureOutcome,
+) -> String {
     let did = match outcome {
-        crate::stack::EnsureOutcome::AlreadyRunning => "reusing the running proxy".to_string(),
-        crate::stack::EnsureOutcome::Spawned { pid, log_path } => {
+        crate::launch::stack_starter::EnsureOutcome::AlreadyRunning => {
+            "reusing the running proxy".to_string()
+        }
+        crate::launch::stack_starter::EnsureOutcome::Spawned { pid, log_path } => {
             format!("started the proxy (pid {pid}, log {})", log_path.display())
         }
     };
@@ -285,6 +294,6 @@ fn doctor_env(config: &ProxyConfig) -> Result<doctor::DoctorEnv, LaunchError> {
         sidecar_url: config.launch.proxy_forward_url.clone(),
         inspect_addr: config.inspect_listen_addr.clone(),
         ca_candidates: proxy_env::ca_cert_candidates(&config.launch, cwd.as_deref()),
-        claude_bin: crate::claude::claude_binary(),
+        claude_bin: crate::launch::claude_bin::claude_binary(),
     })
 }

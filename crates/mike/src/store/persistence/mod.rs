@@ -64,6 +64,7 @@ pub mod messages;
 pub mod meta;
 pub mod migrations;
 pub mod model_usage;
+pub(crate) mod new_session_hook;
 #[cfg(test)]
 mod opened_by_readers_tests;
 pub mod operator_turns;

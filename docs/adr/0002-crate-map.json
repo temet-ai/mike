@@ -442,7 +442,7 @@
   "spa": "serve",
   "sse": "wire",
   "stack": "cli",
-  "startup": "serve",
+  "startup": "state",
   "state": "state",
   "steerer": "steerer",
   "store": "db",
@@ -651,7 +651,7 @@
  },
  "ratchet": {
   "comment": "Upper bounds checked by scripts/crate-plan --check and scripts/schema-plan --check in the pre-push hook. Lower them when a change reduces the count; never raise them.",
-  "crate_seams": 560,
+  "crate_seams": 548,
   "foreign_writes": 130
  }
 }

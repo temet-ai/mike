@@ -64,7 +64,8 @@ impl PersistHandle {
 
             if is_new_session
                 && let Ok(session_uuid) = req.session_id.parse::<uuid::Uuid>()
-                && let Err(e) = self.enrol_auto_steerers(session_uuid).await
+                && let Some(hook) = self.new_session_hook()
+                && let Err(e) = hook.on_new_session(self, session_uuid).await
             {
                 tracing::warn!(
                     session_id = %req.session_id,

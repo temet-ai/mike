@@ -32,6 +32,11 @@ pub(super) async fn seed_persistence(
         crate::store::persistence::SchemaPolicy::Migrate,
     )
     .await?;
+    if let Some(persist) = &persist {
+        persist.set_new_session_hook(std::sync::Arc::new(
+            crate::steerer::enrolment_hook::AutoSteererEnrolment,
+        ));
+    }
     log_persistence_mode(persist.is_some());
     Ok(persist)
 }

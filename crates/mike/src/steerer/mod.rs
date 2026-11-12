@@ -2,6 +2,7 @@ mod ac2_demo;
 pub(crate) mod anchor;
 pub(crate) mod arming;
 pub(crate) mod criteria_contract;
+pub(crate) mod enrolment_hook;
 pub(crate) mod fleet;
 pub(crate) mod gate;
 pub(crate) mod guard;

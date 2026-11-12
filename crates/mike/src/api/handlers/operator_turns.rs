@@ -49,17 +49,10 @@ pub(crate) struct OperatorTurnDto {
     pub(crate) pending: bool,
 }
 
-pub(crate) fn projection_flags(outcome_source: Option<&str>, outcome: &str) -> (bool, bool) {
-    let unprojected = outcome_source.is_none();
-    (
-        unprojected && outcome != "unknown",
-        unprojected && outcome == "unknown",
-    )
-}
-
 impl From<crate::store::operator_turns::OperatorTurnRow> for OperatorTurnDto {
     fn from(r: crate::store::operator_turns::OperatorTurnRow) -> Self {
-        let (legacy, pending) = projection_flags(r.outcome_source.as_deref(), &r.outcome);
+        let (legacy, pending) =
+            crate::store::operator_turns::projection_flags(r.outcome_source.as_deref(), &r.outcome);
         Self {
             turn_id: r.turn_id,
             session_id: r.session_id,

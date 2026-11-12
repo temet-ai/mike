@@ -48,7 +48,12 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::proxy::remote_control::spawn_repush_sweep(state);
 
-    crate::workspace_reaper::spawn_workspace_reaper(state);
+    crate::workspace_reaper::spawn_workspace_reaper(
+        state.persist().cloned(),
+        state.shutdown(),
+        state.config().workspace_reap_interval_secs,
+        &state.tracker,
+    );
 
     crate::launch::fleet::display::spawn_fleet_display(state);
 

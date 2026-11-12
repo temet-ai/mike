@@ -1,6 +1,5 @@
 use sqlx::PgConnection;
 
-use crate::store::persistence::turn_verdicts::TurnVerdictInsert;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 pub const OUTCOME_PROJECTION_VERSION: i16 = 2;
@@ -186,26 +185,6 @@ impl PersistHandle {
             let outcome = promote_on(&mut tx, verdict_id, params).await?;
             tx.commit().await?;
             Ok(outcome)
-        })
-        .await
-    }
-
-    pub async fn insert_live_verdict_and_promote(
-        &self,
-        verdict: TurnVerdictInsert<'_>,
-        params: &ProjectionParams,
-    ) -> Result<(i64, PromoteOutcome), PersistError> {
-        crate::metrics::time_db("insert_live_verdict_and_promote", async move {
-            let projected =
-                verdict.mode.as_str() == "live" && verdict.bundle_id == Some(params.live_bundle_id);
-            let mut tx = self.pool.begin().await?;
-            let verdict_id = crate::store::persistence::turn_verdicts::insert_turn_verdict_on(
-                &mut tx, &verdict, projected,
-            )
-            .await?;
-            let outcome = promote_on(&mut tx, verdict_id, params).await?;
-            tx.commit().await?;
-            Ok((verdict_id, outcome))
         })
         .await
     }
