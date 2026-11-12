@@ -72,16 +72,7 @@ fn kinds_to(graph: &ChildGraph, child: &str) -> Vec<EdgeKind> {
         .collect()
 }
 
-#[test]
-fn children_live_transcript_records_every_lifecycle_edge_with_provenance() -> anyhow::Result<()> {
-    let run = run(LIVE)?;
-    let graph = graph(&run.effects);
-    use EdgeKind::{Completion, FollowUp, Interrupt, Spawn};
-    assert_eq!(
-        kinds_to(&graph, &run.first),
-        vec![Spawn, Completion, FollowUp, Completion, Interrupt]
-    );
-    assert_eq!(kinds_to(&graph, &run.late), vec![Spawn, Interrupt]);
+fn assert_live_waits(graph: &ChildGraph, parent: &str) {
     let waits: Vec<_> = graph
         .edges()
         .iter()
@@ -89,11 +80,14 @@ fn children_live_transcript_records_every_lifecycle_edge_with_provenance() -> an
         .collect();
     assert_eq!(waits.len(), 2);
     for wait in &waits {
-        assert_eq!(wait.sender_thread_id, run.parent);
+        assert_eq!(wait.sender_thread_id, parent);
         assert_eq!(wait.receiver_thread_id, None);
         assert_eq!(wait.prompt, Field::Null);
         assert_eq!(wait.status, Field::Value("completed".into()));
     }
+}
+
+fn assert_live_edge_evidence(graph: &ChildGraph, parent: &str) {
     for edge in graph.edges() {
         assert_eq!(
             edge.evidence.len(),
@@ -105,8 +99,22 @@ fn children_live_transcript_records_every_lifecycle_edge_with_provenance() -> an
                 .iter()
                 .all(|evidence| evidence.origin == EvidenceOrigin::LiveFrame)
         );
-        assert_eq!(edge.sender_thread_id, run.parent);
+        assert_eq!(edge.sender_thread_id, parent);
     }
+}
+
+#[test]
+fn children_live_transcript_records_every_lifecycle_edge_with_provenance() -> anyhow::Result<()> {
+    let run = run(LIVE)?;
+    let graph = graph(&run.effects);
+    use EdgeKind::{Completion, FollowUp, Interrupt, Spawn};
+    assert_eq!(
+        kinds_to(&graph, &run.first),
+        vec![Spawn, Completion, FollowUp, Completion, Interrupt]
+    );
+    assert_eq!(kinds_to(&graph, &run.late), vec![Spawn, Interrupt]);
+    assert_live_waits(&graph, &run.parent);
+    assert_live_edge_evidence(&graph, &run.parent);
     let spawn = graph
         .edges()
         .iter()

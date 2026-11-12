@@ -51,13 +51,22 @@ pub(crate) async fn sweep(persist: &PersistHandle) -> Result<Vec<(Uuid, Outcome)
             continue;
         };
         let outcome = deliver(pool, recipient.as_ref(), message).await?;
-        if matches!(outcome, Outcome::Delivered(_) | Outcome::Unresolved(_)) {
-            let evidence = store::stages(pool, message).await?;
-            tracing::info!(message_id = %message, outcome = ?outcome, stages = ?evidence, "mail_outbox: settled");
-        }
+        log_settled(pool, message, &outcome).await?;
         outcomes.push((message, outcome));
     }
     Ok(outcomes)
+}
+
+async fn log_settled(
+    pool: &sqlx::PgPool,
+    message: Uuid,
+    outcome: &Outcome,
+) -> Result<(), sqlx::Error> {
+    if matches!(outcome, Outcome::Delivered(_) | Outcome::Unresolved(_)) {
+        let evidence = store::stages(pool, message).await?;
+        tracing::info!(message_id = %message, outcome = ?outcome, stages = ?evidence, "mail_outbox: settled");
+    }
+    Ok(())
 }
 
 async fn recipient_for(persist: &PersistHandle, mail: &Mail) -> Option<Box<dyn Recipient>> {

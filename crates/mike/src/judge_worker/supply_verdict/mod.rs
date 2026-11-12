@@ -190,15 +190,19 @@ async fn answer_for(judge: &impl SupplyJudge, item: &PendingVerdict, user: &str)
 fn checked(item: i64, outcome: Result<Answer, String>) -> Option<Answer> {
     match outcome {
         Ok(answer) if valid(&answer) => Some(answer),
-        Ok(answer) => {
-            tracing::warn!(item, verdict = %answer.verdict, "supply_verdict: unknown verdict");
-            None
-        }
-        Err(error) => {
-            tracing::warn!(item, %error, "supply_verdict: judge call failed");
-            None
-        }
+        Ok(answer) => warn_unknown_verdict(item, &answer),
+        Err(error) => warn_judge_failed(item, &error),
     }
+}
+
+fn warn_unknown_verdict(item: i64, answer: &Answer) -> Option<Answer> {
+    tracing::warn!(item, verdict = %answer.verdict, "supply_verdict: unknown verdict");
+    None
+}
+
+fn warn_judge_failed(item: i64, error: &str) -> Option<Answer> {
+    tracing::warn!(item, %error, "supply_verdict: judge call failed");
+    None
 }
 
 async fn store_verdict(

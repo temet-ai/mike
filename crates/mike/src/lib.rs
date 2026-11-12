@@ -72,7 +72,6 @@ pub(crate) mod reminders;
 pub(crate) mod repeated_notices;
 pub(crate) mod rerank_nightly;
 pub mod resolvers;
-pub(crate) mod responses_capture;
 pub mod resync;
 pub mod retention_worker;
 pub mod runtime;

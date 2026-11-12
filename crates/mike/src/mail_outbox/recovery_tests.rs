@@ -92,10 +92,7 @@ async fn mail_outbox_mail_for_a_stopped_seat_waits_and_is_delivered_when_it_retu
     let waiting = deliver(pool, as_recipient(&recipient), message).await?;
     assert!(matches!(waiting, Outcome::Waiting(_)), "{waiting:?}");
     assert!(store::attempts(pool, message).await?.is_empty());
-    assert_eq!(
-        store::open_messages(pool, 10_000).await?.contains(&message),
-        true
-    );
+    assert!(store::open_messages(pool, 10_000).await?.contains(&message));
 
     seat.edit(|s| {
         s.dead = false;

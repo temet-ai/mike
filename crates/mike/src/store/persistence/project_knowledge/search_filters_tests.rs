@@ -101,6 +101,32 @@ async fn thread(handle: &PersistHandle, project: i64, worked_by: Uuid) -> anyhow
     Ok(slug)
 }
 
+async fn seed_notes(
+    handle: &PersistHandle,
+    (release, other): (i64, i64),
+    word: &str,
+    slug: &str,
+) -> anyhow::Result<[String; 3]> {
+    let window = format!("{word} window note");
+    let later = format!("{word} later note");
+    let tagged = format!("{word} tagged note");
+    let tag = vec![format!("thread:{slug}")];
+    Ok([
+        note(handle, (release, &window, vec![], "2026-11-03T12:00:00Z")).await?,
+        note(handle, (other, &later, vec![], "2026-11-08T12:00:00Z")).await?,
+        note(handle, (other, &tagged, tag, "2026-11-09T12:00:00Z")).await?,
+    ])
+}
+
+async fn project_uuid(handle: &PersistHandle, project: i64) -> anyhow::Result<Uuid> {
+    Ok(
+        sqlx::query_scalar("SELECT project_uuid FROM projects.projects WHERE id = $1")
+            .bind(project)
+            .fetch_one(handle.pool())
+            .await?,
+    )
+}
+
 async fn seed() -> anyhow::Result<Option<Seeded>> {
     let Some(test_db) = TestDb::bootstrap().await? else {
         return Ok(None);
@@ -113,37 +139,8 @@ async fn seed() -> anyhow::Result<Option<Seeded>> {
     let (release, release_uuid) = session(&handle, project, "Release batch for the Mac").await?;
     let (other, _) = session(&handle, project, "Unrelated work").await?;
     let slug = thread(&handle, project, release_uuid).await?;
-    let note_in_window = note(
-        &handle,
-        (
-            release,
-            &format!("{word} window note"),
-            vec![],
-            "2026-11-03T12:00:00Z",
-        ),
-    )
-    .await?;
-    let note_later = note(
-        &handle,
-        (
-            other,
-            &format!("{word} later note"),
-            vec![],
-            "2026-11-08T12:00:00Z",
-        ),
-    )
-    .await?;
-    let tag = vec![format!("thread:{slug}")];
-    let note_tagged = note(
-        &handle,
-        (
-            other,
-            &format!("{word} tagged note"),
-            tag,
-            "2026-11-09T12:00:00Z",
-        ),
-    )
-    .await?;
+    let [note_in_window, note_later, note_tagged] =
+        seed_notes(&handle, (release, other), &word, &slug).await?;
     let (older_id, older_lesson) = lesson(
         &handle,
         project,
@@ -162,11 +159,7 @@ async fn seed() -> anyhow::Result<Option<Seeded>> {
     let (gone_id, superseded_lesson) =
         lesson(&handle, project, other, &format!("{word} lock the build")).await?;
     relate(&handle, newer_id, gone_id, 1, 2).await?;
-    let project: Uuid =
-        sqlx::query_scalar("SELECT project_uuid FROM projects.projects WHERE id = $1")
-            .bind(project)
-            .fetch_one(handle.pool())
-            .await?;
+    let project = project_uuid(&handle, project).await?;
     Ok(Some(Seeded {
         _db: db,
         handle,
