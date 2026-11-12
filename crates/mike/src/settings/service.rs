@@ -231,6 +231,25 @@ impl SettingsService {
         Ok((target, source.to_setting_json(&current_build())))
     }
 
+    async fn refresh_overlay(&self, key: &str, ids: &[i64]) {
+        match self.persist.fetch_settings().await {
+            Ok(rows) => {
+                let new_overlay = apply_db_rows_to_overlay(rows);
+                let new_overlay = self
+                    .with_bundles(new_overlay, BundleCause::setting(key, ids.to_vec()))
+                    .await;
+                self.overlay.store(Arc::new(new_overlay));
+            }
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    key,
+                    "settings: DB write succeeded but re-fetch for overlay update failed; overlay may lag by one tick"
+                );
+            }
+        }
+    }
+
     pub(crate) async fn set_for_machine_with_source(
         &self,
         key: &str,
@@ -238,26 +257,7 @@ impl SettingsService {
         machine: Option<Uuid>,
         source: &ChangeSource,
     ) -> Result<(serde_json::Value, Vec<i64>), SettingsServiceError> {
-        if is_secret_setting_key(key) {
-            return Err(SettingsServiceError::InvalidValue {
-                key: key.to_owned(),
-                reason: "secrets are never stored in the settings table; set the value in the \
-                         process environment and store only the variable name in a `_env` setting"
-                    .to_owned(),
-            });
-        }
-
-        let validated = validate_setting_value(key, value).map_err(|reason| {
-            if reason.starts_with("unknown setting key:") {
-                SettingsServiceError::NotFound(key.to_owned())
-            } else {
-                SettingsServiceError::InvalidValue {
-                    key: key.to_owned(),
-                    reason,
-                }
-            }
-        })?;
-
+        let validated = validated_value(key, value)?;
         let meta = super::SETTINGS_META
             .iter()
             .find(|m| m.key == key)
@@ -279,26 +279,8 @@ impl SettingsService {
             }
         };
 
-        if meta.scope == super::SettingScope::Session
-            || meta.applies == super::SettingApplies::NextCycle
-            || meta.applies == super::SettingApplies::NextMessage
-        {
-            match self.persist.fetch_settings().await {
-                Ok(rows) => {
-                    let new_overlay = apply_db_rows_to_overlay(rows);
-                    let new_overlay = self
-                        .with_bundles(new_overlay, BundleCause::setting(key, ids.clone()))
-                        .await;
-                    self.overlay.store(Arc::new(new_overlay));
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        error = %e,
-                        key,
-                        "settings: DB write succeeded but re-fetch for overlay update failed; overlay may lag by one tick"
-                    );
-                }
-            }
+        if refreshes_overlay(meta) {
+            self.refresh_overlay(key, &ids).await;
         }
 
         Ok((validated, ids))
@@ -307,6 +289,36 @@ impl SettingsService {
     pub(crate) async fn fetch_all(&self) -> Result<Vec<(String, serde_json::Value)>, PersistError> {
         self.persist.fetch_settings().await
     }
+}
+
+fn refreshes_overlay(meta: &super::SettingMeta) -> bool {
+    meta.scope == super::SettingScope::Session
+        || meta.applies == super::SettingApplies::NextCycle
+        || meta.applies == super::SettingApplies::NextMessage
+}
+
+fn validated_value(
+    key: &str,
+    value: serde_json::Value,
+) -> Result<serde_json::Value, SettingsServiceError> {
+    if is_secret_setting_key(key) {
+        return Err(SettingsServiceError::InvalidValue {
+            key: key.to_owned(),
+            reason: "secrets are never stored in the settings table; set the value in the \
+                     process environment and store only the variable name in a `_env` setting"
+                .to_owned(),
+        });
+    }
+    validate_setting_value(key, value).map_err(|reason| {
+        if reason.starts_with("unknown setting key:") {
+            SettingsServiceError::NotFound(key.to_owned())
+        } else {
+            SettingsServiceError::InvalidValue {
+                key: key.to_owned(),
+                reason,
+            }
+        }
+    })
 }
 
 #[cfg(test)]
