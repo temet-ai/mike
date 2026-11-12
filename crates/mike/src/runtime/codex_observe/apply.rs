@@ -190,6 +190,23 @@ async fn telemetry_fact(
     fact: &TelemetryFact,
 ) -> Result<(), StoreError> {
     let (pool, ns) = (delivery.pool, delivery.namespace_id);
+    match telemetry_row(fact) {
+        TelemetryRow::Thread(thread, at) => writes::upsert_thread(pool, ns, &thread, at).await?,
+        TelemetryRow::Tool(tool, at) => writes::upsert_tool(pool, ns, &tool, at).await?,
+        TelemetryRow::Request(request, at) => {
+            writes::insert_request(pool, ns, delivery.ingestion_id, ordinal, &request, at).await?
+        }
+    }
+    Ok(())
+}
+
+enum TelemetryRow {
+    Thread(ThreadFact, DateTime<Utc>),
+    Tool(ToolFact, DateTime<Utc>),
+    Request(RequestFact, DateTime<Utc>),
+}
+
+fn telemetry_row(fact: &TelemetryFact) -> TelemetryRow {
     match fact {
         TelemetryFact::Conversation {
             thread_id,
@@ -197,8 +214,8 @@ async fn telemetry_fact(
             codex_version,
             originator,
             at,
-        } => {
-            let thread = ThreadFact {
+        } => TelemetryRow::Thread(
+            ThreadFact {
                 thread_id: thread_id.clone(),
                 root_thread_id: thread_id.clone(),
                 model: model.clone(),
@@ -206,59 +223,57 @@ async fn telemetry_fact(
                 originator: originator.clone(),
                 source: TELEMETRY,
                 ..ThreadFact::default()
-            };
-            writes::upsert_thread(pool, ns, &thread, *at).await?;
-        }
+            },
+            *at,
+        ),
         TelemetryFact::Spawn {
             parent_thread_id,
             child_thread_id,
             at,
-        } => {
-            let child = ThreadFact {
-                thread_id: child_thread_id.clone(),
-                root_thread_id: parent_thread_id.clone(),
-                parent_thread_id: Some(parent_thread_id.clone()),
-                source: TELEMETRY,
-                ..ThreadFact::default()
-            };
-            writes::upsert_thread(pool, ns, &child, *at).await?;
-        }
+        } => TelemetryRow::Thread(spawned_child(parent_thread_id, child_thread_id), *at),
         TelemetryFact::ToolDecision {
             thread_id,
             call_id,
             tool_name,
             namespace,
             at,
-        } => {
-            let tool = ToolFact {
-                call_id: call_id.clone(),
-                thread_id: thread_id.clone(),
-                kind: tool_kind::from_telemetry(namespace.as_deref(), tool_name, None).as_str(),
-                telemetry_tool_name: Some(tool_name.clone()),
-                telemetry_namespace: namespace.clone(),
-                started: true,
-                source: TELEMETRY,
-                ..ToolFact::default()
-            };
-            writes::upsert_tool(pool, ns, &tool, *at).await?;
-        }
-        TelemetryFact::ToolResult(result) => {
-            writes::upsert_tool(pool, ns, &telemetry_tool(result), result.at).await?;
-        }
+        } => TelemetryRow::Tool(
+            decided_tool(thread_id, call_id, tool_name, namespace.as_deref()),
+            *at,
+        ),
+        TelemetryFact::ToolResult(result) => TelemetryRow::Tool(telemetry_tool(result), result.at),
         TelemetryFact::Request(attempt) => {
-            let request = telemetry_request(attempt);
-            writes::insert_request(
-                pool,
-                ns,
-                delivery.ingestion_id,
-                ordinal,
-                &request,
-                attempt.at,
-            )
-            .await?;
+            TelemetryRow::Request(telemetry_request(attempt), attempt.at)
         }
     }
-    Ok(())
+}
+
+fn spawned_child(parent_thread_id: &str, child_thread_id: &str) -> ThreadFact {
+    ThreadFact {
+        thread_id: child_thread_id.to_owned(),
+        root_thread_id: parent_thread_id.to_owned(),
+        parent_thread_id: Some(parent_thread_id.to_owned()),
+        source: TELEMETRY,
+        ..ThreadFact::default()
+    }
+}
+
+fn decided_tool(
+    thread_id: &Option<String>,
+    call_id: &str,
+    tool_name: &str,
+    namespace: Option<&str>,
+) -> ToolFact {
+    ToolFact {
+        call_id: call_id.to_owned(),
+        thread_id: thread_id.clone(),
+        kind: tool_kind::from_telemetry(namespace, tool_name, None).as_str(),
+        telemetry_tool_name: Some(tool_name.to_owned()),
+        telemetry_namespace: namespace.map(str::to_owned),
+        started: true,
+        source: TELEMETRY,
+        ..ToolFact::default()
+    }
 }
 
 pub(crate) async fn telemetry(
