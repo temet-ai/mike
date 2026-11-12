@@ -195,7 +195,9 @@ def is_axum_adapter(relative: str) -> bool:
         source_index = parts.index("src")
     except ValueError:
         return False
-    return len(parts) > source_index + 1 and parts[source_index + 1] in {"api", "proxy"}
+    # api and proxy are the HTTP adapters; web_base holds the helpers their routes
+    # share, kept in the base crate of the split (docs/adr/0002-split-crate-mike.md).
+    return len(parts) > source_index + 1 and parts[source_index + 1] in {"api", "proxy", "web_base"}
 
 
 def source_line(source: str, line: int) -> str:
