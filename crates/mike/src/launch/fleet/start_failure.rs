@@ -63,16 +63,29 @@ pub(super) fn notice(row: &FleetRow, problem: &str) -> Option<Notice> {
 }
 
 pub(super) async fn tell(persist: &PersistHandle, row: &FleetRow, problem: &str) {
-    let Some(notice) = notice(row, problem) else {
-        tracing::warn!(fleet = %row.slug, "fleet: start failed and no session sent ready, so nobody was told");
-        return;
-    };
-    if let Err(err) = persist
-        .insert_message(Uuid::new_v4(), notice.to, None, &notice.mail)
-        .await
-    {
-        tracing::warn!(fleet = %row.slug, error = %err, "fleet: could not mail the failed start");
+    match notice(row, problem) {
+        Some(notice) => {
+            mail(persist, &row.slug, &notice).await;
+            raise(persist, &row.slug, &notice).await;
+        }
+        None => nobody_to_tell(&row.slug),
     }
+}
+
+fn nobody_to_tell(slug: &str) {
+    tracing::warn!(fleet = %slug, "fleet: start failed and no session sent ready, so nobody was told");
+}
+
+async fn mail(persist: &PersistHandle, slug: &str, notice: &Notice) {
+    let sent = persist
+        .insert_message(Uuid::new_v4(), notice.to, None, &notice.mail)
+        .await;
+    if let Err(err) = sent {
+        tracing::warn!(fleet = %slug, error = %err, "fleet: could not mail the failed start");
+    }
+}
+
+async fn raise(persist: &PersistHandle, slug: &str, notice: &Notice) {
     let tags = [notice.tag.clone()];
     let note = NewSessionNote {
         kind: Some("note"),
@@ -83,7 +96,7 @@ pub(super) async fn tell(persist: &PersistHandle, row: &FleetRow, problem: &str)
         data: None,
     };
     if let Err(err) = persist.create_session_note(notice.to, note).await {
-        tracing::warn!(fleet = %row.slug, error = %err, "fleet: could not raise the failed start for the operator");
+        tracing::warn!(fleet = %slug, error = %err, "fleet: could not raise the failed start for the operator");
     }
 }
 
