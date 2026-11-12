@@ -1,0 +1,305 @@
+#!/usr/bin/env python3
+"""crate-plan — grade crate mike against the target crate map of ADR 0002.
+
+Every source file under crates/mike/src is placed in a target crate by the
+longest matching path prefix in docs/adr/0002-crate-map.json. A reference is a
+`crate::` path (brace imports expanded one level) or a call of a PersistHandle
+method, attributed to the crate of the file that defines the method. A
+reference from a lower crate to a higher one is a seam: it must be cut before
+the lower crate can be extracted. The scan is textual, not a compiler query.
+
+  scripts/crate-plan                 crates and sizes, seams, recompile replay
+  scripts/crate-plan --seams N       list the N largest seams (default 30)
+  scripts/crate-plan --detail A B    every symbol behind the seam A -> B
+  scripts/crate-plan --matrix        downward dependencies between crates
+  scripts/crate-plan --blame         which crates' changes cost the most
+  scripts/crate-plan --stages        the staged plan, graded stage by stage
+  scripts/crate-plan --map FILE      grade another map
+
+Replay: for each commit on origin/main that touched crates/mike/src, the
+crates it touched plus every crate depending on them (production references
+only; a test-only reference rebuilds just that crate's tests) are summed in
+lines, against the whole crate today. Lines are a proxy for compile time.
+"""
+
+import collections
+import json
+import os
+import re
+import subprocess
+import sys
+
+REPO = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+SRC = os.path.join(REPO, "crates", "mike", "src")
+DEFAULT_MAP = os.path.join(REPO, "docs", "adr", "0002-crate-map.json")
+PATH = re.compile(r"crate::(\w+(?:::\w+)*)")
+BRACE = re.compile(r"crate::((?:\w+::)+)\{([^{}]*)\}")
+CALL = re.compile(r"\.(\w+)\s*\(")
+IMPL = re.compile(r"\nimpl PersistHandle \{(.*?)\n\}", re.S)
+METHOD = re.compile(r"\n    pub(?:\([^)]*\))? (?:async )?fn (\w+)")
+
+
+class Map:
+    def __init__(self, cfg):
+        self.order = cfg["order"]
+        self.rank = {c: i for i, c in enumerate(self.order)}
+        self.rules = sorted(cfg["rules"].items(), key=lambda kv: -len(kv[0]))
+        self.stages = cfg.get("stages", {})
+
+    def crate_of_path(self, rel):
+        key = re.sub(r"/mod$", "", re.sub(r"\.rs$", "", rel))
+        for prefix, crate in self.rules:
+            if key == prefix or key.startswith(prefix + "/"):
+                return crate
+            rest = key[len(prefix):]
+            if key.startswith(prefix + "_") and "/" not in rest:
+                return crate
+        return None
+
+    def crate_of_modpath(self, parts):
+        for n in range(len(parts), 0, -1):
+            crate = self.crate_of_path("/".join(parts[:n]))
+            if crate:
+                return crate
+        return None
+
+
+def is_test(rel, text):
+    base = os.path.basename(rel)
+    return (base.endswith(("_tests.rs", "_test.rs")) or base == "tests.rs"
+            or "/tests/" in rel or "#[cfg(test)]" in text[:200])
+
+
+def read_sources():
+    files = {}
+    for directory, _, names in os.walk(SRC):
+        for name in names:
+            if name.endswith(".rs"):
+                path = os.path.join(directory, name)
+                with open(path, encoding="utf-8") as handle:
+                    files[os.path.relpath(path, SRC)] = handle.read()
+    return files
+
+
+def method_crates(cmap, files):
+    owner, clash = {}, set()
+    for rel, text in files.items():
+        if not rel.startswith("store/persistence"):
+            continue
+        crate = cmap.crate_of_path(rel)
+        for block in IMPL.finditer(text):
+            for match in METHOD.finditer(block.group(1)):
+                name = match.group(1)
+                if owner.get(name, crate) != crate:
+                    clash.add(name)
+                owner[name] = crate
+    return {k: v for k, v in owner.items() if k not in clash}
+
+
+def file_refs(cmap, methods, text):
+    for match in BRACE.finditer(text):
+        for item in match.group(2).split(","):
+            item = item.strip().split(" as ")[0].strip()
+            if item and item != "self":
+                parts = [p for p in (match.group(1) + item).split("::") if p]
+                yield cmap.crate_of_modpath(parts), "::".join(parts)
+    for match in PATH.finditer(text):
+        yield cmap.crate_of_modpath(match.group(1).split("::")), match.group(1)
+    for match in CALL.finditer(text):
+        crate = methods.get(match.group(1))
+        if crate:
+            yield crate, "." + match.group(1) + "()"
+
+
+def scan(cmap, files):
+    methods = method_crates(cmap, files)
+    lines = collections.Counter()
+    edges = collections.defaultdict(collections.Counter)
+    for rel, raw in files.items():
+        src = cmap.crate_of_path(rel)
+        lines[src] += raw.count("\n")
+        text = re.sub(r"//[^\n]*", "", raw)
+        kind = "test" if is_test(rel, text) else "prod"
+        for dst, symbol in file_refs(cmap, methods, text):
+            if dst and dst != src:
+                edges[(src, dst, kind)][symbol] += 1
+    return lines, edges
+
+
+def history(cmap):
+    out = subprocess.run(["git", "-C", REPO, "log", "origin/main", "--name-only",
+                          "--format=%x40%x40", "--", "crates/mike/src"],
+                         capture_output=True, text=True, check=False).stdout
+    commits, current = [], set()
+    for line in out.splitlines():
+        if line == "@@":
+            if current:
+                commits.append(current)
+            current = set()
+        elif line.startswith("crates/mike/src/"):
+            crate = cmap.crate_of_path(line[len("crates/mike/src/"):])
+            if crate:
+                current.add(crate)
+    if current:
+        commits.append(current)
+    return commits
+
+
+class Graph:
+    def __init__(self, cmap, edges):
+        self.prod = collections.defaultdict(set)
+        self.test = collections.defaultdict(set)
+        for (src, dst, kind) in edges:
+            if cmap.rank[src] > cmap.rank[dst]:
+                (self.prod if kind == "prod" else self.test)[dst].add(src)
+        self.memo = {}
+
+    def dependents(self, crate):
+        if crate not in self.memo:
+            seen, todo = {crate}, [crate]
+            while todo:
+                for user in self.prod[todo.pop()]:
+                    if user not in seen:
+                        seen.add(user)
+                        todo.append(user)
+            self.memo[crate] = seen
+        return self.memo[crate]
+
+    def rebuilt(self, touched):
+        hit = set()
+        for crate in touched:
+            hit |= self.dependents(crate)
+        for crate in list(hit):
+            hit |= self.test[crate]
+        return hit
+
+
+def seams(cmap, edges):
+    found = [(sum(v.values()), a, b, k) for (a, b, k), v in edges.items()
+             if cmap.rank[a] < cmap.rank[b]]
+    return sorted(found, reverse=True)
+
+
+def replay(lines, graph, commits):
+    costs = sorted(sum(lines[c] for c in graph.rebuilt(t)) for t in commits)
+    return costs
+
+
+def summary(cmap, lines, edges, commits):
+    total = sum(lines.values())
+    found = seams(cmap, edges)
+    prod = [s for s in found if s[3] == "prod"]
+    test = [s for s in found if s[3] == "test"]
+    costs = replay(lines, Graph(cmap, edges), commits)
+    mean = sum(costs) / max(len(costs), 1)
+    return {
+        "crates": len(cmap.order), "total": total,
+        "prod": (sum(s[0] for s in prod), len(prod)),
+        "test": (sum(s[0] for s in test), len(test)),
+        "mean": mean, "pct": 100 * mean / total if total else 0,
+        "median": costs[len(costs) // 2] if costs else 0, "commits": len(costs),
+    }
+
+
+def print_summary(cmap, lines, edges, commits, nseams):
+    for crate in cmap.order:
+        print(f"  {cmap.rank[crate]:2} {crate:12} {lines[crate]:8,}")
+    s = summary(cmap, lines, edges, commits)
+    print(f"\nseams: production {s['prod'][0]} references in {s['prod'][1]} edges, "
+          f"test {s['test'][0]} in {s['test'][1]}")
+    for n, a, b, k in seams(cmap, edges)[:nseams]:
+        top = ", ".join(sym for sym, _ in edges[(a, b, k)].most_common(3))
+        print(f"  {n:4} {k:4} {a} -> {b}: {top}")
+    print(f"\nreplay of {s['commits']} commits: mean {s['mean']:,.0f} lines recompiled "
+          f"({s['pct']:.0f}% of today's {s['total']:,}), median {s['median']:,}")
+
+
+def print_matrix(cmap, edges):
+    print("downward dependencies (production + test references):")
+    for a in cmap.order:
+        row = []
+        for b in cmap.order:
+            if cmap.rank[a] > cmap.rank[b]:
+                p = sum(edges[(a, b, "prod")].values())
+                t = sum(edges[(a, b, "test")].values())
+                if p or t:
+                    row.append(f"{b}:{p}" + (f"+{t}t" if t else ""))
+        print(f"  {a:12} -> {' '.join(row)}")
+
+
+def print_blame(cmap, lines, edges, commits):
+    graph = Graph(cmap, edges)
+    touches = collections.Counter(c for t in commits for c in t)
+    total = sum(sum(lines[c] for c in graph.rebuilt(t)) for t in commits) or 1
+    print("crate: commits touching x lines rebuilt when it changes = share of the replay cost")
+    rows = []
+    for crate in cmap.order:
+        cost = sum(lines[c] for c in graph.dependents(crate))
+        rows.append((touches[crate] * cost, crate, touches[crate], cost))
+    for share, crate, n, cost in sorted(rows, reverse=True):
+        print(f"  {crate:12} {n:4} x {cost:9,} = {100 * share / total:5.1f}%")
+
+
+def staged_map(cfg, groups):
+    names, of = [], {}
+    for group in groups:
+        name = "+".join(group)
+        names.append(name)
+        for crate in group:
+            of[crate] = name
+    order = sorted(names, key=lambda n: min(cfg["order"].index(c) for c in n.split("+")))
+    return Map({"order": order, "rules": {k: of[v] for k, v in cfg["rules"].items()}})
+
+
+def print_stages(cfg, files, commits):
+    print("stage                           crates  production seams   mean recompile")
+    stages = dict(cfg.get("stages", {}))
+    stages["full target"] = [[c] for c in cfg["order"]]
+    for name, groups in stages.items():
+        cmap = staged_map(cfg, groups)
+        lines, edges = scan(cmap, files)
+        s = summary(cmap, lines, edges, history(cmap))
+        print(f"  {name:30} {s['crates']:4}   {s['prod'][0]:5} in {s['prod'][1]:3} edges   "
+              f"{s['pct']:3.0f}% of today")
+
+
+def main(argv):
+    args = list(argv)
+    path = DEFAULT_MAP
+    if "--map" in args:
+        path = args[args.index("--map") + 1]
+    with open(path, encoding="utf-8") as handle:
+        cfg = json.load(handle)
+    cmap = Map(cfg)
+    files = read_sources()
+    missing = sorted({r.split("/")[0] for r in files if not cmap.crate_of_path(r)})
+    if missing:
+        print("not in the map (add a rule):", " ".join(missing))
+    if "--stages" in args:
+        print_stages(cfg, files, None)
+        return 0
+    lines, edges = scan(cmap, files)
+    commits = history(cmap)
+    if "--detail" in args:
+        i = args.index("--detail")
+        a, b = args[i + 1], args[i + 2]
+        for kind in ("prod", "test"):
+            for symbol, n in edges[(a, b, kind)].most_common():
+                print(f"  {kind} {n:4} {symbol}")
+        return 0
+    if "--matrix" in args:
+        print_matrix(cmap, edges)
+        return 0
+    if "--blame" in args:
+        print_blame(cmap, lines, edges, commits)
+        return 0
+    nseams = int(args[args.index("--seams") + 1]) if "--seams" in args else 30
+    print_summary(cmap, lines, edges, commits, nseams)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except BrokenPipeError:
+        sys.exit(0)
