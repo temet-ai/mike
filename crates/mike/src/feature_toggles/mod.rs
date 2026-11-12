@@ -430,3 +430,17 @@ pub(crate) fn set_toggle_enabled(
     }
     Some(updated)
 }
+
+pub(crate) fn build_feature_toggle_overlay(
+    config: &crate::config::ProxyConfig,
+) -> std::sync::Arc<arc_swap::ArcSwap<FeatureToggles>> {
+    std::sync::Arc::new(arc_swap::ArcSwap::from_pointee(FeatureToggles {
+        reminders: config.reminders.enabled,
+        recall_injector: config.recall_injector.enabled,
+        weasel_intercept: config.weasel_intercept.enabled,
+        steerer: config.steerer.enabled,
+        lesson_worker: config.lesson_worker.enabled,
+        harvester: config.harvester.enabled,
+        ..FeatureToggles::default()
+    }))
+}

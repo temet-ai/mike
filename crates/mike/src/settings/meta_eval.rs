@@ -34,7 +34,7 @@ pub(super) fn entries() -> Vec<SettingMeta> {
         meta(
             HOLDOUT_PERCENT_KEY,
             SettingKind::Int,
-            serde_json::Value::from(crate::eval::labels::split::DEFAULT_HOLDOUT_PERCENT),
+            serde_json::Value::from(DEFAULT_HOLDOUT_PERCENT),
             "Holdout share of newly labelled turns (%)",
             "The share of turns, labelled for the first time by a gold or relayed label, that \
              are assigned to the holdout split by a hash of the turn id. A turn's split never \
@@ -51,3 +51,6 @@ pub(super) fn entries() -> Vec<SettingMeta> {
         ),
     ]
 }
+
+/// Default share of labelled sessions held out of tuning (eval::labels::split).
+pub const DEFAULT_HOLDOUT_PERCENT: i64 = 30;

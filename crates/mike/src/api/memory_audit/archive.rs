@@ -4,11 +4,10 @@ use axum::http::StatusCode;
 use axum::response::Response;
 use serde::{Deserialize, Serialize};
 
-use crate::api::handlers::{
-    LessonDto, lesson_error, persist_error_response, persist_unavailable_response,
-};
+use crate::api::handlers::{LessonDto, lesson_error};
 use crate::config::AppState;
 use crate::store::persistence::consolidation_reads::{ArchivedLessonRow, RestoreLessonOutcome};
+use crate::web_base::{persist_error_response, persist_unavailable_response};
 
 #[derive(Debug, Serialize)]
 pub(crate) struct ArchivedLessonDto {

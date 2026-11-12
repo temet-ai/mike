@@ -76,7 +76,7 @@ impl Default for LaunchConfig {
             no_proxy: "localhost,127.0.0.1".to_string(),
             ca_cert: None,
             claude_args: Vec::new(),
-            brief_inline_max: crate::launch::DEFAULT_BRIEF_INLINE_MAX,
+            brief_inline_max: DEFAULT_BRIEF_INLINE_MAX,
             channel_check_enabled: true,
             channel_check_timeout_secs: 90,
             channel_check_interval_secs: 3,
@@ -257,3 +257,6 @@ mod tests {
         Ok(())
     }
 }
+
+/// Default size, in bytes, up to which a launch brief is inlined (launch::brief).
+pub const DEFAULT_BRIEF_INLINE_MAX: usize = 800;

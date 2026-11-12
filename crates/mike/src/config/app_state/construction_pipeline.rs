@@ -1,30 +1,18 @@
 use std::sync::Arc;
 
-use arc_swap::ArcSwap;
 use metrics_exporter_prometheus::PrometheusHandle;
 use tokio::sync::RwLock;
 
 use crate::analysis::EmbeddingService;
 use crate::compose_prompt::ComposerService;
 use crate::compose_prompt::cache::CompositionCache;
-use crate::feature_toggles::FeatureToggles;
 use crate::store::RequestStore;
 use crate::store::persistence::PersistHandle;
 use crate::store::retention::RetentionPolicy;
 
 use super::super::schema::ProxyConfig;
 
-pub(crate) fn build_feature_toggle_overlay(config: &ProxyConfig) -> Arc<ArcSwap<FeatureToggles>> {
-    Arc::new(ArcSwap::from_pointee(FeatureToggles {
-        reminders: config.reminders.enabled,
-        recall_injector: config.recall_injector.enabled,
-        weasel_intercept: config.weasel_intercept.enabled,
-        steerer: config.steerer.enabled,
-        lesson_worker: config.lesson_worker.enabled,
-        harvester: config.harvester.enabled,
-        ..FeatureToggles::default()
-    }))
-}
+pub(crate) use crate::feature_toggles::build_feature_toggle_overlay;
 
 pub(super) fn build_retention_policy(config: &ProxyConfig) -> RetentionPolicy {
     let max_age = RetentionPolicy::parse_duration(&config.max_age);

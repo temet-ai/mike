@@ -39,6 +39,5 @@ pub use spawn_test_seams::{
 };
 
 pub(crate) use session_poll::digest as session_poll_digest;
-pub(crate) use session_poll::digest::SESSION_JUDGE_SYSTEM_PROMPT;
 pub(crate) use session_poll::resolve_session_judge_runtime;
 pub(crate) use turn_sweep::resolve_turn_judge_runtime;

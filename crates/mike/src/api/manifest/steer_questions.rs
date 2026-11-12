@@ -1,9 +1,9 @@
 use axum::Router;
 use axum::routing::{get, post};
 
-use super::{Coverage, RouteEntry, route};
 use crate::api::steer_questions;
 use crate::config::AppState;
+use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
 pub(super) const ROUTES: &[RouteEntry] = &[
     route(

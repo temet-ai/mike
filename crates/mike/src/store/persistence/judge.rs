@@ -38,7 +38,7 @@ pub struct SessionQualityRow {
     pub severity: Option<String>,
 }
 
-pub const DEFAULT_MAX_ATTEMPTS_PER_DAY: i64 = 3;
+pub use crate::settings::meta_session_end::DEFAULT_MAX_ATTEMPTS_PER_DAY;
 
 #[derive(Debug, Clone, Copy)]
 pub struct NeedsJudgmentQuery<'a> {

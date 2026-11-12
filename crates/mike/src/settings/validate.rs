@@ -396,3 +396,13 @@ mod tests {
         );
     }
 }
+
+const SECRET_KEY_SEGMENTS: &[&str] = &["key", "secret", "token", "password", "credential"];
+
+pub(crate) fn is_secret_setting_key(key: &str) -> bool {
+    if key.ends_with("_env") {
+        return false;
+    }
+    key.split(['.', '_'])
+        .any(|segment| SECRET_KEY_SEGMENTS.contains(&segment))
+}

@@ -7,7 +7,6 @@ pub(crate) mod stage;
 mod tests;
 
 use bytes::Bytes;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::lazy_sections::has_thinking_blocks;
@@ -30,22 +29,7 @@ pub(crate) fn is_served(session_id: &str) -> bool {
     SERVED_BY_CLIENT.contains(session_id)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct RecallInjectorConfig {
-    pub enabled: bool,
-
-    pub max_lessons_per_topic: usize,
-}
-
-impl Default for RecallInjectorConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            max_lessons_per_topic: 5,
-        }
-    }
-}
+pub use crate::config::recall_injector::RecallInjectorConfig;
 
 #[derive(Debug)]
 pub enum RecallOutcome {

@@ -1,4 +1,4 @@
-use super::{Coverage, RouteEntry, route};
+use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 use crate::{api::compression_review, config::AppState};
 use axum::{
     Router,

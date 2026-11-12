@@ -1,13 +1,17 @@
 pub(crate) mod channel_link_sweep;
+pub(crate) mod compress;
 pub(crate) mod db_cost;
 pub(crate) mod db_pool;
 pub(crate) mod launch;
 pub(crate) mod lesson_relations;
 pub(crate) mod load;
 pub(crate) mod memory_cap;
+pub(crate) mod memory_harvester;
 #[cfg(test)]
 #[path = "paths_env_tests.rs"]
 mod paths_env_tests;
+pub mod recall_injector;
+pub(crate) mod reminders;
 pub(crate) mod retention_sweep;
 pub(crate) mod session_judge;
 pub(crate) mod steerer;

@@ -2,7 +2,6 @@ pub(crate) mod agent_lessons;
 pub(crate) mod appender;
 pub(crate) mod change_record_tail;
 pub(crate) mod client_context;
-pub(crate) mod config;
 mod fork_prefix;
 pub(crate) mod formatter;
 pub(crate) mod git_read_hint;
@@ -49,8 +48,8 @@ mod tests;
 #[cfg(test)]
 mod workspace_briefing_stage_tests;
 
+pub(crate) use crate::config::reminders::RemindersConfig;
 pub(crate) use agent_lessons::{AgentLessonsRequest, apply_agent_lessons};
-pub(crate) use config::RemindersConfig;
 pub(crate) use self_identity::{SelfIdentityRequest, apply_self_identity};
 pub(crate) use session_lessons::{SessionLessonsRequest, apply_session_lessons};
 #[cfg(test)]

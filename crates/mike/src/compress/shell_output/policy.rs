@@ -7,12 +7,10 @@ use crate::compress::recovery::CapturedResults;
 
 use super::reduction::ReductionShape;
 
-pub(crate) const DEFAULT_MIN_RESULT_BYTES: usize = 1500;
-pub(crate) const DEFAULT_HEAD_LINES: usize = 20;
-pub(crate) const DEFAULT_TAIL_LINES: usize = 20;
-pub(crate) const DEFAULT_SIGNAL_CONTEXT_LINES: usize = 3;
-pub(crate) const DEFAULT_SIGNAL_LINE_CAP: usize = 40;
-pub(crate) const DEFAULT_GRACE_TURNS: usize = 3;
+pub(crate) use crate::settings::meta_shell_output::{
+    DEFAULT_GRACE_TURNS, DEFAULT_HEAD_LINES, DEFAULT_MIN_RESULT_BYTES,
+    DEFAULT_SIGNAL_CONTEXT_LINES, DEFAULT_SIGNAL_LINE_CAP, DEFAULT_TAIL_LINES,
+};
 pub(crate) const DEFAULT_MIN_SHRINK_PERCENT: usize = 25;
 pub(crate) const PRODUCER: &str = "Bash";
 

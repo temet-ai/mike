@@ -58,7 +58,6 @@ const REQUEST_ID_HEADER: HeaderName = HeaderName::from_static("x-request-id");
 const INSPECT_TIMEOUT: Duration = Duration::from_secs(30);
 const WAITED_TIMEOUT: Duration = Duration::from_secs(7300);
 
-use crate::web_base::route_manifest::route;
 pub use crate::web_base::route_manifest::{Coverage, RouteEntry};
 
 pub fn inspect_route_manifest() -> Vec<RouteEntry> {

@@ -8,18 +8,13 @@ use tokio::sync::RwLock;
 use super::Question;
 use crate::store::persistence::PersistHandle;
 
+pub use crate::settings::meta_turn_guard::{
+    AUTO_DEMOTE_KEY, FLEET_SEATS_KEY, HOLDBACK_PCT_KEY, LABEL_LIVE_PASSES_KEY,
+    MAX_CALLS_PER_DAY_KEY, MAX_LABEL_CALLS_PER_DAY_KEY, RECALL_SAMPLE_PCT_KEY, WAKE_CAP_KEY,
+    WAKE_GRACE_RELAPSE_KEY, WAKE_GRACE_WAIT_KEY, WRONG_WAKE_CEILING_KEY,
+};
+
 pub const CACHE_TTL: Duration = Duration::from_secs(60);
-pub const MAX_CALLS_PER_DAY_KEY: &str = "steerer.turn_guard.max_calls_per_day";
-pub const MAX_LABEL_CALLS_PER_DAY_KEY: &str = "steerer.turn_guard.max_label_calls_per_day";
-pub const RECALL_SAMPLE_PCT_KEY: &str = "steerer.turn_guard.recall_sample_pct";
-pub const HOLDBACK_PCT_KEY: &str = "steerer.turn_guard.holdback_pct";
-pub const LABEL_LIVE_PASSES_KEY: &str = "steerer.turn_guard.label_live_passes";
-pub const WAKE_GRACE_RELAPSE_KEY: &str = "steerer.turn_guard.wake_grace_relapse_secs";
-pub const WAKE_GRACE_WAIT_KEY: &str = "steerer.turn_guard.wake_grace_wait_secs";
-pub const WAKE_CAP_KEY: &str = "steerer.turn_guard.wake_cap_per_session_hour";
-pub const AUTO_DEMOTE_KEY: &str = "steerer.turn_guard.auto_demote";
-pub const WRONG_WAKE_CEILING_KEY: &str = "steerer.turn_guard.wrong_wake_ceiling_per_week";
-pub const FLEET_SEATS_KEY: &str = "steerer.turn_guard.fleet_seats";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]

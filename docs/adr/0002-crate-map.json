@@ -237,7 +237,7 @@
   "api/handlers/lesson_project_guard": "lessons",
   "api/handlers/lesson_types": "lessons",
   "api/handlers/llm_job_models": "web",
-  "api/handlers/llm_provider_health": "llm",
+  "api/handlers/llm_provider_health": "web",
   "api/handlers/llm_providers": "llm",
   "api/handlers/mailbox_dto": "launch",
   "api/handlers/mailbox_fanout_delivery": "launch",
@@ -314,6 +314,7 @@
   "api/proposals": "lessons",
   "api/questions": "launch",
   "api/rerank_search": "knowledge",
+  "api/rerank_search/harness": "web",
   "api/semantic": "knowledge",
   "api/session_agent_context": "proxy",
   "api/session_agent_context_tests": "lessons",
@@ -648,7 +649,7 @@
  },
  "ratchet": {
   "comment": "Upper bounds checked by scripts/crate-plan --check and scripts/schema-plan --check in the pre-push hook. Lower them when a change reduces the count; never raise them.",
-  "crate_seams": 692,
+  "crate_seams": 603,
   "foreign_writes": 130
  }
 }

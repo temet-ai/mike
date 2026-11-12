@@ -1,8 +1,11 @@
 use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
-use crate::compress::shell_output::{
-    DEFAULT_GRACE_TURNS, DEFAULT_HEAD_LINES, DEFAULT_MIN_RESULT_BYTES,
-    DEFAULT_SIGNAL_CONTEXT_LINES, DEFAULT_SIGNAL_LINE_CAP, DEFAULT_TAIL_LINES,
-};
+
+pub(crate) const DEFAULT_MIN_RESULT_BYTES: usize = 1500;
+pub(crate) const DEFAULT_HEAD_LINES: usize = 20;
+pub(crate) const DEFAULT_TAIL_LINES: usize = 20;
+pub(crate) const DEFAULT_SIGNAL_CONTEXT_LINES: usize = 3;
+pub(crate) const DEFAULT_SIGNAL_LINE_CAP: usize = 40;
+pub(crate) const DEFAULT_GRACE_TURNS: usize = 3;
 
 const GROUP: &str = "Shell-output compression";
 

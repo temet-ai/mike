@@ -7,7 +7,7 @@ use uuid::Uuid;
 use super::error::LaunchError;
 use super::fleet::brief_delivery;
 
-pub const DEFAULT_BRIEF_INLINE_MAX: usize = 800;
+pub use crate::config::launch::DEFAULT_BRIEF_INLINE_MAX;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PromptSource {

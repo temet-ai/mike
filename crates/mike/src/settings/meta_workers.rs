@@ -85,9 +85,7 @@ fn turn_judge_entries() -> Vec<SettingMeta> {
             kind: SettingKind::Text,
             scope: SettingScope::Global,
             applies: SettingApplies::NextCycle,
-            default: serde_json::Value::String(
-                crate::analysis::judge::judge_system_prompt().to_owned(),
-            ),
+            default: serde_json::Value::String(super::judge_prompts::R3_PROMPT.to_owned()),
             label: "System prompt",
             description: "The rubric the turn judge scores against. It defines every \
                 outcome label the judge may return, so a label removed from this text \
@@ -189,7 +187,7 @@ fn session_judge_schedule_entries() -> Vec<SettingMeta> {
             scope: SettingScope::Global,
             applies: SettingApplies::NextCycle,
             default: serde_json::Value::String(
-                crate::judge_worker::SESSION_JUDGE_SYSTEM_PROMPT.to_owned(),
+                super::judge_prompts::SESSION_JUDGE_SYSTEM_PROMPT.to_owned(),
             ),
             label: "System prompt",
             description: "The instructions the session judge runs: the outcome labels, \

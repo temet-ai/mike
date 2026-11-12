@@ -1,7 +1,6 @@
-pub(crate) mod config;
 mod parser;
 
-pub use config::HarvesterConfig;
+pub use crate::config::memory_harvester::HarvesterConfig;
 pub use parser::scan_update_tags;
 
 use std::borrow::Cow;

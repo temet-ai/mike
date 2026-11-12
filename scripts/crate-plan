@@ -35,7 +35,7 @@ import sys
 REPO = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 SRC = os.path.join(REPO, "crates", "mike", "src")
 DEFAULT_MAP = os.path.join(REPO, "docs", "adr", "0002-crate-map.json")
-PATH = re.compile(r"crate::(\w+(?:::\w+)*)")
+PATH = re.compile(r"crate::(\w+(?:::\w+)*)(?!::|\w)")
 BRACE = re.compile(r"crate::((?:\w+::)+)\{([^{}]*)\}")
 CALL = re.compile(r"\.(\w+)\s*\(")
 IMPL = re.compile(r"\nimpl PersistHandle \{(.*?)\n\}", re.S)

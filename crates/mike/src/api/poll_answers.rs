@@ -272,7 +272,7 @@ fn client_has(headers: &HeaderMap, etag: &str) -> bool {
     headers
         .get(header::IF_NONE_MATCH)
         .and_then(|value| value.to_str().ok())
-        .is_some_and(|wanted| crate::api::handlers::if_none_match_contains(wanted, etag))
+        .is_some_and(|wanted| crate::web_base::http::if_none_match_contains(wanted, etag))
 }
 
 fn respond<V>(

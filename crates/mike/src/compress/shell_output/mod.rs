@@ -21,11 +21,7 @@ use crate::wire::manifest::{StageEntry, StageOutcome, TargetEntry, sha256_hex};
 use detect::{ShellContext, inspect_tool_result};
 use policy::{POLICY_ID, policy_value};
 
-pub(crate) use policy::{
-    DEFAULT_GRACE_TURNS, DEFAULT_HEAD_LINES, DEFAULT_MIN_RESULT_BYTES,
-    DEFAULT_SIGNAL_CONTEXT_LINES, DEFAULT_SIGNAL_LINE_CAP, DEFAULT_TAIL_LINES, POLICY_VERSION,
-    PRODUCER, ShellOutputLimits, ShellOutputPolicy,
-};
+pub(crate) use policy::{POLICY_VERSION, PRODUCER, ShellOutputLimits, ShellOutputPolicy};
 #[cfg(test)]
 pub(crate) use reduction::REDUCTION_MARKER_TAG;
 

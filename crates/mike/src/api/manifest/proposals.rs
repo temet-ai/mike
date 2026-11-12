@@ -1,9 +1,9 @@
 use axum::Router;
 use axum::routing::{get, post};
 
-use super::{Coverage, RouteEntry, route};
 use crate::api::proposals;
 use crate::config::AppState;
+use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
 const PAGE: Coverage = Coverage::Exempt {
     reason: "page data for the Proposals page, where a user reviews lessons mike placed as a rule or an agent statement",

@@ -82,7 +82,7 @@ pub(super) fn entries() -> Vec<SettingMeta> {
             "The most session-judge calls one session can cost in a rolling 24 hours, per \
              model and rubric. A session at the cap is skipped until its window rolls over, so a \
              selection defect can never turn into a call storm.",
-            crate::store::persistence::judge::DEFAULT_MAX_ATTEMPTS_PER_DAY,
+            DEFAULT_MAX_ATTEMPTS_PER_DAY,
             (1, 50),
         ),
         int_meta(
@@ -145,3 +145,6 @@ pub(super) fn entries() -> Vec<SettingMeta> {
         ),
     ]
 }
+
+/// Default daily cap on session-judge attempts (store::persistence::judge).
+pub const DEFAULT_MAX_ATTEMPTS_PER_DAY: i64 = 3;

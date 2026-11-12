@@ -1,4 +1,5 @@
 pub mod cross_session;
+pub(crate) mod judge_prompts;
 pub mod service;
 
 pub(crate) mod live_bundle_follow;
@@ -27,9 +28,9 @@ mod meta_search_ranking;
 #[cfg(test)]
 mod meta_search_ranking_tests;
 pub(crate) mod meta_semantic;
-mod meta_session_end;
+pub(crate) mod meta_session_end;
 mod meta_session_scoped;
-mod meta_shell_output;
+pub(crate) mod meta_shell_output;
 pub(crate) mod meta_turn_guard;
 pub(crate) mod meta_turn_judge;
 pub(crate) mod meta_work_registry;
@@ -326,16 +327,13 @@ impl Default for SettingsOverlay {
             file_read_compression_grace_turns: 3,
             file_read_compression_mode: "shadow".to_owned(),
             file_read_compression_forward_share: 0,
-            shell_output_compression_min_bytes:
-                crate::compress::shell_output::DEFAULT_MIN_RESULT_BYTES,
-            shell_output_compression_head_lines: crate::compress::shell_output::DEFAULT_HEAD_LINES,
-            shell_output_compression_tail_lines: crate::compress::shell_output::DEFAULT_TAIL_LINES,
+            shell_output_compression_min_bytes: meta_shell_output::DEFAULT_MIN_RESULT_BYTES,
+            shell_output_compression_head_lines: meta_shell_output::DEFAULT_HEAD_LINES,
+            shell_output_compression_tail_lines: meta_shell_output::DEFAULT_TAIL_LINES,
             shell_output_compression_signal_context_lines:
-                crate::compress::shell_output::DEFAULT_SIGNAL_CONTEXT_LINES,
-            shell_output_compression_signal_line_cap:
-                crate::compress::shell_output::DEFAULT_SIGNAL_LINE_CAP,
-            shell_output_compression_grace_turns:
-                crate::compress::shell_output::DEFAULT_GRACE_TURNS,
+                meta_shell_output::DEFAULT_SIGNAL_CONTEXT_LINES,
+            shell_output_compression_signal_line_cap: meta_shell_output::DEFAULT_SIGNAL_LINE_CAP,
+            shell_output_compression_grace_turns: meta_shell_output::DEFAULT_GRACE_TURNS,
             shell_output_compression_mode: "shadow".to_owned(),
             shell_output_compression_forward_share: 0,
             compression_dedup_enabled: false,
