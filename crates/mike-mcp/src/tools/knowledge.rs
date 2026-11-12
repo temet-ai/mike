@@ -17,7 +17,7 @@ fn text(description: &str) -> Value {
 }
 
 pub(super) fn tools() -> Vec<Tool> {
-    vec![
+    let mut tools = vec![
         Tool::new(
             "define_project",
             "Define a logical project independent of checkout paths and return its UUID; register a location on each machine with that UUID. list_project_locations finds existing captured projects.",
@@ -83,6 +83,13 @@ pub(super) fn tools() -> Vec<Tool> {
                 &["project"],
             ),
         ),
+    ];
+    tools.extend(reference_tools());
+    tools
+}
+
+fn reference_tools() -> Vec<Tool> {
+    vec![
         Tool::new(
             READ,
             "Read the complete source behind a project knowledge reference, including artifact revision and provenance. Also reads promise:<id>, a promise a session made at the end of a turn: its text, status, session and turn. The result names its project_uuid.",

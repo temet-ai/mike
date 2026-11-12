@@ -75,11 +75,19 @@ async fn serve_tunnel_leg(
     leftover_bytes: usize,
 ) -> Result<(), ForwardError> {
     if is_uncaptured_model_host(&target.host) {
-        tracing::warn!(host = %target.host, port = target.port, "CONNECT → blind tunnel to an OpenAI model host: Codex traffic through this sidecar is NOT captured; start Codex with `cdx` so it reaches mike's /codex route");
+        warn_uncaptured_model_tunnel(target);
     } else {
-        tracing::info!(host = %target.host, port = target.port, leftover_bytes, "CONNECT → blind tunnel (NOT captured)");
+        log_blind_tunnel(target, leftover_bytes);
     }
     tunnel::blind(client, &target.host, target.port).await
+}
+
+fn warn_uncaptured_model_tunnel(target: &ConnectTarget) {
+    tracing::warn!(host = %target.host, port = target.port, "CONNECT → blind tunnel to an OpenAI model host: Codex traffic through this sidecar is NOT captured; start Codex with `cdx` so it reaches mike's /codex route");
+}
+
+fn log_blind_tunnel(target: &ConnectTarget, leftover_bytes: usize) {
+    tracing::info!(host = %target.host, port = target.port, leftover_bytes, "CONNECT → blind tunnel (NOT captured)");
 }
 
 const UNCAPTURED_MODEL_HOSTS: &[&str] = &["api.openai.com", "chatgpt.com"];
