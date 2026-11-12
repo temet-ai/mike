@@ -3,6 +3,7 @@ use serde::Serialize;
 use serde_json::Value;
 use uuid::Uuid;
 
+pub(crate) mod definition;
 pub mod watch;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -39,6 +40,10 @@ impl Source {
             Source::Sessions => "sessions",
         }
     }
+
+    pub(crate) fn from_code(code: &str) -> Option<Source> {
+        Source::ALL.into_iter().find(|source| source.code() == code)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -50,12 +55,44 @@ pub(crate) enum Cadence {
 }
 
 impl Cadence {
+    pub(crate) const ALL: [Cadence; 3] = [Cadence::Event, Cadence::Regular, Cadence::Daily];
+
     pub(crate) fn code(self) -> &'static str {
         match self {
             Cadence::Event => "event",
             Cadence::Regular => "regular",
             Cadence::Daily => "daily",
         }
+    }
+
+    pub(crate) fn from_code(code: &str) -> Option<Cadence> {
+        Cadence::ALL
+            .into_iter()
+            .find(|cadence| cadence.code() == code)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum Probe {
+    Sql,
+    Logs,
+    ColdForks,
+}
+
+impl Probe {
+    pub(crate) const ALL: [Probe; 3] = [Probe::Sql, Probe::Logs, Probe::ColdForks];
+
+    pub(crate) fn code(self) -> &'static str {
+        match self {
+            Probe::Sql => "sql",
+            Probe::Logs => "logs",
+            Probe::ColdForks => "cold_forks",
+        }
+    }
+
+    pub(crate) fn from_code(code: &str) -> Option<Probe> {
+        Probe::ALL.into_iter().find(|probe| probe.code() == code)
     }
 }
 
@@ -85,8 +122,8 @@ impl CheckOutcome {
 #[derive(Debug, Clone)]
 pub(crate) struct CheckRun<'a> {
     pub(crate) check: &'a str,
-    pub(crate) source: Source,
-    pub(crate) cadence: Cadence,
+    pub(crate) source: &'a str,
+    pub(crate) cadence: &'a str,
     pub(crate) started_at: DateTime<Utc>,
     pub(crate) outcome: &'a CheckOutcome,
     pub(crate) machine: Option<Uuid>,

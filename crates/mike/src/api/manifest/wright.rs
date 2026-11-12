@@ -1,8 +1,8 @@
 use axum::Router;
-use axum::routing::{get, post};
+use axum::routing::{get, patch, post};
 
 use super::{Coverage, RouteEntry, route};
-use crate::api::wright::problems as api;
+use crate::api::wright::{checks, problems as api};
 use crate::config::AppState;
 
 pub(super) const ROUTES: &[RouteEntry] = &[
@@ -20,12 +20,21 @@ pub(super) const ROUTES: &[RouteEntry] = &[
             reason: "One Wright problem with its episodes and evidence for the Wright page; no session workflow reads it yet",
         },
     ),
+    route("GET", "/api/wright/checks", Coverage::Tool("wright_checks")),
     route(
-        "GET",
+        "POST",
         "/api/wright/checks",
-        Coverage::Exempt {
-            reason: "Wright's check catalogue and each check's latest run for the Wright page",
-        },
+        Coverage::AggregatedInto("wright_checks"),
+    ),
+    route(
+        "PATCH",
+        "/api/wright/checks/{name}",
+        Coverage::AggregatedInto("wright_checks"),
+    ),
+    route(
+        "DELETE",
+        "/api/wright/checks/{name}",
+        Coverage::AggregatedInto("wright_checks"),
     ),
     route(
         "POST",
@@ -40,6 +49,13 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
     router
         .route("/api/wright/problems", get(api::list_problems))
         .route("/api/wright/problems/{id}", get(api::get_problem))
-        .route("/api/wright/checks", get(api::list_checks))
+        .route(
+            "/api/wright/checks",
+            get(checks::list_checks).post(checks::add_check),
+        )
+        .route(
+            "/api/wright/checks/{name}",
+            patch(checks::patch_check).delete(checks::delete_check),
+        )
         .route("/api/wright/client-errors", post(api::report_client_error))
 }

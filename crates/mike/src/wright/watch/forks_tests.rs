@@ -3,7 +3,9 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 use super::fixtures_tests::Db;
-use super::forks::{ColdCause, ColdFork, classify, findings_from};
+use super::forks::{ColdCause, ColdFork, ForkParams, classify, findings_from};
+
+const TTL: i64 = 60;
 
 fn fork(template_args: Value, fork_args: Value, idle_minutes: Option<i64>) -> ColdFork {
     let first_request_at = Utc::now();
@@ -50,7 +52,7 @@ fn classify_a_fork_whose_prefix_changed_within_the_cache_window_blames_the_prefi
         "other"
     ]);
     assert_eq!(
-        classify(&fork(template_args(), changed, Some(10))),
+        classify(&fork(template_args(), changed, Some(10)), TTL),
         ColdCause::PrefixChanged
     );
 }
@@ -58,7 +60,7 @@ fn classify_a_fork_whose_prefix_changed_within_the_cache_window_blames_the_prefi
 #[test]
 fn classify_a_fork_inside_the_cache_window_with_the_same_prefix_never_blames_expiry() {
     assert_eq!(
-        classify(&fork(template_args(), forked_args(), Some(10))),
+        classify(&fork(template_args(), forked_args(), Some(10)), TTL),
         ColdCause::Unexplained
     );
 }
@@ -66,7 +68,7 @@ fn classify_a_fork_inside_the_cache_window_with_the_same_prefix_never_blames_exp
 #[test]
 fn classify_a_fork_after_the_cache_window_with_the_same_prefix_is_expiry() {
     assert_eq!(
-        classify(&fork(template_args(), forked_args(), Some(90))),
+        classify(&fork(template_args(), forked_args(), Some(90)), TTL),
         ColdCause::CacheExpired
     );
 }
@@ -74,7 +76,7 @@ fn classify_a_fork_after_the_cache_window_with_the_same_prefix_is_expiry() {
 #[test]
 fn classify_a_fork_of_a_template_that_never_sent_a_request_says_so() {
     assert_eq!(
-        classify(&fork(template_args(), forked_args(), None)),
+        classify(&fork(template_args(), forked_args(), None), TTL),
         ColdCause::TemplateNeverCached
     );
 }
@@ -83,7 +85,7 @@ fn classify_a_fork_of_a_template_that_never_sent_a_request_says_so() {
 fn classify_a_model_change_wins_over_every_other_cause() {
     let mut changed = fork(template_args(), json!(["--resume", "abc"]), Some(90));
     changed.fork_model = Some("sonnet".to_owned());
-    assert_eq!(classify(&changed), ColdCause::ModelChanged);
+    assert_eq!(classify(&changed, TTL), ColdCause::ModelChanged);
 }
 
 #[test]
@@ -93,7 +95,13 @@ fn findings_from_groups_cold_forks_by_template_and_cause() {
         fork(template_args(), forked_args(), Some(95)),
         fork(template_args(), forked_args(), Some(5)),
     ];
-    let findings = findings_from(&forks);
+    let findings = findings_from(
+        &forks,
+        ForkParams {
+            window_hours: 24,
+            cache_ttl_minutes: TTL,
+        },
+    );
     let resources: Vec<&str> = findings.iter().map(|f| f.resource.as_str()).collect();
     assert_eq!(resources, ["rust: cache_expired", "rust: unexplained"]);
     assert_eq!(findings[0].evidence["cold_forks"], 2);

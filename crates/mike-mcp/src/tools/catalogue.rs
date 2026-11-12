@@ -125,6 +125,7 @@ pub fn all_tools() -> Vec<Tool> {
     tools.extend(cross_session::cross_session_tools());
     tools.extend(improvement::improvement_tools());
     tools.extend(super::supplied::supplied_tools());
+    tools.extend(super::wright_checks::wright_checks_tools());
     tools
         .into_iter()
         .map(super::select_examples::with_select_example)
@@ -265,6 +266,7 @@ mod tests {
         super::super::TOOL_LIST_DIRECTIVE_PROPOSALS,
         super::super::TOOL_GET_IMPROVEMENT_EFFECTS,
         super::super::supplied::TOOL_LIST_SUPPLIED_ITEMS,
+        super::super::TOOL_WRIGHT_CHECKS,
     ];
 
     #[test]

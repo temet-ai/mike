@@ -2,14 +2,14 @@
 title: Database Schema Reference
 status: active
 created: 2026-05-01
-updated: 2026-11-09
-summary: Reference for mike's multi-schema Postgres database — tables, columns, FKs, indexes, views, and triggers. Every table a migration creates has a section (223 sections); the migrations are the source of truth.
+updated: 2026-11-12
+summary: Reference for mike's multi-schema Postgres database — tables, columns, FKs, indexes, views, and triggers. Every table a migration creates has a section (224 sections); the migrations are the source of truth.
 ---
 
 # Database Schema Reference
 
 **Scope:** this is a maintained reference, not an exhaustive generated schema dump. It
-gives every table a migration creates its own section (223 in all). Where a definition here disagrees
+gives every table a migration creates its own section (224 in all). Where a definition here disagrees
 with `crates/mike/src/store/persistence/migrations/`, the ordered migrations are authoritative.
 
 The proxy's Postgres database captures, persists, and exposes every Claude API request that flows through the
@@ -56,6 +56,7 @@ Schemas:
 | `remote_control` | Remote Control channels, frames and session links |
 | `work` | Work threads, criteria, items and attention tracking |
 | `eval` | Evaluation bundles, labels, runs, rates and alarms |
+| `wright` | Wright's checks (`checks`), their runs, problems and episodes |
 | `mike` | Read-API views and row-change notification functions |
 
 ---
@@ -6214,6 +6215,32 @@ restart. About fifteen rows a day per machine; no retention sweep.
 | `retry_after` | `TIMESTAMPTZ NULL` | The schedule's backoff hold after this run; `NULL` when none |
 
 **Indexes:** `idx_jobs_runs_job_started`: `(job_name, started_at DESC)` — the latest-run reads.
+
+---
+
+## Domain: `wright`
+
+### `wright.checks`
+
+Added in migration `20261112090000_wright_checks.sql` (temet-ai/mike#72). One row per Wright check;
+the watch worker loads the enabled rows due for each pass (`PersistHandle::enabled_wright_checks`).
+Seeded with eleven checks. `GET/POST /api/wright/checks`, `PATCH/DELETE /api/wright/checks/{name}`
+and the `wright_checks` MCP tool read and write it while mike runs.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `name` | `TEXT PRIMARY KEY` | `^[a-z][a-z0-9_]{2,62}$` (CHECK) |
+| `source` | `TEXT NOT NULL` | `logs`, `capture_db`, `mcp_tools`, `page`, `hooks`, `workers` or `sessions` (CHECK) |
+| `cadence` | `TEXT NOT NULL` | `event` (every pass and after a failed request), `regular` (every 5 minutes) or `daily` (once a UTC day) |
+| `expects` | `TEXT NOT NULL` | What a healthy run looks like; non-blank (CHECK) |
+| `probe` | `TEXT NOT NULL` | `sql`, `logs` or `cold_forks` (a Rust probe) |
+| `query` | `TEXT NULL` | The read a `sql` probe runs; non-blank exactly when `probe = 'sql'` (CHECK). Returns `(scope text, resource text, evidence jsonb)` rows and reads its thresholds from `$1` |
+| `params` | `JSONB NOT NULL DEFAULT '{}'` | A JSON object bound as `$1` to a sql query; for `logs`, `{level, repeats, window_minutes}`; for `cold_forks`, `{window_hours, cache_ttl_minutes}` |
+| `enabled` | `BOOLEAN NOT NULL DEFAULT true` | A disabled check is not run; its runs and problems stay |
+| `created_at` / `updated_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | `updated_at` is set by every `PATCH` |
+
+`wright.check_runs.check_name` and `wright.problems.check_name` reference `wright.checks(name)` with
+`ON DELETE CASCADE`: removing a check removes its runs, problems and episodes.
 
 ---
 

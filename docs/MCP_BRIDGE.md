@@ -219,6 +219,12 @@ here.
 | `delete_lesson` | Delete a lesson by integer id |
 | `get_improvement_effects` | Every action the judge's labels drove (an approved lesson, an approved directive, a turn-guard question) with its measured effect — a before/after or holdback/treated share of corrected turns, a 95% Newcombe interval once past the read point, or `not_enough_data` with the sample size. Optional `project` narrows lesson actions to one project; guard questions are global and appear only in the unfiltered call. The tool a session reaches for when asking "did the lesson I recorded help" — see [`IMPROVEMENT_LOOP.md`](IMPROVEMENT_LOOP.md) |
 
+**Wright's checks** (full profile only)
+
+| Tool | What it does |
+|------|--------------|
+| `wright_checks` | `action` `list`, `add`, `update` or `remove` over `GET/POST /api/wright/checks` and `PATCH/DELETE /api/wright/checks/{name}`. Wright's checks are rows in `wright.checks`; a sql check's query is executed once, read-only, on add and update, and the database's error comes back as a 400 |
+
 **Project knowledge**
 
 | Tool | What it does |

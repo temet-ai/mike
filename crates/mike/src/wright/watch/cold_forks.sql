@@ -32,7 +32,7 @@ SELECT t.name AS template,
       ORDER BY r.created_at DESC, r.id DESC
       LIMIT 1
  ) template_last ON true
- WHERE f.created_at >= now() - interval '24 hours'
+ WHERE f.created_at >= now() - make_interval(hours => ($1->>'window_hours')::int)
    AND f.template_id IS NOT NULL
    AND first_req.cache_read = 0
  ORDER BY f.created_at DESC, f.id DESC
