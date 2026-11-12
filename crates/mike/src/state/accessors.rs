@@ -232,3 +232,17 @@ fn stamp_to_time(secs: i64) -> Option<chrono::DateTime<chrono::Utc>> {
         secs => chrono::DateTime::from_timestamp(secs, 0),
     }
 }
+
+impl AppState {
+    /// Start the change feed on this state's event stream and attach it to
+    /// persistence (change_feed::spawn_change_feed).
+    pub(crate) fn spawn_change_feed(&self) {
+        crate::change_feed::spawn_change_feed(
+            &self.change_feed,
+            self.persist(),
+            self.event_tx.subscribe(),
+            self.shutdown.clone(),
+            &self.tracker,
+        );
+    }
+}

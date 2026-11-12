@@ -2,7 +2,8 @@ use crate::db_helpers;
 use crate::seed;
 
 use chrono::Utc;
-use mike::store::persistence::{PersistHandle, SessionEmbeddingWrite};
+use mike::store::persistence::PersistHandle;
+use mike::store::persistence::session_embeddings::SessionEmbeddingWrite;
 use uuid::Uuid;
 
 use super::support::{planar_unit, seed_project, seed_session};

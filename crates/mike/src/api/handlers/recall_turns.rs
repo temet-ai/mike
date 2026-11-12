@@ -188,7 +188,13 @@ async fn recall_rows_hybrid(
     state: &AppState,
     (project, query): (&ProjectIdentity, &str),
     window: RecallWindow,
-) -> Result<(Vec<crate::store::persistence::RankedTurnRow>, bool), Response> {
+) -> Result<
+    (
+        Vec<crate::store::persistence::recall_reads::RankedTurnRow>,
+        bool,
+    ),
+    Response,
+> {
     let embedding_service = state.embedding_service();
     let rows = if embedding_service.is_available() {
         try_embedding_recall(handle, &embedding_service, (project, query), window).await
@@ -219,7 +225,7 @@ async fn try_embedding_recall(
     embedding_service: &EmbeddingService,
     (project, query): (&ProjectIdentity, &str),
     window: RecallWindow,
-) -> Option<Vec<crate::store::persistence::RankedTurnRow>> {
+) -> Option<Vec<crate::store::persistence::recall_reads::RankedTurnRow>> {
     let query_vec = embed_recall_query(embedding_service, &project.project_path, query).await?;
     let literal = crate::store::operator_turns::vector_to_text_literal(&query_vec);
     let model = embedding_service.model_name();
@@ -257,7 +263,7 @@ async fn recall_by_embedding(
     (project, query): (&ProjectIdentity, &str),
     (model, literal): (&str, &str),
     window: RecallWindow,
-) -> Option<Vec<crate::store::persistence::RankedTurnRow>> {
+) -> Option<Vec<crate::store::persistence::recall_reads::RankedTurnRow>> {
     let path = project.project_path.as_str();
     match handle
         .recall_turns_by_embedding(project, model, literal, window.limit, window.exclude_turn)
@@ -302,7 +308,9 @@ fn log_embedding_recall_query_failed(
     );
 }
 
-fn ranked_row_to_similar_turn(r: crate::store::persistence::RankedTurnRow) -> SimilarTurnDto {
+fn ranked_row_to_similar_turn(
+    r: crate::store::persistence::recall_reads::RankedTurnRow,
+) -> SimilarTurnDto {
     SimilarTurnDto {
         rank: r.rank,
         rerank_score: None,

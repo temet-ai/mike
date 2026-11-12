@@ -2,9 +2,9 @@ use std::collections::HashSet;
 
 use uuid::Uuid;
 
-use crate::steerer::inject::build_steering_block;
 use crate::store::models::{ReminderSource, SystemReminder};
 use crate::types::ToolCall;
+use crate::wire::steering_block::build_steering_block;
 
 struct SelfIdMismatch<'a> {
     tool_name: &'a str,

@@ -135,7 +135,7 @@ impl PersistHandle {
             )
             .fetch_all(&self.pool)
             .await?;
-            self.open_changes_memo.revise();
+            self.memo::<super::open_memo::OpenChangesMemo>().revise();
             Ok(rows)
         })
         .await
@@ -209,7 +209,7 @@ impl PersistHandle {
             )
             .execute(&self.pool)
             .await?;
-            self.open_changes_memo.revise();
+            self.memo::<super::open_memo::OpenChangesMemo>().revise();
             Ok(done.rows_affected() > 0)
         })
         .await

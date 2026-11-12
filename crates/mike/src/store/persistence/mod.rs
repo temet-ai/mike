@@ -32,7 +32,7 @@ pub mod eval_pointer;
 pub mod eval_rejudge;
 pub mod eval_runs;
 pub mod feature_toggles;
-mod feed_memo;
+pub(crate) mod feed_memo;
 pub(crate) mod file_write_summaries;
 pub(crate) mod file_writes;
 pub mod filter_rules;
@@ -58,6 +58,7 @@ pub mod llm_calls;
 pub mod llm_role_health;
 pub(crate) mod machine_merge;
 pub mod mailbox;
+mod memo_slot;
 pub mod memory_ask_ledger;
 pub mod messages;
 pub mod meta;
@@ -123,7 +124,7 @@ pub mod session_action_list;
 pub mod session_analyzer_overrides;
 pub(crate) mod session_delivery;
 pub(crate) mod session_diagnostics_reads;
-pub(crate) mod session_embeddings;
+pub mod session_embeddings;
 pub mod session_end;
 pub mod session_flow;
 pub mod session_goals;
@@ -192,7 +193,6 @@ pub use judge::{NeedsJudgmentQuery, SessionForJudgment, fetch_sessions_needing_j
 pub use lesson_relations::{LessonRelationDraft, RelationDecisionOutcome};
 pub use operator_turns::JudgeCandidateRow;
 pub(crate) use rehydrate::SessionSummaryRow;
-pub use session_embeddings::SessionEmbeddingWrite;
 
 pub(crate) use agent_dispatch_reads::AgentDispatchFilter;
 pub(crate) use capture_classification::{
@@ -201,11 +201,9 @@ pub(crate) use capture_classification::{
 pub(crate) use capture_support::StreamBlockRow;
 #[cfg(any(test, feature = "test-seams"))]
 pub use id_resolvers::resolve_session_id;
-pub(crate) use recall_reads::RankedTurnRow;
 pub use request_write::IdMode;
 pub(crate) use request_write::{RequestInsertOutcome, RowInsert};
 pub(crate) use tool_call_reads::{BatchToolResultRow, ToolUseRow};
-pub(crate) use turn_tool_call_reads::TurnToolCallContentRow;
 
 /// Whether connecting may apply this binary's embedded migrations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -233,9 +231,8 @@ pub struct PersistHandle {
     judge_ownership_capacity: judge_ownership::JudgeOwnershipCapacity,
     llm_leases: worker_leases::LeaseMemo,
     id_cache: id_cache::IdCache,
-    open_changes_memo: change_record::open_memo::OpenChangesMemo,
     feed_memos: feed_memo::FeedMemos,
-    knowledge_memos: Arc<project_knowledge::KnowledgeMemos>,
+    memos: memo_slot::MemoSlot,
 }
 
 impl PersistHandle {

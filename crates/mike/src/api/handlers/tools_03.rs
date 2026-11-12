@@ -51,7 +51,7 @@ pub(crate) async fn get_turn_tool_call_content(
         return Err((StatusCode::NOT_FOUND, "unknown tool call").into_response());
     };
 
-    let crate::store::persistence::TurnToolCallContentRow {
+    let crate::store::persistence::turn_tool_call_reads::TurnToolCallContentRow {
         input,
         result_is_error,
         result_content,

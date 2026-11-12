@@ -7,7 +7,7 @@ impl PersistHandle {
         project_id: i64,
         keys: &ModelKeys,
     ) -> Result<bool, PersistError> {
-        self.knowledge_memos
+        self.knowledge_memos()
             .nearest_first
             .get_or_fetch((project_id, keys.current().to_owned()), || {
                 self.count_nearest_first(project_id, keys)

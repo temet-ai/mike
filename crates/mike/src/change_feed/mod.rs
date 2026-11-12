@@ -8,7 +8,6 @@ use tokio::sync::watch;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
-use crate::state::AppState;
 use crate::store::models::{ProxyEvent, RowChangedTable};
 
 #[cfg(test)]
@@ -280,13 +279,17 @@ pub(crate) async fn pump(
     }
 }
 
-pub(crate) fn spawn_change_feed(state: &AppState) {
-    let feed = state.change_feed.clone();
+pub(crate) fn spawn_change_feed(
+    feed: &ChangeFeed,
+    persist: Option<&crate::store::persistence::PersistHandle>,
+    events: tokio::sync::broadcast::Receiver<ProxyEvent>,
+    shutdown: CancellationToken,
+    tracker: &tokio_util::task::TaskTracker,
+) {
+    let feed = feed.clone();
     feed.inner.fed.store(true, Ordering::Release);
-    if let Some(persist) = state.persist() {
+    if let Some(persist) = persist {
         persist.attach_change_feed(feed.clone());
     }
-    let events = state.event_tx.subscribe();
-    let shutdown = state.shutdown.clone();
-    state.tracker.spawn(pump(feed, events, shutdown));
+    tracker.spawn(pump(feed, events, shutdown));
 }

@@ -20,7 +20,7 @@ const FROZEN_AT: u64 = 1_800_000_000;
 async fn state() -> anyhow::Result<AppState> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
     state.poll_answers.freeze_clock(FROZEN_AT);
-    crate::change_feed::spawn_change_feed(&state);
+    state.spawn_change_feed();
     Ok(state)
 }
 

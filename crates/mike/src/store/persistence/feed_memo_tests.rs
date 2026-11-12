@@ -1,8 +1,16 @@
 use uuid::Uuid;
 
-use super::FeedMemos;
+use super::{FeedMemos, Memo, Scope};
 use crate::change_feed::ChangeFeed;
 use crate::store::models::RowChangedTable;
+
+/// The scope persistence/fleet/session_lookup.rs gives its fleet memo.
+fn fleet_memo() -> Memo<Option<u8>> {
+    Memo::new(Scope {
+        tables: &[RowChangedTable::LaunchFleets],
+        per_session: &[RowChangedTable::LaunchLaunches, RowChangedTable::Sessions],
+    })
+}
 
 fn attached() -> (FeedMemos, ChangeFeed) {
     let memos = FeedMemos::default();
@@ -15,7 +23,7 @@ fn attached() -> (FeedMemos, ChangeFeed) {
 fn briefs_without_an_attached_feed_are_never_memoised() {
     let memos = FeedMemos::default();
     assert!(memos.briefs().is_none());
-    assert!(memos.fleets().is_none());
+    assert!(memos.bound(&fleet_memo()).is_none());
 }
 
 #[test]
@@ -46,8 +54,9 @@ fn briefs_remembered_hold_until_that_sessions_launch_or_mail_changes() -> anyhow
 fn fleets_remembered_are_dropped_by_any_fleet_change() -> anyhow::Result<()> {
     let (memos, feed) = attached();
     let session = Uuid::new_v4();
+    let fleet_memo = fleet_memo();
     let fleets = memos
-        .fleets()
+        .bound(&fleet_memo)
         .ok_or_else(|| anyhow::anyhow!("feed attached"))?;
     fleets.remember(session, fleets.ticket(), None);
     assert_eq!(fleets.get(session), Some(None));

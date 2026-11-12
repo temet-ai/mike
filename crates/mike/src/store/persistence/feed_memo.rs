@@ -6,16 +6,15 @@ use dashmap::DashMap;
 use uuid::Uuid;
 
 use super::PersistHandle;
-use super::fleet::FleetRow;
 use crate::change_feed::{ChangeFeed, Generation};
 use crate::store::models::RowChangedTable;
 
 const CAPACITY: usize = 4096;
 
 #[derive(Clone, Copy)]
-struct Scope {
-    tables: &'static [RowChangedTable],
-    per_session: &'static [RowChangedTable],
+pub(in crate::store::persistence) struct Scope {
+    pub(in crate::store::persistence) tables: &'static [RowChangedTable],
+    pub(in crate::store::persistence) per_session: &'static [RowChangedTable],
 }
 
 const BRIEFS: Scope = Scope {
@@ -26,25 +25,20 @@ const BRIEFS: Scope = Scope {
     ],
 };
 
-const FLEETS: Scope = Scope {
-    tables: &[RowChangedTable::LaunchFleets],
-    per_session: &[RowChangedTable::LaunchLaunches, RowChangedTable::Sessions],
-};
-
 #[derive(Debug, Clone, Copy)]
 pub(in crate::store::persistence) struct Ticket {
     watermark: Generation,
     revision: u64,
 }
 
-struct Memo<V> {
+pub(in crate::store::persistence) struct Memo<V> {
     scope: Scope,
     revision: AtomicU64,
     entries: DashMap<Uuid, (Vec<Generation>, V)>,
 }
 
 impl<V> Memo<V> {
-    fn new(scope: Scope) -> Self {
+    pub(in crate::store::persistence) fn new(scope: Scope) -> Self {
         Self {
             scope,
             revision: AtomicU64::new(0),
@@ -102,7 +96,6 @@ impl<V: Clone> Bound<'_, V> {
 struct Inner {
     feed: OnceLock<ChangeFeed>,
     briefs: Memo<()>,
-    fleets: Memo<Option<FleetRow>>,
 }
 
 #[derive(Clone)]
@@ -116,7 +109,6 @@ impl Default for FeedMemos {
             inner: Arc::new(Inner {
                 feed: OnceLock::new(),
                 briefs: Memo::new(BRIEFS),
-                fleets: Memo::new(FLEETS),
             }),
         }
     }
@@ -127,22 +119,20 @@ impl fmt::Debug for FeedMemos {
         f.debug_struct("FeedMemos")
             .field("attached", &self.inner.feed.get().is_some())
             .field("briefs", &self.inner.briefs.entries.len())
-            .field("fleets", &self.inner.fleets.entries.len())
             .finish()
     }
 }
 
 impl FeedMemos {
-    fn bound<'a, V>(&'a self, memo: &'a Memo<V>) -> Option<Bound<'a, V>> {
+    pub(in crate::store::persistence) fn bound<'a, V>(
+        &'a self,
+        memo: &'a Memo<V>,
+    ) -> Option<Bound<'a, V>> {
         self.inner.feed.get().map(|feed| Bound { feed, memo })
     }
 
     pub(in crate::store::persistence) fn briefs(&self) -> Option<Bound<'_, ()>> {
         self.bound(&self.inner.briefs)
-    }
-
-    pub(in crate::store::persistence) fn fleets(&self) -> Option<Bound<'_, Option<FleetRow>>> {
-        self.bound(&self.inner.fleets)
     }
 
     pub(in crate::store::persistence) fn forget_briefs(&self) {

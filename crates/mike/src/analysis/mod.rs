@@ -3,14 +3,13 @@ pub(crate) mod categories;
 pub mod config;
 pub(crate) mod corpus;
 pub mod embeddings;
-pub(crate) mod judge;
+pub mod judge;
 pub(crate) mod patterns;
 pub mod rerank;
 
 pub use analyzer::AnalyzerRegistry;
 pub use config::{AnalysisConfig, CategoryConfig, PatternConfig};
 pub use embeddings::{EmbedError, EmbeddingConfig, EmbeddingService};
-pub use judge::JUDGE_RUBRIC_VERSION;
 pub use patterns::Enforcement;
 pub use rerank::{RerankConfig, RerankError, RerankService};
 

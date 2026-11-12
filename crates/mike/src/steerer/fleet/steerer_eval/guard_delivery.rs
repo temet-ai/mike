@@ -1,7 +1,7 @@
 use super::EvalWindow;
 use crate::steerer::guard::live::LiveFire;
 use crate::steerer::guard::live_decision::{DeliveryPlan, LiveDecision};
-use crate::steerer::inject::{ReplyDemand, build_steering_block_with};
+use crate::steerer::inject::build_steering_block_with;
 use crate::steerer::registry::Steerer;
 use crate::store::models::{ProxyEvent, ReminderSource, SystemReminder};
 use crate::store::persistence::steering::NewIntervention;
@@ -80,7 +80,10 @@ pub(super) async fn deliver_guard_fire(
         },
         payload: build_steering_block_with(
             &fire.nudge,
-            ReplyDemand::for_steerer(&authority, steerer.params.delivery.class),
+            crate::steerer::inject::reply_demand_for_steerer(
+                &authority,
+                steerer.params.delivery.class,
+            ),
         ),
     };
     if plan.enqueues() {

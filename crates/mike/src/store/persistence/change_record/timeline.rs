@@ -8,14 +8,17 @@ use crate::store::persistence::{PersistError, PersistHandle};
 
 impl PersistHandle {
     pub async fn open_changes(&self, checkout: &str) -> Result<Vec<OpenChange>, PersistError> {
-        let revision = self.open_changes_memo.revision();
+        let revision = self.memo::<super::open_memo::OpenChangesMemo>().revision();
         let newest = self.newest_change_event(checkout).await?;
         let at = Watermark { newest, revision };
-        if let Some(rows) = self.open_changes_memo.get(checkout, at) {
+        if let Some(rows) = self
+            .memo::<super::open_memo::OpenChangesMemo>()
+            .get(checkout, at)
+        {
             return Ok(rows.as_ref().clone());
         }
         let rows = Arc::new(self.compute_open_changes(checkout).await?);
-        self.open_changes_memo
+        self.memo::<super::open_memo::OpenChangesMemo>()
             .remember(checkout, at, Arc::clone(&rows));
         Ok(Arc::unwrap_or_clone(rows))
     }

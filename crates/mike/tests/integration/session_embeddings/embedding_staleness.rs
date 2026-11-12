@@ -5,7 +5,7 @@ use super::fixtures::{
     set_session_overview,
 };
 use chrono::{Duration as ChronoDuration, SubsecRound, Utc};
-use mike::store::persistence::SessionEmbeddingWrite;
+use mike::store::persistence::session_embeddings::SessionEmbeddingWrite;
 use test_db::TestDb;
 use uuid::Uuid;
 

@@ -1,6 +1,6 @@
 use crate::db_helpers;
 
-use mike::analysis::JUDGE_RUBRIC_VERSION;
+use mike::analysis::judge::JUDGE_RUBRIC_VERSION;
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use wiremock::MockServer;

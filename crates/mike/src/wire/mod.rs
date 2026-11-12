@@ -10,4 +10,5 @@ pub(crate) mod manifest;
 pub(crate) mod prompt_blocks;
 pub(crate) mod prompt_classify;
 pub(crate) mod read_dedup;
+pub(crate) mod steering_block;
 pub(crate) mod volatile;

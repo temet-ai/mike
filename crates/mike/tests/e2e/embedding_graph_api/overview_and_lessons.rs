@@ -1,7 +1,8 @@
 use crate::db_helpers;
 
 use chrono::Utc;
-use mike::store::persistence::{PersistHandle, SessionEmbeddingWrite};
+use mike::store::persistence::PersistHandle;
+use mike::store::persistence::session_embeddings::SessionEmbeddingWrite;
 
 use super::support::{planar_unit, seed_project, seed_session, set_narrative_overview};
 

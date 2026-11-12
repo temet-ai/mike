@@ -1,14 +1,30 @@
 use uuid::Uuid;
 
 use super::{FleetHeaderRow, FleetRow};
+use crate::store::models::RowChangedTable;
+use crate::store::persistence::feed_memo::{Memo, Scope};
 use crate::store::persistence::{PersistError, PersistHandle};
+
+/// The fleet each session belongs to, memoised until the change feed reports a
+/// change to fleets, launches or the session (held in the handle's memo slot).
+struct FleetSessionMemo(Memo<Option<FleetRow>>);
+
+impl Default for FleetSessionMemo {
+    fn default() -> Self {
+        Self(Memo::new(Scope {
+            tables: &[RowChangedTable::LaunchFleets],
+            per_session: &[RowChangedTable::LaunchLaunches, RowChangedTable::Sessions],
+        }))
+    }
+}
 
 impl PersistHandle {
     pub async fn find_fleet_for_session(
         &self,
         session_uuid: Uuid,
     ) -> Result<Option<FleetRow>, PersistError> {
-        let memo = self.feed_memos.fleets();
+        let fleets = self.memo::<FleetSessionMemo>();
+        let memo = self.feed_memos.bound(&fleets.0);
         if let Some(found) = memo.as_ref().and_then(|memo| memo.get(session_uuid)) {
             return Ok(found);
         }
@@ -26,9 +42,10 @@ impl PersistHandle {
         &self,
         session_uuid: Uuid,
     ) -> Result<Option<FleetHeaderRow>, PersistError> {
+        let fleets = self.memo::<FleetSessionMemo>();
         if let Some(found) = self
             .feed_memos
-            .fleets()
+            .bound(&fleets.0)
             .and_then(|memo| memo.get(session_uuid))
         {
             return Ok(found.as_ref().map(FleetHeaderRow::from));

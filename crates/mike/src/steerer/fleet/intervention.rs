@@ -133,7 +133,7 @@ fn reply_demand(fire: &FireContext<'_>, authority: &str, addressing: &Addressing
     if addressing.actor_prefix.is_some() {
         return ReplyDemand::None;
     }
-    ReplyDemand::for_steerer(authority, fire.steerer.params.delivery.class)
+    crate::steerer::inject::reply_demand_for_steerer(authority, fire.steerer.params.delivery.class)
 }
 
 fn note_text(addressing: &Addressing, nudge_message: &str) -> String {

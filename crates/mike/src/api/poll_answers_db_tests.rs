@@ -74,7 +74,7 @@ async fn session_messages_poll_answers_from_the_change_feed() -> anyhow::Result<
     let mut state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
     state.persist = Some(handle.clone());
     state.poll_answers.freeze_clock(1_800_000_000);
-    crate::change_feed::spawn_change_feed(&state);
+    state.spawn_change_feed();
     let (own, other, peer) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
     for session in [own, other, peer] {
         seed_session(&handle, session).await?;

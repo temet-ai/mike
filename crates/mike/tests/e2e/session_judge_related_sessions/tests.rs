@@ -4,7 +4,8 @@ use super::harness::{judge_response, start_proxy_with_state};
 use super::seed::{count_lessons, planar_unit, seed_closed_turn, seed_project, seed_session};
 
 use chrono::{Duration as ChronoDuration, Utc};
-use mike::store::persistence::{PersistHandle, SessionEmbeddingWrite};
+use mike::store::persistence::PersistHandle;
+use mike::store::persistence::session_embeddings::SessionEmbeddingWrite;
 use sqlx::PgPool;
 use uuid::Uuid;
 use wiremock::matchers::{method, path};

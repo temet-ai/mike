@@ -3,7 +3,7 @@ use crate::test_db;
 use super::fixtures::{make_pool_and_persist, one_hot, seed_project, seed_session};
 use anyhow::Context;
 use chrono::{Duration as ChronoDuration, SubsecRound, Utc};
-use mike::store::persistence::SessionEmbeddingWrite;
+use mike::store::persistence::session_embeddings::SessionEmbeddingWrite;
 use test_db::TestDb;
 
 #[tokio::test]

@@ -107,7 +107,7 @@ impl PersistHandle {
         project_id: i64,
         keys: &ModelKeys,
     ) -> Result<Value, PersistError> {
-        self.knowledge_memos
+        self.knowledge_memos()
             .coverage
             .get_or_fetch((project_id, keys.current().to_owned()), || {
                 self.knowledge_embedding_health(Some(project_id), keys)
@@ -116,13 +116,14 @@ impl PersistHandle {
     }
 
     pub(super) fn forget_knowledge_coverage(&self) {
-        self.knowledge_memos.coverage.clear();
+        self.knowledge_memos().coverage.clear();
     }
 
     pub(crate) async fn no_project_knowledge_project(
         &self,
     ) -> Result<Option<ProjectIdentity>, PersistError> {
-        let memo = &self.knowledge_memos.no_project;
+        let memos = self.knowledge_memos();
+        let memo = &memos.no_project;
         if let Some(found) = memo.get(&()) {
             return Ok(Some(found));
         }
@@ -138,9 +139,8 @@ impl PersistHandle {
         Ok(found)
     }
 
-    #[cfg(test)]
-    pub(crate) fn knowledge_memos(&self) -> &KnowledgeMemos {
-        &self.knowledge_memos
+    pub(crate) fn knowledge_memos(&self) -> std::sync::Arc<KnowledgeMemos> {
+        self.memo::<KnowledgeMemos>()
     }
 }
 

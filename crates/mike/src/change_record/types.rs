@@ -141,11 +141,4 @@ pub struct WorkingCheckout {
     pub newest_request_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct SessionIdentity {
-    pub id: i64,
-    pub uuid: uuid::Uuid,
-    pub name: Option<String>,
-    pub cwd: Option<String>,
-    pub project_id: i64,
-}
+pub use crate::store::persistence::change_record::identity::SessionIdentity;

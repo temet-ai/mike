@@ -2,7 +2,8 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
 use crate::analysis::{EmbedError, EmbeddingService};
-use crate::store::persistence::{PersistError, PersistHandle, SessionEmbeddingWrite};
+use crate::store::persistence::session_embeddings::SessionEmbeddingWrite;
+use crate::store::persistence::{PersistError, PersistHandle};
 
 enum SessionEmbeddingRefresh {
     Overview,

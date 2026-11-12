@@ -11,7 +11,6 @@ mod model_keys;
 pub(crate) use embeddings::{
     KNOWLEDGE_COUNT_CAP, KnowledgeEmbeddingSource, KnowledgeStateCounts, PENDING_BATCH,
 };
-pub(crate) use memos::KnowledgeMemos;
 pub(crate) use model_keys::{ModelKeys, QueryEmbedding};
 mod health;
 mod lesson_sync;

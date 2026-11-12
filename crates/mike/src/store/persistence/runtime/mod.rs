@@ -2,7 +2,7 @@ pub mod codex;
 pub mod diagnostics;
 mod events;
 mod identity;
-pub(super) mod identity_budget;
+pub(crate) mod identity_budget;
 mod notification_targets;
 mod notifications;
 mod observation;

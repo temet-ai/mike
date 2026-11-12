@@ -240,7 +240,7 @@ impl PersistHandle {
             if runtime_bounded {
                 sqlx::query!("INSERT INTO runtime.project_identities (project_id) VALUES ($1) ON CONFLICT DO NOTHING", project_id)
                     .execute(&mut *tx).await?;
-                super::super::runtime::identity_budget::admit(&mut tx, &super::super::runtime::ObservationLimits::default()).await?;
+                super::super::runtime::identity_budget::admit(&mut tx, &super::super::runtime::identity_budget::ObservationLimits::default()).await?;
             }
             let resolved = sqlx::query!(
                 "SELECT p.project_path, s.project_resolution

@@ -1,6 +1,5 @@
 use uuid::Uuid;
 
-use crate::change_record::SessionIdentity;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 impl PersistHandle {
@@ -40,4 +39,14 @@ impl PersistHandle {
         })
         .await
     }
+}
+
+/// A session's identity as the change record names it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SessionIdentity {
+    pub id: i64,
+    pub uuid: uuid::Uuid,
+    pub name: Option<String>,
+    pub cwd: Option<String>,
+    pub project_id: i64,
 }

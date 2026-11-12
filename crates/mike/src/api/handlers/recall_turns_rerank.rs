@@ -6,7 +6,7 @@ use crate::api::rerank_search::{
     RerankReport, arrange, candidates_wanted, score, short_query_report,
 };
 use crate::state::AppState;
-use crate::store::persistence::RankedTurnRow;
+use crate::store::persistence::recall_reads::RankedTurnRow;
 use crate::web_base::result_order::ResultOrder;
 
 const MAX_FETCH_ROWS: i64 = 200;

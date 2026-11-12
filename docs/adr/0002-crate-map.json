@@ -338,7 +338,7 @@
   "app": "serve",
   "cache_scope": "core",
   "capture": "proxy",
-  "change_feed": "launch",
+  "change_feed": "db",
   "change_log": "model",
   "change_record": "fleet",
   "channel_link_sweep": "proxy",
@@ -448,10 +448,11 @@
   "store": "db",
   "store/dedup_ops": "proxy",
   "store/persistence/acceptance_criteria": "steerer",
-  "store/persistence/agent_dispatch_reads": "web",
+  "store/persistence/agent_dispatch_reads": "db",
   "store/persistence/agents": "db",
   "store/persistence/ask_ledger_backfill": "dossier",
   "store/persistence/change_record": "fleet",
+  "store/persistence/change_record/identity": "db",
   "store/persistence/composition_usage": "db",
   "store/persistence/compositions": "proxy",
   "store/persistence/consolidation_audit": "lessons",
@@ -470,7 +471,7 @@
   "store/persistence/eval_pointer": "eval",
   "store/persistence/eval_rejudge": "eval",
   "store/persistence/eval_runs": "eval",
-  "store/persistence/feed_memo": "launch",
+  "store/persistence/feed_memo": "db",
   "store/persistence/file_write_summaries": "web",
   "store/persistence/filter_rules": "proxy",
   "store/persistence/fleet": "fleet",
@@ -650,7 +651,7 @@
  },
  "ratchet": {
   "comment": "Upper bounds checked by scripts/crate-plan --check and scripts/schema-plan --check in the pre-push hook. Lower them when a change reduces the count; never raise them.",
-  "crate_seams": 580,
+  "crate_seams": 560,
   "foreign_writes": 130
  }
 }

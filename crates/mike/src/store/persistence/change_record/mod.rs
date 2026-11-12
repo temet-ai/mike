@@ -1,5 +1,5 @@
 mod events;
-mod identity;
+pub mod identity;
 pub(super) mod open_memo;
 mod places;
 mod seen;

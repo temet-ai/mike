@@ -10,8 +10,7 @@ pub(crate) fn session_prompt_content_sha256(blocks: &JsonValue) -> Option<String
             .get("text")
             .and_then(JsonValue::as_str)
             .unwrap_or_default();
-        let stripped =
-            crate::compose_prompt::volatile::strip_volatile_lines(text, &[], block_index);
+        let stripped = crate::wire::volatile::strip_volatile_lines(text, &[], block_index);
         hasher.update(stripped.as_bytes());
         hasher.update([0x1e]);
     }
