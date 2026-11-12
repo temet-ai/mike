@@ -264,6 +264,7 @@ mod tests {
         super::super::TOOL_GET_CROSS_SESSION_CALIBRATION,
         super::super::TOOL_LIST_DIRECTIVE_PROPOSALS,
         super::super::TOOL_GET_IMPROVEMENT_EFFECTS,
+        super::super::supplied::TOOL_LIST_SUPPLIED_ITEMS,
     ];
 
     #[test]
