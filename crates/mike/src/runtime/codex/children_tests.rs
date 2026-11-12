@@ -16,6 +16,7 @@ struct Run {
     late: String,
     effects: Vec<ProjectionEffect>,
     issues: Vec<ProjectionIssue>,
+    excluded: Vec<(ExclusionReason, Option<String>)>,
 }
 
 fn run(text: &str) -> anyhow::Result<Run> {
@@ -37,12 +38,18 @@ fn run(text: &str) -> anyhow::Result<Run> {
         late: late.clone(),
         effects: Vec::new(),
         issues: Vec::new(),
+        excluded: Vec::new(),
     };
     for outcome in replay(&transcript, &mut connection)? {
-        if let IngestOutcome::Capture(frame) = outcome {
-            let batch = decode_observation(&frame.observation, frame.intake_context());
-            recorded.effects.extend(batch.effects);
-            recorded.issues.extend(batch.issues);
+        match outcome {
+            IngestOutcome::Capture(frame) => {
+                let batch = decode_observation(&frame.observation, frame.intake_context());
+                recorded.effects.extend(batch.effects);
+                recorded.issues.extend(batch.issues);
+            }
+            IngestOutcome::Excluded { reason, method, .. } => {
+                recorded.excluded.push((reason, method));
+            }
         }
     }
     Ok(recorded)
@@ -216,7 +223,9 @@ fn children_reconnect_recovers_edges_parentage_and_child_history() -> anyhow::Re
         run.effects
             .iter()
             .filter(|effect| {
-                matches!(effect, ProjectionEffect::Item(item) if item.key.thread_id == child)
+                matches!(effect, ProjectionEffect::Item(item)
+                    if item.key.thread_id == child
+                        && item.evidence.origin == EvidenceOrigin::RpcResponse)
             })
             .count()
     };
@@ -229,12 +238,21 @@ fn children_reconnect_recovers_edges_parentage_and_child_history() -> anyhow::Re
 fn children_reconnect_refused_direct_child_input_and_unknown_child_change_nothing()
 -> anyhow::Result<()> {
     let run = run(RECONNECT)?;
-    let refused = run
+    let refusal = "direct app-server input is not allowed for multi-agent v2 sub-agents";
+    assert_eq!(RECONNECT.matches(refusal).count(), 1);
+    assert!(
+        run.excluded.iter().any(
+            |(reason, method)| *reason == ExclusionReason::UnreviewedResponse && method.is_none()
+        ),
+        "excluded: {:?}",
+        run.excluded
+    );
+    let unknown_thread = run
         .issues
         .iter()
         .filter(|issue| issue.kind == IssueKind::RpcError)
         .count();
-    assert_eq!(refused, 2);
+    assert_eq!(unknown_thread, 1);
     let graph = graph(&run.effects);
     assert!(graph.parent("no-such-child").is_none());
     assert_eq!(graph.descendants(&run.parent).len(), 2);
