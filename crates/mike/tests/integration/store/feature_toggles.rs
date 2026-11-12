@@ -94,8 +94,7 @@ async fn fetch_feature_toggles_returns_all_operator_set_rows() -> anyhow::Result
 }
 
 #[tokio::test]
-async fn upsert_feature_toggle_round_trips_sets_operator_set_and_rejects_unknown_key()
--> anyhow::Result<()> {
+async fn upsert_feature_toggle_round_trips_and_sets_operator_set() -> anyhow::Result<()> {
     let Some(factory) = TestDb::bootstrap().await? else {
         eprintln!("MIKE_TEST_ADMIN_URL unset; skipping");
         return Ok(());
@@ -121,9 +120,6 @@ async fn upsert_feature_toggle_round_trips_sets_operator_set_and_rejects_unknown
         .map(|(_, e, _)| *e)
         .ok_or_else(|| anyhow::anyhow!("steerer toggle must exist in DB after re-enable"))?;
     assert!(steerer_enabled);
-
-    let result = handle.upsert_feature_toggle("no_such_feature", true).await;
-    assert!(result.is_err());
 
     handle_db.cleanup().await?;
     Ok(())

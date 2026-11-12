@@ -1,4 +1,3 @@
-use mike::feature_toggles::TOGGLE_META;
 use serde_json::Value;
 
 use crate::turn_facts::{Fixture, fixture};
@@ -65,33 +64,6 @@ async fn handback_wake_rejected_by_check() -> anyhow::Result<()> {
             .await
             .is_ok()
     );
-    Ok(())
-}
-
-#[tokio::test]
-async fn every_toggle_meta_key_passes_feature_toggles_key_check() -> anyhow::Result<()> {
-    let Some(f) = fixture().await? else {
-        return Ok(());
-    };
-    for meta in TOGGLE_META {
-        let mut tx = f.handle.pool().begin().await?;
-        sqlx::query("DELETE FROM config.feature_toggles WHERE key = $1")
-            .bind(meta.key)
-            .execute(&mut *tx)
-            .await?;
-        let inserted = sqlx::query(
-            "INSERT INTO config.feature_toggles (key, enabled, operator_set) VALUES ($1, false, false)",
-        )
-        .bind(meta.key)
-        .execute(&mut *tx)
-        .await;
-        assert!(
-            inserted.is_ok(),
-            "{} fails feature_toggles_key_check: {inserted:?}",
-            meta.key
-        );
-        tx.rollback().await?;
-    }
     Ok(())
 }
 

@@ -70,7 +70,7 @@ checkout only.
    the last edit. The structural limits below are not visible from the code.
 4. Commit, then push once, in the background. The pre-push hook
    (`scripts/pre-push-check`) is the only CI while Actions minutes are out: it runs
-   gitleaks, semgrep, fmt, `lint-rust` and `scripts/test-area` (the tests of the areas
+   gitleaks, semgrep, fmt, the crate-split ratchet (`scripts/crate-plan --check`, `scripts/schema-plan --check`), `lint-rust` and `scripts/test-area` (the tests of the areas
    the push changed, in every tier) for what the push changed, plus the crates' whole
    fast tier when a change belongs to no area (manifests, lockfile, build scripts,
    crate roots, `.sqlx/`). Everything else runs nightly (`scripts/nightly-tests`, the

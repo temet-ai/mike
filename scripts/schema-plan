@@ -12,6 +12,8 @@ The scan is textual.
   scripts/schema-plan --writes N    list the N largest foreign writes (default 25)
   scripts/schema-plan --reads N     list the N most-read foreign feature tables
   scripts/schema-plan --table T     every crate that reads or writes T
+  scripts/schema-plan --check       fail when foreign writes exceed the ratchet recorded
+                                    in the map (ratchet.foreign_writes)
 
 Foreign writes must reach zero: a crate changes another crate's tables only by
 calling that crate's Rust API. Foreign reads of tables the base owns are allowed;
@@ -126,12 +128,30 @@ def report(cmap, owners, tables, args):
     print("\nmigrations touching each schema:", ", ".join(f"{s}:{n}" for s, n in churn(tables).most_common()))
 
 
+def ratchet_check(cfg, cmap, owners, tables):
+    limit = cfg.get("ratchet", {}).get("foreign_writes")
+    writes, _ = foreign(usage(cmap, tables), owners)
+    now = sum(w[0] for w in writes)
+    if limit is None:
+        print(f"schema-plan: no ratchet recorded; foreign writes {now}")
+        return 0
+    if now > limit:
+        print(f"schema-plan: FAIL foreign writes {now} > ratchet {limit}: a change writes a table "
+              f"another crate owns (scripts/schema-plan --writes 20)")
+        return 1
+    note = f"; lower ratchet.foreign_writes in docs/adr/0002-crate-map.json to {now}" if now < limit else ""
+    print(f"schema-plan: PASS foreign writes {now} <= ratchet {limit}{note}")
+    return 0
+
+
 def main(args):
     with open(cp.DEFAULT_MAP, encoding="utf-8") as handle:
         cfg = json.load(handle)
     cmap = cp.Map(cfg)
     owners = cfg["schemas"]["owners"]
     tables = created_tables()
+    if "--check" in args:
+        return ratchet_check(cfg, cmap, owners, tables)
     if "--table" in args:
         table = args[args.index("--table") + 1]
         print(f"{table}: owner {owner_of(owners, table)}")

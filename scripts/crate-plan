@@ -15,6 +15,8 @@ the lower crate can be extracted. The scan is textual, not a compiler query.
   scripts/crate-plan --blame         which crates' changes cost the most
   scripts/crate-plan --stages        the staged plan, graded stage by stage
   scripts/crate-plan --map FILE      grade another map
+  scripts/crate-plan --check         fail when production seams exceed the ratchet
+                                     recorded in the map (ratchet.crate_seams)
 
 Replay: for each commit on origin/main that touched crates/mike/src, the
 crates it touched plus every crate depending on them (production references
@@ -263,6 +265,22 @@ def print_stages(cfg, files, commits):
               f"{s['pct']:3.0f}% of today")
 
 
+def ratchet_check(cfg, cmap, files):
+    limit = cfg.get("ratchet", {}).get("crate_seams")
+    _, edges = scan(cmap, files)
+    now = sum(s[0] for s in seams(cmap, edges) if s[3] == "prod")
+    if limit is None:
+        print(f"crate-plan: no ratchet recorded; production seams {now}")
+        return 0
+    if now > limit:
+        print(f"crate-plan: FAIL production seams {now} > ratchet {limit}: a change added "
+              f"references from a lower target crate to a higher one (scripts/crate-plan --seams 20)")
+        return 1
+    note = f"; lower ratchet.crate_seams in {os.path.relpath(DEFAULT_MAP, REPO)} to {now}" if now < limit else ""
+    print(f"crate-plan: PASS production seams {now} <= ratchet {limit}{note}")
+    return 0
+
+
 def main(argv):
     args = list(argv)
     path = DEFAULT_MAP
@@ -275,6 +293,8 @@ def main(argv):
     missing = sorted({r.split("/")[0] for r in files if not cmap.crate_of_path(r)})
     if missing:
         print("not in the map (add a rule):", " ".join(missing))
+    if "--check" in args:
+        return ratchet_check(cfg, cmap, files)
     if "--stages" in args:
         print_stages(cfg, files, None)
         return 0

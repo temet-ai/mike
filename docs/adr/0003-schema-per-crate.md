@@ -100,7 +100,9 @@ foreign readers. First candidates, by foreign reads and alterations:
 `memory.turn_facts` (51 foreign reads, 13 alterations), `memory.lessons` (19,
 12), `launch.launches` (23). Pilot one view first and record what sqlx does with it.
 
-### D4. Drop the toggle key CHECK
+### D4. Drop the toggle key CHECK — done
+
+Done in migration `20261112160000_config_feature_toggles_open_keys.sql`.
 
 `config.feature_toggles.key` carries a closed CHECK constraint that a migration
 widens for every new toggle: 65 of 354 migrations. `FeatureToggleService::set_with_source`

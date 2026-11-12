@@ -5860,9 +5860,11 @@ global, non-session-scoped operator configuration — the runtime source of trut
 
 ### `config.feature_toggles`
 
-One row per named feature toggle. Closed key space enforced by a CHECK constraint that every migration
-introducing a new toggle drops and re-adds (idempotent `DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT`).
-`crates/mike/src/feature_toggles/mod.rs` is the authoritative list of toggle keys, and each
+One row per named feature toggle. The key space is closed in code, not in the table: until migration
+`20261112160000_config_feature_toggles_open_keys.sql` a CHECK constraint listed every key and each new
+toggle needed a migration to widen it. Now `FeatureToggleService::set_with_source` refuses any key that is
+not in `TOGGLE_META`, and a row whose key the code does not know is skipped when the overlay loads, so a new
+toggle needs no migration. `crates/mike/src/feature_toggles/` (`TOGGLE_META`) is the authoritative list of toggle keys, and each
 toggle's code default is documented in [`FEATURES.md`](FEATURES.md). Every toggle that rewrites
 traffic or sends captured text off the machine defaults off. The column default is still `TRUE`, so a stored row is
 what actually decides, and migration `20260917000002_fresh_install_defaults_off.sql` turns the
@@ -5870,7 +5872,7 @@ mutation and egress toggles off on a database that has captured no requests yet.
 
 | Column | Type | Purpose |
 |---|---|---|
-| `key` | `TEXT PRIMARY KEY` | Toggle name; CHECK-constrained to the closed set |
+| `key` | `TEXT PRIMARY KEY` | Toggle name; validated against `TOGGLE_META` by the service |
 | `enabled` | `BOOLEAN NOT NULL DEFAULT TRUE` | Whether the feature is currently active |
 | `operator_set` | `BOOLEAN NOT NULL DEFAULT FALSE` | Whether an operator chose this value, as opposed to it being a migration seed |
 | `updated_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | Last time the toggle was written; drives the settings UI's "last changed" display |

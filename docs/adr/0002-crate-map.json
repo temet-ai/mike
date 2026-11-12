@@ -619,5 +619,10 @@
    "workspace.session_notes": "launch",
    "wright": "web"
   }
+ },
+ "ratchet": {
+  "comment": "Upper bounds checked by scripts/crate-plan --check and scripts/schema-plan --check in the pre-push hook. Lower them when a change reduces the count; never raise them.",
+  "crate_seams": 874,
+  "foreign_writes": 146
  }
 }

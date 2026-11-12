@@ -32,8 +32,6 @@ pub mod eval_pointer;
 pub mod eval_rejudge;
 pub mod eval_runs;
 pub mod feature_toggles;
-#[cfg(test)]
-mod feature_toggles_db_tests;
 mod feed_memo;
 pub(crate) mod file_write_summaries;
 pub(crate) mod file_writes;

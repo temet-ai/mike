@@ -137,7 +137,7 @@ Each row is one PR or a few; the seam counts are what each stage newly needs
 
 | Step | Work | Unlocks |
 |---|---|---|
-| 0 | `scripts/crate-plan` and the map in the repo (this ADR). Add a ratchet check to the push hook. | grading |
+| 0 | Done: `scripts/crate-plan`, `scripts/schema-plan` and the map in the repo; the push hook runs `--check` on both against `ratchet` in the map (874 seams, 146 foreign writes on 12 Nov). | grading |
 | 1 | Patterns A, B, C, D, F for the base boundary: 479 references. A and B are mechanical moves and most of it. | S1: extract `mike-base` and `mike-app` (81%) |
 | 2 | Migrator to the bin; `test_support` behind `test-seams`. | S2 (80%) |
 | 3 | `runtime → launch` (10), `launch → knowledge/steerer/lessons/eval` (16), `fleet → steerer/dossier` (3); move the runtime, launch and fleet persistence groups behind repository accessors (H). | S3: extract `mike-runtime`, `mike-launch` + fleet (68%) |

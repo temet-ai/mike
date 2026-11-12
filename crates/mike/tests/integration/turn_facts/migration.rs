@@ -24,7 +24,10 @@ async fn migration_turn_facts_creates_table_and_toggle_row() -> anyhow::Result<(
 }
 
 #[tokio::test]
-async fn feature_toggles_key_check_still_rejects_unknown_keys() -> anyhow::Result<()> {
+async fn feature_toggle_keys_are_closed_in_code_not_by_the_table() -> anyhow::Result<()> {
+    // Migration 20261112160000 dropped feature_toggles_key_check: a new toggle needs
+    // no migration. FeatureToggleService refuses unknown keys
+    // (integration::feature_toggles_service::set_unknown_key_returns_not_found).
     let Some(f) = fixture().await? else {
         return Ok(());
     };
@@ -34,7 +37,10 @@ async fn feature_toggles_key_check_still_rejects_unknown_keys() -> anyhow::Resul
     )
     .execute(f.handle.pool())
     .await;
-    assert!(outcome.is_err());
+    assert!(
+        outcome.is_ok(),
+        "the table no longer lists toggle keys: {outcome:?}"
+    );
     f.db.cleanup().await?;
     Ok(())
 }
