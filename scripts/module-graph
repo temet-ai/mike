@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""module-graph — the dependency graph between crate mike's top-level modules.
+
+Reads every `crate::<module>` path under crates/mike/src (a textual scan, not a
+compiler query, so a path in a comment or string counts too) and reports:
+
+  scripts/module-graph                 the largest dependency cycle: its modules and
+                                       lines, the number the crate split shrinks
+  scripts/module-graph deps <module>   what <module> uses, with reference counts
+  scripts/module-graph users <module>  what uses <module>, with reference counts
+  scripts/module-graph --json          the whole graph as JSON
+
+Docs: docs/adr/0002-split-crate-mike.md.
+"""
+
+import collections
+import json
+import os
+import re
+import sys
+
+ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "crates", "mike", "src")
+PATH = re.compile(r"crate::([a-z_0-9]+)")
+
+
+def load():
+    tops = {e[:-3] if e.endswith(".rs") else e for e in os.listdir(ROOT)
+            if e.endswith(".rs") or os.path.isdir(os.path.join(ROOT, e))}
+    edges = {m: collections.Counter() for m in tops}
+    lines = collections.Counter()
+    for directory, _, names in os.walk(ROOT):
+        for name in names:
+            if not name.endswith(".rs"):
+                continue
+            path = os.path.join(directory, name)
+            top = os.path.relpath(path, ROOT).split(os.sep)[0]
+            top = top[:-3] if top.endswith(".rs") else top
+            with open(path, encoding="utf-8") as handle:
+                text = handle.read()
+            lines[top] += text.count("\n")
+            for used in PATH.findall(text):
+                if used != top and used in tops:
+                    edges[top][used] += 1
+    return edges, lines
+
+
+def largest_cycle(edges):
+    index, low, stack, on, comps, counter = {}, {}, [], set(), [], [0]
+
+    def visit(start):
+        work = [(start, iter(edges[start]))]
+        index[start] = low[start] = counter[0]
+        counter[0] += 1
+        stack.append(start)
+        on.add(start)
+        while work:
+            node, children = work[-1]
+            advanced = False
+            for child in children:
+                if child not in index:
+                    index[child] = low[child] = counter[0]
+                    counter[0] += 1
+                    stack.append(child)
+                    on.add(child)
+                    work.append((child, iter(edges[child])))
+                    advanced = True
+                    break
+                if child in on:
+                    low[node] = min(low[node], index[child])
+            if advanced:
+                continue
+            work.pop()
+            if work:
+                low[work[-1][0]] = min(low[work[-1][0]], low[node])
+            if low[node] == index[node]:
+                comp = []
+                while True:
+                    member = stack.pop()
+                    on.discard(member)
+                    comp.append(member)
+                    if member == node:
+                        break
+                comps.append(comp)
+
+    for node in edges:
+        if node not in index:
+            visit(node)
+    return max(comps, key=len)
+
+
+def main(argv):
+    edges, lines = load()
+    total = sum(lines.values())
+    if argv[:1] == ["--json"]:
+        print(json.dumps({"lines": lines, "edges": edges}, indent=1, sort_keys=True))
+        return 0
+    if len(argv) == 2 and argv[0] in ("deps", "users"):
+        module = argv[1]
+        if module not in edges:
+            print(f"module-graph: no top-level module {module}", file=sys.stderr)
+            return 2
+        if argv[0] == "deps":
+            counts = edges[module]
+        else:
+            counts = collections.Counter({m: c[module] for m, c in edges.items() if c[module]})
+        for name, count in counts.most_common():
+            print(f"{count:6} {name}")
+        return 0
+    if argv:
+        print(__doc__, file=sys.stderr)
+        return 2
+    cycle = largest_cycle(edges)
+    inside = sum(lines[m] for m in cycle)
+    print(f"largest cycle: {len(cycle)} of {len(edges)} modules, {inside} of {total} lines "
+          f"({100 * inside / total:.0f}%)")
+    for name in sorted(cycle, key=lambda m: -lines[m]):
+        print(f"{lines[name]:8} {name}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
