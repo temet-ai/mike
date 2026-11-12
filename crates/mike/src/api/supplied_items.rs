@@ -48,13 +48,15 @@ fn refuse(status: StatusCode, message: String) -> Response {
     (status, Json(json!({ "error": message }))).into_response()
 }
 
-fn persist(state: &AppState) -> Result<&PersistHandle, Response> {
-    state.persist().ok_or_else(|| {
-        refuse(
-            StatusCode::SERVICE_UNAVAILABLE,
-            "persistence is disabled".to_owned(),
-        )
-    })
+fn unavailable() -> Response {
+    refuse(
+        StatusCode::SERVICE_UNAVAILABLE,
+        "persistence is disabled".to_owned(),
+    )
+}
+
+fn persist(state: &AppState) -> Option<&PersistHandle> {
+    state.persist()
 }
 
 fn failed(error: impl std::fmt::Display) -> Response {
@@ -65,9 +67,8 @@ pub(crate) async fn list_supplied_items(
     State(state): State<AppState>,
     Query(query): Query<ListQuery>,
 ) -> Response {
-    let persist = match persist(&state) {
-        Ok(persist) => persist,
-        Err(response) => return response,
+    let Some(persist) = persist(&state) else {
+        return unavailable();
     };
     let limit = query.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
     let offset = query.offset.unwrap_or(0).max(0);
@@ -116,9 +117,8 @@ pub(crate) async fn supply_figures(
     State(state): State<AppState>,
     Query(query): Query<FiguresQuery>,
 ) -> Response {
-    let persist = match persist(&state) {
-        Ok(persist) => persist,
-        Err(response) => return response,
+    let Some(persist) = persist(&state) else {
+        return unavailable();
     };
     let days = query.days.unwrap_or(7).clamp(1, MAX_DAYS);
     let since = Utc::now() - Duration::days(days);
@@ -154,9 +154,8 @@ pub(crate) async fn hand_check_sample(
     State(state): State<AppState>,
     Query(query): Query<SampleQuery>,
 ) -> Response {
-    let persist = match persist(&state) {
-        Ok(persist) => persist,
-        Err(response) => return response,
+    let Some(persist) = persist(&state) else {
+        return unavailable();
     };
     let week = match week_start(query.week.as_deref()) {
         Ok(week) => week,
@@ -209,9 +208,8 @@ pub(crate) async fn post_hand_check(
     Path(id): Path<i64>,
     Json(body): Json<HandCheck>,
 ) -> Response {
-    let persist = match persist(&state) {
-        Ok(persist) => persist,
-        Err(response) => return response,
+    let Some(persist) = persist(&state) else {
+        return unavailable();
     };
     if !VERDICTS.contains(&body.verdict.as_str()) {
         return refuse(

@@ -177,17 +177,37 @@ async fn judge_one(
     item: &PendingVerdict,
 ) -> Result<bool, ()> {
     let user = user_message(item);
-    let answer = match judge.judge(item, &user).await {
-        Ok(answer) if valid(&answer) => answer,
+    let Some(answer) = answer_for(judge, item, &user).await else {
+        return Ok(false);
+    };
+    store_verdict(persist, judge, item, &user, &answer).await
+}
+
+async fn answer_for(judge: &impl SupplyJudge, item: &PendingVerdict, user: &str) -> Option<Answer> {
+    checked(item.item_id, judge.judge(item, user).await)
+}
+
+fn checked(item: i64, outcome: Result<Answer, String>) -> Option<Answer> {
+    match outcome {
+        Ok(answer) if valid(&answer) => Some(answer),
         Ok(answer) => {
-            tracing::warn!(item = item.item_id, verdict = %answer.verdict, "supply_verdict: unknown verdict");
-            return Ok(false);
+            tracing::warn!(item, verdict = %answer.verdict, "supply_verdict: unknown verdict");
+            None
         }
         Err(error) => {
-            tracing::warn!(item = item.item_id, %error, "supply_verdict: judge call failed");
-            return Ok(false);
+            tracing::warn!(item, %error, "supply_verdict: judge call failed");
+            None
         }
-    };
+    }
+}
+
+async fn store_verdict(
+    persist: &PersistHandle,
+    judge: &impl SupplyJudge,
+    item: &PendingVerdict,
+    user: &str,
+    answer: &Answer,
+) -> Result<bool, ()> {
     persist
         .insert_supply_verdict(&NewVerdict {
             item_id: item.item_id,
@@ -195,7 +215,7 @@ async fn judge_one(
             rationale: &answer.rationale,
             evidence: &answer.evidence,
             model: judge.model(),
-            input_text: &user,
+            input_text: user,
         })
         .await
         .map_err(|error| {

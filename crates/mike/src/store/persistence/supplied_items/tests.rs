@@ -219,7 +219,7 @@ async fn verdicts_figures_and_hand_sample_count_ignored_items_as_cost() -> anyho
     assert!(row.judged >= 2 && row.used >= 1 && row.ignored >= 1);
     assert!(row.bytes_ignored >= "Never stash in a shared tree".len() as i64);
 
-    let week = crate::api::supplied_items::week_start(None).map_err(anyhow::Error::msg)?;
+    let week = Utc::now() - Duration::days(1);
     let sample = f.handle.supply_hand_sample(week, 200).await?;
     let mine = sample
         .iter()
@@ -232,8 +232,15 @@ async fn verdicts_figures_and_hand_sample_count_ignored_items_as_cost() -> anyho
             .await?
     );
     let sample = f.handle.supply_hand_sample(week, 200).await?;
-    let answer = crate::api::supplied_items::sample_answer(week, 200, &sample);
-    assert!(answer["checked"].as_u64().unwrap_or(0) >= 1);
-    assert!(answer["agreed"].as_u64().unwrap_or(0) >= 1);
+    let checked = sample
+        .iter()
+        .find(|r| r.supplied_item_id == pending[0].item_id)
+        .ok_or_else(|| anyhow::anyhow!("checked item left the sample"))?;
+    assert_eq!(checked.hand_verdict.as_deref(), Some("used"));
+    assert_eq!(
+        checked.hand_verdict.as_deref(),
+        Some(checked.verdict.as_str())
+    );
+    assert_eq!(checked.hand_checked_by.as_deref(), Some("dawid"));
     Ok(())
 }

@@ -156,30 +156,43 @@ pub(crate) async fn record_evidence(
     session: Uuid,
     evidence: &SupplyEvidence,
 ) {
-    if let Err(error) = persist
-        .record_supplied_lessons(request_id, session, &evidence.lessons)
-        .await
-    {
-        tracing::warn!(request_id, %error, "supplied lessons not recorded");
-    }
+    record_lessons(persist, request_id, session, &evidence.lessons).await;
     let (proxy, client): (Vec<CarriedCard>, Vec<CarriedCard>) = evidence
         .cards
         .iter()
         .cloned()
         .partition(|card| card.added_by_proxy);
-    if let Err(error) = persist
-        .record_supplied_cards(request_id, session, &client)
-        .await
-    {
-        tracing::warn!(request_id, %error, "supplied cards not recorded");
+    retry_cards(persist, request_id, session, &client).await;
+    record_proxy_cards(persist, request_id, session, &proxy).await;
+}
+
+async fn record_lessons(
+    persist: &PersistHandle,
+    request_id: i64,
+    session: Uuid,
+    lessons: &[SuppliedLesson],
+) {
+    let written = persist
+        .record_supplied_lessons(request_id, session, lessons)
+        .await;
+    if let Err(error) = written {
+        tracing::warn!(request_id, %error, "supplied lessons not recorded");
     }
-    match persist
-        .record_supplied_cards(request_id, session, &proxy)
-        .await
-    {
-        Ok(written) if (written as usize) < proxy.len() => {
+}
+
+async fn record_proxy_cards(
+    persist: &PersistHandle,
+    request_id: i64,
+    session: Uuid,
+    cards: &[CarriedCard],
+) {
+    let written = persist
+        .record_supplied_cards(request_id, session, cards)
+        .await;
+    match written {
+        Ok(rows) if (rows as usize) < cards.len() => {
             tokio::time::sleep(CARD_RECORD_RETRY).await;
-            retry_cards(persist, request_id, session, &proxy).await;
+            retry_cards(persist, request_id, session, cards).await;
         }
         Ok(_) => {}
         Err(error) => tracing::warn!(request_id, %error, "proxy cards not recorded"),
@@ -192,11 +205,11 @@ async fn retry_cards(
     session: Uuid,
     cards: &[CarriedCard],
 ) {
-    if let Err(error) = persist
+    let written = persist
         .record_supplied_cards(request_id, session, cards)
-        .await
-    {
-        tracing::warn!(request_id, %error, "supplied cards not recorded on retry");
+        .await;
+    if let Err(error) = written {
+        tracing::warn!(request_id, %error, "supplied cards not recorded");
     }
 }
 
