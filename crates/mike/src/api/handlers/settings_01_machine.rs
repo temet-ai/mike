@@ -100,3 +100,74 @@ pub(crate) async fn clear_machine_setting(
         "value": json_or_null(view.value(&key)),
     })))
 }
+
+#[cfg(test)]
+mod setting_entry_tests {
+    use super::setting_entry;
+    use crate::settings::service::MachineView;
+
+    fn meta(key: &str) -> anyhow::Result<&'static crate::settings::SettingMeta> {
+        crate::settings::SETTINGS_META
+            .iter()
+            .find(|m| m.key == key)
+            .ok_or_else(|| anyhow::anyhow!("{key} is not in SETTINGS_META"))
+    }
+
+    fn view(
+        own: &[(&str, serde_json::Value)],
+        shared: &[(&str, serde_json::Value)],
+    ) -> MachineView {
+        let to_map = |pairs: &[(&str, serde_json::Value)]| {
+            pairs
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), v.clone()))
+                .collect()
+        };
+        MachineView {
+            machine_uuid: Some(uuid::Uuid::from_u128(1)),
+            machine_name: Some("omit".to_owned()),
+            own: to_map(own),
+            shared: to_map(shared),
+        }
+    }
+
+    #[test]
+    fn setting_entry_machine_key_reports_own_value_and_the_shared_one() -> anyhow::Result<()> {
+        let v = view(
+            &[("launch_backend", serde_json::json!("tmux"))],
+            &[("launch_backend", serde_json::json!("herdr"))],
+        );
+        let entry = setting_entry(meta("launch_backend")?, &v, &serde_json::Map::new());
+        assert_eq!(entry["scope"], "machine");
+        assert_eq!(entry["value"], "tmux");
+        assert_eq!(entry["source"], "own");
+        assert_eq!(entry["shared_value"], "herdr");
+        Ok(())
+    }
+
+    #[test]
+    fn setting_entry_machine_key_without_its_own_value_is_the_shared_default() -> anyhow::Result<()>
+    {
+        let v = view(&[], &[("launch_backend", serde_json::json!("herdr"))]);
+        let entry = setting_entry(meta("launch_backend")?, &v, &serde_json::Map::new());
+        assert_eq!(entry["value"], "herdr");
+        assert_eq!(entry["source"], "shared_default");
+        let bare = setting_entry(
+            meta("launch_backend")?,
+            &view(&[], &[]),
+            &serde_json::Map::new(),
+        );
+        assert_eq!(bare["source"], "compiled_default");
+        assert_eq!(bare["shared_value"], serde_json::Value::Null);
+        Ok(())
+    }
+
+    #[test]
+    fn setting_entry_shared_key_carries_no_source() -> anyhow::Result<()> {
+        let v = view(&[], &[("launch_max_surfaces", serde_json::json!(4))]);
+        let entry = setting_entry(meta("launch_max_surfaces")?, &v, &serde_json::Map::new());
+        assert_eq!(entry["value"], 4);
+        assert!(entry.get("source").is_none(), "{entry}");
+        Ok(())
+    }
+}
