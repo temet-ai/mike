@@ -142,6 +142,7 @@ fn fetch_hits<'a>(
     (bound, scope): (&'a QueryVector<'_>, &'a CallScope),
 ) -> impl std::future::Future<Output = Result<Vec<Value>, sqlx::Error>> + 'a {
     sqlx::query_scalar::<_, Value>(include_str!("search.sql"))
+        .persistent(false)
         .bind(project_id)
         .bind(&input.query)
         .bind(&input.kind)
