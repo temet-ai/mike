@@ -1,5 +1,5 @@
 use super::SimilarTurnDto;
-use crate::api::detail::Detail;
+use crate::web_base::detail::Detail;
 use serde::Serialize;
 
 pub(crate) const POINTER_PROMPT_CHARS: usize = 100;

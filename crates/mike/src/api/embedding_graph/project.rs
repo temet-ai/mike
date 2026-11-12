@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 
 use super::GraphEdgeDto;
 use super::bad_request;
-use crate::api::handlers::persist_error_response;
-use crate::api::handlers::persist_unavailable_response;
 use crate::config::AppState;
+use crate::web_base::persist_error_response;
+use crate::web_base::persist_unavailable_response;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ProjectEmbeddingGraphParams {

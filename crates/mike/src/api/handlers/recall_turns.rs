@@ -1,7 +1,7 @@
 use super::*;
-use crate::api::detail::Detail;
-use crate::api::result_order::ResultOrder;
 use crate::store::persistence::project_knowledge::ProjectIdentity;
+use crate::web_base::detail::Detail;
+use crate::web_base::result_order::ResultOrder;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct RecallSimilarTurnsBody {

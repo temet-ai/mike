@@ -11,12 +11,12 @@ use uuid::Uuid;
 
 use super::briefing::{BriefingBuildRequest, build_workspace_briefing, extract_worktree_name};
 use super::roster::RosterEntryDto;
-use crate::api::handlers::{persist_error_response, persist_unavailable_response};
 use crate::config::AppState;
 use crate::store::persistence::workspace::{
     EndRegistrationOutcome, RegisterWorkspaceSession, RegisteredWorkspaceSession,
 };
 use crate::store::persistence::{PersistError, PersistHandle};
+use crate::web_base::{persist_error_response, persist_unavailable_response};
 
 fn non_empty(value: Option<&str>) -> Option<&str> {
     value.map(str::trim).filter(|s| !s.is_empty())

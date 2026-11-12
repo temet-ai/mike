@@ -6,12 +6,12 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-use crate::api::handlers::{persist_error_response, persist_unavailable_response};
 use crate::config::AppState;
 use crate::store::persistence::work_threads::{
     CheckpointInput, EntryInput, HistoryPage, ListFilter, MetaUpdate, StateFields, WorkThreadError,
 };
 use crate::store::persistence::{PersistError, PersistHandle};
+use crate::web_base::{persist_error_response, persist_unavailable_response};
 
 const HISTORY_DEFAULT_LIMIT: i64 = 20;
 const PAGE_MAX_LIMIT: i64 = 500;

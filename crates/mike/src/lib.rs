@@ -97,6 +97,7 @@ pub mod types;
 pub mod uninstall;
 pub mod user_config;
 pub(crate) mod weasel_intercept;
+pub(crate) mod web_base;
 pub(crate) mod work_items;
 pub mod work_registry_worker;
 pub mod work_threads;

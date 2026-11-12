@@ -6,10 +6,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use super::{bad_request, refuse};
-use crate::api::handlers::{persist_error_response, persist_unavailable_response};
 use crate::config::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::wright::{CheckRow, CheckRunRow, NewCheck};
+use crate::web_base::{persist_error_response, persist_unavailable_response};
 use crate::wright::Probe;
 use crate::wright::definition::{
     merge_params, parse_cadence, parse_probe, parse_source, validate_expects, validate_name,

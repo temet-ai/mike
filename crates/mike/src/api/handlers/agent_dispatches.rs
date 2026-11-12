@@ -48,15 +48,18 @@ pub(crate) async fn list_agent_dispatches(
         .clamp(1, AGENT_DISPATCHES_MAX_LIMIT) as i64;
     let offset = params.offset.unwrap_or(0) as i64;
     let date_from_str = params.date_from.as_deref().or(params.since.as_deref());
-    let window =
-        crate::api::search_window::resolve_window(date_from_str, params.date_to.as_deref(), false)
-            .map_err(|e| {
-                (
-                    StatusCode::BAD_REQUEST,
-                    axum::Json(serde_json::json!({"error": e.to_string()})),
-                )
-                    .into_response()
-            })?;
+    let window = crate::web_base::search_window::resolve_window(
+        date_from_str,
+        params.date_to.as_deref(),
+        false,
+    )
+    .map_err(|e| {
+        (
+            StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({"error": e.to_string()})),
+        )
+            .into_response()
+    })?;
 
     let filter = crate::store::persistence::AgentDispatchFilter {
         project: params.project,

@@ -5,12 +5,13 @@ use axum::response::Response;
 use serde::{Deserialize, Serialize};
 
 use super::{Paged, clamp_limit, clamp_offset, parse_session_filter};
-use crate::api::handlers::{lesson_error, persist_error_response, persist_unavailable_response};
+use crate::api::handlers::lesson_error;
 use crate::config::AppState;
 use crate::store::persistence::consolidation_reads::{
     ConsolidationActionRow, ConsolidationDecisionsFilter, ConsolidationRunRow,
     ConsolidationRunsFilter, LessonHistory, LessonInjectionRow, RunnerUp,
 };
+use crate::web_base::{persist_error_response, persist_unavailable_response};
 
 #[derive(Debug, Serialize)]
 pub(crate) struct ConsolidationRunDto {

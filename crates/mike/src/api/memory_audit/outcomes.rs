@@ -3,9 +3,9 @@ use axum::extract::State;
 use axum::response::Response;
 use serde::Serialize;
 
-use crate::api::handlers::{persist_error_response, persist_unavailable_response};
 use crate::config::AppState;
 use crate::store::persistence::lesson_injections::LessonOutcomeRow;
+use crate::web_base::{persist_error_response, persist_unavailable_response};
 
 const OUTCOME_CODES: [&str; 4] = ["success", "partial", "failure", "unknown"];
 

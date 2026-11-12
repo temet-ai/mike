@@ -195,7 +195,7 @@ pub struct LlmSpendResponse {
 }
 
 pub(crate) fn llm_spend_bad_date_response(
-    err: crate::api::search_window::DateParseError,
+    err: crate::web_base::search_window::DateParseError,
 ) -> Response {
     (
         StatusCode::BAD_REQUEST,
@@ -212,7 +212,7 @@ pub async fn get_llm_spend(
         return Err(persist_unavailable_response());
     };
 
-    let window = crate::api::search_window::resolve_window(
+    let window = crate::web_base::search_window::resolve_window(
         params.since.as_deref(),
         params.until.as_deref(),
         false,

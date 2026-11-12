@@ -138,7 +138,7 @@ pub(crate) async fn list_requests(
             .into_response());
     }
 
-    let window = crate::api::search_window::resolve_window(
+    let window = crate::web_base::search_window::resolve_window(
         params.date_from.as_deref(),
         params.date_to.as_deref(),
         false,

@@ -56,7 +56,7 @@ pub(crate) async fn patch_feature(
         ));
     };
 
-    let source = crate::api::change_source::change_source_from_headers(&headers);
+    let source = crate::web_base::change_source::change_source_from_headers(&headers);
     match svc.set_with_source(&key, body.enabled, &source).await {
         Ok((canonical_key, enabled, _change_ids)) => {
             let meta = crate::feature_toggles::TOGGLE_META
@@ -264,7 +264,7 @@ pub(crate) async fn patch_setting(
     })?;
     super::embedding_change::validate_disable(&key, &body.value, &headers)
         .map_err(|(status, error)| setting_error(status, error.to_owned()))?;
-    let source = crate::api::change_source::change_source_from_headers(&headers);
+    let source = crate::web_base::change_source::change_source_from_headers(&headers);
     let previous_pointer = svc.live_pointer(&key);
     let (validated_value, _change_ids) = svc
         .set_for_machine_with_source(&key, body.value, body.machine, &source)

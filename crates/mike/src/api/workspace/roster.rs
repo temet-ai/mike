@@ -5,12 +5,12 @@ use axum::response::Response;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::api::handlers::{persist_error_response, persist_unavailable_response};
 use crate::config::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::workspace::{
     CoordinationEventRow, PathMatch, ProjectPathResolution, WorkspaceRosterRow,
 };
+use crate::web_base::{persist_error_response, persist_unavailable_response};
 use crate::workspace::RosterScope;
 
 #[derive(Debug, Clone, Serialize)]

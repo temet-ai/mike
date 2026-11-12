@@ -80,7 +80,7 @@ async fn run_list_sessions_query(
     offset: usize,
     limit: usize,
     search: Option<&str>,
-    window: &crate::api::search_window::SearchWindow,
+    window: &crate::web_base::search_window::SearchWindow,
 ) -> Result<
     Vec<crate::store::persistence::rehydrate::SessionSummaryRow>,
     crate::store::persistence::PersistError,
@@ -178,7 +178,7 @@ pub(crate) async fn list_sessions(
         return Err(resp);
     }
 
-    let window = crate::api::search_window::resolve_window(
+    let window = crate::web_base::search_window::resolve_window(
         params.date_from.as_deref(),
         params.date_to.as_deref(),
         false,

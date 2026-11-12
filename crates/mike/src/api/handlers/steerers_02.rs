@@ -101,7 +101,7 @@ pub(crate) async fn patch_steerer(
                 pattern,
                 project_id,
             },
-            &crate::api::change_source::change_source_from_headers(&headers),
+            &crate::web_base::change_source::change_source_from_headers(&headers),
         )
         .await
     {
@@ -127,7 +127,7 @@ pub(crate) async fn set_all_steerer_models(
 
     check_steerer_model_listed(&state, &body.model).await?;
 
-    let source = crate::api::change_source::change_source_from_headers(&headers);
+    let source = crate::web_base::change_source::change_source_from_headers(&headers);
     let registry = state.steerer_registry.load_full();
     let mut count: i64 = 0;
     for current in registry.steerers.iter() {
@@ -169,7 +169,7 @@ pub(crate) async fn delete_steerer(
             "session persistence is disabled; steerer deletion is not available",
         ));
     };
-    let source = crate::api::change_source::change_source_from_headers(&headers);
+    let source = crate::web_base::change_source::change_source_from_headers(&headers);
     match svc.delete(id, &source).await {
         Ok(()) => Ok(StatusCode::NO_CONTENT.into_response()),
         Err(e) => Err(map_steerer_service_error(e)),

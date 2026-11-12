@@ -187,7 +187,7 @@ async fn scan_session_for_matches(
             None => continue,
         };
         let remaining = (remaining_cap.saturating_sub(all_matches.len())) as u32;
-        let (count_this, new_matches) = crate::api::body_search::find_in_str(
+        let (count_this, new_matches) = crate::web_base::body_search::find_in_str(
             &text,
             &params.needle,
             params.case_sensitive,

@@ -224,6 +224,7 @@
   "api/handlers/health": "knowledge",
   "api/handlers/health_03": "llm",
   "api/handlers/lesson_create": "lessons",
+  "api/handlers/lesson_types": "lessons",
   "api/handlers/llm_job_models": "llm",
   "api/handlers/llm_provider_health": "llm",
   "api/handlers/llm_providers": "llm",
@@ -276,10 +277,10 @@
   "api/handlers/steering_views_02": "proxy",
   "api/handlers/tags": "launch",
   "api/handlers/team_comms": "launch",
-  "api/handlers/tests_01": "proxy",
-  "api/handlers/tests_02": "proxy",
-  "api/handlers/tests_03": "knowledge",
-  "api/handlers/tests_04": "proxy",
+  "api/handlers/tests_01": "web",
+  "api/handlers/tests_02": "web",
+  "api/handlers/tests_03": "web",
+  "api/handlers/tests_04": "web",
   "api/handlers/tools_01": "steerer",
   "api/handlers/tools_02": "steerer",
   "api/handlers/tools_03": "launch",
@@ -494,7 +495,7 @@
   "store/persistence/session_end": "eval",
   "store/persistence/session_flow": "web",
   "store/persistence/session_goals": "steerer",
-  "store/persistence/session_ids": "web",
+  "store/persistence/session_ids": "db",
   "store/persistence/session_latest": "web",
   "store/persistence/session_notes": "launch",
   "store/persistence/session_projects": "launch",
@@ -527,6 +528,7 @@
   "uninstall": "cli",
   "user_config": "cli",
   "weasel_intercept": "proxy",
+  "web_base": "db",
   "work_items": "core",
   "work_registry_worker": "launch",
   "work_threads": "launch",
@@ -622,7 +624,7 @@
  },
  "ratchet": {
   "comment": "Upper bounds checked by scripts/crate-plan --check and scripts/schema-plan --check in the pre-push hook. Lower them when a change reduces the count; never raise them.",
-  "crate_seams": 874,
+  "crate_seams": 771,
   "foreign_writes": 146
  }
 }

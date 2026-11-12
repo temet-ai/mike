@@ -8,14 +8,14 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-use crate::api::detail::Detail;
-use crate::api::handlers::{persist_error_response, persist_unavailable_response};
-use crate::api::result_order::ResultOrder;
 use crate::config::AppState;
 use crate::store::persistence::PersistError;
 use crate::store::persistence::project_knowledge::{
     KnowledgeQuery, LocationInput, ScanInput, SourceInput,
 };
+use crate::web_base::detail::Detail;
+use crate::web_base::result_order::ResultOrder;
+use crate::web_base::{persist_error_response, persist_unavailable_response};
 
 pub(crate) fn knowledge_error(error: PersistError) -> Response {
     match error {

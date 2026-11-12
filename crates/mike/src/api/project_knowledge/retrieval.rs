@@ -111,7 +111,7 @@ async fn retrieve_with(
     };
     let handle = state
         .persist()
-        .ok_or_else(crate::api::handlers::persist_unavailable_response)?;
+        .ok_or_else(crate::web_base::persist_unavailable_response)?;
     let service = state.embedding_service();
     let key = model_key(&service);
     let (vector, fallback) = embed_for(&service, &key, &input.query).await;

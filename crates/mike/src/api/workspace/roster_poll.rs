@@ -3,11 +3,11 @@ use std::sync::Arc;
 use axum::response::Response;
 
 use super::roster::{RosterEntryDto, RosterResponseDto, roster_entry_from_row};
-use crate::api::handlers::persist_error_response;
 use crate::api::poll_answers::{Loaded, PollError, Presented, Weigh, json_bytes, live_hash};
 use crate::config::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::workspace::WorkspaceRosterRow;
+use crate::web_base::persist_error_response;
 use crate::workspace::RosterScope;
 
 const ROW_WEIGHT: usize = 4096;

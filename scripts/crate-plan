@@ -41,6 +41,28 @@ IMPL = re.compile(r"\nimpl PersistHandle \{(.*?)\n\}", re.S)
 METHOD = re.compile(r"\n    pub(?:\([^)]*\))? (?:async )?fn (\w+)")
 
 
+ITEM = re.compile(r"^\s*pub(?:\([^)]*\))?\s+(?:async\s+)?(?:const\s+fn|fn|struct|enum|trait|type|const|static|mod)\s+(\w+)", re.M)
+GLOB = re.compile(r"^\s*pub(?:\([^)]*\))?\s+use\s+(?:self::)?(\w+)::\*;", re.M)
+
+
+def glob_index(files):
+    """(module path, item) -> defining file, for items a module re-exports with
+    `pub use child::*`, so `api::handlers::x` resolves to the child that defines x."""
+    by_module = {}
+    for rel in files:
+        by_module.setdefault(tuple(module_of(rel)), rel)
+    index = {}
+    for rel, text in files.items():
+        module = module_of(rel)
+        for child in GLOB.findall(text):
+            child_rel = by_module.get(tuple(module + [child]))
+            if child_rel is None:
+                continue
+            for item in ITEM.findall(files[child_rel]):
+                index.setdefault((tuple(module), item), child_rel)
+    return index
+
+
 class Map:
     def __init__(self, cfg):
         self.order = cfg["order"]
@@ -58,7 +80,13 @@ class Map:
                 return crate
         return None
 
+    globs = {}
+
     def crate_of_modpath(self, parts):
+        for n in range(len(parts) - 1, 0, -1):
+            defined = self.globs.get((tuple(parts[:n]), parts[n]))
+            if defined:
+                return self.crate_of_path(defined)
         for n in range(len(parts), 0, -1):
             crate = self.crate_of_path("/".join(parts[:n]))
             if crate:
@@ -68,7 +96,7 @@ class Map:
 
 def is_test(rel, text):
     base = os.path.basename(rel)
-    return (base.endswith(("_tests.rs", "_test.rs")) or base == "tests.rs"
+    return (re.search(r"(^|_)tests?(_\d+)?\.rs$", base) is not None
             or "/tests/" in rel or "#[cfg(test)]" in text[:200])
 
 
@@ -98,7 +126,40 @@ def method_crates(cmap, files):
     return {k: v for k, v in owner.items() if k not in clash}
 
 
-def file_refs(cmap, methods, text):
+RELATIVE = re.compile(r"(?<![\w:])((?:super::)+|self::)((?:\w+::)*)(\{[^{}]*\}|\w+)")
+
+
+def module_of(rel):
+    """The module path of a file: a/b/mod.rs and a/b.rs are a::b; a sibling test
+    file a/b_tests.rs, declared as `mod tests` inside b, is a::b::tests."""
+    parts = re.sub(r"\.rs$", "", rel).split("/")
+    if parts[-1] in ("mod", "lib", "main"):
+        parts = parts[:-1]
+    elif parts[-1].endswith("_tests"):
+        parts = parts[:-1] + [parts[-1][: -len("_tests")], "tests"]
+    return parts
+
+
+def relative_refs(cmap, rel, text):
+    base_module = module_of(rel)
+    for match in RELATIVE.finditer(text):
+        prefix, middle, tail = match.groups()
+        ups = prefix.count("super::")
+        if ups > len(base_module):
+            continue
+        base = base_module[: len(base_module) - ups] if ups else base_module
+        head = base + [p for p in middle.split("::") if p]
+        items = tail[1:-1].split(",") if tail.startswith("{") else [tail]
+        for item in items:
+            item = item.strip().split(" as ")[0].split("::")[0].strip()
+            if item and item not in ("self", "*") and head:
+                parts = head + [item]
+                yield cmap.crate_of_modpath(parts), "::".join(parts)
+
+
+def file_refs(cmap, methods, text, rel=None):
+    if rel is not None:
+        yield from relative_refs(cmap, rel, text)
     for match in BRACE.finditer(text):
         for item in match.group(2).split(","):
             item = item.strip().split(" as ")[0].strip()
@@ -114,6 +175,7 @@ def file_refs(cmap, methods, text):
 
 
 def scan(cmap, files):
+    cmap.globs = glob_index(files)
     methods = method_crates(cmap, files)
     lines = collections.Counter()
     edges = collections.defaultdict(collections.Counter)
@@ -122,7 +184,7 @@ def scan(cmap, files):
         lines[src] += raw.count("\n")
         text = re.sub(r"//[^\n]*", "", raw)
         kind = "test" if is_test(rel, text) else "prod"
-        for dst, symbol in file_refs(cmap, methods, text):
+        for dst, symbol in file_refs(cmap, methods, text, rel):
             if dst and dst != src:
                 edges[(src, dst, kind)][symbol] += 1
     return lines, edges

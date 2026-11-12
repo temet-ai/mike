@@ -20,6 +20,7 @@ use crate::store::persistence::meta::pg_interval_to_humantime;
 use crate::store::{DiagnosticStatsView, FindingView, MemoryBreakdownView, MemoryEntryRow};
 pub(crate) use crate::types::SortOrder;
 use crate::types::{RequestParams, TokenUsage, ToolCall};
+pub(crate) use crate::web_base::{persist_error_response, persist_unavailable_response};
 
 #[cfg(test)]
 use chrono::{DateTime, TimeZone, Utc};

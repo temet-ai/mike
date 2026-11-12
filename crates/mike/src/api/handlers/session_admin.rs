@@ -15,23 +15,6 @@ pub(crate) struct TtlRequest {
     pub(crate) ttl_secs: Option<u64>,
 }
 
-pub(crate) fn persist_unavailable_response() -> Response {
-    (
-        StatusCode::SERVICE_UNAVAILABLE,
-        "session persistence is disabled; pin/ttl endpoints are not available",
-    )
-        .into_response()
-}
-
-pub(crate) fn persist_error_response(e: crate::store::persistence::PersistError) -> Response {
-    tracing::warn!(error = %e, "persistence operation failed in pin/ttl handler");
-    (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        "persistence write failed",
-    )
-        .into_response()
-}
-
 pub(crate) fn bad_ttl_zero_response() -> Response {
     (
         StatusCode::BAD_REQUEST,

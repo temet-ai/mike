@@ -6,11 +6,11 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::persist_unavailable_response;
 use crate::config::AppState;
 use crate::store::persistence::time_spent::{
     BuildsRunningAtOnceRow, SlowCommandRow, TimeSpentByKindRow, TimeSpentFilter,
 };
+use crate::web_base::persist_unavailable_response;
 
 pub(crate) const TIME_SPENT_DEFAULT_DAYS: i64 = 14;
 pub(crate) const TIME_SPENT_MAX_DAYS: i64 = 90;

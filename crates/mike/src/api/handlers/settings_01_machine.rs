@@ -83,7 +83,7 @@ pub(crate) async fn clear_machine_setting(
             "session persistence is disabled; settings mutation is not available".to_owned(),
         )
     })?;
-    let source = crate::api::change_source::change_source_from_headers(&headers);
+    let source = crate::web_base::change_source::change_source_from_headers(&headers);
     let (machine, cleared) = svc
         .clear_machine_value(&key, query.machine, &source)
         .await

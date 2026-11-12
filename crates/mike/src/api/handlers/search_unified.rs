@@ -123,7 +123,7 @@ async fn find_text_unscoped_corpus(
         ));
     };
     let has_id_scope = false;
-    let window = crate::api::search_window::resolve_window(
+    let window = crate::web_base::search_window::resolve_window(
         params.date_from.as_deref(),
         params.date_to.as_deref(),
         has_id_scope,
@@ -220,7 +220,7 @@ async fn scan_corpus_candidates(
         let Some(text) = std::str::from_utf8(body).ok() else {
             continue;
         };
-        let (count_this, new_matches) = crate::api::body_search::find_in_str(
+        let (count_this, new_matches) = crate::web_base::body_search::find_in_str(
             text,
             params.needle,
             params.case_sensitive,
@@ -314,7 +314,7 @@ pub(crate) async fn find_text_scoped_request(
         }
     };
 
-    let (full_count, raw_matches) = crate::api::body_search::find_in_str(
+    let (full_count, raw_matches) = crate::web_base::body_search::find_in_str(
         &text,
         params.needle,
         params.case_sensitive,

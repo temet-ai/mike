@@ -7,8 +7,8 @@ use uuid::Uuid;
 
 use super::GraphEdgeDto;
 use super::bad_request;
-use crate::api::handlers::{persist_error_response, persist_unavailable_response};
 use crate::config::AppState;
+use crate::web_base::{persist_error_response, persist_unavailable_response};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]

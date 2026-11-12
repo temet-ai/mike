@@ -201,7 +201,7 @@ fn append_match_if_room(sessions: &mut [ContentSearchSessionDto], row: ContentSe
         return;
     }
     let (_, chunk_matches) =
-        crate::api::body_search::find_in_str(&row.chunk_text, q, false, 120, 1);
+        crate::web_base::body_search::find_in_str(&row.chunk_text, q, false, 120, 1);
     let Some(m) = chunk_matches.into_iter().next() else {
         return;
     };

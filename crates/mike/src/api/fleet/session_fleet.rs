@@ -6,9 +6,9 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::api::handlers::{persist_error_response, persist_unavailable_response};
 use crate::config::AppState;
 use crate::launch::seat_fact::is_fleet_seat;
+use crate::web_base::{persist_error_response, persist_unavailable_response};
 
 const FLEET_MEMBERSHIP_MIN_WINDOW_HOURS: i32 = super::DEFAULT_WINDOW_HOURS;
 

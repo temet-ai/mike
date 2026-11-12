@@ -1,7 +1,7 @@
 use super::*;
 
 pub(crate) fn window_upper_bound(
-    window: &crate::api::search_window::SearchWindow,
+    window: &crate::web_base::search_window::SearchWindow,
 ) -> Option<chrono::DateTime<chrono::Utc>> {
     if window.defaulted {
         None
@@ -11,7 +11,7 @@ pub(crate) fn window_upper_bound(
 }
 
 pub(crate) fn window_note_headers(
-    window: &crate::api::search_window::SearchWindow,
+    window: &crate::web_base::search_window::SearchWindow,
 ) -> axum::http::HeaderMap {
     let mut headers = axum::http::HeaderMap::new();
     if window.windowed {
