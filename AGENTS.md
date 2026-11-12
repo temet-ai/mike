@@ -112,7 +112,10 @@ so a session never queues behind another's build and a new worktree starts warm:
 crate `mike`'s library restores in seconds. You type nothing extra. The rest stays
 on plain cargo in the checkout's `target/`, shared by the sessions in that checkout:
 - `build`, so `./scripts/start-proxy.sh`, `make install` and the release scripts
-  deploy a binary with the real build identity (an mbx binary is for checks only);
+  deploy a binary with the real build identity (an mbx binary is for checks only).
+  Only release builds and builds with `MIKE_BUILD_IDENTITY=git` (the deploy and run
+  scripts set it) embed the commit; every other build reports `dev-build`, so a
+  commit or branch switch never recompiles crate `mike`;
 - `nextest` (`make test-*`, the pre-push hook's tests), because mbx would run it
   uncached inside its own directory;
 - `scripts/sqlx-prepare`, which needs the macros to run against a database;
