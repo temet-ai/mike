@@ -64,25 +64,37 @@ impl RequestStore {
         match capture_retry::classify(error) {
             capture_retry::WriteFailure::Temporary(reason) => {
                 capture_retry::defer(fallback, req, &reason);
-                tracing::warn!(
-                    request_id = %fallback,
-                    session_id = %req.session_id,
-                    reason,
-                    "first write of the request failed on a temporary database error; \
-                     it is kept and written when its answer completes"
-                );
+                Self::warn_deferred(fallback, req, &reason);
             }
             other => {
-                tracing::warn!(
-                    request_id = %fallback,
-                    session_id = %req.session_id,
-                    error = %error,
-                    "first write of the request was refused by the database; it is not recorded"
-                );
+                Self::warn_refused(fallback, req, error);
                 capture_retry::note_unrecorded(&req.session_id, req.created_at, other.reason());
             }
         }
         fallback
+    }
+
+    fn warn_deferred(fallback: RequestId, req: &InterceptedRequest, reason: &str) {
+        tracing::warn!(
+            request_id = %fallback,
+            session_id = %req.session_id,
+            reason,
+            "first write of the request failed on a temporary database error; \
+             it is kept and written when its answer completes"
+        );
+    }
+
+    fn warn_refused(
+        fallback: RequestId,
+        req: &InterceptedRequest,
+        error: &persistence::PersistError,
+    ) {
+        tracing::warn!(
+            request_id = %fallback,
+            session_id = %req.session_id,
+            error = %error,
+            "first write of the request was refused by the database; it is not recorded"
+        );
     }
 
     pub(crate) async fn hand_off_deferred(

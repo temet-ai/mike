@@ -47,6 +47,33 @@ pub(super) enum CaptureAndRegisterOutcome {
     EarlyResponse(axum::response::Response),
 }
 
+fn lesson_injection_lane(signals: &RequestSignals) -> &'static str {
+    if matches!(signals.turn_origin, TurnOrigin::Subagent) {
+        "subagent"
+    } else {
+        "primary"
+    }
+}
+
+fn spawn_supply_records(
+    state: &AppState,
+    request_id: RequestId,
+    session_id: &str,
+    (original, sent): (&bytes::Bytes, &bytes::Bytes),
+    proxy_lessons: &[i64],
+) {
+    crate::lesson_delivery::supplied::spawn_supply_records(
+        state,
+        crate::lesson_delivery::supplied::SupplyCapture {
+            request_id,
+            session_id,
+            original,
+            sent,
+            proxy_lessons,
+        },
+    );
+}
+
 pub(super) async fn capture_and_register(
     args: CaptureAndRegisterArgs<'_>,
 ) -> Result<CaptureAndRegisterOutcome, ProxyError> {
@@ -70,11 +97,7 @@ pub(super) async fn capture_and_register(
         injected_reminders,
     } = args;
 
-    let lesson_injection_lane = if matches!(signals.turn_origin, TurnOrigin::Subagent) {
-        "subagent"
-    } else {
-        "primary"
-    };
+    let lesson_injection_lane = lesson_injection_lane(&signals);
     let lesson_injection_persona = signals.subagent_persona.clone();
     let mod_lesson_ids = crate::lesson_delivery::label_mod_lessons(body_bytes, &mut manifest);
 
@@ -110,15 +133,12 @@ pub(super) async fn capture_and_register(
     let request_id =
         capture::insert_stub_and_mint_id(&state.store, &mut intercepted, is_new_session).await;
 
-    crate::lesson_delivery::supplied::spawn_supply_records(
+    spawn_supply_records(
         state,
-        crate::lesson_delivery::supplied::SupplyCapture {
-            request_id,
-            session_id: &session_id,
-            original: body_bytes,
-            sent: upstream_body,
-            proxy_lessons: &injected_lesson_ids,
-        },
+        request_id,
+        &session_id,
+        (body_bytes, upstream_body),
+        &injected_lesson_ids,
     );
     run_post_mint_attribution(PostMintAttributionArgs {
         state,
