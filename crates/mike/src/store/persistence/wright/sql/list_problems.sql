@@ -1,5 +1,5 @@
 SELECT p.id, p.check_name, p.source, p.scope, p.resource, p.state, p.opened_at, p.last_seen_at,
-       p.healthy_at, ep.episodes AS "episodes!", ep.latest_evidence
+       p.healthy_at, ep.episodes AS episodes, ep.latest_evidence
   FROM wright.problems p
   CROSS JOIN LATERAL (
       SELECT count(*) AS episodes,

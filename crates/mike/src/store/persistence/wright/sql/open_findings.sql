@@ -24,6 +24,6 @@ opened AS (
          SELECT 1 FROM wright.episodes e WHERE e.problem_id = p.id AND e.closed_at IS NULL)
     RETURNING problem_id
 )
-SELECT (SELECT count(*) FROM opened o JOIN p ON p.id = o.problem_id WHERE p.inserted) AS "opened!",
-       (SELECT count(*) FROM opened o JOIN p ON p.id = o.problem_id WHERE NOT p.inserted) AS "recurred!",
-       (SELECT count(*) FROM seen) AS "still_open!"
+SELECT (SELECT count(*) FROM opened o JOIN p ON p.id = o.problem_id WHERE p.inserted) AS opened,
+       (SELECT count(*) FROM opened o JOIN p ON p.id = o.problem_id WHERE NOT p.inserted) AS recurred,
+       (SELECT count(*) FROM seen) AS still_open

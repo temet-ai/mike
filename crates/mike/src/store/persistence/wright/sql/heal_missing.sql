@@ -13,4 +13,4 @@ closed AS (
      WHERE e.problem_id = h.id AND e.closed_at IS NULL
     RETURNING e.problem_id
 )
-SELECT (SELECT count(*) FROM healed) AS "healed!"
+SELECT (SELECT count(*) FROM healed) AS healed

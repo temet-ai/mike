@@ -11,24 +11,24 @@ pub(crate) fn refuse(status: StatusCode, message: &str) -> Response {
     (status, Json(json!({"error": message}))).into_response()
 }
 
-pub(crate) fn page_limit(value: Option<i64>, default: i64, label: &str) -> Result<i64, Response> {
+pub(crate) fn bad_request(message: String) -> Response {
+    refuse(StatusCode::BAD_REQUEST, &message)
+}
+
+pub(crate) fn page_limit(value: Option<i64>, default: i64, label: &str) -> Result<i64, String> {
     let value = value.unwrap_or(default);
     if (1..=PAGE_MAX_LIMIT).contains(&value) {
         return Ok(value);
     }
-    Err(refuse(
-        StatusCode::BAD_REQUEST,
-        &format!("{label} is {value}; it must be between 1 and {PAGE_MAX_LIMIT}"),
+    Err(format!(
+        "{label} is {value}; it must be between 1 and {PAGE_MAX_LIMIT}"
     ))
 }
 
-pub(crate) fn page_offset(value: Option<i64>, label: &str) -> Result<i64, Response> {
+pub(crate) fn page_offset(value: Option<i64>, label: &str) -> Result<i64, String> {
     let value = value.unwrap_or(0);
     if value >= 0 {
         return Ok(value);
     }
-    Err(refuse(
-        StatusCode::BAD_REQUEST,
-        &format!("{label} is {value}; it must be 0 or more"),
-    ))
+    Err(format!("{label} is {value}; it must be 0 or more"))
 }

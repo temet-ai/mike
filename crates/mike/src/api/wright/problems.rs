@@ -5,7 +5,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::{page_limit, page_offset, refuse};
+use super::{bad_request, page_limit, page_offset, refuse};
 use crate::api::handlers::{persist_error_response, persist_unavailable_response};
 use crate::config::AppState;
 use crate::store::persistence::wright::{NewClientError, ProblemFilter};
@@ -27,43 +27,46 @@ pub(crate) struct ProblemsQuery {
     offset: Option<i64>,
 }
 
-fn state_filter(value: Option<&str>) -> Result<Option<String>, Response> {
+fn state_filter(value: Option<&str>) -> Result<Option<String>, String> {
     match value.map(str::trim).filter(|s| !s.is_empty()) {
         None | Some("all") => Ok(None),
         Some(state) if STATES.contains(&state) => Ok(Some(state.to_owned())),
-        Some(other) => Err(refuse(
-            StatusCode::BAD_REQUEST,
-            &format!("state is `{other}`; it must be one of open, healthy or all"),
+        Some(other) => Err(format!(
+            "state is `{other}`; it must be one of open, healthy or all"
         )),
     }
 }
 
-fn check_filter(value: Option<&str>) -> Result<Option<String>, Response> {
+fn check_filter(value: Option<&str>) -> Result<Option<String>, String> {
     match value.map(str::trim).filter(|s| !s.is_empty()) {
         None => Ok(None),
         Some(name) if CHECKS.iter().any(|c| c.name == name) => Ok(Some(name.to_owned())),
-        Some(other) => Err(refuse(
-            StatusCode::BAD_REQUEST,
-            &format!(
-                "check is `{other}`; known checks: {}",
-                CHECKS.iter().map(|c| c.name).collect::<Vec<_>>().join(", ")
-            ),
+        Some(other) => Err(format!(
+            "check is `{other}`; known checks: {}",
+            CHECKS.iter().map(|c| c.name).collect::<Vec<_>>().join(", ")
         )),
     }
 }
 
-fn source_filter(value: Option<&str>) -> Result<Option<String>, Response> {
+fn source_filter(value: Option<&str>) -> Result<Option<String>, String> {
     match value.map(str::trim).filter(|s| !s.is_empty()) {
         None => Ok(None),
         Some(code) if Source::ALL.iter().any(|s| s.code() == code) => Ok(Some(code.to_owned())),
-        Some(other) => Err(refuse(
-            StatusCode::BAD_REQUEST,
-            &format!(
-                "source is `{other}`; known sources: {}",
-                Source::ALL.map(Source::code).join(", ")
-            ),
+        Some(other) => Err(format!(
+            "source is `{other}`; known sources: {}",
+            Source::ALL.map(Source::code).join(", ")
         )),
     }
+}
+
+fn problem_filter(query: &ProblemsQuery) -> Result<ProblemFilter, String> {
+    Ok(ProblemFilter {
+        state: state_filter(query.state.as_deref())?,
+        check: check_filter(query.check.as_deref())?,
+        source: source_filter(query.source.as_deref())?,
+        limit: page_limit(query.limit, PROBLEMS_DEFAULT_LIMIT, "limit")?,
+        offset: page_offset(query.offset, "offset")?,
+    })
 }
 
 fn watch_enabled(state: &AppState) -> bool {
@@ -75,13 +78,7 @@ pub(crate) async fn list_problems(
     Query(query): Query<ProblemsQuery>,
 ) -> Result<Json<Value>, Response> {
     let handle = state.persist().ok_or_else(persist_unavailable_response)?;
-    let filter = ProblemFilter {
-        state: state_filter(query.state.as_deref())?,
-        check: check_filter(query.check.as_deref())?,
-        source: source_filter(query.source.as_deref())?,
-        limit: page_limit(query.limit, PROBLEMS_DEFAULT_LIMIT, "limit")?,
-        offset: page_offset(query.offset, "offset")?,
-    };
+    let filter = problem_filter(&query).map_err(bad_request)?;
     let page = handle
         .list_wright_problems(&filter)
         .await
@@ -110,8 +107,9 @@ pub(crate) async fn get_problem(
     Query(query): Query<ProblemQuery>,
 ) -> Result<Json<Value>, Response> {
     let handle = state.persist().ok_or_else(persist_unavailable_response)?;
-    let limit = page_limit(query.episode_limit, EPISODES_DEFAULT_LIMIT, "episode_limit")?;
-    let offset = page_offset(query.episode_offset, "episode_offset")?;
+    let limit = page_limit(query.episode_limit, EPISODES_DEFAULT_LIMIT, "episode_limit")
+        .map_err(bad_request)?;
+    let offset = page_offset(query.episode_offset, "episode_offset").map_err(bad_request)?;
     let problem = handle
         .wright_problem(id)
         .await
@@ -171,19 +169,19 @@ pub(crate) struct ClientErrorBody {
     detail: Value,
 }
 
-fn validate_client_error(body: ClientErrorBody) -> Result<NewClientError, Response> {
+fn validate_client_error(body: ClientErrorBody) -> Result<NewClientError, (StatusCode, String)> {
     let route = body.route.trim();
     let message = body.message.trim();
     if route.is_empty() || message.is_empty() {
-        return Err(refuse(
+        return Err((
             StatusCode::BAD_REQUEST,
-            "route and message must both be non-empty",
+            "route and message must both be non-empty".to_owned(),
         ));
     }
     if !CLIENT_ERROR_KINDS.contains(&body.kind.as_str()) {
-        return Err(refuse(
+        return Err((
             StatusCode::BAD_REQUEST,
-            &format!(
+            format!(
                 "kind is `{}`; it must be one of load, console, api or unhandled",
                 body.kind
             ),
@@ -191,9 +189,9 @@ fn validate_client_error(body: ClientErrorBody) -> Result<NewClientError, Respon
     }
     let size = route.len() + message.len() + body.detail.to_string().len();
     if size > CLIENT_ERROR_MAX_BYTES {
-        return Err(refuse(
+        return Err((
             StatusCode::PAYLOAD_TOO_LARGE,
-            &format!("the report is {size} bytes; at most {CLIENT_ERROR_MAX_BYTES} are kept"),
+            format!("the report is {size} bytes; at most {CLIENT_ERROR_MAX_BYTES} are kept"),
         ));
     }
     let detail = if body.detail.is_null() {
@@ -214,7 +212,8 @@ pub(crate) async fn report_client_error(
     Json(body): Json<ClientErrorBody>,
 ) -> Result<Response, Response> {
     let handle = state.persist().ok_or_else(persist_unavailable_response)?;
-    let error = validate_client_error(body)?;
+    let error =
+        validate_client_error(body).map_err(|(status, message)| refuse(status, &message))?;
     let id = handle
         .insert_wright_client_error(&error)
         .await

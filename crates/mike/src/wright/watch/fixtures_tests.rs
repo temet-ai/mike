@@ -101,8 +101,8 @@ impl Db {
                  VALUES ('toolu_' || gen_random_uuid(), $1, $2,
                          (SELECT count(*) FROM tools.uses WHERE request_id = $1), $3, '{}'::jsonb)
                  RETURNING id)
-             INSERT INTO tools.results (request_id, tool_use_id, ord, is_error, content, content_sha256, content_bytes)
-             SELECT $1, u.id, 0, true, $4, repeat('0', 64), length($5) FROM u",
+             INSERT INTO tools.results (request_id, session_id, tool_use_id, ord, is_error, content, content_sha256, content_bytes)
+             SELECT $1, $2, u.id, 0, true, $4, repeat('0', 64), length($5) FROM u",
         )
         .bind(request)
         .bind(session)
