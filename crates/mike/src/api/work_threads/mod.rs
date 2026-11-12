@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::work_threads::{
     CheckpointInput, EntryInput, HistoryPage, ListFilter, MetaUpdate, StateFields, WorkThreadError,
 };

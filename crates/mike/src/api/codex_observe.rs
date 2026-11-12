@@ -7,9 +7,9 @@ use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::config::AppState;
 use crate::runtime::codex_observe::SUPPORTED_CODEX_VERSIONS;
 use crate::runtime::codex_observe::ingest::{self, IngestError, ObserveSource};
+use crate::state::AppState;
 use mike_codex::observe::COVERAGE_GAPS;
 
 pub(crate) const SOURCE_HEADER: &str = "x-mike-codex-source";

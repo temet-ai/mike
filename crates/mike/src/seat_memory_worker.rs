@@ -5,8 +5,8 @@ use arc_swap::ArcSwap;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
-use crate::config::AppState;
 use crate::feature_toggles::FeatureToggles;
+use crate::state::AppState;
 use crate::store::persistence::seat_memory::SeatMemoryRefresh;
 use crate::store::persistence::{PersistError, PersistHandle};
 

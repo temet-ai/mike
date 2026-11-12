@@ -70,7 +70,7 @@ fn body(prompt: &str) -> Result<Vec<u8>> {
 
 async fn run_stage(session: Uuid, prompt: &str) -> Result<StageBody> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     state
         .keeper_snapshot
         .store(Arc::new(snapshot_with_linked(session)));

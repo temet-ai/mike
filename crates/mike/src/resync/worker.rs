@@ -6,8 +6,9 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 
-use crate::config::{AppState, primary_tcp_unreachable};
+use crate::config::primary_tcp_unreachable;
 use crate::resync::{ResyncEngine, ResyncError, SyncReport};
+use crate::state::AppState;
 use crate::store::persistence::ActiveDbTarget;
 
 const WORKER_POOL_MAX_CONNECTIONS: u32 = 4;

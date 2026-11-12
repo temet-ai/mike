@@ -4,7 +4,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::analysis::EmbeddingService;
 use crate::circuit_breaker::CircuitBreaker;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::operator_turns::embed_closed_pending;
 use crate::store::persistence::PersistError;
 use crate::store::persistence::PersistHandle;

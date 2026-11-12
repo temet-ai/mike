@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use crate::circuit_breaker::CircuitBreaker;
-use crate::config::AppState;
 use crate::settings::resolve_judge_worker_llm_settings;
+use crate::state::AppState;
 
 use super::live_shared::LiveJudgeShared;
 use super::live_tick::{LiveTick, LiveTickReport, run_live_tick};

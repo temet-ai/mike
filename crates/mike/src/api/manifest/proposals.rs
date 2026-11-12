@@ -2,7 +2,7 @@ use axum::Router;
 use axum::routing::{get, post};
 
 use crate::api::proposals;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
 const PAGE: Coverage = Coverage::Exempt {

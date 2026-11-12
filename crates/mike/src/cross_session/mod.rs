@@ -15,9 +15,9 @@ use arc_swap::ArcSwap;
 use chrono::Utc;
 use tokio_util::sync::CancellationToken;
 
-use crate::config::AppState;
 use crate::eval::bundles::BundleCause;
 use crate::feature_toggles::FeatureToggles;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 pub use snapshot::CrossSessionSnapshot;

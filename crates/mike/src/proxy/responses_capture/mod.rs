@@ -15,7 +15,7 @@ use axum::Router;
 use axum::routing::any;
 use tokio::sync::{Semaphore, mpsc};
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 pub(crate) use correlation::{Correlation, correlate};

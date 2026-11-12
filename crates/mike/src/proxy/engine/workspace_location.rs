@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistError;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::project_knowledge::ProjectIdentity;

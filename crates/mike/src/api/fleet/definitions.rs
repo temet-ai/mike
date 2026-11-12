@@ -11,12 +11,12 @@ use super::definition_patch::{
     save_definition,
 };
 use super::definition_view::{DefinitionError, FleetView, digest_view, seat_view};
-use crate::config::AppState;
 use crate::launch::fleet::shutdown::{self, DONE, RUNNING, STOPPING, StopReport};
 use crate::launch::fleet::tell_digest::{SlotQueue, slot_queue};
 use crate::launch::fleet::{
     FleetDefinition, check_definition, definition::task_sessions, start::begin, status::assemble,
 };
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::{FleetRow, NewFleet};
 

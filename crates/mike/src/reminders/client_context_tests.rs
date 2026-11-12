@@ -42,11 +42,12 @@ use super::stage_test_support::{
 };
 use super::{RemindersConfig, RemindersOutcome, apply_reminders};
 use crate::analysis::{AnalysisConfig, AnalyzerRegistry};
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
 use crate::extract::request::TurnOrigin;
 use crate::filter::FilterConfig;
 use crate::lesson_worker::LessonSnapshot;
 use crate::pipeline::{RequestStage, StageBody};
+use crate::state::AppState;
 use crate::store::models::{Diagnostic, RequestId};
 use crate::store::updater::run_analysis_and_notify;
 

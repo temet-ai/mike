@@ -27,7 +27,7 @@ use chrono::{DateTime, TimeZone, Timelike, Utc};
 use tokio::time::{MissedTickBehavior, interval};
 
 use crate::analysis::rerank::RerankNightly as QuietBudget;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::search_grades::UngradedEvent;
 use candidates::candidates_phase;

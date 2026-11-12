@@ -5,7 +5,7 @@ use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Duration, Utc};
 use serde::Serialize;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::eval_rejudge::{RejudgeProgress, RejudgeRunRow};
 

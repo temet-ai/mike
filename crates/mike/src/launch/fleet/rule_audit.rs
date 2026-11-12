@@ -2,8 +2,8 @@ use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
 use super::definition::FleetDefinition;
-use crate::config::AppState;
 use crate::launch::ServerOpenRequest;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 use crate::store::persistence::launch::{LaunchListFilter, LaunchRow, NewRun};

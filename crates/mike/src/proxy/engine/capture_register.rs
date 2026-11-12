@@ -1,11 +1,11 @@
 use serde_json::Value;
 
 use crate::capture;
-use crate::config::AppState;
 use crate::error::ProxyError;
 use crate::extract::request::{TurnOrigin, TurnType};
 use crate::extract::signals::RequestSignals;
 use crate::in_flight::InFlightGuard;
+use crate::state::AppState;
 use crate::store::AttachToolResultsOutcome;
 use crate::store::models::{InterceptedRequest, ProxyEvent, RequestId, SystemReminder, ToolResult};
 use crate::store::persistence::capture_classification::classify_author_kind;

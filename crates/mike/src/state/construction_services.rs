@@ -17,9 +17,9 @@ use crate::steerer::service::SteeringService;
 use crate::store::RequestStore;
 use crate::store::persistence::{PersistError, PersistHandle};
 
-use super::super::overrides::apply_settings_overrides;
-use super::super::persist_bootstrap::PersistLlmUsageSink;
-use super::super::schema::ProxyConfig;
+use crate::config::ProxyConfig;
+use crate::config::apply_settings_overrides;
+use crate::config::persist_bootstrap::PersistLlmUsageSink;
 use crate::config::write_guards::{
     FeatureToggleWriteGuard, FilterWriteGuard, SettingsWriteGuard, SteeringWriteGuard,
 };
@@ -27,7 +27,7 @@ use crate::config::write_guards::{
 pub(super) async fn seed_persistence(
     config: &ProxyConfig,
 ) -> anyhow::Result<Option<PersistHandle>> {
-    let persist = super::super::persist_bootstrap::build_persist_handle(
+    let persist = crate::config::persist_bootstrap::build_persist_handle(
         config,
         crate::store::persistence::SchemaPolicy::Migrate,
     )

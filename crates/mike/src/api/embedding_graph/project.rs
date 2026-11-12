@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::GraphEdgeDto;
 use super::bad_request;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::web_base::persist_error_response;
 use crate::web_base::persist_unavailable_response;
 

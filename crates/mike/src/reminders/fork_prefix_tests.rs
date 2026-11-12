@@ -100,7 +100,7 @@ async fn a_fork_stage_leaves_message_zero_as_it_came_in() -> anyhow::Result<()> 
     use crate::pipeline::{RequestStage, StageBody};
 
     let state =
-        crate::config::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
+        crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     let session_id = "fork-prefix-stage-session";
     super::seat_role::remember_for_test(session_id, SeatRole::Fork);
     let resolved = state.resolve_session_toggles(session_id);

@@ -5,7 +5,7 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::turn_verdicts::{TurnVerdictFilter, VerdictMode};
 
 use dto::{

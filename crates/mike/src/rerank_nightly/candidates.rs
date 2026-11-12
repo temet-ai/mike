@@ -7,7 +7,7 @@ use super::grade::{embed_query, rerank_all};
 use super::{Idle, Stop, database_failed};
 use crate::analysis::rerank::MAX_QUERY_CHARS;
 use crate::api::project_knowledge::rerank_page::documents_for;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::project_knowledge::KnowledgeQuery;
 use crate::store::persistence::work_threads::{

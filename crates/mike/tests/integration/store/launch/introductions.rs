@@ -288,7 +288,7 @@ async fn results_endpoint(
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let mut config = mike::config::ProxyConfig::for_tests_in_memory();
     config.inspect_listen_addr = listener.local_addr()?.to_string();
-    let mut state = mike::config::AppState::new(config).await?;
+    let mut state = mike::state::AppState::new(config).await?;
     state.persist = Some(handle.clone());
     let router = mike::api::manifest::inspect_router(state);
     let url = format!(

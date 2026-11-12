@@ -1,5 +1,5 @@
-use mike::config::AppState;
 use mike::config::ProxyConfig;
+use mike::state::AppState;
 
 fn session_id_for_request(request_id: i64) -> String {
     format!("f47ac10b-58cc-4372-a567-{:012x}", request_id)

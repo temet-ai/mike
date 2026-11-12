@@ -11,8 +11,8 @@ use tokio::time::Instant;
 use uuid::Uuid;
 
 use crate::api::client_serves::by_deadline;
-use crate::config::AppState;
 use crate::reminders::launch_brief::brief_reminder;
+use crate::state::AppState;
 use crate::steerer::stage::client_served::mark_mailbox_served;
 use crate::store::models::{ReminderSource, SystemReminder};
 use crate::store::persistence::PersistHandle;

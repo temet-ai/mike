@@ -9,7 +9,7 @@ use super::deliver::{Outcome, deliver};
 use super::mailbox_link::{mailbox_state, mirror_codex_mail};
 use super::store::{self, Mail};
 use super::{Recipient, Runtime, Stage};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 const SWEEP_INTERVAL: Duration = Duration::from_secs(5);

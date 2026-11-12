@@ -90,6 +90,7 @@ pub(crate) mod spa;
 pub(crate) mod sse;
 pub mod stack;
 pub mod startup;
+pub mod state;
 pub mod steerer;
 pub mod store;
 pub mod tui;

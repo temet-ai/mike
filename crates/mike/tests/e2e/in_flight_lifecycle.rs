@@ -3,7 +3,8 @@ use crate::test_db;
 
 use anthropic_fixtures::{MockResponse, RequestBody};
 use mike::app::{inspect_router_on, proxy_router};
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use serde_json::json;
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;

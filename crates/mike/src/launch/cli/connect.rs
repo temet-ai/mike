@@ -37,7 +37,7 @@ pub(crate) async fn reach(config: &ProxyConfig) -> Reach {
 
 pub(crate) async fn fold_settings(config: &mut ProxyConfig, reach: &Reach) {
     match reach {
-        Reach::Database(handle) => crate::config::fold_db_settings(Some(handle), config).await,
+        Reach::Database(handle) => crate::state::fold_db_settings(Some(handle), config).await,
         Reach::Proxy { hello, .. } => {
             crate::config::apply_settings_overrides(config, &hello.settings);
         }

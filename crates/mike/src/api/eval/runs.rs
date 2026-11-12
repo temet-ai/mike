@@ -4,7 +4,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::eval_runs::{
     Disagreement, EvalGateRow, EvalRunRow, ItemLabelFilter, RunItemsFilter, RunsFilter,
 };

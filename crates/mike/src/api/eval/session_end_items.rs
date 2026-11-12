@@ -4,7 +4,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::session_end::SessionEndItemRow;
 
 const DEFAULT_LIMIT: i64 = 100;

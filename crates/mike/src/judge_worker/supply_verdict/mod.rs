@@ -7,9 +7,9 @@ use std::time::Duration;
 use chrono::{DateTime, Timelike, Utc};
 use tokio::time::{MissedTickBehavior, interval};
 
-use crate::config::AppState;
 use crate::lesson_proposer::ProposerSettings;
 use crate::llm::{LlmCallContext, LlmRole, OpenRouterClient};
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::supplied_items::{NewVerdict, PendingVerdict};
 use prompt::{Answer, SYSTEM, schema, user_message, valid};

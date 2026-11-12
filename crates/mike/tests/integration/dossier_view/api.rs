@@ -1,4 +1,5 @@
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use serde_json::Value;
 use tokio::net::TcpListener;
 

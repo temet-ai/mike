@@ -12,7 +12,7 @@ use serde::Serialize;
 
 use crate::api::workspace::RosterAnswer;
 use crate::change_feed::{ChangeFeed, Generation};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::models::RowChangedTable;
 
 #[cfg(test)]

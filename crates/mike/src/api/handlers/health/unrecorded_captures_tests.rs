@@ -1,6 +1,7 @@
 use axum::extract::State;
 
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
+use crate::state::AppState;
 use crate::store::models::RequestId;
 use crate::store::persistence::capture_retry;
 

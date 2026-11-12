@@ -4,7 +4,7 @@ use tokio::sync::broadcast::{self, error::RecvError};
 use tokio_util::sync::CancellationToken;
 
 use super::RerankService;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::models::{ProxyEvent, RowChangedOp, RowChangedTable};
 
 pub(crate) const WARMUP_WINDOW: Duration = Duration::from_secs(60);

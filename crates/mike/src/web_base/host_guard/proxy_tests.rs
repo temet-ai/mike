@@ -5,7 +5,7 @@ use crate::app::proxy_router;
 use crate::config::ProxyConfig;
 
 async fn serve_proxy() -> anyhow::Result<std::net::SocketAddr> {
-    let state = crate::config::AppState::new(ProxyConfig::for_tests_in_memory()).await?;
+    let state = crate::state::AppState::new(ProxyConfig::for_tests_in_memory()).await?;
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let addr = listener.local_addr()?;
     tokio::spawn(async move {

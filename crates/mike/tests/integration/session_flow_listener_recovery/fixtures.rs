@@ -2,8 +2,9 @@ use std::time::Duration;
 
 use futures::StreamExt;
 use mike::app::{inspect_router_on, proxy_router};
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
 use mike::db_listener;
+use mike::state::AppState;
 use serde_json::Value;
 use sqlx::Connection as _;
 use sqlx::Row;

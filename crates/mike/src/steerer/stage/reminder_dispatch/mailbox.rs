@@ -1,5 +1,5 @@
 use super::requeue_reminder;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::models::{ReminderSource, SystemReminder};
 use crate::store::persistence::{PersistError, PersistHandle};
 

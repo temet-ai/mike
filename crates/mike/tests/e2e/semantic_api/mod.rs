@@ -1,4 +1,5 @@
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use tokio::net::TcpListener;
 
 use crate::db_helpers;

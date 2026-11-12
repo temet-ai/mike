@@ -7,8 +7,8 @@ use super::definition::FleetDefinition;
 use super::here;
 use super::shutdown::{self, RUNNING, STOPPING};
 use super::status::{FleetStatus, SeatStatus, assemble};
-use crate::config::AppState;
 use crate::launch::{BackendId, Notice, TerminalBackend, backend_for};
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 

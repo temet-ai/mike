@@ -4,7 +4,8 @@ use uuid::Uuid;
 
 use super::definition_patch::{PatchFleetRequest, save_definition};
 use super::definition_view::DefinitionError;
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::NewFleet;
 use crate::store::persistence::launch::NewRun;

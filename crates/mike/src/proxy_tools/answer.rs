@@ -2,7 +2,7 @@ use anyhow::Context;
 use bytes::Bytes;
 use serde_json::Value;
 
-use crate::config::AppState;
+use crate::state::AppState;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ProxyToolCall {

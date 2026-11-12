@@ -1,8 +1,9 @@
 use std::path::Path;
 
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
 use mike::launch::fleet::FleetDefinition;
 use mike::launch::fleet::events::{EventPayload, NewFleetEvent, SeatLaunchConfirmed};
+use mike::state::AppState;
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::fleet::{FleetRow, NewFleet};
 use mike::store::persistence::launch::{LaunchSurfaceRefs, NewLaunch, NewRun};

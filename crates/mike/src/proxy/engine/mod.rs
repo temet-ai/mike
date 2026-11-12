@@ -7,12 +7,12 @@ use axum::http::{HeaderMap, Method, Request, Uri};
 use axum::response::Response;
 use bytes::Bytes;
 
-use crate::config::AppState;
 use crate::error::ProxyError;
 use crate::extract::signals::RequestSignals;
 use crate::feature_toggles::ResolvedToggles;
 use crate::in_flight::InFlightGuard;
 use crate::metrics::{COUNTER_REQUESTS_TOTAL, HISTOGRAM_UPSTREAM_LATENCY, status_bucket};
+use crate::state::AppState;
 use crate::store::models::{RequestId, SystemReminder};
 
 mod attribution;

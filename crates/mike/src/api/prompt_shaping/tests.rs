@@ -6,13 +6,14 @@ use uuid::Uuid;
 
 use super::{ProjectQuery, PromptShaping, get_prompt_shaping};
 use crate::compose_prompt::stage::{TurnIdentity, run};
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
 use crate::extract::request::TurnOrigin;
 use crate::filter::stage::FilterStage;
 use crate::filter::{FilterAction, FilterConfig, FilterKind, FilterRule, RuleSource};
 use crate::lazy_sections::stage::LazySectionsStage;
 use crate::lesson_worker::LessonSnapshot;
 use crate::pipeline::{RequestStage, StageBody, StageContext};
+use crate::state::AppState;
 use crate::store::models::RequestId;
 use crate::wire::manifest::ManifestBuilder;
 

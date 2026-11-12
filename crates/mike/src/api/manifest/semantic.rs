@@ -2,7 +2,7 @@ use axum::Router;
 use axum::routing::{get, post};
 
 use crate::api::semantic::{self as h, patterns};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
 const DECISION_REASON: &str = "operator names or dismisses a failure pattern; SPA control only, agents must not create failure patterns";

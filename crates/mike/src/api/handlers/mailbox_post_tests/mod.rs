@@ -10,7 +10,8 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 use super::{PostSessionMessageBody, post_session_message};
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::change_record::test_seed;
 use crate::store::persistence::fleet::NewFleet;

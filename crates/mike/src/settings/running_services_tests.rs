@@ -5,7 +5,8 @@ use tokio::sync::Mutex;
 
 use super::running_services::{apply_stored_rows, sync_running_services};
 use crate::analysis::{EmbeddingConfig, EmbeddingService, RerankConfig, RerankService};
-use crate::config::{AppState, ProxyConfig, SettingsWriteGuard};
+use crate::config::{ProxyConfig, SettingsWriteGuard};
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::test_support::acquire_ephemeral_db;
 

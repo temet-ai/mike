@@ -8,8 +8,8 @@ use tokio_util::sync::CancellationToken;
 
 use super::{Checkout, Git, Running, WatchConfig, key, start};
 use crate::change_record::WorkingCheckout;
-use crate::config::AppState;
 use crate::feature_toggles::FeatureToggles;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 const TICK: Duration = Duration::from_secs(30);

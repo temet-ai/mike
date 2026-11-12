@@ -5,8 +5,8 @@ use uuid::Uuid;
 use super::ledger::Ledger;
 use super::{mcp_preflight, server};
 use crate::api::launches::mcp_seen;
-use crate::config::AppState;
 use crate::launch::ServerOpenRequest;
+use crate::state::AppState;
 use crate::store::persistence::launch::LaunchOutcome;
 
 #[path = "seat_health_start.rs"]

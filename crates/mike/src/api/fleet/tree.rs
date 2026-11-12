@@ -8,7 +8,6 @@ use serde_json::Value;
 
 use super::definition_view::DefinitionError;
 use crate::api::changes::{WithTail, since_you_last_looked};
-use crate::config::AppState;
 use crate::launch::fleet::commit::{
     CommitReport, CommitRequest, IntegrateReport, commit, covers, integrate,
 };
@@ -17,6 +16,7 @@ use crate::launch::fleet::commit_verify::Verifier;
 use crate::launch::fleet::reuse::waiting_uses;
 use crate::launch::fleet::seated::Seated;
 use crate::launch::fleet::{FleetDefinition, checks::normal};
+use crate::state::AppState;
 use crate::store::persistence::fleet::{FleetRow, TreeResultRow};
 use crate::store::persistence::{PersistError, PersistHandle};
 

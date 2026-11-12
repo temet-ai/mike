@@ -1,6 +1,7 @@
 use mike::analysis::AnalysisConfig;
 use mike::app::{inspect_router_on, proxy_router};
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use tokio::net::TcpListener;
 
 #[allow(dead_code)]

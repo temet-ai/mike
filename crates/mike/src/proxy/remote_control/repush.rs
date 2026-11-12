@@ -5,7 +5,7 @@ use tokio::time::{MissedTickBehavior, interval};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::models::SystemReminder;
 
 use super::inject::{PushDeps, push_source, try_push_reminder};

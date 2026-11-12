@@ -1,9 +1,9 @@
 use axum::response::Response;
 
-use crate::config::AppState;
 use crate::error::ProxyError;
 use crate::feature_toggles::ResolvedToggles;
 use crate::in_flight::InFlightGuard;
+use crate::state::AppState;
 use crate::store::models::RequestId;
 
 mod buffered;

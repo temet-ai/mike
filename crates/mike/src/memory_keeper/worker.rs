@@ -10,8 +10,8 @@ use super::rebuild::{PassReport, merge, rebuild};
 use super::refresh::refresh;
 use super::snapshot::KeeperCache;
 use crate::circuit_breaker::CircuitBreaker;
-use crate::config::AppState;
 use crate::feature_toggles::FeatureToggles;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::work_threads::WorkThreadError;
 

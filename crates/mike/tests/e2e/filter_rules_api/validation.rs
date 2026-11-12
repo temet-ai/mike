@@ -1,7 +1,7 @@
 use super::harness::start_proxy_with_config;
 
 use mike::app::inspect_router_on;
-use mike::config::AppState;
+use mike::state::AppState;
 use serde_json::{Value, json};
 use tokio::net::TcpListener;
 

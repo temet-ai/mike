@@ -15,8 +15,8 @@ use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
-use crate::config::AppState;
 use crate::llm::OpenRouterClient;
+use crate::state::AppState;
 
 pub use checker::{Checked, CheckerAnswer, CheckerQuestion, check};
 pub use judge::{

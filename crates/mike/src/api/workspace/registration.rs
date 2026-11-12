@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use super::briefing::{BriefingBuildRequest, build_workspace_briefing, extract_worktree_name};
 use super::roster::RosterEntryDto;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::workspace::{
     EndRegistrationOutcome, RegisterWorkspaceSession, RegisteredWorkspaceSession,
 };

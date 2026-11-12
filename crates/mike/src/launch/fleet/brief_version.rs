@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use super::definition::FleetDefinition;
 use super::plan::{self, ControlSeats, FleetFacts, REFERENCE_SEAT, TEMPLATE_SEAT_PREFIX};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 use crate::store::persistence::launch::{LaunchListFilter, LaunchRow};

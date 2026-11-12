@@ -1,8 +1,8 @@
 use serde::Serialize;
 
 use crate::analysis::rerank::{RerankPhase, RerankStatus};
-use crate::config::AppState;
 use crate::semantic::egress::{EgressState, egress_state_for_url};
+use crate::state::AppState;
 
 const RERANK_SETTINGS_PAGE: &str = "/settings/embedding";
 

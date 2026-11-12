@@ -5,11 +5,11 @@ use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
 use super::definition_view::DefinitionError;
-use crate::config::AppState;
 use crate::launch::fleet::{
     FleetDefinition, Missing, check_definition, check_environment, gather, merge, starts,
 };
 use crate::launch::{BackendId, LaunchError, TerminalBackend, backend_for};
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 

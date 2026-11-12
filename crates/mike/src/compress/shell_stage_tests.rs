@@ -27,7 +27,7 @@ fn bash_then_answers(answers: usize) -> anyhow::Result<Vec<u8>> {
     )?)
 }
 
-async fn run(toggles: &ResolvedToggles, state: &crate::config::AppState, raw: &[u8]) -> StageBody {
+async fn run(toggles: &ResolvedToggles, state: &crate::state::AppState, raw: &[u8]) -> StageBody {
     let filter_cfg = FilterConfig::default();
     let lesson_snapshot = LessonSnapshot::default();
     let turn_origin = TurnOrigin::Primary;
@@ -52,7 +52,7 @@ async fn run(toggles: &ResolvedToggles, state: &crate::config::AppState, raw: &[
 #[tokio::test]
 async fn shadow_arm_records_the_cut_and_forwards_the_body_unchanged() -> anyhow::Result<()> {
     let state =
-        crate::config::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
+        crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     let toggles: ResolvedToggles = (*state.resolve_session_toggles("shell-shadow")).clone();
     assert!(!toggles.shell_output_compression, "the toggle ships off");
     let raw = bash_then_answers(3)?;
@@ -81,7 +81,7 @@ async fn shadow_arm_records_the_cut_and_forwards_the_body_unchanged() -> anyhow:
 #[tokio::test]
 async fn forward_arm_on_a_cold_cache_sends_the_shortened_body() -> anyhow::Result<()> {
     let state =
-        crate::config::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
+        crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     let mut toggles: ResolvedToggles = (*state.resolve_session_toggles("shell-forward")).clone();
     toggles.shell_output_compression_forward = true;
     let raw = bash_then_answers(3)?;
@@ -102,7 +102,7 @@ async fn forward_arm_on_a_cold_cache_sends_the_shortened_body() -> anyhow::Resul
 #[tokio::test]
 async fn session_arm_uses_its_own_share_independent_of_file_reads() -> anyhow::Result<()> {
     let state =
-        crate::config::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
+        crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     let mut toggles: ResolvedToggles = (*state.resolve_session_toggles("shell-arm")).clone();
     toggles.file_read_compression_forward_share = 100;
     assert!((0..50).all(|i| session_arm(&toggles, &format!("s-{i}")) == ARM_CONTROL));

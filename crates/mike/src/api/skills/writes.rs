@@ -9,7 +9,7 @@ use uuid::Uuid;
 use super::state::Mode;
 use super::{error, persist_failed, unavailable};
 use crate::api::eval::labels::spa_origin;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::lessons::skill_review_writes::SkillReview;
 

@@ -8,7 +8,7 @@ use axum::response::Response;
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::web_base::{persist_error_response, persist_unavailable_response};
 
 #[derive(Debug, Serialize)]

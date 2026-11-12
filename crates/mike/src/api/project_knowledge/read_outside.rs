@@ -2,7 +2,7 @@ use axum::response::Response;
 use serde_json::{Value, json};
 
 use super::knowledge_error;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::project_knowledge::REFERENCE_NOT_IN_PROJECT;
 use crate::store::persistence::{PersistError, PersistHandle};
 

@@ -103,7 +103,7 @@ mod tests {
     }
 
     fn make_ctx<'a>(
-        state: &'a crate::config::AppState,
+        state: &'a crate::state::AppState,
         session_toggles: &'a crate::feature_toggles::ResolvedToggles,
         filter_cfg: &'a FilterConfig,
         lesson_snapshot: &'a LessonSnapshot,
@@ -127,7 +127,7 @@ mod tests {
     #[tokio::test]
     async fn lazy_sections_stage_is_always_enabled() -> anyhow::Result<()> {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let session_toggles = state.resolve_session_toggles("session-lazy-sections-stage-test");
         let filter_cfg = FilterConfig::default();
         let lesson_snapshot = LessonSnapshot::default();
@@ -146,7 +146,7 @@ mod tests {
     #[tokio::test]
     async fn apply_strips_section_and_records_manifest() -> anyhow::Result<()> {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let session_toggles = state.resolve_session_toggles("session-lazy-sections-stage-test");
         let filter_cfg = FilterConfig {
             rules: vec![lazy_rule(7)],
@@ -189,7 +189,7 @@ mod tests {
     #[tokio::test]
     async fn apply_leaves_body_untouched_when_heading_absent() -> anyhow::Result<()> {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let session_toggles = state.resolve_session_toggles("session-lazy-sections-stage-test");
         let filter_cfg = FilterConfig {
             rules: vec![lazy_rule(7)],
@@ -228,7 +228,7 @@ mod tests {
     #[tokio::test]
     async fn apply_without_any_lazy_rules_records_no_rules() -> anyhow::Result<()> {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let session_toggles = state.resolve_session_toggles("session-lazy-sections-stage-test");
         let filter_cfg = FilterConfig::default();
         let lesson_snapshot = LessonSnapshot::default();

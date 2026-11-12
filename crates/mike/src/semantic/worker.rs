@@ -8,8 +8,8 @@ use tokio_util::sync::CancellationToken;
 
 use crate::analysis::embeddings::{EmbeddingConfig, EmbeddingService};
 use crate::circuit_breaker::CircuitBreaker;
-use crate::config::AppState;
 use crate::feature_toggles::FeatureToggles;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::semantic::{EmbedderRow, SemanticWindow};
 

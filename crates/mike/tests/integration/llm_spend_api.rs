@@ -6,8 +6,9 @@ use crate::test_db::TestDb;
 
 use mike::api::handlers::receipts_01::LlmSpendParams;
 use mike::api::handlers::spend_01::get_llm_spend;
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
 use mike::settings::SettingsOverlay;
+use mike::state::AppState;
 use mike::store::persistence::llm_calls::LlmCallInsert;
 
 fn empty_params() -> LlmSpendParams {

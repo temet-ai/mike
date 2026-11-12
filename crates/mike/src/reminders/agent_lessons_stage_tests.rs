@@ -11,7 +11,7 @@ use crate::pipeline::{RequestStage, StageBody};
 #[tokio::test]
 async fn agent_lessons_enabled_requires_toggle_and_subagent_turn() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("agent-lessons-stage-enabled-test");
     let mut toggles_on: ResolvedToggles = (*resolved).clone();
     toggles_on.agent_lessons = true;
@@ -64,7 +64,7 @@ async fn agent_lessons_enabled_requires_toggle_and_subagent_turn() -> anyhow::Re
 #[tokio::test]
 async fn agent_lessons_apply_injects_and_records_manifest() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("agent-lessons-stage-apply-test");
     let mut toggles_on: ResolvedToggles = (*resolved).clone();
     toggles_on.agent_lessons = true;
@@ -99,7 +99,7 @@ async fn agent_lessons_apply_injects_and_records_manifest() -> anyhow::Result<()
 #[tokio::test]
 async fn agent_lessons_apply_leaves_body_untouched_when_persona_unresolved() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("agent-lessons-stage-no-persona-test");
     let filter_cfg = FilterConfig::default();
     let snapshot = code_reviewer_snapshot();

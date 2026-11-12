@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use super::grade::rerank_all;
 use super::{Idle, Stop, database_failed};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::lesson_pair_candidates::NewPairCandidate;
 use crate::store::persistence::lesson_relations::CandidateLessonPair;
 use crate::store::persistence::{PersistError, PersistHandle};

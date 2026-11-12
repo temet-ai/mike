@@ -5,9 +5,9 @@ use bytes::Bytes;
 use serde_json::Value;
 
 use crate::compose_prompt;
-use crate::config::AppState;
 use crate::error::ProxyError;
 use crate::feature_toggles::ResolvedToggles;
+use crate::state::AppState;
 use crate::store::models::RequestId;
 
 use super::capture_register::{self, CaptureAndRegisterArgs, CaptureAndRegisterOutcome};

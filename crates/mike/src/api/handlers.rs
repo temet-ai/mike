@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::analysis::EmbeddingService;
 use crate::api::embedding_graph::EmbeddingStatusDto;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::models::{
     Diagnostic, DiagnosticCategory, InterceptedRequest, RequestId, RequestStatus, SessionView,
     SystemPromptSource,

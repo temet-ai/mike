@@ -367,7 +367,8 @@ mod tests {
         use axum::body::Body;
         use axum::http::{Request, StatusCode};
         use mike::app::{inspect_router, proxy_router};
-        use mike::config::{AppState, ProxyConfig};
+        use mike::config::ProxyConfig;
+        use mike::state::AppState;
         use serde_json::Value;
         use tower::ServiceExt;
 

@@ -8,7 +8,7 @@ use super::dto::SessionFlowComponent;
 use super::export_trace::{PerfettoTrace, build_trace};
 use super::handler::map_read_error;
 use super::map;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::session_flow::{self as persist, FlowReadError};
 

@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::{bad_request, page_limit, page_offset, refuse};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::wright::{NewClientError, ProblemFilter};
 use crate::web_base::{persist_error_response, persist_unavailable_response};

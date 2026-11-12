@@ -13,7 +13,7 @@ use crate::wire::manifest::StageOutcome;
 async fn self_identity_enabled_requires_toggle_primary_turn_and_no_tool_loop() -> anyhow::Result<()>
 {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("self-identity-stage-enabled-test");
     let mut toggles_on: ResolvedToggles = (*resolved).clone();
     toggles_on.self_identity_reminder = true;
@@ -80,7 +80,7 @@ async fn self_identity_enabled_requires_toggle_primary_turn_and_no_tool_loop() -
 async fn self_identity_apply_injects_on_first_request_and_skips_while_marker_still_present()
 -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("self-identity-stage-apply-test");
     let filter_cfg = FilterConfig::default();
     let snapshot = LessonSnapshot::default();
@@ -134,7 +134,7 @@ async fn self_identity_apply_injects_on_first_request_and_skips_while_marker_sti
 async fn self_identity_apply_reinjects_once_the_marker_drops_out_of_the_request()
 -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("self-identity-stage-reassert-test");
     let filter_cfg = FilterConfig::default();
     let snapshot = LessonSnapshot::default();
@@ -174,7 +174,7 @@ async fn self_identity_apply_reinjects_once_the_marker_drops_out_of_the_request(
 #[tokio::test]
 async fn self_identity_apply_leaves_body_untouched_when_not_a_user_turn() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("self-identity-stage-non-user-turn-test");
     let filter_cfg = FilterConfig::default();
     let snapshot = LessonSnapshot::default();
@@ -209,7 +209,7 @@ async fn self_identity_apply_leaves_body_untouched_when_not_a_user_turn() -> any
 #[tokio::test]
 async fn self_identity_enabled_only_on_session_own_lane_without_agent_id() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("self_identity-own-lane-test");
     let mut toggles_on: ResolvedToggles = (*resolved).clone();
     toggles_on.self_identity_reminder = true;
@@ -244,7 +244,7 @@ async fn self_identity_enabled_only_on_session_own_lane_without_agent_id() -> an
 #[tokio::test]
 async fn self_identity_apply_leaves_a_template_session_body_unchanged() -> anyhow::Result<()> {
     let state =
-        crate::config::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
+        crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     let session_id = "self-identity-template-session-test";
     super::seat_role::remember_for_test(session_id, super::seat_role::SeatRole::Template);
     let resolved = state.resolve_session_toggles(session_id);

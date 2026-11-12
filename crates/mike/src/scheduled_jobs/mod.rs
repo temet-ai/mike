@@ -15,7 +15,7 @@ use tokio::time::{Instant, MissedTickBehavior, interval_at};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 pub(crate) use jobs::{JOBS, Job};

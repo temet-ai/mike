@@ -90,7 +90,7 @@ mod tests {
     use crate::store::models::RequestId;
 
     fn ctx_with_state<'a>(
-        state: &'a crate::config::AppState,
+        state: &'a crate::state::AppState,
         session_toggles: &'a ResolvedToggles,
         filter_cfg: &'a FilterConfig,
         lesson_snapshot: &'a LessonSnapshot,
@@ -119,7 +119,7 @@ mod tests {
             .enable_all()
             .build()?;
         rt.block_on(async {
-            let state = crate::config::AppState::new(config).await?;
+            let state = crate::state::AppState::new(config).await?;
             let resolved = state.resolve_session_toggles("session-recall-injector-stage-test");
             let mut session_toggles: ResolvedToggles = (*resolved).clone();
             session_toggles.recall_injector = true;
@@ -142,7 +142,7 @@ mod tests {
     #[tokio::test]
     async fn apply_leaves_body_untouched_when_no_recall_tags() -> anyhow::Result<()> {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let mut session_toggles: ResolvedToggles =
             (*state.resolve_session_toggles("session-recall-injector-stage-test")).clone();
         session_toggles.recall_injector = true;
@@ -180,7 +180,7 @@ mod tests {
     async fn apply_leaves_body_untouched_when_tags_present_but_persist_unwired()
     -> anyhow::Result<()> {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let mut session_toggles: ResolvedToggles =
             (*state.resolve_session_toggles("session-recall-injector-stage-test")).clone();
         session_toggles.recall_injector = true;
@@ -213,11 +213,7 @@ mod tests {
         Ok(())
     }
 
-    async fn recall_reason(
-        state: &crate::config::AppState,
-        session_id: &str,
-        raw: &[u8],
-    ) -> String {
+    async fn recall_reason(state: &crate::state::AppState, session_id: &str, raw: &[u8]) -> String {
         let mut session_toggles: ResolvedToggles =
             (*state.resolve_session_toggles(session_id)).clone();
         session_toggles.recall_injector = true;
@@ -246,7 +242,7 @@ mod tests {
     #[tokio::test]
     async fn apply_stands_aside_only_for_the_session_the_client_took() -> anyhow::Result<()> {
         let state =
-            crate::config::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
+            crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
         let served = uuid::Uuid::new_v4().to_string();
         let other = uuid::Uuid::new_v4().to_string();
         let raw = serde_json::to_vec(&serde_json::json!({

@@ -3,9 +3,9 @@ use bytes::Bytes;
 use serde_json::Value;
 
 use crate::capture;
-use crate::config::AppState;
 use crate::extract::request::{TurnOrigin, TurnType};
 use crate::extract::signals::RequestSignals;
+use crate::state::AppState;
 use crate::store::models::{InterceptedRequest, RequestId, SystemPromptObservation, ToolResult};
 use crate::wire::manifest::{ManifestBuilder, sha256_hex};
 

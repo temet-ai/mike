@@ -1,8 +1,9 @@
 use bytes::Bytes;
 
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
 use crate::extract::request::TurnOrigin;
 use crate::reminders::inject::InjectBookkeeping;
+use crate::state::AppState;
 use crate::steerer::stage::drain;
 use crate::store::models::{ReminderSource, RequestId, SystemReminder};
 use crate::wire::manifest::ManifestBuilder;

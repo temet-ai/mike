@@ -158,7 +158,7 @@ async fn serve(f: &Fixture) -> anyhow::Result<String> {
         f.db.database_url.clone(),
     ];
     let state =
-        mike::config::AppState::new(mike::config::ProxyConfig::try_parse_from(args)?).await?;
+        mike::state::AppState::new(mike::config::ProxyConfig::try_parse_from(args)?).await?;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let base = format!("http://{}", listener.local_addr()?);
     let router = mike::app::inspect_router_on(state, listener.local_addr()?);

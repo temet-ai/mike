@@ -7,7 +7,8 @@ use serde_json::{Value, json};
 use super::checks::{
     AddCheckBody, PatchCheckBody, add_check, delete_check, list_checks, patch_check,
 };
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
+use crate::state::AppState;
 use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db};
 use crate::store::persistence::wright::ProblemFilter;
 use crate::wright::{CheckOutcome, CheckRun, Finding};

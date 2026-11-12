@@ -11,7 +11,7 @@ use crate::pipeline::{RequestStage, StageBody};
 #[tokio::test]
 async fn session_lessons_enabled_requires_toggle_and_primary_turn() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("session-lessons-stage-enabled-test");
     let mut toggles_on: ResolvedToggles = (*resolved).clone();
     toggles_on.reminders_inject_lessons = true;
@@ -77,7 +77,7 @@ async fn session_lessons_enabled_requires_toggle_and_primary_turn() -> anyhow::R
 #[tokio::test]
 async fn session_lessons_apply_injects_from_snapshot_and_records_manifest() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("session-lessons-stage-apply-test");
     let mut toggles_on: ResolvedToggles = (*resolved).clone();
     toggles_on.reminders_inject_lessons = true;
@@ -120,7 +120,7 @@ async fn session_lessons_apply_injects_from_snapshot_and_records_manifest() -> a
 #[tokio::test]
 async fn session_lessons_apply_leaves_body_untouched_when_snapshot_empty() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("session-lessons-stage-empty-test");
     let filter_cfg = FilterConfig::default();
     let snapshot = LessonSnapshot::default();
@@ -150,7 +150,7 @@ async fn session_lessons_apply_leaves_body_untouched_when_snapshot_empty() -> an
 #[tokio::test]
 async fn session_lessons_enabled_only_on_session_own_lane_without_agent_id() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("session_lessons-own-lane-test");
     let mut toggles_on: ResolvedToggles = (*resolved).clone();
     toggles_on.reminders_inject_lessons = true;

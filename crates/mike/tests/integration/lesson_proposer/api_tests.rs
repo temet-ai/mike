@@ -8,7 +8,8 @@ use tower::ServiceExt;
 use crate::turn_facts::{Fixture, NewTurn, Req, attach, fixture, insert_request, insert_turn};
 
 use mike::api::manifest::inspect_router;
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::lessons::proposals::{EvidenceWrite, NewCandidateLesson};
 

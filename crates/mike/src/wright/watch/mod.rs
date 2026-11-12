@@ -8,8 +8,8 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
-use crate::config::AppState;
 use crate::feature_toggles::FeatureToggles;
+use crate::state::AppState;
 use crate::store::models::ProxyEvent;
 use crate::store::persistence::PersistError;
 use crate::store::persistence::wright::RecordedRun;

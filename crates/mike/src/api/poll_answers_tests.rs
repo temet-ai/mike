@@ -8,7 +8,8 @@ use super::{
     AnswerCache, Loaded, MAX_ENTRIES, MAX_WEIGHT, Poll, PollError, Presented, SESSION_MAILBOX,
     answer, answer_json,
 };
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
+use crate::state::AppState;
 use crate::store::models::RowChangedTable;
 
 const OWN: &str = "aaaaaaaa-0000-4000-8000-000000000001";

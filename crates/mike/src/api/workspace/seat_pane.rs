@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use uuid::Uuid;
 
-use crate::config::AppState;
 use crate::launch::kill_for_server;
+use crate::state::AppState;
 
 const LAST_WORDS: Duration = Duration::from_secs(20);
 

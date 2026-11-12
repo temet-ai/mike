@@ -6,7 +6,8 @@ use axum::http::StatusCode;
 use uuid::Uuid;
 
 use super::{MailClaimResponse, post_mail_claim};
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
+use crate::state::AppState;
 use crate::store::models::{ReminderSource, SystemReminder};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db, starve_pool};

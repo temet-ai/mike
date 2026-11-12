@@ -3,8 +3,8 @@ use std::future::Future;
 use axum::http::StatusCode;
 use tokio::time::Instant;
 
-use crate::config::AppState;
 use crate::feature_toggles::client_serves;
+use crate::state::AppState;
 
 pub(crate) async fn by_deadline<T: Send + 'static>(
     deadline: Instant,

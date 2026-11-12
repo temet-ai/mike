@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use serde_json::Value;
 
-use crate::config::AppState;
 use crate::search_ranking::{identifier_hits, mark_outside_project};
+use crate::state::AppState;
 use crate::store::persistence::project_knowledge::{
     KnowledgeQuery, ProjectIdentity, QueryEmbedding,
 };

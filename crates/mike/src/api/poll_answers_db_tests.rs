@@ -4,7 +4,8 @@ use axum::response::Response;
 use uuid::Uuid;
 
 use crate::api::handlers::get_session_messages;
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
+use crate::state::AppState;
 use crate::store::models::RowChangedTable;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::test_support::acquire_ephemeral_db;

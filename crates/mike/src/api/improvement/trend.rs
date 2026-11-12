@@ -6,7 +6,7 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::change_log::{ChangeLogFilter, ChangeLogRow};
 use crate::store::persistence::improvement::trend::WeeklyShare;
 

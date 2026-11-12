@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use tracing::info;
 
-use crate::config::AppState;
+use crate::state::AppState;
 
 pub async fn emit_startup_banner(state: &AppState) {
     let started = Instant::now();

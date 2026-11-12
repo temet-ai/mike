@@ -11,11 +11,11 @@ use crate::filter::FilterConfig;
 use crate::settings::SettingsOverlay;
 use crate::store::RequestStore;
 
-use super::super::schema::ProxyConfig;
 use super::AppState;
 use super::construction_llm as llm_wiring;
 use super::construction_pipeline as pipeline;
 use super::construction_services as services;
+use crate::config::ProxyConfig;
 
 impl AppState {
     pub async fn new(config: ProxyConfig) -> anyhow::Result<Self> {

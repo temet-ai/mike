@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{Paged, clamp_limit, clamp_offset};
 use crate::api::handlers::lesson_error;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::lesson_relations::{LessonRelationRow, RelationDecisionOutcome};
 use crate::web_base::{persist_error_response, persist_unavailable_response};
 

@@ -7,10 +7,10 @@ use serde_json::json;
 
 use super::envelope::{Paging, envelope, page};
 use super::params::{DEFAULT_LIMIT, DossierParams, check_section, parse_as_of, parse_audience};
-use crate::config::AppState;
 use crate::dossier::render::render_inputs;
 use crate::dossier::view::full::{full_view, resolutions};
 use crate::dossier::view::types::{DossierError, Needs};
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 fn error(status: StatusCode, message: impl Into<String>) -> Response {

@@ -6,7 +6,7 @@ use crate::api::handlers::{
     FailedDeliveryDto, PostThreadMessageBody, ThreadDeliveriesResponse, ThreadDeliveryDto,
     mailbox_error,
 };
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 use super::reply_context::ReplyContext;

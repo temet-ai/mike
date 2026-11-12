@@ -162,7 +162,7 @@ impl RequestStage for FakeStage {
 #[tokio::test]
 async fn request_stage_runs_through_a_dyn_registry_in_order() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let session_toggles = state.resolve_session_toggles("session-pipeline-test");
     let filter_cfg = FilterConfig::default();
     let lesson_snapshot = LessonSnapshot::default();

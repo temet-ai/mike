@@ -1,6 +1,7 @@
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
 use mike::launch::fleet::shutdown;
 use mike::launch::fleet::test_seams::durable;
+use mike::state::AppState;
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::fleet::{FleetRow, NewFleet};
 use mike::store::persistence::launch::{LaunchSurfaceRefs, NewLaunch, NewRun};

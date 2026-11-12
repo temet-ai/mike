@@ -216,7 +216,7 @@ fn seat_state(facts: &SeatFacts, now: DateTime<Utc>) -> String {
 }
 
 pub async fn assemble(
-    state: &crate::config::AppState,
+    state: &crate::state::AppState,
     row: &crate::store::persistence::fleet::FleetRow,
 ) -> Result<FleetStatus, String> {
     let persist = state
@@ -310,7 +310,7 @@ pub fn note_facts(n: crate::store::persistence::fleet::FleetNoteRow) -> NoteFact
 }
 
 async fn live_states(
-    state: &crate::config::AppState,
+    state: &crate::state::AppState,
 ) -> std::collections::BTreeMap<uuid::Uuid, String> {
     let Ok(id) = state.config.launch.backend.parse() else {
         return Default::default();

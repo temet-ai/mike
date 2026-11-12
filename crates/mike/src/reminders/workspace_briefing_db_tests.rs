@@ -4,13 +4,14 @@ use bytes::Bytes;
 use uuid::Uuid;
 
 use super::WorkspaceBriefingStage;
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
 use crate::extract::request::TurnOrigin;
 use crate::filter::FilterConfig;
 use crate::lesson_worker::LessonSnapshot;
 use crate::pipeline::{RequestStage, StageBody};
 use crate::proxy::engine::workspace_register::maybe_register_workspace_session;
 use crate::reminders::stage_test_support::{StageCtxFixture, make_ctx};
+use crate::state::AppState;
 use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db};
 use crate::store::persistence::workspace::{RegisterWorkspaceSession, WorkspaceRosterRow};
 use crate::store::persistence::{PersistHandle, SENTINEL_PROJECT_PATH};

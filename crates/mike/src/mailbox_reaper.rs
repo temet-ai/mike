@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use tokio::time::{MissedTickBehavior, interval};
 
-use crate::config::AppState;
+use crate::state::AppState;
 
 const REAP_INTERVAL: Duration = Duration::from_secs(300);
 

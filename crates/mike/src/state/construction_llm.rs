@@ -1,6 +1,6 @@
 use crate::llm::{LlmRole, LlmUsageSink};
 
-use super::super::schema::ProxyConfig;
+use crate::config::ProxyConfig;
 
 pub(super) fn seed_openrouter_key_slot(config: &ProxyConfig) -> crate::llm::key::OpenRouterKeySlot {
     std::sync::Arc::new(arc_swap::ArcSwap::from_pointee(

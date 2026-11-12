@@ -6,9 +6,9 @@ use arc_swap::ArcSwap;
 use tokio_util::sync::CancellationToken;
 
 use crate::circuit_breaker::CircuitBreaker;
-use crate::config::AppState;
 use crate::feature_toggles::FeatureToggles;
 use crate::llm::OpenRouterClient;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 use crate::settings::resolve_judge_worker_llm_settings;

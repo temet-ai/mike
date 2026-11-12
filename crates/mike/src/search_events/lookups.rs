@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use serde_json::{Value, json};
 
 use super::record::{Draft, spawn_record};
-use crate::config::AppState;
+use crate::state::AppState;
 
 const CONVERSATION_TOOL: &str = "search_session_content";
 const TEXT_TOOL: &str = "find_text";

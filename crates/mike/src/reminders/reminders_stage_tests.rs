@@ -14,7 +14,7 @@ use crate::store::models::RequestId;
 #[tokio::test]
 async fn reminders_enabled_follows_the_reminders_toggle() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("reminders-stage-enabled-test");
     let mut toggles_on: ResolvedToggles = (*resolved).clone();
     toggles_on.reminders = true;
@@ -53,7 +53,7 @@ async fn reminders_enabled_follows_the_reminders_toggle() -> anyhow::Result<()> 
 #[tokio::test]
 async fn reminders_apply_appends_reminder_from_prior_findings() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("reminders-stage-apply-test");
     let mut toggles_on: ResolvedToggles = (*resolved).clone();
     toggles_on.reminders = true;
@@ -99,7 +99,7 @@ async fn reminders_apply_appends_reminder_from_prior_findings() -> anyhow::Resul
 #[tokio::test]
 async fn reminders_apply_leaves_body_untouched_when_no_prior_findings() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("reminders-stage-no-prior-test");
     let filter_cfg = FilterConfig::default();
     let snapshot = LessonSnapshot::default();
@@ -130,7 +130,7 @@ async fn reminders_apply_leaves_body_untouched_when_no_prior_findings() -> anyho
 async fn diagnostic_reminders_enabled_only_on_session_own_lane_without_agent_id()
 -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("diagnostic_reminders-own-lane-test");
     let mut toggles_on: ResolvedToggles = (*resolved).clone();
     toggles_on.reminders = true;

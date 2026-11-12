@@ -6,8 +6,8 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use crate::compose_prompt::PromptClassKey;
-use crate::config::AppState;
 use crate::filter::{FilterConfig, FilterKind, FilterRule, project_scope_matches};
+use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ProjectQuery {

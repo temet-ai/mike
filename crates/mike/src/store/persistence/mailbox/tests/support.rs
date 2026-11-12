@@ -19,7 +19,7 @@ pub(super) async fn seed_session(pool: &sqlx::PgPool, label: &str) -> anyhow::Re
 }
 
 pub(super) async fn drain_primary_turn(
-    state: &crate::config::AppState,
+    state: &crate::state::AppState,
     session: &str,
 ) -> Vec<crate::store::models::SystemReminder> {
     let mut body = bytes::Bytes::from_static(

@@ -3,7 +3,7 @@ use std::time::Instant;
 use uuid::Uuid;
 
 use crate::channel_link_sweep::link::{claim_scan, unseen_channels, write_links};
-use crate::config::AppState;
+use crate::state::AppState;
 
 pub(crate) fn maybe_link_channel(state: &AppState, session_id: &str, body: &[u8]) {
     if state.persist().is_none() {

@@ -23,7 +23,8 @@ use tokio_util::sync::CancellationToken;
 
 use crate::analysis::EmbeddingService;
 use crate::circuit_breaker::CircuitBreaker;
-use crate::config::{AppState, LessonWorkerConfig};
+use crate::config::LessonWorkerConfig;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 pub use snapshot::{InjectableLesson, LessonSnapshot};

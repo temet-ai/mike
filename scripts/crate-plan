@@ -168,9 +168,26 @@ def relative_refs(cmap, rel, text):
                 yield cmap.crate_of_modpath(parts), "::".join(parts)
 
 
+CHILD_MOD = re.compile(r"^\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+(\w+)\s*;", re.M)
+
+
+def child_refs(cmap, rel, text):
+    """Bare paths to a module's own children (`change_record::X` in a mod.rs that
+    declares `mod change_record;`), which cross crates when a child maps elsewhere."""
+    children = set(CHILD_MOD.findall(text))
+    if not children:
+        return
+    base = module_of(rel)
+    pattern = re.compile(r"(?<![\w:])(" + "|".join(map(re.escape, children)) + r")::(\w+(?:::\w+)*)")
+    for match in pattern.finditer(text):
+        parts = base + [match.group(1)] + match.group(2).split("::")
+        yield cmap.crate_of_modpath(parts), "::".join(parts)
+
+
 def file_refs(cmap, methods, text, rel=None):
     if rel is not None:
         yield from relative_refs(cmap, rel, text)
+        yield from child_refs(cmap, rel, text)
     for match in BRACE.finditer(text):
         for item in match.group(2).split(","):
             item = item.strip().split(" as ")[0].strip()

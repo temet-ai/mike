@@ -4,8 +4,8 @@ use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::config::AppState;
 use crate::reminders::agent_lessons::agent_lessons_answer;
+use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct AgentContextRequest {

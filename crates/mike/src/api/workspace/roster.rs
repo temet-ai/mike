@@ -5,7 +5,7 @@ use axum::response::Response;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::workspace::{
     CoordinationEventRow, PathMatch, ProjectPathResolution, WorkspaceRosterRow,

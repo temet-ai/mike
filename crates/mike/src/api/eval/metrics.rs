@@ -5,7 +5,7 @@ use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::eval_metrics::{
     AckOutcome, AlarmState, AlarmsFilter, EvalAlarmRow, EvalRateRow, EvalRollupRow, RatesFilter,
 };

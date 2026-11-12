@@ -5,12 +5,13 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 use super::{Route, route};
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
 use crate::launch::fleet::FleetDefinition;
 use crate::launch::fleet::events::{EventPayload, NewFleetEvent, SeatLaunchConfirmed};
 use crate::launch::fleet::seated::Seated;
 use crate::launch::fleet::status::{FleetHeader, NoteFacts, build, note_facts};
 use crate::launch::fleet::tell_acceptance::read_waiting;
+use crate::state::AppState;
 use crate::store::persistence::fleet::NewFleet;
 use crate::store::persistence::launch::NewRun;
 use crate::store::persistence::session_notes::NewSessionNote;

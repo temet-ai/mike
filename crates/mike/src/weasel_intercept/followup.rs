@@ -4,7 +4,7 @@ use tokio::sync::mpsc;
 
 use super::frames::SseFramer;
 use super::stitch;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::models::RequestId;
 
 type ClientTx = mpsc::Sender<Result<Bytes, std::io::Error>>;
@@ -39,7 +39,9 @@ pub(super) fn spawn_stitched_tee(
             request_id,
             in_flight: state.in_flight.clone(),
             persist: state.persist().cloned(),
-            harvester_cfg: std::sync::Arc::new(state.config.harvester.clone()),
+            response_hook: Some(std::sync::Arc::new(
+                crate::memory_harvester::HarvesterHook::new(state.config.harvester.clone()),
+            )),
         },
         &state.tracker,
     );

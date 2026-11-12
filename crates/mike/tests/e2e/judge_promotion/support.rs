@@ -1,6 +1,7 @@
 use chrono::Utc;
 use mike::app::inspect_router_on;
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::turn_facts::TurnFactsRow;
 use sqlx::PgPool;

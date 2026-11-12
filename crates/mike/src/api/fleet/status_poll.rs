@@ -8,9 +8,9 @@ use uuid::Uuid;
 use super::definition_view::{DefinitionError, FleetView};
 use super::definitions::{DEFAULT_LIST_LIMIT, ListFleetsQuery, MAX_LIST_LIMIT, load, persistence};
 use crate::api::poll_answers::{FLEET, Loaded, Poll, answer_json, json_bytes};
-use crate::config::AppState;
 use crate::launch::fleet::status::assemble;
 use crate::launch::seat_fact::is_fleet_seat;
+use crate::state::AppState;
 
 fn fleet_poll(key: String, headers: &HeaderMap) -> Poll<'_> {
     Poll {

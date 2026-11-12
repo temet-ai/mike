@@ -6,9 +6,9 @@ use axum::http::{HeaderMap, Method, Uri};
 use axum::response::Response;
 use bytes::Bytes;
 
-use crate::config::AppState;
 use crate::error::ProxyError;
 use crate::metrics::COUNTER_SESSIONLESS_REQUESTS_TOTAL;
+use crate::state::AppState;
 
 use record::{Finished, Recorder, SessionlessRecord};
 use tee::Tee;

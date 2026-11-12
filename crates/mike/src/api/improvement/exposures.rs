@@ -6,7 +6,7 @@ use chrono::{DateTime, Duration, Utc};
 use serde::Deserialize;
 use serde_json::json;
 
-use crate::config::AppState;
+use crate::state::AppState;
 
 #[derive(Default, Deserialize)]
 pub(crate) struct ExposureQuery {

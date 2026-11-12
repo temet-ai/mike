@@ -10,7 +10,7 @@ use uuid::Uuid;
 use crate::api::changes::session_tail_lines;
 use crate::api::client_serves::by_deadline;
 use crate::api::workspace::{Briefing, protocol_text};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::updater::analysis_completed;
 
 use super::change_record_tail::tail_reminder_text;

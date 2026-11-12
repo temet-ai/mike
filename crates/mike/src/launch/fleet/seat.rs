@@ -10,8 +10,8 @@ use super::events::{EventPayload, NewFleetEvent, SeatLaunchFailed, SeatLaunchReq
 use super::fork_seat;
 use super::plan::SeatPlan;
 use super::seat_settings;
-use crate::config::AppState;
 use crate::launch::{ServerOpenRequest, open_for_server};
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 const OPEN_WAIT: Duration = Duration::from_secs(150);

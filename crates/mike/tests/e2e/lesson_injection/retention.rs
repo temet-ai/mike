@@ -2,7 +2,8 @@ use crate::test_db;
 
 use anyhow::Context as _;
 use figment::providers::Format as _;
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 use wiremock::matchers::{method, path};

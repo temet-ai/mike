@@ -5,7 +5,8 @@ use uuid::Uuid;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::project_knowledge::{LocationInput, ProjectIdentity};
 use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db};

@@ -5,7 +5,7 @@ use super::block::Block;
 use super::record::spawn_record;
 use super::served::mark_served;
 use super::supply::{Carrier, SupplyRequest, supply};
-use crate::config::AppState;
+use crate::state::AppState;
 
 const RECENT_PROMPTS: usize = 3;
 

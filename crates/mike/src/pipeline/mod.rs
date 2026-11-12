@@ -8,11 +8,11 @@
 
 use bytes::Bytes;
 
-use crate::config::AppState;
 use crate::extract::request::TurnOrigin;
 use crate::feature_toggles::ResolvedToggles;
 use crate::filter::FilterConfig;
 use crate::lesson_worker::LessonSnapshot;
+use crate::state::AppState;
 use crate::store::models::RequestId;
 use crate::wire::manifest::{AppliedStage, ManifestBuilder, UnchangedStage};
 

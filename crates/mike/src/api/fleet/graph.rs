@@ -8,10 +8,10 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::config::AppState;
 use crate::fleet::derive::{
     derive_error_kind, derive_quality, derive_role, derive_state, derive_state_detail,
 };
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::web_base::persist_error_response;
 use crate::workspace::Liveness;

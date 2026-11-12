@@ -4,8 +4,8 @@ use axum::response::Response;
 use serde_json::Value;
 
 use crate::compose_prompt;
-use crate::config::AppState;
 use crate::error::ProxyError;
+use crate::state::AppState;
 use crate::store::models::{ReminderSource, RequestId, SystemReminder};
 
 use super::{ForwardOutcome, PipelineResult};

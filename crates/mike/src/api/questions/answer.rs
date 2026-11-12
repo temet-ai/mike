@@ -8,8 +8,8 @@ use uuid::Uuid;
 
 use super::resolve::session;
 use super::{database, mail, problem, text, unavailable};
-use crate::config::AppState;
 use crate::launch::fleet::brief_notes_sync::amend_part;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::questions::{
     NoteRef, QuestionRow, SettleKind, SettleOutcome, SettledQuestion,

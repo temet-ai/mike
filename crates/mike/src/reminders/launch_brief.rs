@@ -9,7 +9,7 @@
 
 use uuid::Uuid;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::models::{ReminderSource, SystemReminder};
 use crate::store::persistence::mailbox::MailboxEnvelope;
 use crate::store::persistence::workspace::QueuedLaunchBrief;

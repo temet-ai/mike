@@ -10,7 +10,7 @@ use crate::lesson_worker::LessonSnapshot;
 use crate::store::models::RequestId;
 
 struct Fixture {
-    state: crate::config::AppState,
+    state: crate::state::AppState,
     toggles: ResolvedToggles,
     filter_cfg: FilterConfig,
     lesson_snapshot: LessonSnapshot,
@@ -21,7 +21,7 @@ struct Fixture {
 impl Fixture {
     async fn new(session_id: &str, on: bool) -> anyhow::Result<Self> {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let mut toggles: ResolvedToggles = (*state.resolve_session_toggles(session_id)).clone();
         toggles.repeated_notices = on;
         Ok(Self {

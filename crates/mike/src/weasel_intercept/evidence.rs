@@ -3,8 +3,8 @@ use std::time::Duration;
 
 use dashmap::DashSet;
 
-use crate::config::AppState;
 use crate::feature_toggles::ResolvedToggles;
+use crate::state::AppState;
 use crate::store::models::{RequestId, is_fallback};
 use crate::store::persistence::PersistHandle;
 

@@ -7,9 +7,9 @@ mod unqueued_mail;
 #[cfg(test)]
 mod drain_tests;
 
-use crate::config::AppState;
 use crate::extract::request::TurnOrigin;
 use crate::reminders::inject::InjectBookkeeping;
+use crate::state::AppState;
 use crate::store::models::{ReminderSource, SystemReminder};
 use crate::wire::manifest::{AppliedStage, ManifestBuilder, UnchangedStage};
 use reminder_dispatch::{

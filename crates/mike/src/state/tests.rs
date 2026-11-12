@@ -5,8 +5,8 @@ use tokio::sync::broadcast;
 
 use clap::Parser;
 
-use super::super::schema::ProxyConfig;
 use super::AppState;
+use crate::config::ProxyConfig;
 use crate::config::load::CliOverrides;
 
 fn parse(args: &[&str]) -> anyhow::Result<ProxyConfig> {

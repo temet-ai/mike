@@ -9,7 +9,7 @@ use super::definition::FleetDefinition;
 use super::diagnostics::{self, Diagnostic};
 use super::events::{EventKind, EventPayload, FleetEvent, NewFleetEvent, TreeBrokenBy};
 use super::tell::Notice;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 const HELD_FOR_MINUTES: i64 = 10;

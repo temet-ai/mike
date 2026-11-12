@@ -5,7 +5,7 @@ use crate::api::project_knowledge::item_header;
 use crate::api::rerank_search::{
     RerankReport, arrange, candidates_wanted, score, short_query_report,
 };
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::RankedTurnRow;
 use crate::web_base::result_order::ResultOrder;
 

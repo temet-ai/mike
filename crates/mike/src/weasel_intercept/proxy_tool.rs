@@ -4,7 +4,7 @@ use tokio::sync::mpsc;
 use super::followup::spawn_stitched_tee;
 use super::stitch;
 use super::support::{LaneIdentity, make_correction_intercepted_request, proxy_tool_result_prompt};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::RequestStore;
 use crate::store::models::RequestId;
 

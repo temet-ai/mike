@@ -1,5 +1,6 @@
+use crate::api::compression_review;
+use crate::state::AppState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
-use crate::{api::compression_review, config::AppState};
 use axum::{
     Router,
     routing::{get, post},

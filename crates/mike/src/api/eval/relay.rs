@@ -6,7 +6,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use super::labels::{SubjectBody, error, unavailable, validate_entry, write_error};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::eval_labels::NewRelayed;
 

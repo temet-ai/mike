@@ -1,6 +1,6 @@
 use crate::test_db;
 
-use mike::config::AppState;
+use mike::state::AppState;
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
 use wiremock::matchers::{method, path};

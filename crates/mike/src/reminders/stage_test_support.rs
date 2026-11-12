@@ -8,7 +8,7 @@ use crate::pipeline::StageContext;
 use crate::store::models::RequestId;
 
 pub(crate) struct StageCtxFixture<'a> {
-    pub(crate) state: &'a crate::config::AppState,
+    pub(crate) state: &'a crate::state::AppState,
     pub(crate) session_toggles: &'a ResolvedToggles,
     pub(crate) filter_cfg: &'a FilterConfig,
     pub(crate) lesson_snapshot: &'a LessonSnapshot,

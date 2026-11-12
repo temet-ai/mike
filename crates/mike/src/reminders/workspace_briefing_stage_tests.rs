@@ -8,8 +8,8 @@ use crate::filter::FilterConfig;
 use crate::lesson_worker::LessonSnapshot;
 use crate::pipeline::{RequestStage, StageBody};
 
-async fn in_memory_state() -> anyhow::Result<crate::config::AppState> {
-    crate::config::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await
+async fn in_memory_state() -> anyhow::Result<crate::state::AppState> {
+    crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await
 }
 
 #[tokio::test]
@@ -179,7 +179,7 @@ async fn workspace_briefing_apply_short_circuits_when_already_delivered_this_pro
 }
 
 async fn briefing_reason_for(
-    state: &crate::config::AppState,
+    state: &crate::state::AppState,
     session_id: &str,
     first_text: &str,
 ) -> anyhow::Result<String> {
@@ -244,7 +244,7 @@ async fn workspace_briefing_keeps_its_stage_when_the_client_answer_never_arrived
 async fn workspace_briefing_enabled_only_on_session_own_lane_without_agent_id() -> anyhow::Result<()>
 {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("workspace_briefing-own-lane-test");
     let mut toggles_on: ResolvedToggles = (*resolved).clone();
     toggles_on.workspace_briefing = true;

@@ -2,8 +2,8 @@ use serde::Serialize;
 
 use crate::analysis::RerankError;
 use crate::analysis::rerank::{RerankScore, Reranked};
-use crate::config::AppState;
 use crate::semantic::egress::allow_rerank;
+use crate::state::AppState;
 
 #[cfg(test)]
 pub(crate) mod harness;

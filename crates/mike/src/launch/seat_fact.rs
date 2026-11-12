@@ -4,7 +4,7 @@ use dashmap::DashMap;
 use uuid::Uuid;
 
 use super::fleet::plan::TEMPLATE_SEAT_PREFIX;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 const CACHED_SESSIONS_CAP: usize = 4096;

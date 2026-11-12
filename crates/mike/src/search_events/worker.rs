@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use tokio::time::{MissedTickBehavior, interval};
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::search_events::{USED_BATCH, UsedPass};
 

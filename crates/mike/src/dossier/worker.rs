@@ -11,7 +11,6 @@ use tokio_util::sync::CancellationToken;
 
 use super::build::{BUILDER_VERSION, BuildConfig, BuildReport, build_sessions};
 use crate::circuit_breaker::CircuitBreaker;
-use crate::config::AppState;
 use crate::feature_toggles::FeatureToggles;
 use crate::settings::meta_dossier::{
     BACKSTOP_INTERVAL_SECS_KEY, BACKSTOP_LOOKBACK_HOURS_KEY, BATCH_SESSIONS_KEY,
@@ -19,6 +18,7 @@ use crate::settings::meta_dossier::{
     DEFAULT_FLUSH_INTERVAL_MS, DEFAULT_SESSION_SETTLE_MINUTES, FLUSH_INTERVAL_MS_KEY,
     SESSION_SETTLE_MINUTES_KEY,
 };
+use crate::state::AppState;
 use crate::store::models::ProxyEvent;
 use crate::store::persistence::turn_facts::CandidateWindow;
 use crate::store::persistence::{PersistError, PersistHandle};

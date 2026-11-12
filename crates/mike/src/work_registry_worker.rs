@@ -4,7 +4,7 @@ use chrono::Utc;
 use tokio_util::sync::CancellationToken;
 
 use crate::change_feed::{ChangeFeed, DirtySessions};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::models::RowChangedTable;
 use crate::store::persistence::PersistHandle;
 

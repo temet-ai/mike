@@ -7,8 +7,8 @@ use serde::Deserialize;
 use serde_json::json;
 
 use super::{error, persist_error, unavailable};
-use crate::config::AppState;
 use crate::semantic::BUILDER_VERSION;
+use crate::state::AppState;
 use crate::store::persistence::semantic::{
     AssignmentFilter, CandidateDecision, CandidateMemberRow, PatternCandidateRow,
 };

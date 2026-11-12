@@ -3,7 +3,8 @@ use reqwest::StatusCode;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
+use crate::state::AppState;
 use crate::store::persistence::listings::ProjectDetailRow;
 use crate::store::persistence::rehydrate::{ProjectDetailHead, ProjectListRow, ProjectLocationRow};
 use crate::store::persistence::{PersistHandle, test_support::acquire_ephemeral_db};

@@ -7,7 +7,7 @@ use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::config::AppState;
+use crate::state::AppState;
 
 const DEFAULT_TETHER_URL: &str = "http://127.0.0.1:9970";
 const TIMEOUT: Duration = Duration::from_secs(15);

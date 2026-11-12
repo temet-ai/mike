@@ -6,8 +6,8 @@ use uuid::Uuid;
 use super::definition::FleetDefinition;
 use super::plan::{FleetFacts, SeatPlan, reference, template, template_name, warm_disciplines};
 use super::seat::{self, Begun};
-use crate::config::AppState;
 use crate::launch::{BackendId, TerminalBackend, backend_for, kill_for_server};
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::launch::{LaunchRow, NewTemplate};
 

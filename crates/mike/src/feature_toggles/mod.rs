@@ -362,12 +362,12 @@ fn client_serves_mut<'a>(toggles: &'a mut FeatureToggles, key: &str) -> Option<&
     })
 }
 
-pub(crate) fn client_serves(state: &crate::config::AppState, key: &str) -> bool {
+pub(crate) fn client_serves(state: &crate::state::AppState, key: &str) -> bool {
     get_toggle_enabled(&state.feature_toggle_overlay.load(), key).unwrap_or(false)
 }
 
 #[cfg(test)]
-pub(crate) fn serve_every_stage_for_tests(state: &crate::config::AppState) {
+pub(crate) fn serve_every_stage_for_tests(state: &crate::state::AppState) {
     let mut toggles = (**state.feature_toggle_overlay.load()).clone();
     for meta in TOGGLE_META
         .iter()

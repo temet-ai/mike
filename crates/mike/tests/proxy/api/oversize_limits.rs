@@ -2,7 +2,8 @@ use crate::anthropic_fixtures;
 
 use anthropic_fixtures::RequestBody;
 use mike::app::{inspect_router_on, proxy_router};
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use serde_json::{Value, json};
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;

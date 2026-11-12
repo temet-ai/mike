@@ -4,7 +4,7 @@ use uuid::Uuid;
 use super::shown;
 use crate::api::handlers::SimilarTurnDto;
 use crate::api::rerank_search::RerankReport;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::project_knowledge::KnowledgeQuery;
 use crate::store::persistence::search_events::NewSearchEvent;
 

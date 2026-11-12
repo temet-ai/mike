@@ -7,8 +7,8 @@ use tokio::time::{MissedTickBehavior, interval};
 use super::read::{self, Reading};
 use super::report::{self, DbCostReport};
 use super::snapshot::{Snapshot, SnapshotRing, Window};
-use crate::config::AppState;
 use crate::config::db_cost::DbCostConfig;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 const MIN_INTERVAL_SECS: u64 = 30;

@@ -4,10 +4,10 @@ use bytes::Bytes;
 use serde_json::Value;
 
 use crate::compose_prompt;
-use crate::config::AppState;
 use crate::error::ProxyError;
 use crate::extract::signals::RequestSignals;
 use crate::metrics::{COUNTER_CAPTURE_THROTTLE_OVERRIDE_TOTAL, COUNTER_UNCAPTURED_REQUESTS_TOTAL};
+use crate::state::AppState;
 use crate::store::models::RequestId;
 use crate::wire::manifest::ManifestBuilder;
 

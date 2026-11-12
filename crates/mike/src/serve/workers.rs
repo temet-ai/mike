@@ -1,4 +1,4 @@
-use crate::config::AppState;
+use crate::state::AppState;
 
 pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
     if state.config().smoke_run {

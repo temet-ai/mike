@@ -5,7 +5,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::info;
 
 use crate::app::{inspect_router_on, proxy_router, spa_router_on};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::pool_classes::PoolClass;
 
 pub(super) struct ServeTargets {

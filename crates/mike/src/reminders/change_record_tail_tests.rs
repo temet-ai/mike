@@ -27,9 +27,9 @@ fn user_body() -> Vec<u8> {
     .into_bytes()
 }
 
-async fn state_with_tail(on: bool) -> anyhow::Result<crate::config::AppState> {
+async fn state_with_tail(on: bool) -> anyhow::Result<crate::state::AppState> {
     let state =
-        crate::config::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
+        crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     crate::feature_toggles::serve_every_stage_for_tests(&state);
     let mut toggles = (**state.feature_toggle_overlay.load()).clone();
     toggles.change_record_tail = on;
@@ -204,7 +204,7 @@ fn tail_reminder_text_lists_each_line_under_the_heading() {
     );
 }
 
-async fn state_on_db(seat: &Seat, on: bool) -> anyhow::Result<crate::config::AppState> {
+async fn state_on_db(seat: &Seat, on: bool) -> anyhow::Result<crate::state::AppState> {
     let config = crate::config::ProxyConfig::try_parse_from([
         "mike",
         "--upstream-url",
@@ -218,7 +218,7 @@ async fn state_on_db(seat: &Seat, on: bool) -> anyhow::Result<crate::config::App
         "--database-url",
         &seat.f.db.database_url,
     ])?;
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     crate::feature_toggles::serve_every_stage_for_tests(&state);
     let mut toggles = (**state.feature_toggle_overlay.load()).clone();
     toggles.change_record_tail = on;

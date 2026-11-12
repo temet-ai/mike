@@ -4,9 +4,9 @@ use axum::response::Response;
 use bytes::Bytes;
 use tokio::sync::mpsc;
 
-use crate::config::AppState;
 use crate::error::ProxyError;
 use crate::feature_toggles::ResolvedToggles;
+use crate::state::AppState;
 use crate::store::models::{ProxyEvent, RequestId, RequestStatus};
 
 use super::ResponseCtx;
@@ -219,10 +219,14 @@ fn spawn_store_updater_for(
             request_id,
             in_flight: state.in_flight.clone(),
             persist: state.persist().cloned(),
-            harvester_cfg: std::sync::Arc::new(crate::config::memory_harvester::HarvesterConfig {
-                enabled: state.feature_toggle_overlay.load().harvester,
-                ..state.config.harvester.clone()
-            }),
+            response_hook: Some(std::sync::Arc::new(
+                crate::memory_harvester::HarvesterHook::new(
+                    crate::config::memory_harvester::HarvesterConfig {
+                        enabled: state.feature_toggle_overlay.load().harvester,
+                        ..state.config.harvester.clone()
+                    },
+                ),
+            )),
         },
         &state.tracker,
     );

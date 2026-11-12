@@ -6,12 +6,12 @@ use uuid::Uuid;
 
 use super::definition_view::DefinitionError;
 use super::tree::running;
-use crate::config::AppState;
 use crate::launch::fleet::FleetDefinition;
 use crate::launch::fleet::checks::normal;
 use crate::launch::fleet::propose::{
     Answer, Proposal, answer_or_refusal, brief_for, next_task_id, propose, save_with,
 };
+use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ProposeRequest {

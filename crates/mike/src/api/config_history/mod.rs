@@ -5,7 +5,7 @@ use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::change_log::{ChangeLogFilter, ChangeLogRow};
 
 const DEFAULT_LIMIT: i64 = 100;

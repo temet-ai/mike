@@ -8,8 +8,8 @@ use tokio::time::Instant;
 use uuid::Uuid;
 
 use crate::api::client_serves::by_deadline;
-use crate::config::AppState;
 use crate::recall_injector::{self, RecallAnswer, RecallInjectorConfig};
+use crate::state::AppState;
 
 const RECALL_BUDGET: Duration = Duration::from_millis(200);
 

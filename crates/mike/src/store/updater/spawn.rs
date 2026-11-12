@@ -8,7 +8,7 @@ use super::block_writer::{
     BlockAccumulator, BlockKind, BlockWriteTarget, DEFAULT_SUBAGENT_TYPE, extract_subagent_type,
     write_agent_dispatch_row, write_tool_use_row,
 };
-use crate::config::memory_harvester::HarvesterConfig;
+use super::response_hook::{CompletedResponse, ResponseHook};
 use crate::in_flight::InFlightRegistry;
 use crate::store::RequestStore;
 use crate::store::models::{ProxyEvent, RequestId};
@@ -20,14 +20,14 @@ pub(crate) struct StoreUpdaterSpawnArgs {
     pub(crate) request_id: RequestId,
     pub(crate) in_flight: Arc<InFlightRegistry>,
     pub(crate) persist: Option<PersistHandle>,
-    pub(crate) harvester_cfg: Arc<HarvesterConfig>,
+    pub(crate) response_hook: Option<Arc<dyn ResponseHook>>,
 }
 
 pub(super) struct UpdaterLoopCtx<'a> {
     pub(super) block_target: BlockWriteTarget<'a>,
     pub(super) request_id_i64: i64,
     request_created_at: chrono::DateTime<chrono::Utc>,
-    pub(super) harvester_cfg: &'a HarvesterConfig,
+    pub(super) response_hook: Option<&'a dyn ResponseHook>,
 }
 
 pub(crate) fn spawn_store_updater(args: StoreUpdaterSpawnArgs, tracker: &TaskTracker) {
@@ -38,7 +38,7 @@ pub(crate) fn spawn_store_updater(args: StoreUpdaterSpawnArgs, tracker: &TaskTra
             request_id,
             in_flight,
             persist,
-            harvester_cfg,
+            response_hook,
         } = args;
 
         let mut saw_terminal = false;
@@ -57,7 +57,7 @@ pub(crate) fn spawn_store_updater(args: StoreUpdaterSpawnArgs, tracker: &TaskTra
             },
             request_id_i64,
             request_created_at,
-            harvester_cfg: &harvester_cfg,
+            response_hook: response_hook.as_deref(),
         };
         let mut blocks = BlockAccumulator::default();
         let mut text_for_analysis = String::new();
@@ -180,13 +180,19 @@ async fn handle_terminal(
         text_for_analysis,
     )
     .await;
-    let harvest_scope = super::harvester_hook::read_harvest_scope(ctx).await;
+    let scope = super::response_scope::read_response_scope(ctx).await;
     RequestStore::snapshot_terminal(ctx.block_target.store, ctx.block_target.request_id).await;
 
-    if ctx.harvester_cfg.enabled
-        && let Some(p) = ctx.block_target.persist.as_ref()
-    {
-        super::harvester_hook::run_harvester_hook(ctx, p, text_for_analysis, harvest_scope).await;
+    if let (Some(hook), Some(persist)) = (ctx.response_hook, ctx.block_target.persist.as_ref()) {
+        hook.on_response(CompletedResponse {
+            persist,
+            request_id: ctx.block_target.request_id,
+            request_id_i64: ctx.request_id_i64,
+            project_path: &scope.project_path,
+            session_uuid: &scope.session_uuid,
+            text: text_for_analysis,
+        })
+        .await;
     }
 
     evict_to_byte_budget_and_log(ctx.block_target.store, ctx.block_target.request_id).await;

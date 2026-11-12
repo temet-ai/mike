@@ -2,7 +2,7 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::work_items::ledger::Ledger;
 
 async fn session_db_id(state: &AppState, id: &str, op: &'static str) -> Result<i64, StatusCode> {

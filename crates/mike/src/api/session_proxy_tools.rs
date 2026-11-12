@@ -5,9 +5,9 @@ use serde::Serialize;
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::config::AppState;
 use crate::proxy_tools::answer::{ProxyToolCall, answer_tool_call};
 use crate::proxy_tools::{client, declare, is_proxy_tool};
+use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct ToolsResponse {

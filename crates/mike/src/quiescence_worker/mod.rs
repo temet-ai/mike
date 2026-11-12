@@ -6,8 +6,8 @@ use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
 use crate::circuit_breaker::CircuitBreaker;
-use crate::config::AppState;
 use crate::config::steerer::SteererConfig;
+use crate::state::AppState;
 use crate::steerer::registry::SteererRegistry;
 use crate::store::RequestStore;
 use crate::store::persistence::PersistHandle;

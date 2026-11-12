@@ -34,7 +34,7 @@ async fn drain_never_injects_a_dead_lettered_mailbox_row_regardless_of_redeliver
         .await?;
 
         let mut state =
-            crate::config::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
+            crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
         state.persist = Some(handle.clone());
         state.feature_toggle_overlay.store(std::sync::Arc::new(
             crate::feature_toggles::FeatureToggles {

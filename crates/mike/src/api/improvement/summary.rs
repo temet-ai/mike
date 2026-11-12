@@ -5,7 +5,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Serialize;
 use serde_json::json;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::improvement::summary::ImprovementSummary;
 
 fn error(status: StatusCode, message: String) -> Response {

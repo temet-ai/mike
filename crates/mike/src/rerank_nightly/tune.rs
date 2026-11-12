@@ -2,8 +2,8 @@ use chrono::{DateTime, Duration, Utc};
 use serde_json::json;
 
 use crate::change_log::{ChangeSource, ChangeVia};
-use crate::config::AppState;
 use crate::search_ranking::tuning::{Attempt, Grade, tune};
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::search_grades::{NewTuningRun, TuningOutcome};
 

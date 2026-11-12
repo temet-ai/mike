@@ -5,7 +5,7 @@ use sqlx::postgres::{PgListener, PgNotification};
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::models::{ProxyEvent, ResyncReason, RowChangedOp, RowChangedTable};
 use crate::store::persistence::ActiveDbTarget;
 

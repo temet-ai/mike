@@ -10,10 +10,10 @@ use super::open::{self, OPEN_FAILED};
 use super::proxy_env::resolve_proxy_env;
 use super::runner::Runner;
 use super::seat_health::Relaunch;
-use crate::config::AppState;
 use crate::launch::backend_choice::{self, BackendChoice, CallerTerminal};
 use crate::launch::fleet::{brief_delivery, brief_version};
 use crate::launch::{BackendId, LaunchError, TerminalBackend, TrustGate, brief};
+use crate::state::AppState;
 
 pub(crate) struct ServerOpenRequest {
     pub(crate) folder: String,

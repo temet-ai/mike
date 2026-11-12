@@ -3,9 +3,9 @@ use serde_json::Value;
 
 use crate::compose_prompt::eligibility::should_classify;
 use crate::compose_prompt::{ComposeOutcome, PromptClassKey};
-use crate::config::AppState;
 use crate::extract::request::TurnOrigin;
 use crate::metrics::{COUNTER_COMPOSITIONS_CLASS_TOTAL, COUNTER_COMPOSITIONS_TOTAL};
+use crate::state::AppState;
 use crate::store::models::RequestId;
 use crate::wire::manifest::{AppliedStage, ManifestBuilder};
 

@@ -17,8 +17,8 @@ use crate::store::persistence::pool_classes::PoolClass;
 use crate::store::retention::RetentionPolicy;
 use tokio::sync::RwLock;
 
-use super::super::schema::ProxyConfig;
 use super::AppState;
+use crate::config::ProxyConfig;
 
 impl AppState {
     pub fn store(&self) -> Arc<RwLock<RequestStore>> {

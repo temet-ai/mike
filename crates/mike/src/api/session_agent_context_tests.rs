@@ -6,8 +6,9 @@ use axum::http::StatusCode;
 use uuid::Uuid;
 
 use super::{AgentContextRequest, post_session_agent_context};
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
 use crate::lesson_worker::LessonSnapshot;
+use crate::state::AppState;
 
 fn agent_snapshot() -> LessonSnapshot {
     LessonSnapshot::from_agent_fixtures(

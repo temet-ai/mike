@@ -6,8 +6,8 @@ use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
 use super::sheddable::{ShedReport, Sheddable, priority_label};
-use crate::config::AppState;
 use crate::config::memory_cap::CapManagerConfig;
+use crate::state::AppState;
 
 pub fn spawn_cap_manager(
     state: AppState,

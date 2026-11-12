@@ -32,7 +32,7 @@ fn drop_rule(id: i64, tag: &str, project_path: Option<&str>) -> FilterRule {
 
 async fn decline_reason(filter_cfg: FilterConfig) -> anyhow::Result<(String, StageOutcome, i64)> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let session_toggles = state.resolve_session_toggles("session-filter-decline-test");
     let lesson_snapshot = LessonSnapshot::default();
     let turn_origin = TurnOrigin::PrimaryFirst;
@@ -107,7 +107,7 @@ async fn rules_scoped_to_another_project_record_no_applicable_rules() -> anyhow:
 async fn a_later_request_of_a_session_never_rewritten_is_left_alone_and_asked_once()
 -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let session_toggles = state.resolve_session_toggles("session-filter-recover-test");
     let lesson_snapshot = LessonSnapshot::default();
     let filter_cfg = FilterConfig {

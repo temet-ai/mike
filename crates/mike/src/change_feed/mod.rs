@@ -8,7 +8,7 @@ use tokio::sync::watch;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::models::{ProxyEvent, RowChangedTable};
 
 #[cfg(test)]

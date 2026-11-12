@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{Paged, clamp_limit, clamp_offset, parse_session_filter};
 use crate::api::handlers::lesson_error;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::consolidation_reads::{
     ConsolidationActionRow, ConsolidationDecisionsFilter, ConsolidationRunRow,
     ConsolidationRunsFilter, LessonHistory, LessonInjectionRow, RunnerUp,

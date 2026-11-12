@@ -4,7 +4,8 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 use super::definition_patch::{PatchFleetRequest, save_definition};
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db};
 

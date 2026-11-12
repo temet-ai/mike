@@ -5,7 +5,7 @@ use super::plan::{ControlSeats, FleetFacts, REFERENCE_SEAT};
 use super::status::{FleetStatus, SeatStatus};
 use super::tell_context::REPLACE_AT;
 use super::told;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 

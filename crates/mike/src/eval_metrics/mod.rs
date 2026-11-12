@@ -9,8 +9,8 @@ mod settings_tests;
 use chrono::Utc;
 use tokio::time::{MissedTickBehavior, interval};
 
-use crate::config::AppState;
 use crate::logged::ok_or_warn;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::eval_metrics::{
     AlarmKind, AlarmThresholds, EpisodeChange, RollupRequest,

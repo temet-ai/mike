@@ -10,7 +10,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use uuid::Uuid;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use dto::SessionDeliveryDto;
 use profile::{DELIVERY_TOGGLES, ProfileInputs};
 

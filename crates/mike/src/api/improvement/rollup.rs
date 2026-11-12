@@ -5,7 +5,7 @@ use axum::response::{IntoResponse, Response};
 use chrono::Utc;
 use serde_json::json;
 
-use crate::config::AppState;
+use crate::state::AppState;
 
 fn error(status: StatusCode, message: String) -> Response {
     (status, Json(json!({ "error": message }))).into_response()

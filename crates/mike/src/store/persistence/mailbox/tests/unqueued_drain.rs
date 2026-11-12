@@ -3,7 +3,7 @@ use crate::store::persistence::launch::NewLaunch;
 
 use super::support::{drain_primary_turn, seed_session};
 
-async fn drain_once(state: &crate::config::AppState, session: &str) -> Vec<String> {
+async fn drain_once(state: &crate::state::AppState, session: &str) -> Vec<String> {
     drain_primary_turn(state, session)
         .await
         .into_iter()
@@ -45,7 +45,7 @@ async fn mail_written_only_to_the_database_is_injected_on_the_next_primary_turn_
         .await?;
 
     let mut state =
-        crate::config::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
+        crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     state.persist = Some(handle.clone());
     let session = to.to_string();
 

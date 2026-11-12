@@ -2,7 +2,7 @@ mod delivery;
 mod mailbox;
 mod staleness;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::models::SystemReminder;
 
 pub(super) use delivery::inject_or_requeue;

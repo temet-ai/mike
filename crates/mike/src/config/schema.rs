@@ -39,9 +39,9 @@ pub struct ProxyConfig {
 
     pub upstream_url: String,
 
-    pub(super) max_requests: usize,
+    pub(crate) max_requests: usize,
 
-    pub(super) max_age: String,
+    pub(crate) max_age: String,
 
     pub otel_endpoint: Option<String>,
 

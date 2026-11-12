@@ -15,7 +15,7 @@ fn big_file_content(lines: usize) -> String {
 }
 
 fn make_ctx<'a>(
-    state: &'a crate::config::AppState,
+    state: &'a crate::state::AppState,
     session_toggles: &'a crate::feature_toggles::ResolvedToggles,
     filter_cfg: &'a FilterConfig,
     lesson_snapshot: &'a LessonSnapshot,
@@ -39,7 +39,7 @@ fn make_ctx<'a>(
 #[tokio::test]
 async fn enabled_follows_the_file_read_compression_toggle() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("session-file-read-compression-stage-test");
     let mut session_toggles: ResolvedToggles = (*resolved).clone();
     let filter_cfg = FilterConfig::default();
@@ -71,7 +71,7 @@ async fn enabled_follows_the_file_read_compression_toggle() -> anyhow::Result<()
 #[tokio::test]
 async fn apply_computes_a_reduction_but_never_mutates_the_forwarded_body() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let session_toggles = state.resolve_session_toggles("session-file-read-compression-stage-test");
     let filter_cfg = FilterConfig::default();
     let lesson_snapshot = LessonSnapshot::default();
@@ -181,7 +181,7 @@ fn read_then_answers(answers: usize) -> anyhow::Result<Vec<u8>> {
 async fn forward_mode_sends_the_shortened_body_and_records_an_applied_stage() -> anyhow::Result<()>
 {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("session-file-read-forward-test");
     let mut session_toggles: ResolvedToggles = (*resolved).clone();
     session_toggles.file_read_compression_forward = true;
@@ -221,7 +221,7 @@ async fn forward_mode_sends_the_shortened_body_and_records_an_applied_stage() ->
 #[tokio::test]
 async fn the_forward_share_splits_sessions_into_stable_arms() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let resolved = state.resolve_session_toggles("session-file-read-arm-test");
     let mut toggles: ResolvedToggles = (*resolved).clone();
     let ids: Vec<String> = (0..400).map(|i| format!("session-{i}")).collect();
@@ -258,7 +258,7 @@ async fn the_forward_share_splits_sessions_into_stable_arms() -> anyhow::Result<
 async fn forward_mode_forwards_every_session_and_running_sessions_keep_their_arm()
 -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let mut toggles: ResolvedToggles = (*state.resolve_session_toggles("arm-a")).clone();
     toggles.file_read_compression_forward = true;
     toggles.file_read_compression_forward_share = 0;
@@ -313,7 +313,7 @@ fn effective_forwarding_names_shadow_sampled_and_forced_states() {
 #[tokio::test]
 async fn the_default_grace_window_keeps_a_read_answered_twice_whole() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let session_toggles = state.resolve_session_toggles("session-file-read-grace-test");
     assert_eq!(session_toggles.file_read_compression_grace_turns, 3);
     assert!(
@@ -334,7 +334,7 @@ async fn the_default_grace_window_keeps_a_read_answered_twice_whole() -> anyhow:
 #[tokio::test]
 async fn apply_records_a_skipped_read_as_a_count_and_not_as_a_target() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let session_toggles = state.resolve_session_toggles("session-file-read-compression-stage-test");
     let filter_cfg = FilterConfig::default();
     let lesson_snapshot = LessonSnapshot::default();
@@ -382,7 +382,7 @@ async fn apply_records_a_skipped_read_as_a_count_and_not_as_a_target() -> anyhow
 #[tokio::test]
 async fn apply_leaves_body_untouched_when_no_reduction_candidate() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let session_toggles = state.resolve_session_toggles("session-file-read-compression-stage-test");
     let filter_cfg = FilterConfig::default();
     let lesson_snapshot = LessonSnapshot::default();
@@ -415,7 +415,7 @@ async fn apply_leaves_body_untouched_when_no_reduction_candidate() -> anyhow::Re
 #[tokio::test]
 async fn default_settings_policy_matches_pre_wiring_hardcoded_defaults() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let session_toggles =
         state.resolve_session_toggles("session-file-read-compression-default-parity-test");
 

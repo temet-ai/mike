@@ -7,9 +7,9 @@ use bytes::Bytes;
 use chrono::{DateTime, Utc};
 use futures::StreamExt;
 
-use crate::config::AppState;
 use crate::error::ProxyError;
 use crate::metrics::COUNTER_REMOTE_CONTROL_STREAM_EVENTS_TOTAL;
+use crate::state::AppState;
 
 use super::route::{
     ChannelSignals, ClassifiedPayload, PayloadSessionLink, RemoteControlRoute, stored_body,

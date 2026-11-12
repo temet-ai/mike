@@ -7,7 +7,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 use super::{error, persist_failed, unavailable};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::lessons::skill_review_writes::{InstallReport, ReportedInstall};
 
 const RETIRED_REASONS: [&str; 4] = ["unloaded", "corrected_above_base", "user", "policy"];

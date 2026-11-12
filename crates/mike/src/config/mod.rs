@@ -39,13 +39,12 @@ pub(crate) fn env_text_from(
         .and_then(|value| value.into_string().ok())
 }
 
-mod app_state;
 mod bool_parse;
 mod overrides;
 mod overrides_analysis;
 mod overrides_launch;
 mod overrides_rerank;
-mod persist_bootstrap;
+pub(crate) mod persist_bootstrap;
 mod proxy_config_defaults;
 mod schema;
 #[cfg(test)]
@@ -53,10 +52,6 @@ mod schema_tests;
 
 pub use load::{CliOverrides, load, reload_selected};
 
-pub use app_state::AppState;
-pub(crate) use app_state::fold_db_settings;
-#[cfg(any(test, feature = "test-seams"))]
-pub use app_state::register_in_flight_for_tests;
 pub(crate) use bool_parse::{deserialize_permissive_bool, parse_permissive_bool_str};
 pub use launch::LaunchConfig;
 pub(crate) use overrides::apply_settings_overrides;

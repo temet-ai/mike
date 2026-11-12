@@ -2,7 +2,7 @@ use axum::Router;
 use axum::routing::get;
 
 use crate::api::changes;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
 pub(super) const ROUTES: &[RouteEntry] =

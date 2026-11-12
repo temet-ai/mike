@@ -3,9 +3,9 @@ use bytes::Bytes;
 use serde_json::Value;
 
 use super::request::{self, TurnOrigin, TurnType};
-use crate::config::AppState;
 use crate::extract::headers::{is_sensitive_header, mask_header_value};
 use crate::proxy::handler::{MAX_HEADER_BYTES, MAX_HEADERS};
+use crate::state::AppState;
 use crate::types::RequestParams;
 
 #[derive(Debug, Clone)]

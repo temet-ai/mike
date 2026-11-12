@@ -4,7 +4,7 @@ use dashmap::mapref::entry::Entry;
 use tokio::sync::OnceCell;
 
 use crate::api::workspace::extract_worktree_name;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::workspace::{RegisterWorkspaceSession, RegisteredWorkspaceSession};
 
 pub(crate) fn maybe_register_workspace_session(
@@ -115,7 +115,8 @@ async fn register_via_cell(
 #[cfg(test)]
 mod tests {
     use super::maybe_register_workspace_session;
-    use crate::config::{AppState, ProxyConfig};
+    use crate::config::ProxyConfig;
+    use crate::state::AppState;
 
     async fn in_memory_state() -> anyhow::Result<AppState> {
         AppState::new(ProxyConfig::for_tests_in_memory()).await

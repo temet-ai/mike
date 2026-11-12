@@ -4,10 +4,10 @@ use uuid::Uuid;
 use super::ChangesQuery;
 use super::resolve::resolve;
 use crate::change_record::answers::{self, Caller};
-use crate::config::AppState;
 use crate::launch::fleet::FleetDefinition;
 use crate::launch::fleet::commit::ownership;
 use crate::launch::fleet::seated::Seated;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 #[derive(Serialize)]

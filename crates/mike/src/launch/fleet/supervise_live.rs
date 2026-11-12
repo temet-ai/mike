@@ -3,7 +3,6 @@ use uuid::Uuid;
 
 use super::facts::{Observed, STOP_KILL, seat_facts};
 use super::{Action, Effects, SeatFacts, SystemClock, finished_tasks, payload, run};
-use crate::config::AppState;
 use crate::launch::fleet::definition::FleetDefinition;
 use crate::launch::fleet::events::{
     EventPayload, FleetEvent, NewFleetEvent, SeatClosed, SeatFirstRequest, SeatLaunchConfirmed,
@@ -12,6 +11,7 @@ use crate::launch::fleet::plan::ControlSeats;
 use crate::launch::fleet::shutdown::STOPPING;
 use crate::launch::fleet::status::FleetStatus;
 use crate::launch::kill_for_server;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::{FleetRow, UnsettledFleetLaunch};
 use crate::store::persistence::session_notes::NewSessionNote;

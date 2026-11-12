@@ -5,11 +5,11 @@ use serde::Deserialize;
 use super::definition_view::DefinitionError;
 use super::tree::{historical_run, running};
 use crate::api::changes::{WithTail, since_you_last_looked};
-use crate::config::AppState;
 use crate::launch::fleet::check::{CheckReport, CheckRequest, Runner, check};
 use crate::launch::fleet::discovery::{Discovery, DiscoveryArgs, discover};
 use crate::launch::fleet::gate::{GateReport, GateRequest, gate};
 use crate::launch::fleet::seated::Seated;
+use crate::state::AppState;
 
 pub(crate) async fn check_fleet(
     State(state): State<AppState>,

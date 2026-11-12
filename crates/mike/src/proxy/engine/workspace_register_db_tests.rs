@@ -3,7 +3,8 @@ use std::time::{Duration, Instant};
 use uuid::Uuid;
 
 use super::maybe_register_workspace_session;
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
+use crate::state::AppState;
 use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db};
 use crate::store::persistence::workspace::{RegisterWorkspaceSession, WorkspaceRosterRow};
 use crate::store::persistence::{PersistHandle, SENTINEL_PROJECT_PATH};

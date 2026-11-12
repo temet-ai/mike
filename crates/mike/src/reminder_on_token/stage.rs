@@ -83,7 +83,7 @@ mod tests {
     }
 
     fn ctx_with_state<'a>(
-        state: &'a crate::config::AppState,
+        state: &'a crate::state::AppState,
         session_toggles: &'a ResolvedToggles,
         filter_cfg: &'a FilterConfig,
         lesson_snapshot: &'a LessonSnapshot,
@@ -111,7 +111,7 @@ mod tests {
             .enable_all()
             .build()?;
         rt.block_on(async {
-            let state = crate::config::AppState::new(config).await?;
+            let state = crate::state::AppState::new(config).await?;
             let session_toggles =
                 state.resolve_session_toggles("session-reminder-on-token-stage-test");
             let filter_cfg = FilterConfig::default();
@@ -132,7 +132,7 @@ mod tests {
     #[tokio::test]
     async fn apply_leaves_body_untouched_when_no_token_present() -> anyhow::Result<()> {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let session_toggles = state.resolve_session_toggles("session-reminder-on-token-stage-test");
         let filter_cfg = FilterConfig::default();
         let lesson_snapshot = LessonSnapshot::default();
@@ -165,7 +165,7 @@ mod tests {
     #[tokio::test]
     async fn apply_strips_malformed_token_and_records_manifest() -> anyhow::Result<()> {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let session_toggles = state.resolve_session_toggles("session-reminder-on-token-stage-test");
         let filter_cfg = FilterConfig::default();
         let lesson_snapshot = LessonSnapshot::default();

@@ -4,7 +4,7 @@ use tokio::time::{MissedTickBehavior, interval};
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::models::{MemoryTickPayload, ProxyEvent};
 use crate::store::views::MemoryBreakdownView;
 

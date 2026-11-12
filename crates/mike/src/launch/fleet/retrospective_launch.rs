@@ -2,8 +2,8 @@ use serde_json::json;
 
 use super::definition::FleetDefinition;
 use super::retrospective::Job;
-use crate::config::AppState;
 use crate::launch::{LaunchError, ServerOpenRequest};
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 use crate::store::persistence::launch::NewRun;

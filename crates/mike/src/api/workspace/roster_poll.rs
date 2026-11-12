@@ -4,7 +4,7 @@ use axum::response::Response;
 
 use super::roster::{RosterEntryDto, RosterResponseDto, roster_entry_from_row};
 use crate::api::poll_answers::{Loaded, PollError, Presented, Weigh, json_bytes, live_hash};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::workspace::WorkspaceRosterRow;
 use crate::web_base::persist_error_response;

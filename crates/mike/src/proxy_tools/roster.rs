@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::workspace::RosterScope;
 
 pub(crate) const TOOL_NAME: &str = "mike_session_roster";

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use crate::config::AppState;
 use crate::llm::{LlmRole, OpenRouterClient};
+use crate::state::AppState;
 
 pub(crate) struct SteererClient {
     pub(crate) llm: OpenRouterClient,

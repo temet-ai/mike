@@ -1,6 +1,7 @@
 use bytes::Bytes;
 
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
+use crate::state::AppState;
 use crate::store::models::{ReminderSource, SystemReminder};
 use crate::store::persistence::PersistHandle;
 

@@ -9,7 +9,7 @@ use super::support::{drain_fixture, user_turn_body};
 
 async fn queue_mail(
     handle: &crate::store::persistence::PersistHandle,
-    state: &crate::config::AppState,
+    state: &crate::state::AppState,
     session_uuid: &str,
 ) -> anyhow::Result<uuid::Uuid> {
     let message_uuid = uuid::Uuid::new_v4();
@@ -29,7 +29,7 @@ async fn queue_mail(
     Ok(message_uuid)
 }
 
-async fn run_drain(state: &crate::config::AppState, session_uuid: &str) -> Vec<SystemReminder> {
+async fn run_drain(state: &crate::state::AppState, session_uuid: &str) -> Vec<SystemReminder> {
     let mut body = user_turn_body();
     let mut filtered_stored = None;
     let mut filter_applied = false;

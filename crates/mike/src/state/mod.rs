@@ -23,7 +23,7 @@ use crate::store::persistence::PersistHandle;
 use crate::store::persistence::workspace::RegisteredWorkspaceSession;
 use crate::store::retention::RetentionPolicy;
 
-use super::schema::ProxyConfig;
+use crate::config::ProxyConfig;
 
 mod accessors;
 mod construction;

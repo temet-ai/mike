@@ -109,7 +109,7 @@ mod tests {
     use crate::store::models::RequestId;
 
     fn make_ctx<'a>(
-        state: &'a crate::config::AppState,
+        state: &'a crate::state::AppState,
         session_toggles: &'a crate::feature_toggles::ResolvedToggles,
         filter_cfg: &'a FilterConfig,
         lesson_snapshot: &'a LessonSnapshot,
@@ -134,7 +134,7 @@ mod tests {
     #[tokio::test]
     async fn read_dedup_stage_is_always_enabled() -> anyhow::Result<()> {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let session_toggles = state.resolve_session_toggles("session-read-dedup-stage-test");
         let filter_cfg = FilterConfig::default();
         let lesson_snapshot = LessonSnapshot::default();
@@ -154,7 +154,7 @@ mod tests {
     #[tokio::test]
     async fn apply_never_mutates_the_forwarded_body() -> anyhow::Result<()> {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let session_toggles = state.resolve_session_toggles("session-read-dedup-no-mutate-test");
         let filter_cfg = FilterConfig::default();
         let lesson_snapshot = LessonSnapshot::default();
@@ -194,7 +194,7 @@ mod tests {
     #[tokio::test]
     async fn apply_rewrites_duplicate_read_with_stub_when_armed_by_default() -> anyhow::Result<()> {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let resolved = state.resolve_session_toggles("session-read-dedup-hit-test");
         let mut session_toggles: ResolvedToggles = (*resolved).clone();
         session_toggles.compression_dedup_enabled = true;
@@ -286,7 +286,7 @@ mod tests {
     async fn apply_leaves_body_byte_identical_when_compression_dedup_disabled() -> anyhow::Result<()>
     {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let resolved = state.resolve_session_toggles("session-read-dedup-disarmed-test");
         let mut session_toggles: ResolvedToggles = (*resolved).clone();
         session_toggles.compression_dedup_enabled = false;

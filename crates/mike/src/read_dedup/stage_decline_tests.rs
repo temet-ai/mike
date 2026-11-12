@@ -24,7 +24,7 @@ fn reads(tool_use_ids: &[&str]) -> anyhow::Result<Vec<u8>> {
 }
 
 async fn apply_once(
-    state: &crate::config::AppState,
+    state: &crate::state::AppState,
     session_toggles: &ResolvedToggles,
     session_id: &str,
     raw: Vec<u8>,
@@ -63,7 +63,7 @@ fn only_entry(body: StageBody) -> anyhow::Result<StageEntry> {
 #[tokio::test]
 async fn a_body_that_is_not_json_records_a_decline() -> anyhow::Result<()> {
     let state =
-        crate::config::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
+        crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     let toggles = state.resolve_session_toggles("session-dedup-decline-not-json");
     let body = apply_once(
         &state,
@@ -82,7 +82,7 @@ async fn a_body_that_is_not_json_records_a_decline() -> anyhow::Result<()> {
 async fn a_disarmed_duplicate_read_is_recorded_with_its_hit_count_and_savings() -> anyhow::Result<()>
 {
     let state =
-        crate::config::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
+        crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     let session = "session-dedup-decline-disarmed";
     let mut toggles: ResolvedToggles = (*state.resolve_session_toggles(session)).clone();
     toggles.compression_dedup_enabled = false;
@@ -112,7 +112,7 @@ async fn a_disarmed_duplicate_read_is_recorded_with_its_hit_count_and_savings() 
 #[tokio::test]
 async fn an_armed_rewrite_records_the_same_hit_parameters() -> anyhow::Result<()> {
     let state =
-        crate::config::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
+        crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     let session = "session-dedup-decline-armed";
     let mut toggles: ResolvedToggles = (*state.resolve_session_toggles(session)).clone();
     toggles.compression_dedup_enabled = true;

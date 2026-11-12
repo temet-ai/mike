@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::change_record::answers::{self, AnswerError, Scope, Since};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistError;
 use resolve::{Resolved, resolve};
 

@@ -4,12 +4,12 @@ use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::config::AppState;
 use crate::lesson_delivery::{self, Arm, DeliveredLesson, PromptLessons};
 use crate::memory_keeper::block::Block;
 use crate::memory_keeper::deliver::{CardAsk, card_for, serves_cards};
 use crate::memory_keeper::supply::Carrier;
 use crate::recall_injector::formatter;
+use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ForPromptRequest {

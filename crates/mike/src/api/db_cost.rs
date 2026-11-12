@@ -2,8 +2,8 @@ use axum::Json;
 use axum::extract::State;
 use serde::Serialize;
 
-use crate::config::AppState;
 use crate::db_cost::DbCostReport;
+use crate::state::AppState;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub(crate) struct DbCostAnswer {

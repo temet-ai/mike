@@ -28,7 +28,7 @@ fn mid_turn_body() -> Bytes {
 }
 
 async fn drained(
-    state: &crate::config::AppState,
+    state: &crate::state::AppState,
     session_uuid: &str,
     mut body: Bytes,
 ) -> Vec<SystemReminder> {

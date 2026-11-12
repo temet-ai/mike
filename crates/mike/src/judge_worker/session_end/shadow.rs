@@ -6,7 +6,6 @@ use chrono::Utc;
 use tokio_util::sync::CancellationToken;
 
 use crate::circuit_breaker::CircuitBreaker;
-use crate::config::AppState;
 use crate::dossier::view::types::AsOf;
 use crate::feature_toggles::FeatureToggles;
 use crate::llm::key::OpenRouterKeySlot;
@@ -14,6 +13,7 @@ use crate::llm::limiter::Reservation;
 use crate::llm::{LlmCallContext, LlmRole, OpenRouterClient};
 use crate::logged::ok_or_warn;
 use crate::settings::SettingsOverlay;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::session_end::{ShadowSelection, V3Candidate};
 

@@ -8,7 +8,6 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde_json::json;
 
-use crate::config::AppState;
 use crate::dossier::view::types::{AsOf, AsOfMode};
 use crate::semantic::egress::{egress_state, url_host};
 use crate::semantic::neighbours::Retriever;
@@ -16,6 +15,7 @@ use crate::semantic::retrieve::{
     Audience, QuerySubject, RetrievedKind, Scope, SemanticQuery, default_kinds,
 };
 use crate::semantic::{SemanticError, config::RetrievalScopeSetting};
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 pub(crate) fn error(status: StatusCode, message: String) -> Response {

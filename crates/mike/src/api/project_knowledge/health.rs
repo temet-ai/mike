@@ -1,5 +1,5 @@
-use crate::config::AppState;
 use crate::embed_worker::knowledge_report::{KnowledgeSweepReport, fresh_report};
+use crate::state::AppState;
 use crate::store::persistence::project_knowledge::{KNOWLEDGE_COUNT_CAP, KnowledgeStateCounts};
 use crate::web_base::capability::{CapabilityRow, CapabilityState};
 

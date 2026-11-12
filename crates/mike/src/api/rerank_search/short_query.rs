@@ -1,5 +1,5 @@
 use super::RerankReport;
-use crate::config::AppState;
+use crate::state::AppState;
 
 pub(crate) fn short_query_report(state: &AppState, query: &str) -> Option<RerankReport> {
     let wanted = state.rerank_service().current_config().min_query_words;

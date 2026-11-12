@@ -4,10 +4,10 @@ use super::first_ten::{Scored, first_ten_references, grade_first_ten, turn_query
 use crate::api::project_knowledge::rerank_page::documents_for;
 use crate::api::project_knowledge::retrieval::query_vector;
 use crate::api::rerank_search::score;
-use crate::config::AppState;
 use crate::embed_worker::knowledge::model_key;
 use crate::search_ranking::Candidate;
 use crate::search_ranking::tuning::{GradeCandidate, reranked_order};
+use crate::state::AppState;
 use crate::store::persistence::project_knowledge::KnowledgeQuery;
 use crate::store::persistence::search_grades::{NewGrade, UngradedEvent};
 use crate::store::persistence::{PersistError, PersistHandle};

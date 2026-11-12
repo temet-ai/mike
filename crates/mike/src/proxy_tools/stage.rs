@@ -90,7 +90,7 @@ mod tests {
         br#"{"model":"m","messages":[{"role":"user","content":"hi"}],"system":"S","tools":[{"name":"Read"}]}"#;
 
     fn make_ctx<'a>(
-        state: &'a crate::config::AppState,
+        state: &'a crate::state::AppState,
         session_toggles: &'a crate::feature_toggles::ResolvedToggles,
         filter_cfg: &'a FilterConfig,
         lesson_snapshot: &'a LessonSnapshot,
@@ -114,7 +114,7 @@ mod tests {
     #[tokio::test]
     async fn declares_the_catalogue_and_records_a_manifest_entry() -> anyhow::Result<()> {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let mut session_toggles =
             (*state.resolve_session_toggles("session-proxy-tools-stage-test")).clone();
         session_toggles.proxy_tools = true;
@@ -160,7 +160,7 @@ mod tests {
     #[tokio::test]
     async fn a_body_with_nothing_to_declare_records_a_decline() -> anyhow::Result<()> {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let mut session_toggles =
             (*state.resolve_session_toggles("session-proxy-tools-stage-test")).clone();
         session_toggles.proxy_tools = true;
@@ -195,7 +195,7 @@ mod tests {
         turn_origin: TurnOrigin,
     ) -> anyhow::Result<(bool, String)> {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let mut session_toggles =
             (*state.resolve_session_toggles("session-proxy-tools-stage-test")).clone();
         session_toggles.proxy_tools = true;
@@ -251,7 +251,7 @@ mod tests {
     async fn the_next_prompt_suggestion_keeps_the_tool_list_its_session_sends() -> anyhow::Result<()>
     {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let mut session_toggles =
             (*state.resolve_session_toggles("session-proxy-tools-stage-test")).clone();
         session_toggles.proxy_tools = true;
@@ -280,7 +280,7 @@ mod tests {
     async fn a_session_whose_client_listed_the_tools_is_left_alone_and_another_is_not()
     -> anyhow::Result<()> {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let mut session_toggles =
             (*state.resolve_session_toggles("session-proxy-tools-stage-test")).clone();
         session_toggles.proxy_tools = true;
@@ -319,7 +319,7 @@ mod tests {
     #[tokio::test]
     async fn a_disabled_toggle_leaves_the_body_alone() -> anyhow::Result<()> {
         let config = crate::config::ProxyConfig::for_tests_in_memory();
-        let state = crate::config::AppState::new(config).await?;
+        let state = crate::state::AppState::new(config).await?;
         let mut session_toggles =
             (*state.resolve_session_toggles("session-proxy-tools-stage-test")).clone();
         session_toggles.proxy_tools = false;

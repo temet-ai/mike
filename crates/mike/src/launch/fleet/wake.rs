@@ -4,7 +4,7 @@ use uuid::Uuid;
 use super::definition::FleetDefinition;
 use super::told;
 use crate::change_record::types::{ChangeKind, NewChangeEvent};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::models::{ReminderSource, SystemReminder};
 use crate::store::persistence::PersistHandle;
 

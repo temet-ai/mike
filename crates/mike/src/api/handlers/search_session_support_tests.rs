@@ -3,7 +3,7 @@ use axum::extract::{Query, State};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db};
 

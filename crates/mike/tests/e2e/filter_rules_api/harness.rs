@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use anthropic_fixtures::MockResponse;
 use mike::app::{inspect_router_on, proxy_router};
-use mike::config::AppState;
+use mike::state::AppState;
 use test_db::{TestDb, TestDbHandle};
 use tokio::net::TcpListener;
 use tokio::sync::{Mutex, OwnedMutexGuard};

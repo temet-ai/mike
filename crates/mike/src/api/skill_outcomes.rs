@@ -5,7 +5,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use serde_json::json;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::lessons::skill_live::SkillLiveOutcome;
 
 const MAX_OUTCOMES: usize = 500;

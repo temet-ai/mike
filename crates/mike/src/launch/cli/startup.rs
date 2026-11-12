@@ -1,7 +1,7 @@
 use super::ledger::Ledger;
 use super::queue::LocalQueue;
 use super::queue_replay;
-use crate::config::AppState;
+use crate::state::AppState;
 
 pub(crate) fn spawn_queue_replay(state: &AppState) {
     let Some(persist) = state.persist().cloned() else {

@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
 use crate::feature_toggles::FeatureToggles;
 use crate::settings::SettingsOverlay;
+use crate::state::AppState;
 use crate::store::persistence::test_support::{
     TestDbHandle, acquire_ephemeral_db, seed_captured_request, seed_project,
 };

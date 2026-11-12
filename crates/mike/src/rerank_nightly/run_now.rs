@@ -2,7 +2,7 @@ use chrono::Utc;
 use serde_json::{Value, json};
 
 use super::{Idle, LEASE_ROLE, Pass, Stop, TICK_INTERVAL, night_pass, quiet_budget, report};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 const MAX_PASSES: usize = 50;

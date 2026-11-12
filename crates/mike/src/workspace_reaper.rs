@@ -3,7 +3,7 @@ use std::time::Duration;
 use tokio::time::{MissedTickBehavior, interval};
 use tokio_util::sync::CancellationToken;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::workspace::boot_id::CURRENT_BOOT_ID;
 

@@ -1,6 +1,7 @@
 use super::knowledge_search_fixture::{Fixture, query, references};
 use chrono::{DateTime, TimeZone, Utc};
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use mike::store::persistence::project_knowledge::KnowledgeQuery;
 use serde_json::Value;
 

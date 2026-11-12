@@ -5,7 +5,7 @@ use axum::response::Response;
 use serde::Serialize;
 
 use crate::api::handlers::lesson_error;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::lesson_injections::{
     SessionInjectedLessonRow, SessionRecordedLessonRow,
 };

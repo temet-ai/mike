@@ -5,7 +5,7 @@ use axum::response::{IntoResponse, Response};
 use crate::api::handlers::{
     PostSessionMessageResponse, fetch_mailbox_delivery_fields, mailbox_error, tail_for_sender,
 };
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::mailbox::ThreadResolution;
 

@@ -1,4 +1,5 @@
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use mike::store::persistence::operator_turns::correction::COUNTS_AS_CORRECTION_SQL;
 use mike::store::persistence::operator_turns::projection::{ProjectionMode, ProjectionParams};
 use mike::store::persistence::turn_verdicts::VerdictMode;

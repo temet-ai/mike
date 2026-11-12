@@ -4,12 +4,12 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::{Dossier, LeafError, LeafModel, brief, dossier, parse, require_text};
-use crate::config::AppState;
 use crate::launch::fleet::definition::FleetDefinition;
 use crate::launch::fleet::events::{FleetEvent, NewFleetEvent};
 use crate::launch::fleet::problems::{
     Decision, DecisionKind, Ledger, decide_events, overdue_events,
 };
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 #[async_trait]

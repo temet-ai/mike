@@ -13,7 +13,7 @@ use super::gate_rerun::{
 use super::gate_slot::slot_for;
 use super::plan::ControlSeats;
 use super::watch::git;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 

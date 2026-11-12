@@ -101,7 +101,7 @@ fn no_hint_after_a_state_changing_git_command() {
 
 async fn enabled_with_change_record(on: bool) -> anyhow::Result<bool> {
     let state =
-        crate::config::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
+        crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     let mut toggles = (**state.feature_toggle_overlay.load()).clone();
     toggles.change_record = on;
     state.feature_toggle_overlay.store(Arc::new(toggles));
@@ -130,9 +130,9 @@ async fn stage_runs_on_a_tool_loop_request_only_with_change_record_on() -> anyho
     Ok(())
 }
 
-async fn state_with(change_record: bool, served: bool) -> anyhow::Result<crate::config::AppState> {
+async fn state_with(change_record: bool, served: bool) -> anyhow::Result<crate::state::AppState> {
     let state =
-        crate::config::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
+        crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
     let mut toggles = (**state.feature_toggle_overlay.load()).clone();
     toggles.change_record = change_record;
     toggles.client_serves_git_read_hint = served;
@@ -140,7 +140,7 @@ async fn state_with(change_record: bool, served: bool) -> anyhow::Result<crate::
     Ok(state)
 }
 
-async fn reason_after_git_read(state: &crate::config::AppState, session_id: &str) -> String {
+async fn reason_after_git_read(state: &crate::state::AppState, session_id: &str) -> String {
     let resolved: ResolvedToggles = (*state.resolve_session_toggles(session_id)).clone();
     let filter_cfg = FilterConfig::default();
     let snapshot = LessonSnapshot::default();

@@ -2,7 +2,8 @@ use std::net::SocketAddr;
 
 use figment::providers::Format as _;
 use mike::app::{inspect_router_on, proxy_router};
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 

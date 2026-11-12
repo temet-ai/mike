@@ -1,6 +1,8 @@
+pub(crate) mod hook;
 mod parser;
 
 pub use crate::config::memory_harvester::HarvesterConfig;
+pub(crate) use hook::HarvesterHook;
 pub use parser::scan_update_tags;
 
 use std::borrow::Cow;

@@ -42,7 +42,7 @@ fn verdict<'a>(
     }
 }
 
-async fn serve_inspect(state: &mike::config::AppState) -> anyhow::Result<String> {
+async fn serve_inspect(state: &mike::state::AppState) -> anyhow::Result<String> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let base = format!("http://{}", listener.local_addr()?);
     let router = mike::app::inspect_router_on(state.clone(), listener.local_addr()?);

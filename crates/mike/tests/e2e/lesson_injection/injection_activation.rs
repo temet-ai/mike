@@ -1,6 +1,6 @@
 use crate::test_db;
 
-use mike::config::AppState;
+use mike::state::AppState;
 use serde_json::Value;
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;

@@ -7,7 +7,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::change_log::current_build;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::change_log::NewChange;
 use crate::store::persistence::cross_session::ApproveDirectiveProposal;
 use crate::web_base::change_source::change_source_from_headers;

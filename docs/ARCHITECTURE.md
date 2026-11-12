@@ -736,7 +736,7 @@ Rust doesn't have classes, services, or dependency injection. The pattern is **d
 
 ### AppState: The Dependency Root
 
-One `AppState` struct holds everything. Handlers extract it via axum's `State<AppState>`. The definitive field list is `crates/mike/src/config/app_state/mod.rs`; what follows is the **shape**, grouped by role, not a transcript — the struct has grown well past what is worth mirroring here, and a mirrored copy is the thing that goes stale first.
+One `AppState` struct holds everything. Handlers extract it via axum's `State<AppState>`. The definitive field list is `crates/mike/src/state/mod.rs`; what follows is the **shape**, grouped by role, not a transcript — the struct has grown well past what is worth mirroring here, and a mirrored copy is the thing that goes stale first.
 
 | Group | Fields |
 |---|---|

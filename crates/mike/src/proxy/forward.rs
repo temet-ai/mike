@@ -2,8 +2,8 @@ use axum::http::{HeaderMap, Method, Uri};
 use axum::response::Response;
 use bytes::Bytes;
 
-use crate::config::AppState;
 use crate::error::ProxyError;
+use crate::state::AppState;
 
 pub(crate) async fn send_upstream(
     state: &AppState,

@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::improvement::repeats::PushbackPrompt;
 
 const DEFAULT_WEEKS: i64 = 12;

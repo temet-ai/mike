@@ -2,7 +2,8 @@ use crate::common;
 
 use common::start_proxy_with_openrouter;
 use mike::app::{inspect_router_on, proxy_router};
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use serde_json::{Value, json};
 use tokio::net::TcpListener;
 use wiremock::matchers::{method, path};

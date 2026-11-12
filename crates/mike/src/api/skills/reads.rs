@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use super::state::{Mode, SkillState, needs_you, skill_state};
 use super::{error, persist_failed, unavailable};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::lessons::skill_review::{SkillFolderRow, SkillProjectRow};
 use crate::store::persistence::lessons::skill_review_detail::{

@@ -4,7 +4,7 @@ use super::harness::{EnvGuard, acquire_env_lock, start_proxy_with_config};
 
 use chrono::TimeZone;
 use mike::app::inspect_router_on;
-use mike::config::AppState;
+use mike::state::AppState;
 use serde_json::{Value, json};
 use test_db::TestDb;
 use tokio::net::TcpListener;

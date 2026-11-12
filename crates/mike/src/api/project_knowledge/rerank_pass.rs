@@ -6,8 +6,8 @@ use axum::{
 };
 use serde_json::json;
 
-use crate::config::AppState;
 use crate::rerank_nightly::{RunNow, run_pass_now};
+use crate::state::AppState;
 
 pub(crate) async fn rerank_pass(State(state): State<AppState>) -> Response {
     match run_pass_now(&state).await {

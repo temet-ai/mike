@@ -5,8 +5,8 @@ use uuid::Uuid;
 
 use super::definition_view::DefinitionError;
 use super::tree::running;
-use crate::config::AppState;
 use crate::launch::fleet::problems::{self, Decision, DecisionKind};
+use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct DecideRequest {

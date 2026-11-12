@@ -2,9 +2,9 @@ use std::time::Duration;
 
 use serde_json::{Value, json};
 
-use crate::config::AppState;
 use crate::launch::backend::TerminalBackend;
 use crate::launch::{BackendId, Surface, backend_for};
+use crate::state::AppState;
 use crate::store::persistence::fleet::FleetRow;
 
 pub(super) const SEAT: &str = "status";

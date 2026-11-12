@@ -3,8 +3,8 @@ use std::path::Path;
 use uuid::Uuid;
 
 use super::Relaunch;
-use crate::config::AppState;
 use crate::launch::channel_link;
+use crate::state::AppState;
 use crate::store::persistence::launch::{LaunchListFilter, LaunchRow};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

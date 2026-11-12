@@ -5,7 +5,7 @@ use super::corrector::CorrectionRequest;
 use super::followup::spawn_stitched_tee;
 use super::stitch;
 use super::support::{LaneIdentity, make_correction_intercepted_request, weasel_correction_prompt};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::RequestStore;
 use crate::store::models::RequestId;
 

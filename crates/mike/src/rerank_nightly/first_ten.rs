@@ -2,8 +2,8 @@ use serde::Serialize;
 use serde_json::Value;
 
 use super::grade::rerank_all;
-use crate::config::AppState;
 use crate::search_ranking::tuning::GradeCandidate;
+use crate::state::AppState;
 
 pub(super) const FIRST_TEN: usize = 10;
 

@@ -21,7 +21,7 @@ use self::evidence::{InterceptEvidence, InterceptOutcome};
 use self::frames::SseFramer;
 use self::gate::{Admit, Cut, StreamGate};
 use self::stitch::StitchPoint;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::models::RequestId;
 
 type ClientTx = mpsc::Sender<Result<Bytes, std::io::Error>>;

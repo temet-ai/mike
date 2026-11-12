@@ -1,6 +1,6 @@
 use bytes::Bytes;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::models::{InterceptedRequest, RequestId, RequestStatus};
 use crate::wire::genuine::markers;
 

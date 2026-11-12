@@ -6,7 +6,7 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::lesson_injections::ArmComparisonRow;
 
 const MAX_WINDOW_DAYS: i64 = 31;

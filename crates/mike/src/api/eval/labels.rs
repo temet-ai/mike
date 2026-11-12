@@ -8,8 +8,8 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde_json::json;
 
-use crate::config::AppState;
 use crate::eval::labels::SpaOrigin;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::eval_labels::{
     GoldEntry, GoldWrite, LabelQuery, LabelWriteError, Subject, VocabularyRow,

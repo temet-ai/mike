@@ -75,7 +75,7 @@ fn system_tail(body: &Bytes) -> String {
 }
 
 fn ctx_for<'a>(
-    state: &'a crate::config::AppState,
+    state: &'a crate::state::AppState,
     session_toggles: &'a crate::feature_toggles::ResolvedToggles,
     filter_cfg: &'a FilterConfig,
     lesson_snapshot: &'a LessonSnapshot,
@@ -100,7 +100,7 @@ fn ctx_for<'a>(
 async fn filter_stage_is_on_for_a_first_turn_and_asks_once_about_a_later_one_without_a_replay()
 -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let session_toggles = state.resolve_session_toggles("session-filter-stage-test");
     let filter_cfg = FilterConfig::default();
     let lesson_snapshot = LessonSnapshot::default();
@@ -137,7 +137,7 @@ async fn filter_stage_is_on_for_a_first_turn_and_asks_once_about_a_later_one_wit
 #[tokio::test]
 async fn a_later_turn_replays_the_first_turns_rewrite() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let session_toggles = state.resolve_session_toggles("session-replay");
     let filter_cfg = FilterConfig {
         rules: vec![append_rule(62, "project guidance", " EXTRA")],
@@ -196,7 +196,7 @@ async fn a_later_turn_replays_the_first_turns_rewrite() -> anyhow::Result<()> {
 #[tokio::test]
 async fn a_rule_edit_mid_session_keeps_the_captured_rewrite_replaying() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let session_toggles = state.resolve_session_toggles("session-pinned");
     let opening_cfg = FilterConfig {
         rules: vec![append_rule(62, "project guidance", " EXTRA")],
@@ -250,7 +250,7 @@ async fn a_rule_edit_mid_session_keeps_the_captured_rewrite_replaying() -> anyho
 #[tokio::test]
 async fn turn_one_and_turn_two_send_the_same_system_prompt() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let session_toggles = state.resolve_session_toggles("session-cache-parity");
     let filter_cfg = FilterConfig {
         rules: vec![append_rule(62, "project guidance", " EXTRA")],
@@ -298,7 +298,7 @@ async fn turn_one_and_turn_two_send_the_same_system_prompt() -> anyhow::Result<(
 #[tokio::test]
 async fn a_recomposed_prompt_is_forwarded_untouched() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let session_toggles = state.resolve_session_toggles("session-recomposed");
     let filter_cfg = FilterConfig {
         rules: vec![append_rule(62, "project guidance", " EXTRA")],
@@ -352,7 +352,7 @@ async fn a_recomposed_prompt_is_forwarded_untouched() -> anyhow::Result<()> {
 #[tokio::test]
 async fn apply_rewrites_body_and_records_manifest_on_match() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let session_toggles = state.resolve_session_toggles("session-filter-stage-test");
     let filter_cfg = FilterConfig {
         rules: vec![drop_rule(11, "system-reminder")],
@@ -389,7 +389,7 @@ async fn apply_rewrites_body_and_records_manifest_on_match() -> anyhow::Result<(
 #[tokio::test]
 async fn apply_leaves_body_untouched_when_no_rule_matches() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let session_toggles = state.resolve_session_toggles("session-filter-stage-test");
     let filter_cfg = FilterConfig::default();
     let lesson_snapshot = LessonSnapshot::default();
@@ -421,7 +421,7 @@ async fn apply_leaves_body_untouched_when_no_rule_matches() -> anyhow::Result<()
 #[tokio::test]
 async fn filter_rule_anchored_in_the_mutable_tail_fires_on_primary_first() -> anyhow::Result<()> {
     let config = crate::config::ProxyConfig::for_tests_in_memory();
-    let state = crate::config::AppState::new(config).await?;
+    let state = crate::state::AppState::new(config).await?;
     let session_toggles = state.resolve_session_toggles("session-rule-71-shape");
     let filter_cfg = FilterConfig {
         rules: vec![append_rule(

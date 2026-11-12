@@ -10,7 +10,7 @@ use crate::store::RequestStore;
 use crate::store::persistence::PersistHandle;
 use crate::store::retention::RetentionPolicy;
 
-use super::super::schema::ProxyConfig;
+use crate::config::ProxyConfig;
 
 pub(crate) use crate::feature_toggles::build_feature_toggle_overlay;
 

@@ -3,9 +3,9 @@ use axum::extract::State;
 use axum::http::Request;
 use axum::response::Response;
 
-use crate::config::AppState;
 use crate::error::ProxyError;
 use crate::proxy::engine;
+use crate::state::AppState;
 
 pub(crate) const MAX_HEADERS: usize = 64;
 

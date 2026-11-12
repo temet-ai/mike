@@ -6,8 +6,9 @@ use axum::http::StatusCode;
 use uuid::Uuid;
 
 use super::{RecallRequest, post_session_recall};
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
 use crate::recall_injector::{RecallInjectorConfig, answer_recall, is_served};
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::test_support;
 

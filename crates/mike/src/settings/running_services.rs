@@ -4,7 +4,7 @@ use tokio::time::MissedTickBehavior;
 use tokio_util::sync::CancellationToken;
 
 use crate::analysis::{EmbeddingService, RerankService};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 const SYNC_INTERVAL: Duration = Duration::from_secs(10);

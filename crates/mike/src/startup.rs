@@ -1,7 +1,7 @@
 use crate::store::persistence::mailbox::ReloadedMailboxRow;
 use crate::store::persistence::{PersistError, PersistHandle};
 
-pub async fn run_crash_recovery(state: &crate::config::AppState) {
+pub async fn run_crash_recovery(state: &crate::state::AppState) {
     if state.config().smoke_run {
         tracing::info!("smoke-run: skipping crash-recovery sweep");
         return;
@@ -16,7 +16,7 @@ fn should_record_build(config: &crate::config::ProxyConfig) -> bool {
     !config.smoke_run
 }
 
-pub async fn record_build_identity(state: &crate::config::AppState) {
+pub async fn record_build_identity(state: &crate::state::AppState) {
     if !should_record_build(state.config()) {
         log_smoke_run_skips_build();
         return;
@@ -44,7 +44,7 @@ fn log_build_recorded(change_id: i64, sha: &str) {
     tracing::info!(change_id, sha, "recorded new build on the change log");
 }
 
-pub fn spawn_bundle_retry(state: &crate::config::AppState) {
+pub fn spawn_bundle_retry(state: &crate::state::AppState) {
     if let Some(publisher) = state
         .steerer_service()
         .and_then(|service| service.bundle_publisher())
@@ -72,7 +72,7 @@ fn log_crash_recovery_failed(e: &PersistError) {
     );
 }
 
-pub async fn run_startup_session_sweep(state: &crate::config::AppState) {
+pub async fn run_startup_session_sweep(state: &crate::state::AppState) {
     let cfg = state.config();
     if cfg.smoke_run {
         tracing::info!("smoke-run: skipping startup session sweep");
@@ -127,7 +127,7 @@ const MAILBOX_RELOAD_LIMIT: i64 = 256;
 
 const MAILBOX_STALE_CLAIM_AFTER: chrono::Duration = chrono::Duration::minutes(5);
 
-pub async fn run_mailbox_reload(state: &crate::config::AppState) {
+pub async fn run_mailbox_reload(state: &crate::state::AppState) {
     if state.config().smoke_run {
         log_mailbox_reload_skipped_smoke_run();
         return;
@@ -210,7 +210,7 @@ async fn fetch_all_redelivery_mailbox_rows(persist: &PersistHandle) -> Vec<Reloa
 }
 
 async fn enqueue_reminders_for_reloaded_rows(
-    state: &crate::config::AppState,
+    state: &crate::state::AppState,
     rows: &[ReloadedMailboxRow],
 ) {
     let mut store = state.store.write().await;
@@ -224,7 +224,7 @@ async fn enqueue_reminders_for_reloaded_rows(
     }
 }
 
-pub async fn run_composable_session_warmup(state: &crate::config::AppState) {
+pub async fn run_composable_session_warmup(state: &crate::state::AppState) {
     let Some(persist) = state.persist() else {
         return;
     };
@@ -272,7 +272,7 @@ async fn fetch_composable_session_seed_uuids(persist: &PersistHandle) -> Vec<uui
 }
 
 pub(crate) async fn reload_mailbox_for_session(
-    state: &crate::config::AppState,
+    state: &crate::state::AppState,
     session_uuid: uuid::Uuid,
 ) {
     let Some(persist) = state.persist() else {

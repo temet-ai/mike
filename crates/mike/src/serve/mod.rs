@@ -11,7 +11,8 @@ use anyhow::Context;
 
 use drain::{TRACKER_DRAIN_TIMEOUT, drain_tracker};
 
-use crate::config::{self, AppState, CliOverrides};
+use crate::config::{self, CliOverrides};
+use crate::state::AppState;
 use crate::store::persistence::pool_classes::PoolClass;
 
 pub async fn run(overrides: CliOverrides) -> anyhow::Result<()> {

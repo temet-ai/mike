@@ -200,7 +200,7 @@ proxy-forward's direct TLS client. Neither should send its upstream request
 back through `:9987`.
 
 The current mike client is built by
-`crates/mike/src/config/app_state/construction_pipeline.rs::build_http_client`
+`crates/mike/src/state/construction_pipeline.rs::build_http_client`
 with `reqwest::ClientBuilder::no_proxy()`. It ignores inherited HTTP proxy
 environment variables. `scripts/deploy-proxy.sh` also unsets upper- and
 lower-case HTTP(S)/ALL proxy variables before launching processes.

@@ -5,10 +5,10 @@ use super::passage_excerpt::{Passages, show_reranker_passages};
 use crate::api::rerank_search::{
     RerankReport, arrange, candidates_wanted, score, short_query_report,
 };
-use crate::config::AppState;
 use crate::search_ranking::{
     Candidate, RankingConfig, lift_identifier_rows, order, order_by_position, weigh_outside_project,
 };
+use crate::state::AppState;
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, ProjectIdentity, search_page};
 use crate::store::persistence::{PersistError, PersistHandle};
 

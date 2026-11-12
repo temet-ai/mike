@@ -10,8 +10,8 @@ use super::plan::{
 };
 use super::seat;
 use super::status::FleetStatus;
-use crate::config::AppState;
 use crate::launch::{BackendId, backend_for};
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::{FleetRow, FleetSeatRow};
 

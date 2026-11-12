@@ -297,7 +297,8 @@ mod llm_spend_tests {
     use axum::extract::{Query, State};
 
     use super::{LlmSpendParams, get_llm_spend};
-    use crate::config::{AppState, ProxyConfig};
+    use crate::config::ProxyConfig;
+    use crate::state::AppState;
 
     fn empty_params() -> LlmSpendParams {
         LlmSpendParams {

@@ -9,7 +9,6 @@ use super::tree::running;
 use crate::change_record::ChangeKind;
 use crate::change_record::answers::check_after_last_change;
 use crate::change_record::writers::{NoteFacts, change_record_enabled, record_note};
-use crate::config::AppState;
 use crate::launch::fleet::FleetDefinition;
 use crate::launch::fleet::brief_notes::{fleet_tag, task_tag, task_tags};
 use crate::launch::fleet::brief_notes_sync::latest_part;
@@ -22,6 +21,7 @@ use crate::launch::fleet::report::{
     report_body, report_data, report_title,
 };
 use crate::launch::fleet::seated::Seated;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::session_notes::{
     NewSessionNote, NoteOrder, SessionNoteFilter, SessionNoteRow,

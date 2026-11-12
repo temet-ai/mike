@@ -5,8 +5,9 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::Response;
 
 use super::post_run_scheduled_job;
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
 use crate::scheduled_jobs::{JobStatus, replace_for_tests, snapshot};
+use crate::state::AppState;
 
 fn from_app() -> HeaderMap {
     let mut headers = HeaderMap::new();

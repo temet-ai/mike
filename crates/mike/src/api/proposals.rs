@@ -7,7 +7,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::api::eval::labels::spa_origin;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistError;
 use crate::store::persistence::lessons::placement_proposals::{
     PlacementDecision, PlacementProposalRow, ProposalProjectRow,

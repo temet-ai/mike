@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use super::dto::{SessionFlowComponent, SessionFlowCursor, SessionFlowPage};
 use super::map;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::session_flow::{FlowCursor, FlowReadError};
 
 const DEFAULT_LIMIT: u16 = 50;

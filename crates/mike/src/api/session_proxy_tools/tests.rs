@@ -6,10 +6,11 @@ use axum::http::StatusCode;
 use uuid::Uuid;
 
 use super::{NO_PROJECT_ANSWER, get_proxy_tools, post_proxy_tool, post_weasel_guard};
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
 use crate::feature_toggles::ResolvedToggles;
 use crate::proxy_tools::answer::{ProxyToolCall, answer_tool_call};
 use crate::proxy_tools::{client, declare, roster};
+use crate::state::AppState;
 use crate::weasel_intercept::evidence::weasel_armed;
 
 const PROJECT: &str = "/tmp/session-proxy-tools-test";
