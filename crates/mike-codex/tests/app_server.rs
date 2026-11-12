@@ -28,6 +28,7 @@ async fn persistent_thread_completes_resumes_and_forks() -> anyhow::Result<()> {
         assert_eq!(outcome.status, "completed");
         assert_eq!(outcome.final_text, "fixture complete");
         assert_eq!(outcome.commands, vec![("fixture-check".into(), Some(0))]);
+        assert!(!outcome.observations_incomplete);
         seat.stop().await?;
         let resumed = CodexSeat::resume(fixture.options(), &thread).await?;
         assert_eq!(resumed.thread_id(), thread);

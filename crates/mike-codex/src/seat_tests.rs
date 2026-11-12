@@ -21,3 +21,30 @@ fn turn_outcome_collects_final_answer_and_commands_of_its_own_thread() {
     assert_eq!(outcome.status, "completed");
     assert_eq!(outcome.commands, vec![("./check.sh".to_string(), Some(0))]);
 }
+
+#[test]
+fn turn_outcome_reports_gaps_and_bounded_command_history() {
+    let mut outcome = TurnOutcome {
+        turn_id: "turn".into(),
+        ..TurnOutcome::default()
+    };
+    let item = json!({"method":"item/completed","params":{"threadId":"thread","turnId":"turn","item":{
+        "type":"commandExecution","command":"x".repeat(4096)
+    }}});
+    for _ in 0..30 {
+        absorb(&mut outcome, &item, "thread");
+    }
+    assert_eq!(outcome.commands.len(), 16);
+    assert!(outcome.commands_truncated);
+    absorb(
+        &mut outcome,
+        &json!({"method":"mike/observationGap"}),
+        "thread",
+    );
+    assert!(outcome.observations_incomplete);
+    let unrelated = json!({"method":"item/completed","params":{"threadId":"thread","turnId":"other","item":{
+        "type":"agentMessage","phase":"final_answer","text":"other turn"
+    }}});
+    absorb(&mut outcome, &unrelated, "thread");
+    assert!(outcome.final_text.is_empty());
+}

@@ -1,6 +1,7 @@
 mod contract;
 mod fleet;
 mod model;
+mod observation;
 mod options;
 mod plan;
 mod register;

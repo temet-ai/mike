@@ -314,12 +314,59 @@ export interface SessionTokenUsage {
 export interface SessionDetail {
 	summary: SessionSummary;
 	requests: RequestSummary[];
+	observation?: RuntimeSessionObservation | null;
+	runtime_items?: RuntimeItemPage | null;
 	quality?: SessionQuality | null;
 	model_breakdown?: ModelBreakdownEntry[];
 	token_usage?: SessionTokenUsage;
 	total_requests?: number;
 	offset?: number;
 	limit?: number;
+}
+
+export interface RuntimeSessionObservation {
+	runtime: string;
+	source: string;
+	source_version: string | null;
+	fidelity: string;
+	completeness: string;
+	observed_at: string;
+	lifecycle: string | null;
+	control: string | null;
+	requested_model: string | null;
+	observed_model: string | null;
+	usage_scope: string | null;
+	usage_basis: string | null;
+	input_tokens: number | null;
+	cached_input_tokens: number | null;
+	output_tokens: number | null;
+	reasoning_output_tokens: number | null;
+	total_tokens: number | null;
+	context_window: number | null;
+	model_call_count: number;
+}
+
+export interface RuntimeItem {
+	item_id: string;
+	turn_id: string | null;
+	kind: string;
+	name: string | null;
+	status: string | null;
+	success: boolean | null;
+	exit_code: number | null;
+	source: string;
+	fidelity: string;
+	completeness: string;
+	first_seen_at: string;
+	observed_at: string;
+	content_availability: string;
+}
+
+export interface RuntimeItemPage {
+	items: RuntimeItem[];
+	offset: number;
+	limit: number;
+	has_more: boolean;
 }
 
 export interface SessionHead {

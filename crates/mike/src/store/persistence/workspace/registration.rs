@@ -193,6 +193,26 @@ impl PersistHandle {
         &self,
         input: RegisterWorkspaceSession<'_>,
     ) -> Result<RegisteredWorkspaceSession, PersistError> {
+        self.register_workspace_session_inner(input, false).await
+    }
+
+    pub async fn register_runtime_workspace_session(
+        &self,
+        input: RegisterWorkspaceSession<'_>,
+    ) -> Result<RegisteredWorkspaceSession, PersistError> {
+        if input.cwd.len() > 4096 || input.project_path.is_some_and(|path| path.len() > 4096) {
+            return Err(PersistError::DataInvariant(
+                "runtime workspace path exceeds 4096 bytes".into(),
+            ));
+        }
+        self.register_workspace_session_inner(input, true).await
+    }
+
+    async fn register_workspace_session_inner(
+        &self,
+        input: RegisterWorkspaceSession<'_>,
+        runtime_bounded: bool,
+    ) -> Result<RegisteredWorkspaceSession, PersistError> {
         let registered_via: RegisteredVia = input
             .registered_via
             .parse()
@@ -200,6 +220,9 @@ impl PersistHandle {
 
         crate::metrics::time_db("workspace_register_session", async move {
             let mut tx = self.pool.begin().await?;
+            if runtime_bounded {
+                super::super::runtime::identity_budget::lock(&mut tx).await?;
+            }
 
             let (session_id, flow_admission) =
                 super::flow_admission::resolve_registration_session(&mut tx, &input).await?;
@@ -214,6 +237,11 @@ impl PersistHandle {
             let project_id =
                 heal_project_assignment(&mut tx, session_id, input.project_path).await?;
 
+            if runtime_bounded {
+                sqlx::query!("INSERT INTO runtime.project_identities (project_id) VALUES ($1) ON CONFLICT DO NOTHING", project_id)
+                    .execute(&mut *tx).await?;
+                super::super::runtime::identity_budget::admit(&mut tx, &super::super::runtime::ObservationLimits::default()).await?;
+            }
             let resolved = sqlx::query!(
                 "SELECT p.project_path, s.project_resolution
                    FROM sessions.sessions s
@@ -242,18 +270,20 @@ impl PersistHandle {
             upsert_session_identity(&mut tx, session_id, &input).await?;
             super::launch_brief::materialize_launch_briefs(&mut *tx, input.session_uuid).await?;
 
-            let actor =
-                super::ledger::resolve_actor_label(&mut *tx, input.session_uuid, session_id)
-                    .await?;
-            super::ledger::insert_ledger_event(
-                &mut *tx,
-                project_id,
-                Some(session_id),
-                &actor,
-                "registered",
-                &input.session_uuid.to_string(),
-            )
-            .await?;
+            if !runtime_bounded {
+                let actor =
+                    super::ledger::resolve_actor_label(&mut *tx, input.session_uuid, session_id)
+                        .await?;
+                super::ledger::insert_ledger_event(
+                    &mut *tx,
+                    project_id,
+                    Some(session_id),
+                    &actor,
+                    "registered",
+                    &input.session_uuid.to_string(),
+                )
+                .await?;
+            }
 
             tx.commit().await?;
             Ok(RegisteredWorkspaceSession {

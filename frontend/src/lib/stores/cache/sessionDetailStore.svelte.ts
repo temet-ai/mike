@@ -14,6 +14,8 @@ import type {
 	RequestDetail,
 	RequestSummary,
 	SessionDetail,
+	RuntimeSessionObservation,
+	RuntimeItemPage,
 	SessionQuality,
 	SessionSummary,
 	SessionTokenUsage
@@ -118,6 +120,8 @@ interface CachedSession {
 	quality: SessionQuality | null;
 	modelBreakdown: ModelBreakdownEntry[];
 	tokenUsage: SessionTokenUsage | null;
+	observation: RuntimeSessionObservation | null;
+	runtimeItems: RuntimeItemPage | null;
 	total: number;
 	pages: Map<number, RequestSummary[]>;
 	lastTouchedAt: number;
@@ -197,6 +201,8 @@ function projectFromCache(entry: CachedSession): SessionDetail {
 		quality: entry.quality,
 		model_breakdown: entry.modelBreakdown,
 		token_usage: entry.tokenUsage ?? undefined,
+		observation: entry.observation,
+		runtime_items: entry.runtimeItems,
 		requests,
 		total_requests: entry.total,
 		offset: firstOffset ?? 0,
@@ -304,6 +310,8 @@ export function createSessionDetailStore(): SessionDetailStore {
 		quality: SessionQuality | null;
 		modelBreakdown: ModelBreakdownEntry[];
 		tokenUsage: SessionTokenUsage | null;
+		observation: RuntimeSessionObservation | null;
+		runtimeItems: RuntimeItemPage | null;
 		total: number;
 		pageOffset: number;
 		page: RequestSummary[];
@@ -320,6 +328,8 @@ export function createSessionDetailStore(): SessionDetailStore {
 			quality: fetched.quality ?? null,
 			modelBreakdown: fetched.model_breakdown ?? [],
 			tokenUsage: fetched.token_usage ?? null,
+			observation: fetched.observation ?? null,
+			runtimeItems: fetched.runtime_items ?? null,
 			total,
 			pageOffset: Math.max(0, total - page.length),
 			page
@@ -343,8 +353,17 @@ export function createSessionDetailStore(): SessionDetailStore {
 					return;
 				}
 
-				const { summary, quality, modelBreakdown, tokenUsage, total, pageOffset, page } =
-					await fetchInitialPage(id);
+				const {
+					summary,
+					quality,
+					modelBreakdown,
+					tokenUsage,
+					observation,
+					runtimeItems,
+					total,
+					pageOffset,
+					page
+				} = await fetchInitialPage(id);
 				if (connState.currentId !== id) return;
 
 				evictOldestIfFull();
@@ -353,6 +372,8 @@ export function createSessionDetailStore(): SessionDetailStore {
 					quality,
 					modelBreakdown,
 					tokenUsage,
+					observation,
+					runtimeItems,
 					total,
 					pages: new Map([[pageOffset, page]]),
 					lastTouchedAt: Date.now()

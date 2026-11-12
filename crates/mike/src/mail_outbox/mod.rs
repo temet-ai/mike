@@ -1,5 +1,6 @@
 mod claude;
 mod codex;
+mod codex_queue;
 mod deliver;
 mod envelope;
 mod mailbox_link;
@@ -10,6 +11,7 @@ mod worker;
 use async_trait::async_trait;
 use uuid::Uuid;
 
+pub(crate) use codex_queue::observe_local_codex;
 pub(crate) use worker::spawn_mail_outbox;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

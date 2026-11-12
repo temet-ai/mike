@@ -34,6 +34,14 @@ async fn run_retention_sweep_tick(
         }
     };
 
+    match persist
+        .sweep_runtime_observations(now, orphan_batch_size)
+        .await
+    {
+        Ok(outcome) => tracing::info!(?outcome, "runtime observation retention complete"),
+        Err(error) => tracing::warn!(%error, "runtime observation retention failed"),
+    }
+
     tracing::info!(
         sessions_removed,
         messages_removed,

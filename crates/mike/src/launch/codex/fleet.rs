@@ -5,6 +5,7 @@ use serde_json::{Value, json};
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
+use super::observation::ManagedObservation;
 use super::options::{operator_codex_home, prepare_home};
 use super::register::{CODEX_BACKEND, CODEX_BACKEND_REASON, bind_seat_thread, bound_thread};
 use super::{CodexError, CodexSeat, SeatOptions};
@@ -18,7 +19,7 @@ enum Control {
     Call(String, Value, oneshot::Sender<Result<Value, CodexError>>),
 }
 
-static SEATS: LazyLock<DashMap<Uuid, mpsc::UnboundedSender<Control>>> = LazyLock::new(DashMap::new);
+static SEATS: LazyLock<DashMap<Uuid, mpsc::Sender<Control>>> = LazyLock::new(DashMap::new);
 
 pub struct SeatLaunch<'a> {
     pub run_id: &'a str,
@@ -34,6 +35,7 @@ pub async fn begin(
     launch: SeatLaunch<'_>,
 ) -> Result<(), String> {
     let launch_id = record_attempt(persist, &options, &launch).await;
+    let model = options.model.clone();
     let started = start(persist, options, &launch).await;
     let outcome = match &started {
         Ok(seat) => opened(persist, launch_id, seat).await,
@@ -45,9 +47,11 @@ pub async fn begin(
         tracing::warn!(error = %error, launch_id = id, "codex seat launch outcome not recorded");
     }
     let seat = started.map_err(|error| error.to_string())?;
-    let (tx, rx) = mpsc::unbounded_channel();
+    let observer =
+        ManagedObservation::begin(persist.clone(), launch.session, seat.thread_id(), model).await;
+    let (tx, rx) = mpsc::channel(32);
     SEATS.insert(launch.session, tx);
-    tokio::spawn(supervise(launch.session, seat, rx));
+    tokio::spawn(supervise(launch.session, seat, rx, observer));
     Ok(())
 }
 
@@ -164,19 +168,24 @@ fn failed(reason: String) -> LaunchOutcome {
 async fn supervise(
     session: Uuid,
     mut seat: CodexSeat,
-    mut control: mpsc::UnboundedReceiver<Control>,
+    mut control: mpsc::Receiver<Control>,
+    mut observer: ManagedObservation,
 ) {
     let mut active_turn: Option<String> = None;
     loop {
         tokio::select! {
             event = seat.next_event() => match event {
-                Some(event) => track_turn(&mut active_turn, &event),
+                Some(event) => {
+                    track_turn(&mut active_turn, &event);
+                    observer.event(&event).await;
+                },
                 None => break,
             },
             order = control.recv() => match order {
                 Some(Control::Stop(reply)) => {
                     let _ = reply.send(seat.stop().await.map_err(|e| e.to_string()));
                     SEATS.remove(&session);
+                    observer.end().await;
                     return;
                 }
                 Some(order) => obey(session, &seat, active_turn.as_deref(), order).await,
@@ -186,6 +195,7 @@ async fn supervise(
     }
     SEATS.remove(&session);
     let _ = seat.stop().await;
+    observer.end().await;
 }
 
 async fn obey(session: Uuid, seat: &CodexSeat, active_turn: Option<&str>, order: Control) {
@@ -251,7 +261,12 @@ fn send(session: Uuid, order: Control) -> Result<(), String> {
     let sender = SEATS
         .get(&session)
         .ok_or_else(|| format!("no Codex seat runs for session {session} in this mike"))?;
-    sender.send(order).map_err(|_| closed(session))
+    sender.try_send(order).map_err(|error| match error {
+        mpsc::error::TrySendError::Full(_) => {
+            format!("the Codex seat control queue for {session} is full")
+        }
+        mpsc::error::TrySendError::Closed(_) => closed(session),
+    })
 }
 
 fn closed(session: Uuid) -> String {

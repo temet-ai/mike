@@ -24,6 +24,7 @@ fn extract_worktree_name_none_for_trailing_marker() {
 
 fn peer(session_id: Uuid, is_self: bool, goal: Option<&str>, cwd: &str) -> RosterEntryDto {
     RosterEntryDto {
+        observation: None,
         session_id,
         is_self,
         cwd: cwd.to_string(),

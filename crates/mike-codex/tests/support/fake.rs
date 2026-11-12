@@ -10,7 +10,6 @@ struct Server {
 }
 
 pub fn run() -> anyhow::Result<()> {
-    println!();
     let mut server = Server::default();
     for line in std::io::stdin().lock().lines() {
         let request: Value = serde_json::from_str(&line?)?;
@@ -23,8 +22,9 @@ pub fn run() -> anyhow::Result<()> {
 }
 
 fn send(message: Value) -> anyhow::Result<()> {
-    println!("{message}");
-    std::io::stdout().flush()?;
+    let mut output = std::fs::OpenOptions::new().write(true).open("/dev/fd/3")?;
+    writeln!(output, "{message}")?;
+    output.flush()?;
     Ok(())
 }
 

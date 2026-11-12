@@ -1,8 +1,7 @@
 use serde::Deserialize;
-use serde_json::Value;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
-pub(crate) struct HookPayload {
+pub struct HookPayload {
     pub hook_event_name: String,
     pub session_id: String,
     #[serde(default)]
@@ -16,34 +15,20 @@ pub(crate) struct HookPayload {
     #[serde(default)]
     pub model: Option<String>,
     #[serde(default)]
-    pub reason: Option<String>,
-    #[serde(default)]
-    pub status: Option<String>,
-    #[serde(default)]
-    pub error: Option<Value>,
-    #[serde(default)]
-    pub token_usage: Option<Value>,
-    #[serde(default)]
     pub tool_name: Option<String>,
     #[serde(default)]
-    pub tool_input: Option<Value>,
-    #[serde(default)]
-    pub tool_response: Option<Value>,
-    #[serde(default)]
     pub tool_use_id: Option<String>,
-    #[serde(default)]
-    pub last_assistant_message: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct ThreadScope {
+pub struct ThreadScope {
     pub root_thread_id: String,
     pub thread_id: String,
     pub parent_thread_id: Option<String>,
 }
 
 impl HookPayload {
-    pub(crate) fn parse(raw: &[u8]) -> Result<Self, String> {
+    pub fn parse(raw: &[u8]) -> Result<Self, String> {
         let payload: Self = serde_json::from_slice(raw).map_err(|error| {
             format!(
                 "hook body is not a Codex hook payload: {error} (line {}, column {})",
@@ -51,7 +36,10 @@ impl HookPayload {
                 error.column()
             )
         })?;
-        if payload.session_id.trim().is_empty() || payload.session_id.contains('\0') {
+        if payload.session_id.trim().is_empty()
+            || payload.session_id.contains('\0')
+            || payload.session_id.len() > 512
+        {
             return Err(format!(
                 "hook body session_id {:?} must be nonempty and contain no NUL",
                 payload.session_id
@@ -60,7 +48,7 @@ impl HookPayload {
         Ok(payload)
     }
 
-    pub(crate) fn scope(&self) -> ThreadScope {
+    pub fn scope(&self) -> ThreadScope {
         match self.agent_id.as_deref().filter(|id| !id.trim().is_empty()) {
             Some(child) => ThreadScope {
                 root_thread_id: self.session_id.clone(),
@@ -75,21 +63,13 @@ impl HookPayload {
         }
     }
 
-    pub(crate) fn event(&self) -> HookEvent {
+    pub fn event(&self) -> HookEvent {
         HookEvent::from_name(&self.hook_event_name)
-    }
-
-    pub(crate) fn error_text(&self) -> Option<String> {
-        match &self.error {
-            None | Some(Value::Null) => None,
-            Some(Value::String(text)) => Some(text.clone()),
-            Some(other) => Some(other.to_string()),
-        }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum HookEvent {
+pub enum HookEvent {
     SessionStart,
     SessionEnd,
     UserPromptSubmit,

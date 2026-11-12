@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 type Attrs = BTreeMap<String, String>;
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct ToolResult {
+pub struct ToolResult {
     pub thread_id: Option<String>,
     pub call_id: String,
     pub tool_name: String,
@@ -20,7 +20,7 @@ pub(crate) struct ToolResult {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct RequestAttempt {
+pub struct RequestAttempt {
     pub thread_id: Option<String>,
     pub event: String,
     pub endpoint: Option<String>,
@@ -31,10 +31,35 @@ pub(crate) struct RequestAttempt {
     pub duration_ms: Option<i64>,
     pub usage: Option<Value>,
     pub at: DateTime<Utc>,
+    pub model: Option<String>,
+    pub timestamp_reported: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) enum TelemetryFact {
+pub struct ObservedModelCall {
+    pub source_key: String,
+    pub model: Option<String>,
+    pub usage: Value,
+}
+
+impl RequestAttempt {
+    pub fn completed_call(&self) -> Option<ObservedModelCall> {
+        if self.event != "codex.sse_event" || !self.timestamp_reported {
+            return None;
+        }
+        let usage = self.usage.as_ref()?;
+        let thread = self.thread_id.as_deref()?;
+        Some(ObservedModelCall {
+            source_key: json!({"thread":thread,"at":self.at,"model":self.model,"usage":usage})
+                .to_string(),
+            model: self.model.clone(),
+            usage: usage.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TelemetryFact {
     Conversation {
         thread_id: String,
         model: Option<String>,
@@ -58,6 +83,7 @@ pub(crate) enum TelemetryFact {
     },
 }
 
+#[cfg(test)]
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct HookRun {
     pub trace_id: String,
@@ -189,6 +215,10 @@ fn request(event: &str, attrs: &Attrs, at: DateTime<Utc>) -> TelemetryFact {
         duration_ms: int(attrs, "duration_ms"),
         usage: usage(attrs),
         at,
+        model: text(attrs, "model"),
+        timestamp_reported: attrs
+            .get("event.timestamp")
+            .is_some_and(|at| DateTime::parse_from_rfc3339(at).is_ok()),
     })
 }
 
@@ -253,13 +283,13 @@ fn nested<'a>(body: &'a Value, keys: [&'static str; 3]) -> impl Iterator<Item = 
         })
 }
 
-pub(crate) fn log_facts(body: &Value) -> Vec<TelemetryFact> {
+pub fn log_facts(body: &Value) -> Vec<TelemetryFact> {
     nested(body, ["resourceLogs", "scopeLogs", "logRecords"])
         .filter_map(log_fact)
         .collect()
 }
 
-pub(crate) fn resource_version(body: &Value) -> Option<String> {
+pub fn resource_version(body: &Value) -> Option<String> {
     ["resourceLogs", "resourceSpans", "resourceMetrics"]
         .iter()
         .filter_map(|key| body.get(*key).and_then(Value::as_array))
@@ -271,6 +301,7 @@ pub(crate) fn resource_version(body: &Value) -> Option<String> {
         })
 }
 
+#[cfg(test)]
 fn hook_run(span: &Value) -> Option<HookRun> {
     if span.get("name")?.as_str()? != "codex.hooks.command" {
         return None;
@@ -290,6 +321,7 @@ fn hook_run(span: &Value) -> Option<HookRun> {
     })
 }
 
+#[cfg(test)]
 pub(crate) fn hook_runs(body: &Value) -> Vec<HookRun> {
     nested(body, ["resourceSpans", "scopeSpans", "spans"])
         .filter_map(hook_run)

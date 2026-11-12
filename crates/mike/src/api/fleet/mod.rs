@@ -7,6 +7,7 @@ mod definition_patch;
 mod definition_view;
 mod definitions;
 mod graph;
+mod observations;
 mod propose;
 mod record;
 mod report;

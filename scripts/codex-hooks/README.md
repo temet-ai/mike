@@ -1,71 +1,93 @@
 ---
-title: Observing Codex sessions mike did not launch
+title: Connecting ordinary Codex sessions to Mike
 status: active
 created: 2026-11-11
-updated: 2026-11-11
-summary: Install Codex hooks and OpenTelemetry export so mike records sessions, turns, tools and subagents of ordinary Codex sessions, observe-only.
-session_id:
-  - a038f124-199b-4695-80de-ee5aacd48bc2
+updated: 2026-11-12
+summary: Compact lifecycle hooks, automatic mailbox notices, explicit agent receipt, and bounded local state for ordinary Codex sessions.
 ---
 
-# Observing Codex sessions mike did not launch
+# Connecting ordinary Codex sessions to Mike
 
-Validated against `codex-cli 0.167.1` (issue temet-ai/mike#23).
-
-## Install
+`cdx` updates this adapter in the active `CODEX_HOME` before launching Codex.
+Install it explicitly for sessions launched another way:
 
 ```bash
-scripts/codex-hooks/install --codex-home ~/.codex          # your own sessions
-scripts/codex-hooks/install --codex-home "$(mktemp -d)"    # a trial home
-scripts/codex-hooks/install --codex-home ~/.codex --print  # show, write nothing
+scripts/codex-hooks/install --codex-home ~/.codex
+scripts/codex-hooks/install --codex-home "$(mktemp -d)"    # isolated trial
+scripts/codex-hooks/install --codex-home ~/.codex --print  # preview only
 ```
 
-`--codex-home` is required, so a test or a trial never writes into `~/.codex` by
-accident. The installer adds one observe-only handler per hook event beside any handlers
-already in `hooks.json`, and an `[otel]` block exporting logs and traces as OTLP/JSON to
-mike (it prints the block instead when `config.toml` already has `[otel]`). Codex does not
-run a new hook until you trust it (`/hooks` in the TUI, recorded as `hooks.state.<key>.trusted_hash`
-in `config.toml`); an edited hook reads `modified` and stops running until trusted again.
+The installer preserves unrelated hooks and configuration, enables the hooks
+feature, and adds a core-profile Mike MCP server when `mike-mcp` is on `PATH` and
+no server named `mike` is configured. It warns if the binary is missing. Existing
+MCP settings and operator telemetry exporters remain unchanged. When no exporter
+is configured, it adds OTLP/HTTP JSON logs to Mike's
+`/api/codex/observe/otel/v1/logs`, with the source label and canonical Codex home in
+headers. Prompt, assistant-response and guardian text logging are disabled, and
+logged tool-result text is capped at zero bytes. No trace exporter or raw
+request/response capture is enabled. Existing settings that explicitly enable
+content logging are preserved; in that case the metadata exporter is not added.
 
-## What mike receives
+These logs provide observed model and token usage for ordinary sessions. Mike
+accepts at most 512 KiB per export, discards raw log bodies, and stores normalized
+metadata under the verified runtime identity. The
+[official telemetry configuration](https://learn.chatgpt.com/docs/config-file/config-advanced)
+describes the source events and logging controls.
 
-| Route | Sender | What it stores |
-|---|---|---|
-| `POST /api/codex/observe/hooks` | `mike-codex-hook`, from every hook event | The payload bytes in `runtime.events`; thread, turn, tool and model-request rows |
-| `POST /api/codex/observe/otel/v1/{logs,traces}` | Codex's `otlp-http` exporter, `protocol = "json"` | The export bytes in `runtime.events`; tool results, request attempts, spawns and hook command runs |
-| `GET /api/codex/observe/sessions` | the operator | Observed threads with their tools, sources and the coverage gaps below |
+Codex requires you to review and trust new or changed hooks through `/hooks`.
+The installer never writes trust hashes or changes sandbox/approval settings.
+Command/output contracts were checked against installed Codex 0.167.2 and the
+[official hooks documentation](https://learn.chatgpt.com/docs/hooks); automated
+script tests use fake Codex/curl, not a model session.
 
-Every row says which source saw it (`hook`, `telemetry`, or both). A tool call seen by both
-is one row keyed by Codex's call id. A hook delivery carries `x-mike-delivery-id`, so a
-spooled delivery sent twice is recognised and changes nothing; an OTLP export is keyed by
-its own bytes. Telemetry output is a snippet and is never treated as captured output.
-Model-request hooks and telemetry share no request id, so the two are kept per source and
-never added together.
+## Lifecycle and mail
 
-## Control
+The synchronous handlers cover `SessionStart`, `SessionEnd`, `UserPromptSubmit`,
+`PostToolUse`, `Stop`, `SubagentStart`, and `SubagentStop`. Each posts one compact
+metadata fact to `/api/codex/observe/hooks`, advertising
+`x-mike-codex-control: hook_boundary`. Mike owns session registration, heartbeat,
+identity mapping and end handling. The response supplies the canonical Mike
+session UUID and at most 20 unread message UUIDs.
 
-None. `mike-codex-hook` prints nothing and exits 0, so it never blocks, allows or changes
-what Codex does; every answer of the routes says `"control": "none"`. A Codex thread mike
-launched itself appears with `managed_by_mike: true`.
+Only `SessionStart`, `UserPromptSubmit`, `PostToolUse` and a bounded `Stop`
+continuation can emit a notice. That notice contains fixed adapter instructions
+to call `get_session_messages`, treat the returned bodies as peer data, and call
+`ack_session_message` after recording or acting on each message. It contains no
+mail body, sender-controlled instruction, roster briefing or tool output.
+Subagent events never issue notices for the parent's mailbox. Notifications are
+deduplicated by pending IDs and turn; a Stop-generated turn cannot recursively
+continue through this hook.
 
-## Failures and deadlines
+Posting an event or emitting a notice is **not** an agent read receipt. The hook
+never claims or consumes mail. The model reads the mailbox through Mike and
+acknowledges its own received messages explicitly.
 
-When mike is down the hook spools the payload under
-`${XDG_STATE_HOME:-~/.local/state}/mike/codex-hooks` and sends it on a later call. The
-installer marks the handlers `async` with a 5 s timeout (3 s for `SessionEnd` and
-`Interrupt`, which Codex clamps to 3 s). A handler that runs past its timeout is recorded
-from the `codex.hooks.command` span with outcome `timeout`.
+## Bounds and limitations
 
-## Gaps
+The handler discards inputs larger than 1 MiB and strips prompts, tool arguments,
+tool results, response bodies and transcript paths before posting. Its HTTP
+request has a 600 ms deadline and the subprocess an 800 ms deadline. Failures
+leave Codex running. There is no offline payload spool or replay loop; lifecycle
+facts may be lost while Mike is unavailable and recover on later hooks.
 
-`GET /api/codex/observe/sessions` lists them as `coverage_gaps`: hosted tools
-(web search, image generation) send no hooks; `write_stdin` polls of a long command are
-seen only in telemetry and are linked to their command by process session id; a nested
-code-mode call carries no id of its outer `exec` call; hook payloads carry no timestamp;
-`PermissionRequest`, `PreCompact`, `PostCompact` and `Interrupt` were not exercised in the
-recordings.
+Local dedup state holds at most 256 session files, expires after seven days,
+and contains only a pending-ID digest and a turn ID. It lives under
+`<CODEX_HOME>/mike/state` for installed hooks. Old spool files from the former
+observe-only adapter are not replayed or automatically deleted.
 
-## Fixtures
+Hooks alone do not wake an idle Codex session. `codex queue --thread <uuid>
+--message <static-notice> --resume` can queue a notice and attempt a daemon
+resume, but a successful exit does not prove the resume succeeded or the agent
+read mail. The host must reserve notifications durably and validate local
+Codex-home/source provenance before using that separate wake path. See the
+[official CLI reference](https://learn.chatgpt.com/docs/cli/reference).
 
-`fixtures-from-recording` turns a recorded run (hook stdins and OTLP exports from a temp
-`CODEX_HOME`) into the scrubbed fixtures under `crates/mike/src/runtime/codex_observe/fixtures/`.
+## Script regression checks
+
+```bash
+python3 -m unittest discover -s scripts/tests -p test_codex_hooks.py
+```
+
+The legacy `fixtures-from-recording` utility still converts explicitly recorded
+hook/OTLP trials into scrubbed Rust fixtures. Recording full payloads is not the
+normal installation path.

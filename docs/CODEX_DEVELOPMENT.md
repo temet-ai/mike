@@ -16,7 +16,8 @@ edit-and-test loop for the client.
 ## Ownership
 
 The client owns the app-server connection, protocol request construction,
-thread start/resume/fork, turn dispatch/interruption and returned turn results.
+thread start/resume/fork, turn dispatch/interruption and returned turn results,
+hook and OpenTelemetry decoding, and incremental Responses metadata parsing.
 Mike owns fleet contracts and permissions, session registration, authentication
 file setup, durable mail, persistence and reader policy. Mike's
 `launch/codex/` module connects those responsibilities to the client.
@@ -62,20 +63,22 @@ of the complete delivery gate. The extracted suite includes subprocess lifecycle
 tests; its one ignored entry is the fake app-server executable used by those
 tests. The old host run excluded the database-backed thread-binding test.
 
-## Scope of this extraction
+## Integration boundary
 
-This is the first connected slice of
-[#181](https://github.com/temet-ai/mike/issues/181), not the complete common
-observation layer. Observation decoders, hooks/telemetry ingestion, wire capture
-and persistence still live in Mike. Future client changes should extend this
-crate when they belong to the managed protocol, without moving fleet or storage
-policy into it.
+The shared observation work for [#181](https://github.com/temet-ai/mike/issues/181)
+keeps provider decoding in this crate. Mike maps those decoded facts to its common
+session, model-call and item contracts and owns SQL admission, expiry, mail
+policy and reader queries. HTTP routing and byte forwarding are host concerns;
+provider-specific Responses parsing is tested in the client crate. No second
+daemon, release pipeline or provider-specific reader stack is introduced.
 
-This change does not alter retention or raw-capture defaults. The remaining
-integration work must make routine visibility independent of retaining wire
-bodies, enforce finite storage and queue budgets, and preserve evidence about
-missing data. Those changes need their own connected migration and acceptance
-tests. A separate crate alone does not fix storage growth.
+Routine Codex observation retains bounded metadata without raw payloads. Wire
+evidence is separately opt-in and bounded; see [capture policy](CODEX_CAPTURE.md).
+Transport limits emit observation-gap signals rather than silently presenting
+partial results as complete. Provider fixture and malformed/oversized-stream
+tests run here. Host integration tests cover the boundary: identity, atomic
+facts/retry handling, quotas, mail state and common reader results. They do not
+repeat the entire provider protocol fixture matrix inside Mike.
 
 When extending the client, keep its dependency tree independent of Mike even in
 tests. Use the host tests to verify registration, mail and database integration;

@@ -158,9 +158,13 @@ pub(crate) async fn get_fleet(
     match query.view.as_deref() {
         None | Some("full") => {
             let view = at_ready::view(&state, &row).await;
-            serde_json::to_value(view)
-                .map(Json)
-                .map_err(|e| DefinitionError::Status(e.to_string()))
+            super::observations::with_observations(
+                persistence(&state)?,
+                row.run_id.as_deref(),
+                &view,
+            )
+            .await
+            .map(Json)
         }
         Some("seat") => {
             let def = FleetDefinition::from_value(&row.definition)

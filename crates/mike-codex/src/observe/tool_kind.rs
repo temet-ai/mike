@@ -2,7 +2,7 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum ToolKind {
+pub enum ToolKind {
     Shell,
     Poll,
     CodeMode,
@@ -13,7 +13,7 @@ pub(crate) enum ToolKind {
 }
 
 impl ToolKind {
-    pub(crate) fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             Self::Shell => "shell",
             Self::Poll => "poll",
@@ -34,7 +34,7 @@ const HOSTED_TOOLS: [&str; 4] = [
 ];
 const COLLABORATION: &str = "collaboration";
 
-pub(crate) fn from_hook_name(name: &str) -> ToolKind {
+pub fn from_hook_name(name: &str) -> ToolKind {
     if name == "Bash" {
         return ToolKind::Shell;
     }
@@ -50,11 +50,7 @@ pub(crate) fn from_hook_name(name: &str) -> ToolKind {
     ToolKind::Other
 }
 
-pub(crate) fn from_telemetry(
-    namespace: Option<&str>,
-    name: &str,
-    mcp_server: Option<&str>,
-) -> ToolKind {
+pub fn from_telemetry(namespace: Option<&str>, name: &str, mcp_server: Option<&str>) -> ToolKind {
     if mcp_server.is_some_and(|server| !server.is_empty()) {
         return ToolKind::Mcp;
     }
@@ -71,19 +67,19 @@ pub(crate) fn from_telemetry(
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
-pub(crate) struct CoverageGap {
+pub struct CoverageGap {
     pub path: &'static str,
     pub what_is_missing: &'static str,
 }
 
-pub(crate) const COVERAGE_GAPS: [CoverageGap; 7] = [
+pub const COVERAGE_GAPS: [CoverageGap; 7] = [
     CoverageGap {
         path: "hosted tools (web_search, image_generation, file_search, code_interpreter)",
         what_is_missing: "run on OpenAI's side; codex 0.167.1 sends no PreToolUse or PostToolUse hook for them, so mike sees at most a telemetry record and never their input or output",
     },
     CoverageGap {
         path: "write_stdin polls of a long-running command",
-        what_is_missing: "no hook fires for a poll; each poll is known only from telemetry, linked to its command by the process session id in the output snippet",
+        what_is_missing: "no hook fires for a poll; telemetry can identify a process session, but common item metadata does not infer a parent command or task completion",
     },
     CoverageGap {
         path: "code-mode nested tools",
@@ -95,7 +91,7 @@ pub(crate) const COVERAGE_GAPS: [CoverageGap; 7] = [
     },
     CoverageGap {
         path: "model request attempts",
-        what_is_missing: "PreModelRequest/PostModelRequest hooks and websocket_request/sse_event telemetry share no request id, so they are kept per source and never added together",
+        what_is_missing: "hooks and telemetry share no model-call id with wire observations; they update activity but are never added to completed model-call counts or usage",
     },
     CoverageGap {
         path: "async hook arrival time",
@@ -103,6 +99,6 @@ pub(crate) const COVERAGE_GAPS: [CoverageGap; 7] = [
     },
     CoverageGap {
         path: "PermissionRequest, PreCompact, PostCompact and Interrupt hooks",
-        what_is_missing: "accepted and stored, but not exercised in the 0.167.1 recordings; their payload fields beyond the common ones are not interpreted",
+        what_is_missing: "common metadata is accepted, but these events were not exercised in the 0.167.1 recordings; payload bodies are not collected or interpreted",
     },
 ];

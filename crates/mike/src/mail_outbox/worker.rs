@@ -6,11 +6,11 @@ use uuid::Uuid;
 use super::claude::ClaudeRecipient;
 use super::codex::{CodexRecipient, LiveSeat};
 use super::deliver::{Outcome, deliver};
-use super::mailbox_link::mirror_codex_mail;
+use super::mailbox_link::{mailbox_state, mirror_codex_mail};
 use super::store::{self, Mail};
-use super::{Recipient, Runtime};
+use super::{Recipient, Runtime, Stage};
 use crate::config::AppState;
-use crate::store::persistence::PersistHandle;
+use crate::store::persistence::{PersistError, PersistHandle};
 
 const SWEEP_INTERVAL: Duration = Duration::from_secs(5);
 const MIRROR_BATCH: i64 = 200;
@@ -39,14 +39,22 @@ pub(crate) fn spawn_mail_outbox(state: &AppState) {
     });
 }
 
-pub(crate) async fn sweep(persist: &PersistHandle) -> Result<Vec<(Uuid, Outcome)>, sqlx::Error> {
+pub(crate) async fn sweep(persist: &PersistHandle) -> Result<Vec<(Uuid, Outcome)>, PersistError> {
     let pool = persist.pool();
     mirror_codex_mail(pool, MIRROR_BATCH).await?;
+    persist.reconcile_runtime_mail_outbox().await?;
     let mut outcomes = Vec::new();
+    let mut queue_jobs = tokio::task::JoinSet::new();
     for message in store::open_messages(pool, DELIVER_BATCH).await? {
         let Some(mail) = store::load(pool, message).await? else {
             continue;
         };
+        if mail.runtime == Some(Runtime::Codex) && !crate::launch::codex::live_seat(mail.to) {
+            if let Some(outcome) = handle_external(persist, &mail, &mut queue_jobs).await? {
+                outcomes.push((message, outcome));
+            }
+            continue;
+        }
         let Some(recipient) = recipient_for(persist, &mail).await else {
             continue;
         };
@@ -54,7 +62,60 @@ pub(crate) async fn sweep(persist: &PersistHandle) -> Result<Vec<(Uuid, Outcome)
         log_settled(pool, message, &outcome).await?;
         outcomes.push((message, outcome));
     }
+    while let Some(result) = queue_jobs.join_next().await {
+        if let Err(error) = result {
+            tracing::warn!(error = %error, "Codex mailbox notification task failed");
+        }
+    }
     Ok(outcomes)
+}
+
+async fn handle_external(
+    persist: &PersistHandle,
+    mail: &Mail,
+    jobs: &mut tokio::task::JoinSet<()>,
+) -> Result<Option<Outcome>, sqlx::Error> {
+    if let Some(outcome) = reconcile_external(persist.pool(), mail.message).await? {
+        return Ok(Some(outcome));
+    }
+    if jobs.len() < 4
+        && let Some(job) = super::codex_queue::prepare(persist, mail.to, mail.message).await
+    {
+        jobs.spawn(job.run(persist.clone()));
+    }
+    Ok(None)
+}
+
+async fn reconcile_external(
+    pool: &sqlx::PgPool,
+    message: Uuid,
+) -> Result<Option<Outcome>, sqlx::Error> {
+    let Some(state) = mailbox_state(pool, message).await? else {
+        return Ok(None);
+    };
+    if state.consumed_at.is_some() {
+        store::record_stage(
+            pool,
+            message,
+            Stage::Consumed,
+            None,
+            "recipient acknowledged mailbox message",
+        )
+        .await?;
+        store::settle(
+            pool,
+            message,
+            "delivered",
+            Some("recipient acknowledged mailbox message"),
+        )
+        .await?;
+        return Ok(Some(Outcome::AlreadySettled("delivered".into())));
+    }
+    if state.dead_lettered_at.is_some() {
+        store::settle(pool, message, "failed", Some("mailbox dead letter")).await?;
+        return Ok(Some(Outcome::AlreadySettled("failed".into())));
+    }
+    Ok(None)
 }
 
 async fn log_settled(

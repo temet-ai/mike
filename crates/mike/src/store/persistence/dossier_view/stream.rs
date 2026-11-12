@@ -11,8 +11,8 @@ impl PersistHandle {
         crate::metrics::time_db("fetch_session_header", async move {
             let row = sqlx::query_as!(
                 SessionHeaderRow,
-                r#"SELECT s.id AS session_db_id, s.session_uuid::text AS "session_uuid!",
-                          p.project_path AS "project_path?", s.first_seen
+                r#"SELECT s.id AS "session_db_id!", s.session_uuid::text AS "session_uuid!",
+                          p.project_path AS "project_path?", s.first_seen AS "first_seen!"
                      FROM sessions.sessions s
                      LEFT JOIN projects.projects p ON p.id = s.project_id
                     WHERE s.id = $1"#,

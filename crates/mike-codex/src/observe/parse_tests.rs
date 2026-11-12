@@ -192,3 +192,43 @@ fn malformed_hook_body_names_the_position() {
         .unwrap_or_default();
     assert!(empty.contains("session_id"), "{empty}");
 }
+
+#[test]
+fn completed_call_uses_provider_time_and_stable_source_key() -> anyhow::Result<()> {
+    let attributes = serde_json::json!([
+        {"key":"event.name","value":{"stringValue":"codex.sse_event"}},
+        {"key":"event.kind","value":{"stringValue":"response.completed"}},
+        {"key":"conversation.id","value":{"stringValue":"thread"}},
+        {"key":"event.timestamp","value":{"stringValue":"2026-11-12T12:00:00.123Z"}},
+        {"key":"model","value":{"stringValue":"reported-model"}},
+        {"key":"input_token_count","value":{"intValue":"42"}},
+        {"key":"output_token_count","value":{"intValue":"7"}}
+    ]);
+    let body = serde_json::json!({"resourceLogs":[{"scopeLogs":[{"logRecords":[{"attributes":attributes}]}]}]});
+    let call =
+        |body: &Value| log_call(body).ok_or_else(|| anyhow::anyhow!("missing terminal usage"));
+    let first = call(&body)?;
+    assert_eq!(first.usage["input_tokens"], 42);
+    assert_eq!(first.model.as_deref(), Some("reported-model"));
+    let mut exported_again = body.clone();
+    exported_again["resourceLogs"][0]["scopeLogs"][0]["logRecords"] = serde_json::json!([
+        {"attributes":[]}, {"attributes":attributes}
+    ]);
+    assert_eq!(call(&exported_again)?.source_key, first.source_key);
+    let mut missing_time = body;
+    missing_time["resourceLogs"][0]["scopeLogs"][0]["logRecords"][0]["attributes"]
+        .as_array_mut()
+        .ok_or_else(|| anyhow::anyhow!("attributes"))?
+        .remove(3);
+    assert!(log_call(&missing_time).is_none());
+    Ok(())
+}
+
+fn log_call(body: &Value) -> Option<otel::ObservedModelCall> {
+    otel::log_facts(body)
+        .into_iter()
+        .find_map(|fact| match fact {
+            TelemetryFact::Request(request) => request.completed_call(),
+            _ => None,
+        })
+}

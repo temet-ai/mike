@@ -36,7 +36,7 @@ pub async fn bind_seat_thread(
         .await
         .map_err(record)?;
     persist
-        .ensure_session_exists(&session.to_string())
+        .ensure_runtime_session(session)
         .await
         .map_err(record)?;
     let provider = |thread: &str| ProviderThreadRef {

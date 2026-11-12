@@ -17,7 +17,7 @@ impl Fixture {
         std::fs::write(
             &program,
             format!(
-                "#!/bin/sh\n[ \"$1\" = app-server ] || exit 64\nexec '{executable}' --exact fake_app_server --ignored --nocapture\n"
+                "#!/bin/sh\n[ \"$1\" = app-server ] || exit 64\nexec 3>&1\nexec 1>&2\nexec '{executable}' --exact fake_app_server --ignored --nocapture\n"
             ),
         )?;
         std::fs::set_permissions(program, std::fs::Permissions::from_mode(0o700))?;

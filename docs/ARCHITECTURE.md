@@ -2,7 +2,7 @@
 title: Architecture
 status: active
 created: 2026-01-01
-updated: 2026-11-11
+updated: 2026-11-12
 summary: Design rationale, key decisions, and domain layout for mike.
 ---
 
@@ -31,6 +31,23 @@ What's running at full deployment:
 - **Postgres** — single database holding every captured request, response, tool call, system prompt, operator turn, filter rule, and prompt composition. The source of truth for terminal traffic since the Phase 11 cutover (2026-05-03). pgvector is required for the embedding columns. The connection string is `MIKE_DATABASE_URL`; `scripts/capture-db/docker-compose.yml` defines a container that satisfies it. The database is split across domain schemas (`requests`, `sessions`, `memory`, `tools`, `agents`, `steering`, `launch` and more) — [`SCHEMA.md`](SCHEMA.md) is authoritative for which table lives where.
 
 The proxy has no Anthropic-side credentials of its own — it forwards whatever the client sent. It has no global state beyond `AppState`, which is constructed once at startup and shared by reference across all three binds.
+
+### Codex integration boundary
+
+Codex protocol transport, hook/OTEL decoding and incremental Responses metadata parsing
+live in the independent `mike-codex` library. Mike owns the adapters to common session
+observations, quota admission, mail and readers. The library has offline tests and no
+dependency on Mike, SQLx, Axum or a running model; host tests cover those interfaces.
+This adds no process or separately released service.
+
+Routine Codex ingestion retains bounded metadata. Optional diagnostic bodies have separate
+record/session/global limits and expiry; streaming request forwarding never depends on
+collecting the body. The existing retention worker expires facts, receipts and diagnostic
+evidence. Common reader views adapt Claude's existing requests without a second copy.
+Ordinary Codex sessions receive bounded mail notices through trusted hooks or the local
+queue; only an explicit mailbox acknowledgement means consumed. See
+[the runtime contract](RUNTIME_CONTRACT.md), [capture bounds](CODEX_CAPTURE.md) and
+[focused development checks](CODEX_DEVELOPMENT.md).
 
 ## 2. System Map
 

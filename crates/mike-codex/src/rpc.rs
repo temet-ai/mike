@@ -6,11 +6,13 @@ use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, Command};
-use tokio::sync::{Mutex, mpsc, oneshot};
+use tokio::sync::{Mutex, Semaphore, oneshot};
 
 use super::CodexError;
+use super::events::EventSender;
+use super::rpc_frame::{Frame, read_frame};
 
 pub(crate) const CALL_DEADLINE: Duration = Duration::from_secs(60);
 const NO_INTERACTIVE_APPROVAL: i64 = -32601;
@@ -30,13 +32,14 @@ pub(crate) struct AppServer {
     stdin: Arc<Mutex<ChildStdin>>,
     pending: Pending,
     next_id: AtomicI64,
+    call_slots: Semaphore,
     reader: tokio::task::JoinHandle<()>,
 }
 
 impl AppServer {
     pub(crate) async fn spawn(
         command: &ServerCommand,
-        events: mpsc::UnboundedSender<Value>,
+        events: EventSender,
     ) -> Result<Self, CodexError> {
         let mut child = Command::new(&command.program)
             .arg("app-server")
@@ -67,6 +70,7 @@ impl AppServer {
             stdin,
             pending,
             next_id: AtomicI64::new(1),
+            call_slots: Semaphore::new(32),
             reader,
         };
         server.initialize().await?;
@@ -87,6 +91,11 @@ impl AppServer {
     }
 
     pub(crate) async fn call(&self, method: &str, params: Value) -> Result<Value, CodexError> {
+        let _permit = self
+            .call_slots
+            .acquire()
+            .await
+            .map_err(|_| CodexError::Closed("RPC capacity"))?;
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let (tx, rx) = oneshot::channel();
         {
@@ -157,30 +166,33 @@ async fn read_lines(
     stdout: BufReader<tokio::process::ChildStdout>,
     pending: Pending,
     stdin: Arc<Mutex<ChildStdin>>,
-    events: mpsc::UnboundedSender<Value>,
+    events: EventSender,
 ) {
-    let mut lines = stdout.lines();
-    while let Ok(Some(line)) = lines.next_line().await {
-        let Ok(message) = serde_json::from_str::<Value>(&line) else {
-            continue;
-        };
-        route(message, &pending, &stdin, &events).await;
+    let mut stdout = stdout;
+    loop {
+        match read_frame(&mut stdout).await {
+            Ok(Frame::Data(line)) => match serde_json::from_slice::<Value>(&line) {
+                Ok(message) => route(message, &pending, &stdin, &events).await,
+                Err(_) => events.gap("invalid JSON app-server frame"),
+            },
+            Ok(Frame::Oversized) => events.gap("app-server frame exceeds 8 MiB"),
+            Ok(Frame::End) => break,
+            Err(_) => {
+                events.gap("app-server stdout read failed");
+                break;
+            }
+        }
     }
     pending.lock().await.clear();
 }
 
-async fn route(
-    message: Value,
-    pending: &Pending,
-    stdin: &Mutex<ChildStdin>,
-    events: &mpsc::UnboundedSender<Value>,
-) {
+async fn route(message: Value, pending: &Pending, stdin: &Mutex<ChildStdin>, events: &EventSender) {
     let id = message.get("id").and_then(Value::as_i64);
     match (id, message.get("method")) {
         (Some(id), None) => route_response(pending, id, message).await,
         (Some(_), Some(_)) => refuse_server_request(&message, stdin).await,
         (None, Some(_)) => {
-            let _ = events.send(message);
+            events.send(message);
         }
         (None, None) => {}
     }

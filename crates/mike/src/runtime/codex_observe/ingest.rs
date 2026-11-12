@@ -1,27 +1,21 @@
-use std::collections::BTreeMap;
-
-use chrono::Utc;
 use serde::Serialize;
-use serde_json::{Value, json};
+use serde_json::Value;
 use uuid::Uuid;
 
-use super::apply::{self, Delivery};
-use super::hook::HookPayload;
-use super::otel;
-use super::writes::{self, StoreError};
-use super::{ADAPTER, ADAPTER_VERSION};
-use crate::runtime::{
-    RuntimeEventEnvelope, RuntimeEventSource, RuntimeKind, RuntimeNamespace, RuntimeObservation,
-};
+use super::{home, identity, session};
+use crate::runtime::{RuntimeKind, RuntimeNamespace};
 use crate::store::persistence::PersistHandle;
-use crate::store::persistence::runtime::RuntimeWriteOutcome;
+use crate::store::persistence::runtime::ObservationApplyOutcome;
+use mike_codex::observe::{HookEvent, HookPayload, TelemetryFact, log_facts, resource_version};
 
 const NAMESPACE_SEED: Uuid = Uuid::from_u128(0x6d69_6b65_636f_6465_786f_6273_6572_7665);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct ObserveSource {
     pub label: String,
     pub codex_version: Option<String>,
+    pub hook_boundary: bool,
+    pub codex_home: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -31,6 +25,9 @@ pub(crate) struct IngestReport {
     pub replayed: bool,
     pub facts: usize,
     pub control: &'static str,
+    pub mike_session_id: Option<Uuid>,
+    pub pending_mail: Vec<Uuid>,
+    pub availability: &'static str,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -39,12 +36,6 @@ pub(crate) enum IngestError {
     BadInput(String),
     #[error("{0}")]
     Store(String),
-}
-
-impl From<StoreError> for IngestError {
-    fn from(error: StoreError) -> Self {
-        Self::Store(error.to_string())
-    }
 }
 
 impl From<crate::store::persistence::PersistError> for IngestError {
@@ -69,126 +60,85 @@ pub(crate) fn otel_ingestion_id(namespace: &RuntimeNamespace, signal: &str, raw:
     Uuid::new_v5(&namespace.id, &name)
 }
 
-struct EventIds {
-    session: Option<String>,
-    thread: Option<String>,
-    turn: Option<String>,
-    item: Option<String>,
-}
-
-fn envelope(
-    namespace: &RuntimeNamespace,
-    ingestion_id: Uuid,
-    source: &ObserveSource,
-    kind: &str,
-    ids: EventIds,
-    extra: BTreeMap<String, Value>,
-) -> RuntimeEventEnvelope {
-    let non_empty = |value: Option<String>| {
-        value.filter(|text| !text.trim().is_empty() && !text.contains('\0'))
-    };
-    RuntimeEventEnvelope {
-        version: 1,
-        ingestion_id,
-        namespace_id: namespace.id,
-        source: RuntimeEventSource {
-            kind: kind.to_owned(),
-            source_version: source.codex_version.clone(),
-            adapter: ADAPTER.to_owned(),
-            adapter_version: ADAPTER_VERSION.to_owned(),
-            runtime_version: source.codex_version.clone(),
-            fidelity: if kind == "codex_hook" {
-                "hook_payload"
-            } else {
-                "telemetry_summary"
-            }
-            .to_owned(),
-            completeness: if kind == "codex_hook" {
-                "event_fields_only"
-            } else {
-                "snippets"
-            }
-            .to_owned(),
-            extra: BTreeMap::from([("observed".to_owned(), json!("unmanaged"))]),
-        },
-        received_at: Utc::now(),
-        provider_timestamp: None,
-        provider_session_id: non_empty(ids.session),
-        provider_thread_id: non_empty(ids.thread),
-        provider_turn_id: non_empty(ids.turn),
-        provider_item_id: non_empty(ids.item),
-        provider_event_id: None,
-        source_cursor: None,
-        extra,
-    }
-}
-
-async fn record<'p>(
-    persist: &'p PersistHandle,
-    namespace: &RuntimeNamespace,
-    envelope: RuntimeEventEnvelope,
-    raw: &[u8],
-) -> Result<(Delivery<'p>, bool), IngestError> {
-    persist.register_runtime_namespace(namespace).await?;
-    let ingestion_id = envelope.ingestion_id;
-    let delivery = |at| Delivery {
-        pool: persist.pool(),
-        namespace_id: namespace.id,
-        ingestion_id,
-        at,
-    };
-    if let Some(stored) = persist
-        .runtime_observation(namespace.id, ingestion_id)
-        .await?
-    {
-        if stored.raw_payload != raw {
-            return Err(IngestError::BadInput(format!(
-                "delivery {ingestion_id} was already recorded with different bytes; send a new x-mike-delivery-id"
-            )));
-        }
-        return Ok((delivery(stored.envelope.received_at), true));
-    }
-    let at = envelope.received_at;
-    let observation = RuntimeObservation::new(envelope, raw.to_vec())
-        .map_err(|error| IngestError::BadInput(error.to_string()))?;
-    let outcome = persist.append_runtime_observation(&observation).await?;
-    Ok((delivery(at), outcome == RuntimeWriteOutcome::Unchanged))
-}
-
-fn report(delivery: &Delivery<'_>, replayed: bool, facts: usize) -> IngestReport {
-    IngestReport {
-        namespace_id: delivery.namespace_id,
-        ingestion_id: delivery.ingestion_id,
-        replayed,
-        facts,
-        control: "none",
-    }
-}
-
 pub(crate) async fn ingest_hook(
     persist: &PersistHandle,
     source: &ObserveSource,
     delivery_id: Uuid,
     raw: &[u8],
 ) -> Result<IngestReport, IngestError> {
+    validate_size(raw)?;
     let payload = HookPayload::parse(raw).map_err(IngestError::BadInput)?;
-    let namespace = namespace_for(source);
+    let namespace = source_namespace(persist, source).await?;
     let scope = payload.scope();
-    let ids = EventIds {
-        session: Some(payload.session_id.clone()),
-        thread: Some(scope.thread_id),
-        turn: payload.turn_id.clone(),
-        item: payload.tool_use_id.clone(),
+    let session = match scope.parent_thread_id.as_deref() {
+        Some(parent) => {
+            identity::resolve_child(persist, &namespace, parent, &scope.thread_id).await?
+        }
+        None => identity::resolve(persist, &namespace, &scope.thread_id).await?,
     };
-    let extra = BTreeMap::from([("hook_event_name".to_owned(), json!(payload.hook_event_name))]);
-    let envelope = envelope(&namespace, delivery_id, source, "codex_hook", ids, extra);
-    let (delivery, replayed) = record(persist, &namespace, envelope, raw).await?;
-    let facts = if replayed {
-        0
+    let observation = session::hook(persist, source, session, delivery_id, &payload).await?;
+    let replayed = persist
+        .session_observation_time(session, delivery_id)
+        .await?
+        .is_some();
+    if !replayed {
+        if matches!(
+            payload.event(),
+            HookEvent::SessionEnd | HookEvent::SubagentStop
+        ) {
+            identity::end(persist, session).await?;
+        } else {
+            identity::register(persist, session, payload.cwd.as_deref()).await?;
+        }
+    }
+    let outcome = persist.apply_session_observation(&observation).await?;
+    let mut report = report(namespace.id, delivery_id, outcome);
+    report.mike_session_id = Some(session);
+    report.control = if source.hook_boundary && scope.parent_thread_id.is_none() {
+        "hook_boundary"
     } else {
-        apply::hook(&delivery, &payload).await?
+        "pull_only"
     };
-    Ok(report(&delivery, replayed, facts))
+    if source.hook_boundary
+        && scope.parent_thread_id.is_none()
+        && matches!(
+            outcome,
+            ObservationApplyOutcome::Applied | ObservationApplyOutcome::Replayed
+        )
+    {
+        crate::mail_outbox::observe_local_codex(
+            persist,
+            session,
+            &scope.thread_id,
+            source.codex_home.as_deref(),
+        )
+        .await;
+    }
+    if source.hook_boundary && !report.replayed {
+        report.pending_mail = persist.pending_runtime_mail(session, 20).await?;
+    }
+    Ok(report)
+}
+
+fn report(
+    namespace_id: Uuid,
+    ingestion_id: Uuid,
+    outcome: ObservationApplyOutcome,
+) -> IngestReport {
+    IngestReport {
+        namespace_id,
+        ingestion_id,
+        replayed: outcome == ObservationApplyOutcome::Replayed,
+        facts: usize::from(outcome == ObservationApplyOutcome::Applied),
+        control: "pull_only",
+        mike_session_id: None,
+        pending_mail: Vec::new(),
+        availability: match outcome {
+            ObservationApplyOutcome::Applied | ObservationApplyOutcome::Replayed => "metadata_only",
+            ObservationApplyOutcome::Expired => "expired",
+            ObservationApplyOutcome::BudgetRefused => "budget_refused",
+        },
+    }
 }
 
 pub(crate) async fn ingest_otel(
@@ -197,50 +147,74 @@ pub(crate) async fn ingest_otel(
     signal: &str,
     raw: &[u8],
 ) -> Result<IngestReport, IngestError> {
+    validate_size(raw)?;
     let body: Value = serde_json::from_slice(raw).map_err(|error| {
         IngestError::BadInput(format!(
             "OTLP {signal} body is not JSON at line {}, column {}: {error}; set protocol = \"json\" on the Codex otlp-http exporter",
-            error.line(),
-            error.column()
+            error.line(), error.column()
         ))
     })?;
     let mut source = source.clone();
-    source.codex_version = source
-        .codex_version
-        .or_else(|| otel::resource_version(&body));
-    let namespace = namespace_for(&source);
-    let ingestion_id = otel_ingestion_id(&namespace, signal, raw);
-    let ids = EventIds {
-        session: None,
-        thread: None,
-        turn: None,
-        item: None,
-    };
-    let extra = BTreeMap::from([("otlp_signal".to_owned(), json!(signal))]);
-    let envelope = envelope(
-        &namespace,
-        ingestion_id,
-        &source,
-        &format!("codex_otel_{signal}"),
-        ids,
-        extra,
-    );
-    let (delivery, replayed) = record(persist, &namespace, envelope, raw).await?;
-    if replayed {
-        return Ok(report(&delivery, true, 0));
+    source.codex_version = source.codex_version.or_else(|| resource_version(&body));
+    let namespace = source_namespace(persist, &source).await?;
+    let ingestion = otel_ingestion_id(&namespace, signal, raw);
+    let mut report = report(namespace.id, ingestion, ObservationApplyOutcome::Applied);
+    report.facts = 0;
+    report.replayed = true;
+    if signal != "logs" {
+        report.availability = "signal_not_projected";
+        return Ok(report);
     }
-    let facts = match signal {
-        "logs" => apply::telemetry(&delivery, &otel::log_facts(&body)).await?,
-        "traces" => {
-            let runs = otel::hook_runs(&body);
-            for run in &runs {
-                writes::insert_hook_run(delivery.pool, delivery.namespace_id, run)
-                    .await
-                    .map_err(StoreError::from)?;
-            }
-            runs.len()
+    for (index, fact) in log_facts(&body).iter().enumerate() {
+        let Some(thread) = session::thread(fact) else {
+            continue;
+        };
+        let id = match fact {
+            TelemetryFact::Spawn {
+                parent_thread_id, ..
+            } => identity::resolve_child(persist, &namespace, parent_thread_id, thread).await?,
+            _ => identity::resolve(persist, &namespace, thread).await?,
+        };
+        let delivery = Uuid::new_v5(&ingestion, &index.to_be_bytes());
+        let mut observation = session::telemetry(&source, id, delivery, fact);
+        if let Some(at) = persist
+            .session_observation_time(id, observation.observation_id)
+            .await?
+        {
+            observation.observed_at = at;
         }
-        _ => 0,
-    };
-    Ok(report(&delivery, false, facts))
+        let outcome = persist.apply_session_observation(&observation).await?;
+        report.facts += usize::from(outcome == ObservationApplyOutcome::Applied);
+        report.replayed &= outcome == ObservationApplyOutcome::Replayed;
+        match outcome {
+            ObservationApplyOutcome::BudgetRefused => report.availability = "budget_refused",
+            ObservationApplyOutcome::Expired if report.availability != "budget_refused" => {
+                report.availability = "expired"
+            }
+            _ => {}
+        }
+    }
+    Ok(report)
+}
+
+fn validate_size(raw: &[u8]) -> Result<(), IngestError> {
+    if raw.len() > 512 * 1024 {
+        return Err(IngestError::BadInput(
+            "Codex observation exceeds the 512 KiB ingest limit".into(),
+        ));
+    }
+    Ok(())
+}
+
+async fn source_namespace(
+    persist: &PersistHandle,
+    source: &ObserveSource,
+) -> Result<RuntimeNamespace, IngestError> {
+    if let Some(home) = source.codex_home.as_deref()
+        && let Some(namespace) =
+            home::verified_namespace(persist, std::path::Path::new(home)).await?
+    {
+        return Ok(namespace);
+    }
+    Ok(namespace_for(source))
 }

@@ -68,7 +68,6 @@ pub const FULL_ONLY_TOOLS: &[&str] = &[
     "register_workspace_session",
     "verify_message_read",
     "workspace_heartbeat",
-    "ack_session_message",
 ];
 
 pub const FLEET_SEAT_TOOLS: &[&str] = &[

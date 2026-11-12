@@ -6,8 +6,8 @@
                 ranked.first_seen,
                 ranked.last_seen,
                 rc.request_count,
-                COALESCE(newest_status.live_status, ranked.last_status) AS last_status,
-                ARRAY[]::text[] AS last_models,
+                COALESCE(observation.last_status, newest_status.live_status, ranked.last_status) AS last_status,
+                array_remove(ARRAY[observation.model], NULL) AS last_models,
                 ranked.title,
                 ranked.pinned,
                 ranked.project_pinned,
@@ -21,13 +21,14 @@
                 COALESCE(mbx.pending_inbox_count, 0) AS pending_inbox_count,
          pt.projects_touched
          FROM ranked
+         LEFT JOIN runtime.session_observation_v observation ON observation.session_id = ranked.id
          LEFT JOIN LATERAL (
              -- Per-session request count + distinct project_id set (issue #32),
              -- one scan of requests.requests via idx_requests_session_id
              -- shared between both (see list_sessions_paginated's doc comment).
              SELECT COUNT(r.id)::int4 AS request_count,
                     ARRAY_AGG(DISTINCT r.project_id) AS distinct_project_ids
-             FROM requests.requests r
+             FROM runtime.model_call_facts r
              WHERE r.session_id = ranked.id
          ) rc ON TRUE
          LEFT JOIN LATERAL (

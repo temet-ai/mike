@@ -1,7 +1,7 @@
 use std::time::Duration;
 
+use super::events::{self, EventReceiver};
 use serde_json::{Value, json};
-use tokio::sync::mpsc;
 
 use super::CodexError;
 use super::model::listed;
@@ -14,11 +14,13 @@ pub struct TurnOutcome {
     pub status: String,
     pub final_text: String,
     pub commands: Vec<(String, Option<i64>)>,
+    pub commands_truncated: bool,
+    pub observations_incomplete: bool,
 }
 
 pub struct CodexSeat {
     server: AppServer,
-    events: mpsc::UnboundedReceiver<Value>,
+    events: EventReceiver,
     options: SeatOptions,
     thread_id: String,
     forked_from: Option<String>,
@@ -146,10 +148,8 @@ impl CodexSeat {
     }
 }
 
-async fn spawn(
-    options: &SeatOptions,
-) -> Result<(AppServer, mpsc::UnboundedReceiver<Value>), CodexError> {
-    let (tx, rx) = mpsc::unbounded_channel();
+async fn spawn(options: &SeatOptions) -> Result<(AppServer, EventReceiver), CodexError> {
+    let (tx, rx) = events::channel();
     let server = AppServer::spawn(&options.server(), tx).await?;
     Ok((server, rx))
 }
@@ -171,7 +171,17 @@ fn shape(method: &str, field: &'static str, answer: &Value) -> CodexError {
 
 pub(crate) fn absorb(outcome: &mut TurnOutcome, event: &Value, thread: &str) -> bool {
     let params = &event["params"];
+    if event["method"] == "mike/observationGap" {
+        outcome.observations_incomplete = true;
+        return false;
+    }
     if params["threadId"].as_str().is_some_and(|t| t != thread) {
+        return false;
+    }
+    if params["turnId"]
+        .as_str()
+        .is_some_and(|turn| turn != outcome.turn_id)
+    {
         return false;
     }
     match event["method"].as_str() {
@@ -195,10 +205,19 @@ fn item(outcome: &mut TurnOutcome, item: &Value) {
         Some("agentMessage") if item["phase"].as_str() == Some("final_answer") => {
             outcome.final_text = item["text"].as_str().unwrap_or_default().to_string();
         }
-        Some("commandExecution") => outcome.commands.push((
-            item["command"].as_str().unwrap_or_default().to_string(),
-            item["exitCode"].as_i64(),
-        )),
+        Some("commandExecution") => command(outcome, item),
         _ => {}
     }
+}
+
+fn command(outcome: &mut TurnOutcome, item: &Value) {
+    let command = item["command"].as_str().unwrap_or_default();
+    let bytes: usize = outcome.commands.iter().map(|(text, _)| text.len()).sum();
+    if outcome.commands.len() >= 256 || bytes.saturating_add(command.len()) > 64 * 1024 {
+        outcome.commands_truncated = true;
+        return;
+    }
+    outcome
+        .commands
+        .push((command.to_owned(), item["exitCode"].as_i64()));
 }

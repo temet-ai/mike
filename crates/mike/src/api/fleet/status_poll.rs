@@ -36,6 +36,9 @@ async fn status_by_key(state: &AppState, key: &str) -> Result<Loaded<Bytes>, Res
     let status = assemble(state, &row)
         .await
         .map_err(|e| DefinitionError::Status(e).into_response())?;
+    let status = super::observations::with_observations(persist, row.run_id.as_deref(), &status)
+        .await
+        .map_err(IntoResponse::into_response)?;
     Ok(loaded(json_bytes(&status)?))
 }
 
@@ -52,6 +55,9 @@ async fn status_by_session(state: &AppState, session: Uuid) -> Result<Loaded<Byt
     let status = assemble(state, &row)
         .await
         .map_err(|e| DefinitionError::Status(e).into_response())?;
+    let status = super::observations::with_observations(persist, row.run_id.as_deref(), &status)
+        .await
+        .map_err(IntoResponse::into_response)?;
     Ok(loaded(json_bytes(&status)?))
 }
 

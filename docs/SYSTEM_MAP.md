@@ -377,8 +377,10 @@ Facts a reader would otherwise rediscover the hard way.
 
 - Managed Codex fleet launch and mail are connected through `launch/codex/`
   and `mail_outbox/codex.rs`. The app-server client is in `crates/mike-codex/`;
-  observation and storage still live in Mike. Shared session readers and bounded
-  retention remain unfinished integration work ([#181](https://github.com/temet-ai/mike/issues/181)).
+  protocol, hook, telemetry and Responses decoding are tested there independently.
+  Mike owns bounded common observation storage, mail policy and the shared roster,
+  fleet-seat and session readers. Ordinary hook-boundary mail is distinct from
+  managed control; queue success does not imply message consumption.
   The Codex CLI as an LLM provider (`llm/codex`) is a separate integration.
 - `composition_enabled` is read by the banner and `print-config` only; the
   composition stage does not consult it.
