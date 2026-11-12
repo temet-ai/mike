@@ -190,10 +190,7 @@ impl LessonRelevance {
         let eligible = eligible_ids(snapshot);
         self.refresh_outcomes(persist, &eligible).await;
         if !service.is_available() {
-            let mut state = self.state.lock().await;
-            state.documents.clear();
-            state.queries.clear();
-            state.vectors_key = None;
+            self.forget_vectors().await;
             return;
         }
         let model = format!("{}:{}", service.url(), service.model_name());
@@ -207,20 +204,33 @@ impl LessonRelevance {
                 return;
             }
         };
-        let pending = {
-            let mut state = self.state.lock().await;
-            if state.model != model {
-                state.model = model.clone();
-                state.queries.clear();
-            }
-            if let Some((key, documents)) = changed {
-                state.documents = documents;
-                state.vectors_key = Some(key);
-            }
-            let count = state.pending.len().min(8);
-            state.pending.drain(..count).collect::<Vec<_>>()
-        };
+        let pending = self.take_pending(&model, changed).await;
         self.embed_pending_queries(service, &model, pending).await;
+    }
+
+    async fn forget_vectors(&self) {
+        let mut state = self.state.lock().await;
+        state.documents.clear();
+        state.queries.clear();
+        state.vectors_key = None;
+    }
+
+    async fn take_pending(
+        &self,
+        model: &str,
+        changed: Option<(VectorsKey, HashMap<i64, Vec<f32>>)>,
+    ) -> Vec<(String, String, String)> {
+        let mut state = self.state.lock().await;
+        if state.model != model {
+            state.model = model.to_owned();
+            state.queries.clear();
+        }
+        if let Some((key, documents)) = changed {
+            state.documents = documents;
+            state.vectors_key = Some(key);
+        }
+        let count = state.pending.len().min(8);
+        state.pending.drain(..count).collect()
     }
 
     async fn load_changed_vectors(
