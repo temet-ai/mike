@@ -1,4 +1,5 @@
 mod admission;
+mod children;
 mod decode_items;
 mod decode_lifecycle;
 mod items;
@@ -8,6 +9,10 @@ mod protocol;
 mod usage;
 
 pub use admission::{ExclusionReason, IntakeContext, TrafficClass};
+pub use children::{
+    ChildEdge, ChildGraph, ChildState, ConcurrencyDecision, ConcurrencyPolicy, EdgeKind,
+    EdgeSource, ParentLink, spend_by_root,
+};
 pub use items::{
     CommandFacts, ItemCategory, ItemKey, ItemObservation, ItemReduction, ItemSnapshot, ItemUpdate,
     ProjectedItem, ReceiptApplication, ReductionStatus, SnapshotKind, TextChannel, ToolFacts,
@@ -21,10 +26,15 @@ pub use project::{
 pub use protocol::{
     Evidence, EvidenceOrigin, Field, IssueKind, ProjectionIssue, ReceiptId, RequestId, RpcScope,
 };
-pub use usage::{BillingEstimate, EstimateAvailability, TokenBreakdown, UsageObservation};
+pub use usage::{
+    BillingEstimate, EstimateAvailability, ThreadSpend, TokenBreakdown, UsageLedger,
+    UsageObservation,
+};
 
 #[cfg(test)]
 mod admission_tests;
+#[cfg(test)]
+mod children_tests;
 #[cfg(test)]
 mod item_tests;
 #[cfg(test)]
