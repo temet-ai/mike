@@ -18,6 +18,8 @@ for arg in "$@"; do
 done
 
 filter_for() {
+  # mike-mcp checks every inspect route has MCP coverage against mike's manifest.
+  [[ "$1" == crates/mike/src/api/manifest* ]] && printf 'binary_id(mike-mcp::manifest_coverage)\n'
   case "$1" in
     crates/mike/src/main.rs|crates/mike/src/lib.rs) ;;
     crates/mike/src/*.rs)
@@ -40,6 +42,9 @@ filter_for() {
       ;;
     crates/*.rs)
       local crate=${1#crates/}
+      # A shared file directly under crates/ (build_identity.rs) belongs to no
+      # package; the pre-push hook runs the whole fast tier for it.
+      [[ "$crate" == */* ]] || return 0
       printf 'package(=%s)\n' "${crate%%/*}"
       ;;
   esac

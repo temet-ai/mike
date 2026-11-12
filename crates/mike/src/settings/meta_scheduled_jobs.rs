@@ -7,6 +7,7 @@ pub(crate) const CARGO_SWEEP_ENABLED_KEY: &str = "cargo_sweep.enabled";
 pub(crate) const LESSONS_COMMIT_ENABLED_KEY: &str = "lessons_commit.enabled";
 pub(crate) const USAGE_AUDIT_ENABLED_KEY: &str = "usage_audit.enabled";
 pub(crate) const LESSON_RELATIONS_ENABLED_KEY: &str = "lesson_relations_job.enabled";
+pub(crate) const NIGHTLY_TESTS_ENABLED_KEY: &str = "nightly_tests.enabled";
 
 fn enabled_entry(key: &'static str, label: &'static str, description: &'static str) -> SettingMeta {
     SettingMeta {
@@ -102,5 +103,20 @@ pub(super) fn entries() -> Vec<SettingMeta> {
             adjudicator agreed with. One machine per database runs it (the job lease). Read \
             on every check, once a minute; a run already under way finishes.",
         ),
+        SettingMeta {
+            default: serde_json::Value::Bool(false),
+            ..enabled_entry(
+                NIGHTLY_TESTS_ENABLED_KEY,
+                "Nightly full Rust test run",
+                "Daily, once between 02:00 and 04:59 UTC, run scripts/nightly-tests from the \
+                checkout this proxy was started in. It updates a detached worktree of its own \
+                (.claude/worktrees/nightly) to origin/main and runs make test-all there, every \
+                Rust tier, because the pre-push hook runs only the tests of the areas a push \
+                changed. Off by default: turn it on on the one machine that should carry the \
+                run (omit or the Mac; the script refuses on aarch64 Linux). It makes no LLM \
+                call and sends nothing off the machine. Read on every check, once a minute; a \
+                run already under way finishes.",
+            )
+        },
     ]
 }

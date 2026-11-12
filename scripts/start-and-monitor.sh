@@ -32,7 +32,7 @@ refuse_while_service_runs "start-and-monitor.sh"
 
 # ── 1. build ──────────────────────────────────────────────────────────────────
 echo "==> Building mike ${RELEASE_FLAG:+(release)}"
-cargo build ${RELEASE_FLAG} --manifest-path crates/mike/Cargo.toml
+MIKE_BUILD_IDENTITY=git cargo build ${RELEASE_FLAG} --manifest-path crates/mike/Cargo.toml
 
 TARGET_DIR="$(cargo metadata --format-version 1 --no-deps --offline 2>/dev/null \
     | sed -n 's/.*"target_directory":"\([^"]*\)".*/\1/p' | head -1)"

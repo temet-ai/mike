@@ -59,7 +59,10 @@ class BuildIdentityTests(unittest.TestCase):
         root = root or self.root
         manifest = root / "crates" / name
         manifest.mkdir(parents=True, exist_ok=True)
-        env = dict(self.environment, CARGO_MANIFEST_DIR=str(manifest), SOURCE_DATE_EPOCH=epoch)
+        # A shipped build unless a case says otherwise: these fixtures are about
+        # the identity a release or deploy carries.
+        env = dict(self.environment, CARGO_MANIFEST_DIR=str(manifest), SOURCE_DATE_EPOCH=epoch,
+                   PROFILE="release")
         env.update(environment or {})
         result = subprocess.run([self.scripts[name]], cwd=self.base, env=env,
                                 capture_output=True, text=True, timeout=15)
@@ -160,6 +163,30 @@ class BuildIdentityTests(unittest.TestCase):
         values, _, _ = self.emit(environment={"MIKE_BUILD_CACHE": "mbx"})
         self.assertEqual(values["MIKE_BUILD_SHA"], "mbx-build")
         self.assertEqual(values["MIKE_BUILD_TIME"], "mbx-build")
+
+    def test_dev_build_identity_is_fixed_and_watches_no_git_file(self):
+        for name in self.scripts:
+            with self.subTest(binary=name):
+                values, paths, result = self.emit(name=name, environment={"PROFILE": "debug"})
+                self.assertEqual(values["MIKE_BUILD_SHA"], "dev-build")
+                self.assertEqual(values["MIKE_BUILD_SHA_SHORT"], "dev-build")
+                self.assertEqual(values["MIKE_BUILD_DIRTY"], "false")
+                self.assertEqual(values["MIKE_BUILD_TIME"], "dev-build")
+                self.assertFalse([path for path in paths if ".git" in path.parts], paths)
+                self.assertIn("cargo:rerun-if-env-changed=MIKE_BUILD_IDENTITY\n", result.stdout)
+
+    def test_dev_build_identity_survives_a_commit(self):
+        first, _, _ = self.emit(environment={"PROFILE": "debug"})
+        (self.root / "prepare.py").write_text("second Python-only revision\n")
+        self.commit()
+        second, _, _ = self.emit(environment={"PROFILE": "debug"})
+        self.assertEqual(first, second)
+
+    def test_dev_build_opts_in_to_the_real_identity_for_deploys(self):
+        expected = self.git("rev-parse", "HEAD")
+        values, paths, _ = self.emit(environment={"PROFILE": "debug", "MIKE_BUILD_IDENTITY": "git"})
+        self.assertEqual(values["MIKE_BUILD_SHA"], expected)
+        self.assertIn(self.root / ".git/HEAD", paths)
 
 
 if __name__ == "__main__":

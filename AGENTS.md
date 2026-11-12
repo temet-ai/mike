@@ -70,9 +70,12 @@ checkout only.
    the last edit. The structural limits below are not visible from the code.
 4. Commit, then push once, in the background. The pre-push hook
    (`scripts/pre-push-check`) is the only CI while Actions minutes are out: it runs
-   gitleaks, semgrep, fmt, `lint-rust`, the crates' fast tier and `scripts/test-area`
-   for what the push changed. Don't run the fast tier or `test-area` yourself first,
-   and never run the full suite. What CI would add when it runs is in
+   gitleaks, semgrep, fmt, `lint-rust` and `scripts/test-area` (the tests of the areas
+   the push changed, in every tier) for what the push changed, plus the crates' whole
+   fast tier when a change belongs to no area (manifests, lockfile, build scripts,
+   crate roots, `.sqlx/`). Everything else runs nightly (`scripts/nightly-tests`, the
+   `nightly_tests` scheduled job). Don't run `test-area` yourself first, and never run
+   the full suite. What CI would add when it runs is in
    [`GITHUB_WORKFLOWS`](docs/GITHUB_WORKFLOWS.md#rust-qualityyml).
 5. If the push fails, fix every failure the log shows, rerun only the failed step, and
    push again. The hook stops before lint and tests when gitleaks, semgrep or fmt fail.
