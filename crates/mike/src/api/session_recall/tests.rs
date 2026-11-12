@@ -22,7 +22,7 @@ fn request(project: &str) -> Json<RecallRequest> {
 #[tokio::test]
 async fn recall_non_uuid_session_is_400_and_not_marked() -> anyhow::Result<()> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     let answer = post_session_recall(
         State(state),
         Path("not-a-uuid".to_owned()),
@@ -52,7 +52,7 @@ async fn recall_with_its_toggle_off_is_409_and_not_marked() -> anyhow::Result<()
 #[tokio::test]
 async fn recall_uuid_session_is_marked_and_answers_null_without_persist() -> anyhow::Result<()> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     let id = Uuid::new_v4().to_string();
     let Ok(Json(answer)) = post_session_recall(
         State(state),
@@ -96,7 +96,7 @@ async fn recall_while_the_pool_is_stalled_answers_in_budget_and_leaves_recall_to
     };
     let handle = PersistHandle::connect(&db.database_url).await?;
     let mut state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     state.persist = Some(handle.clone());
     let id = Uuid::new_v4().to_string();
     let stall = test_support::starve_pool(handle.pool(), Duration::from_secs(3)).await?;

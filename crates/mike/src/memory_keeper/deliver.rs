@@ -18,7 +18,7 @@ pub(crate) struct CardAsk<'a> {
 }
 
 pub(crate) fn serves_cards(state: &AppState) -> bool {
-    crate::feature_toggles::client_serves(state, "client_serves_memory_keeper")
+    crate::state::client_serves(state, "client_serves_memory_keeper")
 }
 
 pub(crate) async fn card_for(state: &AppState, ask: &CardAsk<'_>) -> Option<Block> {

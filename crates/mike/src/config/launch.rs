@@ -103,6 +103,9 @@ pub(crate) fn parse_claude_args_env(raw: &str) -> Vec<String> {
     raw.split_whitespace().map(str::to_string).collect()
 }
 
+/// Default size, in bytes, up to which a launch brief is inlined (launch::brief).
+pub const DEFAULT_BRIEF_INLINE_MAX: usize = 800;
+
 #[cfg(test)]
 mod tests {
     use clap::Parser;
@@ -257,6 +260,3 @@ mod tests {
         Ok(())
     }
 }
-
-/// Default size, in bytes, up to which a launch brief is inlined (launch::brief).
-pub const DEFAULT_BRIEF_INLINE_MAX: usize = 800;

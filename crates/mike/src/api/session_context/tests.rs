@@ -24,7 +24,7 @@ fn request() -> Json<ContextRequest> {
 #[tokio::test]
 async fn context_non_uuid_session_is_400() -> anyhow::Result<()> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     let answer = post_session_context(State(state), Path("not-a-uuid".to_owned()), request()).await;
     assert_eq!(answer.err(), Some(StatusCode::BAD_REQUEST));
     Ok(())
@@ -33,7 +33,7 @@ async fn context_non_uuid_session_is_400() -> anyhow::Result<()> {
 #[tokio::test]
 async fn context_answers_the_identity_block_tagged_with_its_stage() -> anyhow::Result<()> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     let mut toggles = (**state.feature_toggle_overlay.load()).clone();
     toggles.self_identity_reminder = true;
     state.feature_toggle_overlay.store(Arc::new(toggles));
@@ -60,7 +60,7 @@ async fn context_while_the_pool_is_stalled_answers_inside_the_prompt_budget() ->
     };
     let handle = PersistHandle::connect(&db.database_url).await?;
     let mut state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     let mut toggles = (**state.feature_toggle_overlay.load()).clone();
     toggles.self_identity_reminder = true;
     toggles.workspace_briefing = true;

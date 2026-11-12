@@ -107,7 +107,7 @@ class Map:
 def is_test(rel, text):
     base = os.path.basename(rel)
     return (re.search(r"(^|_)tests?(_\d+)?\.rs$", base) is not None
-            or "/tests/" in rel or "#[cfg(test)]" in text[:200])
+            or "/tests/" in rel or "#![cfg(test)]" in text[:200])
 
 
 def read_sources():

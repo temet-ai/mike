@@ -18,7 +18,7 @@ const PROJECT: &str = "/tmp/session-proxy-tools-test";
 #[tokio::test]
 async fn non_uuid_session_is_400_on_every_route() -> anyhow::Result<()> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     let bad = || Path("not-a-uuid".to_owned());
     assert_eq!(
         get_proxy_tools(State(state.clone()), bad()).await.err(),
@@ -44,7 +44,7 @@ async fn non_uuid_session_is_400_on_every_route() -> anyhow::Result<()> {
 #[tokio::test]
 async fn listed_tools_equal_the_declared_ones_and_mark_the_session() -> anyhow::Result<()> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     let id = Uuid::new_v4().to_string();
     assert!(!client::served_by_client(&id));
     let Ok(Json(answer)) = get_proxy_tools(State(state), Path(id.clone())).await else {
@@ -59,7 +59,7 @@ async fn listed_tools_equal_the_declared_ones_and_mark_the_session() -> anyhow::
 #[tokio::test]
 async fn a_call_answers_what_the_in_stream_answer_would() -> anyhow::Result<()> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     let id = Uuid::new_v4().to_string();
     state
         .lesson_cache
@@ -88,7 +88,7 @@ async fn a_call_answers_what_the_in_stream_answer_would() -> anyhow::Result<()> 
 #[tokio::test]
 async fn a_call_from_a_session_without_a_project_says_so() -> anyhow::Result<()> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     let Ok(Json(answer)) = post_proxy_tool(
         State(state),
         Path((Uuid::new_v4().to_string(), roster::TOOL_NAME.to_owned())),
@@ -105,7 +105,7 @@ async fn a_call_from_a_session_without_a_project_says_so() -> anyhow::Result<()>
 #[tokio::test]
 async fn an_unknown_tool_is_404() -> anyhow::Result<()> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     let answer = post_proxy_tool(
         State(state),
         Path((Uuid::new_v4().to_string(), "mike_nope".to_owned())),
@@ -119,7 +119,7 @@ async fn an_unknown_tool_is_404() -> anyhow::Result<()> {
 #[tokio::test]
 async fn weasel_is_armed_only_for_a_session_its_client_did_not_guard() -> anyhow::Result<()> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     let mut toggles: ResolvedToggles =
         (*state.resolve_session_toggles("weasel-guard-test")).clone();
     toggles.weasel_intercept = true;

@@ -40,6 +40,11 @@ mod test_seams;
 #[cfg(any(test, feature = "test-seams"))]
 pub use test_seams::register_in_flight_for_tests;
 
+mod client_serves;
+pub(crate) use client_serves::client_serves;
+#[cfg(test)]
+pub(crate) use client_serves::serve_every_stage_for_tests;
+
 #[derive(Clone)]
 pub struct AppState {
     pub(crate) store: Arc<RwLock<RequestStore>>,

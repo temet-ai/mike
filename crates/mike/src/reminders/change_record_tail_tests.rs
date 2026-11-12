@@ -30,7 +30,7 @@ fn user_body() -> Vec<u8> {
 async fn state_with_tail(on: bool) -> anyhow::Result<crate::state::AppState> {
     let state =
         crate::state::AppState::new(crate::config::ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     let mut toggles = (**state.feature_toggle_overlay.load()).clone();
     toggles.change_record_tail = on;
     state.feature_toggle_overlay.store(Arc::new(toggles));
@@ -219,7 +219,7 @@ async fn state_on_db(seat: &Seat, on: bool) -> anyhow::Result<crate::state::AppS
         &seat.f.db.database_url,
     ])?;
     let state = crate::state::AppState::new(config).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     let mut toggles = (**state.feature_toggle_overlay.load()).clone();
     toggles.change_record_tail = on;
     state.feature_toggle_overlay.store(Arc::new(toggles));

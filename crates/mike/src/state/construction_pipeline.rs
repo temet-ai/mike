@@ -15,9 +15,9 @@ use crate::config::ProxyConfig;
 pub(crate) use crate::feature_toggles::build_feature_toggle_overlay;
 
 pub(super) fn build_retention_policy(config: &ProxyConfig) -> RetentionPolicy {
-    let max_age = RetentionPolicy::parse_duration(&config.max_age);
+    let max_age = RetentionPolicy::parse_duration(config.max_age());
     let retention = RetentionPolicy {
-        max_entries: config.max_requests,
+        max_entries: config.max_requests(),
         max_age,
         max_store_bytes: config.max_store_bytes,
         ..RetentionPolicy::default()

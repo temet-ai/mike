@@ -54,7 +54,7 @@ async fn when<T>(wanted: bool, work: impl Future<Output = Option<T>>) -> Option<
 async fn gather(state: &AppState, session: Uuid, session_id: &str, project_path: &str) -> Gathered {
     let deadline = Instant::now() + CONTEXT_BUDGET;
     let toggles = state.resolve_session_toggles(session_id);
-    let serves = |key| crate::feature_toggles::client_serves(state, key);
+    let serves = |key| crate::state::client_serves(state, key);
     let wants_briefing = toggles.workspace_briefing && serves("client_serves_workspace_briefing");
     let wants_tail = state.feature_toggle_overlay.load().change_record_tail
         && serves("client_serves_change_record_tail");
@@ -116,7 +116,7 @@ pub(crate) async fn prompt_context(
     let toggles = state.resolve_session_toggles(session_id);
     let mut blocks = Vec::new();
     if toggles.self_identity_reminder
-        && crate::feature_toggles::client_serves(state, "client_serves_self_identity")
+        && crate::state::client_serves(state, "client_serves_self_identity")
     {
         state.self_identity_served.insert(session_id.to_owned());
         blocks.push(ContextBlock {

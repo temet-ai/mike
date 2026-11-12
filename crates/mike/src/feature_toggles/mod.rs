@@ -344,7 +344,10 @@ pub fn get_toggle_enabled(toggles: &FeatureToggles, key: &str) -> Option<bool> {
     }
 }
 
-fn client_serves_mut<'a>(toggles: &'a mut FeatureToggles, key: &str) -> Option<&'a mut bool> {
+pub(crate) fn client_serves_mut<'a>(
+    toggles: &'a mut FeatureToggles,
+    key: &str,
+) -> Option<&'a mut bool> {
     Some(match key {
         "client_serves_self_identity" => &mut toggles.client_serves_self_identity,
         "client_serves_workspace_briefing" => &mut toggles.client_serves_workspace_briefing,
@@ -360,24 +363,6 @@ fn client_serves_mut<'a>(toggles: &'a mut FeatureToggles, key: &str) -> Option<&
         "client_serves_memory_keeper" => &mut toggles.client_serves_memory_keeper,
         _ => return None,
     })
-}
-
-pub(crate) fn client_serves(state: &crate::state::AppState, key: &str) -> bool {
-    get_toggle_enabled(&state.feature_toggle_overlay.load(), key).unwrap_or(false)
-}
-
-#[cfg(test)]
-pub(crate) fn serve_every_stage_for_tests(state: &crate::state::AppState) {
-    let mut toggles = (**state.feature_toggle_overlay.load()).clone();
-    for meta in TOGGLE_META
-        .iter()
-        .filter(|m| m.key.starts_with("client_serves_"))
-    {
-        if let Some(flag) = client_serves_mut(&mut toggles, meta.key) {
-            *flag = true;
-        }
-    }
-    state.feature_toggle_overlay.store(Arc::new(toggles));
 }
 
 pub(crate) fn set_toggle_enabled(

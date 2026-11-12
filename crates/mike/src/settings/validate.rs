@@ -197,6 +197,16 @@ pub(crate) fn validate_setting_value(
     Ok(validated)
 }
 
+const SECRET_KEY_SEGMENTS: &[&str] = &["key", "secret", "token", "password", "credential"];
+
+pub(crate) fn is_secret_setting_key(key: &str) -> bool {
+    if key.ends_with("_env") {
+        return false;
+    }
+    key.split(['.', '_'])
+        .any(|segment| SECRET_KEY_SEGMENTS.contains(&segment))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -395,14 +405,4 @@ mod tests {
             "a bare string is not a StringList"
         );
     }
-}
-
-const SECRET_KEY_SEGMENTS: &[&str] = &["key", "secret", "token", "password", "credential"];
-
-pub(crate) fn is_secret_setting_key(key: &str) -> bool {
-    if key.ends_with("_env") {
-        return false;
-    }
-    key.split(['.', '_'])
-        .any(|segment| SECRET_KEY_SEGMENTS.contains(&segment))
 }

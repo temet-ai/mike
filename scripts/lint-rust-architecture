@@ -32,6 +32,7 @@ AXUM_ADAPTER_FILES = frozenset(
         "crates/mike/src/spa.rs",  # embedded SPA HTTP adapter
         "crates/mike/src/sse/tee.rs",  # upstream stream to Axum body bridge
         "crates/mike/src/stack/mod.rs",  # cfg(test) health server used by stop safety tests
+        "crates/mike/src/extract/headers.rs",  # hop-by-hop and sensitive header handling
         "crates/mike/src/extract/request/fields.rs",  # inbound HTTP request extraction
         "crates/mike/src/extract/request/fields_tests.rs",  # inbound HTTP request extraction
         "crates/mike/src/extract/signals.rs",  # inbound HTTP request signals

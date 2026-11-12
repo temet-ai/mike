@@ -35,7 +35,7 @@ fn request(agent_type: &str) -> Json<AgentContextRequest> {
 #[tokio::test]
 async fn agent_context_non_uuid_session_is_400() -> anyhow::Result<()> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     let answer = post_session_agent_context(
         State(state),
         Path("not-a-uuid".to_owned()),
@@ -49,7 +49,7 @@ async fn agent_context_non_uuid_session_is_400() -> anyhow::Result<()> {
 #[tokio::test]
 async fn agent_context_unknown_agent_answers_null() -> anyhow::Result<()> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     state.lesson_cache.store(Arc::new(agent_snapshot()));
     let id = Uuid::new_v4().to_string();
     let Ok(Json(answer)) =
@@ -72,7 +72,7 @@ async fn agent_context_unknown_agent_answers_null() -> anyhow::Result<()> {
 #[tokio::test]
 async fn agent_context_resolves_agent_type_by_name_and_answers_stage_text() -> anyhow::Result<()> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     state.lesson_cache.store(Arc::new(agent_snapshot()));
     let id = Uuid::new_v4().to_string();
     let Ok(Json(answer)) = post_session_agent_context(

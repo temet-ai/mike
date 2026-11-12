@@ -53,7 +53,7 @@ use crate::store::updater::run_analysis_and_notify;
 
 async fn state_with_identity_toggle(on: bool) -> anyhow::Result<AppState> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     let mut toggles = (**state.feature_toggle_overlay.load()).clone();
     toggles.self_identity_reminder = on;
     state.feature_toggle_overlay.store(Arc::new(toggles));
@@ -216,7 +216,7 @@ async fn change_record_tail_stage_stands_aside_for_a_served_session() -> anyhow:
 
 async fn state_with_reminders(on: bool) -> anyhow::Result<AppState> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     let mut toggles = (**state.feature_toggle_overlay.load()).clone();
     toggles.reminders = on;
     state.feature_toggle_overlay.store(Arc::new(toggles));

@@ -19,7 +19,7 @@ mod service_score_cache_tests;
 mod service_tests;
 #[cfg(test)]
 mod settings_tests;
-mod warmup;
+pub(crate) mod warmup;
 #[cfg(test)]
 mod warmup_tests;
 
@@ -29,7 +29,6 @@ pub(crate) use nightly::{DEFAULT_RESCUE_MIN_KEPT, DEFAULT_RESCUE_SCORE};
 pub(crate) use runtime::{RerankPhase, RerankStatus};
 pub use service::RerankService;
 pub(crate) use service::Reranked;
-pub(crate) use warmup::spawn_rerank_warmup;
 
 pub(crate) const DEFAULT_RERANK_MODEL: &str = "bge-reranker-v2-m3";
 

@@ -39,9 +39,9 @@ pub struct ProxyConfig {
 
     pub upstream_url: String,
 
-    pub(crate) max_requests: usize,
+    pub(super) max_requests: usize,
 
-    pub(crate) max_age: String,
+    pub(super) max_age: String,
 
     pub otel_endpoint: Option<String>,
 
@@ -197,5 +197,17 @@ impl std::fmt::Debug for ProxyConfig {
         f.debug_struct("ProxyConfig")
             .field("config_path", &self.config_path)
             .finish_non_exhaustive()
+    }
+}
+
+impl ProxyConfig {
+    /// The request store's entry cap (state builds the retention policy from it).
+    pub(crate) fn max_requests(&self) -> usize {
+        self.max_requests
+    }
+
+    /// The request store's age cap, as configured text (parsed by RetentionPolicy).
+    pub(crate) fn max_age(&self) -> &str {
+        &self.max_age
     }
 }

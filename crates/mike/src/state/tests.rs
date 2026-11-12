@@ -18,7 +18,7 @@ fn parse(args: &[&str]) -> anyhow::Result<ProxyConfig> {
 async fn test_app_state_new() -> anyhow::Result<()> {
     let config = parse(&["mike", "--persist-enabled", "0"])?;
     let state = AppState::new(config).await?;
-    assert_eq!(state.config.max_requests, 1000);
+    assert_eq!(state.config.max_requests(), 1000);
     assert_eq!(state.config.proxy_listen_addr, "127.0.0.1:9988");
     assert_eq!(state.config.inspect_listen_addr, "127.0.0.1:9989");
     assert_eq!(state.retention.max_entries, 1000);

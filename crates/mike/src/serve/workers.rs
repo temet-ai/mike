@@ -77,7 +77,7 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::search_events::spawn_search_events_worker(state);
 
-    crate::analysis::rerank::spawn_rerank_warmup(state);
+    crate::analysis::rerank::warmup::spawn_rerank_warmup(state);
 
     crate::rerank_nightly::spawn_rerank_nightly(state);
     crate::judge_worker::supply_verdict::spawn_supply_verdict(state);

@@ -41,7 +41,7 @@ impl Env {
         .execute(handle.pool())
         .await?;
         let mut state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-        crate::feature_toggles::serve_every_stage_for_tests(&state);
+        crate::state::serve_every_stage_for_tests(&state);
         state.persist = Some(handle);
         Ok(Some(Self { db, state, session }))
     }

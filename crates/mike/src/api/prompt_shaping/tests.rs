@@ -43,7 +43,7 @@ fn rule(id: i64, kind: FilterKind, value: &str, project: Option<&str>) -> Filter
 
 async fn state_with(rules: Vec<FilterRule>) -> anyhow::Result<AppState> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    crate::feature_toggles::serve_every_stage_for_tests(&state);
+    crate::state::serve_every_stage_for_tests(&state);
     state
         .filter_config
         .store(std::sync::Arc::new(FilterConfig { rules }));

@@ -42,7 +42,7 @@ impl Env {
             &db.database_url,
         ])?;
         let state = AppState::new(config).await?;
-        crate::feature_toggles::serve_every_stage_for_tests(&state);
+        crate::state::serve_every_stage_for_tests(&state);
         let persist = state
             .persist()
             .cloned()
