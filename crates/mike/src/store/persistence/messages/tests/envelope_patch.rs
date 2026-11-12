@@ -1,7 +1,8 @@
 use crate::store::persistence::messages::envelope_patch::common_prefix_suffix;
 use crate::store::persistence::messages::{
     SentPatch, SentPatchRow, apply_sent_patches, canonicalise_body_messages,
-    compute_envelope_patch, compute_sent_patches, whole_body_envelope_patch,
+    compute_envelope_patch, compute_sent_patches, envelope_patch_for_capture,
+    patches_reconstruct_sent, whole_body_envelope_patch,
 };
 
 #[test]
@@ -253,5 +254,33 @@ fn envelope_patch_and_sent_patch_together_reconstruct_a_combined_rewrite() -> an
         "the envelope patch and the per-message patch together must reproduce \
              the exact bytes forwarded upstream, byte-for-byte"
     );
+    Ok(())
+}
+
+#[test]
+fn envelope_patch_for_capture_two_fields_with_an_added_key_reconstructs() -> anyhow::Result<()> {
+    let request_body = br#"{"messages":[{"role":"user","content":"hi"}],"system":"OLD"}"#;
+    let sent_body = br#"{"messages":[{"role":"user","content":"hi"}],"system":"NEW","tools":[{"name":"mike_roster"}]}"#;
+    assert!(compute_envelope_patch(request_body, sent_body)?.is_none());
+    let patch = envelope_patch_for_capture(request_body, sent_body)?.ok_or_else(|| {
+        anyhow::anyhow!("an unpatchable envelope change must fall back to a whole-body patch")
+    })?;
+    assert!(patches_reconstruct_sent(request_body, sent_body, [patch]));
+    Ok(())
+}
+
+#[test]
+fn envelope_patch_for_capture_message_only_change_leaves_it_to_message_patches()
+-> anyhow::Result<()> {
+    let request_body = br#"{"model":"m","messages":[{"role":"user","content":"hi"}]}"#;
+    let sent_body = br#"{"model":"m","messages":[{"role":"user","content":"hi RECALL"}]}"#;
+    assert!(envelope_patch_for_capture(request_body, sent_body)?.is_none());
+    let canonical = canonicalise_body_messages(request_body)?;
+    let message_patches = compute_sent_patches(request_body, sent_body, &canonical)?;
+    assert!(patches_reconstruct_sent(
+        request_body,
+        sent_body,
+        message_patches.into_values()
+    ));
     Ok(())
 }
