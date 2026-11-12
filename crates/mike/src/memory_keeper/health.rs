@@ -3,7 +3,7 @@ use std::sync::{Arc, LazyLock};
 use arc_swap::ArcSwap;
 use chrono::{DateTime, Utc};
 
-use crate::api::handlers::{CapabilityRow, CapabilityState};
+use crate::web_base::capability::{CapabilityRow, CapabilityState};
 
 const ID: &str = "memory_keeper";
 const LABEL: &str = "Work thread cards";

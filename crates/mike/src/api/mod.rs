@@ -12,7 +12,6 @@ pub(crate) mod embedding_graph;
 pub(crate) mod eval;
 pub(crate) mod fleet;
 pub mod handlers;
-pub(crate) mod host_guard;
 pub(crate) mod improvement;
 pub(crate) mod launches;
 pub(crate) mod lesson_delivery;

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use crate::analysis::AnalysisConfig;
-use crate::memory_cap::manager::CapManagerConfig;
+use crate::config::memory_cap::CapManagerConfig;
 
 use super::bool_parse::{deserialize_permissive_bool, deserialize_permissive_optional_bool};
 use super::proxy_config_defaults::{

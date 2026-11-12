@@ -1,7 +1,7 @@
-use crate::api::handlers::{CapabilityRow, CapabilityState};
 use crate::config::AppState;
 use crate::embed_worker::knowledge_report::{KnowledgeSweepReport, fresh_report};
 use crate::store::persistence::project_knowledge::{KNOWLEDGE_COUNT_CAP, KnowledgeStateCounts};
+use crate::web_base::capability::{CapabilityRow, CapabilityState};
 
 pub(crate) async fn embedding_capability(state: &AppState) -> CapabilityRow {
     let service = state.embedding_service();

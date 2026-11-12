@@ -136,6 +136,7 @@ def method_crates(cmap, files):
     return {k: v for k, v in owner.items() if k not in clash}
 
 
+INLINE_TEST = re.compile(r"#\[cfg\(test\)\]\s*(?:#\[[^\]]*\]\s*)*mod\s+\w+\s*\{")
 RELATIVE = re.compile(r"(?<![\w:])((?:super::)+|self::)((?:\w+::)*)(\{[^{}]*\}|\w+)")
 
 
@@ -193,10 +194,17 @@ def scan(cmap, files):
         src = cmap.crate_of_path(rel)
         lines[src] += raw.count("\n")
         text = re.sub(r"//[^\n]*", "", raw)
-        kind = "test" if is_test(rel, text) else "prod"
-        for dst, symbol in file_refs(cmap, methods, text, rel):
-            if dst and dst != src:
-                edges[(src, dst, kind)][symbol] += 1
+        whole_test = is_test(rel, text)
+        # An inline `#[cfg(test)] mod tests { .. }` at the end of a production file
+        # is test code: everything from the first such block on counts as test.
+        cut = INLINE_TEST.search(text)
+        parts = [(text, True)] if whole_test else (
+            [(text[: cut.start()], False), (text[cut.start():], True)] if cut else [(text, False)])
+        for part, test in parts:
+            kind = "test" if test else "prod"
+            for dst, symbol in file_refs(cmap, methods, part, rel):
+                if dst and dst != src:
+                    edges[(src, dst, kind)][symbol] += 1
     return lines, edges
 
 

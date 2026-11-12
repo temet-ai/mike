@@ -156,18 +156,6 @@ impl Drop for InFlightGuard {
     }
 }
 
-#[cfg(any(test, feature = "test-seams"))]
-pub fn register_for_tests(state: &crate::config::AppState, session_id: String) -> u64 {
-    let id = crate::store::models::RequestId::next();
-    let record = InFlightRecord {
-        session_id,
-        started_at: Instant::now(),
-        event_tx: state.event_tx.clone(),
-    };
-    let _ = state.in_flight.register(id, record);
-    id.as_u64()
-}
-
 #[cfg(test)]
 #[path = "in_flight_tests.rs"]
 mod in_flight_tests;

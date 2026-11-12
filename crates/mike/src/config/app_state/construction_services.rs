@@ -20,7 +20,7 @@ use crate::store::persistence::{PersistError, PersistHandle};
 use super::super::overrides::apply_settings_overrides;
 use super::super::persist_bootstrap::PersistLlmUsageSink;
 use super::super::schema::ProxyConfig;
-use super::write_guards::{
+use crate::config::write_guards::{
     FeatureToggleWriteGuard, FilterWriteGuard, SettingsWriteGuard, SteeringWriteGuard,
 };
 

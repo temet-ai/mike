@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 
 use super::report::{DbCostReport, ReportStatus};
-use crate::api::handlers::{CapabilityRow, CapabilityState};
+use crate::web_base::capability::{CapabilityRow, CapabilityState};
 
 const ID: &str = "db_cost";
 const LABEL: &str = "Database cost";

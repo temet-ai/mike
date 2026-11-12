@@ -32,13 +32,14 @@ mod construction_pipeline;
 mod construction_services;
 #[cfg(test)]
 mod tests;
-mod write_guards;
 
 pub(crate) use construction_pipeline::build_feature_toggle_overlay;
 pub(crate) use construction_services::fold_db_settings;
-pub use write_guards::{
-    FeatureToggleWriteGuard, FilterWriteGuard, SettingsWriteGuard, SteeringWriteGuard,
-};
+
+#[cfg(any(test, feature = "test-seams"))]
+mod test_seams;
+#[cfg(any(test, feature = "test-seams"))]
+pub use test_seams::register_in_flight_for_tests;
 
 #[derive(Clone)]
 pub struct AppState {

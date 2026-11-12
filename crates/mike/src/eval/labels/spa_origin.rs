@@ -12,7 +12,7 @@ impl SpaOrigin {
         configured: &[String],
     ) -> Option<Self> {
         let origin = origin?;
-        crate::api::host_guard::origin_is_allowed(origin, host, configured).then(|| Self {
+        crate::web_base::host_guard::origin_is_allowed(origin, host, configured).then(|| Self {
             origin: origin.to_owned(),
             request_id,
         })

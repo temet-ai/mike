@@ -296,7 +296,7 @@ route, the handler and its MCP coverage. Areas: `requests`, `sessions`,
 `work_threads`, `changes`, `config_history`, `anthropic`, `setup`,
 `websocket`. The inspect router has a 30 s timeout; a host guard refuses
 non-loopback `Host` headers unless `inspect_allowed_hosts` names them
-(`api/host_guard.rs`).
+(`web_base/host_guard.rs`).
 
 ## Web UI
 

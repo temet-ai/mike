@@ -1,6 +1,6 @@
 use mike::app::{inspect_router_on, proxy_router};
+use mike::config::register_in_flight_for_tests as register_for_tests;
 use mike::config::{AppState, ProxyConfig};
-use mike::in_flight::register_for_tests;
 use serde_json::Value;
 use tokio::net::TcpListener;
 use wiremock::MockServer;

@@ -4,6 +4,7 @@ pub(crate) mod db_pool;
 pub(crate) mod launch;
 pub(crate) mod lesson_relations;
 pub(crate) mod load;
+pub(crate) mod memory_cap;
 #[cfg(test)]
 #[path = "paths_env_tests.rs"]
 mod paths_env_tests;
@@ -51,15 +52,18 @@ pub use load::{CliOverrides, load, reload_selected};
 pub use app_state::AppState;
 pub(crate) use app_state::build_feature_toggle_overlay;
 pub(crate) use app_state::fold_db_settings;
-pub use app_state::{
-    FeatureToggleWriteGuard, FilterWriteGuard, SettingsWriteGuard, SteeringWriteGuard,
-};
+#[cfg(any(test, feature = "test-seams"))]
+pub use app_state::register_in_flight_for_tests;
 pub(crate) use bool_parse::{deserialize_permissive_bool, parse_permissive_bool_str};
 pub use launch::LaunchConfig;
 pub(crate) use overrides::apply_settings_overrides;
 pub(crate) use persist_bootstrap::{build_persist_handle, primary_tcp_unreachable};
 pub use proxy_config_defaults::LessonWorkerConfig;
 pub use schema::ProxyConfig;
+pub use write_guards::{
+    FeatureToggleWriteGuard, FilterWriteGuard, SettingsWriteGuard, SteeringWriteGuard,
+};
 
 #[cfg(unix)]
+pub(crate) mod write_guards;
 mod write_transaction;

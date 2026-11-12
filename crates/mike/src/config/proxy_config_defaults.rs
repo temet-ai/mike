@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::analysis::AnalysisConfig;
-use crate::memory_cap::manager::CapManagerConfig;
+use crate::config::memory_cap::CapManagerConfig;
 
 use super::load;
 use super::schema::ProxyConfig;

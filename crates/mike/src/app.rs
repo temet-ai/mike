@@ -5,14 +5,14 @@ use crate::config::AppState;
 use crate::proxy::handler::proxy_handler;
 
 pub fn proxy_router(state: AppState) -> Router {
-    let policy = crate::api::host_guard::LocalAccessPolicy::proxy(&state.config);
+    let policy = crate::web_base::host_guard::LocalAccessPolicy::proxy(&state.config);
     Router::new()
         .route("/v1/{*rest}", any(proxy_handler))
         .route("/v2/{*rest}", any(proxy_handler))
         .merge(crate::proxy::responses_capture::router(&state))
         .layer(axum::middleware::from_fn_with_state(
             policy,
-            crate::api::host_guard::guard,
+            crate::web_base::host_guard::guard,
         ))
         .with_state(state)
 }
@@ -22,29 +22,29 @@ pub fn inspect_router(state: AppState) -> Router {
 }
 
 pub fn inspect_router_on(state: AppState, addr: std::net::SocketAddr) -> Router {
-    let policy = crate::api::host_guard::LocalAccessPolicy::inspect_on(&state.config, addr);
+    let policy = crate::web_base::host_guard::LocalAccessPolicy::inspect_on(&state.config, addr);
     crate::api::manifest::local_router(state, policy)
 }
 
 pub fn spa_router_on(state: AppState, addr: std::net::SocketAddr) -> Router {
-    let policy = crate::api::host_guard::LocalAccessPolicy::spa_on(&state.config, addr);
+    let policy = crate::web_base::host_guard::LocalAccessPolicy::spa_on(&state.config, addr);
     guarded_spa_router(state, policy)
 }
 
 pub fn spa_router(state: AppState) -> Router {
-    let policy = crate::api::host_guard::LocalAccessPolicy::spa(&state.config);
+    let policy = crate::web_base::host_guard::LocalAccessPolicy::spa(&state.config);
     guarded_spa_router(state, policy)
 }
 
 fn guarded_spa_router(
     state: AppState,
-    policy: crate::api::host_guard::LocalAccessPolicy,
+    policy: crate::web_base::host_guard::LocalAccessPolicy,
 ) -> Router {
     crate::api::manifest::local_router(state, policy.clone())
         .merge(crate::spa::spa_router())
         .layer(axum::middleware::from_fn_with_state(
             policy,
-            crate::api::host_guard::guard,
+            crate::web_base::host_guard::guard,
         ))
 }
 

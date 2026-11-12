@@ -4,10 +4,14 @@
 //! so nothing here may reach into a feature or into `api`.
 
 pub(crate) mod body_search;
+pub(crate) mod capability;
 pub(crate) mod change_source;
 pub(crate) mod detail;
 mod errors;
+pub(crate) mod host_guard;
+pub(crate) mod http;
 pub(crate) mod result_order;
+pub(crate) mod route_manifest;
 pub(crate) mod search_window;
 
 pub(crate) use errors::{persist_error_response, persist_unavailable_response};
