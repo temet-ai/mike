@@ -153,3 +153,30 @@ impl RemoteControlRoute<'_> {
 pub(crate) fn endpoint_labels() -> impl Iterator<Item = &'static str> {
     KNOWN_ENDPOINTS.iter().map(|e| e.suffix).chain(["other"])
 }
+
+/// Register the remote-control call series at zero for every endpoint label, so
+/// they exist before the first call (called right after the recorder installs).
+pub(crate) fn describe_remote_control_metrics() {
+    metrics::describe_counter!(
+        crate::metrics::COUNTER_REMOTE_CONTROL_CALLS_TOTAL,
+        "Remote Control channel calls captured, keyed on the cse_ id in the path; label `endpoint` is the bounded path-suffix label, label `outcome` ∈ {recorded, not_persisted, error}"
+    );
+    for endpoint in endpoint_labels() {
+        for outcome in crate::metrics::REMOTE_CONTROL_CALL_OUTCOMES {
+            metrics::counter!(
+                crate::metrics::COUNTER_REMOTE_CONTROL_CALLS_TOTAL,
+                "endpoint" => endpoint,
+                "outcome" => *outcome,
+            )
+            .increment(0);
+        }
+    }
+    metrics::describe_counter!(
+        crate::metrics::COUNTER_REMOTE_CONTROL_STREAM_EVENTS_TOTAL,
+        "Open and close events on the long-lived Remote Control inbound stream; opens minus closes is the number currently held open"
+    );
+    for event in crate::metrics::REMOTE_CONTROL_STREAM_EVENTS {
+        metrics::counter!(crate::metrics::COUNTER_REMOTE_CONTROL_STREAM_EVENTS_TOTAL, "event" => *event)
+            .increment(0);
+    }
+}

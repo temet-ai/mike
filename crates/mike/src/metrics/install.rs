@@ -24,7 +24,6 @@ pub(crate) fn install_recorder() -> anyhow::Result<PrometheusHandle> {
     describe_core_metrics();
     describe_retention_metrics();
     describe_uncaptured_requests_metric();
-    describe_remote_control_metrics();
     describe_capture_throttle_metric();
     describe_memory_metrics();
 
@@ -130,31 +129,6 @@ fn describe_uncaptured_requests_metric() {
     );
     for reason in SESSIONLESS_REQUEST_REASONS {
         metrics::counter!(COUNTER_SESSIONLESS_REQUESTS_TOTAL, "reason" => *reason).increment(0);
-    }
-}
-
-fn describe_remote_control_metrics() {
-    metrics::describe_counter!(
-        COUNTER_REMOTE_CONTROL_CALLS_TOTAL,
-        "Remote Control channel calls captured, keyed on the cse_ id in the path; label `endpoint` is the bounded path-suffix label, label `outcome` ∈ {recorded, not_persisted, error}"
-    );
-    for endpoint in crate::proxy::remote_control::route::endpoint_labels() {
-        for outcome in REMOTE_CONTROL_CALL_OUTCOMES {
-            metrics::counter!(
-                COUNTER_REMOTE_CONTROL_CALLS_TOTAL,
-                "endpoint" => endpoint,
-                "outcome" => *outcome,
-            )
-            .increment(0);
-        }
-    }
-    metrics::describe_counter!(
-        COUNTER_REMOTE_CONTROL_STREAM_EVENTS_TOTAL,
-        "Open and close events on the long-lived Remote Control inbound stream; opens minus closes is the number currently held open"
-    );
-    for event in REMOTE_CONTROL_STREAM_EVENTS {
-        metrics::counter!(COUNTER_REMOTE_CONTROL_STREAM_EVENTS_TOTAL, "event" => *event)
-            .increment(0);
     }
 }
 

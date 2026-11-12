@@ -28,11 +28,7 @@ const READABLE_KINDS: [&str; 15] = [
 
 pub(crate) const REFERENCE_NOT_IN_PROJECT: &str = "Knowledge reference not found in this project";
 
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
-pub struct SemanticCut {
-    pub floor: Option<f64>,
-    pub window: Option<f64>,
-}
+pub use crate::search_ranking::SemanticCut;
 
 pub(crate) fn cut_for(model_name: &str, cut: SemanticCut) -> ScoreFloor {
     let model = score_floor_for(model_name);

@@ -12,7 +12,9 @@ mod tests;
 mod link_tests;
 
 pub(crate) use payload::{ClassifiedPayload, PayloadSessionLink};
-pub(crate) use policy::endpoint_labels;
+pub(crate) use policy::describe_remote_control_metrics;
+#[cfg(test)]
+use policy::endpoint_labels;
 pub(crate) use signals::ChannelSignals;
 pub(crate) use stored_body::stored_body;
 

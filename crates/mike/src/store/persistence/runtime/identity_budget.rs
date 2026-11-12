@@ -1,7 +1,6 @@
 use sqlx::PgConnection;
 use uuid::Uuid;
 
-use super::ObservationLimits;
 use crate::store::persistence::{PersistError, PersistHandle, id_resolvers};
 
 pub(crate) async fn lock(connection: &mut PgConnection) -> Result<(), sqlx::Error> {
@@ -72,5 +71,26 @@ impl PersistHandle {
         admit(&mut tx, limits).await?;
         tx.commit().await?;
         Ok(id)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ObservationLimits {
+    pub max_rows: i64,
+    pub max_bytes: i64,
+    pub max_session_rows: i64,
+    pub max_session_bytes: i64,
+    pub max_record_bytes: usize,
+}
+
+impl Default for ObservationLimits {
+    fn default() -> Self {
+        Self {
+            max_rows: 250_000,
+            max_bytes: 128 * 1024 * 1024,
+            max_session_rows: 20_000,
+            max_session_bytes: 16 * 1024 * 1024,
+            max_record_bytes: 16 * 1024,
+        }
     }
 }

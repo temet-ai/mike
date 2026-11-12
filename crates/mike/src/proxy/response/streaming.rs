@@ -219,7 +219,7 @@ fn spawn_store_updater_for(
             request_id,
             in_flight: state.in_flight.clone(),
             persist: state.persist().cloned(),
-            harvester_cfg: std::sync::Arc::new(crate::memory_harvester::HarvesterConfig {
+            harvester_cfg: std::sync::Arc::new(crate::config::memory_harvester::HarvesterConfig {
                 enabled: state.feature_toggle_overlay.load().harvester,
                 ..state.config.harvester.clone()
             }),

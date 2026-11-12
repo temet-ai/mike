@@ -168,10 +168,6 @@ impl PersistHandle {
         }
     }
 
-    pub(in crate::store::persistence) fn session_row_known(&self, session: Uuid) -> bool {
-        self.id_cache.session(&session).is_some()
-    }
-
     pub(in crate::store::persistence) fn launches_changed(&self, session: Option<Uuid>) {
         self.feed_memos
             .record(RowChangedTable::LaunchLaunches, session);

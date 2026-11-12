@@ -7,8 +7,6 @@ mod resolver_tests;
 #[cfg(test)]
 mod tests;
 
-use std::collections::BTreeMap;
-
 use serde::Serialize;
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
@@ -17,18 +15,7 @@ pub use resolver::{BundlePublisher, BundleResolver, BundleStaticInputs};
 
 pub const COMPONENTS_VERSION: i64 = 1;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
-pub struct BundleIds {
-    pub turn_judge: Option<i64>,
-    pub session_judge: Option<i64>,
-    pub steerers: BTreeMap<i64, i64>,
-}
-
-impl BundleIds {
-    pub fn steerer(&self, steerer_id: i64) -> Option<i64> {
-        self.steerers.get(&steerer_id).copied()
-    }
-}
+pub use crate::settings::bundle_ids::BundleIds;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]

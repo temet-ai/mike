@@ -33,7 +33,6 @@ mod construction_services;
 #[cfg(test)]
 mod tests;
 
-pub(crate) use construction_pipeline::build_feature_toggle_overlay;
 pub(crate) use construction_services::fold_db_settings;
 
 #[cfg(any(test, feature = "test-seams"))]

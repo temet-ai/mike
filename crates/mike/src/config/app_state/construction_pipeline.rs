@@ -46,6 +46,7 @@ pub(super) fn build_http_client() -> anyhow::Result<reqwest::Client> {
 
 pub(super) fn install_metrics(max_store_bytes: u64) -> anyhow::Result<PrometheusHandle> {
     let handle = crate::metrics::install_recorder()?;
+    crate::proxy::remote_control::route::describe_remote_control_metrics();
     metrics::gauge!(crate::metrics::GAUGE_STORE_BYTES_BUDGET).set(max_store_bytes as f64);
     Ok(handle)
 }

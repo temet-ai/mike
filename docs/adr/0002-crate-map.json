@@ -456,7 +456,7 @@
   "store/persistence/compositions": "proxy",
   "store/persistence/consolidation_audit": "lessons",
   "store/persistence/consolidation_reads": "lessons",
-  "store/persistence/content_search": "knowledge",
+  "store/persistence/content_search": "db",
   "store/persistence/cross_session": "steerer",
   "store/persistence/db_cost_reads": "state",
   "store/persistence/db_maintenance_reads": "state",
@@ -478,7 +478,7 @@
   "store/persistence/improvement": "eval",
   "store/persistence/judge": "eval",
   "store/persistence/judge_digest": "eval",
-  "store/persistence/judge_ownership": "eval",
+  "store/persistence/judge_ownership": "db",
   "store/persistence/launch": "launch",
   "store/persistence/lesson_injections": "lessons",
   "store/persistence/lesson_pair_candidates": "knowledge",
@@ -545,6 +545,7 @@
   "store/persistence/work_items_reconcile": "launch",
   "store/persistence/work_threads": "launch",
   "store/persistence/workflow_judge_reads": "eval",
+  "store/persistence/workspace/roster": "proxy",
   "store/persistence/wright": "web",
   "tui": "cli",
   "types": "core",
@@ -649,7 +650,7 @@
  },
  "ratchet": {
   "comment": "Upper bounds checked by scripts/crate-plan --check and scripts/schema-plan --check in the pre-push hook. Lower them when a change reduces the count; never raise them.",
-  "crate_seams": 603,
+  "crate_seams": 577,
   "foreign_writes": 130
  }
 }

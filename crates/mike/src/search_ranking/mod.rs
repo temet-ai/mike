@@ -2,8 +2,6 @@ use std::collections::BTreeMap;
 
 use serde_json::{Map, Value, json};
 
-use crate::store::persistence::project_knowledge::SemanticCut;
-
 pub(crate) mod identifiers;
 mod outside_project;
 pub(crate) mod tuning;
@@ -292,4 +290,11 @@ fn positions(
         positions[index] = Some(position + 1);
     }
     positions
+}
+
+/// A semantic search cut: the similarity floor and window a ranking applies.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct SemanticCut {
+    pub floor: Option<f64>,
+    pub window: Option<f64>,
 }

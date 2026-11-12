@@ -92,10 +92,10 @@ pub struct ProxyConfig {
     pub spa_bind: String,
 
     #[serde(default)]
-    pub(crate) compress: crate::compress::CompressConfig,
+    pub(crate) compress: crate::config::compress::CompressConfig,
 
     #[serde(default)]
-    pub(crate) reminders: crate::reminders::RemindersConfig,
+    pub(crate) reminders: crate::config::reminders::RemindersConfig,
 
     #[serde(default)]
     pub(crate) weasel_intercept: crate::config::weasel_intercept::WeaselInterceptConfig,
@@ -165,10 +165,10 @@ pub struct ProxyConfig {
     pub(crate) lesson_worker: LessonWorkerConfig,
 
     #[serde(default)]
-    pub(crate) recall_injector: crate::recall_injector::RecallInjectorConfig,
+    pub(crate) recall_injector: crate::config::recall_injector::RecallInjectorConfig,
 
     #[serde(default)]
-    pub(crate) harvester: crate::memory_harvester::HarvesterConfig,
+    pub(crate) harvester: crate::config::memory_harvester::HarvesterConfig,
 
     #[serde(default)]
     pub(crate) steerer: crate::config::steerer::SteererConfig,

@@ -14,26 +14,7 @@ pub enum ObservationApplyOutcome {
     BudgetRefused,
 }
 
-#[derive(Debug, Clone)]
-pub struct ObservationLimits {
-    pub max_rows: i64,
-    pub max_bytes: i64,
-    pub max_session_rows: i64,
-    pub max_session_bytes: i64,
-    pub max_record_bytes: usize,
-}
-
-impl Default for ObservationLimits {
-    fn default() -> Self {
-        Self {
-            max_rows: 250_000,
-            max_bytes: 128 * 1024 * 1024,
-            max_session_rows: 20_000,
-            max_session_bytes: 16 * 1024 * 1024,
-            max_record_bytes: 16 * 1024,
-        }
-    }
-}
+pub use super::identity_budget::ObservationLimits;
 
 impl PersistHandle {
     pub async fn apply_session_observation(

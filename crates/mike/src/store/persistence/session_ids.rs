@@ -74,3 +74,9 @@ impl PersistHandle {
         self.id_cache.forget_projects();
     }
 }
+
+impl PersistHandle {
+    pub(in crate::store::persistence) fn session_row_known(&self, session: uuid::Uuid) -> bool {
+        self.id_cache.session(&session).is_some()
+    }
+}

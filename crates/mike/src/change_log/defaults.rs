@@ -3,7 +3,7 @@ use serde_json::{Map, Value, json};
 use crate::config::ProxyConfig;
 use crate::feature_toggles::{TOGGLE_META, get_toggle_enabled};
 use crate::settings::SETTINGS_META;
-use crate::settings::service::is_secret_setting_key;
+use crate::settings::validate::is_secret_setting_key;
 
 pub(crate) fn code_defaults(config: &ProxyConfig) -> Value {
     let mut settings = Map::new();
@@ -15,7 +15,7 @@ pub(crate) fn code_defaults(config: &ProxyConfig) -> Value {
         };
         settings.insert(meta.key.to_owned(), value);
     }
-    let overlay = crate::config::build_feature_toggle_overlay(config);
+    let overlay = crate::feature_toggles::build_feature_toggle_overlay(config);
     let toggles_now = overlay.load();
     let mut toggles = Map::new();
     for meta in TOGGLE_META {

@@ -8,8 +8,8 @@ use super::block_writer::{
     BlockAccumulator, BlockKind, BlockWriteTarget, DEFAULT_SUBAGENT_TYPE, extract_subagent_type,
     write_agent_dispatch_row, write_tool_use_row,
 };
+use crate::config::memory_harvester::HarvesterConfig;
 use crate::in_flight::InFlightRegistry;
-use crate::memory_harvester::HarvesterConfig;
 use crate::store::RequestStore;
 use crate::store::models::{ProxyEvent, RequestId};
 use crate::store::persistence::PersistHandle;

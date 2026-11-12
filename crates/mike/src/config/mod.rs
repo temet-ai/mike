@@ -54,7 +54,6 @@ mod schema_tests;
 pub use load::{CliOverrides, load, reload_selected};
 
 pub use app_state::AppState;
-pub(crate) use app_state::build_feature_toggle_overlay;
 pub(crate) use app_state::fold_db_settings;
 #[cfg(any(test, feature = "test-seams"))]
 pub use app_state::register_in_flight_for_tests;

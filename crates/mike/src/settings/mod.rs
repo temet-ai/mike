@@ -1,3 +1,4 @@
+pub(crate) mod bundle_ids;
 pub mod cross_session;
 pub(crate) mod judge_prompts;
 pub mod service;
@@ -44,7 +45,7 @@ pub(crate) mod running_services;
 mod running_services_tests;
 #[cfg(test)]
 mod settings_tests;
-mod validate;
+pub(crate) mod validate;
 
 pub(crate) use llm_runtime::{
     SharedSettingsOverlay, resolve_judge_worker_llm_settings, resolve_session_judge_llm_settings,
@@ -305,7 +306,7 @@ pub struct SettingsOverlay {
 
     pub turn_judge_rejudge_daily_call_cap: i64,
 
-    pub bundles: std::sync::Arc<crate::eval::bundles::BundleIds>,
+    pub bundles: std::sync::Arc<bundle_ids::BundleIds>,
 }
 
 impl Default for SettingsOverlay {
@@ -392,7 +393,7 @@ impl Default for SettingsOverlay {
             turn_judge_immediate_delay_ms: meta_turn_judge::DEFAULT_IMMEDIATE_DELAY_MS,
             turn_judge_live_window_days: meta_turn_judge::DEFAULT_LIVE_WINDOW_DAYS,
             turn_judge_rejudge_daily_call_cap: meta_turn_judge::DEFAULT_REJUDGE_DAILY_CALL_CAP,
-            bundles: std::sync::Arc::new(crate::eval::bundles::BundleIds::default()),
+            bundles: std::sync::Arc::new(bundle_ids::BundleIds::default()),
         }
     }
 }
