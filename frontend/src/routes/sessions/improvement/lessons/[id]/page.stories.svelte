@@ -141,9 +141,8 @@
 		await expect(retired).toHaveTextContent(/Superseded: no longer supplied\./);
 		await expect(retired).toHaveTextContent(/Contradicted by the newer lesson 68/);
 		await expect(retired).toHaveTextContent(/Search still finds it\./);
-		await expect(within(retired).getByRole('link', { name: 'Read the newer lesson' })).toHaveAttribute(
-			'href',
-			'/sessions/improvement/lessons/68'
-		);
+		await expect(
+			within(retired).getByRole('link', { name: 'Read the newer lesson' })
+		).toHaveAttribute('href', '/sessions/improvement/lessons/68');
 	}}
 />

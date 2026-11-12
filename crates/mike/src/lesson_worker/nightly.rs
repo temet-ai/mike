@@ -1,5 +1,8 @@
 use crate::store::persistence::{PersistError, PersistHandle};
 
+const MIN_JUDGED_KEY: &str = "lesson_outcome.min_judged_supplies";
+const FLOOR_KEY: &str = "lesson_outcome.retire_floor";
+
 #[derive(Default)]
 struct NightlyTally {
     total_promoted: u64,
@@ -7,6 +10,8 @@ struct NightlyTally {
     relations_confirmed: u64,
     relations_applied: u64,
     shape_released: u64,
+    superseded: u64,
+    retired_by_outcome: u64,
     any_error: bool,
 }
 
@@ -67,6 +72,57 @@ async fn apply_lesson_relations(persist: &PersistHandle, tally: &mut NightlyTall
             tally.any_error = true;
         }
     }
+    retire_lessons(persist, tally).await;
+}
+
+async fn retire_lessons(persist: &PersistHandle, tally: &mut NightlyTally) {
+    match persist.supersede_contradicted_lessons().await {
+        Ok(n) => tally.superseded += n,
+        Err(e) => {
+            log_relations_failed("supersede_contradicted_lessons", &e);
+            tally.any_error = true;
+        }
+    }
+    let (min_judged, floor) = retirement_floor(persist).await;
+    match persist.retire_lessons_by_outcome(min_judged, floor).await {
+        Ok(n) => tally.retired_by_outcome += n,
+        Err(e) => {
+            log_relations_failed("retire_lessons_by_outcome", &e);
+            tally.any_error = true;
+        }
+    }
+}
+
+async fn setting_or_default(persist: &PersistHandle, key: &str) -> Option<serde_json::Value> {
+    match persist.setting_value(key).await {
+        Ok(Some(value)) => Some(value),
+        Ok(None) => meta_default(key),
+        Err(e) => {
+            log_relations_failed(key, &e);
+            meta_default(key)
+        }
+    }
+}
+
+fn meta_default(key: &str) -> Option<serde_json::Value> {
+    crate::settings::SETTINGS_META
+        .iter()
+        .find(|meta| meta.key == key)
+        .map(|meta| meta.default.clone())
+}
+
+async fn retirement_floor(persist: &PersistHandle) -> (i64, f64) {
+    let min_judged = setting_or_default(persist, MIN_JUDGED_KEY)
+        .await
+        .and_then(|v| v.as_i64())
+        .unwrap_or(i64::MAX)
+        .max(1);
+    let floor = setting_or_default(persist, FLOOR_KEY)
+        .await
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0)
+        .clamp(0.0, 1.0);
+    (min_judged, floor)
 }
 
 fn log_relations_failed(step: &str, e: &PersistError) {
@@ -169,6 +225,8 @@ fn log_nightly_complete(project_count: usize, tally: &NightlyTally) {
         relations_confirmed = tally.relations_confirmed,
         relations_applied = tally.relations_applied,
         shape_released = tally.shape_released,
+        superseded = tally.superseded,
+        retired_by_outcome = tally.retired_by_outcome,
         "lesson_worker: nightly consolidation complete"
     );
 }

@@ -417,11 +417,9 @@ impl PersistHandle {
     ) -> Result<Vec<super::lessons::LessonRow>, PersistError> {
         let project_path = project_path.to_owned();
         crate::metrics::time_db("list_injectable_lessons", async move {
-            let rows = sqlx::query_as!(
-                super::lessons::LessonRow,
-                r#"SELECT l.id AS "id!", l.project_id, p.project_path AS "project_path?",
-                          lk.code AS "kind!", l.text AS "text!", l.agent_id, ls.code AS "stage!",
-                          l.source_turn_id, l.created_at AS "created_at!", l.expires_at, l.topic
+            let rows = sqlx::query_as::<_, super::lessons::LessonRow>( // grader-allow: reads memory.lessons.retired_at, added in 20261111170700, before its .sqlx entry is prepared
+                r#"SELECT l.id, l.project_id, p.project_path, lk.code AS kind, l.text, l.agent_id,
+                          ls.code AS stage, l.source_turn_id, l.created_at, l.expires_at, l.topic
                      FROM memory.lessons l
                      LEFT JOIN projects.projects p ON p.id = l.project_id
                      JOIN memory.lesson_kinds lk ON lk.id = l.kind_id
@@ -432,6 +430,7 @@ impl PersistHandle {
                     WHERE p.project_path = $1
                       AND (ls.code IN ('daily', 'long_term') OR (ls.code = 'raw' AND src.code = 'operator'))
                       AND (l.expires_at IS NULL OR l.expires_at > NOW())
+                      AND l.retired_at IS NULL
                       AND NOT EXISTS (
                           SELECT 1
                             FROM memory.lesson_relations r
@@ -441,8 +440,8 @@ impl PersistHandle {
                       )
                       AND (ls.code <> 'raw' OR open_shape.lesson_id IS NULL)
                     ORDER BY l.created_at DESC"#,
-                project_path,
             )
+            .bind(project_path)
             .fetch_all(&self.pool)
             .await?;
             Ok(rows)

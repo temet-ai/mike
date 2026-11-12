@@ -5,7 +5,8 @@ use chrono::Weekday;
 use super::schedule::{Cadence, Period};
 use crate::settings::meta_scheduled_jobs::{
     CARGO_SWEEP_ENABLED_KEY, COMPRESSOR_LOOP_ENABLED_KEY, LEARNING_AUDIT_ENABLED_KEY,
-    LEARNING_PROMOTE_ENABLED_KEY, LESSONS_COMMIT_ENABLED_KEY, USAGE_AUDIT_ENABLED_KEY,
+    LEARNING_PROMOTE_ENABLED_KEY, LESSON_RELATIONS_ENABLED_KEY, LESSONS_COMMIT_ENABLED_KEY,
+    USAGE_AUDIT_ENABLED_KEY,
 };
 
 pub(crate) struct Job {
@@ -150,11 +151,33 @@ pub(super) const USAGE_AUDIT: Job = Job {
     failure_hint: "The audit reads the database with psql, so check that MIKE_DATABASE_URL in the checkout's .env answers. Exit code 1 is an alarm, not a failure.",
 };
 
-pub(crate) static JOBS: [Job; 6] = [
+pub(super) const LESSON_RELATIONS: Job = Job {
+    name: "lesson_relations",
+    label: "Lesson relation detector",
+    description: "Finds lessons that supersede, refine, repeat or contradict each other and has a second model adjudicate each claim, so the nightly consolidation can retire a lesson a newer one contradicts.",
+    script: "scripts/lesson-relations",
+    args: &[],
+    timeout: Duration::from_secs(45 * 60),
+    cadence: Cadence {
+        weekday: None,
+        hours: &[22, 23],
+        minute: 0,
+        period: Period::Day,
+    },
+    nice: 10,
+    leased: true,
+    alarm_exit: None,
+    enabled_key: LESSON_RELATIONS_ENABLED_KEY,
+    schedule_text: "daily, once between 22:00 and 23:59 UTC, before the nightly lesson consolidation",
+    failure_hint: "It runs `mike detect-lesson-relations` (MIKE_BIN, else mike on PATH, else ~/.local/bin/mike) and calls the proposer and adjudicator models, so check that both models answer and that lesson_relations.enabled is on.",
+};
+
+pub(crate) static JOBS: [Job; 7] = [
     PROMOTE,
     AUDIT,
     COMPRESSOR_LOOP,
     CARGO_SWEEP,
     LESSONS_COMMIT,
     USAGE_AUDIT,
+    LESSON_RELATIONS,
 ];

@@ -1,0 +1,12 @@
+#!/bin/sh
+# Run mike's lesson relation detector once; the lesson_relations scheduled job
+# calls this nightly. The detector honours lesson_relations.enabled itself.
+set -eu
+mike_bin="${MIKE_BIN:-}"
+if [ -z "$mike_bin" ]; then
+    mike_bin="$(command -v mike 2>/dev/null || true)"
+fi
+if [ -z "$mike_bin" ]; then
+    mike_bin="$HOME/.local/bin/mike"
+fi
+exec "$mike_bin" detect-lesson-relations "$@"

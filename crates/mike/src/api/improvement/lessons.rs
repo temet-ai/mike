@@ -13,7 +13,9 @@ use crate::eval::labels;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::eval_labels::{GoldEntry, GoldWrite, Subject};
 use crate::store::persistence::lessons::proposals::ProposalError;
-use crate::store::persistence::lessons::{LessonEvidenceRow, LessonInjectionSummary};
+use crate::store::persistence::lessons::{
+    LessonEvidenceRow, LessonInjectionSummary, LessonOutcome, LessonRetirement,
+};
 
 const REASONS: [&str; 4] = ["not_a_correction", "too_specific", "wrong", "other"];
 const DEFAULT_LIMIT: i64 = 100;
@@ -68,6 +70,26 @@ pub(crate) struct LessonDetail {
     injections: LessonInjectionSummary,
     went_live_at: Option<chrono::DateTime<chrono::Utc>>,
     effect: Option<EffectView>,
+    outcomes: LessonOutcome,
+    #[serde(flatten)]
+    retirement: LessonRetirement,
+}
+
+async fn lesson_retirement(persist: &PersistHandle, id: i64) -> LessonRetirement {
+    persist.lesson_retirement(id).await.unwrap_or_else(|e| {
+        log_detail_read_failed("retirement", id, &e);
+        LessonRetirement::default()
+    })
+}
+
+async fn lesson_outcomes(persist: &PersistHandle, id: i64) -> LessonOutcome {
+    persist.lesson_outcome(id).await.unwrap_or_else(|e| {
+        log_detail_read_failed("outcomes", id, &e);
+        LessonOutcome {
+            lesson_id: id,
+            ..LessonOutcome::default()
+        }
+    })
 }
 
 fn log_detail_read_failed(
@@ -134,6 +156,8 @@ pub(crate) async fn get_candidate(State(state): State<AppState>, Path(id): Path<
         injections: lesson_injections(persist, id).await,
         went_live_at: lesson_went_live(persist, id).await,
         effect: lesson_effect_view(persist, id).await,
+        outcomes: lesson_outcomes(persist, id).await,
+        retirement: lesson_retirement(persist, id).await,
         candidate,
     };
     Json(json!({ "candidate": detail })).into_response()

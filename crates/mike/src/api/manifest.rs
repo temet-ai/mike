@@ -28,7 +28,6 @@ mod improvement;
 mod knowledge;
 mod launches;
 mod lesson_delivery;
-mod supplied_items;
 mod memory;
 mod projects;
 mod prompt_shaping;
@@ -48,6 +47,7 @@ mod skill_outcomes;
 mod skills;
 mod steer_questions;
 mod steering;
+mod supplied_items;
 mod verdicts;
 mod websocket;
 mod work_threads;
@@ -335,7 +335,8 @@ mod tests {
                 "compressor_loop",
                 "cargo_sweep",
                 "lessons_commit",
-                "usage_audit"
+                "usage_audit",
+                "lesson_relations"
             ]
         );
         for job in body["jobs"].as_array().into_iter().flatten() {
