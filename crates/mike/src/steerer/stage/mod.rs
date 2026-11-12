@@ -7,11 +7,11 @@ mod unqueued_mail;
 #[cfg(test)]
 mod drain_tests;
 
-use crate::compress::manifest::{AppliedStage, ManifestBuilder, UnchangedStage};
 use crate::config::AppState;
 use crate::extract::request::TurnOrigin;
 use crate::reminders::inject::InjectBookkeeping;
 use crate::store::models::{ReminderSource, SystemReminder};
+use crate::wire::manifest::{AppliedStage, ManifestBuilder, UnchangedStage};
 use reminder_dispatch::{
     MailboxClaim, SteererGate, claim_mailbox_reminder, inject_or_requeue, is_advisory,
     request_is_mid_turn, steerer_reminder_gate,

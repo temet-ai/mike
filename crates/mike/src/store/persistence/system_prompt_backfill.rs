@@ -1,7 +1,7 @@
 use serde_json::Value as JsonValue;
 
-use crate::compose_prompt::blocks::parse_identity_blocks;
-use crate::compose_prompt::classify::prompt_sha256_from_block_text;
+use crate::wire::prompt_blocks::parse_identity_blocks;
+use crate::wire::prompt_classify::prompt_sha256_from_block_text;
 
 use super::PersistHandle;
 use super::error::PersistError;

@@ -1,9 +1,9 @@
-use crate::compress::manifest::ManifestBuilder;
 use crate::extract::request::TurnOrigin;
 use crate::reminders::inject::InjectBookkeeping;
 use crate::steerer::stage::client_served::mark_mailbox_served;
 use crate::steerer::stage::drain;
 use crate::store::models::{ReminderSource, RequestId, SystemReminder};
+use crate::wire::manifest::ManifestBuilder;
 
 use super::support::{drain_fixture, user_turn_body};
 

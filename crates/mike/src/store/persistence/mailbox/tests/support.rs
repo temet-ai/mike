@@ -27,7 +27,7 @@ pub(super) async fn drain_primary_turn(
     );
     let mut filtered_stored = None;
     let mut filter_applied = false;
-    let mut manifest = crate::compress::manifest::ManifestBuilder::new("test".to_string());
+    let mut manifest = crate::wire::manifest::ManifestBuilder::new("test".to_string());
     let mut bk = crate::reminders::inject::InjectBookkeeping {
         post_filter_body: &mut body,
         filtered_stored: &mut filtered_stored,

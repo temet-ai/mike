@@ -27,8 +27,8 @@ pub(crate) use thread_types::{
     ThreadSummaryFilter, ThreadSummaryRow,
 };
 pub use types::ClaimedChannelMessageRow;
+pub(crate) use types::MIKE_SENDER;
 pub use types::{
     AckOutcome, ContextItem, MailboxEnvelope, MailboxMessageRow, MailboxMessageWithActivity,
     RedeliveryOutcome, ReloadedMailboxRow, SessionIdResolution, ThreadedMessageInsert,
 };
-pub(crate) use types::{MIKE_SENDER, is_mail_text};

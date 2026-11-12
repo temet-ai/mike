@@ -2,10 +2,10 @@ use bytes::Bytes;
 use uuid::Uuid;
 
 use crate::api::changes::session_tail_lines;
-use crate::compress::manifest::AppliedStage;
 use crate::pipeline::{RequestStage, StageBody, StageContext, is_session_own_lane};
 use crate::store::models::{ReminderSource, RequestId};
 use crate::store::persistence::PersistHandle;
+use crate::wire::manifest::AppliedStage;
 
 use super::seat_role::{SeatRole, seat_role};
 use super::stage::{StageManifestCodes, record_outcome_without_body_change};

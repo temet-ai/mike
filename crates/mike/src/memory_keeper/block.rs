@@ -1,4 +1,4 @@
-use crate::compress::manifest::sha256_hex;
+use crate::wire::manifest::sha256_hex;
 
 use super::resolve::{Pick, Resolution};
 use super::snapshot::ProjectThreads;

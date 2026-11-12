@@ -8,9 +8,9 @@ use std::sync::Mutex;
 use bytes::Bytes;
 use dashmap::DashMap;
 
-use crate::compress::manifest::AppliedStage;
 use crate::extract::signals::RequestSignals;
 use crate::pipeline::StageBody;
+use crate::wire::manifest::AppliedStage;
 use splice::InjectedBlocks;
 
 pub(crate) const STAGE: &str = "injected_block_replay";

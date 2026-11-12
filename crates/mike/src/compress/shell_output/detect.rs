@@ -4,7 +4,7 @@ use serde_json::Value;
 
 use crate::compress::file_reads::detect::{extract_content, find_subsequence};
 use crate::compress::file_reads::splice::PendingSplice;
-use crate::compress::manifest::{ByteRange, StageOutcome, TargetEntry, sha256_hex};
+use crate::wire::manifest::{ByteRange, StageOutcome, TargetEntry, sha256_hex};
 
 use super::policy::{PRODUCER, ShellOutputPolicy};
 use super::reason;

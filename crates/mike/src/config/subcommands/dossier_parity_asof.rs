@@ -9,11 +9,11 @@ use super::dossier_parity::{
     SessionData, horizon, load_sessions, population_of, write_json, write_jsonl,
 };
 use super::dossier_parity_compare::{J2Row, nonzero};
-use crate::dossier::genuine::stream::{
+use crate::store::persistence::PersistHandle;
+use crate::wire::genuine::stream::{
     Effective, NextGenuine, StreamMessage, TurnResolution, effective_kinds, resolve_turns,
 };
-use crate::dossier::genuine::{DispositionClass, EffectiveRule, PromptKind};
-use crate::store::persistence::PersistHandle;
+use crate::wire::genuine::{DispositionClass, EffectiveRule, PromptKind};
 
 #[derive(Debug, Clone)]
 pub(super) struct AsOfView {

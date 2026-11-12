@@ -7,9 +7,9 @@ use super::super::ask_ledger::{append_ask_ledger_entry_for_turn, reauthor_intake
 use super::super::context::{DebounceLedger, EvalInputs, EvalTarget, FleetCtx};
 use super::{fetch_anchor, is_work_lane, resolve_trigger_steerers, run_loop_and_record_breaker};
 use crate::circuit_breaker::CircuitBreaker;
-use crate::dossier::genuine::is_genuine_text;
-use crate::steerer::machine_text::{self, MachineTextKind};
 use crate::store::models::RequestId;
+use crate::wire::genuine::is_genuine_text;
+use crate::wire::machine_text::{self, MachineTextKind};
 
 fn log_user_prompt_session_id_not_uuid(raw_id: u64, session_id: &str) {
     debug!(

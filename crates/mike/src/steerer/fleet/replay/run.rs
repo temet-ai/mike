@@ -10,12 +10,12 @@ use crate::settings::apply_db_rows_to_overlay;
 use crate::steerer::fleet::input_budget::VerifierInputBudget;
 use crate::steerer::fleet::judge::{apply_evidence_gate, confirm_quorum};
 use crate::steerer::fleet::steerer_eval::pattern_gate_admits;
-use crate::steerer::machine_text;
 use crate::steerer::note_policy::{self, NoteLimits, SessionNotes, VerdictStop};
 use crate::steerer::refocus::resolve_verdict_system_prompt;
 use crate::steerer::registry::{Steerer, SteererRegistry};
 use crate::steerer::verdict::{SteererVerdict, steerer_verdict_schema};
 use crate::store::persistence::{PersistError, PersistHandle};
+use crate::wire::machine_text;
 
 const CHARS_PER_TOKEN: f64 = 3.25;
 

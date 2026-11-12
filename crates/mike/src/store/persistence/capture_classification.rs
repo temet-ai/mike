@@ -43,14 +43,14 @@ pub(crate) fn classify_author_kind(
 }
 
 fn is_mike_authored_followup(human_prompt: &str) -> bool {
-    use crate::dossier::genuine::markers;
+    use crate::wire::genuine::markers;
     let trimmed = human_prompt.trim_start();
     trimmed.starts_with(markers::PROXY_TOOL_RESULT)
         || trimmed.starts_with(markers::WEASEL_CORRECTION)
 }
 
-fn machine_text_author_kind(kind: crate::steerer::machine_text::MachineTextKind) -> &'static str {
-    use crate::steerer::machine_text::MachineTextKind as M;
+fn machine_text_author_kind(kind: crate::wire::machine_text::MachineTextKind) -> &'static str {
+    use crate::wire::machine_text::MachineTextKind as M;
     match kind {
         M::MailboxDelivery | M::TeammateMessage => "agent",
         _ => "harness",
@@ -65,13 +65,13 @@ fn classify_primary_turn_author(
     if is_mike_authored_followup(human_prompt) {
         return "harness";
     }
-    if let Some(kind) = crate::steerer::machine_text::classify(human_prompt) {
+    if let Some(kind) = crate::wire::machine_text::classify(human_prompt) {
         return machine_text_author_kind(kind);
     }
     if !human_prompt.trim().is_empty() {
         return "operator";
     }
-    if let Some(kind) = crate::steerer::machine_text::classify(last_user_message) {
+    if let Some(kind) = crate::wire::machine_text::classify(last_user_message) {
         return machine_text_author_kind(kind);
     }
     if !last_user_message.trim().is_empty() {

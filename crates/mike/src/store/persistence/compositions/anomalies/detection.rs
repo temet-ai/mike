@@ -50,7 +50,7 @@ fn anomaly_group_from_row(row: AnomalyRow) -> Result<AnomalyGroup, PersistError>
                         .to_string(),
                 )
             })?;
-            crate::compose_prompt::blocks::signature_hash_for_unknown_blocks(value)
+            crate::wire::prompt_blocks::signature_hash_for_unknown_blocks(value)
         }
     };
 

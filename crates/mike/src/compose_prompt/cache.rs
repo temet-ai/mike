@@ -4,7 +4,7 @@ use std::sync::Arc;
 use arc_swap::ArcSwap;
 
 use super::PromptClassKey;
-use super::decision::Composition;
+use crate::wire::composition::Composition;
 
 #[derive(Debug)]
 pub(crate) struct CompositionCache {
@@ -33,8 +33,8 @@ impl CompositionCache {
 
 #[cfg(test)]
 mod tests {
-    use super::super::decision::CompositionMode;
     use super::*;
+    use crate::wire::composition::CompositionMode;
     use chrono::Utc;
     use serde_json::json;
     use uuid::Uuid;

@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use crate::compress::manifest::{MANIFEST_SCHEMA_VERSION, TransformationManifest};
+use crate::wire::manifest::{MANIFEST_SCHEMA_VERSION, TransformationManifest};
 
 use super::detect::REDUCTION_MARKER_TAG;
 use super::reason;

@@ -1,6 +1,6 @@
-use crate::compress::manifest::AppliedStage;
 use crate::pipeline::{RequestStage, StageBody, StageContext};
 use crate::read_dedup::DedupHit;
+use crate::wire::manifest::AppliedStage;
 
 pub(crate) struct ReadDedupStage;
 

@@ -4,10 +4,10 @@ use serde::Serialize;
 
 use super::SectionReport;
 use super::cut::{char_count, cut, cut_front, head_chars};
-use crate::dossier::genuine::PromptKind;
 use crate::dossier::view::full::effective_by_request;
 use crate::dossier::view::types::{DossierInputs, SessionSlices};
 use crate::store::persistence::dossier_view::DossierTurnRow;
+use crate::wire::genuine::PromptKind;
 
 pub const RESPONSE_TAIL_CAP: usize = 3_000;
 const COMPRESSED_HEAD: usize = 200;

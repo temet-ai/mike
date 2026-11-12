@@ -1,6 +1,5 @@
 use anyhow::Context;
 use chrono::{DateTime, Duration, Utc};
-use mike::dossier::genuine::{CLASSIFIER_VERSION, CaptureRule, PromptClass, PromptKind};
 use mike::store::persistence::prompt_classification::{
     ClassificationWrite, ReclassifyRow, capture_rule_code,
 };
@@ -8,6 +7,7 @@ use mike::store::persistence::{
     NeedsJudgmentQuery, PersistHandle, fetch_sessions_needing_judgment,
 };
 use mike::store::test_support::{self, TestDb, TestDbHandle};
+use mike::wire::genuine::{CLASSIFIER_VERSION, CaptureRule, PromptClass, PromptKind};
 use sqlx::PgPool;
 
 #[path = "prompt_classification/migration.rs"]

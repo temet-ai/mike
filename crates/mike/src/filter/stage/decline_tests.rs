@@ -1,12 +1,12 @@
 use bytes::Bytes;
 
 use super::FilterStage;
-use crate::compress::manifest::StageOutcome;
 use crate::extract::request::TurnOrigin;
 use crate::filter::{FilterAction, FilterConfig, FilterKind, FilterRule, RuleSource};
 use crate::lesson_worker::LessonSnapshot;
 use crate::pipeline::{RequestStage, StageBody, StageContext};
 use crate::store::models::RequestId;
+use crate::wire::manifest::StageOutcome;
 
 const BODY: &[u8] = br#"{"system":[{"type":"text","text":"hello"}]}"#;
 

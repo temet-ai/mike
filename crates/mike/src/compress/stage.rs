@@ -4,11 +4,9 @@ use serde_json::Value;
 
 use crate::compress::cache_gate::CacheGate;
 use crate::compress::file_reads;
-use crate::compress::manifest::{
-    AppliedStage, StageEntry, StageOutcome, TargetEntry, UnchangedStage,
-};
 use crate::feature_toggles::ResolvedToggles;
 use crate::pipeline::{RequestStage, StageBody, StageContext};
+use crate::wire::manifest::{AppliedStage, StageEntry, StageOutcome, TargetEntry, UnchangedStage};
 
 pub(crate) struct FileReadCompressionStage;
 
@@ -77,7 +75,7 @@ pub(crate) fn session_arm(toggles: &ResolvedToggles, session_id: &str) -> &'stat
     if toggles.file_read_compression_forward {
         return ARM_FORWARD;
     }
-    let digest = crate::compress::manifest::sha256_hex(session_id.as_bytes());
+    let digest = crate::wire::manifest::sha256_hex(session_id.as_bytes());
     let bucket = u64::from_str_radix(&digest[..8], 16).unwrap_or(0) % 100;
     if bucket < toggles.file_read_compression_forward_share as u64 {
         ARM_FORWARD

@@ -5,11 +5,11 @@ mod tests;
 
 use bytes::Bytes;
 
-use crate::compress::manifest::AppliedStage;
 use crate::extract::request::TurnOrigin;
 use crate::filter::replay::{SystemReplay, ruleset_fingerprint};
 use crate::filter::{self, FilterOutcome, project_scope_matches};
 use crate::pipeline::{RequestStage, StageBody, StageContext};
+use crate::wire::manifest::AppliedStage;
 
 pub(crate) struct FilterStage;
 

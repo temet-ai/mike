@@ -1,4 +1,4 @@
-use super::blocks::*;
+use super::*;
 use serde_json::{Value, json};
 
 fn three_block_body() -> Value {

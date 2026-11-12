@@ -6,10 +6,10 @@ use serde_json::json;
 use uuid::Uuid;
 
 use super::cache::CompositionCache;
-use super::classify::prompt_sha256_from_block_text;
-use super::decision::{Composition, CompositionMode};
 use super::volatile::VolatilePatternCache;
 use super::{ComposerService, PromptClassKey};
+use crate::wire::composition::{Composition, CompositionMode};
+use crate::wire::prompt_classify::prompt_sha256_from_block_text;
 
 pub(super) fn encode_body(body: &serde_json::Value) -> Vec<u8> {
     match serde_json::to_vec(body) {

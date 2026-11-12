@@ -3,7 +3,7 @@ use serde_json::Value;
 use super::message_shape::fingerprint_message_count;
 use super::turn_origin::TurnOrigin;
 use super::turn_type::TurnType;
-use crate::dossier::genuine::markers::{WORKFLOW_HARNESS_USER_PREFIX, WORKFLOW_SUBAGENT_MARKERS};
+use crate::wire::genuine::markers::{WORKFLOW_HARNESS_USER_PREFIX, WORKFLOW_SUBAGENT_MARKERS};
 
 fn first_user_message_text(body: &Value) -> Option<&str> {
     let msg = body

@@ -1,7 +1,7 @@
 use super::*;
 use crate::compose_prompt::PromptClassKey;
-use crate::compose_prompt::decision::CompositionMode;
 use crate::store::persistence::PersistHandle;
+use crate::wire::composition::CompositionMode;
 
 #[tokio::test]
 async fn load_prompt_compositions_seeds_from_db() -> anyhow::Result<()> {

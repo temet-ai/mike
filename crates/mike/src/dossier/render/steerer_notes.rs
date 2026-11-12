@@ -2,11 +2,11 @@ use chrono::{DateTime, Utc};
 
 use super::allocate::{AllocSection, SectionBody};
 use super::cut::{cut, cut_front, head_chars};
-use crate::dossier::genuine::{opened_by_something_else, operator_words};
 use crate::dossier::view::types::DossierInputs;
-use crate::steerer::machine_text;
 use crate::store::persistence::dossier_view::DossierTurnRow;
 use crate::store::persistence::steering::SessionNote;
+use crate::wire::genuine::{opened_by_something_else, operator_words};
+use crate::wire::machine_text;
 
 pub const EARLIER_NOTES_HEADING: &str = "NOTES THIS SESSION ALREADY RECEIVED (from any steerer, oldest first; do not raise a point one of these made, and send nothing about a point the session has answered):";
 

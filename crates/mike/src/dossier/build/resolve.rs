@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, HashSet};
 
 use chrono::{DateTime, Duration, Utc};
 
-use crate::dossier::genuine::stream::{Effective, StreamMessage, effective_kinds};
-use crate::dossier::genuine::{EffectiveRule, PromptKind};
+use crate::wire::genuine::stream::{Effective, StreamMessage, effective_kinds};
+use crate::wire::genuine::{EffectiveRule, PromptKind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NextState {

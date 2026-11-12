@@ -27,7 +27,7 @@ use std::collections::HashMap;
 use bytes::Bytes;
 use serde_json::Value;
 
-use crate::compress::manifest::{StageEntry, StageOutcome, TargetEntry, sha256_hex};
+use crate::wire::manifest::{StageEntry, StageOutcome, TargetEntry, sha256_hex};
 
 use detect::{ReadContext, inspect_tool_result};
 use markers::collect_omitted_ranges;

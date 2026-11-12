@@ -1,11 +1,11 @@
 use bytes::Bytes;
 
-use crate::compress::manifest::ManifestBuilder;
 use crate::config::{AppState, ProxyConfig};
 use crate::extract::request::TurnOrigin;
 use crate::reminders::inject::InjectBookkeeping;
 use crate::steerer::stage::drain;
 use crate::store::models::{ReminderSource, RequestId, SystemReminder};
+use crate::wire::manifest::ManifestBuilder;
 
 fn mailbox_reminder() -> SystemReminder {
     SystemReminder {

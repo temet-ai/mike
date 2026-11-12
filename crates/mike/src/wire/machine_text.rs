@@ -1,4 +1,4 @@
-use crate::dossier::genuine::markers;
+use crate::wire::genuine::markers;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum MachineTextKind {
@@ -55,7 +55,7 @@ pub(crate) fn classify(prompt: &str) -> Option<MachineTextKind> {
         Some(MachineTextKind::WakeCyclePrompt)
     } else if prompt.contains(markers::CROSS_SESSION_MESSAGE)
         || prompt.contains(markers::PLUGIN_PROMPT_NOTICE)
-        || crate::store::persistence::mailbox::is_mail_text(prompt)
+        || crate::wire::mail_text::is_mail_text(prompt)
     {
         Some(MachineTextKind::MailboxDelivery)
     } else if prompt.contains(markers::STEPPED_AWAY) {

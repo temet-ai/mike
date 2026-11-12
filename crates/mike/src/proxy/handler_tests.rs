@@ -2,13 +2,13 @@ mod global_cache_scope_guard {
     use crate::compose_prompt::ComposeOutcome;
     use crate::compose_prompt::ComposerService;
     use crate::compose_prompt::cache::CompositionCache;
-    use crate::compose_prompt::classify::prompt_sha256_from_block_text;
-    use crate::compose_prompt::decision::{Composition, CompositionMode};
     use crate::compose_prompt::volatile::VolatilePatternCache;
     use crate::filter::{
         self, FilterAction, FilterConfig, FilterKind, FilterOutcome, FilterRule, RuleSource,
     };
     use crate::lazy_sections::{self, LazySectionsOutcome};
+    use crate::wire::composition::{Composition, CompositionMode};
+    use crate::wire::prompt_classify::prompt_sha256_from_block_text;
     use chrono::Utc;
     use serde_json::json;
     use std::collections::HashMap;

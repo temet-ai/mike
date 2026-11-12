@@ -238,7 +238,7 @@ class DefaultTests(OfflineTests):
             keys.update(re.findall(r'key:\s*"([^"]+)"', source))
             keys.update(re.findall(r'"((?:[a-z][a-z0-9_]*\.)+[a-z][a-z0-9_]*|launch_[a-z_]+)"', source))
         keys.discard("meta_assistants_tests.rs")
-        source = (ROOT / "crates/mike/src/cross_session/settings.rs").read_text()
+        source = (ROOT / "crates/mike/src/settings/cross_session.rs").read_text()
         keys.update(re.findall(r'const [A-Z_]+_KEY: &str = "([^"]+)"', source))
         self.assertEqual(keys, defaults.SETTINGS_KEYS)
 

@@ -7,7 +7,7 @@ use super::{
     PatchCompositionParams,
 };
 use crate::compose_prompt::PromptClassKey;
-use crate::compose_prompt::decision::{Composition, CompositionMode};
+use crate::wire::composition::{Composition, CompositionMode};
 
 async fn resolve_new_composition_agent_id(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,

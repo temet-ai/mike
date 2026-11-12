@@ -1,8 +1,8 @@
 use bytes::Bytes;
 
-use crate::compress::manifest::AppliedStage;
 use crate::pipeline::{RequestStage, StageBody, StageContext};
 use crate::reminder_on_token::Outcome;
+use crate::wire::manifest::AppliedStage;
 
 pub(crate) struct ReminderOnTokenStage;
 
@@ -156,7 +156,7 @@ mod tests {
         assert_eq!(manifest.stages[0].stage, "reminder_on_token");
         assert_eq!(
             manifest.stages[0].outcome,
-            crate::compress::manifest::StageOutcome::Unchanged
+            crate::wire::manifest::StageOutcome::Unchanged
         );
         assert_eq!(manifest.stages[0].reason_code, "reminder_on_token_no_token");
         Ok(())

@@ -44,7 +44,7 @@ pub(crate) fn immediate_target(
     if !judge_worker_on || !overlay.turn_judge_immediate || overlay.turn_judge_live_bundle_id <= 0 {
         return None;
     }
-    if !crate::dossier::genuine::is_genuine_text(human_prompt) {
+    if !crate::wire::genuine::is_genuine_text(human_prompt) {
         return None;
     }
     Some(ImmediateTarget {

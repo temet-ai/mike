@@ -6,10 +6,10 @@ use super::block::{Block, KEEPER_MARKER_OPEN};
 use super::record::spawn_record;
 use super::served::served_by_client;
 use super::supply::{Carrier, SupplyRequest, supply};
-use crate::compress::manifest::AppliedStage;
 use crate::pipeline::{RequestStage, StageBody, StageContext, is_session_own_lane};
 use crate::reminders::appender::append_block_to_last_user_message;
 use crate::reminders::session_lessons_query::recent_user_prompts;
+use crate::wire::manifest::AppliedStage;
 
 pub(crate) const STAGE: &str = "memory_keeper";
 const RECENT_PROMPTS: usize = 4;

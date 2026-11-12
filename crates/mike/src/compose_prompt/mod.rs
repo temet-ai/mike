@@ -1,8 +1,5 @@
-pub(crate) mod blocks;
 pub(crate) mod cache;
 mod class_key;
-pub(crate) mod classify;
-pub mod decision;
 pub(crate) mod eligibility;
 pub(crate) mod stage;
 pub(crate) mod store;
@@ -10,8 +7,6 @@ pub(crate) mod sub_patterns;
 mod template;
 pub(crate) mod volatile;
 
-#[cfg(test)]
-mod blocks_tests;
 #[cfg(test)]
 mod template_splice_tests;
 #[cfg(test)]
@@ -24,11 +19,13 @@ use std::sync::Arc;
 use bytes::Bytes;
 use serde_json::Value;
 
-use blocks::{ROLE_BODY_STRIP_INDEX, parse_identity_blocks, parse_system_blocks};
+use crate::wire::composition::{Composition, Decision, DecisionInputs, decide};
+use crate::wire::prompt_blocks::{
+    ROLE_BODY_STRIP_INDEX, parse_identity_blocks, parse_system_blocks,
+};
+use crate::wire::prompt_classify::prompt_sha256_from_block_text;
 use cache::CompositionCache;
 pub(crate) use class_key::PromptClassKey;
-use classify::prompt_sha256_from_block_text;
-use decision::{Composition, Decision, DecisionInputs, decide};
 use template::compose_template;
 use volatile::{VolatilePatternCache, strip_volatile_lines};
 
@@ -123,7 +120,7 @@ impl ComposerService {
 
         if raw_value
             .as_ref()
-            .is_some_and(blocks::block2_is_globally_scoped)
+            .is_some_and(crate::wire::prompt_blocks::block2_is_globally_scoped)
         {
             return ComposeOutcome::Passthrough {
                 prompt_sha256: computed_prompt_sha256,

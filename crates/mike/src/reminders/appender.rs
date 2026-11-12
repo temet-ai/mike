@@ -1,7 +1,7 @@
 use serde_json::{Value, json};
 
-use crate::compress::manifest::ByteRange;
 use crate::store::models::RequestId;
+use crate::wire::manifest::ByteRange;
 
 pub(crate) fn append_block_to_last_user_message(
     body_bytes: &[u8],

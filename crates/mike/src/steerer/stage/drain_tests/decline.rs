@@ -1,11 +1,11 @@
 use bytes::Bytes;
 
-use crate::compress::manifest::{ManifestBuilder, StageOutcome, TransformationManifest};
 use crate::config::{AppState, ProxyConfig};
 use crate::extract::request::TurnOrigin;
 use crate::reminders::inject::InjectBookkeeping;
 use crate::steerer::stage::drain;
 use crate::store::models::{ReminderSource, RequestId, SystemReminder};
+use crate::wire::manifest::{ManifestBuilder, StageOutcome, TransformationManifest};
 
 const SESSION: &str = "session-steerer-drain-decline";
 

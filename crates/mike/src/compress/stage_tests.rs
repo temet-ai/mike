@@ -209,7 +209,7 @@ async fn forward_mode_sends_the_shortened_body_and_records_an_applied_stage() ->
     let manifest = body
         .into_parts()
         .manifest
-        .finish(crate::compress::manifest::sha256_hex(forwarded.as_bytes()));
+        .finish(crate::wire::manifest::sha256_hex(forwarded.as_bytes()));
     let stage = &manifest.stages[0];
     assert_eq!(stage.outcome, StageOutcome::Applied);
     assert_eq!(stage.reason_code, "file_read_forwarded");

@@ -2,12 +2,12 @@ use bytes::Bytes;
 
 use super::stage::SelfIdentityStage;
 use super::stage_test_support::{StageCtxFixture, make_ctx, user_turn_body};
-use crate::compress::manifest::StageOutcome;
 use crate::extract::request::TurnOrigin;
 use crate::feature_toggles::ResolvedToggles;
 use crate::filter::FilterConfig;
 use crate::lesson_worker::LessonSnapshot;
 use crate::pipeline::{RequestStage, StageBody};
+use crate::wire::manifest::StageOutcome;
 
 #[tokio::test]
 async fn self_identity_enabled_requires_toggle_primary_turn_and_no_tool_loop() -> anyhow::Result<()>

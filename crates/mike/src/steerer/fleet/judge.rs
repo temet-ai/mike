@@ -15,13 +15,13 @@ use super::steerer_eval::{Abstention, LlmCallOutcome, run_steerer_loop};
 use super::verifier_judge::VerifierJudgeContext;
 use crate::config::steerer::SteererConfig;
 use crate::llm::OpenRouterClient;
-use crate::steerer::machine_text;
 use crate::steerer::registry::SteererRegistry;
 use crate::steerer::verdict::{SteererVerdict, steerer_verdict_schema};
 use crate::store::RequestStore;
 use crate::store::models::SystemReminder;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::steering::EnrolmentRow;
+use crate::wire::machine_text;
 
 pub(crate) struct JudgeDeps<'a> {
     pub(crate) persist: &'a PersistHandle,

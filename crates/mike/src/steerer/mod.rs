@@ -9,7 +9,6 @@ pub(crate) mod guard;
 pub use guard::test_seams as guard_test_seams;
 pub(crate) mod inject;
 pub(crate) mod intake_criteria;
-pub(crate) mod machine_text;
 pub(crate) mod model_catalogue;
 pub(crate) mod note_policy;
 pub(crate) mod refocus;

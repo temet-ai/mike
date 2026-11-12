@@ -1,7 +1,6 @@
 pub(crate) mod cache_gate;
 pub(crate) mod content_blocks;
 pub(crate) mod file_reads;
-pub(crate) mod manifest;
 pub(crate) mod measure;
 pub(crate) mod recovery;
 pub(crate) mod shell_output;

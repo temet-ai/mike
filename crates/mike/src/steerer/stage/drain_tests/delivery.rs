@@ -1,8 +1,8 @@
-use crate::compress::manifest::ManifestBuilder;
 use crate::extract::request::TurnOrigin;
 use crate::reminders::inject::InjectBookkeeping;
 use crate::steerer::stage::drain;
 use crate::store::models::RequestId;
+use crate::wire::manifest::ManifestBuilder;
 
 use super::support::{
     drain_fixture, reverted_row, seed_intervention, seed_request_row, seed_request_row_with_origin,

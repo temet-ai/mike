@@ -6,15 +6,15 @@ use serde::Serialize;
 use super::types::{AsOf, CorrectionItem, DossierInputs, Exclusion, ReactionItem};
 use crate::dossier::build::classify_step::stream_message;
 use crate::dossier::build::resolve::rule_code;
-use crate::dossier::genuine::PromptKind;
-use crate::dossier::genuine::stream::{
-    Effective, StreamMessage, TurnResolution, effective_kinds, resolve_turns,
-};
 use crate::dossier::render::cut::slice_chars;
 use crate::dossier::render::sentences::sentence_containing;
 use crate::store::persistence::dossier_entries::DossierEntryRow;
 use crate::store::persistence::dossier_view::{DossierStreamRow, DossierTurnRow, SessionHeaderRow};
 use crate::store::persistence::prompt_stream::StreamRow;
+use crate::wire::genuine::PromptKind;
+use crate::wire::genuine::stream::{
+    Effective, StreamMessage, TurnResolution, effective_kinds, resolve_turns,
+};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TextWithTime {

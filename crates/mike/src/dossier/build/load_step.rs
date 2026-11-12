@@ -4,12 +4,12 @@ use chrono::{DateTime, Utc};
 
 use super::BUILDER_VERSION;
 use super::classify_step::group_streams;
-use crate::dossier::genuine::stream::StreamMessage;
 use crate::store::persistence::prompt_stream::{StreamSource, StreamWindow};
 use crate::store::persistence::turn_facts::{
     BashUseRecord, SessionRecord, StopFacts, TextFacts, TurnFactsRow, TurnRecord,
 };
 use crate::store::persistence::{PersistError, PersistHandle};
+use crate::wire::genuine::stream::StreamMessage;
 
 pub struct Loaded {
     pub streams: HashMap<i64, Vec<StreamMessage>>,

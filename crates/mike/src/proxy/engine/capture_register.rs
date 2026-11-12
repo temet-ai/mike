@@ -29,7 +29,7 @@ pub(super) struct CaptureAndRegisterArgs<'a> {
     pub(super) observed_unknown_blocks: Option<Value>,
     pub(super) filter_applied: bool,
     pub(super) firing_rule_ids: Vec<i64>,
-    pub(super) manifest: crate::compress::manifest::ManifestBuilder,
+    pub(super) manifest: crate::wire::manifest::ManifestBuilder,
     pub(super) injected_lesson_ids: Vec<i64>,
     pub(super) injected_reminders: Vec<SystemReminder>,
 }
@@ -51,7 +51,7 @@ pub(super) enum CaptureAndRegisterOutcome {
 fn lesson_labels(
     signals: &RequestSignals,
     body: &bytes::Bytes,
-    manifest: &mut crate::compress::manifest::ManifestBuilder,
+    manifest: &mut crate::wire::manifest::ManifestBuilder,
 ) -> (&'static str, Option<String>, Vec<i64>) {
     let lane = if matches!(signals.turn_origin, TurnOrigin::Subagent) {
         "subagent"

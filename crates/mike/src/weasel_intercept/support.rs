@@ -1,8 +1,8 @@
 use bytes::Bytes;
 
 use crate::config::AppState;
-use crate::dossier::genuine::markers;
 use crate::store::models::{InterceptedRequest, RequestId, RequestStatus};
+use crate::wire::genuine::markers;
 
 pub(super) struct LaneIdentity {
     turn_origin: String,

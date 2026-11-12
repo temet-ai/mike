@@ -1,7 +1,7 @@
 use super::turn_lifecycle;
 use super::{PersistError, PersistHandle};
-use crate::dossier::genuine::disposition::{LaneFacts, TurnDisposition, turn_disposition};
-use crate::dossier::genuine::{PromptInput, classify_prompt};
+use crate::wire::genuine::disposition::{LaneFacts, TurnDisposition, turn_disposition};
+use crate::wire::genuine::{PromptInput, classify_prompt};
 use chrono::Utc;
 
 struct AbortedRequestFacts {

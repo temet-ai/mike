@@ -791,7 +791,7 @@ request the listing exposes as `dispatch_request_id`. Historical rows were popul
 | `claude_code_agent_id` | `TEXT NULL` | Captured `x-claude-code-agent-id` header; present only on workflow sub-agent requests. Unindexed — low cardinality per session, not a join key |
 | `predecessor_request_id` | `BIGINT NULL` | FK → `requests.requests(id)` ON DELETE SET NULL; self-referential. Preceding request in the same session/agent-instance chain |
 | `request_number` | `BIGINT NULL` | 1-based session-chronological ordinal, ordered by `(created_at, id)` |
-| `transformation_manifest` | `JSONB NULL` | Opaque per-request `TransformationManifest` (`crates/mike/src/compress/manifest.rs`): ordered original→sent deltas keyed by SHA256 + byte ranges, never content bytes. Unindexed — read whole per request, never filtered on |
+| `transformation_manifest` | `JSONB NULL` | Opaque per-request `TransformationManifest` (`crates/mike/src/wire/manifest.rs`): ordered original→sent deltas keyed by SHA256 + byte ranges, never content bytes. Unindexed — read whole per request, never filtered on |
 
 **Indexes:**
 - `brin_requests_created_at`: `created_at` BRIN(32)

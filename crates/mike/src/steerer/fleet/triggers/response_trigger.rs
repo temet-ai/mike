@@ -12,9 +12,9 @@ use super::{
 };
 use crate::circuit_breaker::CircuitBreaker;
 use crate::steerer::gate::strip_harness_scaffold;
-use crate::steerer::machine_text::{self, MachineTextKind};
 use crate::steerer::verifier::summarise_tool_calls;
 use crate::store::models::{Diagnostic, RequestId};
+use crate::wire::machine_text::{self, MachineTextKind};
 
 fn log_operator_ask_lookup_failed(
     target: &EvalTarget,

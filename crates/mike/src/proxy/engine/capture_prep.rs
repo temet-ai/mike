@@ -3,11 +3,11 @@ use bytes::Bytes;
 use serde_json::Value;
 
 use crate::capture;
-use crate::compress::manifest::{ManifestBuilder, sha256_hex};
 use crate::config::AppState;
 use crate::extract::request::{TurnOrigin, TurnType};
 use crate::extract::signals::RequestSignals;
 use crate::store::models::{InterceptedRequest, RequestId, SystemPromptObservation, ToolResult};
+use crate::wire::manifest::{ManifestBuilder, sha256_hex};
 
 pub(super) struct CapturePrepInputs<'a> {
     pub(super) state: &'a AppState,
@@ -197,7 +197,7 @@ fn close_transformation_manifest(
 fn log_manifest_chain_did_not_close(
     request_id: RequestId,
     session_id: &str,
-    e: &crate::compress::manifest::ChainError,
+    e: &crate::wire::manifest::ChainError,
 ) {
     tracing::warn!(
         request_id = %request_id,

@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Duration, Utc};
 
-use crate::dossier::genuine::repeat::repeat_key;
-use crate::dossier::genuine::stream::{StreamMessage, resolve_turns};
-use crate::dossier::genuine::{PromptInput, classify_prompt};
+use crate::wire::genuine::repeat::repeat_key;
+use crate::wire::genuine::stream::{StreamMessage, resolve_turns};
+use crate::wire::genuine::{PromptInput, classify_prompt};
 
 use super::resolve::{
     NextState, Prior, ResolveContext, TurnRow, is_reclassification, resolve_turns_for_facts,

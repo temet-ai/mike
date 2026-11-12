@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde_json::Value;
 use uuid::Uuid;
 
-use super::blocks::UnknownShapeReason;
+use crate::wire::prompt_blocks::UnknownShapeReason;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Composition {

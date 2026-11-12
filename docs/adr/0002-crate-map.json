@@ -551,6 +551,7 @@
   "user_config": "cli",
   "weasel_intercept": "proxy",
   "web_base": "db",
+  "wire": "wire",
   "work_items": "core",
   "work_registry_worker": "launch",
   "work_threads": "launch",
@@ -647,7 +648,7 @@
  },
  "ratchet": {
   "comment": "Upper bounds checked by scripts/crate-plan --check and scripts/schema-plan --check in the pre-push hook. Lower them when a change reduces the count; never raise them.",
-  "crate_seams": 735,
+  "crate_seams": 692,
   "foreign_writes": 130
  }
 }

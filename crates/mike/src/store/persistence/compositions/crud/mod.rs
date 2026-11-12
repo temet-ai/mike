@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use serde_json::Value;
 
 use super::super::PersistError;
-use crate::compose_prompt::decision::{Composition, CompositionMode};
+use crate::wire::composition::{Composition, CompositionMode};
 
 #[derive(sqlx::FromRow)]
 pub struct CompositionRow {

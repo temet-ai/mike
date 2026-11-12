@@ -3,13 +3,13 @@ use std::collections::{BTreeMap, HashSet};
 use serde_json::Value;
 
 use crate::compress::cache_gate::CacheGate;
-use crate::compress::manifest::{AppliedStage, StageOutcome, TargetEntry, sha256_hex};
 use crate::compress::shell_output::{
     self, ShellOutputLimits, ShellOutputPolicy, ShellOutputReduction,
 };
 use crate::compress::stage::{ARM_CONTROL, ARM_FORWARD};
 use crate::feature_toggles::ResolvedToggles;
 use crate::pipeline::{RequestStage, StageBody, StageContext};
+use crate::wire::manifest::{AppliedStage, StageOutcome, TargetEntry, sha256_hex};
 
 pub(crate) struct ShellOutputCompressionStage;
 
@@ -134,7 +134,7 @@ fn decline(
             rec.would_reduce
         )
     });
-    body.decline_with(crate::compress::manifest::UnchangedStage {
+    body.decline_with(crate::wire::manifest::UnchangedStage {
         stage: STAGE,
         policy_id: STAGE,
         reason_code: if candidate_found {

@@ -1,6 +1,6 @@
-use crate::compress::manifest::AppliedStage;
 use crate::lazy_sections::{self, LazySectionsOutcome};
 use crate::pipeline::{RequestStage, StageBody, StageContext};
+use crate::wire::manifest::AppliedStage;
 
 pub(crate) struct LazySectionsStage;
 
@@ -219,7 +219,7 @@ mod tests {
         assert_eq!(manifest.stages[0].stage, "lazy_sections");
         assert_eq!(
             manifest.stages[0].outcome,
-            crate::compress::manifest::StageOutcome::Unchanged
+            crate::wire::manifest::StageOutcome::Unchanged
         );
         assert_eq!(manifest.stages[0].reason_code, "lazy_sections_no_match");
         Ok(())

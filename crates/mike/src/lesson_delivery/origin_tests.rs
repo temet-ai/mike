@@ -1,6 +1,6 @@
 use super::origin::{MOD_LESSONS_REASON, MOD_LESSONS_STAGE, label_mod_lessons, mod_lesson_ids};
 use super::*;
-use crate::compress::manifest::{ManifestBuilder, StageOutcome};
+use crate::wire::manifest::{ManifestBuilder, StageOutcome};
 
 fn text_body(text: &str) -> Vec<u8> {
     format!(r#"{{"messages":[{{"role":"user","content":[{{"type":"text","text":"{text}"}}]}}]}}"#)

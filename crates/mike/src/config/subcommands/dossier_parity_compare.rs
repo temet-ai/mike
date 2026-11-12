@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::dossier::genuine::disposition::TurnDisposition;
-use crate::dossier::genuine::stream::TurnResolution;
+use crate::wire::genuine::disposition::TurnDisposition;
+use crate::wire::genuine::stream::TurnResolution;
 
 #[derive(Debug, Clone, Deserialize)]
 pub(super) struct J2Row {
@@ -221,8 +221,8 @@ pub(super) fn disposition_change(effect: CaptureEffect, now: TurnDisposition) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dossier::genuine::PromptKind;
-    use crate::dossier::genuine::stream::{Effective, NextGenuine};
+    use crate::wire::genuine::PromptKind;
+    use crate::wire::genuine::stream::{Effective, NextGenuine};
     use chrono::TimeZone;
 
     fn resolution(next: Option<i64>, skipped: &[(&'static str, u32)]) -> TurnResolution {

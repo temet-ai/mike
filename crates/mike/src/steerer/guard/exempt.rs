@@ -28,7 +28,7 @@ pub fn exemption(input: &ExemptInput<'_>) -> Option<String> {
     {
         return Some(format!("session_class:{class}"));
     }
-    crate::dossier::genuine::opened_by_something_else(input.opened_by, input.open_prompt)
+    crate::wire::genuine::opened_by_something_else(input.opened_by, input.open_prompt)
         .then(|| "machine_opened_turn".to_owned())
 }
 

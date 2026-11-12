@@ -183,3 +183,7 @@ pub(crate) fn block2_is_globally_scoped(body: &Value) -> bool {
         .and_then(|arr| arr.get(2))
         .is_some_and(crate::cache_scope::is_globally_scoped)
 }
+
+#[cfg(test)]
+#[path = "prompt_blocks_tests.rs"]
+mod prompt_blocks_tests;

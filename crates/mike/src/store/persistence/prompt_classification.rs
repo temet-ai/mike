@@ -1,7 +1,7 @@
 use serde::Serialize;
 
-use crate::dossier::genuine::{CLASSIFIER_VERSION, CaptureRule, PromptClass};
 use crate::store::persistence::{PersistError, PersistHandle};
+use crate::wire::genuine::{CLASSIFIER_VERSION, CaptureRule, PromptClass};
 
 pub struct ClassificationWrite<'a> {
     pub request_id: i64,

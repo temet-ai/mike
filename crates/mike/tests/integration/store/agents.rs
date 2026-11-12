@@ -1,6 +1,6 @@
-use mike::compose_prompt::decision::CompositionMode;
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::compositions::{NewCompositionParams, PatchCompositionParams};
+use mike::wire::composition::CompositionMode;
 
 use crate::test_db::TestDb;
 

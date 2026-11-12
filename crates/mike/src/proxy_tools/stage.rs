@@ -1,6 +1,6 @@
-use crate::compress::manifest::AppliedStage;
 use crate::pipeline::{RequestStage, StageBody, StageContext};
 use crate::proxy_tools::declare::{self, DeclareOutcome};
+use crate::wire::manifest::AppliedStage;
 
 pub(crate) struct ProxyToolsStage;
 

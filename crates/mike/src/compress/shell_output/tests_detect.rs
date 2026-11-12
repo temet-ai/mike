@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use serde_json::{Value, json};
 
-use crate::compress::manifest::StageOutcome;
 use crate::compress::recovery::CapturedResults;
+use crate::wire::manifest::StageOutcome;
 
 use super::{REDUCTION_MARKER_TAG, ShellOutputLimits, ShellOutputPolicy, reduce_shell_output};
 

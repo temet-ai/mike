@@ -14,7 +14,7 @@ pub(crate) fn strip_harness_scaffold(raw: &str) -> String {
         }
     }
     out.push_str(rest);
-    crate::dossier::genuine::operator_words(out.trim())
+    crate::wire::genuine::operator_words(out.trim())
 }
 
 #[cfg(test)]

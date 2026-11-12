@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use super::{PersistError, PersistHandle};
-use crate::dossier::genuine::markers::{WORKFLOW_HARNESS_USER_PREFIX, WORKFLOW_SUBAGENT_MARKERS};
+use crate::wire::genuine::markers::{WORKFLOW_HARNESS_USER_PREFIX, WORKFLOW_SUBAGENT_MARKERS};
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct RelanePlanRow {

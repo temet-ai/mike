@@ -9,9 +9,9 @@ use super::resolve::{ResolveContext, TurnRow, resolve_selective};
 use super::session_class::{
     ClassResult, LaneSummary, LaunchFacts, SessionClassInput, classify as classify_session,
 };
-use crate::dossier::genuine::PromptKind;
-use crate::dossier::genuine::stream::{StreamMessage, effective_kinds};
 use crate::store::persistence::turn_facts::{SessionRecord, TurnFactsRow, TurnRecord};
+use crate::wire::genuine::PromptKind;
+use crate::wire::genuine::stream::{StreamMessage, effective_kinds};
 
 pub struct SessionRows {
     pub rows: Vec<TurnFactsRow>,

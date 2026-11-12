@@ -58,7 +58,7 @@ async fn source_context(
     let end = (at + usize::from(radius) + 1).min(all.len());
     Ok(SourceContext {
         full_file_path: path.display().to_string(),
-        source_sha256: crate::compress::manifest::sha256_hex(&bytes),
+        source_sha256: crate::wire::manifest::sha256_hex(&bytes),
         first_line: start + 1,
         lines: all[start..end]
             .iter()

@@ -2,7 +2,7 @@ use serde_json::json;
 
 use super::LESSONS_HEADING;
 use super::held::{find, tag_at};
-use crate::compress::manifest::{ManifestBuilder, UnchangedStage};
+use crate::wire::manifest::{ManifestBuilder, UnchangedStage};
 
 pub(super) const MOD_LESSONS_STAGE: &str = "mod_lessons";
 pub(super) const MOD_LESSONS_REASON: &str = "lessons_added_by_mod";

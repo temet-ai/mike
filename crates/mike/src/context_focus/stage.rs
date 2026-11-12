@@ -1,7 +1,7 @@
-use crate::compress::manifest::AppliedStage;
 use crate::context_focus::inject::{self, InjectOutcome};
 use crate::context_focus::{FIELD, STAGE};
 use crate::pipeline::{RequestStage, StageBody, StageContext};
+use crate::wire::manifest::AppliedStage;
 
 pub(crate) struct ContextFocusStage;
 

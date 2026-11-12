@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
-use crate::dossier::genuine::repeat::repeat_key;
-use crate::dossier::genuine::stream::StreamMessage;
-use crate::dossier::genuine::{
-    CLASSIFIER_VERSION, CaptureRule, DispositionClass, PromptClass, PromptInput, PromptKind,
-    classify_prompt,
-};
 use crate::store::persistence::prompt_classification::{ReclassifyRow, capture_rule_code};
 use crate::store::persistence::prompt_stream::StreamRow;
 use crate::store::persistence::turn_facts::{OpenedByRow, PromptToClassify, TurnRecord};
 use crate::store::persistence::{PersistError, PersistHandle};
+use crate::wire::genuine::repeat::repeat_key;
+use crate::wire::genuine::stream::StreamMessage;
+use crate::wire::genuine::{
+    CLASSIFIER_VERSION, CaptureRule, DispositionClass, PromptClass, PromptInput, PromptKind,
+    classify_prompt,
+};
 
 fn reclassify_row(prompt: &PromptToClassify) -> ReclassifyRow {
     let class = classify_prompt(&PromptInput {

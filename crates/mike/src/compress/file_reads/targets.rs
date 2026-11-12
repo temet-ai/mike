@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::compress::manifest::{ByteRange, StageOutcome, TargetEntry, sha256_hex};
+use crate::wire::manifest::{ByteRange, StageOutcome, TargetEntry, sha256_hex};
 
 use super::reason;
 

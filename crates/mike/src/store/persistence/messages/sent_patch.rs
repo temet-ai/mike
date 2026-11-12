@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use crate::compress::manifest::ByteRange;
 use crate::store::persistence::PersistError;
+use crate::wire::manifest::ByteRange;
 
 use super::canonicalize::{CanonicalMessage, invariant};
 use super::delta::SentPatch;

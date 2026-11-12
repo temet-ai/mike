@@ -258,7 +258,7 @@ class Graph:
 
 def seams(cmap, edges):
     found = [(sum(v.values()), a, b, k) for (a, b, k), v in edges.items()
-             if cmap.rank[a] < cmap.rank[b]]
+             if a in cmap.rank and b in cmap.rank and cmap.rank[a] < cmap.rank[b]]
     return sorted(found, reverse=True)
 
 

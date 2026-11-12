@@ -4,10 +4,10 @@ use bytes::Bytes;
 use dashmap::DashSet;
 use serde_json::Value;
 
-use crate::compress::manifest::AppliedStage;
 use crate::config::AppState;
 use crate::pipeline::{RequestStage, StageBody, StageContext, is_session_own_lane};
 use crate::store::models::{ReminderSource, RequestId};
+use crate::wire::manifest::AppliedStage;
 
 use super::client_context::ContextBlock;
 use super::seat_role::{SeatRole, seat_role};

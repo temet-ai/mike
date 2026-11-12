@@ -8,13 +8,13 @@
 
 use bytes::Bytes;
 
-use crate::compress::manifest::{AppliedStage, ManifestBuilder, UnchangedStage};
 use crate::config::AppState;
 use crate::extract::request::TurnOrigin;
 use crate::feature_toggles::ResolvedToggles;
 use crate::filter::FilterConfig;
 use crate::lesson_worker::LessonSnapshot;
 use crate::store::models::RequestId;
+use crate::wire::manifest::{AppliedStage, ManifestBuilder, UnchangedStage};
 
 pub(crate) fn absorb_body_rewrite(
     post_filter_body: &mut Bytes,

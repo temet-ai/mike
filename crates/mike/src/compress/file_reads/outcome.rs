@@ -1,6 +1,6 @@
 use bytes::Bytes;
 
-use crate::compress::manifest::{StageEntry, StageOutcome, TargetEntry};
+use crate::wire::manifest::{StageEntry, StageOutcome, TargetEntry};
 
 use super::policy::{FileReadPolicy, POLICY_ID, POLICY_VERSION, policy_value};
 use super::reason;

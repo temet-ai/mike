@@ -2,7 +2,7 @@ use super::test_support::{
     cache_with, comp_for_role_body, encode_body, svc, test_class, three_block_body,
 };
 use super::*;
-use decision::CompositionMode;
+use crate::wire::composition::CompositionMode;
 use serde_json::json;
 use template::find_subsequence;
 

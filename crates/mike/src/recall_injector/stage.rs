@@ -1,6 +1,6 @@
-use crate::compress::manifest::AppliedStage;
 use crate::pipeline::{RequestStage, StageBody, StageContext};
 use crate::recall_injector::{self, RecallInjectionRequest, RecallInjectorConfig, RecallOutcome};
+use crate::wire::manifest::AppliedStage;
 
 pub(crate) struct RecallInjectorStage;
 

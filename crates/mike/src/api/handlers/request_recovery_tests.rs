@@ -1,5 +1,5 @@
 use super::*;
-use crate::compress::manifest::sha256_hex;
+use crate::wire::manifest::sha256_hex;
 
 #[tokio::test]
 async fn original_result_recovery_survives_file_changes_and_rejects_wrong_hash()

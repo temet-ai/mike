@@ -5,7 +5,7 @@ pub(crate) fn classify_ask_kind(is_first: bool, text: &str) -> &'static str {
     if is_first {
         return "initial";
     }
-    if crate::steerer::machine_text::classify(text).is_some() {
+    if crate::wire::machine_text::classify(text).is_some() {
         return "clarification";
     }
     const CORRECTION_MARKERS: &[&str] = &[
@@ -34,8 +34,8 @@ pub(crate) fn classify_ask_kind(is_first: bool, text: &str) -> &'static str {
 }
 
 pub(crate) fn is_operator_ask(text: &str) -> bool {
-    crate::steerer::machine_text::classify(text).is_none()
-        && !crate::dossier::genuine::is_tool_prompt(text)
+    crate::wire::machine_text::classify(text).is_none()
+        && !crate::wire::genuine::is_tool_prompt(text)
 }
 
 pub(crate) fn written_by_the_operator(entries: Vec<AskLedgerEntryRow>) -> Vec<AskLedgerEntryRow> {
@@ -43,7 +43,7 @@ pub(crate) fn written_by_the_operator(entries: Vec<AskLedgerEntryRow>) -> Vec<As
         .into_iter()
         .filter(|entry| is_operator_ask(&entry.content))
         .map(|mut entry| {
-            entry.content = crate::dossier::genuine::operator_words(&entry.content);
+            entry.content = crate::wire::genuine::operator_words(&entry.content);
             entry
         })
         .collect()

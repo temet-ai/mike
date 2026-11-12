@@ -1,10 +1,10 @@
 use bytes::Bytes;
 
-use crate::compress::manifest::ManifestBuilder;
 use crate::extract::request::TurnOrigin;
 use crate::reminders::inject::InjectBookkeeping;
 use crate::steerer::stage::drain;
 use crate::store::models::{ReminderSource, RequestId, SystemReminder};
+use crate::wire::manifest::ManifestBuilder;
 
 use super::support::{
     drain_fixture, reverted_row, seed_intervention, seed_request_row, user_turn_body,

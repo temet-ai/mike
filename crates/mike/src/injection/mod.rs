@@ -8,9 +8,9 @@ use std::time::{Duration, Instant};
 
 use dashmap::DashMap;
 
-use crate::compress::manifest::sha256_hex;
 use crate::store::RequestStore;
 use crate::store::models::{ReminderSource, SELF_IDENTITY_ID_LINE, SystemReminder};
+use crate::wire::manifest::sha256_hex;
 
 pub(crate) use admission::{ALREADY_IN_REQUEST, Admission, DUPLICATE_CONTENT};
 pub(crate) use policy::{InjectionPolicy, RepeatRule, policy_for};

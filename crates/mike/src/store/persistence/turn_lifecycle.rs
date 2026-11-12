@@ -10,9 +10,9 @@ pub(crate) use inheritance::{
 
 use super::PersistError;
 use super::capture_classification::classify_author_kind;
-use crate::dossier::genuine::disposition::{LaneFacts, TurnDisposition, turn_disposition};
-use crate::dossier::genuine::{PromptInput, classify_prompt};
 use crate::store::models::InterceptedRequest;
+use crate::wire::genuine::disposition::{LaneFacts, TurnDisposition, turn_disposition};
+use crate::wire::genuine::{PromptInput, classify_prompt};
 
 pub(crate) async fn attribute_turn_subject(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,

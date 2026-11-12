@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use serde_json::Value;
 use tracing::warn;
 
-use crate::compress::manifest::{ByteRange, StageOutcome, TargetEntry, sha256_hex};
+use crate::wire::manifest::{ByteRange, StageOutcome, TargetEntry, sha256_hex};
 
 use super::STAGE_NAME;
 use super::detect::extract_content;

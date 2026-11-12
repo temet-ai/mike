@@ -1,7 +1,7 @@
 use bytes::Bytes;
 
-use super::blocks::BlockTriple;
-use super::decision::Composition;
+use crate::wire::composition::Composition;
+use crate::wire::prompt_blocks::BlockTriple;
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum ComposeError {

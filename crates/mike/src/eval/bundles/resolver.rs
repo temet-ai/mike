@@ -13,7 +13,6 @@ use super::components::{
     turn_judge_components,
 };
 use super::{BundleCandidate, BundleCause, BundleIds, BundleRole};
-use crate::compose_prompt::decision::Composition;
 use crate::config::SettingsWriteGuard;
 use crate::config::session_judge::SessionJudgeConfig;
 use crate::config::steerer::JudgeConfig;
@@ -22,6 +21,7 @@ use crate::steerer::refocus::{block2_or_default, build_verdict_system_prompt};
 use crate::steerer::registry::{Steerer, SteererRegistry};
 use crate::store::persistence::eval_bundles::{BuildOrigin, EnsuredBundle, NewBundleRow};
 use crate::store::persistence::{PersistError, PersistHandle};
+use crate::wire::composition::Composition;
 
 const RETRY_INTERVAL: Duration = Duration::from_secs(60);
 

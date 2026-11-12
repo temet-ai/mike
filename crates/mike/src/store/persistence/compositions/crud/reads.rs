@@ -5,7 +5,7 @@ use serde_json::Value;
 use super::super::super::{PersistError, PersistHandle};
 use super::{CompositionRevision, CompositionRevisionRow, CompositionRow};
 use crate::compose_prompt::PromptClassKey;
-use crate::compose_prompt::decision::{Composition, CompositionMode};
+use crate::wire::composition::{Composition, CompositionMode};
 
 impl PersistHandle {
     pub async fn load_prompt_compositions(

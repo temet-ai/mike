@@ -244,9 +244,9 @@ pub async fn record_prompt_kind_classification(
     persist: Option<&PersistHandle>,
     input: PromptKindClassificationInput<'_>,
 ) {
-    use crate::dossier::genuine::repeat::repeat_key;
-    use crate::dossier::genuine::{PromptInput, classify_prompt};
     use crate::extract::request::{TurnOrigin, TurnType};
+    use crate::wire::genuine::repeat::repeat_key;
+    use crate::wire::genuine::{PromptInput, classify_prompt};
 
     let is_operator_turn_opener = matches!(
         input.turn_origin,

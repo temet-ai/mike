@@ -6,13 +6,13 @@ use serde::Serialize;
 use super::allocate::{AllocSection, Allocated, SectionBody, allocate};
 use super::cut::{cut, head_chars};
 use super::judge::{CORR_ASK_CAP, CORR_TEXT_CAP};
-use crate::dossier::genuine::operator_words;
 use crate::dossier::view::full::{
     EntryItem, full_view, genuine_stream, open_turn_text, resolutions,
 };
 use crate::dossier::view::types::{
     CorrectionSource, DossierInputs, Polarity, Reaction, SteererSection,
 };
+use crate::wire::genuine::operator_words;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct RecentReaction {

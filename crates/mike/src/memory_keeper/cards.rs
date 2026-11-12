@@ -1,7 +1,7 @@
 use serde_json::{Value, json};
 
-use crate::compress::manifest::sha256_hex;
 use crate::store::persistence::work_threads::cards::{CardInputs, DirtyThread, NewCard};
+use crate::wire::manifest::sha256_hex;
 
 mod build;
 mod fit;

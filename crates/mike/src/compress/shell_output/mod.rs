@@ -16,7 +16,7 @@ use serde_json::Value;
 use crate::compress::file_reads::splice::{
     PendingSplice, build_candidate, enforce_read_tool_result_boundary, resolve_overlaps,
 };
-use crate::compress::manifest::{StageEntry, StageOutcome, TargetEntry, sha256_hex};
+use crate::wire::manifest::{StageEntry, StageOutcome, TargetEntry, sha256_hex};
 
 use detect::{ShellContext, inspect_tool_result};
 use policy::{POLICY_ID, policy_value};

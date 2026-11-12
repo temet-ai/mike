@@ -6,7 +6,6 @@ use uuid::Uuid;
 
 use super::{ProjectQuery, PromptShaping, get_prompt_shaping};
 use crate::compose_prompt::stage::{TurnIdentity, run};
-use crate::compress::manifest::ManifestBuilder;
 use crate::config::{AppState, ProxyConfig};
 use crate::extract::request::TurnOrigin;
 use crate::filter::stage::FilterStage;
@@ -15,6 +14,7 @@ use crate::lazy_sections::stage::LazySectionsStage;
 use crate::lesson_worker::LessonSnapshot;
 use crate::pipeline::{RequestStage, StageBody, StageContext};
 use crate::store::models::RequestId;
+use crate::wire::manifest::ManifestBuilder;
 
 const BODY: &[u8] =
     br#"{"system":[{"type":"text","text":"keep BANNED-PHRASE here"}],"messages":[]}"#;

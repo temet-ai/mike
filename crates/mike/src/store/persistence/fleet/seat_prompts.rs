@@ -10,7 +10,7 @@ const MIKE_OPENERS: [&str; 6] = [
 pub(super) fn typed_by_person(prompt: &str, seats: &[String]) -> bool {
     let text = prompt.trim_start();
     !text.is_empty()
-        && crate::dossier::genuine::is_genuine_text(text)
+        && crate::wire::genuine::is_genuine_text(text)
         && !MIKE_OPENERS.iter().any(|opener| text.starts_with(opener))
         && !seats.iter().any(|seat| names_seat(text, seat))
 }

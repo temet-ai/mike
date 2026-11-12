@@ -271,13 +271,13 @@ pub(crate) async fn patch_prompt_composition(
         Some(blocks) => Some(validate_blocks_input(blocks)?),
         None => None,
     };
-    let mode_parsed: Option<crate::compose_prompt::decision::CompositionMode> =
-        match body.mode.as_deref() {
-            Some(raw) => Some(parse_supported_mode_input(raw)?),
-            None => None,
-        };
+    let mode_parsed: Option<crate::wire::composition::CompositionMode> = match body.mode.as_deref()
+    {
+        Some(raw) => Some(parse_supported_mode_input(raw)?),
+        None => None,
+    };
     if let Some(mode) = mode_parsed
-        && mode != crate::compose_prompt::decision::CompositionMode::Observe
+        && mode != crate::wire::composition::CompositionMode::Observe
     {
         let Some(existing) = handle
             .fetch_composition_by_id(uuid)

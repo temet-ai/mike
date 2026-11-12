@@ -216,7 +216,7 @@ impl PersistHandle {
     pub async fn list_compositions_for_agent(
         &self,
         agent_id: i64,
-    ) -> Result<Vec<crate::compose_prompt::decision::Composition>, PersistError> {
+    ) -> Result<Vec<crate::wire::composition::Composition>, PersistError> {
         let mut by_agent = self.list_compositions_for_agents(&[agent_id]).await?;
         Ok(by_agent.remove(&agent_id).unwrap_or_default())
     }
@@ -225,7 +225,7 @@ impl PersistHandle {
         &self,
         agent_ids: &[i64],
     ) -> Result<
-        std::collections::HashMap<i64, Vec<crate::compose_prompt::decision::Composition>>,
+        std::collections::HashMap<i64, Vec<crate::wire::composition::Composition>>,
         PersistError,
     > {
         if agent_ids.is_empty() {
@@ -248,10 +248,10 @@ impl PersistHandle {
             .await?;
             let mut out: std::collections::HashMap<
                 i64,
-                Vec<crate::compose_prompt::decision::Composition>,
+                Vec<crate::wire::composition::Composition>,
             > = std::collections::HashMap::new();
             for row in rows {
-                let composition = crate::compose_prompt::decision::Composition::try_from(row)?;
+                let composition = crate::wire::composition::Composition::try_from(row)?;
                 if let Some(agent_id) = composition.agent_id {
                     out.entry(agent_id).or_default().push(composition);
                 }

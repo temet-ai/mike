@@ -1,9 +1,9 @@
 use bytes::Bytes;
 
-use crate::compress::manifest::AppliedStage;
 use crate::extract::request::TurnOrigin;
 use crate::pipeline::{RequestStage, StageBody, StageContext, is_session_own_lane};
 use crate::reminders::{self, RemindersConfig, RemindersOutcome, SessionLessonsRequest};
+use crate::wire::manifest::AppliedStage;
 
 pub(super) struct StageManifestCodes {
     pub(super) stage: &'static str,

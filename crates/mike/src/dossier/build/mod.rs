@@ -20,9 +20,9 @@ mod session_class_tests;
 
 use chrono::{DateTime, Duration, Utc};
 
-use crate::dossier::genuine::CLASSIFIER_VERSION;
 use crate::store::persistence::turn_facts::{OpenedByRow, TurnFactsRow};
 use crate::store::persistence::{PersistError, PersistHandle};
+use crate::wire::genuine::CLASSIFIER_VERSION;
 
 pub const BUILDER_VERSION: &str = "turn-facts-v1";
 

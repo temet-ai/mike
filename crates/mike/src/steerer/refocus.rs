@@ -43,7 +43,7 @@ pub(crate) async fn resolve_composition_block2_text(
 }
 
 pub(crate) fn block2_or_default(
-    compositions: &[crate::compose_prompt::decision::Composition],
+    compositions: &[crate::wire::composition::Composition],
     default: impl Fn() -> String,
 ) -> (String, Option<(i64, i64)>) {
     match compositions.first() {
@@ -55,7 +55,7 @@ pub(crate) fn block2_or_default(
     }
 }
 
-fn block2_text(composition: &crate::compose_prompt::decision::Composition) -> Option<String> {
+fn block2_text(composition: &crate::wire::composition::Composition) -> Option<String> {
     let text = composition
         .blocks
         .get(2)

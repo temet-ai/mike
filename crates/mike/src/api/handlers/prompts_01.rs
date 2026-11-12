@@ -141,11 +141,9 @@ pub(crate) fn parse_prompt_sha256_path(
 
 pub(crate) fn parse_mode_input(
     raw: &str,
-) -> Result<
-    crate::compose_prompt::decision::CompositionMode,
-    (StatusCode, Json<PromptCompositionErrorBody>),
-> {
-    crate::compose_prompt::decision::CompositionMode::from_str(raw).map_err(|_| {
+) -> Result<crate::wire::composition::CompositionMode, (StatusCode, Json<PromptCompositionErrorBody>)>
+{
+    crate::wire::composition::CompositionMode::from_str(raw).map_err(|_| {
         composition_error_response(
             StatusCode::BAD_REQUEST,
             "mode must be one of \"observe\", \"template\", or \"replace\"",
@@ -155,11 +153,9 @@ pub(crate) fn parse_mode_input(
 
 pub(crate) fn parse_supported_mode_input(
     raw: &str,
-) -> Result<
-    crate::compose_prompt::decision::CompositionMode,
-    (StatusCode, Json<PromptCompositionErrorBody>),
-> {
-    use crate::compose_prompt::decision::CompositionMode;
+) -> Result<crate::wire::composition::CompositionMode, (StatusCode, Json<PromptCompositionErrorBody>)>
+{
+    use crate::wire::composition::CompositionMode;
     let parsed = parse_mode_input(raw)?;
     match parsed {
         CompositionMode::Replace => Err(composition_error_response(
@@ -171,10 +167,10 @@ pub(crate) fn parse_supported_mode_input(
 }
 
 pub(crate) fn reject_subagent_alteration(
-    mode: crate::compose_prompt::decision::CompositionMode,
+    mode: crate::wire::composition::CompositionMode,
     lane: &str,
 ) -> Result<(), (StatusCode, Json<PromptCompositionErrorBody>)> {
-    use crate::compose_prompt::decision::CompositionMode;
+    use crate::wire::composition::CompositionMode;
     if lane == "subagent" && mode != CompositionMode::Observe {
         return Err(composition_error_response(
             StatusCode::BAD_REQUEST,
@@ -257,7 +253,7 @@ pub(crate) fn map_agent_persist_error(
 }
 
 pub(crate) fn composition_to_dto(
-    composition: &crate::compose_prompt::decision::Composition,
+    composition: &crate::wire::composition::Composition,
     applied_count_24h: i64,
 ) -> PromptCompositionDto {
     let blocks = composition

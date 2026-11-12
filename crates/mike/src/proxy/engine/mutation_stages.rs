@@ -1,12 +1,12 @@
 use bytes::Bytes;
 
-use crate::compress::manifest::{ManifestBuilder, sha256_hex};
 use crate::config::AppState;
 use crate::extract::signals::RequestSignals;
 use crate::feature_toggles::ResolvedToggles;
 use crate::pipeline;
 use crate::steerer;
 use crate::store::models::{RequestId, SystemReminder};
+use crate::wire::manifest::{ManifestBuilder, sha256_hex};
 
 pub(super) struct MutationStageParams<'a> {
     pub(super) state: &'a AppState,

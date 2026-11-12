@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde_json::{Value, json};
 
-use super::manifest::sha256_hex;
+use crate::wire::manifest::sha256_hex;
 
 pub(crate) struct CapturedResults {
     entries: HashMap<String, Vec<(String, String)>>,

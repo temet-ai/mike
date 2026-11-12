@@ -1,5 +1,5 @@
 use super::PromptKind;
-use crate::steerer::machine_text::{self, MachineTextKind};
+use crate::wire::machine_text::{self, MachineTextKind};
 
 pub fn classify_envelope(last_user_message: &str) -> Option<PromptKind> {
     machine_text::classify(last_user_message).map(|kind| match kind {

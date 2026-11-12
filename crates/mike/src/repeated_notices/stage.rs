@@ -2,8 +2,8 @@ use bytes::Bytes;
 
 use super::body::continues_a_thread;
 use super::{NOTICES, Removed, Seen, memory, scan_body};
-use crate::compress::manifest::AppliedStage;
 use crate::pipeline::{RequestStage, StageBody, StageContext, is_session_own_lane};
+use crate::wire::manifest::AppliedStage;
 
 const STAGE: &str = "repeated_notices";
 

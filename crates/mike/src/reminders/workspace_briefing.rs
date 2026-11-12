@@ -1,12 +1,12 @@
 use bytes::Bytes;
 
 use crate::api::workspace::{Briefing, BriefingBuildRequest, build_workspace_briefing};
-use crate::compress::manifest::AppliedStage;
 use crate::config::AppState;
 use crate::pipeline::{RequestStage, StageBody, StageContext, is_session_own_lane};
 use crate::proxy::engine::workspace_register::await_workspace_registration;
 use crate::proxy::remote_control::inject::PushDeps;
 use crate::store::models::{ReminderSource, RequestId};
+use crate::wire::manifest::AppliedStage;
 
 use super::stage::{StageManifestCodes, record_outcome_without_body_change};
 use super::{PushOrAppendRequest, RemindersOutcome, push_or_append_reminder};

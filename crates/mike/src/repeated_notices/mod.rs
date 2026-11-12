@@ -4,7 +4,7 @@ pub(crate) mod stage;
 
 pub(crate) use body::scan_body;
 
-use crate::dossier::genuine::markers::{MID_TURN_LEAD_IN, MID_TURN_NOTICE, MID_TURN_NOTICE_END};
+use crate::wire::genuine::markers::{MID_TURN_LEAD_IN, MID_TURN_NOTICE, MID_TURN_NOTICE_END};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Place {

@@ -78,7 +78,7 @@ async fn import_one_composition(
             reason: Some("label must not be empty".to_string()),
         };
     }
-    let mode = match crate::compose_prompt::decision::CompositionMode::from_str(&entry.mode) {
+    let mode = match crate::wire::composition::CompositionMode::from_str(&entry.mode) {
         Ok(m) => m,
         Err(_) => {
             return PromptCompositionImportRowResult {

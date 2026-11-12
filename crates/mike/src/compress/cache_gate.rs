@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::Value;
 
-use crate::compress::manifest::sha256_hex;
+use crate::wire::manifest::sha256_hex;
 
 const DEFAULT_TTL: Duration = Duration::from_secs(300);
 const LONG_TTL: Duration = Duration::from_secs(3600);

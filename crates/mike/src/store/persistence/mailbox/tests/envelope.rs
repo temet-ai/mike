@@ -1,6 +1,7 @@
 use chrono::{TimeZone, Utc};
 
-use crate::store::persistence::mailbox::{MailboxEnvelope, is_mail_text};
+use crate::store::persistence::mailbox::MailboxEnvelope;
+use crate::wire::mail_text::is_mail_text;
 
 const FROM: &str = "11111111-2222-3333-4444-555555555555";
 

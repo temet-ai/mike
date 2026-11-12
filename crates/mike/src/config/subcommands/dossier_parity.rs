@@ -13,13 +13,13 @@ use super::dossier_parity_compare::{
     mike_row, summarise,
 };
 use crate::config::{CliOverrides, load};
-use crate::dossier::genuine::disposition::{LaneFacts, TurnDisposition, turn_disposition};
-use crate::dossier::genuine::repeat::repeat_key;
-use crate::dossier::genuine::stream::{StreamMessage, resolve_turns};
-use crate::dossier::genuine::{CaptureRule, PromptClass, PromptInput, PromptKind, classify_prompt};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::dossier_parity_reads::DispositionRequestRow as DispositionRow;
 use crate::store::persistence::prompt_stream::{StreamRow, StreamSource, StreamWindow};
+use crate::wire::genuine::disposition::{LaneFacts, TurnDisposition, turn_disposition};
+use crate::wire::genuine::repeat::repeat_key;
+use crate::wire::genuine::stream::{StreamMessage, resolve_turns};
+use crate::wire::genuine::{CaptureRule, PromptClass, PromptInput, PromptKind, classify_prompt};
 
 const SESSION_CHUNK: usize = 200;
 const SAMPLE_SIZE: usize = 50;

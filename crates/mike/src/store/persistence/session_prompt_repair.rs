@@ -133,8 +133,8 @@ impl PersistHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::compose_prompt::classify::prompt_sha256_from_block_text;
     use crate::store::persistence::test_support;
+    use crate::wire::prompt_classify::prompt_sha256_from_block_text;
     use serde_json::json;
 
     async fn seed_session(pool: &sqlx::PgPool) -> anyhow::Result<i64> {
