@@ -174,29 +174,38 @@ async fn supervise(
                 None => break,
             },
             order = control.recv() => match order {
-                Some(Control::Brief(text)) => {
-                    if let Err(error) = seat.brief(&text).await {
-                        tracing::warn!(error = %error, session_id = %session, "codex seat brief failed");
-                    }
-                }
-                Some(Control::Interrupt(reply)) => {
-                    let result = match &active_turn {
-                        Some(turn) => seat.interrupt(turn).await.map_err(|e| e.to_string()),
-                        None => Err(format!("seat {session} has no turn in progress")),
-                    };
-                    let _ = reply.send(result);
-                }
                 Some(Control::Stop(reply)) => {
                     let _ = reply.send(seat.stop().await.map_err(|e| e.to_string()));
                     SEATS.remove(&session);
                     return;
                 }
+                Some(order) => obey(session, &seat, active_turn.as_deref(), order).await,
                 None => break,
             },
         }
     }
     SEATS.remove(&session);
     let _ = seat.stop().await;
+}
+
+async fn obey(session: Uuid, seat: &CodexSeat, active_turn: Option<&str>, order: Control) {
+    match order {
+        Control::Brief(text) => {
+            if let Err(error) = seat.brief(&text).await {
+                tracing::warn!(error = %error, session_id = %session, "codex seat brief failed");
+            }
+        }
+        Control::Interrupt(reply) => {
+            let result = match active_turn {
+                Some(turn) => seat.interrupt(turn).await.map_err(|e| e.to_string()),
+                None => Err(format!("seat {session} has no turn in progress")),
+            };
+            let _ = reply.send(result);
+        }
+        Control::Stop(reply) => {
+            let _ = reply.send(Err(format!("seat {session} stop arrived outside the loop")));
+        }
+    }
 }
 
 fn track_turn(active: &mut Option<String>, event: &Value) {
