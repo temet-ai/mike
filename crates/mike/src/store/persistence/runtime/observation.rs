@@ -1,5 +1,6 @@
 use chrono::{Duration, Utc};
 use sha2::{Digest, Sha256};
+use sqlx::PgConnection;
 
 use super::{observation_budget, observation_write};
 use crate::runtime::SessionObservation;
@@ -50,42 +51,17 @@ impl PersistHandle {
     ) -> Result<ObservationApplyOutcome, PersistError> {
         observation.validate().map_err(super::invalid)?;
         let encoded = serde_json::to_vec(observation)?;
-        if encoded.len() > limits.max_record_bytes {
-            return Ok(ObservationApplyOutcome::BudgetRefused);
-        }
-        if observation.observed_at < Utc::now() - Duration::days(90) {
-            return Ok(ObservationApplyOutcome::Expired);
+        if let Some(outcome) = refused_before_write(observation, &encoded, limits) {
+            return Ok(outcome);
         }
         let fingerprint = Sha256::digest(&encoded).to_vec();
         let mut tx = self.pool().begin().await?;
-        sqlx::query!(
-            "SELECT retained_rows, retained_bytes FROM runtime.storage_accounting WHERE kind = 'facts' FOR UPDATE"
-        ).fetch_one(&mut *tx).await?;
-        let session = sqlx::query_scalar!(
-            "SELECT id FROM sessions.sessions WHERE session_uuid = $1",
-            observation.session_id
-        )
-        .fetch_one(&mut *tx)
-        .await?;
-        let existing = sqlx::query_scalar!(
-            "SELECT fingerprint FROM runtime.observation_receipts WHERE session_id = $1 AND observation_id = $2",
-            session, observation.observation_id
-        ).fetch_optional(&mut *tx).await?;
-        if let Some(existing) = existing {
-            return if existing == fingerprint {
-                Ok(ObservationApplyOutcome::Replayed)
-            } else {
-                Err(PersistError::DataInvariant(
-                    "observation identity reused with different facts".into(),
-                ))
-            };
+        let session = lock_facts_and_resolve_session(&mut tx, observation).await?;
+        if let Some(outcome) = replay_outcome(&mut tx, session, observation, &fingerprint).await? {
+            return Ok(outcome);
         }
         observation_write::apply(&mut tx, session, observation).await?;
-        sqlx::query!(
-            "INSERT INTO runtime.observation_receipts (session_id, observation_id, fingerprint, observed_at, expires_at)
-             VALUES ($1, $2, $3, $4, now() + interval '1 day')",
-            session, observation.observation_id, fingerprint, observation.observed_at
-        ).execute(&mut *tx).await?;
+        insert_receipt(&mut tx, session, observation, &fingerprint).await?;
         if !observation_budget::admit(&mut tx, session, observation, limits).await? {
             tx.rollback().await?;
             return Ok(ObservationApplyOutcome::BudgetRefused);
@@ -93,4 +69,66 @@ impl PersistHandle {
         tx.commit().await?;
         Ok(ObservationApplyOutcome::Applied)
     }
+}
+
+fn refused_before_write(
+    observation: &SessionObservation,
+    encoded: &[u8],
+    limits: &ObservationLimits,
+) -> Option<ObservationApplyOutcome> {
+    if encoded.len() > limits.max_record_bytes {
+        return Some(ObservationApplyOutcome::BudgetRefused);
+    }
+    if observation.observed_at < Utc::now() - Duration::days(90) {
+        return Some(ObservationApplyOutcome::Expired);
+    }
+    None
+}
+
+async fn lock_facts_and_resolve_session(
+    connection: &mut PgConnection,
+    observation: &SessionObservation,
+) -> Result<i64, sqlx::Error> {
+    sqlx::query!(
+        "SELECT retained_rows, retained_bytes FROM runtime.storage_accounting WHERE kind = 'facts' FOR UPDATE"
+    ).fetch_one(&mut *connection).await?;
+    sqlx::query_scalar!(
+        "SELECT id FROM sessions.sessions WHERE session_uuid = $1",
+        observation.session_id
+    )
+    .fetch_one(connection)
+    .await
+}
+
+async fn replay_outcome(
+    connection: &mut PgConnection,
+    session: i64,
+    observation: &SessionObservation,
+    fingerprint: &[u8],
+) -> Result<Option<ObservationApplyOutcome>, PersistError> {
+    let existing = sqlx::query_scalar!(
+        "SELECT fingerprint FROM runtime.observation_receipts WHERE session_id = $1 AND observation_id = $2",
+        session, observation.observation_id
+    ).fetch_optional(connection).await?;
+    match existing {
+        None => Ok(None),
+        Some(existing) if existing == fingerprint => Ok(Some(ObservationApplyOutcome::Replayed)),
+        Some(_) => Err(PersistError::DataInvariant(
+            "observation identity reused with different facts".into(),
+        )),
+    }
+}
+
+async fn insert_receipt(
+    connection: &mut PgConnection,
+    session: i64,
+    observation: &SessionObservation,
+    fingerprint: &[u8],
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        "INSERT INTO runtime.observation_receipts (session_id, observation_id, fingerprint, observed_at, expires_at)
+             VALUES ($1, $2, $3, $4, now() + interval '1 day')",
+        session, observation.observation_id, fingerprint, observation.observed_at
+    ).execute(connection).await?;
+    Ok(())
 }

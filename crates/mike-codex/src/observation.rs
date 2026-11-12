@@ -40,7 +40,7 @@ pub struct ItemUpdate {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NotificationObservation {
-    Session(SessionUpdate),
+    Session(Box<SessionUpdate>),
     Gap { dropped: u64 },
 }
 
@@ -65,7 +65,7 @@ pub fn observe_notification(event: &Value) -> Option<NotificationObservation> {
         "item/started" | "item/completed" | "thread/tokenUsage/updated" => None,
         _ => return None,
     };
-    Some(NotificationObservation::Session(SessionUpdate {
+    Some(NotificationObservation::Session(Box::new(SessionUpdate {
         thread_id: thread.to_owned(),
         lifecycle,
         observed_model: params
@@ -76,7 +76,7 @@ pub fn observe_notification(event: &Value) -> Option<NotificationObservation> {
             .then(|| usage(params))
             .flatten(),
         item: item(method, params),
-    }))
+    })))
 }
 
 fn item(method: &str, params: &Value) -> Option<ItemUpdate> {

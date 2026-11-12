@@ -46,28 +46,40 @@ pub(crate) async fn sweep(persist: &PersistHandle) -> Result<Vec<(Uuid, Outcome)
     let mut outcomes = Vec::new();
     let mut queue_jobs = tokio::task::JoinSet::new();
     for message in store::open_messages(pool, DELIVER_BATCH).await? {
-        let Some(mail) = store::load(pool, message).await? else {
-            continue;
-        };
-        if mail.runtime == Some(Runtime::Codex) && !crate::launch::codex::live_seat(mail.to) {
-            if let Some(outcome) = handle_external(persist, &mail, &mut queue_jobs).await? {
-                outcomes.push((message, outcome));
-            }
-            continue;
+        if let Some(outcome) = settle_message(persist, message, &mut queue_jobs).await? {
+            outcomes.push((message, outcome));
         }
-        let Some(recipient) = recipient_for(persist, &mail).await else {
-            continue;
-        };
-        let outcome = deliver(pool, recipient.as_ref(), message).await?;
-        log_settled(pool, message, &outcome).await?;
-        outcomes.push((message, outcome));
     }
+    drain_queue_jobs(&mut queue_jobs).await;
+    Ok(outcomes)
+}
+
+async fn settle_message(
+    persist: &PersistHandle,
+    message: Uuid,
+    queue_jobs: &mut tokio::task::JoinSet<()>,
+) -> Result<Option<Outcome>, PersistError> {
+    let pool = persist.pool();
+    let Some(mail) = store::load(pool, message).await? else {
+        return Ok(None);
+    };
+    if mail.runtime == Some(Runtime::Codex) && !crate::launch::codex::live_seat(mail.to) {
+        return Ok(handle_external(persist, &mail, queue_jobs).await?);
+    }
+    let Some(recipient) = recipient_for(persist, &mail).await else {
+        return Ok(None);
+    };
+    let outcome = deliver(pool, recipient.as_ref(), message).await?;
+    log_settled(pool, message, &outcome).await?;
+    Ok(Some(outcome))
+}
+
+async fn drain_queue_jobs(queue_jobs: &mut tokio::task::JoinSet<()>) {
     while let Some(result) = queue_jobs.join_next().await {
         if let Err(error) = result {
             tracing::warn!(error = %error, "Codex mailbox notification task failed");
         }
     }
-    Ok(outcomes)
 }
 
 async fn handle_external(

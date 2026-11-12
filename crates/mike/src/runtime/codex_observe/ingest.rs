@@ -70,42 +70,20 @@ pub(crate) async fn ingest_hook(
     let payload = HookPayload::parse(raw).map_err(IngestError::BadInput)?;
     let namespace = source_namespace(persist, source).await?;
     let scope = payload.scope();
-    let session = match scope.parent_thread_id.as_deref() {
-        Some(parent) => {
-            identity::resolve_child(persist, &namespace, parent, &scope.thread_id).await?
-        }
-        None => identity::resolve(persist, &namespace, &scope.thread_id).await?,
-    };
+    let parent = scope.parent_thread_id.as_deref();
+    let session = resolve_hook_session(persist, &namespace, parent, &scope.thread_id).await?;
     let observation = session::hook(persist, source, session, delivery_id, &payload).await?;
-    let replayed = persist
-        .session_observation_time(session, delivery_id)
-        .await?
-        .is_some();
-    if !replayed {
-        if matches!(
-            payload.event(),
-            HookEvent::SessionEnd | HookEvent::SubagentStop
-        ) {
-            identity::end(persist, session).await?;
-        } else {
-            identity::register(persist, session, payload.cwd.as_deref()).await?;
-        }
-    }
+    sync_lifecycle(persist, session, delivery_id, &payload).await?;
     let outcome = persist.apply_session_observation(&observation).await?;
     let mut report = report(namespace.id, delivery_id, outcome);
     report.mike_session_id = Some(session);
-    report.control = if source.hook_boundary && scope.parent_thread_id.is_none() {
+    let boundary = source.hook_boundary && parent.is_none();
+    report.control = if boundary {
         "hook_boundary"
     } else {
         "pull_only"
     };
-    if source.hook_boundary
-        && scope.parent_thread_id.is_none()
-        && matches!(
-            outcome,
-            ObservationApplyOutcome::Applied | ObservationApplyOutcome::Replayed
-        )
-    {
+    if boundary && outcome_applied_or_replayed(outcome) {
         crate::mail_outbox::observe_local_codex(
             persist,
             session,
@@ -118,6 +96,49 @@ pub(crate) async fn ingest_hook(
         report.pending_mail = persist.pending_runtime_mail(session, 20).await?;
     }
     Ok(report)
+}
+
+fn outcome_applied_or_replayed(outcome: ObservationApplyOutcome) -> bool {
+    matches!(
+        outcome,
+        ObservationApplyOutcome::Applied | ObservationApplyOutcome::Replayed
+    )
+}
+
+async fn resolve_hook_session(
+    persist: &PersistHandle,
+    namespace: &RuntimeNamespace,
+    parent: Option<&str>,
+    thread: &str,
+) -> Result<Uuid, IngestError> {
+    match parent {
+        Some(parent) => identity::resolve_child(persist, namespace, parent, thread).await,
+        None => identity::resolve(persist, namespace, thread).await,
+    }
+}
+
+async fn sync_lifecycle(
+    persist: &PersistHandle,
+    session: Uuid,
+    delivery_id: Uuid,
+    payload: &HookPayload,
+) -> Result<(), IngestError> {
+    let replayed = persist
+        .session_observation_time(session, delivery_id)
+        .await?
+        .is_some();
+    if replayed {
+        return Ok(());
+    }
+    if matches!(
+        payload.event(),
+        HookEvent::SessionEnd | HookEvent::SubagentStop
+    ) {
+        identity::end(persist, session).await?;
+    } else {
+        identity::register(persist, session, payload.cwd.as_deref()).await?;
+    }
+    Ok(())
 }
 
 fn report(

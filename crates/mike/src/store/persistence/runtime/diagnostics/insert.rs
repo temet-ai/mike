@@ -109,13 +109,13 @@ async fn admitted(
         && used.bytes <= limits.max_session_bytes)
 }
 
-async fn insert(
-    connection: &mut PgConnection,
-    e: &DiagnosticExchange,
-    session: Option<i64>,
-    status: EvidenceStatus,
-    ttl: i64,
-) -> Result<i64, sqlx::Error> {
+struct RetainedBodies<'a> {
+    request: Option<&'a [u8]>,
+    forwarded: Option<&'a [u8]>,
+    response: Option<&'a [u8]>,
+}
+
+fn retained_bodies(e: &DiagnosticExchange, status: EvidenceStatus) -> RetainedBodies<'_> {
     let keep = status == EvidenceStatus::Retained;
     let request = keep.then_some(e.request_body.as_deref()).flatten();
     let forwarded = keep
@@ -123,40 +123,63 @@ async fn insert(
         .flatten()
         .filter(|body| Some(*body) != request);
     let response = keep.then_some(e.response_body.as_deref()).flatten();
-    sqlx::query_file_scalar!(
-        "src/store/persistence/runtime/diagnostics/insert.sql",
-        session,
-        e.provider_session_id,
-        e.provider_thread_id,
-        e.provider_turn_id,
-        e.request_kind,
-        e.correlation,
-        e.auth_route,
-        e.transport,
-        e.method,
-        e.path,
-        e.upstream_url,
-        e.request_headers,
-        e.forwarded_headers,
+    RetainedBodies {
         request,
         forwarded,
-        e.request_body_encoding,
-        e.model,
-        e.response_status,
-        e.response_headers,
         response,
-        e.upstream_request_id,
-        e.response_id,
-        e.response_model,
-        e.response_state,
-        e.usage,
-        e.stream_events,
-        e.error,
-        e.status,
-        e.created_at,
-        status.as_str(),
-        ttl as f64
-    )
-    .fetch_one(connection)
-    .await
+    }
+}
+
+async fn insert(
+    connection: &mut PgConnection,
+    e: &DiagnosticExchange,
+    session: Option<i64>,
+    status: EvidenceStatus,
+    ttl: i64,
+) -> Result<i64, sqlx::Error> {
+    let bodies = retained_bodies(e, status);
+    insert_row(connection, e, session, &bodies, (status, ttl)).await
+}
+
+async fn insert_row(
+    connection: &mut PgConnection,
+    e: &DiagnosticExchange,
+    session: Option<i64>,
+    bodies: &RetainedBodies<'_>,
+    (status, ttl): (EvidenceStatus, i64),
+) -> Result<i64, sqlx::Error> {
+    sqlx::query_scalar(include_str!("insert.sql"))
+        .bind(session)
+        .bind(&e.provider_session_id)
+        .bind(&e.provider_thread_id)
+        .bind(&e.provider_turn_id)
+        .bind(&e.request_kind)
+        .bind(&e.correlation)
+        .bind(&e.auth_route)
+        .bind(&e.transport)
+        .bind(&e.method)
+        .bind(&e.path)
+        .bind(&e.upstream_url)
+        .bind(&e.request_headers)
+        .bind(&e.forwarded_headers)
+        .bind(bodies.request)
+        .bind(bodies.forwarded)
+        .bind(&e.request_body_encoding)
+        .bind(&e.model)
+        .bind(e.response_status)
+        .bind(&e.response_headers)
+        .bind(bodies.response)
+        .bind(&e.upstream_request_id)
+        .bind(&e.response_id)
+        .bind(&e.response_model)
+        .bind(&e.response_state)
+        .bind(&e.usage)
+        .bind(e.stream_events)
+        .bind(&e.error)
+        .bind(&e.status)
+        .bind(e.created_at)
+        .bind(status.as_str())
+        .bind(ttl as f64)
+        .fetch_one(connection)
+        .await
 }

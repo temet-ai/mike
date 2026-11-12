@@ -18,36 +18,82 @@ async fn run_retention_sweep_tick(
     orphan_batch_size: i64,
 ) -> RetentionSweepOutcome {
     let now = chrono::Utc::now();
-    let sessions_removed = match persist.sweep_expired_sessions(default_ttl, now).await {
-        Ok(n) => n,
-        Err(e) => {
-            log_session_sweep_failed(&e);
-            0
-        }
-    };
-
-    let messages_removed = match persist.sweep_orphaned_messages(orphan_batch_size).await {
-        Ok(n) => n,
-        Err(e) => {
-            log_orphan_sweep_failed(&e);
-            0
-        }
-    };
-
-    match persist
-        .sweep_runtime_observations(now, orphan_batch_size)
-        .await
-    {
-        Ok(outcome) => tracing::info!(?outcome, "runtime observation retention complete"),
-        Err(error) => tracing::warn!(%error, "runtime observation retention failed"),
-    }
+    let sessions_removed = sweep_sessions(persist, default_ttl, now).await;
+    let messages_removed = sweep_orphans(persist, orphan_batch_size).await;
+    sweep_runtime(persist, now, orphan_batch_size).await;
 
     tracing::info!(
         sessions_removed,
         messages_removed,
         "retention_sweep: tick complete"
     );
+    record_tick_metrics(now, sessions_removed, messages_removed);
 
+    RetentionSweepOutcome {
+        sessions_removed,
+        messages_removed,
+    }
+}
+
+async fn sweep_sessions(
+    persist: &PersistHandle,
+    default_ttl: Duration,
+    now: chrono::DateTime<chrono::Utc>,
+) -> u64 {
+    match persist.sweep_expired_sessions(default_ttl, now).await {
+        Ok(n) => n,
+        Err(e) => {
+            log_session_sweep_failed(&e);
+            0
+        }
+    }
+}
+
+async fn sweep_orphans(persist: &PersistHandle, orphan_batch_size: i64) -> u64 {
+    match persist.sweep_orphaned_messages(orphan_batch_size).await {
+        Ok(n) => n,
+        Err(e) => {
+            log_orphan_sweep_failed(&e);
+            0
+        }
+    }
+}
+
+async fn sweep_runtime(
+    persist: &PersistHandle,
+    now: chrono::DateTime<chrono::Utc>,
+    orphan_batch_size: i64,
+) {
+    let result = persist
+        .sweep_runtime_observations(now, orphan_batch_size)
+        .await;
+    log_runtime_sweep(&result);
+}
+
+fn log_runtime_sweep(
+    result: &Result<crate::store::persistence::runtime::RuntimeRetentionOutcome, PersistError>,
+) {
+    match result {
+        Ok(outcome) => log_runtime_sweep_complete(outcome),
+        Err(error) => log_runtime_sweep_failed(error),
+    }
+}
+
+fn log_runtime_sweep_complete(
+    outcome: &crate::store::persistence::runtime::RuntimeRetentionOutcome,
+) {
+    tracing::info!(?outcome, "runtime observation retention complete");
+}
+
+fn log_runtime_sweep_failed(error: &PersistError) {
+    tracing::warn!(%error, "runtime observation retention failed");
+}
+
+fn record_tick_metrics(
+    now: chrono::DateTime<chrono::Utc>,
+    sessions_removed: u64,
+    messages_removed: u64,
+) {
     metrics::counter!(crate::metrics::COUNTER_RETENTION_SWEEP_TICKS_TOTAL).increment(1);
     metrics::gauge!(crate::metrics::GAUGE_RETENTION_SWEEP_LAST_RUN_UNIX_SECONDS)
         .set(now.timestamp() as f64);
@@ -55,11 +101,6 @@ async fn run_retention_sweep_tick(
         .increment(sessions_removed);
     metrics::counter!(crate::metrics::COUNTER_RETENTION_SWEEP_MESSAGES_REMOVED_TOTAL)
         .increment(messages_removed);
-
-    RetentionSweepOutcome {
-        sessions_removed,
-        messages_removed,
-    }
 }
 
 fn log_session_sweep_failed(e: &PersistError) {

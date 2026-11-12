@@ -128,10 +128,10 @@ fn due_for_registration(state: &ResponsesState, session: uuid::Uuid) -> bool {
     if seen.contains_key(&session) {
         return false;
     }
-    if seen.len() == 1024 {
-        if let Some(oldest) = seen.iter().min_by_key(|(_, at)| **at).map(|(key, _)| *key) {
-            seen.remove(&oldest);
-        }
+    if seen.len() == 1024
+        && let Some(oldest) = seen.iter().min_by_key(|(_, at)| **at).map(|(key, _)| *key)
+    {
+        seen.remove(&oldest);
     }
     seen.insert(session, now);
     true
