@@ -36,6 +36,8 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::mailbox_reaper::spawn_mailbox_reaper(state);
 
+    crate::mail_outbox::spawn_mail_outbox(state);
+
     crate::work_registry_worker::spawn_work_registry_worker(state);
 
     crate::eval_metrics::spawn_eval_metrics_worker(state);

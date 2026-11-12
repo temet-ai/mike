@@ -52,6 +52,7 @@ pub mod lesson_worker;
 pub mod llm;
 pub(crate) mod logged;
 pub(crate) mod machine_identity;
+pub(crate) mod mail_outbox;
 pub mod mailbox_reaper;
 pub(crate) mod mcp_channel;
 pub mod memory_cap;

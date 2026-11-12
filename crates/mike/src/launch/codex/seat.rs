@@ -96,6 +96,10 @@ impl CodexSeat {
             .ok_or_else(|| shape("turn/start", "turn.id", &answer))
     }
 
+    pub async fn call(&self, method: &str, params: Value) -> Result<Value, CodexError> {
+        self.server.call(method, params).await
+    }
+
     pub async fn interrupt(&self, turn_id: &str) -> Result<(), CodexError> {
         self.server
             .call(

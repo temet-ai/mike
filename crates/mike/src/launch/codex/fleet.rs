@@ -16,6 +16,7 @@ enum Control {
     Brief(String),
     Interrupt(oneshot::Sender<Result<(), String>>),
     Stop(oneshot::Sender<Result<(), String>>),
+    Call(String, Value, oneshot::Sender<Result<Value, CodexError>>),
 }
 
 static SEATS: LazyLock<DashMap<Uuid, mpsc::UnboundedSender<Control>>> = LazyLock::new(DashMap::new);
@@ -205,7 +206,17 @@ async fn obey(session: Uuid, seat: &CodexSeat, active_turn: Option<&str>, order:
         Control::Stop(reply) => {
             let _ = reply.send(Err(format!("seat {session} stop arrived outside the loop")));
         }
+        Control::Call(method, params, reply) => {
+            let _ = reply.send(seat.call(&method, params).await);
+        }
     }
+}
+
+pub async fn call_seat(session: Uuid, method: &str, params: Value) -> Result<Value, CodexError> {
+    let (tx, rx) = oneshot::channel();
+    send(session, Control::Call(method.to_string(), params, tx))
+        .map_err(|_| CodexError::Closed("seat control"))?;
+    rx.await.map_err(|_| CodexError::Closed("seat reply"))?
 }
 
 fn track_turn(active: &mut Option<String>, event: &Value) {

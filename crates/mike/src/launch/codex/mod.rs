@@ -9,11 +9,13 @@ mod seat;
 
 pub use contract::{SeatKind, render_contract};
 pub use fleet::{
-    SeatLaunch, begin as begin_fleet_seat, brief_seat, identity as seat_identity, interrupt_seat,
-    live_seat, stop_seat,
+    SeatLaunch, begin as begin_fleet_seat, brief_seat, call_seat, identity as seat_identity,
+    interrupt_seat, live_seat, stop_seat,
 };
 pub use model::{CODEX_EFFORTS, agent_problem, effort_problem, model_problem};
 pub use options::{McpBinding, SeatOptions, seat_codex_home};
+#[cfg(test)]
+pub(crate) use options::{operator_codex_home, prepare_home};
 pub use plan::{begin_planned, seat_options};
 pub use register::{CODEX_BACKEND, CODEX_BACKEND_REASON, bind_seat_thread, namespace_for};
 pub use seat::{CodexSeat, TurnOutcome};
