@@ -180,10 +180,10 @@ pub(super) fn ack_session_message_tool() -> Tool {
              re-injected into every eligible turn until it exhausts its attempts and \
              dead-letters, so ack a message once you have acted on it or recorded it. \
              Idempotent: acking an already-acked message succeeds and returns the original \
-             `consumed_at`. Returns `{message_uuid, consumed_at}`. Served only under the `full` \
-             profile: mail is marked read when your next tool call follows it, so a session \
-             calls this only to decline a message it will not act on, or when a session outside \
-             a fleet needs the explicit acknowledgement (MIKE_MCP_PROFILE=full).",
+             `consumed_at`. Returns `{message_uuid, consumed_at}`. Available in the core profile. \
+             After reading a message with get_session_messages, acknowledge it when you have \
+             recorded or acted on it, or explicitly declined it. A hook notice or queued wakeup \
+             alone is not proof that you read or acted on the message.",
         ),
         schema,
     )

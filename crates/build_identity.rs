@@ -5,21 +5,12 @@ const UNKNOWN: &str = "unknown";
 const MBX_BUILD: &str = "mbx-build";
 const DEV_BUILD: &str = "dev-build";
 
-/// Stamps the build with its source identity.
-///
-/// Only a build that ships or runs as the stack carries the real commit: the
-/// release profile (releases, `make install`), or any profile with
-/// `MIKE_BUILD_IDENTITY=git` (the deploy and run scripts). Every other build —
-/// the checks and tests of the edit loop — gets a fixed identity and watches no
-/// git file, so a commit or branch switch does not recompile the crate.
 pub fn emit_build_identity(manifest_dir: &Path) {
     let repo_root = manifest_dir.join("../..");
 
     println!("cargo:rerun-if-env-changed=MIKE_BUILD_CACHE");
     println!("cargo:rerun-if-env-changed=MIKE_BUILD_IDENTITY");
     println!("cargo:rerun-if-env-changed=SOURCE_DATE_EPOCH");
-    // Without any rerun-if-changed, cargo would rerun the script on every file
-    // change in the package; anchor it to this file instead.
     println!(
         "cargo:rerun-if-changed={}",
         manifest_dir.join("../build_identity.rs").display()

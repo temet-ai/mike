@@ -2,14 +2,14 @@
 title: Database Schema Reference
 status: active
 created: 2026-05-01
-updated: 2026-11-09
-summary: Reference for mike's multi-schema Postgres database — tables, columns, FKs, indexes, views, and triggers. Every table a migration creates has a section (223 sections); the migrations are the source of truth.
+updated: 2026-11-12
+summary: Reference for mike's multi-schema Postgres database — tables, columns, FKs, indexes, views, and triggers. The migrations are the source of truth.
 ---
 
 # Database Schema Reference
 
 **Scope:** this is a maintained reference, not an exhaustive generated schema dump. It
-gives every table a migration creates its own section (223 in all). Where a definition here disagrees
+documents tables by domain. Where a definition here disagrees
 with `crates/mike/src/store/persistence/migrations/`, the ordered migrations are authoritative.
 
 The proxy's Postgres database captures, persists, and exposes every Claude API request that flows through the
@@ -34,7 +34,7 @@ Schemas:
 |---|---|
 | `projects` | Project metadata |
 | `sessions` | Session lifecycle |
-| `runtime` | Durable provider identity and original runtime observations |
+| `runtime` | Durable provider identity, bounded common observations and optional diagnostic evidence |
 | `messages` | Deduped message-body store + role vocab |
 | `system_prompts` | Deduped system-prompt store + block-layout vocab |
 | `rules` | Filter rules + volatile-line patterns + kind/action/source vocab |
@@ -56,6 +56,7 @@ Schemas:
 | `remote_control` | Remote Control channels, frames and session links |
 | `work` | Work threads, criteria, items and attention tracking |
 | `eval` | Evaluation bundles, labels, runs, rates and alarms |
+| `wright` | Wright's checks (`checks`), their runs, problems and episodes |
 | `mike` | Read-API views and row-change notification functions |
 
 ---
@@ -271,10 +272,59 @@ analyzer (a category analyzer or `weasel_intercept`), overlaid on top of
 
 ## Domain: `runtime`
 
-Added by `20261013130000_runtime_identity_events.sql`. This is the C01 identity and raw-event
-foundation; managed Codex execution and normalized reader coverage remain pending. See
-[`RUNTIME_CONTRACT.md`](RUNTIME_CONTRACT.md) for validation, exact replay semantics and the
-request-dependent reader audit. These tables never synthesize `requests.requests` rows.
+The identity foundation was added by `20261013130000_runtime_identity_events.sql`.
+The `20261112130000`–`20261112130500` migrations add bounded common observations,
+diagnostic retention and mail notification state. Common views serve roster, fleet status
+and session summary without synthesizing Claude request rows. See
+[`RUNTIME_CONTRACT.md`](RUNTIME_CONTRACT.md) for the remaining reader audit and
+[`CODEX_CAPTURE.md`](CODEX_CAPTURE.md) for quota and expiry policy.
+
+### `runtime.storage_accounting`
+
+One row per storage class (`facts`, `diagnostics`), holding retained rows and logical bytes.
+Admission locks this row inside the write transaction. Accounting triggers include updates,
+deletions and cascades; these are logical limits, not a physical Postgres disk-size promise.
+
+### `runtime.session_facts`
+
+One row per session, cascading on session deletion. Stores runtime, source provenance,
+independently ordered lifecycle/control/model/usage facts and nullable token counts.
+No prompt, tool input, tool output or response text is retained.
+
+### `runtime.observation_receipts`
+
+Primary key `(session_id, observation_id)`. A fingerprint detects conflicting retries;
+the receipt and its facts commit atomically. Receipts expire after one day and have an
+expiry index. Replayed expired observations cannot recreate expired history.
+
+### `runtime.model_calls`
+
+Unique `(session_id, call_id)`. Stores source, requested/observed model, status,
+duration, HTTP status and nullable usage. Session/time and expiry indexes support readers
+and cleanup. Common views adapt existing Claude requests without copying their payloads.
+
+### `runtime.session_items`
+
+Unique `(session_id, item_id)`. Stores item/turn identity, kind/name, status, outcome and
+provenance. Pagination uses immutable `(first_seen_at DESC, id DESC)`; updates change
+`observed_at`. Content availability is explicitly `not_collected`.
+
+### `runtime.notification_targets`
+
+One verified local home/thread target per session, with a verification timestamp.
+Targets count against the facts budget and expire; they do not contain mail bodies.
+
+### `runtime.session_identities`
+
+One row per quota-admitted runtime session, reserving 64 KiB for its host identity and
+registration. Session creation and reservation are atomic; deletion refunds the reservation.
+Namespace and thread metadata are separately charged and size-bounded.
+
+### `runtime.project_identities`
+
+One row per runtime-created project, reserving 16 KiB. The reservation survives deletion of
+its last session, so orphaned projects cannot bypass the global facts budget. Project
+deletion cascades to this row and refunds it.
 
 ### `runtime.namespaces`
 
@@ -1106,6 +1156,19 @@ the persona block; NULL when the system array has fewer than 3 blocks).
 
 `tools.uses_v` (below) LEFT JOINs this view for `is_subagent`/`persona_text`, reading NULL — honest
 "unknown", not false — when the owning request carries no captured body.
+
+### `requests.sessionless_requests`
+
+Requests that arrive with no usable `x-claude-code-session-id`. The proxy forwards them unchanged and
+keeps them here, so no session owns them. Claude Code sends several control-plane calls this way:
+`GET /v1/mcp_servers`, `POST /v1/design/mcp`, `POST /v1/code/sessions` (creating a Remote Control
+channel) and `GET /v1/ultrareview/quota`. Columns: `reason` (`missing_session_header`,
+`malformed_session_header`, `non_utf8_session_header`), `method`, `path`, `query`, `user_agent`,
+`request_headers` (`[name, value]` pairs, with credentials masked), `request_body` (whole),
+`response_status`, `response_headers`, `response_body`, `response_body_size` (every byte upstream sent) and
+`response_body_refused`. When the body was larger than `max_response_body_bytes`, `response_body` is NULL
+and this column is true: the body is refused whole, never shortened. `status` is `complete`, `error` or
+`aborted` (the client went away first). Also `error`, `created_at` and `completed_at`.
 
 ---
 
@@ -4468,6 +4531,14 @@ Query with `select * from steering.eir_timing_v where row_kind = 'fire'`.
 
 ## Domain: `mailbox`
 
+### `mailbox.runtime_notifications`
+
+One row per message, cascading on message deletion. Stores a bounded external queue
+attempt (`attempted`, `queued`, `uncertain`, `failed`), timestamps and diagnostic detail.
+Queue acceptance is not consumption: mailbox acknowledgements settle delivery separately.
+Selection excludes already attempted notifications so old external mail cannot starve
+new messages or managed delivery.
+
 Added in migration `20260630000002_session_mailbox.sql`. Inter-session message delivery and reminder injection tracking.
 
 ### `mailbox.messages`
@@ -6214,6 +6285,32 @@ restart. About fifteen rows a day per machine; no retention sweep.
 | `retry_after` | `TIMESTAMPTZ NULL` | The schedule's backoff hold after this run; `NULL` when none |
 
 **Indexes:** `idx_jobs_runs_job_started`: `(job_name, started_at DESC)` — the latest-run reads.
+
+---
+
+## Domain: `wright`
+
+### `wright.checks`
+
+Added in migration `20261112090000_wright_checks.sql` (temet-ai/mike#72). One row per Wright check;
+the watch worker loads the enabled rows due for each pass (`PersistHandle::enabled_wright_checks`).
+Seeded with eleven checks. `GET/POST /api/wright/checks`, `PATCH/DELETE /api/wright/checks/{name}`
+and the `wright_checks` MCP tool read and write it while mike runs.
+
+| Column | Type | Purpose |
+|---|---|---|
+| `name` | `TEXT PRIMARY KEY` | `^[a-z][a-z0-9_]{2,62}$` (CHECK) |
+| `source` | `TEXT NOT NULL` | `logs`, `capture_db`, `mcp_tools`, `page`, `hooks`, `workers` or `sessions` (CHECK) |
+| `cadence` | `TEXT NOT NULL` | `event` (every pass and after a failed request), `regular` (every 5 minutes) or `daily` (once a UTC day) |
+| `expects` | `TEXT NOT NULL` | What a healthy run looks like; non-blank (CHECK) |
+| `probe` | `TEXT NOT NULL` | `sql`, `logs` or `cold_forks` (a Rust probe) |
+| `query` | `TEXT NULL` | The read a `sql` probe runs; non-blank exactly when `probe = 'sql'` (CHECK). Returns `(scope text, resource text, evidence jsonb)` rows and reads its thresholds from `$1` |
+| `params` | `JSONB NOT NULL DEFAULT '{}'` | A JSON object bound as `$1` to a sql query; for `logs`, `{level, repeats, window_minutes}`; for `cold_forks`, `{window_hours, cache_ttl_minutes}` |
+| `enabled` | `BOOLEAN NOT NULL DEFAULT true` | A disabled check is not run; its runs and problems stay |
+| `created_at` / `updated_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | `updated_at` is set by every `PATCH` |
+
+`wright.check_runs.check_name` and `wright.problems.check_name` reference `wright.checks(name)` with
+`ON DELETE CASCADE`: removing a check removes its runs, problems and episodes.
 
 ---
 

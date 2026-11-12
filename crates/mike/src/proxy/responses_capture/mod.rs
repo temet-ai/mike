@@ -1,17 +1,19 @@
 mod correlation;
+mod diagnostic;
 mod headers;
 mod record;
 mod relay;
+mod request_body;
 mod tee;
+mod wire_observation;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use axum::Router;
-use axum::extract::DefaultBodyLimit;
 use axum::routing::any;
-use tokio::sync::mpsc;
+use tokio::sync::{Semaphore, mpsc};
 
 use crate::config::AppState;
 use crate::store::persistence::PersistHandle;
@@ -23,7 +25,7 @@ pub(crate) const OPENAI_UPSTREAM_ENV: &str = "MIKE_RESPONSES_OPENAI_UPSTREAM";
 pub(crate) const CHATGPT_UPSTREAM_ENV: &str = "MIKE_RESPONSES_CHATGPT_UPSTREAM";
 pub(crate) const DEFAULT_OPENAI_UPSTREAM: &str = "https://api.openai.com/v1";
 pub(crate) const DEFAULT_CHATGPT_UPSTREAM: &str = "https://chatgpt.com/backend-api/codex";
-const MAX_REQUEST_BYTES: usize = 64 * 1024 * 1024;
+pub(super) const MAX_DIAGNOSTIC_BYTES: usize = 4 * 1024 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum AuthRoute {
@@ -81,6 +83,8 @@ pub(crate) struct ResponsesState {
     pub(crate) persist: Option<PersistHandle>,
     pub(crate) registered: Arc<Mutex<HashMap<uuid::Uuid, Instant>>>,
     pub(crate) recorded: Option<mpsc::UnboundedSender<Result<i64, String>>>,
+    pub(crate) slots: Arc<Semaphore>,
+    pub(crate) toggles: Arc<arc_swap::ArcSwap<crate::feature_toggles::FeatureToggles>>,
 }
 
 impl ResponsesState {
@@ -95,16 +99,19 @@ impl ResponsesState {
             persist,
             registered: Arc::new(Mutex::new(HashMap::new())),
             recorded: None,
+            slots: Arc::new(Semaphore::new(16)),
+            toggles: Arc::new(arc_swap::ArcSwap::from_pointee(Default::default())),
         }
     }
 }
 
 pub(crate) fn router(state: &AppState) -> Router<AppState> {
-    let responses = ResponsesState::new(
+    let mut responses = ResponsesState::new(
         state.client.clone(),
         Upstreams::from_env(),
         state.persist().cloned(),
     );
+    responses.toggles = state.feature_toggle_overlay.clone();
     routes_with(responses)
 }
 
@@ -116,7 +123,6 @@ pub(crate) fn routes(state: ResponsesState) -> Router {
 fn routes_with<S: Clone + Send + Sync + 'static>(state: ResponsesState) -> Router<S> {
     Router::new()
         .route(&format!("{ROUTE_PREFIX}/{{*rest}}"), any(relay::handle))
-        .layer(DefaultBodyLimit::max(MAX_REQUEST_BYTES))
         .with_state(state)
 }
 

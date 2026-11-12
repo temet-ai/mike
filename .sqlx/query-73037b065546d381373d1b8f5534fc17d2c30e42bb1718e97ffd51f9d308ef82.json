@@ -1,0 +1,50 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT forwarded_body, request_body, response_body FROM runtime.responses_exchanges\n        WHERE evidence_status = 'retained'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "forwarded_body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "runtime.responses_exchanges",
+            "name": "forwarded_body"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "runtime.responses_exchanges",
+            "name": "request_body"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "response_body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "runtime.responses_exchanges",
+            "name": "response_body"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "73037b065546d381373d1b8f5534fc17d2c30e42bb1718e97ffd51f9d308ef82"
+}

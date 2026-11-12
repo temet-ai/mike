@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM runtime.codex_projection_heads WHERE namespace_id IN\n         (SELECT h.namespace_id FROM runtime.codex_projection_heads h\n          JOIN runtime.namespaces n ON n.id = h.namespace_id\n          WHERE h.active_generation_id IS NULL AND n.created_at < $1::timestamptz - interval '90 days'\n            AND NOT EXISTS (SELECT 1 FROM runtime.codex_projection_generations g WHERE g.namespace_id = h.namespace_id)\n          LIMIT $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "785007be17b08cf40104de38e875a7bdc57fa5ccb4577ced9958eee042d3b2e9"
+}

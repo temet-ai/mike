@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT n.state FROM mailbox.runtime_notifications n\n             JOIN mailbox.messages m ON m.id = n.message_id WHERE m.message_uuid = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "state",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "mailbox.runtime_notifications",
+            "name": "state"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e732dcbf072bad4cacb3ab92a5cc6d6c5c6db67bbd317d4196b03301ce3e0bb6"
+}

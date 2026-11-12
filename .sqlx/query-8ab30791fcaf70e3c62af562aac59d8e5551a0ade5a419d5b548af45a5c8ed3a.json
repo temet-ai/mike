@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE runtime.codex_projection_generations g SET state = 'retired'\n         WHERE g.state IN ('building', 'active') AND g.created_at < $1::timestamptz - interval '90 days'\n           AND NOT EXISTS (SELECT 1 FROM runtime.events e WHERE e.namespace_id = g.namespace_id\n                           AND e.created_at >= $1::timestamptz - interval '90 days')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8ab30791fcaf70e3c62af562aac59d8e5551a0ade5a419d5b548af45a5c8ed3a"
+}

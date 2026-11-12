@@ -59,8 +59,8 @@ async fn insert_run(
     };
     sqlx::query_scalar(INSERT_RUN)
         .bind(run.check)
-        .bind(run.source.code())
-        .bind(run.cadence.code())
+        .bind(run.source)
+        .bind(run.cadence)
         .bind(run.started_at)
         .bind(run.outcome.code())
         .bind(findings)
@@ -78,7 +78,7 @@ async fn apply_complete(
 ) -> Result<RecordedRun, sqlx::Error> {
     let (opened, recurred, still_open): (i64, i64, i64) = sqlx::query_as(OPEN_FINDINGS) // grader-allow: .sqlx entries cannot be written while the build is memory-blocked (operator note 8c8c8263); becomes query_file! with them
         .bind(run.check)
-        .bind(run.source.code())
+        .bind(run.source)
         .bind(&cols.scopes)
         .bind(&cols.resources)
         .bind(&cols.evidence)

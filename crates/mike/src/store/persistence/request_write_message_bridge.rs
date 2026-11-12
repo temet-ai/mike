@@ -70,9 +70,11 @@ async fn attach_sent_patches_to_deltas(
             tracing::warn!(
                 request_id = request_db_id,
                 error = %e,
-                "insert_request_initial: sent-body patch computation skipped"
+                "insert_request_initial: per-message sent patches unavailable; \
+                 capturing the sent body as one patch"
             );
-            return Ok(());
+            return apply_whole_body_envelope_patch(tx, request_db_id, body_bytes, sent_bytes)
+                .await;
         }
     };
 
@@ -83,12 +85,46 @@ async fn attach_sent_patches_to_deltas(
         .collect();
     let has_homeless_diff = patches.keys().any(|ord| !added_ords.contains(ord));
 
-    if has_homeless_diff {
-        return apply_whole_body_envelope_patch(tx, request_db_id, body_bytes, sent_bytes).await;
+    if !has_homeless_diff {
+        attach_added_row_patches(delta_rows, &mut patches);
+        if deltas_and_envelope_reconstruct(body_bytes, sent_bytes, delta_rows) {
+            return Ok(());
+        }
+        for row in delta_rows.iter_mut() {
+            row.sent_patch = None;
+        }
     }
+    apply_whole_body_envelope_patch(tx, request_db_id, body_bytes, sent_bytes).await
+}
 
-    attach_added_row_patches(delta_rows, &mut patches);
-    Ok(())
+fn deltas_and_envelope_reconstruct(
+    body_bytes: &[u8],
+    sent_bytes: &[u8],
+    delta_rows: &[messages::DeltaRow],
+) -> bool {
+    let envelope = messages::envelope_patch_for_capture(body_bytes, sent_bytes)
+        .ok()
+        .flatten();
+    let message_patches = delta_rows.iter().filter_map(|r| r.sent_patch.clone());
+    messages::patches_reconstruct_sent(
+        body_bytes,
+        sent_bytes,
+        envelope.into_iter().chain(message_patches),
+    )
+}
+
+async fn capture_sent_body_without_messages(
+    tx: &mut sqlx::PgConnection,
+    request_db_id: i64,
+    body_bytes: &[u8],
+    sent_bytes: Option<&[u8]>,
+) -> Result<(), PersistError> {
+    match sent_bytes {
+        Some(sent) if !deltas_and_envelope_reconstruct(body_bytes, sent, &[]) => {
+            apply_whole_body_envelope_patch(tx, request_db_id, body_bytes, sent).await
+        }
+        _ => Ok(()),
+    }
 }
 
 async fn apply_whole_body_envelope_patch(
@@ -182,7 +218,13 @@ pub(crate) async fn write_message_dedup_bridge(
         }
     };
     if canonical.is_empty() {
-        return Ok(());
+        return capture_sent_body_without_messages(
+            tx,
+            request_db_id,
+            body_bytes,
+            req.sent_body.as_deref(),
+        )
+        .await;
     }
     let canonical: Vec<messages::CanonicalMessage> =
         canonical.into_iter().map(clean_canonical_message).collect();

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE mailbox.runtime_notifications n SET state = $2, completed_at = now(), detail = $3\n             FROM mailbox.messages m WHERE n.message_id = m.id AND m.message_uuid = $1\n               AND n.state = 'attempted'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7310116d0a8a3fb3488a91cbd3bf0980f30791896483d90da397ce16f42de3db"
+}

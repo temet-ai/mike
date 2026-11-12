@@ -19,6 +19,11 @@ const fn client_serves(key: &'static str) -> ToggleMeta {
 
 pub static TOGGLE_META: &[ToggleMeta] = &[
     ToggleMeta {
+        key: "codex_diagnostic_capture",
+        scope: ToggleScope::Global,
+        applies: ToggleApplies::Immediate,
+    },
+    ToggleMeta {
         key: "agent_lessons",
         scope: ToggleScope::Session,
         applies: ToggleApplies::NewSessions,

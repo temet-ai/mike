@@ -1,0 +1,166 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT l.seat,\n       g.role,\n       l.agent,\n       COALESCE(observation.observed_model, l.model, observation.requested_model) AS model,\n       l.session_uuid,\n       l.surface_ref,\n       l.opened_at,\n       l.closed_at,\n       COALESCE(rq.requests, 0)::bigint AS \"requests!\",\n       COALESCE(observation.observed_at, rq.last_request_at) AS last_request_at,\n       ctx.context_tokens AS \"context_tokens?\",\n       ls.response_status AS \"last_status?\",\n       (l.template_id IS NOT NULL) AS \"forked!\",\n       COALESCE(fq.cache_read_input_tokens, 0)::bigint AS first_cache_read,\n       COALESCE(fq.cache_creation_input_tokens, 0)::bigint AS first_cache_written\n  FROM launch.launches l\n  LEFT JOIN sessions.sessions s        ON s.session_uuid = l.session_uuid\n  LEFT JOIN sessions.session_goals g   ON g.session_id = s.id\n  LEFT JOIN runtime.session_observation_v observation ON observation.session_id = s.id\n  LEFT JOIN LATERAL (\n        SELECT count(*) AS requests, max(r.created_at) AS last_request_at\n          FROM runtime.model_call_facts r\n         WHERE r.session_id = s.id\n           AND r.created_at BETWEEN l.created_at - interval '1 hour' AND now()\n       ) rq ON true\n  LEFT JOIN LATERAL (\n        SELECT r.id, r.cache_read_input_tokens, r.cache_creation_input_tokens\n          FROM runtime.model_call_facts r\n         WHERE r.session_id = s.id\n           AND r.primary_lane\n           AND r.created_at BETWEEN l.created_at - interval '1 hour' AND now()\n         ORDER BY r.created_at, r.id\n         LIMIT 1\n       ) fq ON true\n  LEFT JOIN LATERAL (\n        SELECT r.context_tokens\n          FROM runtime.model_call_facts r\n          WHERE r.session_id = s.id\n           AND r.primary_lane\n           AND r.input_tokens IS NOT NULL\n           AND r.created_at BETWEEN l.created_at - interval '1 hour' AND now()\n         ORDER BY r.created_at DESC, r.id DESC\n         LIMIT 1\n       ) ctx ON true\n  LEFT JOIN LATERAL (\n        SELECT r.response_status\n          FROM runtime.model_call_facts r\n          WHERE r.session_id = s.id\n           AND r.primary_lane\n           AND r.created_at BETWEEN l.created_at - interval '1 hour' AND now()\n         ORDER BY r.created_at DESC, r.id DESC\n         LIMIT 1\n       ) ls ON true\n WHERE l.run_id = $1\n   AND l.opened\n ORDER BY l.created_at, l.id\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "seat",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "seat"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "role",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "role"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "agent",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "agent"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "model",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "session_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "surface_ref",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "surface_ref"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "opened_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "opened_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "closed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "launch.launches",
+            "name": "closed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "requests!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "last_request_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "context_tokens?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.model_call_facts",
+            "name": "context_tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "last_status?",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "runtime.model_call_facts",
+            "name": "response_status"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "forked!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 13,
+        "name": "first_cache_read",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 14,
+        "name": "first_cache_written",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      null,
+      true,
+      true,
+      true,
+      true,
+      null,
+      null,
+      true,
+      true,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "45d90ee1ee382f9d7b0a489a028dc57b618adb803440ed9afe5435dc906215d7"
+}

@@ -119,10 +119,17 @@ fn describe_retention_metrics() {
 fn describe_uncaptured_requests_metric() {
     metrics::describe_counter!(
         COUNTER_UNCAPTURED_REQUESTS_TOTAL,
-        "Requests forwarded upstream but excluded from inspection capture; label `reason` ∈ {missing_session_header, malformed_session_header, non_utf8_session_header, capture_throttled}"
+        "Requests forwarded upstream but excluded from inspection capture; label `reason` ∈ {capture_throttled}"
     );
     for reason in UNCAPTURED_REQUEST_REASONS {
         metrics::counter!(COUNTER_UNCAPTURED_REQUESTS_TOTAL, "reason" => *reason).increment(0);
+    }
+    metrics::describe_counter!(
+        COUNTER_SESSIONLESS_REQUESTS_TOTAL,
+        "Requests with no canonical session id, forwarded and kept in requests.sessionless_requests; label `reason` ∈ {missing_session_header, malformed_session_header, non_utf8_session_header}"
+    );
+    for reason in SESSIONLESS_REQUEST_REASONS {
+        metrics::counter!(COUNTER_SESSIONLESS_REQUESTS_TOTAL, "reason" => *reason).increment(0);
     }
 }
 

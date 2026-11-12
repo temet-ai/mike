@@ -63,7 +63,7 @@ fn push_page_where<'a>(qb: &mut QueryBuilder<Postgres>, filter: &SessionPageFilt
     if let Some(min) = filter.min_request_count.filter(|m| *m > 0) {
         qb.push(sep)
             .push(
-                "s.id IN (SELECT cr.session_id FROM requests.requests cr \
+                "s.id IN (SELECT cr.session_id FROM runtime.model_call_facts cr \
                  GROUP BY cr.session_id HAVING COUNT(cr.id) >= ",
             )
             .push_bind(min)

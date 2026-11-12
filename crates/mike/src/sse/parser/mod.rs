@@ -9,7 +9,6 @@ use crate::store::models::{ProxyEvent, RequestId};
 
 mod events;
 mod publish;
-pub(crate) mod responses;
 
 #[cfg(test)]
 #[path = "tests.rs"]

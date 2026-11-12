@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.observed_at FROM runtime.observation_receipts r\n             JOIN sessions.sessions s ON s.id = r.session_id\n             WHERE s.session_uuid = $1 AND r.observation_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "observed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "runtime.observation_receipts",
+            "name": "observed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "e261b23cbf2b57b2645624df7c9d770f8034bc36a6ed7a404b4d61911a9e0a72"
+}

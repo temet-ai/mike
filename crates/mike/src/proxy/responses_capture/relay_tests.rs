@@ -18,6 +18,7 @@ const STREAM: &[u8] = b"event: response.created\ndata: {\"type\":\"response.crea
 const REQUEST: &[u8] = b"{\"model\":\"gpt-fx\",\"stream\":true,\"input\":[{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"say  hello\\n\"}]}]}";
 
 struct Harness {
+    home: tempfile::TempDir,
     state: ResponsesState,
     recorded: mpsc::UnboundedReceiver<Result<i64, String>>,
     persist: PersistHandle,
@@ -34,9 +35,16 @@ async fn harness(openai: &str, chatgpt: &str) -> anyhow::Result<Option<Harness>>
         chatgpt: chatgpt.to_string(),
     };
     let mut state = ResponsesState::new(reqwest::Client::new(), upstreams, Some(persist.clone()));
+    state.toggles.store(std::sync::Arc::new(
+        crate::feature_toggles::FeatureToggles {
+            codex_diagnostic_capture: true,
+            ..Default::default()
+        },
+    ));
     let (tx, rx) = mpsc::unbounded_channel();
     state.recorded = Some(tx);
     Ok(Some(Harness {
+        home: tempfile::tempdir()?,
         state,
         recorded: rx,
         persist,
@@ -44,11 +52,154 @@ async fn harness(openai: &str, chatgpt: &str) -> anyhow::Result<Option<Harness>>
 }
 
 async fn next_recorded(h: &mut Harness) -> anyhow::Result<i64> {
-    match h.recorded.recv().await {
+    match tokio::time::timeout(std::time::Duration::from_secs(10), h.recorded.recv()).await? {
         Some(Ok(id)) => Ok(id),
         Some(Err(error)) => anyhow::bail!("exchange not recorded: {error}"),
         None => anyhow::bail!("recorder channel closed"),
     }
+}
+
+async fn bind_session(h: &Harness, session: uuid::Uuid) -> anyhow::Result<()> {
+    let namespace = crate::launch::codex::namespace_for(h.home.path());
+    h.persist.ensure_runtime_session(session).await?;
+    h.persist.register_runtime_namespace(&namespace).await?;
+    h.persist
+        .bind_runtime_thread(&crate::runtime::RuntimeThreadBinding {
+            mike_session_id: session,
+            provider: crate::runtime::ProviderThreadRef {
+                namespace_id: namespace.id,
+                thread_id: session.to_string(),
+            },
+            provider_session_id: Some(session.to_string()),
+            owning_seat_id: None,
+            native_parent: None,
+            forked_from: None,
+        })
+        .await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn raw_off_retains_usage_without_request_response_or_output_copies() -> anyhow::Result<()> {
+    let upstream = sse_upstream("/v1/responses").await;
+    let Some(mut h) = harness(&format!("{}/v1", upstream.uri()), "http://127.0.0.1:1").await?
+    else {
+        return Ok(());
+    };
+    h.state
+        .toggles
+        .store(std::sync::Arc::new(Default::default()));
+    let response = routes(h.state.clone())
+        .oneshot(Request::post("/codex/responses").body(Body::from(REQUEST))?)
+        .await?;
+    assert_eq!(
+        response.into_body().collect().await?.to_bytes().as_ref(),
+        STREAM
+    );
+    let id = next_recorded(&mut h).await?;
+    let row = sqlx::query("SELECT request_body, forwarded_body, response_body, evidence_status, usage, output_items FROM runtime.responses_exchanges WHERE id=$1")
+        .bind(id).fetch_one(h.persist.pool()).await?;
+    for column in ["request_body", "forwarded_body", "response_body"] {
+        assert!(row.try_get::<Option<Vec<u8>>, _>(column)?.is_none());
+    }
+    assert_eq!(
+        row.try_get::<String, _>("evidence_status")?,
+        "not_collected"
+    );
+    assert_eq!(
+        row.try_get::<Value, _>("output_items")?,
+        serde_json::json!([])
+    );
+    assert_eq!(row.try_get::<Value, _>("usage")?["total_tokens"], 9);
+    Ok(())
+}
+
+#[tokio::test]
+async fn oversized_request_is_forwarded_whole_but_evidence_is_refused_whole() -> anyhow::Result<()>
+{
+    let upstream = sse_upstream("/v1/responses").await;
+    let Some(mut h) = harness(&format!("{}/v1", upstream.uri()), "http://127.0.0.1:1").await?
+    else {
+        return Ok(());
+    };
+    let body = vec![b'x'; super::MAX_DIAGNOSTIC_BYTES + 1];
+    let response = routes(h.state.clone())
+        .oneshot(Request::post("/codex/responses").body(Body::from(body.clone()))?)
+        .await?;
+    assert_eq!(
+        response.into_body().collect().await?.to_bytes().as_ref(),
+        STREAM
+    );
+    assert_eq!(
+        upstream.received_requests().await.unwrap_or_default()[0].body,
+        body
+    );
+    let id = next_recorded(&mut h).await?;
+    let row = sqlx::query("SELECT request_body, response_body, evidence_status FROM runtime.responses_exchanges WHERE id=$1")
+        .bind(id).fetch_one(h.persist.pool()).await?;
+    assert_eq!(
+        row.try_get::<String, _>("evidence_status")?,
+        "budget_refused"
+    );
+    assert!(row.try_get::<Option<Vec<u8>>, _>("request_body")?.is_none());
+    assert!(
+        row.try_get::<Option<Vec<u8>>, _>("response_body")?
+            .is_none()
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn terminal_event_then_client_drop_is_complete_even_without_transport_eof()
+-> anyhow::Result<()> {
+    use futures::StreamExt;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    let Some(mut h) = harness(&format!("http://{address}/v1"), "http://127.0.0.1:1").await? else {
+        return Ok(());
+    };
+    let server = tokio::spawn(async move {
+        let app = axum::Router::new().route(
+            "/v1/responses",
+            axum::routing::post(|| async {
+                let bytes = futures::stream::once(async {
+                    Ok::<_, std::io::Error>(axum::body::Bytes::from_static(STREAM))
+                })
+                .chain(futures::stream::pending());
+                axum::response::Response::builder()
+                    .header("content-type", "text/event-stream")
+                    .body(Body::from_stream(bytes))
+                    .unwrap_or_default()
+            }),
+        );
+        axum::serve(listener, app).await
+    });
+    let response = routes(h.state.clone())
+        .oneshot(Request::post("/codex/responses").body(Body::from(REQUEST))?)
+        .await?;
+    let mut body = response.into_body();
+    let mut received = Vec::new();
+    while received.len() < STREAM.len() {
+        let frame = tokio::time::timeout(std::time::Duration::from_secs(5), body.frame())
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("stream ended before terminal event"))??;
+        if let Ok(bytes) = frame.into_data() {
+            received.extend_from_slice(&bytes);
+        }
+    }
+    drop(body);
+    let id = next_recorded(&mut h).await?;
+    server.abort();
+    let row = sqlx::query(
+        "SELECT status, usage, evidence_status FROM runtime.responses_exchanges WHERE id=$1",
+    )
+    .bind(id)
+    .fetch_one(h.persist.pool())
+    .await?;
+    assert_eq!(row.try_get::<String, _>("status")?, "complete");
+    assert_eq!(row.try_get::<Value, _>("usage")?["total_tokens"], 9);
+    assert_eq!(row.try_get::<String, _>("evidence_status")?, "incomplete");
+    Ok(())
 }
 
 fn turn_metadata(session: uuid::Uuid, cwd: &str) -> String {
@@ -107,6 +258,7 @@ async fn responses_chatgpt_sse_turn_is_relayed_byte_for_byte_and_recorded() -> a
     };
     let session = uuid::Uuid::new_v4();
     let cwd = format!("/tmp/responses-fx-{session}");
+    bind_session(&h, session).await?;
     let request = Request::post("/codex/responses")
         .header("content-type", "application/json")
         .header("authorization", "Bearer secret-token-fx")
@@ -142,7 +294,7 @@ async fn responses_chatgpt_sse_turn_is_relayed_byte_for_byte_and_recorded() -> a
     .fetch_one(h.persist.pool())
     .await?;
     assert_eq!(row.try_get::<Vec<u8>, _>("request_body")?, REQUEST);
-    assert_eq!(row.try_get::<Vec<u8>, _>("forwarded_body")?, REQUEST);
+    assert_eq!(row.try_get::<Option<Vec<u8>>, _>("forwarded_body")?, None);
     assert_eq!(
         row.try_get::<Option<Vec<u8>>, _>("response_body")?
             .as_deref(),
@@ -162,7 +314,7 @@ async fn responses_chatgpt_sse_turn_is_relayed_byte_for_byte_and_recorded() -> a
         Some(Value::from(9))
     );
     let items = row.try_get::<Value, _>("output_items")?;
-    assert_eq!(items.as_array().map(Vec::len), Some(1));
+    assert_eq!(items.as_array().map(Vec::len), Some(0));
     assert_eq!(row.try_get::<Option<i32>, _>("stream_events")?, Some(3));
     let stored_headers = row.try_get::<String, _>("headers")?;
     assert!(!stored_headers.contains("secret-token-fx"));
@@ -215,8 +367,11 @@ async fn responses_api_key_request_goes_to_the_openai_upstream() -> anyhow::Resu
     let Some(mut h) = harness(&format!("{}/v1", openai.uri()), "http://127.0.0.1:1").await? else {
         return Ok(());
     };
+    let unverified_provider_session = uuid::Uuid::new_v4();
     let request = Request::post("/codex/responses")
         .header("authorization", "Bearer sk-fx")
+        .header("session-id", unverified_provider_session.to_string())
+        .header("thread-id", unverified_provider_session.to_string())
         .body(Body::from(REQUEST))?;
     let response = routes(h.state.clone()).oneshot(request).await?;
     assert_eq!(response.status(), StatusCode::OK);
@@ -232,7 +387,13 @@ async fn responses_api_key_request_goes_to_the_openai_upstream() -> anyhow::Resu
     assert_eq!(row.try_get::<String, _>("auth_route")?, "api_key");
     assert_eq!(row.try_get::<Option<i64>, _>("session_id")?, None);
     let correlation = row.try_get::<Value, _>("correlation")?;
-    assert!(correlation["session_id"].get("unknown").is_some());
+    assert!(correlation["normalized_session"].get("unknown").is_some());
+    let invented: bool =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM sessions.sessions WHERE session_uuid=$1)")
+            .bind(unverified_provider_session)
+            .fetch_one(h.persist.pool())
+            .await?;
+    assert!(!invented);
     Ok(())
 }
 

@@ -295,6 +295,7 @@ fetching of its own.
 - `frontend/src/lib/components/skills/SkillLessonList.svelte` — keep: the accepted lessons a learned skill draft was written from, each in full with its kind, a link to the lesson and the prompt it was learned from; a different row type (`SkillLesson`), read-only, not a label history.
 - `frontend/src/lib/components/skills/SkillRevisionList.svelte` — keep: every draft of one skill folder, newest first, each linking to its own page with the current one marked; a different row type (`SkillRevision`), not a label history.
 - `frontend/src/lib/components/improvement/GuardWakeList.svelte` — keep: one `.edge.mech-group` of `GuardWakeCard` bands (optional lead band, answerable nudges, then those not judged yet under their own header), shared between the Nudges tab and the guard page; an `emptyText` prop reports an empty result; a different row type (`GuardWake`), not a label history.
+- `frontend/src/lib/components/threads/ThreadList.svelte` — keep: the Threads page's per-project list of work threads with their state, each opening its thread; a different row type (work threads), not a label history.
 
 ## Marker
 
@@ -317,6 +318,10 @@ Tied on importer count (2, the two projects routes) with `ProjectSessionsPanel` 
 canonical, `message-view/RawBodyPanel.svelte`, was deleted on 2026-10-08: nothing had rendered it
 since the 2026-09-08 session-page rework, and the message-view cards draw their own raw bodies.
 
+- `frontend/src/lib/components/shell/RuntimeSessionPanel.svelte` — the session overview's runtime facts
+  for a non-Claude session (Codex): lifecycle, requested and observed model, source, usage that keeps
+  unknown apart from zero, and paginated item metadata. It draws rows inside the overview's own frame,
+  so it does not extend ProjectDetailPanel.
 - `frontend/src/lib/components/settings/setup/SetupFeaturesPanel.svelte` — the three feature choices
   of the Setup tab with one Apply button that changes only the switches that differ; it holds no frame of
   its own, so it is rows inside a SettingsSection, not a ProjectDetailPanel.

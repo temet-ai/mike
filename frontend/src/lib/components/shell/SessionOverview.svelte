@@ -37,6 +37,7 @@
 	import SessionEmbeddingPanel from '$lib/components/graph/SessionEmbeddingPanel.svelte';
 	import SessionMailboxPanel from '$lib/components/shell/SessionMailboxPanel.svelte';
 	import SessionLaunchPanel from '$lib/components/shell/SessionLaunchPanel.svelte';
+	import RuntimeSessionPanel from '$lib/components/shell/RuntimeSessionPanel.svelte';
 
 	function jumpToRequest(requestId: number): void {
 		goto(
@@ -357,9 +358,16 @@
 		</div>
 	{:else if summary}
 		<div class="s-scroll">
-			{#if !hasRequests}
+			{#if detail?.observation}
+				<RuntimeSessionPanel
+					{sessionId}
+					observation={detail.observation}
+					initialItems={detail.runtime_items ?? null}
+				/>
+			{/if}
+			{#if !hasRequests && !detail?.observation}
 				<p class="s-empty-note">No requests captured yet.</p>
-			{:else}
+			{:else if hasRequests}
 				<div class="s-top-grid">
 					<div class="s-tg-main">
 						<SessionNarrativeOverview overview={summary?.narrative_overview ?? ''} />

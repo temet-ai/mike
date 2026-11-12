@@ -293,6 +293,32 @@
 		accent="info"
 	/>
 
+	{#if featureByKey.has('codex_diagnostic_capture')}
+		<WorkerCard
+			name="codex_diagnostic_capture"
+			label="Codex diagnostic capture"
+			description="Retains optional Codex wire bodies for 24 hours within 4 MiB/exchange, 32 MiB/session and 256 MiB total budgets; normal activity remains available when off."
+			applies={appliesFor('codex_diagnostic_capture')}
+			enabled={featureEnabled('codex_diagnostic_capture')}
+			disabled={rowLoading['codex_diagnostic_capture'] ?? false}
+			onToggle={(v) => void handleFeatureToggle('codex_diagnostic_capture', v)}
+			error={rowError['codex_diagnostic_capture'] ?? null}
+			accent="info"
+			config={[
+				{
+					label: 'Evidence availability',
+					value: 'Complete or refused',
+					help: 'When storage budgets cannot retain a complete body, capture is refused; forwarded traffic is unchanged.'
+				},
+				{
+					label: 'After switching off',
+					value: 'Existing evidence expires',
+					help: 'Switching off stops new body capture; retained evidence expires after 24 hours.'
+				}
+			]}
+		/>
+	{/if}
+
 	<WorkerCard
 		name="db_resync"
 		label="Local DB resync"

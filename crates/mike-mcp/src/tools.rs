@@ -53,6 +53,7 @@ mod turns;
 mod turns_summary;
 mod work_threads;
 mod workspace;
+mod wright_checks;
 
 use envelope::{
     arguments_as_value, parse_args_default, parse_args_required, wrap_success, wrap_success_paged,
@@ -141,3 +142,4 @@ pub use workspace::{
     TOOL_END_WORKSPACE_REGISTRATION, TOOL_GET_FLEET_GRAPH, TOOL_GET_WORKSPACE_ROSTER,
     TOOL_REGISTER_WORKSPACE_SESSION, TOOL_WORKSPACE_HEARTBEAT,
 };
+pub use wright_checks::TOOL_WRIGHT_CHECKS;

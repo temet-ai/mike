@@ -41,4 +41,5 @@
 0	7	1	frontend/src/routes/settings/workers/+page.svelte
 40	110	51	frontend/src/routes/steering/[id]/+page.svelte
 0	1	0	frontend/src/routes/steering/+page.svelte
+0	1	0	frontend/src/routes/threads/+page.svelte
 5	15	3	frontend/src/routes/tools/+page.svelte

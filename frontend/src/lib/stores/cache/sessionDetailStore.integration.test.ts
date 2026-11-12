@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RequestDetail, RequestSummary, SessionDetail, SessionSummary } from '$lib/types';
+import { buildRuntimeItemPage, buildRuntimeObservation } from '$lib/test-support/runtimeFixtures';
 
 vi.mock('$lib/api', async () => {
 	const { ApiError } = await import('$lib/test-support/apiError');
@@ -180,6 +181,27 @@ function routeGetSession(sid: string, total: number): void {
 		return makePage(sid, offset, Math.min(limit, total - offset), total);
 	});
 }
+
+it('preserves normalized observations and whole runtime items without captured requests', async () => {
+	const id = 'runtime-only-session';
+	const observation = buildRuntimeObservation();
+	const runtimeItems = buildRuntimeItemPage();
+	mockGetSession.mockResolvedValue({
+		...makePage(id, 0, 0, 0),
+		observation,
+		runtime_items: runtimeItems
+	});
+	const first = createSessionDetailStore();
+	await first.load(id);
+	expect(first.detail?.observation).toEqual(observation);
+	expect(first.detail?.runtime_items).toEqual(runtimeItems);
+	expect(first.detail?.requests).toEqual([]);
+	const cached = createSessionDetailStore();
+	await cached.load(id);
+	expect(cached.detail?.observation?.input_tokens).toBeNull();
+	expect(cached.detail?.runtime_items).toEqual(runtimeItems);
+	expect(mockGetSession).toHaveBeenCalledTimes(1);
+});
 
 describe('page residency and the older-request walk-back', () => {
 	const EAGER_PAGES = PAGES_CAP_PER_SESSION;

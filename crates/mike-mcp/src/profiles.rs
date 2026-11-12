@@ -68,7 +68,6 @@ pub const FULL_ONLY_TOOLS: &[&str] = &[
     "register_workspace_session",
     "verify_message_read",
     "workspace_heartbeat",
-    "ack_session_message",
 ];
 
 pub const FLEET_SEAT_TOOLS: &[&str] = &[
@@ -204,6 +203,7 @@ pub const ONLY_IN_FULL: &[&str] = &[
     "list_directive_proposals",
     "get_fleet_record",
     "list_supplied_items",
+    "wright_checks",
 ];
 
 fn concat(parts: &[&[&'static str]]) -> Vec<&'static str> {

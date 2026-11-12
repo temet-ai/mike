@@ -1,7 +1,7 @@
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-use super::catalogue::{CHECKS, WatchContext, probe};
+use super::catalogue::{WatchContext, probe};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db, seed_project};
 use crate::wright::{CheckOutcome, Finding};
@@ -132,11 +132,12 @@ impl Db {
     }
 
     pub(super) async fn findings(&self, check: &str) -> anyhow::Result<Vec<Finding>> {
-        let spec = CHECKS
-            .iter()
-            .find(|spec| spec.name == check)
+        let row = self
+            .handle
+            .wright_check(check)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("no check named {check}"))?;
-        match probe(spec, &self.ctx()).await {
+        match probe(&row, &self.ctx()).await {
             CheckOutcome::Complete(findings) => Ok(findings),
             CheckOutcome::Unknown(reason) => anyhow::bail!("{check} could not run: {reason}"),
         }

@@ -68,7 +68,3 @@ pub(super) const STAGES: &str = "SELECT stage, attempt_uuid, evidence FROM mailb
   WHERE message_uuid = $1
   ORDER BY array_position(
       ARRAY['queued', 'accepted', 'consumed', 'action_started', 'completed'], stage)";
-
-pub(super) const OPEN_MESSAGES: &str = "SELECT message_uuid FROM mailbox.outbox
-  WHERE status IN ('pending', 'unresolved')
-  ORDER BY queued_at LIMIT $1";

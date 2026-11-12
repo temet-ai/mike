@@ -43,7 +43,7 @@ flowchart TB
     R2 -- "yes" --> R2a{"remote_control::recognise\n/v1/code/sessions/cse_* path?"}
     R2a -- "yes" --> RC1["remote_control::capture::forward_and_capture"]
     R2a -- "no" --> R2b{"canonical session-id header?"}
-    R2b -- "no" --> RNC(["forward_without_capture\nuncaptured_requests_total"])
+    R2b -- "no" --> RNC(["sessionless::forward_and_capture\nrequests.sessionless_requests"])
     R2b -- "yes" --> R3["RequestSignals::from_parts_and_body\nmodel · streaming · tools · system_prompt\nturn_origin · subagent_persona"]
     R3 --> R4["capture headers\nMAX_HEADERS · MAX_HEADER_BYTES\nmask sensitive · NOT applied to forwarded"]
     R4 --> R5["stored_body = original inbound bytes"]
@@ -180,10 +180,11 @@ A `verify_global_cache_scope_tripwire` in `proxy/engine/guards.rs` logs an `erro
 
 `stored_body` keeps the inbound request bytes before any mutation. The persisted original and sent views are distinct, but storage is not an eternal raw-wire archive: compaction can remove inline request bytes after preserving the envelope, canonical messages and tool definitions, and the read path marks reconstructed bodies. The sent view uses legacy `filtered_request_body` or message/envelope patches; unsupported envelope changes can log a warning and fall back to the original request view (`request_write::compute_envelope_patch_for_insert`). Envelope patch offsets form a half-open byte range `[start, end)`; equal start and end offsets represent a pure insertion. Streamed responses are assembled from `responses.stream_blocks`, with `stream_blocks_gapped` marking missing capture blocks. Do not infer byte-for-byte SSE capture from a complete rendered response.
 
-Two ordinary ingress paths intentionally forward without a capture row:
+**No canonical session id.** When `RequestSignals::from_parts_and_body` fails with `SessionIdMiss::{Missing, Malformed, NonUtf8}`, `engine::accept` calls `proxy::sessionless::forward_and_capture` and increments `proxy_sessionless_requests_total` with the miss reason. The request is forwarded unchanged. Its whole request and the response, teed as it streams, are stored in `requests.sessionless_requests`. Claude Code's control-plane calls take this path: `/v1/mcp_servers`, `/v1/design/mcp`, `POST /v1/code/sessions` and `/v1/ultrareview/quota`.
 
-1. **No canonical session id.** `RequestSignals::from_parts_and_body` fails with `SessionIdMiss::{Missing, Malformed, NonUtf8}`, and `engine::accept` calls `proxy::forward::forward_without_capture`, incrementing `uncaptured_requests_total` with the miss reason.
-2. **Memory pressure.** `guards::evaluate_capture_admission` checks `state.is_capture_admission_throttled()`; when the cap manager has throttled capture admission and the body was **not** mutated by any stage, the request is forwarded without capture (`uncaptured_requests_total{reason="capture_throttled"}`). A request that *was* mutated is captured anyway, and logs `capture_throttle_override_total` — the proxy will not hide traffic it changed.
+One ingress path intentionally forwards without a capture row:
+
+1. **Memory pressure.** `guards::evaluate_capture_admission` checks `state.is_capture_admission_throttled()`; when the cap manager has throttled capture admission and the body was **not** mutated by any stage, the request is forwarded without capture (`uncaptured_requests_total{reason="capture_throttled"}`). A request that *was* mutated is captured anyway, and logs `capture_throttle_override_total` — the proxy will not hide traffic it changed.
 
 ## Two-phase DB write
 

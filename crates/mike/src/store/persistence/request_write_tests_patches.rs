@@ -420,4 +420,52 @@ mod tests {
         db.cleanup().await?;
         Ok(())
     }
+
+    #[tokio::test]
+    async fn insert_request_initial_two_field_mutation_reconstructs_the_sent_body()
+    -> anyhow::Result<()> {
+        let Some(db) = test_util::acquire_ephemeral_db().await? else {
+            return Ok(());
+        };
+        let handle = PersistHandle::connect(&db.database_url).await?;
+        let cases: [(&[u8], &[u8]); 3] = [
+            (
+                br#"{"messages":[{"role":"user","content":"hi"}],"system":"OLD"}"#,
+                br#"{"messages":[{"role":"user","content":"hi"}],"system":"NEW","tools":[{"name":"mike_roster"}]}"#,
+            ),
+            (
+                br#"{"messages":[{"role":"user","content":"hi"}],"system":"OLD"}"#,
+                br#"{"messages":[{"role":"user","content":"hi RECALL"}],"system":"NEW","tools":[{"name":"mike_roster"}]}"#,
+            ),
+            (
+                br#"{"model":"m","system":"OLD-SYS","messages":[{"role":"user","content":"hi"}],"tail":"OLD"}"#,
+                br#"{"model":"m","system":"NEW-SYS","messages":[{"role":"user","content":"hi EXTRA"}],"tail":"NEW"}"#,
+            ),
+        ];
+        let mut request_id = 97_401;
+        for (original, sent) in cases {
+            let session_id = uuid::Uuid::new_v4().to_string();
+            let mut req = crate::store::tests::make_test_request(
+                Some(crate::store::models::RequestId::from_raw(request_id)),
+                &session_id,
+            );
+            request_id += 1;
+            req.request_body = Some(bytes::Bytes::copy_from_slice(original));
+            req.sent_body = Some(bytes::Bytes::copy_from_slice(sent));
+            let outcome = handle
+                .insert_request_initial(&req, true, IdMode::Mint)
+                .await?;
+            let reconstructed = handle
+                .fetch_request_sent_body_by_id(outcome.id as u64)
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("sent body must reconstruct after insertion"))?;
+            assert_eq!(
+                reconstructed.as_ref(),
+                sent,
+                "request {request_id}: the captured sent body must equal the forwarded bytes"
+            );
+        }
+        db.cleanup().await?;
+        Ok(())
+    }
 }

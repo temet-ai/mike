@@ -65,8 +65,6 @@
 			state: 'done',
 			last_activity_at: iso(-2 * HOUR),
 			request_count: 20,
-			run_id: null,
-			actor_id: null,
 			...partial
 		};
 	}
@@ -94,8 +92,6 @@
 			next_steps: 'Drive :9991/fleet in a browser and judge the rebuilt board.',
 			cwd: '/Users/vimes/projects/temet/temet-proxy/.claude/worktrees/agent-afb0898630c1b0e28',
 			worktree: 'agent-afb0898630c1b0e28',
-			run_id: 'run-7f21',
-			actor_id: 'actor-coordinator-1',
 			unconsumed_mail: 2,
 			last_activity_at: iso(-10_000),
 			request_count: 412

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM sessions.sessions WHERE id IN (\n    SELECT s.id FROM sessions.sessions s\n    JOIN runtime.session_identities i ON i.session_id = s.id\n    WHERE s.last_seen < $1::timestamptz - interval '90 days' AND NOT s.pinned\n    ORDER BY s.last_seen LIMIT $2\n)\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4b394a3e58a99a08e11ef9ca168e5592f00a81dc515ec3bfe017e20e79289962"
+}

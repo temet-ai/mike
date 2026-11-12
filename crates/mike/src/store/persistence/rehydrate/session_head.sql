@@ -1,10 +1,11 @@
 SELECT
      s.session_uuid::text AS "session_id!",
-     COALESCE(newest.live_status, s.last_status) AS "last_status?",
+     COALESCE(observation.last_status, newest.live_status, s.last_status) AS "last_status?",
      newest.id            AS "newest_request_id?",
      newest.rn            AS "newest_request_number?",
      COALESCE(first_op.user_prompt, first_text.human_prompt) AS "originating_operator_prompt?"
  FROM sessions.sessions s
+ LEFT JOIN runtime.session_observation_v observation ON observation.session_id = s.id
  LEFT JOIN LATERAL (
      SELECT r.id,
             ROW_NUMBER() OVER (

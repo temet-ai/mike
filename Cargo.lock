@@ -2051,6 +2051,7 @@ dependencies = [
  "metrics",
  "metrics-exporter-prometheus",
  "mike",
+ "mike-codex",
  "mime_guess",
  "notify",
  "opentelemetry",
@@ -2088,6 +2089,19 @@ dependencies = [
  "url",
  "uuid",
  "wiremock",
+]
+
+[[package]]
+name = "mike-codex"
+version = "0.1.0-alpha.5"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.20",
+ "tokio",
 ]
 
 [[package]]

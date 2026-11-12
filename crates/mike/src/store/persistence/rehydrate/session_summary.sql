@@ -5,7 +5,7 @@ SELECT s.session_uuid::text AS "session_id!",
         s.project_resolution AS "project_resolution!",
         s.first_seen AS "first_seen!",
         s.last_seen AS "last_seen!",
-        COALESCE(MAX(newest_status.live_status), s.last_status) AS "last_status?",
+        COALESCE(MAX(observation.last_status), MAX(newest_status.live_status), s.last_status) AS "last_status?",
         s.title AS "title?",
         s.pinned AS "pinned!",
         p.pinned AS "project_pinned!",
@@ -13,9 +13,10 @@ SELECT s.session_uuid::text AS "session_id!",
         COALESCE(
             ARRAY_AGG(DISTINCT r.model ORDER BY r.model)
                 FILTER (WHERE r.model IS NOT NULL),
+            array_remove(ARRAY[MAX(observation.model)], NULL),
             ARRAY[]::text[]
         ) AS "last_models!",
-        AVG(EXTRACT(EPOCH FROM (r.completed_at - r.created_at)) * 1000.0)
+        AVG(r.duration_ms)
             FILTER (WHERE r.completed_at IS NOT NULL)::float8 AS "avg_latency_ms?",
         COALESCE(first_op.user_prompt, first_text.human_prompt) AS "originating_operator_prompt?",
         sjq.session_outcome AS "session_outcome?",
@@ -35,8 +36,9 @@ SELECT s.session_uuid::text AS "session_id!",
             ARRAY[]::text[]
         ) AS "projects_touched!"
  FROM sessions.sessions s
+ LEFT JOIN runtime.session_observation_v observation ON observation.session_id = s.id
  JOIN projects.projects p ON p.id = s.project_id
- LEFT JOIN requests.requests r ON r.session_id = s.id
+ LEFT JOIN runtime.model_call_facts r ON r.session_id = s.id
  LEFT JOIN projects.projects rp ON rp.id = r.project_id
  LEFT JOIN LATERAL (
      SELECT COALESCE(ot.user_prompt, sr.human_prompt) AS user_prompt

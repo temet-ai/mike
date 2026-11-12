@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM runtime.codex_observed_turns WHERE (namespace_id, turn_id) IN\n     (SELECT namespace_id, turn_id FROM runtime.codex_observed_turns\n      WHERE COALESCE(stopped_at, first_seen_at) < $1::timestamptz - interval '90 days' ORDER BY first_seen_at LIMIT $2)\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a3b08dfa381843ebafc29914a13bffa81978a07cedd917957a9587926faedd8e"
+}

@@ -12,10 +12,7 @@ use crate::error::ProxyError;
 use crate::extract::signals::RequestSignals;
 use crate::feature_toggles::ResolvedToggles;
 use crate::in_flight::InFlightGuard;
-use crate::metrics::{
-    COUNTER_REQUESTS_TOTAL, COUNTER_UNCAPTURED_REQUESTS_TOTAL, HISTOGRAM_UPSTREAM_LATENCY,
-    status_bucket,
-};
+use crate::metrics::{COUNTER_REQUESTS_TOTAL, HISTOGRAM_UPSTREAM_LATENCY, status_bucket};
 use crate::store::models::{RequestId, SystemReminder};
 
 mod attribution;
@@ -58,6 +55,46 @@ fn uncaptured_log_fields(headers: &axum::http::HeaderMap) -> (&str, &str) {
     (user_agent, x_app)
 }
 
+async fn forward_sessionless(
+    state: &AppState,
+    parts: Parts,
+    body_bytes: Bytes,
+    miss: crate::extract::request::SessionIdMiss,
+) -> Result<Response, ProxyError> {
+    use crate::extract::request::SessionIdMiss;
+    let reason = match miss {
+        SessionIdMiss::Missing => "missing_session_header",
+        SessionIdMiss::Malformed => "malformed_session_header",
+        SessionIdMiss::NonUtf8 => "non_utf8_session_header",
+    };
+    if !matches!(miss, SessionIdMiss::Missing) {
+        let (user_agent, x_app) = uncaptured_log_fields(&parts.headers);
+        let offending_header = parts
+            .headers
+            .get("x-claude-code-session-id")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        tracing::warn!(
+            %reason,
+            path = %parts.uri.path(),
+            method = %parts.method,
+            %user_agent,
+            %x_app,
+            %offending_header,
+            "request with an unusable session id; captured as sessionless"
+        );
+    }
+    super::sessionless::forward_and_capture(
+        state,
+        reason,
+        parts.method,
+        &parts.uri,
+        &parts.headers,
+        body_bytes,
+    )
+    .await
+}
+
 pub(crate) async fn accept(
     state: &AppState,
     req: Request<Body>,
@@ -95,40 +132,7 @@ pub(crate) async fn accept(
     let signals = match RequestSignals::from_parts_and_body(&parts, &body_bytes, state).await {
         Ok(signals) => signals,
         Err(miss) => {
-            let reason = match miss {
-                crate::extract::request::SessionIdMiss::Missing => "missing_session_header",
-                crate::extract::request::SessionIdMiss::Malformed => "malformed_session_header",
-                crate::extract::request::SessionIdMiss::NonUtf8 => "non_utf8_session_header",
-            };
-            metrics::counter!(COUNTER_UNCAPTURED_REQUESTS_TOTAL, "reason" => reason).increment(1);
-            let (user_agent, x_app) = uncaptured_log_fields(&parts.headers);
-            let offending_header =
-                matches!(miss, crate::extract::request::SessionIdMiss::Malformed)
-                    .then(|| {
-                        parts
-                            .headers
-                            .get("x-claude-code-session-id")
-                            .and_then(|v| v.to_str().ok())
-                            .unwrap_or("")
-                    })
-                    .map(str::to_string);
-            tracing::warn!(
-                %reason,
-                path = %parts.uri.path(),
-                method = %parts.method,
-                %user_agent,
-                %x_app,
-                offending_header = ?offending_header,
-                "request without a canonical session id; forwarding without capture"
-            );
-            let response = super::forward::forward_without_capture(
-                state,
-                parts.method,
-                &parts.uri,
-                &parts.headers,
-                body_bytes,
-            )
-            .await?;
+            let response = forward_sessionless(state, parts, body_bytes, miss).await?;
             return Ok(AcceptOutcome::EarlyResponse(response));
         }
     };

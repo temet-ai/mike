@@ -1,69 +1,156 @@
-#!/usr/bin/env bash
-# install — let mike observe Codex sessions it did not launch.
-#
-# Usage: scripts/codex-hooks/install --codex-home <dir> [--mike-url <url>] [--source <label>] [--print]
-#
-# Writes into <dir>:
-#   hooks.json   one observe-only handler per Codex 0.167.1 hook event, each running
-#                mike-codex-hook (copied to <dir>/mike/). An existing hooks.json is kept: the
-#                mike handlers are added beside the handlers already there, never replacing them.
-#   config.toml  an [otel] block exporting logs and traces as OTLP/JSON to mike's
-#                /api/codex/observe/otel/v1/{logs,traces}, unless the file already has [otel],
-#                in which case the block is printed for you to merge and nothing is changed.
-# Codex asks you to trust new hooks (`/hooks` in the TUI); until you do they do not run.
-# Nothing in mike can steer an observed session: the handlers print nothing and exit 0.
-# --codex-home is required so tests and trials never touch ~/.codex by accident; pass
-# --codex-home ~/.codex yourself to install for your own sessions.
-# --print writes nothing and prints the hooks.json and [otel] block it would write.
-set -euo pipefail
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-home=""; mike_url="http://127.0.0.1:9989"; label="$(hostname 2>/dev/null || echo unknown)"; print=0
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --codex-home) home="${2:?--codex-home needs a directory}"; shift 2 ;;
-    --mike-url) mike_url="${2:?}"; shift 2 ;;
-    --source) label="${2:?}"; shift 2 ;;
-    --print) print=1; shift ;;
-    -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-    *) echo "install: unknown argument $1" >&2; exit 2 ;;
-  esac
-done
-[[ -n "$home" ]] || { echo "install: --codex-home <dir> is required" >&2; exit 2; }
+#!/usr/bin/env python3
+"""Install Mike's compact lifecycle and mailbox hooks in an explicit Codex home.
 
-events=(SessionStart SessionEnd UserPromptSubmit PreModelRequest PostModelRequest PreToolUse
-  PostToolUse PermissionRequest SubagentStart SubagentStop Stop PreCompact PostCompact Interrupt)
-hook_bin="$home/mike/mike-codex-hook"
-command="MIKE_INSPECT_URL='$mike_url' MIKE_CODEX_SOURCE='$label' bash '$hook_bin'"
+Existing hooks/settings are preserved. Codex still requires its own hook trust review.
+The default log exporter sends metadata to Mike; raw capture remains disabled.
+"""
+import argparse
+import json
+from pathlib import Path
+import re
+import shlex
+import shutil
+import socket
+import sys
+import tomllib
 
-otel_block="[otel]
-exporter = { otlp-http = { endpoint = \"$mike_url/api/codex/observe/otel/v1/logs\", protocol = \"json\", headers = { \"x-mike-codex-source\" = \"$label\" } } }
-trace_exporter = { otlp-http = { endpoint = \"$mike_url/api/codex/observe/otel/v1/traces\", protocol = \"json\", headers = { \"x-mike-codex-source\" = \"$label\" } } }"
 
-merged="$(python3 - "$home/hooks.json" "$command" "${events[@]}" <<'EOF'
-import json, os, sys
-path, command, events = sys.argv[1], sys.argv[2], sys.argv[3:]
-doc = json.load(open(path)) if os.path.exists(path) else {}
-hooks = doc.setdefault("hooks", {})
-for event in events:
-    groups = hooks.setdefault(event, [])
-    present = any(h.get("command") == command for g in groups for h in g.get("hooks", []))
-    if not present:
-        timeout = 3 if event in ("SessionEnd", "Interrupt") else 5
-        groups.append({"hooks": [{"type": "command", "command": command, "timeout": timeout, "async": True}]})
-print(json.dumps(doc, indent=2))
-EOF
-)"
+EVENTS = ("SessionStart", "SessionEnd", "UserPromptSubmit", "PostToolUse", "Stop",
+          "SubagentStart", "SubagentStop")
 
-if (( print )); then
-  printf '%s\n\n%s\n' "$merged" "$otel_block"; exit 0
-fi
-mkdir -p "$home/mike"
-install -m 755 "$script_dir/mike-codex-hook" "$hook_bin"
-printf '%s\n' "$merged" > "$home/hooks.json.mike-tmp" && mv "$home/hooks.json.mike-tmp" "$home/hooks.json"
-if [[ -f "$home/config.toml" ]] && grep -q '^\[otel\]' "$home/config.toml"; then
-  echo "install: $home/config.toml already has [otel]; merge this yourself:"; echo "$otel_block"
-else
-  grep -q '^\[features\]' "$home/config.toml" 2>/dev/null || printf '\n[features]\nhooks = true\n' >> "$home/config.toml"
-  printf '\n%s\n' "$otel_block" >> "$home/config.toml"
-fi
-echo "install: mike observes Codex in $home; trust the new hooks in Codex (/hooks) to start."
+
+def setting(text, section, key, value):
+    """Change one scalar without rewriting unrelated comments or settings."""
+    header = re.search(r"(?m)^\s*\[" + re.escape(section) + r"\]\s*(?:#.*)?$", text)
+    if header is None:
+        return text.rstrip() + f"\n\n[{section}]\n{key} = {value}\n"
+    start = header.end()
+    following = re.search(r"(?m)^\s*\[", text[start:])
+    end = start + following.start() if following else len(text)
+    block = text[start:end]
+    pattern = r"(?m)^\s*" + re.escape(key) + r"\s*=.*$"
+    if re.search(pattern, block):
+        block = re.sub(pattern, f"{key} = {value}", block)
+    else:
+        block = f"\n{key} = {value}\n" + block.lstrip("\n")
+    return text[:start] + block + text[end:]
+
+
+def write_changed(path, text):
+    if path.exists() and path.read_text() == text:
+        return False
+    temporary = path.with_name(path.name + ".mike-tmp")
+    temporary.write_text(text)
+    temporary.replace(path)
+    return True
+
+
+def owned_handler(handler, hook_bin):
+    try:
+        return str(hook_bin) in shlex.split(handler.get("command", ""))
+    except ValueError:
+        # The old installer did not escape apostrophes in home paths.
+        return "'" + str(hook_bin) + "'" in handler.get("command", "")
+
+
+def metadata_exporter(config, parsed, mike_url, source, codex_home):
+    otel = parsed.get("otel", {})
+    if any(key in otel for key in ("exporter", "trace_exporter", "metrics_exporter")):
+        return config  # An operator's exporter or explicit "none" takes precedence.
+    content_keys = ("log_user_prompt", "log_agent_responses", "log_guardian_assessments")
+    tool_result = otel.get("tool_result")
+    if any(otel.get(key) for key in content_keys) or (
+        tool_result is not None and tool_result.get("max_bytes") != 0
+    ):
+        print("install: preserving existing OTel content settings; Mike metadata exporter not added.",
+              file=sys.stderr)
+        return config
+    if "otel" in parsed and not re.search(r"(?m)^\s*\[otel\]", config):
+        print("install: preserving inline OTel settings; Mike metadata exporter not added.",
+              file=sys.stderr)
+        return config
+    for key in content_keys:
+        if key not in otel:
+            config = setting(config, "otel", key, "false")
+    if tool_result is None:
+        config = setting(config, "otel", "tool_result.max_bytes", "0")
+    exporter = ('{ otlp-http = { endpoint = '
+                + json.dumps(mike_url.rstrip("/") + "/api/codex/observe/otel/v1/logs")
+                + ', protocol = "json", headers = { "x-mike-codex-source" = '
+                + json.dumps(source) + ', "x-mike-codex-home" = '
+                + json.dumps(str(codex_home)) + ' } } }')
+    return setting(config, "otel", "exporter", exporter)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--codex-home", required=True, type=Path)
+    parser.add_argument("--mike-url", default="http://127.0.0.1:9989")
+    parser.add_argument("--source", default=socket.gethostname())
+    parser.add_argument("--print", action="store_true", dest="print_only")
+    args = parser.parse_args()
+    codex_home = args.codex_home.expanduser().resolve()
+    hook_bin = codex_home / "mike" / "mike-codex-hook"
+    command = " ".join((
+        "MIKE_INSPECT_URL=" + shlex.quote(args.mike_url.rstrip("/")),
+        "MIKE_CODEX_SOURCE=" + shlex.quote(args.source),
+        "MIKE_CODEX_HOME=" + shlex.quote(str(codex_home)),
+        "MIKE_CODEX_STATE_DIR=" + shlex.quote(str(codex_home / "mike" / "state")),
+        shlex.quote(str(hook_bin)),
+    ))
+    hooks_path = codex_home / "hooks.json"
+    doc = json.loads(hooks_path.read_text()) if hooks_path.exists() else {}
+    hooks = doc.setdefault("hooks", {})
+    # Replace only our installed command, including the old observe-only handlers.
+    for event, groups in list(hooks.items()):
+        kept = []
+        for group in groups:
+            handlers = [h for h in group.get("hooks", [])
+                        if not owned_handler(h, hook_bin)]
+            if handlers:
+                kept.append({**group, "hooks": handlers})
+        if kept:
+            hooks[event] = kept
+        else:
+            del hooks[event]
+    for event in EVENTS:
+        hooks.setdefault(event, []).append({"hooks": [{
+            "type": "command", "command": command, "timeout": 3,
+            "async": False,
+        }]})
+    config_path = codex_home / "config.toml"
+    config = config_path.read_text() if config_path.exists() else ""
+    parsed = tomllib.loads(config)
+    config = setting(config, "features", "hooks", "true")
+    config = metadata_exporter(config, parsed, args.mike_url, args.source, codex_home)
+    # Mail bodies must be fetched as tool results, never promoted to hook context.
+    if "mike" not in parsed.get("mcp_servers", {}):
+        binary = shutil.which("mike-mcp")
+        if binary:
+            config += ("\n[mcp_servers.mike]\ncommand = " + json.dumps(binary)
+                       + "\n[mcp_servers.mike.env]\nMIKE_INSPECT_URL = "
+                       + json.dumps(args.mike_url.rstrip("/")) + "\n")
+        else:
+            print("install: mike-mcp is missing; install it before receiving mail through Codex tools.",
+                  file=sys.stderr)
+    # Validate before writing either file. Existing user telemetry remains untouched.
+    tomllib.loads(config)
+    rendered = json.dumps(doc, indent=2) + "\n"
+    if args.print_only:
+        print(rendered + "\n" + config)
+        return
+    hook_bin.parent.mkdir(parents=True, exist_ok=True)
+    changed = write_changed(hooks_path, rendered)
+    changed |= write_changed(config_path, config)
+    changed |= write_changed(hook_bin, Path(__file__).with_name("mike-codex-hook").read_text())
+    hook_bin.chmod(0o755)
+    if changed:
+        print("install: Mike lifecycle/mail hooks ready; review and trust them in Codex (/hooks).",
+              file=sys.stderr)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError) as error:
+        sys.exit(f"install: {error}")

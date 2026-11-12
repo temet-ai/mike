@@ -217,3 +217,42 @@ async fn deleted_owner_clears_live_fk_and_preserves_historical_binding() -> anyh
     db.cleanup().await?;
     Ok(())
 }
+
+#[tokio::test]
+async fn unique_codex_thread_mapping_refuses_cross_home_ambiguity() -> anyhow::Result<()> {
+    let Some((db, handle, first_namespace)) = database().await? else {
+        return Ok(());
+    };
+    let first_session = Uuid::new_v4();
+    let second_session = Uuid::new_v4();
+    handle.ensure_runtime_session(first_session).await?;
+    handle.ensure_runtime_session(second_session).await?;
+    let first = binding(first_namespace.id, first_session);
+    assert!(
+        handle
+            .resolve_unique_codex_session(&first.provider.thread_id)
+            .await?
+            .is_none()
+    );
+    handle.bind_runtime_thread(&first).await?;
+    assert_eq!(
+        handle
+            .resolve_unique_codex_session(&first.provider.thread_id)
+            .await?,
+        Some(first_session)
+    );
+    let second_namespace = namespace();
+    handle.register_runtime_namespace(&second_namespace).await?;
+    handle
+        .bind_runtime_thread(&binding(second_namespace.id, second_session))
+        .await?;
+    assert!(
+        handle
+            .resolve_unique_codex_session(&first.provider.thread_id)
+            .await?
+            .is_none()
+    );
+    handle.pool().close().await;
+    db.cleanup().await?;
+    Ok(())
+}

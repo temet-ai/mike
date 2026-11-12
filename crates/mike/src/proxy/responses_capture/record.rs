@@ -2,26 +2,16 @@ use std::time::{Duration, Instant};
 
 use bytes::Bytes;
 use chrono::{DateTime, Utc};
+use mike_codex::responses::ResponsesSummary;
 use serde_json::Value;
+use tokio::sync::OwnedSemaphorePermit;
 
+use super::request_body::SharedCapture;
 use super::{AuthRoute, Correlation, ResponsesState};
-use crate::sse::parser::responses::{ResponsesSummary, summarize_json, summarize_stream};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::workspace::RegisterWorkspaceSession;
 
 const REGISTER_EVERY: Duration = Duration::from_secs(60);
-
-const INSERT_EXCHANGE: &str = "INSERT INTO runtime.responses_exchanges
-     (session_id, provider_session_id, provider_thread_id, provider_turn_id,
-      request_kind, correlation, auth_route, transport, method, path, upstream_url,
-      request_headers, forwarded_headers, request_body, forwarded_body,
-      request_body_encoding, model, response_status, response_headers, response_body,
-      upstream_request_id, response_id, response_model, response_state, usage,
-      output_items, stream_events, error, status, created_at, completed_at)
- VALUES ((SELECT id FROM sessions.sessions WHERE session_uuid = $1),
-         $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-         $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, now())
- RETURNING id";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ExchangeStatus {
@@ -32,17 +22,17 @@ pub(crate) enum ExchangeStatus {
 }
 
 impl ExchangeStatus {
-    fn as_db_str(self) -> &'static str {
+    pub(super) fn as_db_str(self) -> &'static str {
         match self {
-            ExchangeStatus::Complete => "complete",
-            ExchangeStatus::Error => "error",
-            ExchangeStatus::Aborted => "aborted",
-            ExchangeStatus::Refused => "refused",
+            Self::Complete => "complete",
+            Self::Error => "error",
+            Self::Aborted => "aborted",
+            Self::Refused => "refused",
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct ExchangeRecord {
     pub(crate) correlation: Correlation,
     pub(crate) auth_route: AuthRoute,
@@ -52,8 +42,7 @@ pub(crate) struct ExchangeRecord {
     pub(crate) upstream_url: String,
     pub(crate) request_headers: Value,
     pub(crate) forwarded_headers: Value,
-    pub(crate) request_body: Bytes,
-    pub(crate) forwarded_body: Bytes,
+    pub(crate) request_body: SharedCapture,
     pub(crate) request_body_encoding: Option<String>,
     pub(crate) model: Option<String>,
     pub(crate) response_status: Option<u16>,
@@ -61,12 +50,18 @@ pub(crate) struct ExchangeRecord {
     pub(crate) response_is_event_stream: bool,
     pub(crate) upstream_request_id: Option<String>,
     pub(crate) created_at: DateTime<Utc>,
+    pub(crate) diagnostics_enabled: bool,
+    pub(crate) slot: Option<OwnedSemaphorePermit>,
+    pub(crate) codex_home: Option<std::path::PathBuf>,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct Finished {
     pub(crate) status: ExchangeStatus,
     pub(crate) response_body: Option<Bytes>,
+    pub(crate) summary: ResponsesSummary,
+    pub(crate) evidence_complete: bool,
+    pub(crate) evidence_refused: bool,
     pub(crate) error: Option<String>,
 }
 
@@ -75,22 +70,25 @@ pub(super) fn request_model(body: &[u8], encoding: Option<&str>) -> Option<Strin
         return None;
     }
     let value: Value = serde_json::from_slice(body).ok()?;
-    value.get("model")?.as_str().map(str::to_string)
+    value.get("model")?.as_str().map(str::to_owned)
 }
 
-fn summary_of(record: &ExchangeRecord, finished: &Finished) -> ResponsesSummary {
-    match &finished.response_body {
-        Some(body) if record.response_is_event_stream => summarize_stream(body),
-        Some(body) => summarize_json(body),
-        None => ResponsesSummary::default(),
+pub(super) fn spawn_finish(state: ResponsesState, mut record: ExchangeRecord, finished: Finished) {
+    if record.slot.is_none() {
+        metrics::counter!("codex_observation_budget_refused_total").increment(1);
+        tracing::warn!(path = %record.path, "Codex wire observation unavailable: in-flight budget exhausted");
+        return;
     }
-}
-
-pub(super) fn spawn_finish(state: ResponsesState, record: ExchangeRecord, finished: Finished) {
     tokio::spawn(async move {
-        let outcome = finish(&state, &record, &finished).await;
+        let outcome = tokio::time::timeout(
+            Duration::from_secs(5),
+            finish(&state, &mut record, &finished),
+        )
+        .await
+        .unwrap_or_else(|_| Err("Codex observation persistence deadline exceeded".into()));
         if let Err(error) = &outcome {
-            tracing::warn!(error = %error, path = %record.path, "Codex Responses exchange was not recorded");
+            tracing::warn!(error = %error, path = %record.path, "Codex Responses observation was not recorded");
+            metrics::counter!("codex_observation_write_failed_total").increment(1);
         }
         if let Some(tx) = &state.recorded {
             let _ = tx.send(outcome);
@@ -100,17 +98,25 @@ pub(super) fn spawn_finish(state: ResponsesState, record: ExchangeRecord, finish
 
 async fn finish(
     state: &ResponsesState,
-    record: &ExchangeRecord,
+    record: &mut ExchangeRecord,
     finished: &Finished,
 ) -> Result<i64, String> {
-    let Some(persist) = &state.persist else {
-        return Err("persistence is disabled".to_string());
-    };
+    let persist = state.persist.as_ref().ok_or("persistence is disabled")?;
+    super::wire_observation::resolve_identity(persist, record).await?;
     register_session(state, persist, &record.correlation).await;
-    let summary = summary_of(record, finished);
-    insert(persist, record, finished, &summary)
+    super::wire_observation::record(persist, record, finished).await?;
+    let diagnostic = super::diagnostic::exchange(record, finished);
+    let limits = crate::store::persistence::runtime::diagnostics::DiagnosticLimits {
+        enabled: record.diagnostics_enabled,
+        ..Default::default()
+    };
+    let outcome = persist
+        .record_responses_diagnostic(&diagnostic, &limits)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    outcome
+        .exchange_id
+        .ok_or_else(|| "diagnostic metadata budget refused; normalized observation retained".into())
 }
 
 fn due_for_registration(state: &ResponsesState, session: uuid::Uuid) -> bool {
@@ -118,17 +124,24 @@ fn due_for_registration(state: &ResponsesState, session: uuid::Uuid) -> bool {
         return true;
     };
     let now = Instant::now();
-    match seen.get(&session) {
-        Some(at) if now.duration_since(*at) < REGISTER_EVERY => false,
-        _ => {
-            seen.insert(session, now);
-            true
-        }
+    seen.retain(|_, at| now.duration_since(*at) < REGISTER_EVERY);
+    if seen.contains_key(&session) {
+        return false;
     }
+    if seen.len() == 1024
+        && let Some(oldest) = seen.iter().min_by_key(|(_, at)| **at).map(|(key, _)| *key)
+    {
+        seen.remove(&oldest);
+    }
+    seen.insert(session, now);
+    true
 }
 
 async fn register_session(state: &ResponsesState, persist: &PersistHandle, c: &Correlation) {
-    let (Some(session_uuid), Some(cwd)) = (c.session_uuid, c.cwd.as_deref()) else {
+    let (Some(session_uuid), Some(cwd)) = (
+        c.session_uuid,
+        c.cwd.as_deref().filter(|cwd| cwd.len() <= 4096),
+    ) else {
         return;
     };
     if !due_for_registration(state, session_uuid) {
@@ -146,75 +159,7 @@ async fn register_session(state: &ResponsesState, persist: &PersistHandle, c: &C
         instructions: None,
         pid: None,
     };
-    if let Err(error) = persist.register_workspace_session(input).await {
+    if let Err(error) = persist.register_runtime_workspace_session(input).await {
         tracing::warn!(error = %error, session_id = %session_uuid, "Codex session not registered on the roster");
     }
-}
-
-async fn insert(
-    persist: &PersistHandle,
-    record: &ExchangeRecord,
-    finished: &Finished,
-    summary: &ResponsesSummary,
-) -> Result<i64, sqlx::Error> {
-    let c = &record.correlation;
-    let transport = if record.websocket_refused {
-        "websocket_refused"
-    } else {
-        "http"
-    };
-    let output_items = Value::Array(summary.output_items.clone());
-    let response_body = finished.response_body.as_ref().map(|b| b.to_vec());
-    let stream_events = record
-        .response_is_event_stream
-        .then(|| i32::try_from(summary.events).unwrap_or(i32::MAX));
-    let error = finished
-        .error
-        .clone()
-        .or_else(|| summary.error.clone())
-        .or_else(|| {
-            (summary.undecodable_frames > 0).then(|| {
-                format!(
-                    "{} stream frame(s) were not JSON; the raw response body is kept whole",
-                    summary.undecodable_frames
-                )
-            })
-        });
-    sqlx::query_scalar::<_, i64>(INSERT_EXCHANGE)
-        .bind(c.session_uuid)
-        .bind(&c.provider_session_id)
-        .bind(&c.provider_thread_id)
-        .bind(&c.provider_turn_id)
-        .bind(&c.request_kind)
-        .bind(&c.evidence)
-        .bind(record.auth_route.as_db_str())
-        .bind(transport)
-        .bind(&record.method)
-        .bind(&record.path)
-        .bind(&record.upstream_url)
-        .bind(&record.request_headers)
-        .bind(&record.forwarded_headers)
-        .bind(record.request_body.as_ref())
-        .bind(record.forwarded_body.as_ref())
-        .bind(&record.request_body_encoding)
-        .bind(&record.model)
-        .bind(
-            record
-                .response_status
-                .map(|s| i16::try_from(s).unwrap_or(i16::MAX)),
-        )
-        .bind(&record.response_headers)
-        .bind(response_body)
-        .bind(&record.upstream_request_id)
-        .bind(&summary.response_id)
-        .bind(&summary.model)
-        .bind(&summary.state)
-        .bind(&summary.usage)
-        .bind(output_items)
-        .bind(stream_events)
-        .bind(error)
-        .bind(finished.status.as_db_str())
-        .bind(record.created_at)
-        .fetch_one(persist.pool())
-        .await
 }

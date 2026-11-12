@@ -1,30 +1,10 @@
 use std::path::PathBuf;
 
-use serde_json::json;
 use uuid::Uuid;
 
-use super::seat::absorb;
 use super::*;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::test_support::acquire_ephemeral_db;
-
-fn options() -> SeatOptions {
-    SeatOptions {
-        program: "codex".into(),
-        cwd: PathBuf::from("/repo"),
-        codex_home: PathBuf::from("/state/seats/repo/codex/run-1"),
-        model: Some("gpt-6.1-sol".into()),
-        effort: Some("high".into()),
-        developer_instructions: "contract".into(),
-        mcp: Some(McpBinding {
-            command: "mike-mcp".into(),
-            env: vec![
-                ("MIKE_MCP_PROFILE".into(), "worker".into()),
-                ("CLAUDE_CODE_SESSION_ID".into(), "s-1".into()),
-            ],
-        }),
-    }
-}
 
 #[test]
 fn codex_model_check_refuses_claude_names_and_accepts_codex_ids() {
@@ -44,41 +24,6 @@ fn codex_effort_and_agent_checks_name_the_claude_only_values() {
     assert!(effort_problem(Some("max")).is_some_and(|p| p.contains("minimal")));
     assert!(agent_problem("rust-developer").is_some_and(|p| p.contains("--agent")));
     assert_eq!(agent_problem(""), None);
-}
-
-#[test]
-fn thread_start_params_carry_seat_policy_and_mike_binding_without_claude_flags() {
-    let params = options().thread_start();
-    assert_eq!(params["sandbox"], "workspace-write");
-    assert_eq!(params["approvalPolicy"], "never");
-    assert_eq!(params["ephemeral"], false);
-    assert_eq!(params["model"], "gpt-6.1-sol");
-    assert_eq!(params["developerInstructions"], "contract");
-    let mike = &params["config"]["mcp_servers"]["mike"];
-    assert_eq!(mike["command"], "mike-mcp");
-    assert_eq!(mike["env"]["CLAUDE_CODE_SESSION_ID"], "s-1");
-    assert_eq!(mike["env"]["MIKE_MCP_PROFILE"], "worker");
-    let text = params.to_string();
-    for flag in [
-        "--model",
-        "--agent",
-        "--settings",
-        "--append-system-prompt",
-        "--effort",
-    ] {
-        assert!(!text.contains(flag), "{flag} leaked into {text}");
-    }
-}
-
-#[test]
-fn resume_fork_and_turn_params_name_the_thread() {
-    let seat = options();
-    assert_eq!(seat.thread_resume("t-1")["threadId"], "t-1");
-    assert_eq!(seat.thread_fork("t-1")["threadId"], "t-1");
-    assert_eq!(seat.thread_fork("t-1")["ephemeral"], false);
-    let turn = seat.turn_start("t-1", "brief");
-    assert_eq!(turn["input"][0]["text"], "brief");
-    assert_eq!(turn["effort"], "high");
 }
 
 #[test]
@@ -109,25 +54,6 @@ fn namespace_is_stable_per_codex_home() {
         seat_codex_home(&PathBuf::from("/s"), "fleet run/1"),
         PathBuf::from("/s/codex/fleet_run_1")
     );
-}
-
-#[test]
-fn turn_outcome_collects_final_answer_and_commands_of_its_own_thread() {
-    let mut outcome = TurnOutcome {
-        turn_id: "u-1".into(),
-        ..TurnOutcome::default()
-    };
-    let other = json!({"method": "turn/completed", "params": {"threadId": "t-2", "turn": {"id": "u-1", "status": "completed"}}});
-    assert!(!absorb(&mut outcome, &other, "t-1"));
-    let command = json!({"method": "item/completed", "params": {"threadId": "t-1", "item": {"type": "commandExecution", "command": "./check.sh", "exitCode": 0}}});
-    let answer = json!({"method": "item/completed", "params": {"threadId": "t-1", "item": {"type": "agentMessage", "phase": "final_answer", "text": "done"}}});
-    let done = json!({"method": "turn/completed", "params": {"threadId": "t-1", "turn": {"id": "u-1", "status": "completed"}}});
-    assert!(!absorb(&mut outcome, &command, "t-1"));
-    assert!(!absorb(&mut outcome, &answer, "t-1"));
-    assert!(absorb(&mut outcome, &done, "t-1"));
-    assert_eq!(outcome.final_text, "done");
-    assert_eq!(outcome.status, "completed");
-    assert_eq!(outcome.commands, vec![("./check.sh".to_string(), Some(0))]);
 }
 
 #[tokio::test]

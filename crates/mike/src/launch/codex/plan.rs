@@ -2,7 +2,8 @@ use std::path::Path;
 
 use super::contract::{SeatKind, render_contract};
 use super::fleet::{SeatLaunch, begin, identity};
-use super::options::{McpBinding, SeatOptions, seat_codex_home};
+use super::options::{seat_codex_home, seat_policy};
+use super::{McpBinding, SeatOptions};
 use crate::launch::fleet::definition::FleetDefinition;
 use crate::launch::fleet::plan::SeatPlan;
 use crate::launch::fleet::{bundle, environment, report_proof, seat_settings};
@@ -43,7 +44,9 @@ pub fn seat_options(
         model: Some(plan.model.clone()).filter(|m| !m.trim().is_empty()),
         effort: plan.effort.clone(),
         developer_instructions: render_contract(kind, &plan.seat, plan.session, &contract),
+        policy: seat_policy(),
         mcp: Some(McpBinding {
+            name: "mike".into(),
             command: "mike-mcp".into(),
             env: vec![
                 (seat_settings::PROFILE_ENV.into(), profile.into()),

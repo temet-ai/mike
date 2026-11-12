@@ -17,6 +17,7 @@ fn extra_arguments(tool: &str) -> Map<String, Value> {
         "write_session_note" | "list_session_notes" => json!({"session_id": "x"}),
         "get_prompt_composition" => json!({"id": "x"}),
         "list_supplied_items" => json!({"request_id": 1}),
+        "wright_checks" => json!({"action": "list"}),
         "define_fleet" => json!({"slug": "x", "project_path": "x"}),
         "fleet_report" => json!({"exercised": {"command": "x", "exit": 0, "output_ref": "x"}}),
         "fleet_decide" => json!({"evidence_read": ["x"]}),

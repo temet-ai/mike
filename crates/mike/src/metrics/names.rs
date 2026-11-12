@@ -37,11 +37,14 @@ pub(crate) const COUNTER_RETENTION_SWEEP_MESSAGES_REMOVED_TOTAL: &str =
 
 pub(crate) const COUNTER_UNCAPTURED_REQUESTS_TOTAL: &str = "proxy_uncaptured_requests_total";
 
-pub(crate) const UNCAPTURED_REQUEST_REASONS: &[&str] = &[
+pub(crate) const UNCAPTURED_REQUEST_REASONS: &[&str] = &["capture_throttled"];
+
+pub(crate) const COUNTER_SESSIONLESS_REQUESTS_TOTAL: &str = "proxy_sessionless_requests_total";
+
+pub(crate) const SESSIONLESS_REQUEST_REASONS: &[&str] = &[
     "missing_session_header",
     "malformed_session_header",
     "non_utf8_session_header",
-    "capture_throttled",
 ];
 
 pub(crate) const COUNTER_REMOTE_CONTROL_CALLS_TOTAL: &str = "proxy_remote_control_calls_total";

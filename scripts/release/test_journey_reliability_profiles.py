@@ -22,7 +22,7 @@ class ProfileTests(OfflineTests):
         with self.assertRaisesRegex(JourneyError, "EXPLICIT_BUDGETS_REQUIRED"):
             profiles.reliability_options(profiles.NORMAL_PROFILE)
 
-    def test_strict_finite_explicit_budgets(self):
+    def test_strict_bounded_explicit_budgets(self):
         for values in ([], {}, dict(BUDGETS, unknown=1), {key: value for key, value in BUDGETS.items() if key != "fd_peak"}):
             with self.subTest(values=values), self.assertRaises(JourneyError):
                 profiles.reliability_options(resource_budgets=values)
@@ -101,11 +101,10 @@ class ProfileTests(OfflineTests):
                          set(plan["background_worker_conditions"]))
         for worker in ("mailbox_reaper::spawn_mailbox_reaper", "work_registry_worker::spawn_work_registry_worker",
                        "launch::fleet::display::spawn_fleet_display", "launch::cli::spawn_queue_replay",
-                       "launch::cli::spawn_repair_sweep", "api::handlers::spawn_health_refresher"):
+                       "wright::watch::spawn_wright_worker", "memory_keeper::worker::spawn_memory_keeper",
+                       "mail_outbox::spawn_mail_outbox", "api::handlers::spawn_health_refresher"):
             self.assertIn(worker, plan["background_worker_conditions"])
         self.assertIn("empty_launch_queue", plan["required_private_state"])
-        self.assertIn("empty_repair_state", plan["required_private_state"])
-        self.assertEqual(plan["finite_service"]["core_workload_expected_requests"], 0)
         self.assertFalse(plan["embedding_service"]["compiled_enabled"])
         self.assertEqual(plan["embedding_service"]["compiled_url"], "http://127.0.0.1:7997")
         self.assertFalse(plan["embedding_service"]["toml_url_override_effective"])

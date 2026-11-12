@@ -8,9 +8,9 @@ use serde_json::{Value, json};
 use super::{bad_request, page_limit, page_offset, refuse};
 use crate::api::handlers::{persist_error_response, persist_unavailable_response};
 use crate::config::AppState;
+use crate::store::persistence::PersistHandle;
 use crate::store::persistence::wright::{NewClientError, ProblemFilter};
 use crate::wright::Source;
-use crate::wright::watch::CHECKS;
 
 const PROBLEMS_DEFAULT_LIMIT: i64 = 50;
 const EPISODES_DEFAULT_LIMIT: i64 = 50;
@@ -37,15 +37,27 @@ fn state_filter(value: Option<&str>) -> Result<Option<String>, String> {
     }
 }
 
-fn check_filter(value: Option<&str>) -> Result<Option<String>, String> {
-    match value.map(str::trim).filter(|s| !s.is_empty()) {
-        None => Ok(None),
-        Some(name) if CHECKS.iter().any(|c| c.name == name) => Ok(Some(name.to_owned())),
-        Some(other) => Err(format!(
-            "check is `{other}`; known checks: {}",
-            CHECKS.iter().map(|c| c.name).collect::<Vec<_>>().join(", ")
-        )),
+async fn check_filter(
+    handle: &PersistHandle,
+    value: Option<&str>,
+) -> Result<Option<String>, Response> {
+    let Some(name) = value.map(str::trim).filter(|s| !s.is_empty()) else {
+        return Ok(None);
+    };
+    let known: Vec<String> = handle
+        .list_wright_checks()
+        .await
+        .map_err(persist_error_response)?
+        .into_iter()
+        .map(|check| check.name)
+        .collect();
+    if known.iter().any(|known| known == name) {
+        return Ok(Some(name.to_owned()));
     }
+    Err(bad_request(format!(
+        "check is `{name}`; known checks: {}",
+        known.join(", ")
+    )))
 }
 
 fn source_filter(value: Option<&str>) -> Result<Option<String>, String> {
@@ -59,13 +71,16 @@ fn source_filter(value: Option<&str>) -> Result<Option<String>, String> {
     }
 }
 
-fn problem_filter(query: &ProblemsQuery) -> Result<ProblemFilter, String> {
+async fn problem_filter(
+    handle: &PersistHandle,
+    query: &ProblemsQuery,
+) -> Result<ProblemFilter, Response> {
     Ok(ProblemFilter {
-        state: state_filter(query.state.as_deref())?,
-        check: check_filter(query.check.as_deref())?,
-        source: source_filter(query.source.as_deref())?,
-        limit: page_limit(query.limit, PROBLEMS_DEFAULT_LIMIT, "limit")?,
-        offset: page_offset(query.offset, "offset")?,
+        state: state_filter(query.state.as_deref()).map_err(bad_request)?,
+        check: check_filter(handle, query.check.as_deref()).await?,
+        source: source_filter(query.source.as_deref()).map_err(bad_request)?,
+        limit: page_limit(query.limit, PROBLEMS_DEFAULT_LIMIT, "limit").map_err(bad_request)?,
+        offset: page_offset(query.offset, "offset").map_err(bad_request)?,
     })
 }
 
@@ -78,7 +93,7 @@ pub(crate) async fn list_problems(
     Query(query): Query<ProblemsQuery>,
 ) -> Result<Json<Value>, Response> {
     let handle = state.persist().ok_or_else(persist_unavailable_response)?;
-    let filter = problem_filter(&query).map_err(bad_request)?;
+    let filter = problem_filter(handle, &query).await?;
     let page = handle
         .list_wright_problems(&filter)
         .await
@@ -132,31 +147,6 @@ pub(crate) async fn get_problem(
         "episode_limit": limit,
         "episode_offset": offset,
         "next_episode_offset": next_offset,
-    })))
-}
-
-pub(crate) async fn list_checks(State(state): State<AppState>) -> Result<Json<Value>, Response> {
-    let handle = state.persist().ok_or_else(persist_unavailable_response)?;
-    let runs = handle
-        .latest_wright_runs()
-        .await
-        .map_err(persist_error_response)?;
-    let checks: Vec<Value> = CHECKS
-        .iter()
-        .map(|spec| {
-            let latest = runs.iter().find(|run| run.check_name == spec.name);
-            json!({
-                "name": spec.name,
-                "source": spec.source,
-                "cadence": spec.cadence,
-                "expects": spec.expects,
-                "latest_run": latest,
-            })
-        })
-        .collect();
-    Ok(Json(json!({
-        "checks": checks,
-        "watch_enabled": watch_enabled(&state),
     })))
 }
 

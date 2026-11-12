@@ -1,0 +1,190 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n                       s.session_uuid     AS \"session_uuid!\",\n                       r.cwd              AS \"cwd!\",\n                       r.worktree         AS \"worktree?\",\n                       r.registered_via   AS \"registered_via!\",\n                       r.registered_at    AS \"registered_at!\",\n                       r.lease_expires_at AS \"lease_expires_at!\",\n                       r.released_at      AS \"released_at?\",\n                       sg.goal            AS \"goal?\",\n                       sg.next_steps      AS \"next_steps?\",\n                       sg.display_name    AS \"display_name?\",\n                       sg.role            AS \"role?\",\n                       sg.instructions    AS \"instructions?\",\n                       CASE\n                           WHEN r.released_at IS NOT NULL OR act.lifecycle IN ('ended', 'failed') THEN 'ended'\n                           WHEN act.last_request_at IS NULL AND r.registered_at < $5 THEN 'uncaptured'\n                           WHEN r.lease_expires_at > now() OR act.last_request_at > $4 THEN 'live'\n                           ELSE 'stale'\n                       END                AS \"liveness!\",\n                       act.last_request_at       AS \"last_request_at?\",\n                       act.newest_request_number AS \"newest_request_number?\"\n                   FROM workspace.session_registrations r\n                   JOIN sessions.sessions s ON s.id = r.session_id\n                   LEFT JOIN sessions.session_goals sg ON sg.session_id = r.session_id\n                   LEFT JOIN runtime.session_facts f ON f.session_id = r.session_id\n                   LEFT JOIN LATERAL (\n                       SELECT rq.created_at, rq.request_number\n                         FROM requests.requests rq\n                        WHERE rq.session_id = r.session_id AND f.session_id IS NULL\n                        ORDER BY rq.created_at DESC, rq.id DESC\n                        LIMIT 1\n                   ) latest ON true\n                   CROSS JOIN LATERAL (\n                       SELECT COALESCE(f.observed_at, latest.created_at) AS last_request_at,\n                              latest.request_number AS newest_request_number,\n                              f.lifecycle\n                   ) act\n                  WHERE r.project_id = $1\n                    AND ($2 OR (r.released_at IS NULL AND COALESCE(act.lifecycle, '') NOT IN ('ended', 'failed')))\n                    AND ($3 OR (\n                            COALESCE(act.lifecycle, '') NOT IN ('ended', 'failed')\n                            AND NOT (act.last_request_at IS NULL AND r.registered_at < $5)\n                            AND (r.lease_expires_at > now() OR act.last_request_at > $4)\n                        ))\n                  ORDER BY r.registered_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "cwd!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "cwd"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "worktree?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "worktree"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "registered_via!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "registered_via"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "registered_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "registered_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "lease_expires_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "lease_expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "released_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "workspace.session_registrations",
+            "name": "released_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "goal?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "goal"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "next_steps?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "next_steps"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "display_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "display_name"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "role?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "role"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "instructions?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "sessions.session_goals",
+            "name": "instructions"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "liveness!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 13,
+        "name": "last_request_at?",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 14,
+        "name": "newest_request_number?",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "requests.requests",
+            "name": "request_number"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Bool",
+        "Bool",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      null,
+      null,
+      true
+    ]
+  },
+  "hash": "0196c02c06bd507a1dba2fbb27ab04a4020fc047fc3788b9b4654776d7ab7d29"
+}
