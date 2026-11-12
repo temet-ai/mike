@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"rows!\", COALESCE(sum(retained_bytes), 0)::bigint AS \"bytes!\"\n           FROM runtime.responses_exchanges WHERE session_id IS NOT DISTINCT FROM $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "rows!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "bytes!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "0076063b1dcf2bdcde097897507b88be434d09c2daacd4ba2cc23cfc70f49e62"
+}

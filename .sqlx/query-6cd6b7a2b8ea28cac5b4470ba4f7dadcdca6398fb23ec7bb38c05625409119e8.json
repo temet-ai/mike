@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n                       CASE\n                           WHEN r.released_at IS NOT NULL OR act.lifecycle IN ('ended', 'failed') THEN 'ended'\n                           WHEN act.last_request_at IS NULL AND r.registered_at < $3 THEN 'uncaptured'\n                           WHEN r.lease_expires_at > now() OR act.last_request_at > $2 THEN 'live'\n                           ELSE 'stale'\n                       END AS \"liveness!\"\n                   FROM workspace.session_registrations r\n                   JOIN sessions.sessions s ON s.id = r.session_id\n                   LEFT JOIN LATERAL (\n                       SELECT observed_at AS last_request_at, lifecycle\n                         FROM runtime.session_activity(r.session_id)\n                   ) act ON true\n                  WHERE s.session_uuid = $1\n                  ORDER BY r.registered_at DESC\n                  LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "liveness!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "6cd6b7a2b8ea28cac5b4470ba4f7dadcdca6398fb23ec7bb38c05625409119e8"
+}

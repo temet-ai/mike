@@ -1,0 +1,33 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO runtime.model_calls AS c\n    (session_id, call_id, observed_at, source, source_version, fidelity, completeness,\n     requested_model, observed_model, status, duration_ms, http_status, usage_scope, usage_basis,\n     input_tokens, cached_input_tokens, output_tokens, reasoning_output_tokens, total_tokens,\n     context_window)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)\nON CONFLICT (session_id, call_id) DO UPDATE SET\n    observed_at = EXCLUDED.observed_at,\n    source = EXCLUDED.source,\n    source_version = EXCLUDED.source_version,\n    fidelity = EXCLUDED.fidelity,\n    completeness = EXCLUDED.completeness,\n    requested_model = COALESCE(EXCLUDED.requested_model, c.requested_model),\n    observed_model = COALESCE(EXCLUDED.observed_model, c.observed_model),\n    status = COALESCE(EXCLUDED.status, c.status),\n    duration_ms = COALESCE(EXCLUDED.duration_ms, c.duration_ms),\n    http_status = COALESCE(EXCLUDED.http_status, c.http_status),\n    usage_scope = COALESCE(EXCLUDED.usage_scope, c.usage_scope),\n    usage_basis = COALESCE(EXCLUDED.usage_basis, c.usage_basis),\n    input_tokens = COALESCE(EXCLUDED.input_tokens, c.input_tokens),\n    cached_input_tokens = COALESCE(EXCLUDED.cached_input_tokens, c.cached_input_tokens),\n    output_tokens = COALESCE(EXCLUDED.output_tokens, c.output_tokens),\n    reasoning_output_tokens = COALESCE(EXCLUDED.reasoning_output_tokens, c.reasoning_output_tokens),\n    total_tokens = COALESCE(EXCLUDED.total_tokens, c.total_tokens),\n    context_window = COALESCE(EXCLUDED.context_window, c.context_window)\nWHERE EXCLUDED.observed_at >= c.observed_at\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Timestamptz",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Int8",
+        "Int2",
+        "Text",
+        "Text",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0b351effd7dcae206295aa514aa4ef2bfab8c8f52253a633997456be1a423908"
+}

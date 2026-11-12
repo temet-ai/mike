@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO runtime.notification_targets (session_id, thread_id, runtime_home)\n             SELECT s.id, $2, $3 FROM sessions.sessions s\n             JOIN runtime.session_facts f ON f.session_id = s.id\n             WHERE s.session_uuid = $1 AND f.control = 'hook_boundary'\n             ON CONFLICT (session_id) DO UPDATE SET thread_id = EXCLUDED.thread_id,\n                 runtime_home = EXCLUDED.runtime_home, verified_at = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "40367709a0170af4bea6f3c3947fb0d915643e6d036ebabf7bee582dfb26c292"
+}

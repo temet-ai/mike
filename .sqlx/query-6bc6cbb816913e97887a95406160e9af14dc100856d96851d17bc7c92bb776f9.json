@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM runtime.responses_exchanges WHERE id IN\n             (SELECT id FROM runtime.responses_exchanges WHERE metadata_expires_at <= $1\n              ORDER BY metadata_expires_at LIMIT $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "6bc6cbb816913e97887a95406160e9af14dc100856d96851d17bc7c92bb776f9"
+}

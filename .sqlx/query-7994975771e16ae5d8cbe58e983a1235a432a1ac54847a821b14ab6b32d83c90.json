@@ -1,0 +1,270 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT session_uuid AS \"session_uuid!\", runtime AS \"runtime!\", source AS \"source!\",\n       source_version, fidelity AS \"fidelity!\", completeness AS \"completeness!\",\n       observed_at, lifecycle, lifecycle_at, control, requested_model, observed_model,\n       usage_scope, usage_basis, input_tokens, cached_input_tokens, output_tokens,\n       reasoning_output_tokens, total_tokens, context_window,\n       model_call_count AS \"model_call_count!\"\nFROM runtime.session_observation_summary_v WHERE runtime = $1 AND observed_at IS NOT NULL\nORDER BY observed_at DESC, session_uuid LIMIT $2 OFFSET $3\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_uuid!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "runtime!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "runtime"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "source_version",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "source_version"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "fidelity!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "fidelity"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "completeness!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "completeness"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "observed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "observed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "lifecycle",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "lifecycle"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "lifecycle_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "lifecycle_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "control",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "control"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "requested_model",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "requested_model"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "observed_model",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "observed_model"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "usage_scope",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "usage_scope"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "usage_basis",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "usage_basis"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "input_tokens",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "input_tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "cached_input_tokens",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "cached_input_tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "output_tokens",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "output_tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "reasoning_output_tokens",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "reasoning_output_tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "total_tokens",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "total_tokens"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "context_window",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "context_window"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "model_call_count!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_observation_summary_v",
+            "name": "model_call_count"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "7994975771e16ae5d8cbe58e983a1235a432a1ac54847a821b14ab6b32d83c90"
+}

@@ -1,0 +1,25 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO runtime.session_items AS i\n             (session_id, item_id, turn_id, kind, name, status, success, exit_code, source,\n              fidelity, completeness, first_seen_at, observed_at)\n         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)\n         ON CONFLICT (session_id, item_id) DO UPDATE SET\n             turn_id = COALESCE(EXCLUDED.turn_id, i.turn_id), kind = EXCLUDED.kind,\n             name = COALESCE(EXCLUDED.name, i.name), status = COALESCE(EXCLUDED.status, i.status),\n             success = COALESCE(EXCLUDED.success, i.success), exit_code = COALESCE(EXCLUDED.exit_code, i.exit_code),\n             source = EXCLUDED.source, fidelity = EXCLUDED.fidelity, completeness = EXCLUDED.completeness,\n             observed_at = EXCLUDED.observed_at\n         WHERE EXCLUDED.observed_at >= i.observed_at",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Bool",
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0a699a913cd8dd0bcec6b89f07f7d7ce03565f33ac97d463bc04cdcae8335e26"
+}

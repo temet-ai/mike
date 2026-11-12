@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO runtime.observation_receipts (session_id, observation_id, fingerprint, observed_at, expires_at)\n             VALUES ($1, $2, $3, $4, now() + interval '1 day')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Uuid",
+        "Bytea",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ebebb091acbb544c2182851225acb837e21a7e2fdb1fd0172efd65f1e33d1dda"
+}

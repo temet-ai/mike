@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT retained_bytes FROM runtime.session_identities WHERE session_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "retained_bytes",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_identities",
+            "name": "retained_bytes"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "829bcaa4f2506627b26ca4b049baf1d42f7e66d07c73bc3927b47d3eb0779742"
+}

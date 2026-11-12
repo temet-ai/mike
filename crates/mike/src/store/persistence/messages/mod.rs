@@ -22,7 +22,9 @@ pub use canonicalize::{CanonicalMessage, canonicalise_body_messages, write_reque
 pub(crate) use canonicalize::{hex_lowercase, invariant};
 pub(crate) use delta::{DeltaRow, SentPatch};
 pub use delta::{compute_delta, write_request_deltas};
-pub(crate) use envelope_patch::{compute_envelope_patch, whole_body_envelope_patch};
+#[cfg(test)]
+pub(crate) use envelope_patch::compute_envelope_patch;
+pub(crate) use envelope_patch::whole_body_envelope_patch;
 pub use reads::{PersistedDeltaRow, fetch_request_deltas_by_id};
 pub(crate) use reads::{PredecessorDelta, fetch_canonical_bridge, resolve_predecessor_and_delta};
 pub(crate) use sent_capture::{envelope_patch_for_capture, patches_reconstruct_sent};

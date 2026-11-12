@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT runtime FROM runtime.session_facts WHERE session_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "runtime",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_facts",
+            "name": "runtime"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b43bdc740b94fd7756413b9c883042b2caae9575bbbe4725ff85c461c69603a8"
+}

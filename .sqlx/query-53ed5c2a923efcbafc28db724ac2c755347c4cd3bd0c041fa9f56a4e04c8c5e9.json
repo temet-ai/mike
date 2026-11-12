@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM runtime.codex_intake_state WHERE namespace_id IN\n         (SELECT i.namespace_id FROM runtime.codex_intake_state i\n          JOIN runtime.namespaces n ON n.id = i.namespace_id\n          WHERE n.created_at < $1::timestamptz - interval '90 days'\n            AND NOT EXISTS (SELECT 1 FROM runtime.events e WHERE e.namespace_id = i.namespace_id)\n          LIMIT $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "53ed5c2a923efcbafc28db724ac2c755347c4cd3bd0c041fa9f56a4e04c8c5e9"
+}

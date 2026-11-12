@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM runtime.codex_receipt_context WHERE event_id IN\n     (SELECT c.event_id FROM runtime.codex_receipt_context c\n      WHERE c.created_at < $1::timestamptz - interval '90 days'\n        AND NOT EXISTS (SELECT 1 FROM runtime.codex_projection_applications a WHERE a.event_id = c.event_id)\n        AND NOT EXISTS (SELECT 1 FROM runtime.codex_projection_effects e WHERE e.event_id = c.event_id) LIMIT $2)\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0286933574f9bf5a6d0fcb187c1f6f17b1d10ed840c885ede7426b4a403d2929"
+}

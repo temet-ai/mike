@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT i.session_id FROM runtime.session_identities i\n             JOIN sessions.sessions s ON s.id = i.session_id WHERE s.session_uuid = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_identities",
+            "name": "session_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4a4c967f42f10667d77a1f84a23d64ece5b41bd38070a5dd6451a2ed71737aac"
+}

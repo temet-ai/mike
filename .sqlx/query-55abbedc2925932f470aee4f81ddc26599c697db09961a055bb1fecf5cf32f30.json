@@ -1,0 +1,169 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT i.item_id, i.turn_id, i.kind, i.name, i.status, i.success, i.exit_code,\n                      i.source, i.fidelity, i.completeness, i.first_seen_at, i.observed_at,\n                      'not_collected'::text AS \"content_availability!\"\n               FROM runtime.session_items i JOIN sessions.sessions s ON s.id = i.session_id\n               WHERE s.session_uuid = $1 ORDER BY i.first_seen_at DESC, i.id DESC LIMIT $2 OFFSET $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "item_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_items",
+            "name": "item_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "turn_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_items",
+            "name": "turn_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_items",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_items",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_items",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "success",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_items",
+            "name": "success"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "exit_code",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_items",
+            "name": "exit_code"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "source",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_items",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "fidelity",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_items",
+            "name": "fidelity"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "completeness",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_items",
+            "name": "completeness"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "first_seen_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_items",
+            "name": "first_seen_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "observed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "runtime.session_items",
+            "name": "observed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "content_availability!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "55abbedc2925932f470aee4f81ddc26599c697db09961a055bb1fecf5cf32f30"
+}

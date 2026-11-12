@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO mailbox.runtime_notifications (message_id, state)\n             SELECT m.id, 'attempted' FROM mailbox.messages m\n             JOIN sessions.sessions s ON s.id = m.to_session_id\n             WHERE s.session_uuid = $1 AND m.message_uuid = $2\n               AND m.consumed_at IS NULL AND m.dead_lettered_at IS NULL\n             ON CONFLICT (message_id) DO NOTHING RETURNING message_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "message_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "mailbox.runtime_notifications",
+            "name": "message_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a234027143eafa87fc113230a8820415f83c59adbf18498d29a496b2f60bc70a"
+}
