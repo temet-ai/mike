@@ -206,6 +206,31 @@ impl SettingsService {
         }
     }
 
+    async fn write_target(
+        &self,
+        meta: &super::SettingMeta,
+        machine: Option<Uuid>,
+        source: &ChangeSource,
+    ) -> Result<(Option<Uuid>, String), SettingsServiceError> {
+        if machine.is_some() && meta.scope != super::SettingScope::Machine {
+            return Err(SettingsServiceError::InvalidValue {
+                key: meta.key.to_owned(),
+                reason: "a machine was named, but this setting is shared by every machine"
+                    .to_owned(),
+            });
+        }
+        let target = match meta.scope {
+            super::SettingScope::Machine => Some(self.target_machine(meta.key, machine).await?),
+            _ => None,
+        };
+        let applies = serde_json::to_value(meta.applies).unwrap_or(serde_json::Value::Null);
+        let mut source = source.clone().with_detail("applies", applies);
+        if let Some(uuid) = target {
+            source = source.with_detail("machine_uuid", serde_json::Value::from(uuid.to_string()));
+        }
+        Ok((target, source.to_setting_json(&current_build())))
+    }
+
     pub(crate) async fn set_for_machine_with_source(
         &self,
         key: &str,
@@ -237,23 +262,7 @@ impl SettingsService {
             .iter()
             .find(|m| m.key == key)
             .ok_or_else(|| SettingsServiceError::NotFound(key.to_owned()))?;
-        if machine.is_some() && meta.scope != super::SettingScope::Machine {
-            return Err(SettingsServiceError::InvalidValue {
-                key: key.to_owned(),
-                reason: "a machine was named, but this setting is shared by every machine"
-                    .to_owned(),
-            });
-        }
-        let target = match meta.scope {
-            super::SettingScope::Machine => Some(self.target_machine(key, machine).await?),
-            _ => None,
-        };
-        let applies = serde_json::to_value(meta.applies).unwrap_or(serde_json::Value::Null);
-        let mut source = source.clone().with_detail("applies", applies);
-        if let Some(uuid) = target {
-            source = source.with_detail("machine_uuid", serde_json::Value::from(uuid.to_string()));
-        }
-        let source_json = source.to_setting_json(&current_build());
+        let (target, source_json) = self.write_target(meta, machine, source).await?;
 
         let _guard = self.write_lock.lock().await;
 

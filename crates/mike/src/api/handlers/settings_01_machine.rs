@@ -19,6 +19,30 @@ pub(super) async fn machine_view_or_empty(
     })
 }
 
+pub(super) fn setting_entry(
+    m: &crate::settings::SettingMeta,
+    view: &crate::settings::service::MachineView,
+    launch_resolved: &serde_json::Map<String, serde_json::Value>,
+) -> serde_json::Value {
+    let value = view
+        .value(m.key)
+        .cloned()
+        .or_else(|| launch_resolved.get(m.key).cloned())
+        .unwrap_or_else(|| m.default.clone());
+    let mut entry = serde_json::to_value(m).unwrap_or(serde_json::Value::Null);
+    if let Some(obj) = entry.as_object_mut() {
+        obj.insert("value".to_owned(), value);
+        if m.scope == crate::settings::SettingScope::Machine {
+            obj.insert("source".to_owned(), serde_json::json!(view.source(m.key)));
+            obj.insert(
+                "shared_value".to_owned(),
+                json_or_null(view.shared.get(m.key)),
+            );
+        }
+    }
+    entry
+}
+
 pub(super) fn json_or_null(value: Option<&serde_json::Value>) -> serde_json::Value {
     value.cloned().unwrap_or(serde_json::Value::Null)
 }
