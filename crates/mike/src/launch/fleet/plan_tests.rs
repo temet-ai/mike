@@ -187,28 +187,28 @@ fn every_brief_says_there_is_one_checkout_whatever_the_project_says() {
 }
 
 #[test]
-fn a_worker_brief_forbids_a_second_checkout_and_whole_crate_formatting_and_the_ack_call() {
+fn a_worker_brief_gives_tools_and_facts_and_no_working_method() {
     let def = parsed(&complete());
     let prompt = worker(&def, &facts(), "P2", Uuid::from_u128(9))
         .unwrap()
         .prompt;
-    assert!(
-        prompt.contains("build it once in this checkout and copy the program out"),
-        "{prompt}"
-    );
-    assert!(
-        prompt.contains("never create a second worktree or checkout"),
-        "{prompt}"
-    );
-    assert!(
-        prompt.contains("never run a command that formats a whole package, crate or project"),
-        "{prompt}"
-    );
-    assert!(
-        prompt.contains("acknowledged by your next tool call"),
-        "{prompt}"
-    );
-    assert!(!prompt.contains("Acknowledge each message"), "{prompt}");
+    for fact in [
+        "acknowledged by your next tool call",
+        "Commit with fleet_commit",
+        "The checkout's index is shared",
+        "Report with fleet_report",
+    ] {
+        assert!(prompt.contains(fact), "{fact}: {prompt}");
+    }
+    for method in [
+        "Then start the next slice",
+        "Acknowledge each message",
+        "formats a whole package",
+        "stuck for ten minutes",
+        "Before your first slice",
+    ] {
+        assert!(!prompt.contains(method), "{method}: {prompt}");
+    }
 }
 
 #[test]
@@ -322,16 +322,9 @@ fn a_worker_hands_off_one_task_and_leaves_acceptance_to_the_durable_register() -
         .ok_or_else(|| anyhow::anyhow!("worker plan missing for P2"))?;
     assert!(
         seat.prompt
-            .contains("End your bounded session after handing off your one task")
-    );
-    assert!(
-        seat.prompt
             .contains("A passing floor and judge release dependent work.")
     );
-    assert!(
-        seat.prompt
-            .contains("Distinct follow-up work gets its own task and fresh session.")
-    );
+    assert!(seat.prompt.contains("fleet_propose adds a task"));
     assert!(
         seat.instructions
             .contains("the session ends after its bounded handoff")
@@ -355,17 +348,34 @@ fn a_worker_reads_the_fleet_through_the_seat_view() {
 }
 
 #[test]
-fn a_worker_is_told_to_ask_the_reference_seat_first_and_when_mike_reminds_it() {
+fn a_worker_is_told_what_the_reference_seat_answers_and_how_to_reach_it() {
     let def = changed(json!({"reference": {"session": Uuid::from_u128(8).to_string()}}));
     let seat = worker(&def, &facts(), "P2", Uuid::from_u128(9)).unwrap();
     assert!(seat.prompt.contains(&format!(
-        "Ask the reference seat first: a question about where something is, how something works, or whether anyone has hit a problem goes to the reference seat, session {}, with ask (to: reference)",
+        "The reference seat, session {}, answers where something is, how something works and whether anyone has hit a problem, with file and line: ask (to: reference)",
         Uuid::from_u128(8)
     )));
+    assert!(!seat.prompt.contains("ten minutes"));
+}
+
+#[test]
+fn a_worker_whose_contract_is_none_gets_no_appended_contract() {
+    let def = changed(json!({"workers": {"frontend-developer": {"contract": "none"}}}));
+    let seat = worker(&def, &facts(), "P2", Uuid::from_u128(9)).unwrap();
+    assert_eq!(seat.contract, None);
+    let args = super::seat::claude_args(&def, &seat);
     assert!(
-        seat.prompt
-            .contains("when you read outside your task's files")
+        !args.iter().any(|arg| arg == "--append-system-prompt-file"),
+        "{args:?}"
     );
+}
+
+#[test]
+fn a_definition_without_staffing_adopts_no_unowned_files() {
+    let def = parsed(&complete());
+    assert!(!def.staffing.adopt_unowned);
+    let opted_in = changed(json!({"staffing": {"adopt_unowned": true}}));
+    assert!(opted_in.staffing.adopt_unowned);
 }
 
 #[test]

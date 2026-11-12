@@ -241,14 +241,11 @@ fn the_reference_is_forked_from_the_first_loaded_template_and_named_to_workers()
         .unwrap()
         .prompt;
     assert!(brief.contains(&format!("reference seat, session {}", Uuid::from_u128(8))));
-    assert!(brief.contains("ask fleet_check") && brief.contains("`make check`"));
+    assert!(brief.contains("runs the declared check") && brief.contains("`make check`"));
     let plain = worker(&def, &facts(), "P1", Uuid::from_u128(9))
         .unwrap()
         .prompt;
-    assert!(
-        !plain.contains("reference seat")
-            && plain.contains("Queue project builds/tests with fleet_check")
-    );
+    assert!(!plain.contains("reference seat") && plain.contains("runs a project build or test"));
 }
 
 #[test]

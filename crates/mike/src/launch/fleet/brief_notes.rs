@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use super::definition::{FleetDefinition, TaskDefinition};
 use super::plan::{FleetFacts, criteria_block, facts_block_reading, list};
-use super::plan_briefs::{WORKER_PURPOSE, check_line, read_the_fleet, reference_line};
+use super::plan_briefs::{WORKER_PURPOSE, read_the_fleet, working_facts};
 
 pub const BRIEF_KIND: &str = "brief";
 pub const PART_RUN: &str = "part:run";
@@ -30,36 +30,31 @@ pub fn task_tags(fleet: &str, task: &str) -> Vec<String> {
 
 pub fn run_part(def: &FleetDefinition, facts: &FleetFacts) -> String {
     format!(
-        "The run's part of every brief, fleet {slug}. Every seat of the run works under it; each seat's own task is in its own brief.\n\n{facts}\n\nThe operator's ask, verbatim:\n{ask}\n\nAcceptance criteria, in the operator's words:\n{criteria}\n\nRules particular to this run:\n{rules}\n\nHow this project is built and checked: {check}\n\nFiles shared with other tasks; agree by mail with the other task's seat before you change one:\n{shared}\n\n{working}",
+        "The run's part of every brief, fleet {slug}. Every seat of the run works under it; each seat's own task is in its own brief.\n\n{facts}\n\nThe operator's ask, verbatim:\n{ask}\n\nAcceptance criteria, in the operator's words:\n{criteria}\n\nRules particular to this run:\n{rules}\n\n{project}Files shared with other tasks; agree by mail with the other task's seat before you change one:\n{shared}\n\n{working}",
         slug = facts.slug,
         facts = facts_block_reading(def, facts, &read_the_fleet(facts)),
         ask = def.ask.trim(),
         criteria = criteria_block(def, None),
         rules = list(&def.rules),
-        check = build_and_check(def, facts),
+        project = project_file(facts),
         shared = list(&def.shared_files),
         working = working_lines(def, facts),
     )
 }
 
-fn build_and_check(def: &FleetDefinition, facts: &FleetFacts) -> String {
-    let project = facts
+fn project_file(facts: &FleetFacts) -> String {
+    facts
         .paths
         .project
         .as_deref()
-        .map(|path| format!("the project's own file is {path}. "))
-        .unwrap_or_default();
-    format!(
-        "{project}Before a check or test, read list_fleet_results: still_valid null is unproven, false invalidated; inspect receipts. {}",
-        check_line(def, &facts.fleet).trim_end()
-    )
+        .map(|path| format!("This project's fleet file is {path}.\n\n"))
+        .unwrap_or_default()
 }
 
 fn working_lines(def: &FleetDefinition, facts: &FleetFacts) -> String {
     format!(
-        "How a worker reports and works:\nTo find where something is defined: fleet_where (fleet {fleet}, symbol or path). {reference}What you change is read from the tree by mike; commit with fleet_commit (fleet {fleet}, your session id, a message), never with git add or git commit. Write a finding note when you learn something another seat will need.\nWhat changed in your paths since you last looked comes to you as lines at the start of a turn and on the answers of fleet_commit, fleet_check and notes; what_changed view mine lists your own uncommitted paths and whether the check ran after your last change.\nNeed something from another seat, or stuck for ten minutes: ask (to a session id, task:<id>, owner:<path> or reference; blocked true when you cannot go on) and carry on; answer or decline the questions standing lists for you before your next slice. A question no seat can answer goes by ask with blocked true; mike's problem-solver decides it. A task that does not exist yet is added with fleet_propose, and part of yours moved to a new task with fleet_split. There is no Help: mail.\nMail a seat only for what only a session knows: to a session id, task:<id>, owner:<path> or fleet. A send to an ended seat is refused naming who has its task now; send again to that seat. Mail is acknowledged by your next tool call after it arrives: never call ack_session_message, except to decline a message you will not act on.\nReport each finished slice with fleet_report (fleet {fleet}, your session id, your task id, the slice, the criteria, what to look at, the paths of your evidence), never by mail: mike adds the commit, the check verdict at that commit, the brief version you read and whether the check ran after your last change, runs the task's floor at that commit and has the judge read the report; a failure comes to you as mike's message with the reason. Then start the next slice.\nTo run or time a built program while the tree changes, build it once in this checkout and copy the program out; never create a second worktree or checkout for it, whatever the project's own instruction files recommend.\nFormat only your own files, by path; never run a command that formats a whole package, crate or project.\nEnd your bounded session after handing off your one task with runnable scenario, environment and observable effects. mike checks each pushed commit and tells the seat that broke it; do not wait for a gate before you commit or report.",
-        fleet = facts.fleet,
-        reference = reference_line(def),
+        "The tools a worker has:\n{}",
+        working_facts(def, &facts.fleet)
     )
 }
 

@@ -11,7 +11,6 @@ use super::watch::git;
 const FAIL: &str = "fail";
 const WORKING: &str = "working";
 const RECENT_MINUTES: i64 = 10;
-const QUIET_MINUTES: i64 = 10;
 const SEAT_TRAILER: &str = "--format=%(trailers:key=Fleet-Seat,valueonly)";
 
 pub fn reference(def: &FleetDefinition) -> Option<Uuid> {
@@ -83,6 +82,9 @@ pub fn quiet_seats(
     status: &FleetStatus,
     committed: &BTreeSet<String>,
 ) -> Vec<Quiet> {
+    let Some(quiet_after) = def.reference.quiet_minutes else {
+        return Vec::new();
+    };
     status
         .tasks
         .iter()
@@ -93,7 +95,7 @@ pub fn quiet_seats(
             let opened = open.opened_at?;
             let minutes = (status.now - opened).num_minutes();
             let defined = def.tasks.get(&task.id)?;
-            (minutes >= QUIET_MINUTES && !committed.contains(seat)).then(|| Quiet {
+            (minutes >= quiet_after && !committed.contains(seat)).then(|| Quiet {
                 task: task.id.clone(),
                 name: task.name.clone(),
                 seat: seat.to_string(),
@@ -180,7 +182,7 @@ mod tests {
 
     fn def() -> FleetDefinition {
         changed(json!({
-            "reference": {"enabled": true, "session": Uuid::from_u128(40).to_string()},
+            "reference": {"enabled": true, "session": Uuid::from_u128(40).to_string(), "quiet_minutes": 10},
             "tasks": {
                 "P1": {"seat": "db-dev-P1", "session": Uuid::from_u128(11).to_string()},
                 "P2": {"seat": "frontend-developer-P2", "session": Uuid::from_u128(12).to_string()}
@@ -252,6 +254,17 @@ mod tests {
             tree_broken: None,
             problems: Vec::new(),
         }
+    }
+
+    #[test]
+    fn no_seat_is_called_quiet_unless_the_definition_sets_quiet_minutes() {
+        let mut unset = def();
+        unset.reference.quiet_minutes = None;
+        assert!(quiet_seats(&unset, &status(), &BTreeSet::new()).is_empty());
+        assert_eq!(
+            on_no_commit(&unset, &status(), &BTreeSet::new(), |_| false),
+            None
+        );
     }
 
     #[test]
