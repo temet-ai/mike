@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE runtime.responses_exchanges SET request_body = NULL, forwarded_body = NULL,\n             response_body = NULL, evidence_status = 'budget_refused' WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c108a11ef31e56e27c5e34be78bcf8a1d9b0bcf4a44c5a293b2427b8b8454c2b"
+}

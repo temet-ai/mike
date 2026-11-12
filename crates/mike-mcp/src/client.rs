@@ -39,6 +39,7 @@ mod sessions;
 mod turns;
 mod work_threads;
 mod workspace;
+mod wright_checks;
 
 use serde_json::Value;
 

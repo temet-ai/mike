@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.session_uuid FROM runtime.threads t\n             JOIN runtime.namespaces n ON n.id = t.namespace_id\n             JOIN sessions.sessions s ON s.id = t.session_id\n             WHERE n.runtime_kind = 'codex' AND t.provider_thread_id = $1 LIMIT 2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c455b570f229f8d01b06666cb97f8cbe17fda27aa2f281a4a8c99f687a823c5f"
+}

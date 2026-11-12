@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM runtime.notification_targets WHERE session_id IN\n             (SELECT session_id FROM runtime.notification_targets\n              WHERE verified_at < $1::timestamptz - interval '7 days' ORDER BY verified_at LIMIT $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ec863131a03daf6173c1bf2ccc50a42dd25a5d23eeaf40fa93d868b5813d6bdb"
+}

@@ -3,68 +3,11 @@
 # tier, by mapping each changed Rust path to a nextest filter.
 #   scripts/test-area            run them
 #   scripts/test-area --print    print the filter
+#   scripts/test-area --print-command    print package/target commands
+#   scripts/test-area --skip-default-checks    gate already ran the fast profile
 #   scripts/test-area <base>     compare with <base> instead of origin/main
 set -uo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root" || exit 1
 
-print_only=0
-base=origin/main
-for arg in "$@"; do
-  case "$arg" in
-    --print) print_only=1 ;;
-    *) base=$arg ;;
-  esac
-done
-
-filter_for() {
-  # mike-mcp checks every inspect route has MCP coverage against mike's manifest.
-  [[ "$1" == crates/mike/src/api/manifest* ]] && printf 'binary_id(mike-mcp::manifest_coverage)\n'
-  case "$1" in
-    crates/mike/src/main.rs|crates/mike/src/lib.rs) ;;
-    crates/mike/src/*.rs)
-      local path=${1#crates/mike/src/}
-      path=${path%.rs}
-      path=${path%/mod}
-      local first=${path%%/*}
-      local rest=${path#"$first"}
-      rest=${rest#/}
-      local second=${rest%%/*}
-      local module=$first
-      [ -n "$second" ] && module="$first::$second"
-      printf 'test(/^%s(::|$)/)\n' "$module"
-      ;;
-    crates/mike/tests/*)
-      local harness=${1#crates/mike/tests/}
-      harness=${harness%%/*}
-      harness=${harness%.rs}
-      [ -f "crates/mike/tests/$harness.rs" ] && printf 'binary(=%s)\n' "$harness"
-      ;;
-    crates/*.rs)
-      local crate=${1#crates/}
-      # A shared file directly under crates/ (build_identity.rs) belongs to no
-      # package; the pre-push hook runs the whole fast tier for it.
-      [[ "$crate" == */* ]] || return 0
-      printf 'package(=%s)\n' "${crate%%/*}"
-      ;;
-  esac
-}
-
-filters=$(
-  { git diff --name-only "$base...HEAD"; git diff --name-only HEAD; git ls-files --others --exclude-standard; } |
-    sort -u |
-    while read -r path; do filter_for "$path"; done |
-    sort -u
-)
-
-if [ -z "$filters" ]; then
-  echo "test-area: no Rust area changed against $base"
-  exit 0
-fi
-
-expression=$(printf '%s\n' "$filters" | awk 'NR > 1 { printf " | " } { printf "%s", $0 }')
-if [ "$print_only" = 1 ]; then
-  printf '%s\n' "$expression"
-  exit 0
-fi
-exec "$root/scripts/cx" nextest run --all --ignore-default-filter --no-fail-fast -E "$expression"
+exec python3 "$root/scripts/lib/rust_change_scope.py" area "$@"

@@ -26,10 +26,6 @@ pub(crate) fn default_mailbox_stale_minutes() -> i64 {
     10
 }
 
-pub(crate) fn default_finite_url() -> String {
-    "http://127.0.0.1:3000".to_string()
-}
-
 pub(crate) fn default_mailbox_redelivery_max_attempts() -> i32 {
     5
 }
@@ -167,7 +163,6 @@ impl Default for ProxyConfig {
             inspect_listen_addr: "127.0.0.1:9989".to_string(),
             unsupported_allow_remote_listeners: false,
             upstream_url: "https://api.anthropic.com".to_string(),
-            finite_url: default_finite_url(),
             max_requests: 1000,
             max_age: "24h".to_string(),
             otel_endpoint: None,

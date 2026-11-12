@@ -7,9 +7,24 @@ use uuid::Uuid;
 
 use super::bounded;
 use crate::wright::Finding;
+use crate::wright::definition::int_param;
 
-const SQL: &str = include_str!("sql/cold_forks.sql");
-pub(crate) const PROMPT_CACHE_TTL_MINUTES: i64 = 60;
+const SQL: &str = include_str!("cold_forks.sql");
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ForkParams {
+    pub(crate) window_hours: i64,
+    pub(crate) cache_ttl_minutes: i64,
+}
+
+impl ForkParams {
+    pub(crate) fn from_value(params: &Value) -> Result<Self, String> {
+        Ok(Self {
+            window_hours: int_param(params, "window_hours", 1, 168)?,
+            cache_ttl_minutes: int_param(params, "cache_ttl_minutes", 1, 1440)?,
+        })
+    }
+}
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub(crate) struct ColdFork {
@@ -63,7 +78,7 @@ pub(crate) fn idle_gap(fork: &ColdFork) -> Option<Duration> {
         .map(|last| fork.first_request_at - last)
 }
 
-pub(crate) fn classify(fork: &ColdFork) -> ColdCause {
+pub(crate) fn classify(fork: &ColdFork, cache_ttl_minutes: i64) -> ColdCause {
     if models_differ(fork) {
         return ColdCause::ModelChanged;
     }
@@ -72,7 +87,7 @@ pub(crate) fn classify(fork: &ColdFork) -> ColdCause {
     }
     match idle_gap(fork) {
         None => ColdCause::TemplateNeverCached,
-        Some(gap) if gap > Duration::minutes(PROMPT_CACHE_TTL_MINUTES) => ColdCause::CacheExpired,
+        Some(gap) if gap > Duration::minutes(cache_ttl_minutes) => ColdCause::CacheExpired,
         Some(_) => ColdCause::Unexplained,
     }
 }
@@ -89,11 +104,14 @@ fn fork_evidence(fork: &ColdFork) -> Value {
     })
 }
 
-pub(crate) fn findings_from(forks: &[ColdFork]) -> Vec<Finding> {
+pub(crate) fn findings_from(forks: &[ColdFork], params: ForkParams) -> Vec<Finding> {
     let mut grouped: BTreeMap<(String, ColdCause), Vec<Value>> = BTreeMap::new();
     for fork in forks {
         grouped
-            .entry((fork.template.clone(), classify(fork)))
+            .entry((
+                fork.template.clone(),
+                classify(fork, params.cache_ttl_minutes),
+            ))
             .or_default()
             .push(fork_evidence(fork));
     }
@@ -103,10 +121,10 @@ pub(crate) fn findings_from(forks: &[ColdFork]) -> Vec<Finding> {
             scope: "fork".to_owned(),
             resource: format!("{template}: {}", cause.code()),
             evidence: json!({
-                "window": "24 hours",
+                "window": format!("{} hours", params.window_hours),
                 "template": template,
                 "cause": cause.code(),
-                "cache_ttl_minutes": PROMPT_CACHE_TTL_MINUTES,
+                "cache_ttl_minutes": params.cache_ttl_minutes,
                 "cold_forks": forks.len(),
                 "forks": forks,
             }),
@@ -114,7 +132,12 @@ pub(crate) fn findings_from(forks: &[ColdFork]) -> Vec<Finding> {
         .collect()
 }
 
-pub(crate) async fn check(pool: &PgPool, name: &str) -> Result<Vec<Finding>, String> {
-    let forks: Vec<ColdFork> = bounded::rows(pool, name, SQL).await?;
-    Ok(findings_from(&forks))
+pub(crate) async fn check(
+    pool: &PgPool,
+    name: &str,
+    params: &Value,
+) -> Result<Vec<Finding>, String> {
+    let parsed = ForkParams::from_value(params)?;
+    let forks: Vec<ColdFork> = bounded::rows(pool, name, SQL, params).await?;
+    Ok(findings_from(&forks, parsed))
 }

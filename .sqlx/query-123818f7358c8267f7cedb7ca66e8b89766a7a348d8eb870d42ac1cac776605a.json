@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM runtime.codex_projection_effects WHERE (generation_id, event_id, effect_ordinal) IN\n     (SELECT e.generation_id, e.event_id, e.effect_ordinal FROM runtime.codex_projection_effects e\n      JOIN runtime.codex_projection_generations g ON g.generation_id = e.generation_id\n      WHERE g.state IN ('retired', 'failed') AND g.created_at < $1::timestamptz - interval '1 day' LIMIT $2)\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "123818f7358c8267f7cedb7ca66e8b89766a7a348d8eb870d42ac1cac776605a"
+}

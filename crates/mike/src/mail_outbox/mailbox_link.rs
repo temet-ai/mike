@@ -8,6 +8,7 @@ pub(crate) struct MailboxState {
     pub(crate) channel_delivered_at: Option<DateTime<Utc>>,
     pub(crate) sent_request_id: Option<i64>,
     pub(crate) consumed_at: Option<DateTime<Utc>>,
+    pub(crate) dead_lettered_at: Option<DateTime<Utc>>,
     pub(crate) answered: bool,
 }
 
@@ -71,7 +72,7 @@ pub(crate) async fn mailbox_state(
 ) -> Result<Option<MailboxState>, sqlx::Error> {
     sqlx::query_as::<_, MailboxState>(
         // grader-allow: runtime query, the fleet cannot build .sqlx entries
-        "SELECT m.claimed_at, m.channel_delivered_at, m.sent_request_id, m.consumed_at,
+        "SELECT m.claimed_at, m.channel_delivered_at, m.sent_request_id, m.consumed_at, m.dead_lettered_at,
                 EXISTS (SELECT 1 FROM responses.responses r
                          WHERE r.request_id = m.sent_request_id) AS answered
            FROM mailbox.messages m

@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT retained_bytes FROM runtime.storage_accounting WHERE kind = 'diagnostics'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "retained_bytes",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "runtime.storage_accounting",
+            "name": "retained_bytes"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a6ee90d86e2bb1a1d3802b13922f44724538b7752b690cf83139b5c109c37eab"
+}

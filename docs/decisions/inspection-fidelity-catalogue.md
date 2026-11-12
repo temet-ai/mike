@@ -2,7 +2,7 @@
 title: Inspection Fidelity — Rationale & Anti-Pattern Catalogue
 status: active
 created: 2026-07-01
-updated: 2026-07-01
+updated: 2026-11-12
 summary: Extended rationale and the full historical anti-pattern catalogue for the inspection-fidelity rule, relocated out of the always-loaded rule body.
 ---
 
@@ -11,6 +11,16 @@ doc holds the extended "why" and the anti-pattern catalogue, relocated verbatim 
 body lean.
 
 ## Why this rule exists
+
+Codex observation has a distinct retention contract: routine visibility stores
+bounded operational metadata, with content availability stated explicitly.
+Diagnostic wire capture defaults off. When enabled, evidence is retained whole
+within finite budgets, or refused whole; expiry does not erase operational facts.
+`not_collected`, `budget_refused`, `incomplete` and `expired` are availability
+states, not empty successful captures. The anti-patterns below still prohibit
+silently shortening evidence that a surface claims to retain or expose. They do
+not require unlimited storage or mandatory raw capture. See
+[Codex capture](../CODEX_CAPTURE.md) and [the runtime contract](../RUNTIME_CONTRACT.md).
 
 This proxy exists to provide **byte-identity capture and full-fidelity inspection** of Claude API traffic. Capture, persistence, projection, MCP, REST, SPA — every layer in this codebase exists so that an operator can examine the *full* content of a request, response, system-prompt block, tool call, or SSE event.
 

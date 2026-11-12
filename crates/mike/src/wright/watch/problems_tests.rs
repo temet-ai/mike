@@ -4,7 +4,7 @@ use serde_json::json;
 use super::fixtures_tests::Db;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::wright::{ProblemFilter, RecordedRun};
-use crate::wright::{Cadence, CheckOutcome, CheckRun, Finding, Source};
+use crate::wright::{CheckOutcome, CheckRun, Finding};
 
 const CHECK: &str = "request_failures";
 
@@ -20,8 +20,8 @@ async fn record(handle: &PersistHandle, outcome: &CheckOutcome) -> anyhow::Resul
     Ok(handle
         .record_wright_run(&CheckRun {
             check: CHECK,
-            source: Source::CaptureDb,
-            cadence: Cadence::Event,
+            source: "capture_db",
+            cadence: "event",
             started_at: Utc::now(),
             outcome,
             machine: None,

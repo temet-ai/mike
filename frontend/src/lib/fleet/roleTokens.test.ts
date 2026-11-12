@@ -18,8 +18,6 @@ function graphNode(overrides: Partial<FleetGraphNode> = {}): FleetGraphNode {
 		state: 'working',
 		last_activity_at: '2026-08-20T10:00:00Z',
 		request_count: 42,
-		run_id: null,
-		actor_id: null,
 		...overrides
 	};
 }

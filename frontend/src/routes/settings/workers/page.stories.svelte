@@ -2,7 +2,7 @@
 	import { defineMeta } from '@storybook/addon-svelte-csf';
 	import { expect } from 'storybook/test';
 	import WorkersPage from './+page.svelte';
-	import { userEvent, waitFor } from 'storybook/test';
+	import { userEvent, waitFor, within } from 'storybook/test';
 	import type { FeatureDto, SettingMeta, SyncStatusDto } from '$lib/api/settings';
 	import type { OpenRouterUsageDto } from '$lib/api/usage';
 	import type { WorkersPageData } from './+page';
@@ -12,8 +12,10 @@
 		{ key: 'lesson_worker', enabled: true, scope: 'global', applies: 'live_disable' },
 		{ key: 'harvester', enabled: true, scope: 'global', applies: 'immediate' },
 		{ key: 'retention_sweep', enabled: true, scope: 'global', applies: 'live_disable' },
+		{ key: 'codex_diagnostic_capture', enabled: false, scope: 'global', applies: 'immediate' },
 		{ key: 'db_resync', enabled: true, scope: 'global', applies: 'on_restart' }
 	];
+	const featureWrites: { key: string; enabled: boolean }[] = [];
 
 	const OPENROUTER_USAGE: OpenRouterUsageDto = {
 		configured: true,
@@ -210,6 +212,7 @@
 				} catch {}
 			}
 			const existing = FEATURES.find((f) => f.key === key);
+			featureWrites.push({ key, enabled });
 			return json({
 				key,
 				enabled,
@@ -260,6 +263,7 @@
 	name="Default"
 	loaders={[
 		async () => {
+			featureWrites.length = 0;
 			globalThis.fetch = fetchStub as typeof globalThis.fetch;
 			return {};
 		}
@@ -308,6 +312,21 @@
 		);
 		await expect(retentionSwitch).not.toBeNull();
 		await expect(retentionSwitch?.getAttribute('aria-checked')).toBe('true');
+
+		const captureSwitch = within(canvasElement).getByRole('switch', {
+			name: 'Enable Codex diagnostic capture'
+		});
+		await expect(captureSwitch).not.toBeChecked();
+		await expect(canvasElement.textContent).toContain('4 MiB/exchange, 32 MiB/session and 256 MiB');
+		await expect(canvasElement.textContent).toContain('normal activity remains available when off');
+		await userEvent.click(captureSwitch);
+		await waitFor(() => expect(captureSwitch).toBeChecked());
+		await expect(featureWrites).toContainEqual({ key: 'codex_diagnostic_capture', enabled: true });
+		await expect(canvasElement.textContent).toContain('Complete or refused');
+		await expect(canvasElement.textContent).toContain('Existing evidence expires');
+		await userEvent.click(captureSwitch);
+		await waitFor(() => expect(captureSwitch).not.toBeChecked());
+		await expect(featureWrites).toContainEqual({ key: 'codex_diagnostic_capture', enabled: false });
 
 		await expect(canvasElement.textContent).toContain('Relation detector');
 		await expect(canvasElement.textContent).toContain('Lesson relations: enabled');

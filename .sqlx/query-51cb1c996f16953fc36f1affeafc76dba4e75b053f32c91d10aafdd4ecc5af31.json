@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT request_body, forwarded_body, response_body, output_items\n        FROM runtime.responses_exchanges WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "request_body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "runtime.responses_exchanges",
+            "name": "request_body"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "forwarded_body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "runtime.responses_exchanges",
+            "name": "forwarded_body"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "response_body",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "runtime.responses_exchanges",
+            "name": "response_body"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "output_items",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "runtime.responses_exchanges",
+            "name": "output_items"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "51cb1c996f16953fc36f1affeafc76dba4e75b053f32c91d10aafdd4ecc5af31"
+}

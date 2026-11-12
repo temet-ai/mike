@@ -1,0 +1,143 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO wright.checks (name, source, cadence, expects, probe, query, params, enabled)\n               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)\n               ON CONFLICT (name) DO NOTHING\n               RETURNING name AS \"name!\", source AS \"source!\", cadence AS \"cadence!\",\n                         expects AS \"expects!\", probe AS \"probe!\", query AS \"query?\",\n                         params AS \"params!\", enabled AS \"enabled!\",\n                         created_at AS \"created_at!\", updated_at AS \"updated_at!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "wright.checks",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "source!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "wright.checks",
+            "name": "source"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "cadence!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "wright.checks",
+            "name": "cadence"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "expects!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "wright.checks",
+            "name": "expects"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "probe!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "wright.checks",
+            "name": "probe"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "query?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "wright.checks",
+            "name": "query"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "params!",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "wright.checks",
+            "name": "params"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "enabled!",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "wright.checks",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "wright.checks",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "updated_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "wright.checks",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "bbd592c62058297279f8ab8ba1b2ceb5bdf7891c3e4c040df0cc7189f8eecfc9"
+}

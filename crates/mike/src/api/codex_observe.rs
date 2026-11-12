@@ -8,14 +8,15 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::config::AppState;
+use crate::runtime::codex_observe::SUPPORTED_CODEX_VERSIONS;
 use crate::runtime::codex_observe::ingest::{self, IngestError, ObserveSource};
-use crate::runtime::codex_observe::{SUPPORTED_CODEX_VERSIONS, reads, tool_kind};
+use mike_codex::observe::COVERAGE_GAPS;
 
 pub(crate) const SOURCE_HEADER: &str = "x-mike-codex-source";
 pub(crate) const VERSION_HEADER: &str = "x-mike-codex-version";
 pub(crate) const DELIVERY_HEADER: &str = "x-mike-delivery-id";
 const DEFAULT_SOURCE: &str = "unlabelled";
-const MAX_PAGE: i64 = 500;
+const MAX_PAGE: i64 = 200;
 
 fn header_text(headers: &HeaderMap, name: &str) -> Option<String> {
     headers
@@ -30,6 +31,9 @@ fn source(headers: &HeaderMap) -> ObserveSource {
     ObserveSource {
         label: header_text(headers, SOURCE_HEADER).unwrap_or_else(|| DEFAULT_SOURCE.to_owned()),
         codex_version: header_text(headers, VERSION_HEADER),
+        hook_boundary: header_text(headers, "x-mike-codex-control").as_deref()
+            == Some("hook_boundary"),
+        codex_home: header_text(headers, "x-mike-codex-home"),
     }
 }
 
@@ -94,6 +98,7 @@ pub(crate) async fn post_otel(
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct ListQuery {
+    session_id: Option<Uuid>,
     root_thread_id: Option<String>,
     limit: Option<i64>,
     offset: Option<i64>,
@@ -108,45 +113,47 @@ pub(crate) async fn list_observed(
     };
     let limit = query.limit.unwrap_or(100).clamp(1, MAX_PAGE);
     let offset = query.offset.unwrap_or(0).max(0);
-    let threads = match reads::list_threads(
-        persist.pool(),
-        query.root_thread_id.as_deref(),
-        limit,
-        offset,
-    )
-    .await
-    {
+    let selected = query.session_id.or_else(|| {
+        query
+            .root_thread_id
+            .as_deref()
+            .and_then(|id| Uuid::parse_str(id).ok())
+    });
+    if query.root_thread_id.is_some() && selected.is_none() {
+        return (
+            StatusCode::BAD_REQUEST,
+            "use the canonical Mike session_id returned by hook ingestion",
+        )
+            .into_response();
+    }
+    let sessions = match selected {
+        Some(session) => persist.session_observations(&[session]).await,
+        None => persist.list_runtime_sessions("codex", limit, offset).await,
+    };
+    let sessions = match sessions {
         Ok(rows) => rows,
         Err(error) => {
             return (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response();
         }
     };
-    let mut tools = Vec::new();
-    for namespace_id in threads
-        .iter()
-        .map(|t| t.namespace_id)
-        .collect::<std::collections::BTreeSet<_>>()
-    {
-        let ids: Vec<String> = threads
-            .iter()
-            .filter(|t| t.namespace_id == namespace_id)
-            .map(|t| t.thread_id.clone())
-            .collect();
-        match reads::list_tools(persist.pool(), namespace_id, &ids).await {
-            Ok(rows) => tools.extend(rows),
+    let items = match selected {
+        Some(session) => match persist.list_runtime_items(session, limit, offset).await {
+            Ok(rows) => rows,
             Err(error) => {
                 return (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()).into_response();
             }
-        }
-    }
+        },
+        None => Vec::new(),
+    };
     Json(json!({
-        "threads": threads,
-        "tools": tools,
+        "sessions": sessions,
+        "items": items,
         "next_offset": offset + limit,
-        "control": "none",
-        "capture": "observed: hook payloads and telemetry summaries, not raw model traffic",
+        "items_scope": "supply session_id for paginated turn and tool metadata",
+        "content_availability": "not_collected",
+        "capture": "normalized lifecycle, turn and tool metadata; raw hook and telemetry payloads are not retained",
         "supported_codex_versions": SUPPORTED_CODEX_VERSIONS,
-        "coverage_gaps": tool_kind::COVERAGE_GAPS,
+        "coverage_gaps": COVERAGE_GAPS,
     }))
     .into_response()
 }

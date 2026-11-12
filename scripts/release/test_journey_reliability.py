@@ -27,7 +27,7 @@ class OfflineTests(unittest.TestCase):
 
 
 class PolicyTests(OfflineTests):
-    def test_minimum_and_finite_upper_bounds(self):
+    def test_minimum_and_bounded_upper_limits(self):
         default = reliability.reliability_policy()
         self.assertEqual((default["duration_seconds"], default["concurrent_sessions"]), (900, 1))
         self.assertNotIn("stage", default)

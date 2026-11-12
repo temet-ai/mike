@@ -1,7 +1,7 @@
-use sqlx::types::Json;
+use sqlx::{PgConnection, types::Json};
 use uuid::Uuid;
 
-use super::{RuntimeWriteOutcome, invalid, same_or_conflict};
+use super::{ObservationLimits, RuntimeWriteOutcome, identity_budget, invalid, same_or_conflict};
 use crate::runtime::{ProviderThreadRef, RuntimeNamespace, RuntimeThreadBinding};
 use crate::store::persistence::{PersistError, PersistHandle};
 
@@ -32,11 +32,41 @@ fn provider_parts(thread: Option<&ProviderThreadRef>) -> (Option<Uuid>, Option<&
 }
 
 impl PersistHandle {
+    pub async fn resolve_unique_codex_session(
+        &self,
+        thread: &str,
+    ) -> Result<Option<Uuid>, PersistError> {
+        if thread.is_empty() || thread.len() > 512 {
+            return Ok(None);
+        }
+        let sessions = sqlx::query_scalar!(
+            "SELECT s.session_uuid FROM runtime.threads t
+             JOIN runtime.namespaces n ON n.id = t.namespace_id
+             JOIN sessions.sessions s ON s.id = t.session_id
+             WHERE n.runtime_kind = 'codex' AND t.provider_thread_id = $1 LIMIT 2",
+            thread
+        )
+        .fetch_all(self.pool())
+        .await?;
+        Ok(if sessions.len() == 1 {
+            sessions.first().copied()
+        } else {
+            None
+        })
+    }
+
     pub async fn register_runtime_namespace(
         &self,
         namespace: &RuntimeNamespace,
     ) -> Result<RuntimeWriteOutcome, PersistError> {
         namespace.validate().map_err(invalid)?;
+        if serde_json::to_vec(namespace)?.len() > 16 * 1024 {
+            return Err(PersistError::DataInvariant(
+                "runtime namespace exceeds 16 KiB".into(),
+            ));
+        }
+        let mut tx = self.pool().begin().await?;
+        identity_budget::lock(&mut tx).await?;
         let inserted = sqlx::query_scalar!(
             "INSERT INTO runtime.namespaces (id, runtime_kind, durable_key, identity)
              VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING RETURNING id",
@@ -45,11 +75,23 @@ impl PersistHandle {
             namespace.durable_key,
             serde_json::to_value(namespace)?,
         )
-        .fetch_optional(&self.pool)
+        .fetch_optional(&mut *tx)
         .await?;
         if inserted.is_some() {
+            let count =
+                sqlx::query_scalar!(r#"SELECT count(*) AS "count!" FROM runtime.namespaces"#)
+                    .fetch_one(&mut *tx)
+                    .await?;
+            if count > 1024 {
+                return Err(PersistError::DataInvariant(
+                    "runtime namespace row budget exhausted".into(),
+                ));
+            }
+            identity_budget::admit(&mut tx, &ObservationLimits::default()).await?;
+            tx.commit().await?;
             return Ok(RuntimeWriteOutcome::Inserted);
         }
+        tx.rollback().await?;
         same_or_conflict(
             self.runtime_namespace(namespace.id).await?,
             namespace,
@@ -77,20 +119,26 @@ impl PersistHandle {
     ) -> Result<RuntimeWriteOutcome, PersistError> {
         binding.validate().map_err(invalid)?;
         let identity = serde_json::to_value(binding)?;
+        if serde_json::to_vec(binding)?.len() > 16 * 1024 {
+            return Err(PersistError::DataInvariant(
+                "runtime thread identity exceeds 16 KiB".into(),
+            ));
+        }
+        let mut tx = self.pool().begin().await?;
+        identity_budget::lock(&mut tx).await?;
         let lineage = ThreadLineage::of(binding);
         let inserted = match binding.owning_seat_id {
             Some(owner) => {
-                self.insert_owned_thread(binding, owner, &lineage, identity)
-                    .await?
+                Self::insert_owned_thread(&mut tx, binding, owner, &lineage, identity).await?
             }
-            None => {
-                self.insert_unowned_thread(binding, &lineage, identity)
-                    .await?
-            }
+            None => Self::insert_unowned_thread(&mut tx, binding, &lineage, identity).await?,
         };
         if inserted {
+            identity_budget::admit(&mut tx, &ObservationLimits::default()).await?;
+            tx.commit().await?;
             return Ok(RuntimeWriteOutcome::Inserted);
         }
+        tx.rollback().await?;
         same_or_conflict(
             self.runtime_thread(&binding.provider).await?,
             binding,
@@ -99,7 +147,7 @@ impl PersistHandle {
     }
 
     async fn insert_owned_thread(
-        &self,
+        connection: &mut PgConnection,
         binding: &RuntimeThreadBinding,
         owner: Uuid,
         lineage: &ThreadLineage<'_>,
@@ -118,13 +166,13 @@ impl PersistHandle {
             lineage.fork_thread,
             identity,
         )
-        .fetch_optional(&self.pool)
+        .fetch_optional(connection)
         .await?;
         Ok(inserted.is_some())
     }
 
     async fn insert_unowned_thread(
-        &self,
+        connection: &mut PgConnection,
         binding: &RuntimeThreadBinding,
         lineage: &ThreadLineage<'_>,
         identity: serde_json::Value,
@@ -141,7 +189,7 @@ impl PersistHandle {
             lineage.fork_thread,
             identity,
         )
-        .fetch_optional(&self.pool)
+        .fetch_optional(connection)
         .await?;
         Ok(inserted.is_some())
     }

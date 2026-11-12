@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE workspace.session_registrations r SET released_at = now()\n             FROM sessions.sessions s WHERE s.id = r.session_id AND s.session_uuid = $1 AND r.released_at IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "bf82eb58f0a8e5cf68b815be7fdc8cfd4032fbaa09cab19decfd2e1abf2abe92"
+}

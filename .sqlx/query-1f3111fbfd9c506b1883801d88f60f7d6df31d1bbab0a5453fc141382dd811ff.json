@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE runtime.codex_projection_heads h SET active_generation_id = NULL\n         FROM runtime.codex_projection_generations g\n         WHERE h.active_generation_id = g.generation_id AND g.state IN ('retired', 'failed')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "1f3111fbfd9c506b1883801d88f60f7d6df31d1bbab0a5453fc141382dd811ff"
+}

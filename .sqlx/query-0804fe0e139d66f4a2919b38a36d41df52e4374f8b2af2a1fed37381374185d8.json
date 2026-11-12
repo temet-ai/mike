@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"rows!\", COALESCE(sum(retained_bytes), 0)::bigint AS \"bytes!\"\n           FROM (SELECT retained_bytes FROM runtime.session_identities WHERE session_id = $1\n                 UNION ALL SELECT retained_bytes FROM runtime.threads WHERE session_id = $1\n                 UNION ALL SELECT retained_bytes FROM runtime.session_facts WHERE session_id = $1\n                 UNION ALL SELECT retained_bytes FROM runtime.observation_receipts WHERE session_id = $1\n                 UNION ALL SELECT retained_bytes FROM runtime.model_calls WHERE session_id = $1\n                 UNION ALL SELECT retained_bytes FROM runtime.session_items WHERE session_id = $1\n                 UNION ALL SELECT retained_bytes FROM runtime.notification_targets WHERE session_id = $1) retained",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "rows!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "bytes!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "0804fe0e139d66f4a2919b38a36d41df52e4374f8b2af2a1fed37381374185d8"
+}

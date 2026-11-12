@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH ready AS (\n    SELECT o.message_uuid\n    FROM mailbox.outbox o\n    LEFT JOIN mailbox.messages m ON m.message_uuid = o.message_uuid\n    LEFT JOIN mailbox.runtime_notifications n ON n.message_id = m.id\n    WHERE o.status IN ('pending', 'unresolved')\n      AND (n.message_id IS NULL OR m.consumed_at IS NOT NULL OR m.dead_lettered_at IS NOT NULL)\n    ORDER BY o.updated_at, o.queued_at, o.message_uuid\n    LIMIT $1\n    FOR UPDATE OF o SKIP LOCKED\n), touched AS (\n    UPDATE mailbox.outbox o SET updated_at = clock_timestamp()\n    FROM ready WHERE o.message_uuid = ready.message_uuid\n    RETURNING o.message_uuid\n)\nSELECT message_uuid FROM touched\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "message_uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "mailbox.outbox",
+            "name": "message_uuid"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "6225d1324ec998d6ac8dbd42bb614e2c0cf85d2c166ad906aff8b1857c366e48"
+}

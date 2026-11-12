@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM runtime.model_calls WHERE id IN\n             (SELECT id FROM runtime.model_calls WHERE observed_at < $1::timestamptz - interval '90 days'\n              ORDER BY observed_at LIMIT $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b1f3218acdd7b5979e4ac185cbe8273a5f40ce98948e73506d6ca9a25b140fa6"
+}

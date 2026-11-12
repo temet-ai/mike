@@ -1,18 +1,10 @@
-mod apply;
-mod hook;
+mod home;
+mod identity;
 pub(crate) mod ingest;
-mod otel;
-pub(crate) mod reads;
-pub(crate) mod tool_kind;
-mod writes;
+mod session;
+pub(crate) use home::resolve_bound_session;
 
-pub(crate) const ADAPTER: &str = "mike-codex-observe";
-pub(crate) const ADAPTER_VERSION: &str = "1";
 pub(crate) const SUPPORTED_CODEX_VERSIONS: [&str; 1] = ["0.167.1"];
-
-#[cfg(test)]
-#[path = "parse_tests.rs"]
-mod parse_tests;
 
 #[cfg(test)]
 #[path = "ingest_tests.rs"]

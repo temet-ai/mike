@@ -89,11 +89,8 @@ fn compute_envelope_patch_for_insert(
         (Some(orig), Some(sent)) => (orig, sent),
         _ => return None,
     };
-    match messages::compute_envelope_patch(orig, sent) {
-        Ok(p) => {
-            warn_if_envelope_patch_missing(req, orig, sent, p.as_ref());
-            p
-        }
+    match messages::envelope_patch_for_capture(orig, sent) {
+        Ok(p) => p,
         Err(e) => {
             tracing::warn!(
                 request_id = req.id.as_u64(),
@@ -102,22 +99,6 @@ fn compute_envelope_patch_for_insert(
             );
             None
         }
-    }
-}
-
-fn warn_if_envelope_patch_missing(
-    req: &InterceptedRequest,
-    orig: &[u8],
-    sent: &[u8],
-    patch: Option<&messages::SentPatch>,
-) {
-    if patch.is_none() && orig != sent {
-        tracing::warn!(
-            request_id = req.id.as_u64(),
-            "insert_request_initial: sent body differs from request body but \
-             compute_envelope_patch found no single-field patch to capture; \
-             request_sent reconstruction will fall back to the unmutated request_body"
-        );
     }
 }
 

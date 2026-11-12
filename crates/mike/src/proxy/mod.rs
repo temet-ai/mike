@@ -6,4 +6,5 @@ pub(crate) mod headers;
 pub(crate) mod remote_control;
 pub(crate) mod response;
 pub(crate) mod responses_capture;
+pub(crate) mod sessionless;
 pub(crate) mod upstream;

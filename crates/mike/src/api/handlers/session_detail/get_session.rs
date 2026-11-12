@@ -196,6 +196,8 @@ fn build_session_detail(
 
     if paginated {
         SessionDetail {
+            observation: None,
+            runtime_items: None,
             summary,
             requests: request_summaries,
             total_requests: Some(total),
@@ -212,6 +214,8 @@ fn build_session_detail(
     } else {
         let requests_truncated = total > SESSION_DETAIL_MAX_LIMIT;
         SessionDetail {
+            observation: None,
+            runtime_items: None,
             summary,
             requests: request_summaries,
             total_requests: None,
@@ -279,7 +283,7 @@ pub(crate) async fn get_session(
     )
     .await?;
 
-    let detail = build_session_detail(
+    let mut detail = build_session_detail(
         session_header.summary,
         aggregations,
         paginated,
@@ -287,6 +291,8 @@ pub(crate) async fn get_session(
         effective_limit,
     );
 
+    super::runtime_detail::attach(handle, &id, &mut detail, effective_offset, effective_limit)
+        .await?;
     let mut response = Json(detail).into_response();
     if let Ok(v) = HeaderValue::from_str(&session_header.etag_value) {
         response.headers_mut().insert(header::ETAG, v);

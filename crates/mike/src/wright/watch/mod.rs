@@ -33,7 +33,7 @@ mod logs_tests;
 #[cfg(test)]
 mod problems_tests;
 
-pub(crate) use catalogue::{CHECKS, WatchContext, run_check};
+pub(crate) use catalogue::{WatchContext, run_check};
 
 const LEASE_ROLE: &str = "wright_watch";
 const TICK: Duration = Duration::from_secs(5 * 60);
@@ -199,11 +199,19 @@ pub(crate) async fn pass(ctx: &WatchContext, kind: Pass) {
     if !ctx.persist.holds_worker_role(LEASE_ROLE, TICK).await {
         return;
     }
-    let cadences = cadences_for(ctx, kind).await;
-    for spec in catalogue::due(&cadences) {
-        match run_check(spec, ctx).await {
-            Ok((outcome, recorded)) => log_ran(spec.name, &outcome, &recorded),
-            Err(e) => log_record_failed(spec.name, &e),
+    let cadences: Vec<String> = cadences_for(ctx, kind)
+        .await
+        .into_iter()
+        .map(|cadence| cadence.code().to_owned())
+        .collect();
+    let checks = match ctx.persist.enabled_wright_checks(&cadences).await {
+        Ok(checks) => checks,
+        Err(e) => return tracing::warn!(error = %e, "wright: cannot load the enabled checks"),
+    };
+    for check in &checks {
+        match run_check(check, ctx).await {
+            Ok((outcome, recorded)) => log_ran(&check.name, &outcome, &recorded),
+            Err(e) => log_record_failed(&check.name, &e),
         }
     }
 }

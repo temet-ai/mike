@@ -14,6 +14,7 @@ NORMAL_PROFILE = "normal_defaults"
 NORMAL_ENABLED = frozenset({
     "lesson_worker", "harvester", "db_resync", "retention_sweep", "channel_link_sweep",
     "workspace_capture_registration", "fleet_auto_start", "prompt_assistant", "semantic_context",
+    "launch_brief", "client_serves_self_identity",
 })
 BUDGET_FIELDS = ("rss_peak_bytes", "fd_peak", "broadcast_backlog_peak", "active_streams_peak",
                  "drain_seconds", "responsiveness_seconds")
@@ -53,7 +54,6 @@ def normal_default_contract():
             "state": "IMPLEMENTED_OFFLINE", "candidate_runtime_evidence": False,
             "config_renderer": "journey_reliability_defaults.normal_default_config",
             "feature_response_validator": "journey_reliability_defaults.validate_default_features",
-            "finite_wire_dispatch": "journey_reliability_services.FiniteContract",
         },
         "source_reviewed_dependency_plan": default_dependency_contract(),
         "required_dependency_contracts": [
@@ -70,6 +70,10 @@ def normal_default_contract():
              "source": ["crates/mike/src/proxy/engine/mod.rs", "crates/mike/src/proxy/engine/workspace_register.rs"]},
             {"keys": ["fleet_auto_start", "prompt_assistant"], "dependency": "Operator-triggered features remain enabled; this workload does not invoke launch/assistant actions and must never expose real CLI credentials.",
              "source": ["crates/mike/src/api/fleet/definitions.rs", "crates/mike/src/feature_toggles/tests.rs"]},
+            {"keys": ["launch_brief"], "dependency": "Delivers a spawned session's launch brief only; this workload spawns no session, launch or Remote Control stream.",
+             "source": ["crates/mike/src/reminders/launch_brief.rs", "crates/mike/src/launch/fleet/brief_version.rs"]},
+            {"keys": ["client_serves_self_identity"], "dependency": "Only makes the proxy stand aside from the self-identity reminder when a client serves it; this workload has no such client.",
+             "source": ["crates/mike/src/reminders/client_context.rs", "crates/mike/src/feature_toggles/meta.rs"]},
         ],
         "required_execution": [
             {"code": "ENGINE_VERIFIED_ISOLATED_RUNNER_REQUIRED",

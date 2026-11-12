@@ -204,7 +204,7 @@ container.
 An owned PostgreSQL 19 cluster runs on container loopback with Unix-domain
 listening disabled. It uses empty owned PGDATA and a freshly allocated database.
 Only the verified candidate applies application migrations. The candidate and
-owned synthetic upstream/Finite fixtures share this same isolated namespace.
+owned synthetic upstream and services fixtures share this same isolated namespace.
 No host database URL, credentials, filesystem roots or operator projects are
 inherited. Normal feature defaults remain unchanged; only reviewed endpoint
 relocations are permitted by the workload.

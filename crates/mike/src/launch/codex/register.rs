@@ -2,7 +2,6 @@ use std::path::Path;
 
 use uuid::Uuid;
 
-use super::CodexError;
 use crate::runtime::{ProviderThreadRef, RuntimeKind, RuntimeNamespace, RuntimeThreadBinding};
 use crate::store::persistence::PersistHandle;
 
@@ -25,11 +24,11 @@ pub async fn bind_seat_thread(
     session: Uuid,
     thread_id: &str,
     forked_from: Option<&str>,
-) -> Result<(), CodexError> {
+) -> anyhow::Result<()> {
     let record = |error: crate::store::persistence::PersistError| {
-        CodexError::Record(format!(
+        anyhow::anyhow!(
             "could not record Codex thread {thread_id} for seat session {session}: {error}"
-        ))
+        )
     };
     let namespace = namespace_for(codex_home);
     persist
@@ -37,7 +36,7 @@ pub async fn bind_seat_thread(
         .await
         .map_err(record)?;
     persist
-        .ensure_session_exists(&session.to_string())
+        .ensure_runtime_session(session)
         .await
         .map_err(record)?;
     let provider = |thread: &str| ProviderThreadRef {
@@ -63,15 +62,13 @@ pub(crate) async fn bound_thread(
     persist: &PersistHandle,
     codex_home: &Path,
     session: Uuid,
-) -> Result<Option<String>, CodexError> {
+) -> anyhow::Result<Option<String>> {
     let namespace = namespace_for(codex_home);
     let binding = persist
         .runtime_thread_by_session(session)
         .await
         .map_err(|error| {
-            CodexError::Record(format!(
-                "could not read the Codex thread of seat session {session}: {error}"
-            ))
+            anyhow::anyhow!("could not read the Codex thread of seat session {session}: {error}")
         })?;
     Ok(binding
         .filter(|b| b.provider.namespace_id == namespace.id)

@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.thread_id, t.runtime_home FROM runtime.notification_targets t\n             JOIN sessions.sessions s ON s.id = t.session_id\n             JOIN runtime.session_facts f ON f.session_id = t.session_id\n             WHERE s.session_uuid = $1 AND f.control = 'hook_boundary'\n               AND f.lifecycle IS DISTINCT FROM 'ended' AND f.lifecycle IS DISTINCT FROM 'failed'\n               AND t.verified_at > now() - interval '7 days'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "thread_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.notification_targets",
+            "name": "thread_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "runtime_home",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.notification_targets",
+            "name": "runtime_home"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "f0fdc8a069c0590b78c280ef4a730f071b30522f1d3dac56d0c403c2c6fe33e0"
+}

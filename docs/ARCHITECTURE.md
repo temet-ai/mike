@@ -2,7 +2,7 @@
 title: Architecture
 status: active
 created: 2026-01-01
-updated: 2026-11-11
+updated: 2026-11-12
 summary: Design rationale, key decisions, and domain layout for mike.
 ---
 
@@ -31,6 +31,23 @@ What's running at full deployment:
 - **Postgres** — single database holding every captured request, response, tool call, system prompt, operator turn, filter rule, and prompt composition. The source of truth for terminal traffic since the Phase 11 cutover (2026-05-03). pgvector is required for the embedding columns. The connection string is `MIKE_DATABASE_URL`; `scripts/capture-db/docker-compose.yml` defines a container that satisfies it. The database is split across domain schemas (`requests`, `sessions`, `memory`, `tools`, `agents`, `steering`, `launch` and more) — [`SCHEMA.md`](SCHEMA.md) is authoritative for which table lives where.
 
 The proxy has no Anthropic-side credentials of its own — it forwards whatever the client sent. It has no global state beyond `AppState`, which is constructed once at startup and shared by reference across all three binds.
+
+### Codex integration boundary
+
+Codex protocol transport, hook/OTEL decoding and incremental Responses metadata parsing
+live in the independent `mike-codex` library. Mike owns the adapters to common session
+observations, quota admission, mail and readers. The library has offline tests and no
+dependency on Mike, SQLx, Axum or a running model; host tests cover those interfaces.
+This adds no process or separately released service.
+
+Routine Codex ingestion retains bounded metadata. Optional diagnostic bodies have separate
+record/session/global limits and expiry; streaming request forwarding never depends on
+collecting the body. The existing retention worker expires facts, receipts and diagnostic
+evidence. Common reader views adapt Claude's existing requests without a second copy.
+Ordinary Codex sessions receive bounded mail notices through trusted hooks or the local
+queue; only an explicit mailbox acknowledgement means consumed. See
+[the runtime contract](RUNTIME_CONTRACT.md), [capture bounds](CODEX_CAPTURE.md) and
+[focused development checks](CODEX_DEVELOPMENT.md).
 
 ## 2. System Map
 
@@ -82,6 +99,8 @@ The body-path work lives under `crates/mike/src/proxy/engine/` and `crates/mike/
 
 ```
 accept: extract parts + RequestSignals, resolve session toggles, keep the ORIGINAL bytes
+        (no usable session id → proxy::sessionless: forward unchanged, store whole in
+         requests.sessionless_requests; no mutation stages run)
 
 run_mutation_stages — phase 1, pipeline::stages_before_steerer()
  1. filter                  (operator rule: drop/replace/append on text blocks)
@@ -706,6 +725,7 @@ Rust doesn't have classes, services, or dependency injection. The pattern is **d
 | `retention_worker.rs` | DB-side TTL sweep on a timer, gated by the `retention_sweep` toggle (default on). Deletes expired sessions and orphaned messages; no filesystem orphan sweep (bodies are BYTEA in Postgres). Replaces the removed `sweep.rs`. |
 | `db_listener/` | Postgres LISTEN/NOTIFY on `proxy.row_changed`. Re-broadcasts each notification as `ProxyEvent::RowChanged` for the tables in `RowChangedTable` (§6). Exponential backoff on errors (100 ms → 30 s). |
 | `startup.rs` | Boot-time recovery and warm-up, called from `serve/startup_sequence.rs`: `run_crash_recovery` (stale `Pending` rows), `run_startup_session_sweep` (only when `sweep_at_startup`), `run_mailbox_reload` (re-enqueue undelivered cross-session messages), `run_composable_session_warmup` (seed the composable-session index from the ledger). There is no config watcher — mike does not read a config file. |
+| `wright/` | Wright, mike's resident engineer. `watch/` is the worker behind the `wright` toggle: every 5 minutes (and 30 s after a failed request) it loads the enabled rows of `wright.checks` due for the pass's cadence, runs each (`bounded.rs` runs a stored sql query in a READ ONLY transaction with the row's `params` bound as `$1` and a 10 s statement deadline; `logs.rs` reads the newest `mike.*.log` for a level, repeat count and window; `forks.rs` is the cold-fork Rust probe) and records the run, opening, recurring or healing the `wright.problems` it finds. No check definition or threshold is compiled: `definition.rs` validates names, params and queries, and the checks are listed, added, changed, disabled and removed while mike runs through `GET/POST /api/wright/checks`, `PATCH/DELETE /api/wright/checks/{name}` and the `wright_checks` MCP tool (a sql query is executed once before it is stored). |
 | `metrics/` | Prometheus metrics registry and handle, exposed at `GET /api/metrics`. |
 | `serve/` | Server lifecycle: `listeners.rs` binds all three listeners and builds their routers, `workers.rs` spawns every background worker, `startup_sequence.rs` orders boot, `tracing_init.rs` installs the tracing subscriber and OTel layer, `shutdown.rs` owns the graceful-shutdown deadlines (§11). |
 | `tui/` | Terminal UI, what a bare `mike` on a TTY starts instead of the server. |

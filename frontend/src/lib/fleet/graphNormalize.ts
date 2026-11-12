@@ -28,8 +28,6 @@ export interface CanvasNode {
 	workspace: string | null;
 	cwd: string | null;
 	worktree: string | null;
-	runId: string | null;
-	actorId: string | null;
 	sessionId: string;
 	state: FleetNodeState;
 	stateLabel: string;
@@ -71,8 +69,6 @@ export function fromGraphResponse(nodes: FleetGraphNode[], edges: FleetGraphEdge
 			workspace: n.workspace,
 			cwd: n.cwd,
 			worktree: n.worktree,
-			runId: n.run_id,
-			actorId: n.actor_id,
 			sessionId: n.session_id,
 			state: n.state,
 			stateLabel: STATE_LABEL[n.state],

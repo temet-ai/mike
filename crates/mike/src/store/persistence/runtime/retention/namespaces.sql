@@ -1,0 +1,17 @@
+DELETE FROM runtime.namespaces WHERE id IN (
+    SELECT n.id FROM runtime.namespaces n
+    WHERE n.created_at < $1::timestamptz - interval '90 days'
+      AND NOT EXISTS (SELECT 1 FROM runtime.threads t WHERE t.namespace_id = n.id)
+      AND NOT EXISTS (SELECT 1 FROM runtime.threads t WHERE t.native_parent_namespace_id = n.id)
+      AND NOT EXISTS (SELECT 1 FROM runtime.threads t WHERE t.fork_namespace_id = n.id)
+      AND NOT EXISTS (SELECT 1 FROM runtime.events e WHERE e.namespace_id = n.id)
+      AND NOT EXISTS (SELECT 1 FROM runtime.codex_intake_state i WHERE i.namespace_id = n.id)
+      AND NOT EXISTS (SELECT 1 FROM runtime.codex_projection_heads h WHERE h.namespace_id = n.id)
+      AND NOT EXISTS (SELECT 1 FROM runtime.codex_projection_generations g WHERE g.namespace_id = n.id)
+      AND NOT EXISTS (SELECT 1 FROM runtime.codex_observed_threads t WHERE t.namespace_id = n.id)
+      AND NOT EXISTS (SELECT 1 FROM runtime.codex_observed_turns t WHERE t.namespace_id = n.id)
+      AND NOT EXISTS (SELECT 1 FROM runtime.codex_observed_tools t WHERE t.namespace_id = n.id)
+      AND NOT EXISTS (SELECT 1 FROM runtime.codex_observed_requests r WHERE r.namespace_id = n.id)
+      AND NOT EXISTS (SELECT 1 FROM runtime.codex_observed_hook_runs h WHERE h.namespace_id = n.id)
+    ORDER BY n.created_at LIMIT $2
+)

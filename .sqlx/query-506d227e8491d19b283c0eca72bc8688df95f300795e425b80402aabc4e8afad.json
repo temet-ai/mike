@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT kind FROM runtime.storage_accounting WHERE kind = 'facts' FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "runtime.storage_accounting",
+            "name": "kind"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "506d227e8491d19b283c0eca72bc8688df95f300795e425b80402aabc4e8afad"
+}

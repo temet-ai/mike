@@ -216,8 +216,7 @@ pub(crate) async fn attempts(pool: &PgPool, message: Uuid) -> Result<Vec<Attempt
 }
 
 pub(crate) async fn open_messages(pool: &PgPool, limit: i64) -> Result<Vec<Uuid>, sqlx::Error> {
-    sqlx::query_scalar::<_, Uuid>(sql::OPEN_MESSAGES) // grader-allow: runtime query, the fleet cannot build .sqlx entries
-        .bind(limit)
+    sqlx::query_file_scalar!("src/mail_outbox/open_messages.sql", limit)
         .fetch_all(pool)
         .await
 }

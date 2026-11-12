@@ -423,7 +423,7 @@ Embedding must report `reachable_state=not_configured`, `reachable=false`, and
 its compiled URL `http://127.0.0.1:7997`; the provider key must be absent. The boot
 loader resets embedding configuration after TOML/environment loading, so this
 helper emits no ineffective embedding override. That disabled endpoint is not
-fixture-owned and must remain unused. Supported upstream, Finite and OpenRouter
+fixture-owned and must remain unused. Supported upstream and OpenRouter
 URL overrides point to the owned synthetic fixture. These are service
 prerequisites, not proof of all-transport network isolation or descendant
 containment. This modified profile does not establish AC20's normal-default
@@ -524,8 +524,7 @@ runtime settings and all feature defaults, then checks they remain unchanged
 through the workload. There is no secondary database or real provider credential.
 Embedding stays at its compiled disabled default and URL `127.0.0.1:7997`; the
 loader ignores embedding TOML/environment overrides, so this is not an owned
-fixture endpoint. Bounded Finite list/manifest responses follow the source wire
-models, while the default worker workload expects no Finite or embedding calls.
+fixture endpoint. The default worker workload expects no embedding calls.
 
 The dedicated fixture creates a synthetic project/location and a trusted
 system-prompt working-directory marker, then emits valid unique `<mem:update>`

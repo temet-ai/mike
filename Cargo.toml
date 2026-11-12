@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/mike", "crates/mike-mcp", "crates/proxy-forward"]
+members = ["crates/mike", "crates/mike-codex", "crates/mike-mcp", "crates/proxy-forward"]
 
 [workspace.package]
 edition = "2024"

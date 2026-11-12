@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT fingerprint FROM runtime.observation_receipts WHERE session_id = $1 AND observation_id = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "fingerprint",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "runtime.observation_receipts",
+            "name": "fingerprint"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "7c34f125255f32b4479e9b4c59bea39b1a05baa6c03bb5315a7be1389ffce3be"
+}

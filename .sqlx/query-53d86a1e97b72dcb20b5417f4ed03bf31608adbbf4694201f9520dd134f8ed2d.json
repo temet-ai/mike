@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM runtime.codex_observed_hook_runs WHERE (namespace_id, trace_id, span_id) IN\n     (SELECT namespace_id, trace_id, span_id FROM runtime.codex_observed_hook_runs\n      WHERE started_at < $1::timestamptz - interval '90 days' ORDER BY started_at LIMIT $2)\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "53d86a1e97b72dcb20b5417f4ed03bf31608adbbf4694201f9520dd134f8ed2d"
+}

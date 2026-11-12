@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH settled AS (\n    UPDATE mailbox.outbox o SET\n        status = CASE WHEN m.consumed_at IS NOT NULL THEN 'delivered' ELSE 'failed' END,\n        status_reason = CASE WHEN m.consumed_at IS NOT NULL THEN 'recipient acknowledged mailbox message' ELSE 'mailbox dead letter' END,\n        updated_at = now()\n    FROM mailbox.messages m\n    WHERE o.message_uuid = m.message_uuid\n      AND o.message_uuid IN (\n        SELECT candidate.message_uuid FROM mailbox.outbox candidate\n        JOIN mailbox.messages original ON original.message_uuid = candidate.message_uuid\n        WHERE candidate.status IN ('pending', 'unresolved')\n          AND (original.consumed_at IS NOT NULL OR original.dead_lettered_at IS NOT NULL)\n        ORDER BY candidate.queued_at LIMIT 500\n      )\n    RETURNING o.message_uuid, o.status\n), staged AS (\n    INSERT INTO mailbox.outbox_stages (message_uuid, stage, evidence)\n    SELECT message_uuid, 'consumed', 'recipient acknowledged mailbox message'\n    FROM settled WHERE status = 'delivered'\n    ON CONFLICT (message_uuid, stage) DO NOTHING\n    RETURNING message_uuid\n)\nSELECT count(*)::bigint AS \"count!\" FROM settled\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "43a24b71b34ff3dd0d5bc456ddee49fe1a35970029a12abdc92242ae8dac242b"
+}

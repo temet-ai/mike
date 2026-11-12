@@ -1,40 +1,16 @@
-use serde_json::Value;
+use serde_json::json;
 use uuid::Uuid;
 
-use super::ingest::{self, ObserveSource, namespace_for};
-use super::parse_tests::{POLL_HOOKS, POLL_LOGS, SUBAGENT_HOOKS, SUBAGENT_LOGS, SUBAGENT_SPANS};
-use super::reads;
+use super::ingest::{self, ObserveSource};
 use crate::store::persistence::{PersistHandle, test_support};
 
 fn source() -> ObserveSource {
     ObserveSource {
         label: format!("test:{}", Uuid::new_v4()),
         codex_version: Some("0.167.1".into()),
+        hook_boundary: true,
+        codex_home: None,
     }
-}
-
-async fn replay_hooks(
-    persist: &PersistHandle,
-    source: &ObserveSource,
-    lines: &str,
-) -> anyhow::Result<()> {
-    for line in lines.lines().filter(|line| !line.trim().is_empty()) {
-        ingest::ingest_hook(persist, source, Uuid::new_v4(), line.as_bytes()).await?;
-    }
-    Ok(())
-}
-
-async fn replay_otel(
-    persist: &PersistHandle,
-    source: &ObserveSource,
-    signal: &str,
-    exports: &str,
-) -> anyhow::Result<()> {
-    let bodies: Vec<Value> = serde_json::from_str(exports)?;
-    for body in bodies {
-        ingest::ingest_otel(persist, source, signal, &serde_json::to_vec(&body)?).await?;
-    }
-    Ok(())
 }
 
 async fn database() -> anyhow::Result<Option<(test_support::TestDbHandle, PersistHandle)>> {
@@ -46,146 +22,177 @@ async fn database() -> anyhow::Result<Option<(test_support::TestDbHandle, Persis
 }
 
 #[tokio::test]
-async fn codex_observe_subagent_run_registers_parent_and_child_threads() -> anyhow::Result<()> {
+async fn hook_registers_common_session_and_replays_without_raw_payload() -> anyhow::Result<()> {
     let Some((db, persist)) = database().await? else {
         return Ok(());
     };
     let source = source();
-    replay_otel(&persist, &source, "logs", SUBAGENT_LOGS).await?;
-    replay_hooks(&persist, &source, SUBAGENT_HOOKS).await?;
-    let ns = namespace_for(&source).id;
-    let threads: Vec<_> = reads::list_threads(persist.pool(), None, 500, 0)
-        .await?
-        .into_iter()
-        .filter(|t| t.namespace_id == ns)
-        .collect();
-    let root = threads
-        .iter()
-        .find(|t| t.kind == "session")
-        .ok_or_else(|| anyhow::anyhow!("no root"))?;
-    let child = threads
-        .iter()
-        .find(|t| t.kind == "subagent")
-        .ok_or_else(|| anyhow::anyhow!("no child"))?;
-    assert_eq!(threads.len(), 2, "{threads:#?}");
-    assert_eq!(
-        child.parent_thread_id.as_deref(),
-        Some(root.thread_id.as_str())
+    let id = Uuid::new_v4();
+    let delivery = Uuid::new_v4();
+    let body = serde_json::to_vec(&json!({
+        "session_id": id, "hook_event_name": "SessionStart", "model": "requested-model",
+        "cwd": "/tmp/mike-codex-fixture", "prompt": "sensitive fixture prompt"
+    }))?;
+    let first = ingest::ingest_hook(&persist, &source, delivery, &body).await?;
+    let again = ingest::ingest_hook(&persist, &source, delivery, &body).await?;
+    assert_eq!(first.mike_session_id, Some(id));
+    assert_eq!(first.control, "hook_boundary");
+    assert!(!first.replayed && again.replayed);
+    let rows = persist.session_observations(&[id]).await?;
+    let row = rows
+        .first()
+        .ok_or_else(|| anyhow::anyhow!("no common observation"))?;
+    assert_eq!(row.runtime, "codex");
+    assert_eq!(row.lifecycle.as_deref(), Some("idle"));
+    assert_eq!(row.requested_model.as_deref(), Some("requested-model"));
+    assert_eq!(row.model_call_count, 0);
+    assert_eq!(row.total_tokens, None);
+    assert!(
+        persist
+            .runtime_observation(first.namespace_id, delivery)
+            .await?
+            .is_none()
     );
-    assert_eq!(child.root_thread_id, root.thread_id);
-    assert_eq!(child.agent_type.as_deref(), Some("default"));
-    assert_eq!(root.end_reason.as_deref(), Some("other"));
-    assert_eq!(root.codex_version.as_deref(), Some("0.167.1"));
-    assert_eq!(
-        child.sources,
-        vec!["hook".to_owned(), "telemetry".to_owned()]
-    );
-    assert!(!root.managed_by_mike && !child.managed_by_mike);
-    assert!(child.tools >= 1 && child.turns == 1, "{child:#?}");
-    assert!(root.hook_model_requests >= 4, "{root:#?}");
     db.cleanup().await?;
     Ok(())
 }
 
 #[tokio::test]
-async fn codex_observe_tool_seen_by_hook_and_telemetry_is_one_row() -> anyhow::Result<()> {
+async fn tool_metadata_upserts_without_retaining_input_or_output() -> anyhow::Result<()> {
     let Some((db, persist)) = database().await? else {
         return Ok(());
     };
     let source = source();
-    replay_hooks(&persist, &source, POLL_HOOKS).await?;
-    replay_otel(&persist, &source, "logs", POLL_LOGS).await?;
-    let ns = namespace_for(&source).id;
-    let threads = reads::list_threads(persist.pool(), None, 500, 0).await?;
-    let ids: Vec<String> = threads
-        .iter()
-        .filter(|t| t.namespace_id == ns)
-        .map(|t| t.thread_id.clone())
-        .collect();
-    let tools = reads::list_tools(persist.pool(), ns, &ids).await?;
-    let shell: Vec<_> = tools.iter().filter(|t| t.kind == "shell").collect();
-    assert_eq!(shell.len(), 2, "{tools:#?}");
-    for call in &shell {
+    let id = Uuid::new_v4();
+    for event in ["PreToolUse", "PostToolUse"] {
+        let body = serde_json::to_vec(&json!({
+            "session_id":id,"turn_id":"turn","hook_event_name":event,
+            "tool_use_id":"tool-1","tool_name":"Bash",
+            "tool_input":{"command":"sensitive fixture command"},
+            "tool_response":"sensitive fixture output"
+        }))?;
+        ingest::ingest_hook(&persist, &source, Uuid::new_v4(), &body).await?;
+    }
+    let items = persist.list_runtime_items(id, 20, 0).await?;
+    assert_eq!(items.len(), 1);
+    let item = &items[0];
+    assert_eq!(item.item_id, "tool-1");
+    assert_eq!(item.status.as_deref(), Some("completed"));
+    assert_eq!(item.content_availability, "not_collected");
+    assert!(!serde_json::to_string(&items)?.contains("sensitive fixture"));
+    db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn child_hook_uses_distinct_session_and_stops_only_child() -> anyhow::Result<()> {
+    let Some((db, persist)) = database().await? else {
+        return Ok(());
+    };
+    let source = source();
+    let root = Uuid::new_v4();
+    let child = Uuid::new_v4();
+    for body in [
+        json!({"session_id":root,"hook_event_name":"UserPromptSubmit"}),
+        json!({"session_id":root,"agent_id":child,"hook_event_name":"SubagentStop"}),
+    ] {
+        ingest::ingest_hook(
+            &persist,
+            &source,
+            Uuid::new_v4(),
+            &serde_json::to_vec(&body)?,
+        )
+        .await?;
+    }
+    let rows = persist.session_observations(&[root, child]).await?;
+    assert_eq!(rows.len(), 2);
+    assert_eq!(
+        rows.iter()
+            .find(|r| r.session_uuid == root)
+            .and_then(|r| r.lifecycle.as_deref()),
+        Some("active")
+    );
+    assert_eq!(
+        rows.iter()
+            .find(|r| r.session_uuid == child)
+            .and_then(|r| r.lifecycle.as_deref()),
+        Some("ended")
+    );
+    db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn malformed_and_oversized_observations_are_rejected() -> anyhow::Result<()> {
+    let Some((db, persist)) = database().await? else {
+        return Ok(());
+    };
+    let source = source();
+    let bad = ingest::ingest_hook(&persist, &source, Uuid::new_v4(), b"{\"session_id\": 1").await;
+    assert!(matches!(bad, Err(ingest::IngestError::BadInput(ref m)) if m.contains("column")));
+    let large = ingest::ingest_hook(
+        &persist,
+        &source,
+        Uuid::new_v4(),
+        &vec![b' '; 512 * 1024 + 1],
+    )
+    .await;
+    assert!(matches!(large, Err(ingest::IngestError::BadInput(ref m)) if m.contains("limit")));
+    let binary = ingest::ingest_otel(&persist, &source, "logs", b"\x0a\x01binary").await;
+    assert!(
+        matches!(binary, Err(ingest::IngestError::BadInput(ref m)) if m.contains("protocol = \"json\""))
+    );
+    db.cleanup().await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn verified_home_maps_hook_to_managed_seat_and_keeps_other_home_distinct()
+-> anyhow::Result<()> {
+    let Some((db, persist)) = database().await? else {
+        return Ok(());
+    };
+    let first_home = tempfile::tempdir()?;
+    let second_home = tempfile::tempdir()?;
+    let thread = Uuid::new_v4().to_string();
+    let first_seat = Uuid::new_v4();
+    let second_seat = Uuid::new_v4();
+    for (home, seat) in [
+        (first_home.path(), first_seat),
+        (second_home.path(), second_seat),
+    ] {
+        crate::launch::codex::bind_seat_thread(&persist, home, seat, &thread, None).await?;
+        let mut source = source();
+        source.codex_home = Some(home.to_string_lossy().into_owned());
+        source.hook_boundary = false;
+        let body =
+            serde_json::to_vec(&json!({"session_id":thread,"hook_event_name":"SessionStart"}))?;
+        let report = ingest::ingest_hook(&persist, &source, Uuid::new_v4(), &body).await?;
+        assert_eq!(report.mike_session_id, Some(seat));
         assert_eq!(
-            call.sources,
-            vec!["hook".to_owned(), "telemetry".to_owned()]
-        );
-        assert_eq!(call.hook_tool_name.as_deref(), Some("Bash"));
-        assert_eq!(call.telemetry_tool_name.as_deref(), Some("exec_command"));
-        assert!(
-            call.hook_response_seen && call.telemetry_output_snippet && call.completed_at.is_some()
+            super::resolve_bound_session(&persist, home, &thread).await?,
+            Some(seat)
         );
     }
-    let long = shell
-        .iter()
-        .find(|t| t.process_session.is_some())
-        .ok_or_else(|| anyhow::anyhow!("no long command"))?;
-    let polls: Vec<_> = tools.iter().filter(|t| t.kind == "poll").collect();
-    assert_eq!(polls.len(), 3);
+    let unknown_home = tempfile::tempdir()?;
     assert!(
-        polls
-            .iter()
-            .all(|p| p.process_session == long.process_session
-                && p.sources == vec!["telemetry".to_owned()])
+        super::resolve_bound_session(&persist, unknown_home.path(), &thread)
+            .await?
+            .is_none()
     );
-    assert_eq!(tools.iter().filter(|t| t.kind == "code_mode").count(), 5);
-    db.cleanup().await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn codex_observe_replayed_delivery_changes_nothing() -> anyhow::Result<()> {
-    let Some((db, persist)) = database().await? else {
-        return Ok(());
-    };
-    let source = source();
-    let line = POLL_HOOKS
-        .lines()
-        .find(|l| l.contains("\"PostModelRequest\""))
-        .ok_or_else(|| anyhow::anyhow!("no line"))?;
-    let delivery = Uuid::new_v4();
-    let first = ingest::ingest_hook(&persist, &source, delivery, line.as_bytes()).await?;
-    let again = ingest::ingest_hook(&persist, &source, delivery, line.as_bytes()).await?;
-    assert!(!first.replayed && first.facts == 3 && first.control == "none");
-    assert!(again.replayed && again.facts == 0);
-    let threads = reads::list_threads(persist.pool(), None, 500, 0).await?;
-    let root = threads
-        .iter()
-        .find(|t| t.namespace_id == first.namespace_id)
-        .ok_or_else(|| anyhow::anyhow!("no row"))?;
-    assert_eq!(root.hook_model_requests, 1);
-    let body: Value = serde_json::from_str(POLL_LOGS)?;
-    let export = serde_json::to_vec(&body[0])?;
-    let a = ingest::ingest_otel(&persist, &source, "logs", &export).await?;
-    let b = ingest::ingest_otel(&persist, &source, "logs", &export).await?;
-    assert!(!a.replayed && b.replayed && a.ingestion_id == b.ingestion_id);
-    db.cleanup().await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn codex_observe_hook_deadlines_and_bad_bodies_are_reported() -> anyhow::Result<()> {
-    let Some((db, persist)) = database().await? else {
-        return Ok(());
-    };
-    let source = source();
-    replay_otel(&persist, &source, "traces", SUBAGENT_SPANS).await?;
-    let ns = namespace_for(&source).id;
-    let timeouts: i64 = sqlx::query_scalar(
-        "SELECT count(*) FROM runtime.codex_observed_hook_runs WHERE namespace_id = $1 AND outcome = 'timeout'",
-    )
-    .bind(ns)
-    .fetch_one(persist.pool())
-    .await?;
-    assert_eq!(timeouts, 5);
-    let bad = ingest::ingest_hook(&persist, &source, Uuid::new_v4(), b"{\"session_id\": 1").await;
+    let provider_uuid = Uuid::parse_str(&thread)?;
     assert!(
-        matches!(bad, Err(ingest::IngestError::BadInput(ref m)) if m.contains("column")),
-        "{bad:?}"
+        persist
+            .runtime_thread_by_session(provider_uuid)
+            .await?
+            .is_none()
     );
-    let not_json = ingest::ingest_otel(&persist, &source, "logs", b"\x0a\x01binary").await;
-    assert!(
-        matches!(not_json, Err(ingest::IngestError::BadInput(ref m)) if m.contains("protocol = \"json\""))
+    assert_eq!(
+        persist
+            .session_observations(&[first_seat, second_seat])
+            .await?
+            .len(),
+        2
     );
     db.cleanup().await?;
     Ok(())

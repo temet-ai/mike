@@ -15,6 +15,7 @@ use crate::workspace::RosterScope;
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct RosterEntryDto {
+    pub(crate) observation: Option<crate::store::persistence::runtime::SessionObservationRow>,
     pub(crate) session_id: Uuid,
     pub(crate) is_self: bool,
     pub(crate) cwd: String,
@@ -55,6 +56,7 @@ pub(super) fn roster_entry_from_row(
 ) -> RosterEntryDto {
     let busy = busy_ids.contains(&row.session_uuid.to_string());
     RosterEntryDto {
+        observation: None,
         session_id: row.session_uuid,
         is_self: self_uuid == Some(row.session_uuid),
         cwd: row.cwd,
