@@ -7,7 +7,7 @@ CARGO_TARGET_DIR ?= $(CURDIR)/target
 ## scripts/cx and the make targets inject. Idempotent — safe to re-run. A fresh checkout
 ## must run this once (or `brew install sccache lld`) before the first build.
 bootstrap:
-	@./scripts/lib/preflight-toolchain.sh
+	@./scripts/lib/preflight-toolchain.sh --all
 
 ## Internal: verify the accelerators are present; auto-installs if missing.
 ## A prerequisite of every build/test target so a fresh checkout self-heals

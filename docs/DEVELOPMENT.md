@@ -42,12 +42,12 @@ Other useful entry points:
 - Never `cargo clean` — it discards the shared build cache and forces a cold
   rebuild of every harness. If a build looks wrong, fix the cause.
 
-Development builds, checks and tests go through mbx: `scripts/cx` runs cargo through it when
-the command carries `MIKE_BUILD_CACHE=mbx` and a `CARGO_TARGET_DIR` of your own (for example
-`target/mbx-<session>`), and identical compiled units from any earlier mbx build on the machine
-are restored instead of rebuilt. Without the variable, `scripts/cx` runs plain cargo, which the
-push hook, deploys, `make install` and releases rely on; the variable is never exported. mbx is
-never combined with sccache. The working rule is in [`AGENTS.md`](../AGENTS.md). What it does, the three traps and the trial scripts are in
+When mbx is installed, `scripts/cx` sends `check`, `clippy` and `test` through it into
+`target/mbx-<session>`, and identical compiled units from any earlier mbx build on the machine
+are restored instead of rebuilt. `build`, `nextest`, `scripts/sqlx-prepare` and any named
+`CARGO_TARGET_DIR` stay on plain cargo; `MIKE_BUILD_CACHE=cargo` or `=mbx` overrides the choice,
+and plain cargo is refused in an `mbx-*` directory. mbx is never combined with sccache. The
+working rule is in [`AGENTS.md`](../AGENTS.md). What it does, the three traps and the trial scripts are in
 [`scripts/mbx-trial/README.md`](../scripts/mbx-trial/README.md).
 
 ### Build disk cleanup on macOS

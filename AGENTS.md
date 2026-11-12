@@ -68,9 +68,6 @@ checkout only.
    `scripts/sb-test --skip-typecheck <filter>`, or the one script test you touched.
 3. Rust only: `scripts/cx fmt --check` and `scripts/lint-rust -p <crate>` once, after
    the last edit. The structural limits below are not visible from the code.
-
-   Every cargo command in steps 2 and 3 runs through mbx (see "Build through mbx,
-   always" below).
 4. Commit, then push once, in the background. The pre-push hook
    (`scripts/pre-push-check`) is the only CI while Actions minutes are out: it runs
    gitleaks, semgrep, fmt, `lint-rust`, the crates' fast tier and `scripts/test-area`
@@ -104,37 +101,27 @@ shared lock and never wait on another session's build: cargo already locks each
 build directory. Deploy omit, the Mac and infra once a batch of PRs has merged, not
 after each PR.
 
-**Build through mbx, always.** Every build, check and test you run goes through the
-mbx cache into a build directory of your own, named after your session:
+**Builds go through mbx.** `scripts/cx` (and so `scripts/lint-rust`) sends `check`,
+`clippy` and `test` through the mbx cache by itself whenever mbx is installed, into `target/mbx-<session>` (named from
+`MIKE_SESSION_ID`, else `CLAUDE_CODE_SESSION_ID`). mbx restores the units any
+earlier mbx build on this machine stored, from any checkout, worktree or directory,
+so a session never queues behind another's build and a new worktree starts warm:
+crate `mike`'s library restores in seconds. You type nothing extra. The rest stays
+on plain cargo in the checkout's `target/`, shared by the sessions in that checkout:
+- `build`, so `./scripts/start-proxy.sh`, `make install` and the release scripts
+  deploy a binary with the real build identity (an mbx binary is for checks only);
+- `nextest` (`make test-*`, the pre-push hook's tests), because mbx would run it
+  uncached inside its own directory;
+- `scripts/sqlx-prepare`, which needs the macros to run against a database;
+- any `CARGO_TARGET_DIR` you name, such as the fleet's `target/fleet-check`.
 
-```
-MIKE_BUILD_CACHE=mbx CARGO_TARGET_DIR=target/mbx-<session> scripts/cx check -p mike --lib
-MIKE_BUILD_CACHE=mbx CARGO_TARGET_DIR=target/mbx-<session> make test-t t=<filter>
-```
-
-mbx restores the units any earlier mbx build on this machine stored, from any
-checkout, worktree or directory, so you never queue behind another session's build
-and a new worktree starts warm: crate `mike`'s library restores in seconds, and a
-`--tests` build still compiles crate `mike` (about a minute). The rules:
-- Put the two variables on the command; never `export` them. The pre-push hook,
-  `./scripts/start-proxy.sh`, `make install` and the release scripts build with plain
-  cargo into the checkout's `target/` and must stay there: a binary built through mbx
-  carries a fixed build identity and is for checks, never for deploy.
-- Never run plain cargo in an `mbx-*` directory (it holds read-only hard links into
-  the store) and never point mbx at `target/` or `target/fleet-check` (`scripts/cx`
-  refuses both).
-- If `scripts/cx` reports that mbx is missing, say so and build without the two
-  variables until it is installed.
-- The traps and the measurements are in
-  [`scripts/mbx-trial/README.md`](scripts/mbx-trial/README.md).
-
-**Build directories.** Without mbx, `scripts/cx` and every `make` target build into
-the checkout's own `target/` (`CARGO_TARGET_DIR` defaults to `<checkout>/target`):
-sessions in one checkout share it and queue behind cargo's lock, and each worktree
-has its own. Unset a leftover exported `CARGO_TARGET_DIR` in old shells. On that
-path `scripts/cx` adds sccache (dependencies only: crate `mike` is compiled
-incrementally and never cached by it) and, on macOS, lld; `.cargo/config.toml` is
-stock. Never `cargo clean`.
+`scripts/cx` refuses plain cargo in an `mbx-*` directory (read-only hard links into
+the store). `MIKE_BUILD_CACHE=cargo` forces plain cargo; `MIKE_BUILD_CACHE=mbx` with a
+named `CARGO_TARGET_DIR` forces mbx. Without mbx installed everything is plain
+cargo. `CX_SCCACHE=1` adds sccache to plain cargo (dependencies only; it turns off
+incremental builds, so not for editing). `.cargo/config.toml` is stock. Never
+`cargo clean`. Traps and measurements:
+[`scripts/mbx-trial/README.md`](scripts/mbx-trial/README.md).
 
 **Worktrees.** Fleet seats never create one; they follow
 [`.claude/fleet/rules.md`](.claude/fleet/rules.md) (one checkout, one branch). The
@@ -148,7 +135,8 @@ a release or a check has done its job. Run `git worktree remove <path>`, then
 scheduled sweep (`scripts/cargo-sweep-all`) only empties a finished checkout's
 `target/`: two hours after a merged branch last built, a day after a detached
 checkout on main last built, never for a detached checkout off main. It never removes
-the worktree, its `frontend/node_modules` or its `dist-out/`. Before a session ends,
+the worktree, its `frontend/node_modules` or its `dist-out/`. A session's
+`target/mbx-<session>` is emptied a day after it was last built in. Before a session ends,
 run `git worktree list` and remove each worktree of yours that nothing is using.
 
 **Config.** Boot config precedence: defaults < config file < `MIKE_*` env < CLI flags (`mike print-config`, `mike migrate-check`).

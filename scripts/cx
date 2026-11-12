@@ -47,16 +47,26 @@ export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$repo_root/target}"
 # shellcheck disable=SC1091
 source "$script_dir/lib/preflight-toolchain.sh"
 
-# MIKE_BUILD_CACHE=mbx is an opt-in: the cargo subcommand runs through mbx into
-# the build directory CARGO_TARGET_DIR names, and sccache is off. Anything else
-# leaves the command line exactly as it was. See scripts/mbx-trial/README.md.
-if [[ "${MIKE_BUILD_CACHE:-}" == "mbx" ]]; then
-  prepare_mbx_build_cache "$repo_root" "$cx_target_named"
+# check, clippy and test run through mbx by default when mbx is installed, into
+# target/mbx-<session> (select_build_cache in preflight-toolchain.sh), so a
+# session neither queues behind another's build nor starts a new worktree cold.
+# build, nextest and everything else stay on plain cargo in target/: deploys and
+# installs take their binary from there, and mbx would run them uncached inside
+# its own directory. MIKE_BUILD_CACHE=mbx forces mbx into a named directory;
+# MIKE_BUILD_CACHE=cargo forces plain cargo. See scripts/mbx-trial/README.md.
+select_build_cache "$repo_root" "$cx_target_named" "$(cx_cargo_subcommand "$@")"
+if [[ "$CX_CACHE_MODE" == mbx ]]; then
+  prepare_mbx_build_cache "$repo_root" "$CX_MBX_TARGET"
   cx_cmd=("$MBX_BIN" "$@")
 else
   ensure_build_toolchain
   compute_accelerator_cargo_args
   cx_cmd=(cargo "${ACCELERATOR_CARGO_ARGS[@]}" "$@")
+fi
+
+if [[ -n "${CX_PRINT_TARGET_DIR:-}" ]]; then
+  printf '%s\n' "$CARGO_TARGET_DIR"
+  exit 0
 fi
 
 if [[ -n "${CX_PRINT_COMMAND:-}" ]]; then
