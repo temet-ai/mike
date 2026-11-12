@@ -78,11 +78,10 @@ fn multi_key_envelope_patch(
     changed_keys: &[&str],
 ) -> Result<Option<SentPatch>, PersistError> {
     let bail = |reason: &str| {
-        tracing::warn!(
+        tracing::debug!(
             changed_keys = ?changed_keys,
             reason,
-            "compute_envelope_patch: more than one non-message top-level field differs and the \
-             changed span is not contiguously representable; skipping"
+            "compute_envelope_patch: the changed top-level fields have no covering span"
         );
         Ok(None)
     };
@@ -199,7 +198,7 @@ fn build_patch(
     }))
 }
 
-fn locate_top_level_fields(raw_body: &[u8]) -> Option<HashMap<String, ByteRange>> {
+pub(super) fn locate_top_level_fields(raw_body: &[u8]) -> Option<HashMap<String, ByteRange>> {
     let parsed: HashMap<&str, &serde_json::value::RawValue> =
         serde_json::from_slice(raw_body).ok()?;
     let base = raw_body.as_ptr() as usize;
