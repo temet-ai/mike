@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+"""schema-plan — grade crate mike's SQL against the schema ownership of ADR 0003.
+
+Every `schema.table` after FROM, JOIN, INTO, UPDATE, DELETE FROM, TABLE or EXISTS
+in crates/mike/src (Rust strings and .sql files, migrations excluded) is
+attributed to the target crate of the file it is in (docs/adr/0002-crate-map.json,
+`rules`), and compared with the table's owner (`schemas.owners`, longest key wins).
+The scan is textual.
+
+  scripts/schema-plan               foreign writes (a crate writing a table it does not
+                                    own), foreign reads of feature tables, churn
+  scripts/schema-plan --writes N    list the N largest foreign writes (default 25)
+  scripts/schema-plan --reads N     list the N most-read foreign feature tables
+  scripts/schema-plan --table T     every crate that reads or writes T
+
+Foreign writes must reach zero: a crate changes another crate's tables only by
+calling that crate's Rust API. Foreign reads of tables the base owns are allowed;
+foreign reads of a feature's tables go through that feature's contract views.
+"""
+
+import collections
+import importlib.machinery
+import importlib.util
+import json
+import os
+import re
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+_loader = importlib.machinery.SourceFileLoader("crate_plan", os.path.join(HERE, "crate-plan"))
+_spec = importlib.util.spec_from_loader("crate_plan", _loader)
+cp = importlib.util.module_from_spec(_spec)
+_loader.exec_module(cp)
+
+MIGRATIONS = os.path.join(cp.SRC, "store", "persistence", "migrations")
+CREATE = re.compile(r'create (?:unlogged )?table (?:if not exists )?"?([a-z_]+)"?\."?([a-z_]+)', re.I)
+VERB = r'(from|join|into|update|delete\s+from|table|exists)'
+BASE_OWNERS = {"core", "wire", "model", "db", "llm"}
+
+
+def created_tables():
+    tables = set()
+    for name in os.listdir(MIGRATIONS):
+        with open(os.path.join(MIGRATIONS, name), encoding="utf-8") as handle:
+            for match in CREATE.finditer(handle.read()):
+                tables.add(f"{match.group(1).lower()}.{match.group(2).lower()}")
+    return tables
+
+
+def owner_of(owners, table):
+    schema = table.split(".")[0]
+    return owners.get(table) or owners.get(schema)
+
+
+def sql_files():
+    for directory, _, names in os.walk(cp.SRC):
+        if directory.startswith(MIGRATIONS):
+            continue
+        for name in names:
+            if name.endswith((".rs", ".sql")):
+                yield os.path.join(directory, name)
+
+
+def usage(cmap, tables):
+    schemas = sorted({t.split(".")[0] for t in tables})
+    pattern = re.compile(r"\b" + VERB + r'\s+"?(' + "|".join(schemas) + r')"?\."?([a-z_]+)', re.I)
+    use = collections.defaultdict(lambda: collections.defaultdict(collections.Counter))
+    for path in sql_files():
+        rel = os.path.relpath(path, cp.SRC)
+        crate = cmap.crate_of_path(rel if path.endswith(".rs") else os.path.dirname(rel))
+        kind = "test" if cp.is_test(rel, "") else "prod"
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+        for match in pattern.finditer(text):
+            table = f"{match.group(2).lower()}.{match.group(3).lower()}"
+            if table in tables:
+                write = re.match(r"(into|update|delete)", match.group(1), re.I) is not None
+                use[table][crate][(kind, "write" if write else "read")] += 1
+    return use
+
+
+def foreign(use, owners):
+    writes, reads = [], []
+    for table, crates in use.items():
+        owner = owner_of(owners, table)
+        for crate, counts in crates.items():
+            if crate == owner:
+                continue
+            w, r = counts[("prod", "write")], counts[("prod", "read")]
+            if w:
+                writes.append((w, table, crate, owner))
+            if r and owner not in BASE_OWNERS:
+                reads.append((r, table, crate, owner))
+    return sorted(writes, reverse=True), sorted(reads, reverse=True)
+
+
+def churn(tables):
+    known = {t.split(".")[0] for t in tables}
+    counts = collections.Counter()
+    for name in os.listdir(MIGRATIONS):
+        if name.endswith("baseline.sql"):
+            continue
+        with open(os.path.join(MIGRATIONS, name), encoding="utf-8") as handle:
+            text = handle.read().lower()
+        for schema in set(re.findall(r'\b(?:table|on|index|view)\s+(?:if (?:not )?exists\s+)?"?([a-z_]+)\.', text)) & known:
+            counts[schema] += 1
+    return counts
+
+
+def report(cmap, owners, tables, args):
+    use = usage(cmap, tables)
+    writes, reads = foreign(use, owners)
+    unowned = sorted(t for t in use if not owner_of(owners, t))
+    if unowned:
+        print("tables with no owner (add to schemas.owners):", " ".join(unowned))
+    nwrites = int(args[args.index("--writes") + 1]) if "--writes" in args else 25
+    nreads = int(args[args.index("--reads") + 1]) if "--reads" in args else 15
+    print(f"foreign writes: {sum(w[0] for w in writes)} references to "
+          f"{len({w[1] for w in writes})} tables")
+    for n, table, crate, owner in writes[:nwrites]:
+        print(f"  {n:4} {crate:10} writes {table} (owner {owner})")
+    print(f"\nforeign reads of feature tables: {sum(r[0] for r in reads)} references to "
+          f"{len({r[1] for r in reads})} tables (contract-view candidates)")
+    for n, table, crate, owner in reads[:nreads]:
+        print(f"  {n:4} {crate:10} reads {table} (owner {owner})")
+    print("\nmigrations touching each schema:", ", ".join(f"{s}:{n}" for s, n in churn(tables).most_common()))
+
+
+def main(args):
+    with open(cp.DEFAULT_MAP, encoding="utf-8") as handle:
+        cfg = json.load(handle)
+    cmap = cp.Map(cfg)
+    owners = cfg["schemas"]["owners"]
+    tables = created_tables()
+    if "--table" in args:
+        table = args[args.index("--table") + 1]
+        print(f"{table}: owner {owner_of(owners, table)}")
+        for crate, counts in sorted(usage(cmap, tables)[table].items()):
+            print(f"  {crate:10} " + ", ".join(f"{k[0]} {k[1]} {v}" for k, v in sorted(counts.items())))
+        return 0
+    report(cmap, owners, tables, args)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except BrokenPipeError:
+        sys.exit(0)

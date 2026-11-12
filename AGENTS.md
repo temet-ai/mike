@@ -212,6 +212,7 @@ All resolve the repo root themselves.
 | `scripts/read-anchored <file> <regex>`                   | Print a region with real line numbers                                                                                    |
 | `scripts/module-graph [deps\|users <module>]`          | Crate mike's module dependency graph and its largest cycle |
 | `scripts/crate-plan [--seams N\|--stages\|--detail A B]` | Grades crate mike against the crate split's target map: seams left and recompile cost ([ADR 0002](docs/adr/0002-split-crate-mike.md)) |
+| `scripts/schema-plan [--writes N\|--reads N\|--table T]` | Grades the SQL against schema ownership: foreign writes, foreign reads, migrations per schema ([ADR 0003](docs/adr/0003-schema-per-crate.md)) |
 | `scripts/publish-user-guide [--status]`                  | The guide of the latest release onto temet.ai/docs/mike/; `--status` says whether the site is behind                     |
 | `scripts/gh-cat <owner/repo> <path>`                     | Read files from other GitHub repos                                                                                       |
 | `scripts/gh-run-digest` · `scripts/gh-security-posture`  | GH Actions run digest; Dependabot and security settings                                                                  |

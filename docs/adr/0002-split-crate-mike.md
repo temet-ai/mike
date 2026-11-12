@@ -1,6 +1,6 @@
 ---
 title: Split crate mike into peer crates along measured seams
-status: proposed
+status: accepted
 created: 2026-11-12
 updated: 2026-11-12
 summary: Crate mike (517k lines) is one compilation unit and 99% of it one dependency cycle. A layered split saves little because persistence, at the bottom, changes in 45% of commits; the split that pays makes launch, fleet, runtime, knowledge and lessons peer crates over a thin base. The untangling happens inside the one crate first, graded by scripts/crate-plan against a committed target map, and a group becomes a crate only when nothing below it reaches up into it. Stage S5 (9 crates, 705 references cut) replays history at 61% of today's recompiled lines.
@@ -8,7 +8,7 @@ summary: Crate mike (517k lines) is one compilation unit and 99% of it one depen
 
 # ADR 0002 — Split crate mike into peer crates along measured seams
 
-**Status: proposed.** Measured on `main` at `9c8c7bab` (12 November 2026, after
+**Status: accepted (12 November 2026):** the 9-crate S5 target, no in-flight coordination, persistence by repository accessors. Measured on `main` at `9c8c7bab` (12 November 2026, after
 PR #185). Nothing below is built yet. The target map is
 [`0002-crate-map.json`](0002-crate-map.json); `scripts/crate-plan` grades the
 code against it and `scripts/module-graph` reports the cycle.
@@ -100,16 +100,21 @@ where a later measurement shows a benefit.
 | E. Fleet types used by launch-level code (`FleetDefinition`, `find_fleet_for_session`, session identities) | ~78 | Move the identity types and queries into `launch`, or move the users up into `fleet`. |
 | F. `db` calling features (`EmbeddingService`, `memory_cap::Sheddable`, fleet state transitions) | ~44 | Move the type down, or invert behind a trait the feature implements. |
 | G. Feature to feature, mostly the request pipeline calling injectors (`proxy → lessons/launch/runtime/knowledge`, `steerer → eval`, `knowledge → dossier/eval`) | ~170 | Pipeline stages register with the engine (`pipeline::RequestStage` is already the trait); shared types move down. Deferred: S5 keeps `proxy` with `dossier/steerer/eval`. |
-| H. `PersistHandle` inherent methods of feature-owned groups | mechanism | One extension trait per crate (`FleetStore for PersistHandle`), re-exported through a `prelude`. Groups that stay in the base keep inherent methods. |
+| H. `PersistHandle` inherent methods of feature-owned groups | mechanism | Each feature crate owns a repository type (`FleetStore<'a>` holding `&PersistHandle`) with the group's methods as ordinary inherent `async fn`s, reached through one accessor: `persist.fleet().complete_run(…)`. Groups that stay in the base keep inherent methods on `PersistHandle`. |
 
 ### Mechanisms, checked
 
-- **Extension traits stay `Send`.** A plain `async fn` in the trait, called on the
-  concrete `PersistHandle`, yields a `Send` future (compiled on 1.95: the concrete
-  call passes `assert_send`; only a call generic over the handle needs
-  `-> impl Future + Send`). One workspace `[lints.rust] async_fn_in_trait = "allow"`;
-  `scripts/lint-rust-suppressions` rejects only structural lints. Call sites keep
-  `handle.method(…)` and import the crate's `prelude`.
+- **Repository accessors, no lint allowance.** A feature crate cannot add inherent
+  methods to `PersistHandle`, and an `async fn` in a public trait needs the
+  `async_fn_in_trait` lint allowed, which would weaken the lint policy this work is
+  meant to tighten. Instead each feature crate defines a repository type borrowing
+  the handle (`pub struct FleetStore<'a> { db: &'a PersistHandle }`) with inherent
+  `async fn`s, and one accessor trait without async methods
+  (`trait FleetPersist { fn fleet(&self) -> FleetStore<'_>; }`). Compiled on 1.95
+  under `#![deny(warnings)]`: the futures are `Send`, including inside a spawned
+  task. Call sites change from `persist.complete_fleet_run(…)` to
+  `persist.fleet().complete_fleet_run(…)`; `scripts/crate-plan` already maps every
+  method to its crate, so the rewrite is scripted.
 - **Handlers move with their feature.** 337 of about 600 `state.` accesses in `api`
   are `state.persist`; with `config` (52), the toggle overlay (33), `store` (25) and
   the settings overlay (15), most handlers need only base state. A `BaseState` in the
@@ -135,20 +140,18 @@ Each row is one PR or a few; the seam counts are what each stage newly needs
 | 0 | `scripts/crate-plan` and the map in the repo (this ADR). Add a ratchet check to the push hook. | grading |
 | 1 | Patterns A, B, C, D, F for the base boundary: 479 references. A and B are mechanical moves and most of it. | S1: extract `mike-base` and `mike-app` (81%) |
 | 2 | Migrator to the bin; `test_support` behind `test-seams`. | S2 (80%) |
-| 3 | `runtime → launch` (10), `launch → knowledge/steerer/lessons/eval` (16), `fleet → steerer/dossier` (3); convert the runtime, launch and fleet persistence groups to extension traits (H). | S3: extract `mike-runtime`, `mike-launch` + fleet (68%) |
+| 3 | `runtime → launch` (10), `launch → knowledge/steerer/lessons/eval` (16), `fleet → steerer/dossier` (3); move the runtime, launch and fleet persistence groups behind repository accessors (H). | S3: extract `mike-runtime`, `mike-launch` + fleet (68%) |
 | 4 | Pattern E, `launch → fleet` (78). | S4: split `mike-fleet` out (67%) |
-| 5 | `knowledge → dossier/eval/lessons` (30), `steerer → lessons` (5); traits for knowledge and lessons groups. | S5: extract `mike-knowledge`, `mike-lessons` (61%) |
+| 5 | `knowledge → dossier/eval/lessons` (30), `steerer → lessons` (5); repository accessors for the knowledge and lessons groups. | S5: extract `mike-knowledge`, `mike-lessons` (61%) |
 | 6 | Optional: pattern G (pipeline stage registration) and the rest of the 18-crate map, only if `--timings` after S5 shows a gain. | full target |
 
-### Open decisions
+### Decisions taken
 
-- **Crate names and the S5 grouping.** `mike-features` (proxy, dossier, steerer,
-  eval) is the largest crate at S5; splitting it needs pattern G first.
-- **Commits in flight.** Steps 1–5 move files that other sessions edit. Land each
-  step as a short-lived branch merged the same day, and announce moves in the
-  session notebook so fleets do not rebase across them.
-- **`async_fn_in_trait` allow.** One workspace lint setting, versus writing every
-  extension method as `fn … -> impl Future + Send`.
+- **Target:** S5, 9 crates. The 18-crate map stays a reference for later splits.
+- **No coordination with other sessions:** nothing else runs on mike while the
+  split is in progress, so steps land as ordinary branches.
+- **No `async_fn_in_trait` allowance:** persistence moves through repository
+  accessors (pattern H).
 
 ## Consequences
 
