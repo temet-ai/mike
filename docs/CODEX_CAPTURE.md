@@ -15,10 +15,12 @@ upgrade: the facts below are observed behaviour, not documented contract.
 
 ## How to start a captured Codex session
 
-Source `scripts/shell/cdx.zsh` and run `cdx` where you would run `codex`. It adds
-`-c openai_base_url="http://127.0.0.1:9988/codex"`. When `GET :9989/api/health` does not answer,
-`cdx` prints `cdx: mike not reachable … starting Codex UNCAPTURED` on stderr and starts plain
-`codex`. (`cx` is taken by `scripts/cx`, the cargo wrapper.)
+Source `scripts/shell/cdx.zsh` and run `cx` where you would run `codex`, the way `cc` starts
+Claude Code. `cx` adds `--dangerously-bypass-approvals-and-sandbox`; `cdx` is the same launcher
+without it. Both add `-c openai_base_url="http://127.0.0.1:9988/codex"`. When
+`GET :9989/api/health` does not answer, they print `cx: mike not reachable … starting Codex
+UNCAPTURED` on stderr and start plain `codex`. The file removes an older `alias cx=…` when it
+is sourced; `scripts/cx`, the cargo wrapper, is run by its path and does not clash.
 
 ## What mike does with it
 
