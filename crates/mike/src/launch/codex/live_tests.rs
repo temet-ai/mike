@@ -44,6 +44,7 @@ impl Scratch {
                 uuid::Uuid::new_v4(),
                 "Do exactly what each message asks, in this repository.",
             ),
+            policy: super::options::seat_policy(),
             mcp: None,
         }
     }

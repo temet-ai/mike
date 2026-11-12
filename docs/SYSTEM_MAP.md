@@ -2,7 +2,7 @@
 title: System map
 status: active
 created: 2026-11-06
-updated: 2026-11-09
+updated: 2026-11-12
 summary: The one page to read first. Everything mike can do, where each ability lives in the code, which surface exposes it (CLI, REST, MCP, web UI, terminal UI), its default, and which doc goes deeper.
 ---
 
@@ -186,6 +186,7 @@ recorded in `llm.calls`.
 | Start Claude Code through mike with a session id, proxy env or sidecar route, folder trust | `claude.rs`, `claude_code/` | `mike claude`, `mike claude-code status\|mcp\|route\|shell\|mods\|trust` | user guide [command-line](user-guide/command-line.md) |
 | Spawn sessions into terminal surfaces (tab, split, panel) with name, role, goal, instructions and a brief; warm templates and fork | `launch/` (backends `herdr`, `herdr_core`, `tmux`, `terminal`, `none`; `ghostty` is a reserved name with no backend yet) | `mike spawn open\|list\|kill\|doctor\|warm\|fork\|templates\|reap`; REST `/api/launches/*`; MCP `spawn_session`, `list_launches`, `kill_session` | [`LAUNCH_DOMAIN.md`](LAUNCH_DOMAIN.md), user guide [sessions](user-guide/sessions.md) |
 | Fleets: several seats working one goal with tasks, checks, verdicts, a record of the run | `launch/fleet/`, `.claude/fleet/` (rules, roles, leaves) | `mike fleet …`, `mike discover`; REST `/api/fleets/*`; MCP `define_fleet`, `get_fleet`, `fleet_commit`, `fleet_check`, `fleet_report`, `fleet_verdict`, `fleet_decide`, `fleet_propose`, `fleet_split`; UI `/fleet`; mod `fleet-comms`; toggle `fleet_auto_start` (on) | [`LAUNCH_DOMAIN.md`](LAUNCH_DOMAIN.md), [`fleets/events.md`](fleets/events.md), [`fleets/isolated-checks.md`](fleets/isolated-checks.md), user guide [fleets](user-guide/fleets/README.md) |
+| Managed Codex fleet seats: app-server start, resume and turn control | `crates/mike-codex/` (independent client), `launch/codex/` (host integration), `mail_outbox/codex.rs` (mail delivery) | Fleet `runtime: codex`; offline client checks: `scripts/cx test -p mike-codex`; real-runtime checks remain opt-in host tests | [`CODEX_DEVELOPMENT.md`](CODEX_DEVELOPMENT.md) |
 | Workspace roster: which sessions are live in a project, heartbeats, channel claims | `workspace/`, `workspace_reaper.rs` | REST `/api/workspace/*`; MCP `get_workspace_roster`, `get_fleet_graph`; toggle `workspace_capture_registration` (on) | [`LAUNCH_DOMAIN.md`](LAUNCH_DOMAIN.md) |
 | Mail between sessions, threads, questions and answers; delivery as a reminder, as native peer mail, or over a Claude Code channel | `store/persistence/mailbox/`, `mcp_channel.rs`, `mailbox_reaper.rs` | MCP `send_session_message`, `get_session_messages`, `ask`, `answer`, `decline`, `read_thread`; REST `/api/sessions/{id}/message*`, `/api/threads/*`; UI `/comms`, `/sessions/<id>/comms`; toggles `native_peer_mail`, `mailbox_redelivery` (off); mod `mike-mail` | [`INJECTION_TRUST.md`](INJECTION_TRUST.md), user guide [reading-sessions](user-guide/reading-sessions.md) |
 | Work threads: work that outlives a session, with checkpoints and dependencies | `work_threads/` | `mike thread import`; REST `/api/work-threads/*`; MCP `work_thread_list\|get\|checkpoint\|add_entry`; mod `thread` | user guide [threads](user-guide/threads.md) |
@@ -374,10 +375,11 @@ narrative is [privacy](user-guide/privacy.md); the trust boundary is
 
 Facts a reader would otherwise rediscover the hard way.
 
-- `crates/mike/src/runtime/codex/` and the `runtime.codex_*` tables are
-  scaffolding for a managed Codex runtime with no production callers; fleet
-  definitions have a runtime selector that refuses Codex. The Codex CLI as an LLM provider
-  (`llm/codex`) is live.
+- Managed Codex fleet launch and mail are connected through `launch/codex/`
+  and `mail_outbox/codex.rs`. The app-server client is in `crates/mike-codex/`;
+  observation and storage still live in Mike. Shared session readers and bounded
+  retention remain unfinished integration work ([#181](https://github.com/temet-ai/mike/issues/181)).
+  The Codex CLI as an LLM provider (`llm/codex`) is a separate integration.
 - `composition_enabled` is read by the banner and `print-config` only; the
   composition stage does not consult it.
 - `prompt_assistant` is a toggle only the SPA reads.

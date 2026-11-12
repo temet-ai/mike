@@ -12,7 +12,7 @@ use super::scripted::{database, queued};
 use super::store;
 use crate::launch::codex::{
     CodexError, CodexSeat, SeatKind, SeatOptions, operator_codex_home, prepare_home,
-    render_contract,
+    render_contract, seat_policy,
 };
 
 const SETTLE: Duration = Duration::from_secs(300);
@@ -57,6 +57,7 @@ fn scratch() -> anyhow::Result<(PathBuf, SeatOptions)> {
             Uuid::new_v4(),
             "Answer each message briefly. When a message asks for a shell command, run it.",
         ),
+        policy: seat_policy(),
         mcp: None,
     };
     Ok((root, options))

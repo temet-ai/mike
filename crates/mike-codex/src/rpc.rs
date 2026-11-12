@@ -30,6 +30,7 @@ pub(crate) struct AppServer {
     stdin: Arc<Mutex<ChildStdin>>,
     pending: Pending,
     next_id: AtomicI64,
+    reader: tokio::task::JoinHandle<()>,
 }
 
 impl AppServer {
@@ -53,18 +54,21 @@ impl AppServer {
             })?;
         let stdin = child.stdin.take().ok_or(CodexError::Closed("stdin"))?;
         let stdout = child.stdout.take().ok_or(CodexError::Closed("stdout"))?;
-        let server = Self {
-            child,
-            stdin: Arc::new(Mutex::new(stdin)),
-            pending: Arc::default(),
-            next_id: AtomicI64::new(1),
-        };
-        tokio::spawn(read_lines(
+        let stdin = Arc::new(Mutex::new(stdin));
+        let pending = Arc::default();
+        let reader = tokio::spawn(read_lines(
             BufReader::new(stdout),
-            server.pending.clone(),
-            server.stdin.clone(),
+            Arc::clone(&pending),
+            Arc::clone(&stdin),
             events,
         ));
+        let server = Self {
+            child,
+            stdin,
+            pending,
+            next_id: AtomicI64::new(1),
+            reader,
+        };
         server.initialize().await?;
         Ok(server)
     }
@@ -85,13 +89,17 @@ impl AppServer {
     pub(crate) async fn call(&self, method: &str, params: Value) -> Result<Value, CodexError> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let (tx, rx) = oneshot::channel();
-        self.pending.lock().await.insert(id, tx);
+        {
+            let mut pending = self.pending.lock().await;
+            pending.retain(|_, sender| !sender.is_closed());
+            pending.insert(id, tx);
+        }
         let message = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
-        write_line(&self.stdin, &message).await?;
-        let reply = tokio::time::timeout(CALL_DEADLINE, rx)
-            .await
-            .map_err(|_| CodexError::Timeout(method.to_string()))?
-            .map_err(|_| CodexError::Closed("stdout"))?;
+        if let Err(error) = write_line(&self.stdin, &message).await {
+            self.pending.lock().await.remove(&id);
+            return Err(error);
+        }
+        let reply = wait_reply(&self.pending, id, method, rx).await?;
         match reply.get("error") {
             Some(error) => Err(CodexError::Rpc {
                 method: method.to_string(),
@@ -112,6 +120,26 @@ impl AppServer {
             .await
             .map_err(|error| CodexError::Stop(error.to_string()))
     }
+}
+
+impl Drop for AppServer {
+    fn drop(&mut self) {
+        self.reader.abort();
+    }
+}
+
+async fn wait_reply(
+    pending: &Pending,
+    id: i64,
+    method: &str,
+    receiver: oneshot::Receiver<Value>,
+) -> Result<Value, CodexError> {
+    let result = tokio::time::timeout(CALL_DEADLINE, receiver)
+        .await
+        .map_err(|_| CodexError::Timeout(method.to_string()))
+        .and_then(|reply| reply.map_err(|_| CodexError::Closed("stdout")));
+    pending.lock().await.remove(&id);
+    result
 }
 
 async fn write_line(stdin: &Mutex<ChildStdin>, message: &Value) -> Result<(), CodexError> {
@@ -149,16 +177,18 @@ async fn route(
 ) {
     let id = message.get("id").and_then(Value::as_i64);
     match (id, message.get("method")) {
-        (Some(id), None) => {
-            if let Some(waiter) = pending.lock().await.remove(&id) {
-                let _ = waiter.send(message);
-            }
-        }
+        (Some(id), None) => route_response(pending, id, message).await,
         (Some(_), Some(_)) => refuse_server_request(&message, stdin).await,
         (None, Some(_)) => {
             let _ = events.send(message);
         }
         (None, None) => {}
+    }
+}
+
+async fn route_response(pending: &Pending, id: i64, message: Value) {
+    if let Some(waiter) = pending.lock().await.remove(&id) {
+        let _ = waiter.send(message);
     }
 }
 
@@ -169,10 +199,14 @@ async fn refuse_server_request(message: &Value, stdin: &Mutex<ChildStdin>) {
         "error": {
             "code": NO_INTERACTIVE_APPROVAL,
             "message": format!(
-                "mike fleet seats run with approvalPolicy never and answer no server request; refused {}",
+                "this app-server client has no interactive request handler; refused {}",
                 message["method"]
             ),
         },
     });
     let _ = write_line(stdin, &reply).await;
 }
+
+#[cfg(test)]
+#[path = "rpc_tests.rs"]
+mod tests;

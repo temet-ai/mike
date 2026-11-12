@@ -26,7 +26,7 @@ while read -r _local_ref local_sha remote_ref remote_sha; do
     range="$remote_sha..$local_sha"
   fi
   ranges="$ranges $range"
-  paths=$(git diff --name-only "$range" 2>/dev/null)
+  paths=$(git diff --name-only --no-renames "$range" 2>/dev/null)
   changed="$changed
 $paths"
   if [ "$remote_ref" = refs/heads/main ] && printf '%s\n' "$paths" | grep -qE "$pr_only"; then
@@ -60,22 +60,11 @@ if [ -x "$semgrep_bin" ] && [ "${#scan_files[@]}" -gt 0 ]; then
   }
 fi
 
-# The crates a push must lint and test: each changed crate and every crate that
-# depends on it (proxy-forward <- mike <- mike-mcp). Anything outside one crate
-# (Cargo.lock, the workspace manifest) tests the whole workspace; .sqlx belongs to mike.
-rust_packages() {
-  local paths="$1"
-  if printf '%s\n' "$paths" | grep -qE '^(Cargo\.(toml|lock)|crates/proxy-forward/)' ||
-    printf '%s\n' "$paths" | grep -E '\.rs$|Cargo\.toml$' | grep -qvE '^crates/(mike|mike-mcp)/'; then
-    echo "--workspace"
-  elif printf '%s\n' "$paths" | grep -qE '^(crates/mike/|\.sqlx/)'; then
-    echo "-p mike -p mike-mcp"
-  else
-    echo "-p mike-mcp"
-  fi
-}
+if printf '%s\n' "$changed" | grep -qE '^scripts/(pre-push-check|test-area|lib/rust_change_scope.py|tests/test_rust_change_scope.py)$'; then
+  python3 -m unittest discover -s "$root/scripts/tests" -p test_rust_change_scope.py || status=1
+fi
 
-if printf '%s\n' "$changed" | grep -qE '\.rs$|(^|/)Cargo\.toml$|^Cargo\.lock$'; then
+if printf '%s\n' "$changed" | grep -qE '\.(rs|sql)$|(^|/)Cargo\.toml$|^Cargo\.lock$|^\.sqlx/|^\.cargo/|^rust-toolchain(\.toml)?$'; then
   # GitHub Actions has no minutes, so this hook is the only lint and test a Rust push gets:
   # a fresh checkout builds here too. The Pi (aarch64 Linux) must not build; push from omit or the Mac.
   if [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = aarch64 ]; then
@@ -92,12 +81,12 @@ if printf '%s\n' "$changed" | grep -qE '\.rs$|(^|/)Cargo\.toml$|^Cargo\.lock$'; 
     echo "pre-push: fix the failures above; lint-rust and the tests did not run" >&2
     exit 1
   fi
-  packages=$(rust_packages "$changed")
+  packages=$(python3 "$root/scripts/lib/rust_change_scope.py" packages <<<"$changed") || exit 1
   # shellcheck disable=SC2086
   "$root/scripts/lint-rust" $packages || status=1
   # shellcheck disable=SC2086
   "$root/scripts/cx" nextest run $packages --no-fail-fast || status=1
-  "$root/scripts/test-area" || status=1
+  "$root/scripts/test-area" --skip-default-checks || status=1
 fi
 
 if printf '%s\n' "$changed" | grep -qE '^frontend/' && [ -d "$root/frontend/node_modules" ]; then

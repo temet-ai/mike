@@ -5,10 +5,9 @@ use serde_json::{Value, json};
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
-use super::CodexError;
-use super::options::{SeatOptions, operator_codex_home, prepare_home};
+use super::options::{operator_codex_home, prepare_home};
 use super::register::{CODEX_BACKEND, CODEX_BACKEND_REASON, bind_seat_thread, bound_thread};
-use super::seat::CodexSeat;
+use super::{CodexError, CodexSeat, SeatOptions};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::launch::{LaunchOutcome, LaunchSurfaceRefs, NewLaunch};
 
@@ -56,7 +55,7 @@ async fn start(
     persist: &PersistHandle,
     options: SeatOptions,
     launch: &SeatLaunch<'_>,
-) -> Result<CodexSeat, CodexError> {
+) -> anyhow::Result<CodexSeat> {
     prepare_home(&options.codex_home, operator_codex_home().as_deref())?;
     let model = options.model.clone().filter(|m| !m.trim().is_empty());
     let home = options.codex_home.clone();
@@ -69,9 +68,9 @@ async fn start(
         && !seat.model_is_listed(&model).await?
     {
         let _ = seat.stop().await;
-        return Err(CodexError::Record(format!(
+        anyhow::bail!(
             "model `{model}` is not in this Codex login's model/list; choose a listed model or leave model empty"
-        )));
+        );
     }
     bind_seat_thread(
         persist,

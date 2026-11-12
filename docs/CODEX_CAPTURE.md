@@ -2,7 +2,7 @@
 title: Codex Responses capture
 status: active
 created: 2026-11-11
-updated: 2026-11-11
+updated: 2026-11-12
 summary: How mike captures OpenAI Codex model traffic (issue #24, C07), what was verified against codex-cli 0.167.1, and which auth and transport paths stay uncaptured.
 session_id:
   - 83f69e4d-2806-46e6-8748-85f6ad4cbb16
@@ -12,6 +12,10 @@ session_id:
 
 Verified against **codex-cli 0.167.1** (`codex --version`, 2026-11-11). Re-verify on every Codex
 upgrade: the facts below are observed behaviour, not documented contract.
+
+Managed app-server client development is covered in
+[Developing the Codex client](CODEX_DEVELOPMENT.md). Its crate boundary is separate
+from this wire-capture path.
 
 ## How to start a captured Codex session
 
