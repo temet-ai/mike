@@ -2,8 +2,8 @@ use axum::Router;
 use axum::routing::{get, post};
 
 use super::{Coverage, RouteEntry, route};
+use crate::api::codex_observe as api;
 use crate::config::AppState;
-use crate::runtime::codex_observe::api;
 
 pub(super) const ROUTES: &[RouteEntry] = &[
     route(

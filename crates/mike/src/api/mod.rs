@@ -2,6 +2,7 @@ pub(crate) mod body_search;
 pub(crate) mod change_source;
 pub(crate) mod changes;
 pub(crate) mod client_serves;
+pub(crate) mod codex_observe;
 pub(crate) mod compression_review;
 pub(crate) mod config_history;
 pub(crate) mod content_search;

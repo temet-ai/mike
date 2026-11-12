@@ -130,18 +130,29 @@ async fn record<'p>(
     raw: &[u8],
 ) -> Result<(Delivery<'p>, bool), IngestError> {
     persist.register_runtime_namespace(namespace).await?;
-    let at = envelope.received_at;
     let ingestion_id = envelope.ingestion_id;
-    let observation = RuntimeObservation::new(envelope, raw.to_vec())
-        .map_err(|error| IngestError::BadInput(error.to_string()))?;
-    let outcome = persist.append_runtime_observation(&observation).await?;
-    let delivery = Delivery {
+    let delivery = |at| Delivery {
         pool: persist.pool(),
         namespace_id: namespace.id,
         ingestion_id,
         at,
     };
-    Ok((delivery, outcome == RuntimeWriteOutcome::Unchanged))
+    if let Some(stored) = persist
+        .runtime_observation(namespace.id, ingestion_id)
+        .await?
+    {
+        if stored.raw_payload != raw {
+            return Err(IngestError::BadInput(format!(
+                "delivery {ingestion_id} was already recorded with different bytes; send a new x-mike-delivery-id"
+            )));
+        }
+        return Ok((delivery(stored.envelope.received_at), true));
+    }
+    let at = envelope.received_at;
+    let observation = RuntimeObservation::new(envelope, raw.to_vec())
+        .map_err(|error| IngestError::BadInput(error.to_string()))?;
+    let outcome = persist.append_runtime_observation(&observation).await?;
+    Ok((delivery(at), outcome == RuntimeWriteOutcome::Unchanged))
 }
 
 fn report(delivery: &Delivery<'_>, replayed: bool, facts: usize) -> IngestReport {

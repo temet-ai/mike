@@ -1,10 +1,9 @@
-pub(crate) mod api;
 mod apply;
 mod hook;
-mod ingest;
+pub(crate) mod ingest;
 mod otel;
-mod reads;
-mod tool_kind;
+pub(crate) mod reads;
+pub(crate) mod tool_kind;
 mod writes;
 
 pub(crate) const ADAPTER: &str = "mike-codex-observe";
