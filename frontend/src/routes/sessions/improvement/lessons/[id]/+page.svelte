@@ -280,6 +280,32 @@ See design-spec.md §6.
 										: 's'}
 									since it went live on {lesson.wentLiveAt ?? 'an unrecorded date'}.
 								</p>
+								{#if lesson.retirement}
+									<p class="les-note les-note--strong" data-testid="lesson-retired">
+										{lesson.retirement.kind === 'superseded'
+											? 'Superseded: no longer supplied.'
+											: 'Retired from supply by its outcome record.'}
+										{lesson.retirement.reason} Search still finds it.
+										{#if lesson.retirement.byLessonId !== null}
+											<a
+												href={resolve('/sessions/improvement/lessons/[id]', {
+													id: String(lesson.retirement.byLessonId)
+												})}>Read the newer lesson</a
+											>
+										{/if}
+									</p>
+								{/if}
+								<p class="les-note" data-testid="lesson-outcomes">
+									{#if lesson.outcomes.judged === 0}
+										No supply of it has been judged yet, so it is ranked by its match alone.
+									{:else}
+										Judged in {lesson.outcomes.judged} session{lesson.outcomes.judged === 1
+											? ''
+											: 's'}: followed in {lesson.outcomes.used}, corrected anyway in {lesson
+											.outcomes.correctedAnyway}, ignored in {lesson.outcomes.ignored}. Lessons
+										followed more often are supplied first.
+									{/if}
+								</p>
 								{#if lesson.effect}
 									<EffectVerdict effect={lesson.effect} />
 								{/if}

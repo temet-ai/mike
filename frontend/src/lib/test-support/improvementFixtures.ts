@@ -385,7 +385,9 @@ export const LESSON_DETAIL_RAW: LessonDetail = {
 	reinforcingCorrections: [],
 	injectionCount: null,
 	wentLiveAt: null,
-	effect: null
+	effect: null,
+	outcomes: { judged: 0, used: 0, correctedAnyway: 0, ignored: 0 },
+	retirement: null
 };
 
 export const LESSON_DETAIL_LIVE: LessonDetail = {
@@ -406,5 +408,21 @@ export const LESSON_DETAIL_LIVE: LessonDetail = {
 	],
 	injectionCount: 4,
 	wentLiveAt: '20 Sep 2026',
-	effect: EFFECT_FEWER_CORRECTIONS
+	effect: EFFECT_FEWER_CORRECTIONS,
+	outcomes: { judged: 9, used: 7, correctedAnyway: 1, ignored: 1 }
+};
+
+export const LESSON_DETAIL_RETIRED: LessonDetail = {
+	...LESSON_DETAIL_LIVE,
+	id: 64,
+	text: 'Mailbox delivery can land in subagent requests, not the main loop.',
+	effect: null,
+	outcomes: { judged: 12, used: 1, correctedAnyway: 2, ignored: 9 },
+	retirement: {
+		kind: 'superseded',
+		reason:
+			'Contradicted by the newer lesson 68, and the adjudicator agreed. The newer lesson says the bug is fixed.',
+		retiredAt: '2026-11-12T01:04:00Z',
+		byLessonId: 68
+	}
 };
