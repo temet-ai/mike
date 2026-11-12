@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # test-cx-build-cache — checks the MIKE_BUILD_CACHE=mbx opt-in of scripts/cx.
 #
-# It asks cx for the command line it would run (CX_PRINT_COMMAND=1) and never
-# runs a build. With the variable unset the line is cargo's, as before; with it
-# set the line is mbx's, sccache is off, and the two shared build directories
-# are refused.
+# It asks cx for the command line it would run (CX_PRINT_COMMAND=1) or the build
+# directory it would use (CX_PRINT_TARGET_DIR=1) and never runs a build. Without
+# mbx installed, or with MIKE_BUILD_CACHE=cargo, the line is cargo's. With mbx
+# installed, check, clippy and test go through it into target/mbx-<session> by
+# default, while build and nextest stay on cargo. MIKE_BUILD_CACHE=mbx forces mbx
+# for the subcommands it caches. Plain cargo never builds in an mbx directory.
 #
 # USAGE
 #   scripts/test-cx-build-cache        # one line per case, then a verdict
@@ -34,14 +36,14 @@ plain() {
     -u CARGO_BUILD_RUSTC_WRAPPER -u CX_SCCACHE CX_PRINT_COMMAND=1 "$@"
 }
 
-out="$(plain "$cx" check -p mike --lib 2>&1)"
+out="$(plain MBX_BIN="$T/none" "$cx" check -p mike --lib 2>&1)"
 first="$(printf '%s\n' "$out" | head -1)"
 tail3="$(printf '%s\n' "$out" | tail -4 | tr '\n' ' ')"
 [[ "$first" == cargo && "$tail3" == "check -p mike --lib " ]] \
-  && chk pass "unset: the command is cargo with the arguments untouched" \
-  || chk fail "unset: the command is cargo with the arguments untouched ($first / $tail3)"
+  && chk pass "unset, no mbx: the command is cargo with the arguments untouched" \
+  || chk fail "unset, no mbx: the command is cargo with the arguments untouched ($first / $tail3)"
 
-out="$(plain CX_SCCACHE=1 "$cx" check 2>&1)"
+out="$(plain MBX_BIN="$T/none" CX_SCCACHE=1 "$cx" check 2>&1)"
 if command -v sccache >/dev/null 2>&1; then
   grep -q 'build.rustc-wrapper' <<<"$out" \
     && chk pass "unset: CX_SCCACHE=1 still injects sccache as before" \
@@ -92,9 +94,74 @@ out="$(plain MIKE_BUILD_CACHE=mbx MBX_BIN="$fake" CARGO_TARGET_DIR=target/mbx-a 
 
 out="$(env -u MBX_LEARNED_INCREMENTAL -u MBX_CACHE_DIR bash -c "
   source '$root/scripts/lib/preflight-toolchain.sh'
-  MBX_BIN='$fake' prepare_mbx_build_cache '$root' target/mbx-a && echo \"li=\$MBX_LEARNED_INCREMENTAL\"" 2>&1)"
-[[ "$out" == "li=0" ]] && chk pass "set: learned incremental reuse is off, so crate mike is stored" \
+  MBX_BIN='$fake' prepare_mbx_build_cache '$root' target/mbx-a && echo \"li=\$MBX_LEARNED_INCREMENTAL bc=\$MIKE_BUILD_CACHE\"" 2>&1)"
+[[ "$out" == "li=0 bc=mbx" ]] && chk pass "set: learned incremental reuse is off and build.rs sees mbx, so crate mike is stored and keyed stably" \
   || chk fail "set: learned incremental reuse is off ($out)"
+
+# The default when mbx is installed.
+first_of() { printf '%s\n' "$1" | head -1; }
+for sub in check clippy test; do
+  out="$(plain MBX_BIN="$fake" "$cx" "$sub" 2>&1)"
+  [[ "$(first_of "$out")" == "$fake" ]] \
+    && chk pass "unset, mbx installed: $sub goes through mbx" \
+    || chk fail "unset, mbx installed: $sub goes through mbx ($(first_of "$out"))"
+done
+for sub in build nextest run; do
+  out="$(plain MBX_BIN="$fake" "$cx" "$sub" 2>&1)"
+  [[ "$(first_of "$out")" == cargo ]] \
+    && chk pass "unset, mbx installed: $sub stays on cargo" \
+    || chk fail "unset, mbx installed: $sub stays on cargo ($(first_of "$out"))"
+done
+out="$(plain MBX_BIN="$fake" "$cx" +1.95.0 check 2>&1)"
+[[ "$(first_of "$out")" == "$fake" ]] \
+  && chk pass "unset, mbx installed: a +toolchain prefix does not hide the subcommand" \
+  || chk fail "unset, mbx installed: a +toolchain prefix does not hide the subcommand"
+
+d="$(plain MBX_BIN="$fake" env -u MIKE_SESSION_ID -u CLAUDE_CODE_SESSION_ID bash -c "CX_PRINT_TARGET_DIR=1 '$cx' check" 2>&1 | tail -1)"
+[[ "$d" == "$root/target/mbx-default" ]] \
+  && chk pass "unset, mbx installed: no session id builds in target/mbx-default" \
+  || chk fail "unset, mbx installed: no session id builds in target/mbx-default ($d)"
+d="$(plain MBX_BIN="$fake" MIKE_SESSION_ID='ab/c:1234567890xyz' bash -c "CX_PRINT_TARGET_DIR=1 '$cx' check" 2>&1 | tail -1)"
+[[ "$d" == "$root/target/mbx-abc123456789" ]] \
+  && chk pass "unset, mbx installed: the session id names the directory, cleaned and cut to 12" \
+  || chk fail "unset, mbx installed: the session id names the directory ($d)"
+d="$(plain MBX_BIN="$fake" CARGO_TARGET_DIR="$root/target" MIKE_SESSION_ID=s1 bash -c "CX_PRINT_TARGET_DIR=1 '$cx' check" 2>&1 | tail -1)"
+[[ "$d" == "$root/target/mbx-s1" ]] \
+  && chk pass "unset, mbx installed: the Makefile's CARGO_TARGET_DIR=<checkout>/target still gets a session directory" \
+  || chk fail "unset, mbx installed: the Makefile's target still gets a session directory ($d)"
+out="$(plain MBX_BIN="$fake" CARGO_TARGET_DIR=target/fleet-check "$cx" check 2>&1)"
+[[ "$(first_of "$out")" == cargo ]] \
+  && chk pass "unset, mbx installed: another named build directory keeps cargo" \
+  || chk fail "unset, mbx installed: another named build directory keeps cargo ($(first_of "$out"))"
+d="$(plain MBX_BIN="$fake" CARGO_TARGET_DIR=target/mbx-a bash -c "CX_PRINT_TARGET_DIR=1 '$cx' check" 2>&1 | tail -1)"
+[[ "$d" == "$root/target/mbx-a" ]] \
+  && chk pass "unset, mbx installed: a named mbx-* directory is used as named" \
+  || chk fail "unset, mbx installed: a named mbx-* directory is used as named ($d)"
+
+# Plain cargo never builds in an mbx directory.
+for case in "MBX_BIN=$fake:nextest" "MBX_BIN=$T/none:check" "MBX_BIN=$fake MIKE_BUILD_CACHE=cargo:check"; do
+  vars="${case%%:*}"; sub="${case##*:}"
+  # shellcheck disable=SC2086
+  out="$(plain $vars CARGO_TARGET_DIR=target/mbx-a "$cx" "$sub" 2>&1)"
+  rc=$?
+  [[ $rc -ne 0 && "$out" == *"mbx build directory"* ]] \
+    && chk pass "plain cargo is refused in target/mbx-a ($vars $sub)" \
+    || chk fail "plain cargo is refused in target/mbx-a ($vars $sub, rc $rc)"
+done
+out="$(plain MIKE_BUILD_CACHE=mbx MBX_BIN="$fake" CARGO_TARGET_DIR=target/mbx-a "$cx" nextest run 2>&1)"
+rc=$?
+[[ $rc -ne 0 && "$out" == *"caches only"* ]] \
+  && chk pass "set: a subcommand mbx does not cache is refused" \
+  || chk fail "set: a subcommand mbx does not cache is refused (rc $rc)"
+out="$(plain MIKE_BUILD_CACHE=cargo MBX_BIN="$fake" "$cx" check 2>&1)"
+[[ "$(first_of "$out")" == cargo ]] \
+  && chk pass "MIKE_BUILD_CACHE=cargo: check stays on cargo with mbx installed" \
+  || chk fail "MIKE_BUILD_CACHE=cargo: check stays on cargo with mbx installed"
+out="$(plain MIKE_BUILD_CACHE=bogus "$cx" check 2>&1)"
+rc=$?
+[[ $rc -ne 0 && "$out" == *"must be mbx, cargo or unset"* ]] \
+  && chk pass "an unknown MIKE_BUILD_CACHE is an error" \
+  || chk fail "an unknown MIKE_BUILD_CACHE is an error (rc $rc)"
 
 if [[ $fail -eq 0 ]]; then echo "CX-BUILD-CACHE: PASS"; exit 0; fi
 echo "CX-BUILD-CACHE: FAIL"

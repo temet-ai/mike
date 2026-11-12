@@ -154,6 +154,13 @@ class RustChangeScopeTests(unittest.TestCase):
         self.assertNotIn("--tests", commands[0])
         self.assertIn("--tests", commands[1])
 
+    def test_inspect_manifest_change_runs_mcp_manifest_coverage(self):
+        commands = self.commands("crates/mike/src/api/manifest/workspace.rs")
+        coverage = [command for command in commands if command[4] == "mike-mcp"]
+        self.assertEqual(len(coverage), 1)
+        self.assertIn(["--test", "manifest_coverage"], [coverage[0][5:7]])
+        self.assertEqual(coverage[0][-1], "(binary(=manifest_coverage))")
+
     def test_docs_do_not_broaden_source_filter(self):
         self.assertEqual(self.commands("crates/mike/README.md"), [])
         self.assertEqual(self.commands("crates/mike/src/launch/codex/model.rs", "crates/mike/README.md"), self.commands("crates/mike/src/launch/codex/model.rs"))
@@ -198,7 +205,7 @@ class RustChangeScopeTests(unittest.TestCase):
         calls = self.calls()
         packages = ["-p", "mike", "-p", "mike-codex", "-p", "mike-mcp"]
         self.assertIn(["lint-rust", *packages], calls)
-        self.assertIn(["cx", "nextest", "run", *packages, "--no-fail-fast"], calls)
+        self.assertNotIn(["cx", "nextest", "run", *packages, "--no-fail-fast"], calls)
         focused = calls[-1]
         self.assertEqual(focused[1:6], ["nextest", "run", "-p", "mike-codex", "--tests"])
         self.assertNotIn("--all", focused)

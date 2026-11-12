@@ -40,7 +40,11 @@ _expected_lld_path() {
 ensure_build_toolchain() {
   local need=()
 
-  command -v sccache >/dev/null 2>&1 || need+=(sccache)
+  # sccache is opt-in (CX_SCCACHE=1, see compute_accelerator_cargo_args), so only
+  # that case and `make bootstrap` (--all) require it; a machine without it builds.
+  if [[ "${CX_SCCACHE:-0}" == "1" || "${PREFLIGHT_ALL:-0}" == "1" ]]; then
+    command -v sccache >/dev/null 2>&1 || need+=(sccache)
+  fi
 
   # lld is only applied by .cargo/config.toml on apple-darwin targets.
   local lld_path=""
@@ -144,8 +148,99 @@ compute_accelerator_cargo_args() {
   fi
 }
 
+# mbx_bin_path: prints the mbx binary to use, or nothing when there is none.
+# MBX_BIN wins when set (a set but missing MBX_BIN means none); then mbx on
+# PATH; then the trial install.
+mbx_bin_path() {
+  local bin="${MBX_BIN:-}"
+  if [[ -n "$bin" ]]; then
+    [[ -x "$bin" ]] && printf '%s\n' "$bin"
+    return 0
+  fi
+  bin="$(command -v mbx 2>/dev/null || true)"
+  if [[ -z "$bin" && -x /mnt/data/mbx-trial/bin/mbx ]]; then
+    bin=/mnt/data/mbx-trial/bin/mbx
+  fi
+  [[ -n "$bin" ]] && printf '%s\n' "$bin"
+  return 0
+}
+
+# The cargo subcommands mbx caches. Anything else mbx runs as plain cargo, and
+# plain cargo must never write into an mbx build directory (read-only hard
+# links into the store), so those are never sent through mbx.
+MBX_CACHED_SUBCOMMANDS=" build check clippy test "
+# The subset scripts/cx sends through mbx without being asked. build stays on
+# plain cargo by default because deploys and installs take their binary from it.
+MBX_AUTO_SUBCOMMANDS=" check clippy test "
+
+# cx_cargo_subcommand <cargo args…>: the cargo subcommand, skipping a leading
+# +toolchain. Prints nothing when the first word is an option.
+cx_cargo_subcommand() {
+  local first="${1:-}"
+  [[ "$first" == +* ]] && first="${2:-}"
+  [[ "$first" == -* ]] && first=""
+  printf '%s\n' "$first"
+}
+
+# cx_mbx_slot: the per-session build directory name under target/: mbx-<id>,
+# from MIKE_SESSION_ID, else CLAUDE_CODE_SESSION_ID, else mbx-default.
+cx_mbx_slot() {
+  local id="${MIKE_SESSION_ID:-${CLAUDE_CODE_SESSION_ID:-}}"
+  id="$(printf '%s' "$id" | tr -cd 'A-Za-z0-9_-' | cut -c1-12)"
+  printf 'mbx-%s\n' "${id:-default}"
+}
+
+# select_build_cache <repo_root> <named_target_dir> <subcommand>
+# Decides whether scripts/cx runs cargo or mbx. Sets CX_CACHE_MODE to mbx or
+# cargo and, for mbx, CX_MBX_TARGET to the build directory. Returns non-zero
+# with a message on stderr for a combination that would let plain cargo write
+# into an mbx build directory.
+#   MIKE_BUILD_CACHE=mbx    mbx, into the named directory (any cached subcommand)
+#   MIKE_BUILD_CACHE=cargo  plain cargo
+#   unset                   mbx for check, clippy and test when mbx is installed
+#                           and no other build directory was named; else cargo
+select_build_cache() {
+  local root="$1" named="$2" sub="$3" dir="" in_mbx=0
+  CX_CACHE_MODE=cargo
+  CX_MBX_TARGET=""
+  if [[ -n "$named" ]]; then
+    dir="$named"
+    [[ "$dir" == /* ]] || dir="$root/$dir"
+    while [[ "$dir" == */ && "$dir" != "/" ]]; do dir="${dir%/}"; done
+    [[ "$(basename "$dir")" == mbx-* ]] && in_mbx=1
+  fi
+  case "${MIKE_BUILD_CACHE:-}" in
+    mbx)
+      if [[ "$MBX_CACHED_SUBCOMMANDS" != *" $sub "* ]]; then
+        echo "cx: mbx caches only build, check, clippy and test; it would run '${sub}' as plain cargo inside an mbx build directory. Run it without MIKE_BUILD_CACHE=mbx." >&2
+        return 1
+      fi
+      CX_CACHE_MODE=mbx
+      CX_MBX_TARGET="$named"
+      ;;
+    cargo | plain) ;;
+    "")
+      if [[ "$MBX_AUTO_SUBCOMMANDS" == *" $sub "* && -n "$(mbx_bin_path)" ]] &&
+        { [[ -z "$named" || "$dir" == "$root/target" ]] || (( in_mbx )); }; then
+        CX_CACHE_MODE=mbx
+        if (( in_mbx )); then CX_MBX_TARGET="$dir"; else CX_MBX_TARGET="$root/target/$(cx_mbx_slot)"; fi
+        return 0
+      fi
+      ;;
+    *)
+      echo "cx: MIKE_BUILD_CACHE must be mbx, cargo or unset (got '${MIKE_BUILD_CACHE}')" >&2
+      return 1
+      ;;
+  esac
+  if [[ "$CX_CACHE_MODE" == cargo ]] && (( in_mbx )); then
+    echo "cx: ${named} is an mbx build directory (read-only hard links into the store); plain cargo must not build there. Name another CARGO_TARGET_DIR, or leave it unset." >&2
+    return 1
+  fi
+  return 0
+}
+
 # prepare_mbx_build_cache <repo_root> <named_target_dir>
-# The opt-in MIKE_BUILD_CACHE=mbx path of scripts/cx. Sets MBX_BIN and the
+# The mbx path of scripts/cx. Sets MBX_BIN and the
 # environment mbx needs, switches sccache off (mbx cannot be combined with it),
 # and refuses a build directory that is not named or that is a shared one.
 # Returns non-zero with a message on stderr when it cannot continue.
@@ -164,14 +259,9 @@ prepare_mbx_build_cache() {
     return 1
   fi
 
-  local bin="${MBX_BIN:-}"
+  local bin
+  bin="$(mbx_bin_path)"
   if [[ -z "$bin" ]]; then
-    bin="$(command -v mbx 2>/dev/null || true)"
-  fi
-  if [[ -z "$bin" && -x /mnt/data/mbx-trial/bin/mbx ]]; then
-    bin=/mnt/data/mbx-trial/bin/mbx
-  fi
-  if [[ -z "$bin" || ! -x "$bin" ]]; then
     echo "cx: MIKE_BUILD_CACHE=mbx found no mbx: set MBX_BIN, put mbx on PATH, or install it at /mnt/data/mbx-trial/bin/mbx" >&2
     return 1
   fi
@@ -180,13 +270,19 @@ prepare_mbx_build_cache() {
   export MBX_CACHE_DIR="${MBX_CACHE_DIR:-$HOME/.cache/mike-mbx}"
   export MBX_TARGET_VIEWS=0 MBX_GC_AUTO=0 MBX_TARGET_SEED=0
   export MBX_LEARNED_INCREMENTAL=0
+  # crates/build_identity.rs gives an mbx build a fixed identity only when it sees
+  # this; without it every commit changes crate mike's key and nothing restores.
+  export MIKE_BUILD_CACHE=mbx
   export CX_SCCACHE=0
   unset RUSTC_WRAPPER CARGO_BUILD_RUSTC_WRAPPER
   export CARGO_TARGET_DIR="$dir"
 }
 
-# Run standalone: `scripts/lib/preflight-toolchain.sh` (used by `make bootstrap`).
+# Run standalone: `scripts/lib/preflight-toolchain.sh` before every make build
+# target (`make preflight`), and with --all to install every accelerator
+# including the opt-in sccache (`make bootstrap`).
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   set -euo pipefail
+  [[ "${1:-}" == "--all" ]] && PREFLIGHT_ALL=1
   ensure_build_toolchain
 fi

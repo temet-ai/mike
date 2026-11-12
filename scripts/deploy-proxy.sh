@@ -444,7 +444,8 @@ echo "==> Building mike ${RELEASE_FLAG:+(release)}"
 # abort any build that actually recompiles mike. Default to offline; an operator
 # refreshing the cache after a query change can override with SQLX_OFFLINE=false.
 # Refresh the cache with: cargo sqlx prepare --workspace --database-url "$MIKE_DATABASE_URL" -- --all-targets.
-SQLX_OFFLINE="${SQLX_OFFLINE:-true}" cargo build ${RELEASE_FLAG} --manifest-path crates/mike/Cargo.toml --quiet
+# MIKE_BUILD_IDENTITY=git: the deployed binary carries its commit even as a --debug build.
+MIKE_BUILD_IDENTITY=git SQLX_OFFLINE="${SQLX_OFFLINE:-true}" cargo build ${RELEASE_FLAG} --manifest-path crates/mike/Cargo.toml --quiet
 echo "==> Build OK"
 
 # Stage the artifact into DEPLOY_DIR at once — everything after this line runs

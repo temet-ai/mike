@@ -58,7 +58,8 @@ for root in crates/*/src/lib.rs crates/*/src/main.rs; do
 done
 
 echo "sqlx-prepare: describing queries (cargo check ${check_args[*]})" >&2
-if ! DATABASE_URL="$db" SQLX_OFFLINE=false SQLX_OFFLINE_DIR="$out" \
+# Plain cargo: mbx would restore the crate instead of running the macros against the database.
+if ! MIKE_BUILD_CACHE=cargo DATABASE_URL="$db" SQLX_OFFLINE=false SQLX_OFFLINE_DIR="$out" \
      "$script_dir/cx" check "${check_args[@]}" >&2; then
   echo "sqlx-prepare: the check failed, so .sqlx/ was left as it was" >&2
   echo "SQLX-PREPARE: FAIL new=0 changed=0 stale=0"; exit 1

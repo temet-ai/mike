@@ -61,61 +61,89 @@ never with `nohup`. Deploys serialise on `.deploy/deploy.lock`. A deploy never
 starts Storybook: `systemctl --user start mike-stack-storybook` when you need it. Deploy the shared proxy from the main
 checkout only.
 
-**Checking a change.** Make the change, run one narrow check of what you
-changed (`scripts/cx check --lib -p <crate>`, the one test target, `scripts/sb-test
---skip-typecheck <filter>`, or the one script test you touched). For Rust, also run
-`scripts/lint-rust` once after the last edit: the structural limits below are not
-visible from the code, and only the push hook runs it otherwise. Then commit. The
-commit and push hooks and CI grade the rest: no full suite, no re-run of a check
-that passed. What runs when is in
-[`GITHUB_WORKFLOWS`](docs/GITHUB_WORKFLOWS.md#rust-qualityyml).
+**The change loop.** This is the whole verification a change needs before it is pushed:
+1. Make the change.
+2. Run one narrow check of what you changed, once per state of the tree:
+   `scripts/cx check --lib -p <crate>`, the one test target (`make test-t t=<filter>`),
+   `scripts/sb-test --skip-typecheck <filter>`, or the one script test you touched.
+3. Rust only: `scripts/cx fmt --check` and `scripts/lint-rust -p <crate>` once, after
+   the last edit. The structural limits below are not visible from the code.
+4. Commit, then push once, in the background. The pre-push hook
+   (`scripts/pre-push-check`) is the only CI while Actions minutes are out: it runs
+   gitleaks, semgrep, fmt, `lint-rust` and `scripts/test-area` (the tests of the areas
+   the push changed, in every tier) for what the push changed, plus the crates' whole
+   fast tier when a change belongs to no area (manifests, lockfile, build scripts,
+   crate roots, `.sqlx/`). Everything else runs nightly (`scripts/nightly-tests`, the
+   `nightly_tests` scheduled job). Don't run `test-area` yourself first, and never run
+   the full suite. What CI would add when it runs is in
+   [`GITHUB_WORKFLOWS`](docs/GITHUB_WORKFLOWS.md#rust-qualityyml).
+5. If the push fails, fix every failure the log shows, rerun only the failed step, and
+   push again. The hook stops before lint and tests when gitleaks, semgrep or fmt fail.
 
-**Building, pushing and deploying** (the pre-push hook is the only CI while Actions
-minutes are out):
-- Build, test and push on the machine that holds your checkout: omit or the Mac. Never
-  `ssh` to another machine to build or push, never wrap a command in `flock` or a shared
-  lock, and never wait on another session's build. Cargo already locks each `target/`.
-  infra never builds: an infra session builds in its own omit worktree over `ssh`,
-  without a lock, and infra runs omit's aarch64 build.
-- Before the first push of a Rust change, run the hook's quick steps on what you
-  touched: `scripts/cx fmt --check`, `scripts/lint-rust -p <crate>`, and `scripts/sb-test
-  --skip-typecheck <filter>` for a frontend change. Then push once, in the background,
-  and let the hook run the tests. Don't also run the crate's whole `nextest` first.
-- When a push fails, fix every failure the log shows, rerun only the failed step, then
-  push again. The hook stops before lint and tests when gitleaks, semgrep or fmt fail.
-- Batch: one branch and one PR per piece of work, with the follow-up fixes in the same
-  push. Deploy omit, the Mac and infra once a batch of PRs has merged, not after each PR.
-- While a build or push runs, do the next piece of work. Don't poll it; the harness
-  re-invokes you when it exits.
+Batch: one branch and one PR per piece of work, with the follow-up fixes in the same
+push.
 
-**Rust structural limits** (graded by `scripts/lint-rust` in the landing gate):
-files ≤ 500 lines, functions ≤ 100 lines, cognitive complexity ≤ 15, ≤ 6
-arguments; `allow`/`expect` attributes that weaken these are rejected, so split
-by responsibility.
+**Rust structural limits** (graded by `scripts/lint-rust`): files ≤ 500 lines,
+functions ≤ 100 lines, cognitive complexity ≤ 15, ≤ 6 arguments;
+`allow`/`expect` attributes that weaken these are rejected, so split by
+responsibility.
 
-**Gates report their own verdict.** Never pipe a gate (temet-ai/mike-private#136); read a background
-gate's verdict with `scripts/task-wait <output> --grade-only` (temet-ai/mike-private#182).
+**Long commands and gates run in the background.** Start builds, pushes and gates
+with `run_in_background`, do the next piece of work or end the turn, and let the
+harness re-invoke you when they exit. Never poll a running task (`sleep` loops,
+`tail -f`, `scripts/task-wait` on a live task) and never pipe a gate: it reports its
+own verdict. Once a background gate has exited, read that verdict with
+`scripts/task-wait <output> --grade-only`.
 
-**Long commands run in the background.** Use `run_in_background` and continue
-or end the turn; the harness re-invokes you on exit. Don't block on a running
-task with `scripts/task-wait`, `sleep` loops or `tail -f`.
+**Which machine builds.** Build, test and push on the machine that holds your
+checkout: omit or the Mac. infra (aarch64) never builds Rust or pushes a Rust change
+(the pre-push hook refuses there); an infra session does that work in its own
+worktree on omit over `ssh`, which is the only reason to `ssh` for a build, and
+infra runs the aarch64 binary omit builds. Never wrap a command in `flock` or a
+shared lock and never wait on another session's build: cargo already locks each
+build directory. Deploy omit, the Mac and infra once a batch of PRs has merged, not
+after each PR.
 
-**Build directories and worktrees.** Each checkout builds into its own
-`target/`; sccache (`.cargo/config.toml`) shares compiled dependencies. Unset a
-leftover `CARGO_TARGET_DIR` in old shells. A new worktree is a ~30 minute cold
-build of crate `mike` (cargo fingerprints the absolute path, so nothing makes a
-new path warm), so prefer a branch in a warm checkout, reuse a worktree that has
-built, and check `git worktree list` first.
+**Builds go through mbx.** `scripts/cx` (and so `scripts/lint-rust`) sends `check`,
+`clippy` and `test` through the mbx cache by itself whenever mbx is installed, into `target/mbx-<session>` (named from
+`MIKE_SESSION_ID`, else `CLAUDE_CODE_SESSION_ID`). mbx restores the units any
+earlier mbx build on this machine stored, from any checkout, worktree or directory,
+so a session never queues behind another's build and a new worktree starts warm:
+crate `mike`'s library restores in seconds. You type nothing extra. The rest stays
+on plain cargo in the checkout's `target/`, shared by the sessions in that checkout:
+- `build`, so `./scripts/start-proxy.sh`, `make install` and the release scripts
+  deploy a binary with the real build identity (an mbx binary is for checks only).
+  Only release builds and builds with `MIKE_BUILD_IDENTITY=git` (the deploy and run
+  scripts set it) embed the commit; every other build reports `dev-build`, so a
+  commit or branch switch never recompiles crate `mike`;
+- `nextest` (`make test-*`, the pre-push hook's tests), because mbx would run it
+  uncached inside its own directory;
+- `scripts/sqlx-prepare`, which needs the macros to run against a database;
+- any `CARGO_TARGET_DIR` you name, such as the fleet's `target/fleet-check`.
 
-Remove every worktree you made as soon as its work is finished, in the same
-session and without being asked: when its branch merges, when the branch is
-dropped, and when a detached checkout made for a build, a release or a check
-has done its job. Run `git worktree remove <path>`, then `git branch -d
-<branch>`; that deletes its `target/`, `dist-out/` and `frontend/node_modules`
-with it. Each worktree holds 12-21 GB of build output, and the scheduled sweep
-never frees a detached checkout, so a finished worktree left on disk is what
-fills omit and the Mac. Before a session ends, run `git worktree list` and
-remove each worktree of yours that nothing is using.
+`scripts/cx` refuses plain cargo in an `mbx-*` directory (read-only hard links into
+the store). `MIKE_BUILD_CACHE=cargo` forces plain cargo; `MIKE_BUILD_CACHE=mbx` with a
+named `CARGO_TARGET_DIR` forces mbx. Without mbx installed everything is plain
+cargo. `CX_SCCACHE=1` adds sccache to plain cargo (dependencies only; it turns off
+incremental builds, so not for editing). `.cargo/config.toml` is stock. Never
+`cargo clean`. Traps and measurements:
+[`scripts/mbx-trial/README.md`](scripts/mbx-trial/README.md).
+
+**Worktrees.** Fleet seats never create one; they follow
+[`.claude/fleet/rules.md`](.claude/fleet/rules.md) (one checkout, one branch). The
+managed slots under `.claude/worktrees/` (`mike-check`, `mike-check-2`, `mike-gate`)
+belong to mike: never create, reset or remove them. Every other worktree is yours to
+remove as soon as its work is finished, in the same session and without being asked:
+when its branch merges or is dropped, and when a detached checkout made for a build,
+a release or a check has done its job. Run `git worktree remove <path>`, then
+`git branch -d <branch>`, which deletes its `target/`, `dist-out/` and
+`frontend/node_modules` with it. A worktree holds 12-21 GB of build output. The
+scheduled sweep (`scripts/cargo-sweep-all`) only empties a finished checkout's
+`target/`: two hours after a merged branch last built, a day after a detached
+checkout on main last built, never for a detached checkout off main. It never removes
+the worktree, its `frontend/node_modules` or its `dist-out/`. A session's
+`target/mbx-<session>` is emptied a day after it was last built in. Before a session ends,
+run `git worktree list` and remove each worktree of yours that nothing is using.
 
 **Config.** Boot config precedence: defaults < config file < `MIKE_*` env < CLI flags (`mike print-config`, `mike migrate-check`).
 Runtime config lives at
@@ -159,9 +187,9 @@ Make small edits and subtle or cross-cutting changes yourself.
 - Test DB: container `mike-test-pg` (`scripts/test-db/`) on `127.0.0.1:6667`, `fsync=off`, via `MIKE_TEST_ADMIN_URL`.
   Tests never touch the capture DB.
 - Migrations: `crates/mike/src/store/persistence/migrations/`. Only `mike serve` applies them; other subcommands refuse
-  while the ledger differs from the binary (temet-ai/mike-private#359).
+  while the ledger differs from the binary.
 - Use `scripts/sqlx-prepare`, never `cargo sqlx prepare` — the latter empties `.sqlx/` while it runs and breaks every
-  session in the checkout (temet-ai/mike-private#405).
+  session in the checkout.
 - Read-only SQL:
   `PGOPTIONS='-c statement_timeout=5000 -c lock_timeout=2000' docker exec armitage-pg psql -U devuser -d claude_proxy -X -At -c "<select>"`,
   time-bounded on large tables. Prefer the `mike-mcp` read tools.

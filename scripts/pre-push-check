@@ -84,9 +84,11 @@ if printf '%s\n' "$changed" | grep -qE '\.(rs|sql)$|(^|/)Cargo\.toml$|^Cargo\.lo
   packages=$(python3 "$root/scripts/lib/rust_change_scope.py" packages <<<"$changed") || exit 1
   # shellcheck disable=SC2086
   "$root/scripts/lint-rust" $packages || status=1
-  # shellcheck disable=SC2086
-  "$root/scripts/cx" nextest run $packages --no-fail-fast || status=1
-  "$root/scripts/test-area" --skip-default-checks || status=1
+  # The tests of the areas the push changed, in every tier. A change no area owns
+  # (the workspace manifest or lockfile, a crate manifest, .sqlx, a file outside
+  # every crate) runs the affected crates' whole fast tier instead; the rest of the
+  # fast tier runs nightly (scripts/nightly-tests).
+  "$root/scripts/test-area" || status=1
 fi
 
 if printf '%s\n' "$changed" | grep -qE '^frontend/' && [ -d "$root/frontend/node_modules" ]; then

@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# nightly-tests — every Rust test tier (make test-all) against the tip of main,
+# once a night, in a detached worktree of its own.
+#
+# The pre-push hook runs only the tests of the areas a push changed
+# (scripts/test-area), not each crate's whole fast tier, so a change that breaks
+# a test in an area it never touched is caught here instead. The scheduled job
+# nightly_tests runs this script; it is off by default and is turned on, in
+# /settings under Scheduled jobs, on the one machine that should carry the run.
+#
+# The worktree (MIKE_NIGHTLY_DIR, default <checkout>/.claude/worktrees/nightly) is
+# kept between runs, so its target/ stays warm and only what main changed since
+# the last night is compiled. It borrows the checkout's .env (the test database
+# URL) by symlink. Plain cargo: the run must not depend on the mbx store.
+#
+# Usage: scripts/nightly-tests [--print]   --print says what it would run, runs nothing.
+# Exit status: 0 when every tier passed; the last line is NIGHTLY-TESTS: PASS|FAIL <sha>.
+set -uo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+wt="${MIKE_NIGHTLY_DIR:-$root/.claude/worktrees/nightly}"
+print=0
+for arg in "$@"; do
+  case "$arg" in
+    --print) print=1 ;;
+    *) echo "nightly-tests: unknown argument $arg" >&2; exit 2 ;;
+  esac
+done
+
+# infra (aarch64 Linux) never builds Rust; the pre-push hook refuses there too.
+if [[ "$(uname -s)" == Linux && "$(uname -m)" == aarch64 ]]; then
+  echo "nightly-tests: this machine does not build Rust; turn the job on on omit or the Mac" >&2
+  echo "NIGHTLY-TESTS: FAIL refused-on-aarch64"
+  exit 1
+fi
+
+if (( print )); then
+  echo "worktree: $wt"
+  echo "update:   git fetch origin main; checkout --detach origin/main"
+  echo "run:      MIKE_BUILD_CACHE=cargo make -C $wt test-all"
+  exit 0
+fi
+
+if ! git -C "$root" fetch --quiet origin main; then
+  echo "nightly-tests: git fetch origin main failed" >&2
+  echo "NIGHTLY-TESTS: FAIL fetch"
+  exit 1
+fi
+if [[ ! -e "$wt/.git" ]]; then
+  mkdir -p "$(dirname "$wt")"
+  git -C "$root" worktree add --quiet --detach "$wt" origin/main || {
+    echo "NIGHTLY-TESTS: FAIL worktree"; exit 1; }
+else
+  git -C "$wt" checkout --quiet --detach --force origin/main &&
+    git -C "$wt" clean -fdq || { echo "NIGHTLY-TESTS: FAIL checkout"; exit 1; }
+fi
+[[ -f "$root/.env" && ! -e "$wt/.env" ]] && ln -s "$root/.env" "$wt/.env"
+
+sha="$(git -C "$wt" rev-parse --short HEAD)"
+echo "nightly-tests: make test-all at $sha in $wt"
+if MIKE_BUILD_CACHE=cargo nice -n 10 make -C "$wt" test-all; then
+  echo "NIGHTLY-TESTS: PASS $sha"
+  exit 0
+fi
+echo "NIGHTLY-TESTS: FAIL $sha"
+exit 1

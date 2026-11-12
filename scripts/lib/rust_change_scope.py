@@ -125,6 +125,13 @@ def area_commands(root, paths, packages):
                 group["targets"].append(target)
             index += len(target)
         group["filters"].add(expression)
+    if any(path.startswith("crates/mike/src/api/manifest") for path in area_paths) \
+            and any(p["name"] == "mike-mcp" for p in packages):
+        # mike-mcp checks that every inspect route in mike's manifest has MCP coverage.
+        group = groups.setdefault("mike-mcp", {"targets": [], "filters": set()})
+        if ["--test", "manifest_coverage"] not in group["targets"]:
+            group["targets"].append(["--test", "manifest_coverage"])
+        group["filters"].add("binary(=manifest_coverage)")
     return [
         prefix + ["-p", name] + [arg for target in group["targets"] for arg in target]
         + suffix + ["-E", " | ".join(f"({expression})" for expression in sorted(group["filters"]))]

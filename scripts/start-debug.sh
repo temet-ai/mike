@@ -61,7 +61,7 @@ INSPECT_PORT="${MIKE_INSPECT_ADDR##*:}" \
 
 echo
 echo "==> Building mike (debugging profile — full debug info)"
-cargo build --profile debugging --bin mike
+MIKE_BUILD_IDENTITY=git cargo build --profile debugging --bin mike
 
 TARGET_DIR="${CARGO_TARGET_DIR:-${PROJECT_ROOT}/target}"
 MIKE_BIN="${TARGET_DIR}/debugging/mike"

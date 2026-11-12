@@ -3,8 +3,8 @@
 # keeps the shared build directory under its size cap.
 #
 # WHY THIS EXISTS
-#   Every session on this machine compiles into one shared directory
-#   (CARGO_TARGET_DIR, normally <checkout>/target). Cargo never removes
+#   Every plain-cargo session in a checkout compiles into that checkout's
+#   build directory (CARGO_TARGET_DIR, normally <checkout>/target). Cargo never removes
 #   anything from it, so the artifacts of every dependency version ever built
 #   pile up: on 2026-08-28 updating 154 crates plus two full checks added 32GB
 #   in forty minutes and took the volume to 157MB free, which stops git, the
