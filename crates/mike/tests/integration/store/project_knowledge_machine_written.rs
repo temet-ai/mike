@@ -78,11 +78,11 @@ async fn search_marks_machine_written_rows_and_ranks_the_lowered_ones_below_an_o
     let items = fx.search(query("quokka")).await?;
 
     let operator_at = position(&items, &format!("turn:{operator}"))?;
-    for reference in [
-        format!("turn:{tool_turn}"),
-        format!("note:{brief}"),
-        thread.clone(),
-    ] {
+    assert!(
+        !references(&items).contains(&format!("turn:{tool_turn}")),
+        "a tool-written turn is a machine turn and is not searched as the operator's"
+    );
+    for reference in [format!("note:{brief}"), thread.clone()] {
         let at = position(&items, &reference)?;
         assert_eq!(written_by(&items[at]), Some("machine"), "{reference}");
         assert!(ranked_lower(&items[at]), "{reference}");
@@ -130,7 +130,7 @@ async fn search_does_not_halve_the_rank_of_a_mail_row_that_matches_like_an_opera
 }
 
 #[tokio::test]
-async fn search_marks_every_tool_written_opening_as_machine_written() -> anyhow::Result<()> {
+async fn search_leaves_out_every_tool_written_opening() -> anyhow::Result<()> {
     let Some(fx) = Fixture::open().await? else {
         return Ok(());
     };
@@ -152,10 +152,9 @@ async fn search_marks_every_tool_written_opening_as_machine_written() -> anyhow:
 
     let items = fx.search(query("narwhal")).await?;
 
+    let found = references(&items);
     for reference in &machine {
-        let at = position(&items, reference)?;
-        assert_eq!(written_by(&items[at]), Some("machine"), "{reference}");
-        assert!(ranked_lower(&items[at]), "{reference}");
+        assert!(!found.contains(reference), "{reference} is a machine turn");
     }
     let operator_at = position(&items, &format!("turn:{operator}"))?;
     assert_eq!(written_by(&items[operator_at]), None);

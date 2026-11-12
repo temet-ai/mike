@@ -91,6 +91,9 @@ fn later_suffix(item: &Value) -> String {
 }
 
 fn session_suffix(item: &Value) -> String {
+    if item["source_kind"] == "session" {
+        return String::new();
+    }
     session_title(item)
         .map(|title| {
             format!(
