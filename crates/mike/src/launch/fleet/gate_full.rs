@@ -145,6 +145,16 @@ async fn start_once(runner: &Runner<'_>, full: &FleetDefinition, target: &super:
     if super::running_commit(&target.slot.to_string_lossy()).is_some() {
         return;
     }
+    if held_back(runner, full, &target.commit).await {
+        return;
+    }
+    match super::start(runner, full, CLOSE_SEAT, target).await {
+        Ok(_) => log_started(runner.run, &target.commit, &full.gate.command),
+        Err(err) => log_not_started(runner.run, &err),
+    }
+}
+
+async fn held_back(runner: &Runner<'_>, full: &FleetDefinition, commit: &str) -> bool {
     let ledger = super::ledger_for(full, runner.run);
     let latest = runner
         .persist
@@ -152,16 +162,17 @@ async fn start_once(runner: &Runner<'_>, full: &FleetDefinition, target: &super:
         .await
         .ok()
         .flatten();
-    if let Some(why) = backing_off(latest.as_ref(), &target.commit, chrono::Utc::now()) {
-        tracing::debug!(run = runner.run, commit = %target.commit, why, "fleet: full gate at close held back");
-        return;
-    }
-    match super::start(runner, full, CLOSE_SEAT, target).await {
-        Ok(_) => {
-            tracing::info!(run = runner.run, commit = %target.commit, command = %full.gate.command, "fleet: every seat has exited; the full gate runs once at the branch's newest commit")
-        }
-        Err(err) => {
-            tracing::warn!(run = runner.run, error = %err, "fleet: the full gate at close was not started")
-        }
-    }
+    let Some(why) = backing_off(latest.as_ref(), commit, chrono::Utc::now()) else {
+        return false;
+    };
+    tracing::debug!(run = runner.run, %commit, why, "fleet: full gate at close held back");
+    true
+}
+
+fn log_started(run: &str, commit: &str, command: &str) {
+    tracing::info!(run, %commit, %command, "fleet: every seat has exited; the full gate runs once at the branch's newest commit");
+}
+
+fn log_not_started(run: &str, err: &str) {
+    tracing::warn!(run, error = %err, "fleet: the full gate at close was not started");
 }
