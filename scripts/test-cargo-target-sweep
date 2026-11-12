@@ -305,6 +305,19 @@ out="$(HOME="$roots/nohome" CARGO_SWEEP_ROOTS="$roots" CARGO_SWEEP_SCRIPT=/bin/e
 grep -q "$(cd "$deep" && pwd -P)" <<< "$out" && chk pass "active worktree beyond seven directory levels is found" || chk fail "active worktree beyond seven directory levels is found"
 rm -rf "$roots"
 
+echo "cargo-sweep-all — an idle session mbx folder is emptied, an active one is kept"
+roots="$(mktemp -d)"
+proj="$roots/project"
+mkdir -p "$proj/target/debug" "$proj/target/mbx-old/debug/deps" "$proj/target/mbx-new/debug/deps"
+touch "$proj/Cargo.toml" "$proj/target/CACHEDIR.TAG" "$proj/target/mbx-old/CACHEDIR.TAG" "$proj/target/mbx-new/CACHEDIR.TAG"
+find "$proj/target/mbx-old" -exec touch -t 202001010000 {} +
+out="$(HOME="$roots/nohome" CARGO_SWEEP_ROOTS="$roots" CARGO_SWEEP_SCRIPT=/bin/echo CARGO_SWEEP_FLOOR_GB=0 "$script_dir/cargo-sweep-all" --dry-run)"
+grep -q "mbx-old: would empty, its session's mbx build folder" <<< "$out" \
+  && chk pass "an mbx folder idle for a day is emptied" || chk fail "an mbx folder idle for a day is emptied"
+grep -q "mbx-new: would empty" <<< "$out" \
+  && chk fail "an mbx folder built in today is kept" || chk pass "an mbx folder built in today is kept"
+rm -rf "$roots"
+
 echo "────────────────────────────────────────"
 echo "passed=$pass failed=$fail"
 (( fail == 0 ))

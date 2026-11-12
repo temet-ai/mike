@@ -3,28 +3,56 @@ use std::process::Command;
 
 const UNKNOWN: &str = "unknown";
 const MBX_BUILD: &str = "mbx-build";
+const DEV_BUILD: &str = "dev-build";
 
+/// Stamps the build with its source identity.
+///
+/// Only a build that ships or runs as the stack carries the real commit: the
+/// release profile (releases, `make install`), or any profile with
+/// `MIKE_BUILD_IDENTITY=git` (the deploy and run scripts). Every other build —
+/// the checks and tests of the edit loop — gets a fixed identity and watches no
+/// git file, so a commit or branch switch does not recompile the crate.
 pub fn emit_build_identity(manifest_dir: &Path) {
     let repo_root = manifest_dir.join("../..");
 
     println!("cargo:rerun-if-env-changed=MIKE_BUILD_CACHE");
+    println!("cargo:rerun-if-env-changed=MIKE_BUILD_IDENTITY");
     println!("cargo:rerun-if-env-changed=SOURCE_DATE_EPOCH");
+    // Without any rerun-if-changed, cargo would rerun the script on every file
+    // change in the package; anchor it to this file instead.
+    println!(
+        "cargo:rerun-if-changed={}",
+        manifest_dir.join("../build_identity.rs").display()
+    );
     if std::env::var("MIKE_BUILD_CACHE").as_deref() == Ok("mbx") {
-        for (key, value) in [
-            ("MIKE_BUILD_SHA", MBX_BUILD),
-            ("MIKE_BUILD_SHA_SHORT", MBX_BUILD),
-            ("MIKE_BUILD_DIRTY", "false"),
-            ("MIKE_BUILD_TIME", MBX_BUILD),
-        ] {
-            println!("cargo::rustc-env={key}={value}");
-        }
+        emit_fixed_identity(MBX_BUILD);
         return;
     }
+    let shipped = std::env::var("PROFILE").as_deref() == Ok("release")
+        || std::env::var("MIKE_BUILD_IDENTITY").as_deref() == Ok("git");
+    if !shipped {
+        emit_fixed_identity(DEV_BUILD);
+        return;
+    }
+    emit_git_identity(&repo_root);
+}
 
-    let sha = git_output(&repo_root, &["rev-parse", "HEAD"]);
-    let short = git_output(&repo_root, &["rev-parse", "--short", "HEAD"]);
+fn emit_fixed_identity(value: &str) {
+    for (key, value) in [
+        ("MIKE_BUILD_SHA", value),
+        ("MIKE_BUILD_SHA_SHORT", value),
+        ("MIKE_BUILD_DIRTY", "false"),
+        ("MIKE_BUILD_TIME", value),
+    ] {
+        println!("cargo::rustc-env={key}={value}");
+    }
+}
+
+fn emit_git_identity(repo_root: &Path) {
+    let sha = git_output(repo_root, &["rev-parse", "HEAD"]);
+    let short = git_output(repo_root, &["rev-parse", "--short", "HEAD"]);
     let dirty = match git_output(
-        &repo_root,
+        repo_root,
         &["status", "--porcelain", "--untracked-files=no"],
     ) {
         Some(out) => !out.is_empty(),
@@ -42,7 +70,7 @@ pub fn emit_build_identity(manifest_dir: &Path) {
     println!("cargo::rustc-env=MIKE_BUILD_DIRTY={dirty}");
     println!("cargo::rustc-env=MIKE_BUILD_TIME={}", build_timestamp());
 
-    for path in git_head_watch_paths(&repo_root) {
+    for path in git_head_watch_paths(repo_root) {
         println!("cargo:rerun-if-changed={}", path.display());
     }
 }

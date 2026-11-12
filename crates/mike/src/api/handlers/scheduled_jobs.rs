@@ -161,6 +161,7 @@ mod tests {
             view(4, JobState::Ok, 0),
             view(5, JobState::Ok, 0),
             view(6, JobState::Ok, 0),
+            view(7, JobState::Ok, 0),
         ];
         let row = scheduled_jobs_row(&views);
         assert_eq!(row.id, "scheduled_jobs");

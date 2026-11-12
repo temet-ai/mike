@@ -15,9 +15,11 @@ the inspect API, and the SPA already run locally and covers the loop you use whi
 ## Dev loop
 
 Make the change, run one narrow check of what you changed, commit. The pre-push hook runs
-fmt, clippy and `scripts/lint-rust`, so run `git push` in the background; CI grades the
-rest. Do not run them yourself per change. `scripts/test-area` runs the tests of every area
-your branch changed, and [`GITHUB_WORKFLOWS.md`](GITHUB_WORKFLOWS.md#rust-qualityyml) says
+fmt, clippy, `scripts/lint-rust` and `scripts/test-area` (the tests of every area the push
+changed, in every tier), and each crate's whole fast tier only for a change no area owns, so
+run `git push` in the background. Do not run them yourself per change. The full suite runs
+nightly on one machine (`scripts/nightly-tests`, the `nightly_tests` scheduled job, off until
+turned on in /settings), and [`GITHUB_WORKFLOWS.md`](GITHUB_WORKFLOWS.md#rust-qualityyml) says
 what runs when.
 
 | Changed | The one check |
@@ -33,7 +35,7 @@ The integration-test sources compile through a handful of harnesses (`proxy`, `i
 
 Other useful entry points:
 
-- `scripts/cx <cargo args>` — cargo with `.env` and a shared `CARGO_TARGET_DIR` preloaded, from
+- `scripts/cx <cargo args>` — cargo with `.env` and the checkout's own `CARGO_TARGET_DIR` preloaded, from
   any working directory (replaces manually sourcing `.env` first).
 - Makefile shortcuts: `make test` (reviewed DB-free scopes) /
   `make test-db` (all required-DB scopes, including colocated unit and CLI/proxy tests) /
@@ -42,10 +44,12 @@ Other useful entry points:
 - Never `cargo clean` — it discards the shared build cache and forces a cold
   rebuild of every harness. If a build looks wrong, fix the cause.
 
-To build into a second build directory of the same checkout and have identical compiled units
-restored instead of rebuilt, `scripts/cx` can run cargo through mbx when asked
-(`MIKE_BUILD_CACHE=mbx`, with `CARGO_TARGET_DIR` naming the directory). It is off unless asked and
-never combined with sccache. What it does, the three traps and the trial scripts are in
+When mbx is installed, `scripts/cx` sends `check`, `clippy` and `test` through it into
+`target/mbx-<session>`, and identical compiled units from any earlier mbx build on the machine
+are restored instead of rebuilt. `build`, `nextest`, `scripts/sqlx-prepare` and any named
+`CARGO_TARGET_DIR` stay on plain cargo; `MIKE_BUILD_CACHE=cargo` or `=mbx` overrides the choice,
+and plain cargo is refused in an `mbx-*` directory. mbx is never combined with sccache. The
+working rule is in [`AGENTS.md`](../AGENTS.md). What it does, the three traps and the trial scripts are in
 [`scripts/mbx-trial/README.md`](../scripts/mbx-trial/README.md).
 
 ### Build disk cleanup on macOS

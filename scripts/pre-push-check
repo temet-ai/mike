@@ -75,6 +75,11 @@ rust_packages() {
   fi
 }
 
+# A Rust change that scripts/test-area cannot map to the tests of one area.
+broad_rust_change() {
+  printf '%s\n' "$1" | grep -qE '^Cargo\.(toml|lock)$|^crates/[^/]+\.rs$|^crates/[^/]+/(Cargo\.toml|build\.rs)$|^crates/[^/]+/src/(lib|main)\.rs$|^\.sqlx/|^crates/proxy-forward/'
+}
+
 if printf '%s\n' "$changed" | grep -qE '\.rs$|(^|/)Cargo\.toml$|^Cargo\.lock$'; then
   # GitHub Actions has no minutes, so this hook is the only lint and test a Rust push gets:
   # a fresh checkout builds here too. The Pi (aarch64 Linux) must not build; push from omit or the Mac.
@@ -95,8 +100,14 @@ if printf '%s\n' "$changed" | grep -qE '\.rs$|(^|/)Cargo\.toml$|^Cargo\.lock$'; 
   packages=$(rust_packages "$changed")
   # shellcheck disable=SC2086
   "$root/scripts/lint-rust" $packages || status=1
-  # shellcheck disable=SC2086
-  "$root/scripts/cx" nextest run $packages --no-fail-fast || status=1
+  # The tests of the areas the push changed, in every tier. A change no area owns
+  # (the workspace manifest or lockfile, a build script or shared crates/*.rs file,
+  # a crate root, .sqlx, proxy-forward) also runs the crates' whole fast tier; the
+  # rest of the fast tier runs nightly (scripts/nightly-tests).
+  if broad_rust_change "$changed"; then
+    # shellcheck disable=SC2086
+    "$root/scripts/cx" nextest run $packages --no-fail-fast || status=1
+  fi
   "$root/scripts/test-area" || status=1
 fi
 

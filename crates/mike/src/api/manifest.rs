@@ -336,7 +336,8 @@ mod tests {
                 "cargo_sweep",
                 "lessons_commit",
                 "usage_audit",
-                "lesson_relations"
+                "lesson_relations",
+                "nightly_tests"
             ]
         );
         for job in body["jobs"].as_array().into_iter().flatten() {

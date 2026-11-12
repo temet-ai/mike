@@ -369,7 +369,14 @@ source-dirty status, and build timestamp. They run before loading configuration 
 starting services and do not print environment values or filesystem paths.
 Additional arguments are rejected. Existing `--version` output is unchanged.
 
-Both build scripts watch the selected Git worktree's `HEAD` and index plus its
+Only builds that ship or run as the stack embed the commit: the release profile
+(which `dist` inherits), and any profile built with `MIKE_BUILD_IDENTITY=git`, which
+`scripts/deploy-proxy.sh`, `start-debug.sh`, `start-and-monitor.sh` and `install.sh`
+set. Every other build embeds the fixed placeholder `dev-build` (an mbx build,
+`mbx-build`) and watches no Git file, so a commit does not recompile the crates; the
+verifier below rejects both placeholders because they never equal a commit.
+
+Builds that embed the commit watch the selected Git worktree's `HEAD` and index plus its
 existing loose/packed reference files. A detached linked worktree switching to a
 Python-only commit therefore invalidates the embedded source stamp. Git status
 failures are treated as dirty rather than silently claiming a clean build.

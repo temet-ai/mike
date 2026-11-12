@@ -396,10 +396,10 @@ if [[ "${RELEASE}" -eq 1 ]]; then
     info "Release build requested (--release)"
 fi
 
-cargo build ${BUILD_FLAG} --all </dev/null
+MIKE_BUILD_IDENTITY=git cargo build ${BUILD_FLAG} --all </dev/null
 ok "Rust workspace built"
 
-cargo build ${BUILD_FLAG} --manifest-path crates/mike-mcp/Cargo.toml </dev/null
+MIKE_BUILD_IDENTITY=git cargo build ${BUILD_FLAG} --manifest-path crates/mike-mcp/Cargo.toml </dev/null
 ok "mike-mcp bridge built"
 
 # ─── Install frontend deps ──────────────────────────────────────────────────

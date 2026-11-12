@@ -144,6 +144,11 @@ for dir in "${targets[@]+"${targets[@]}"}"; do
   why=""
   if [[ -f "${tree}/CACHEDIR.TAG" ]]; then
     why=""   # a target folder inside a target folder goes with its parent
+    # A session's mbx folder (scripts/cx builds in target/mbx-<session>) holds hard
+    # links into mbx's store; once the session has stopped building, empty it.
+    if [[ "$(basename "${dir}")" == mbx-* ]] && ! written_within "${dir}" "${detached_days}"; then
+      why="its session's mbx build folder was not built in for ${detached_days}d"
+    fi
   elif [[ ! -f "${tree}/Cargo.toml" ]]; then
     written_within "${dir}" "${detached_days}" ||
       why="no project beside it owns it and nothing was built for ${detached_days}d"

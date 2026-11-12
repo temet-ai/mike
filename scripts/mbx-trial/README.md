@@ -11,10 +11,16 @@ What it is for here: seats of a fleet share one `target/` and queue behind
 cargo's lock. With mbx, a seat can build into its own directory in the same
 checkout and have identical units restored, so it does not queue.
 
-## The opt-in
+## The default, and the opt-in
 
-Nothing changes unless you ask. With `MIKE_BUILD_CACHE` unset, `scripts/cx` runs
-exactly the command it always did.
+Since 12 November 2026, `scripts/cx` sends `check`, `clippy` and `test` through mbx
+whenever mbx is installed and no other build directory is named, into
+`target/mbx-<session>` (`select_build_cache` in `scripts/lib/preflight-toolchain.sh`).
+`build`, `nextest` and every other subcommand stay on plain cargo, because mbx runs
+what it does not cache as plain cargo inside its own directory; plain cargo is refused
+in an `mbx-*` directory, and `MIKE_BUILD_CACHE=cargo` forces plain cargo. What
+follows describes the explicit form, `MIKE_BUILD_CACHE=mbx` with a named directory,
+which the default uses under the hood.
 
 ```
 MIKE_BUILD_CACHE=mbx CARGO_TARGET_DIR=target/mbx-a scripts/cx check -p mike --lib --tests
