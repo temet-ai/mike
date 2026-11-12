@@ -18,7 +18,7 @@ description: Work as a worker or template seat of a Mike fleet: finish one task,
 
 ## Reporting
 
-Commit with `fleet_commit`, then `fleet_report` each slice with:
+Commit with `fleet_commit`, then report with `fleet_report` when your task's work is in, giving:
 
 - `sha` (or `commit`): the commit you report, and `criteria`: the criterion ids the slice serves;
 - `exercised` {command, exit, output_ref}: the command that exercised the changed behaviour, its exit code and where its output is kept; compiling is not proof that it runs;

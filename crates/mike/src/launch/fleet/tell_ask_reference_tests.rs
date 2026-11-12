@@ -111,7 +111,7 @@ fn at(text: &str) -> DateTime<Utc> {
 fn def() -> FleetDefinition {
     changed(json!({
         "repo": "/srv/project",
-        "reference": {"enabled": true, "discipline": "rust-developer", "session": Uuid::from_u128(40).to_string()},
+        "reference": {"enabled": true, "discipline": "rust-developer", "session": Uuid::from_u128(40).to_string(), "quiet_minutes": 10},
         "tasks": {
             "P1": {"seat": "db-dev-P1", "session": Uuid::from_u128(11).to_string(), "files": ["crates/sim/src/"]},
             "P2": {"seat": "web-P2", "session": Uuid::from_u128(12).to_string(), "files": ["frontend"]}

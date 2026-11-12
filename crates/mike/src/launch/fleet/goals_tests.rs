@@ -83,54 +83,36 @@ fn worker_goal_shared_criterion_uses_only_task_obligations() {
 }
 
 #[test]
-fn worker_goal_explicit_task_goal_preserves_text_and_scope() {
+fn worker_goal_explicit_task_goal_reaches_the_seat_as_written() {
     let def = definition();
-    let text = goal(&def, "web-T2");
-    assert!(text.contains("Configured goal: the pricing page lists every plan"));
-    assert!(!text.contains("is accepted:"));
-    assert!(text.contains("Task T2, seat web-T2: only its assigned contribution per brief"));
-    assert!(text.contains("`Fleet-Seat: web-T2 (`"));
+    assert_eq!(
+        goal(&def, "web-T2"),
+        "Task T2, seat web-T2: the pricing page lists every plan"
+    );
 }
 
 #[test]
 fn worker_goal_explicit_template_substitutes_task_local_placeholders() {
     let mut def = definition();
     task(&mut def, "T1").goal = "{task}: {name}; prove {criteria}".into();
-    let text = goal(&def, "web-T1");
-    assert!(text.contains("Configured goal: T1: Contact form; prove C1, C9: only Contact form"));
-    assert!(!text.contains("{criteria}"));
-    assert!(!text.contains("pricing plans can be purchased"));
+    assert_eq!(
+        goal(&def, "web-T1"),
+        "Task T1, seat web-T1: T1: Contact form; prove C1, C9: only Contact form, task T1's assigned contribution per its brief"
+    );
 }
 
 #[test]
-fn worker_goal_peer_commit_cannot_invalidate_own_evidence() {
-    let def = definition();
-    let text = goal(&def, "web-T1");
-    assert!(text.contains("`Fleet-Seat: web-T1 (worker-session)`"));
-    assert!(text.contains("judge files/checks at own SHA(s)"));
-    assert!(text.contains("never shared HEAD/worktree or peers' commits"));
-}
-
-#[test]
-fn worker_goal_external_acceptance_wait_is_satisfied_only_after_handoff() {
+fn worker_goal_adds_no_working_method_of_mikes_own() {
     let mut def = definition();
     task(&mut def, "T1").goal = "commit the flip after acceptance passes C1-C4".into();
     let text = goal(&def, "web-T1");
-    assert!(text.contains("Configured goal: commit the flip after acceptance passes C1-C4"));
-    assert!(text.contains("These rules override broader conditions"));
-    assert!(text.contains("all actionable work is done"));
-    assert!(text.contains("external blocker plus next action is recorded with ask (blocked true)"));
-    assert!(text.contains("Stop polling"));
-    assert!(text.contains("resume on actionable mail/digest"));
-    assert!(text.contains("Waiting is not acceptance or task completion"));
-}
-
-#[test]
-fn worker_goal_completed_handoff_requires_task_local_work_and_evidence() {
-    let def = definition();
-    let text = goal(&def, "web-T1");
-    assert!(text.contains("Goal met after all own work, exercise/evidence and fleet_report"));
-    assert!(text.contains("acceptance/gates/peers need not finish"));
+    assert_eq!(
+        text,
+        "Task T1, seat web-T1: commit the flip after acceptance passes C1-C4"
+    );
+    for method in ["own SHA", "Fleet-Seat:", "Stop polling", "Waiting is not"] {
+        assert!(!text.contains(method), "{method}");
+    }
 }
 
 #[test]
@@ -153,13 +135,6 @@ fn worker_goal_blank_task_override_uses_workers_template() {
     let mut def = definition();
     task(&mut def, "T1").goal = " \n ".into();
     assert!(goal(&def, "web-T1").contains("task T1 (Contact form) is accepted:"));
-}
-
-#[test]
-fn worker_goal_blank_session_uses_seat_trailer_prefix() {
-    let mut def = definition();
-    task(&mut def, "T1").session = Some(" \n ".into());
-    assert!(goal(&def, "web-T1").contains("`Fleet-Seat: web-T1 (`"));
 }
 
 #[test]
