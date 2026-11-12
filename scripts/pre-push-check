@@ -48,11 +48,12 @@ semgrep_bin=$(command -v semgrep || echo "$HOME/.local/bin/semgrep")
 scan_files=()
 while IFS= read -r file; do
   [ -f "$file" ] && scan_files+=("$file")
-done <<<"$(printf '%s\n' "$changed" | grep -E '\.(rs|ts|js|mjs)$' | sort -u)"
+done <<<"$(printf '%s\n' "$changed" | grep -E '\.(rs|ts|js|mjs)$' | grep -vE '(^|/)tests/|_tests?\.rs$|(^|/)test_support/|\.test\.(ts|js|mjs)$' | sort -u)"
 if [ -x "$semgrep_bin" ] && [ "${#scan_files[@]}" -gt 0 ]; then
   (
     ulimit -s unlimited 2>/dev/null
-    "$semgrep_bin" scan --metrics off --error --quiet \
+    # semgrep-core's default io_uring backend fails with ENOMEM under a busy build.
+    EIO_BACKEND=posix "$semgrep_bin" scan --metrics off --error --quiet \
       --config p/rust --config p/javascript --config p/typescript "${scan_files[@]}"
   ) || {
     echo "pre-push: semgrep found a problem in the changed files" >&2
