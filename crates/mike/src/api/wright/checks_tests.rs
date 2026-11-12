@@ -1,7 +1,7 @@
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 use serde_json::{Value, json};
 
 use super::checks::{
@@ -283,5 +283,54 @@ async fn removing_a_check_removes_its_problems_and_runs_but_disabling_keeps_them
     .map_err(|_| anyhow::anyhow!("delete must succeed"))?;
     assert_eq!(handle.list_wright_problems(&filter).await?.total, 0);
     assert!(handle.latest_wright_runs().await?.is_empty());
+    env.cleanup().await
+}
+
+#[tokio::test]
+async fn params_patch_merges_and_refuses_dropping_a_key_the_query_reads() -> anyhow::Result<()> {
+    let env = Env::boot().await?;
+    let mut no_params = sql_check("job_failures_unread", GOOD_QUERY);
+    no_params["params"] = json!({});
+    let refused = add_check(State(env.state.clone()), Json(add_body(no_params)?)).await;
+    let (status, body) = status_and_body(refused.unwrap_or_else(|r| r)).await?;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(
+        body["error"]
+            .as_str()
+            .unwrap_or("")
+            .contains("min_failures")
+    );
+    assert_eq!(env.count().await?, 11);
+
+    let Json(merged) = patch_check(
+        State(env.state.clone()),
+        Path("mcp_tool_errors".to_owned()),
+        Json(patch_body(json!({"params": {"min_sessions": 5}}))?),
+    )
+    .await
+    .map_err(|_| anyhow::anyhow!("a one-key params patch must succeed"))?;
+    assert_eq!(merged["check"]["params"]["min_sessions"], 5);
+    assert_eq!(merged["check"]["params"]["min_failures"], 20);
+    assert_eq!(merged["check"]["params"]["window_hours"], 24);
+
+    let dropped = patch_check(
+        State(env.state.clone()),
+        Path("mcp_tool_errors".to_owned()),
+        Json(patch_body(json!({"params": {"min_failures": null}}))?),
+    )
+    .await;
+    let (status, body) = status_and_body(
+        dropped
+            .map(IntoResponse::into_response)
+            .unwrap_or_else(|r| r),
+    )
+    .await?;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(
+        body["error"]
+            .as_str()
+            .unwrap_or("")
+            .contains("min_failures")
+    );
     env.cleanup().await
 }

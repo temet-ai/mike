@@ -1,4 +1,8 @@
-use serde_json::Value;
+use std::collections::BTreeSet;
+use std::sync::LazyLock;
+
+use regex::Regex;
+use serde_json::{Map, Value};
 
 use crate::wright::watch::forks::ForkParams;
 use crate::wright::watch::logs::LogParams;
@@ -79,6 +83,48 @@ pub(crate) fn validate_params(probe: Probe, params: &Value) -> Result<(), String
         Probe::Logs => LogParams::from_value(params).map(drop),
         Probe::ColdForks => ForkParams::from_value(params).map(drop),
     }
+}
+
+static PARAM_READ: LazyLock<Option<Regex>> =
+    LazyLock::new(|| Regex::new(r"\$1\s*->>?\s*'([A-Za-z0-9_]+)'").ok());
+
+pub(crate) fn query_param_keys(query: &str) -> BTreeSet<String> {
+    let Some(pattern) = PARAM_READ.as_ref() else {
+        return BTreeSet::new();
+    };
+    pattern
+        .captures_iter(query)
+        .filter_map(|c| c.get(1).map(|m| m.as_str().to_owned()))
+        .collect()
+}
+
+pub(crate) fn validate_query_params(query: &str, params: &Value) -> Result<(), String> {
+    let missing: Vec<String> = query_param_keys(query)
+        .into_iter()
+        .filter(|key| params.get(key).is_none_or(Value::is_null))
+        .collect();
+    if missing.is_empty() {
+        return Ok(());
+    }
+    Err(format!(
+        "the query reads params {} but they are missing, so the check would never find anything (params: {params})",
+        missing.join(", ")
+    ))
+}
+
+pub(crate) fn merge_params(current: &Value, patch: &Value) -> Result<Value, String> {
+    let Some(patch) = patch.as_object() else {
+        return Err(format!("params is {patch}; it must be a JSON object"));
+    };
+    let mut merged: Map<String, Value> = current.as_object().cloned().unwrap_or_default();
+    for (key, value) in patch {
+        if value.is_null() {
+            merged.remove(key);
+        } else {
+            merged.insert(key.clone(), value.clone());
+        }
+    }
+    Ok(Value::Object(merged))
 }
 
 pub(crate) fn validate_query(probe: Probe, query: Option<&str>) -> Result<(), String> {

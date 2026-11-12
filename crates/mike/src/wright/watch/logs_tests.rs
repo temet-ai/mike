@@ -149,8 +149,8 @@ fn flood(now: DateTime<Utc>, count: i64) -> Vec<String> {
             line(
                 now - Duration::seconds(n),
                 "WARN",
-                "mike::api::fleet::graph",
-                &format!("fleet graph: finite run-list fetch failed (attempt {n})"),
+                "mike::launch::fleet::staff",
+                &format!("fleet: ready tasks get no seat (waited {n}s)"),
             )
         })
         .collect()
@@ -167,7 +167,7 @@ async fn a_warn_flood_of_one_hundred_lines_in_an_hour_is_a_finding() -> anyhow::
     assert_eq!(findings.len(), 1);
     assert_eq!(
         findings[0].resource,
-        "mike::api::fleet::graph: fleet graph: finite run-list fetch failed (attempt N)"
+        "mike::launch::fleet::staff: fleet: ready tasks get no seat (waited Ns)"
     );
     assert_eq!(findings[0].evidence["lines"], 100);
     assert_eq!(findings[0].evidence["level"], "WARN");

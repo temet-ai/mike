@@ -12,8 +12,8 @@ use crate::store::persistence::PersistHandle;
 use crate::store::persistence::wright::{CheckRow, CheckRunRow, NewCheck};
 use crate::wright::Probe;
 use crate::wright::definition::{
-    parse_cadence, parse_probe, parse_source, validate_expects, validate_name, validate_params,
-    validate_query,
+    merge_params, parse_cadence, parse_probe, parse_source, validate_expects, validate_name,
+    validate_params, validate_query, validate_query_params,
 };
 use crate::wright::watch::bounded;
 
@@ -80,6 +80,7 @@ fn new_check(body: AddCheckBody) -> Result<NewCheck, String> {
     validate_query(probe, body.query.as_deref())?;
     let params = body.params.unwrap_or_else(|| json!({}));
     validate_params(probe, &params)?;
+    validate_reads(body.query.as_deref(), &params)?;
     Ok(NewCheck {
         name: body.name,
         source: body.source,
@@ -90,6 +91,10 @@ fn new_check(body: AddCheckBody) -> Result<NewCheck, String> {
         params,
         enabled: body.enabled.unwrap_or(true),
     })
+}
+
+fn validate_reads(query: Option<&str>, params: &Value) -> Result<(), String> {
+    query.map_or(Ok(()), |q| validate_query_params(q, params))
 }
 
 fn patched_check(current: CheckRow, body: PatchCheckBody) -> Result<NewCheck, String> {
@@ -111,13 +116,15 @@ fn patched_check(current: CheckRow, body: PatchCheckBody) -> Result<NewCheck, St
         validate_query(probe, Some(&query))?;
         check.query = Some(query);
     }
-    if let Some(params) = body.params {
+    if let Some(patch) = body.params {
+        let params = merge_params(&check.params, &patch)?;
         validate_params(probe, &params)?;
         check.params = params;
     }
     if let Some(enabled) = body.enabled {
         check.enabled = enabled;
     }
+    validate_reads(check.query.as_deref(), &check.params)?;
     Ok(check)
 }
 

@@ -32,7 +32,7 @@ healthy run looks like), `probe` (sql, logs or cold_forks), `query` (sql probes 
 thresholds and windows) and `enabled`. A disabled check keeps its history; a removed one loses its runs \
 and problems. `action` list returns every check, disabled ones too, with its latest run. `action` add \
 needs name, source, cadence, expects, probe, and query for a sql probe. `action` update takes `name` and \
-any of source, cadence, expects, query, params (replaces the whole object) and enabled. `action` remove \
+any of source, cadence, expects, query, params (merged into the stored params; a null value removes a key) and enabled. `action` remove \
 takes `name`. A sql `query` is one read that returns (scope text, resource text, evidence jsonb) rows and \
 reads its thresholds from `$1`, the params as jsonb, for example `WHERE failures >= ($1->>'min_failures')::int`. \
 Add and update run it once in a read-only transaction; a 400 carries the database's error and writes nothing. \
