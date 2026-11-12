@@ -65,6 +65,12 @@ pub(super) const LATER_MARKS: [(&str, &str); 2] = [
     ("contradicted_by", "contradicted by"),
 ];
 
+pub(super) const RETIRED: &str = "retired";
+
+pub(super) fn retired(item: &Value) -> bool {
+    item["provenance"][RETIRED].is_object()
+}
+
 pub(super) fn later_mark(item: &Value) -> Option<(&'static str, &'static str, &str)> {
     LATER_MARKS.iter().find_map(|(field, words)| {
         item["provenance"][*field]["reference"]
@@ -94,7 +100,11 @@ fn lean_provenance(item: &Value) -> Option<Value> {
     if is_outside_project(item) {
         provenance.insert("outside_project".to_owned(), json!(true));
     }
-    for (field, _) in LATER_MARKS {
+    for field in LATER_MARKS
+        .map(|(field, _)| field)
+        .into_iter()
+        .chain([RETIRED])
+    {
         let mark = &item["provenance"][field];
         if mark.is_object() {
             provenance.insert(field.to_owned(), mark.clone());

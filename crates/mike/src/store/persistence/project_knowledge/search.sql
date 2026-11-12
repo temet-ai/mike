@@ -205,7 +205,10 @@ WITH own_turn AS (
            ts_rank_cd(to_tsvector('english', l.text), q.tsq), COALESCE(sem.score, 0),
            jsonb_build_object('lesson_id', l.id, 'lesson_kind', k.code, 'topic', l.topic,
              'source_turn_id', l.source_turn_id, 'session_uuid', lss.session_uuid)
-             || COALESCE(lm.marks, '{}'::jsonb),
+             || COALESCE(lm.marks, '{}'::jsonb)
+             || CASE WHEN l.retired_at IS NOT NULL THEN jsonb_build_object('retired', jsonb_build_object(
+                    'kind', l.retired_kind, 'reason', l.retired_reason, 'at', l.retired_at,
+                    'by_lesson', 'lesson:' || rby.uuid)) ELSE '{}'::jsonb END,
            l.text, CASE WHEN lss.session_uuid IS NOT NULL THEN jsonb_build_object('role', 'lesson',
              'session_uuid', lss.session_uuid, 'session_title', lss.title) END,
            'lesson:' || l.uuid, NULL, NULL, false
@@ -220,6 +223,7 @@ WITH own_turn AS (
       JOIN memory.lesson_kinds k ON k.id = l.kind_id
       JOIN memory.lesson_stages st ON st.id = l.stage_id
       LEFT JOIN lesson_marks lm ON lm.to_lesson_id = l.id
+      LEFT JOIN memory.lessons rby ON rby.id = l.retired_by_lesson_id
       LEFT JOIN memory.operator_turns lst ON lst.id = l.source_turn_id
       LEFT JOIN sessions.sessions lss ON lss.id = COALESCE(l.session_id, lst.session_id)
       CROSS JOIN q LEFT JOIN semantic sem ON sem.reference = 'lesson:' || l.uuid

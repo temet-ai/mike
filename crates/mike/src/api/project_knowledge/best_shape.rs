@@ -1,6 +1,6 @@
 use serde_json::{Value, json};
 
-use super::best_lean::{later_mark, lead_item, lean_envelope, session_title};
+use super::best_lean::{later_mark, lead_item, lean_envelope, retired, session_title};
 use super::item_header;
 use super::passage_excerpt::{Passages, head, show_passage};
 use crate::search_ranking::is_outside_project;
@@ -12,6 +12,7 @@ const MACHINE_WRITTEN: &str = " \u{b7} machine-written";
 const OUTSIDE_PROJECT: &str = " \u{b7} outside this project";
 const CUT_MARK: &str = "...";
 const SHORT_KEY_CHARS: usize = 8;
+const RETIRED_MARK: &str = " \u{b7} retired";
 const SESSION_TITLE_CHARS: usize = 32;
 pub(crate) const HOW_TO_GET_THE_REST: &str =
     "Read one with read_project_knowledge or use detail=full. Cite the reference you use.";
@@ -76,7 +77,8 @@ pub(crate) fn line(item: &Value) -> String {
 }
 
 fn later_suffix(item: &Value) -> String {
-    later_mark(item)
+    let retired = if retired(item) { RETIRED_MARK } else { "" };
+    let later = later_mark(item)
         .map(|(_, words, reference)| {
             let (kind, key) = reference.split_once(':').unwrap_or(("", reference));
             format!(
@@ -84,7 +86,8 @@ fn later_suffix(item: &Value) -> String {
                 head(key, SHORT_KEY_CHARS)
             )
         })
-        .unwrap_or_default()
+        .unwrap_or_default();
+    format!("{retired}{later}")
 }
 
 fn session_suffix(item: &Value) -> String {

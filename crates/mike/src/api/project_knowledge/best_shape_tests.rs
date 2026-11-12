@@ -447,3 +447,20 @@ fn best_only_first_item_carries_the_author_session_title_and_the_later_mark() {
         json!({"superseded_by": {"reference": "lesson:x", "status": "confirmed"}})
     );
 }
+
+#[test]
+fn line_of_a_retired_lesson_says_retired_and_the_first_result_keeps_the_mark() {
+    let mut row = item("lesson:9", "lesson", "Lock the build");
+    row["provenance"] = json!({"retired": {"kind": "outcome", "reason": "ignored 12 of 14 supplies", "at": "2026-11-11T00:00:00Z", "by_lesson": null}});
+    assert_eq!(
+        line(&row),
+        "lesson \u{b7} 2026-11-09 \u{b7} Lock the build \u{b7} retired"
+    );
+
+    let mut shaped = answer(vec![row.clone(), item("note:2", "note", "second")]);
+    best_only(&mut shaped, &Passages::new());
+    assert_eq!(
+        shaped["items"][0]["provenance"]["retired"]["kind"],
+        "outcome"
+    );
+}
