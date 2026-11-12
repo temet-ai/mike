@@ -1107,6 +1107,19 @@ the persona block; NULL when the system array has fewer than 3 blocks).
 `tools.uses_v` (below) LEFT JOINs this view for `is_subagent`/`persona_text`, reading NULL — honest
 "unknown", not false — when the owning request carries no captured body.
 
+### `requests.sessionless_requests`
+
+Requests that arrive with no usable `x-claude-code-session-id`. The proxy forwards them unchanged and
+keeps them here, so no session owns them. Claude Code sends several control-plane calls this way:
+`GET /v1/mcp_servers`, `POST /v1/design/mcp`, `POST /v1/code/sessions` (creating a Remote Control
+channel) and `GET /v1/ultrareview/quota`. Columns: `reason` (`missing_session_header`,
+`malformed_session_header`, `non_utf8_session_header`), `method`, `path`, `query`, `user_agent`,
+`request_headers` (`[name, value]` pairs, with credentials masked), `request_body` (whole),
+`response_status`, `response_headers`, `response_body`, `response_body_size` (every byte upstream sent) and
+`response_body_refused`. When the body was larger than `max_response_body_bytes`, `response_body` is NULL
+and this column is true: the body is refused whole, never shortened. `status` is `complete`, `error` or
+`aborted` (the client went away first). Also `error`, `created_at` and `completed_at`.
+
 ---
 
 ## Domain: `responses`

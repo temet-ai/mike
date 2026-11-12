@@ -82,6 +82,8 @@ The body-path work lives under `crates/mike/src/proxy/engine/` and `crates/mike/
 
 ```
 accept: extract parts + RequestSignals, resolve session toggles, keep the ORIGINAL bytes
+        (no usable session id → proxy::sessionless: forward unchanged, store whole in
+         requests.sessionless_requests; no mutation stages run)
 
 run_mutation_stages — phase 1, pipeline::stages_before_steerer()
  1. filter                  (operator rule: drop/replace/append on text blocks)

@@ -123,10 +123,10 @@ async fn heartbeat_takes_the_capture_route() -> anyhow::Result<()> {
     );
     assert_eq!(
         harness
-            .counter(r#"proxy_uncaptured_requests_total{reason="missing_session_header"}"#)
+            .counter(r#"proxy_sessionless_requests_total{reason="missing_session_header"}"#)
             .await?,
         0.0,
-        "a captured Remote Control call must not also count as uncaptured"
+        "a captured Remote Control call must not also count as sessionless"
     );
 
     harness.shutdown.cancel();
@@ -134,7 +134,7 @@ async fn heartbeat_takes_the_capture_route() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn a_non_matching_path_still_takes_the_uncaptured_route() -> anyhow::Result<()> {
+async fn a_non_matching_path_takes_the_sessionless_route() -> anyhow::Result<()> {
     let upstream = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/v1/messages"))
@@ -158,10 +158,10 @@ async fn a_non_matching_path_still_takes_the_uncaptured_route() -> anyhow::Resul
     assert_eq!(response.status().as_u16(), 200);
     assert_eq!(
         harness
-            .counter(r#"proxy_uncaptured_requests_total{reason="missing_session_header"}"#)
+            .counter(r#"proxy_sessionless_requests_total{reason="missing_session_header"}"#)
             .await?,
         1.0,
-        "a request with no session id and no cse_ id in its path is still uncaptured"
+        "a request with no session id and no cse_ id in its path is captured as sessionless"
     );
 
     let metrics = reqwest::get(format!("{}/api/metrics", harness.inspect_url))
@@ -181,7 +181,7 @@ async fn a_non_matching_path_still_takes_the_uncaptured_route() -> anyhow::Resul
 }
 
 #[tokio::test]
-async fn a_session_path_without_a_cse_id_takes_the_uncaptured_route() -> anyhow::Result<()> {
+async fn a_session_path_without_a_cse_id_takes_the_sessionless_route() -> anyhow::Result<()> {
     let upstream = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/v1/code/sessions/not-a-channel/worker"))
@@ -200,7 +200,7 @@ async fn a_session_path_without_a_cse_id_takes_the_uncaptured_route() -> anyhow:
     assert_eq!(response.status().as_u16(), 200);
     assert_eq!(
         harness
-            .counter(r#"proxy_uncaptured_requests_total{reason="missing_session_header"}"#)
+            .counter(r#"proxy_sessionless_requests_total{reason="missing_session_header"}"#)
             .await?,
         1.0,
         "the cse_ prefix is what makes a path a channel; without it there is no identity to key on"
