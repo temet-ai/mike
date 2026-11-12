@@ -46,7 +46,6 @@ fn push_network_exports(out: &mut String, config: &ProxyConfig) {
     );
     push_export(out, "MIKE_INSPECT_ADDR", config.inspect_listen_addr.clone());
     push_export(out, "MIKE_UPSTREAM_URL", config.upstream_url.clone());
-    push_export(out, "MIKE_FINITE_URL", config.finite_url.clone());
 }
 
 fn push_store_capacity_exports(out: &mut String, config: &ProxyConfig) {

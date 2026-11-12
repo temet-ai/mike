@@ -17,7 +17,7 @@ fd_sampled_peak rss_current_delta_bytes fd_delta rss_current_bytes fd_count rss_
 broadcast_backlog_peak drain_seconds responsiveness_seconds requests complete sessions orphaned tool_uses
 migration_count failed_rows harvested_lessons registered_workspaces registered_sessions
 settings_observations effective_settings_count serialized_boot_fields endpoint_relocations registrations
-payload_bytes finite_requests blocked_requests observed_requests expected_requests bytes file_count nonroot_uid
+payload_bytes blocked_requests observed_requests expected_requests bytes file_count nonroot_uid
 '''.split()) | set(BUDGET_FIELDS)
 BOOLEANS = set('''duration_policy_met concurrency_policy_met observed_values_within_explicit_budgets
 exact_durable_ids_and_sessions exact_durable_tool_wire_ids exact_candidate_set owned_pid_and_generation
@@ -37,7 +37,7 @@ settings_snapshot_sha256 database_defaults_sha256 boot_snapshot_sha256 worker_ro
 request_body_sha256 response_body_sha256 fixture_transcript_sha256 workload_sha256 accounting_sha256
 '''.split())
 GROUPS = {'resources', 'product_observations', 'responsiveness', 'baseline', 'final', 'resource_budgets',
-          'worker_observations', 'worker_exercise', 'capture_accounting', 'finite_service', 'services',
+          'worker_observations', 'worker_exercise', 'capture_accounting', 'services',
           'harvester', 'workspace_registration', 'workload', 'observation', 'boot_defaults',
           'post_stop_worker_observations', 'service_observations'}
 UNMEASURED = {'normal_default_reliability', 'os_rss', 'os_file_descriptors', 'product_queue_depth',

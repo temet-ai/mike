@@ -7,12 +7,12 @@ use crate::memory_cap::manager::CapManagerConfig;
 
 use super::bool_parse::{deserialize_permissive_bool, deserialize_permissive_optional_bool};
 use super::proxy_config_defaults::{
-    LessonWorkerConfig, default_db_connect_timeout_ms, default_finite_url,
-    default_mailbox_delivery_ttl_minutes, default_mailbox_max_deliveries_per_turn,
-    default_mailbox_redelivery_backoff_base_secs, default_mailbox_redelivery_backoff_cap_secs,
-    default_mailbox_redelivery_max_attempts, default_mailbox_stale_minutes, default_max_in_flight,
-    default_max_request_body_bytes, default_max_response_body_bytes, default_max_store_bytes,
-    default_spa_bind, default_spa_origins, default_workspace_reap_interval_secs,
+    LessonWorkerConfig, default_db_connect_timeout_ms, default_mailbox_delivery_ttl_minutes,
+    default_mailbox_max_deliveries_per_turn, default_mailbox_redelivery_backoff_base_secs,
+    default_mailbox_redelivery_backoff_cap_secs, default_mailbox_redelivery_max_attempts,
+    default_mailbox_stale_minutes, default_max_in_flight, default_max_request_body_bytes,
+    default_max_response_body_bytes, default_max_store_bytes, default_spa_bind,
+    default_spa_origins, default_workspace_reap_interval_secs,
 };
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -38,9 +38,6 @@ pub struct ProxyConfig {
     pub unsupported_allow_remote_listeners: bool,
 
     pub upstream_url: String,
-
-    #[serde(default = "default_finite_url")]
-    pub(crate) finite_url: String,
 
     pub(super) max_requests: usize,
 

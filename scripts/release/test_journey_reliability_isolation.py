@@ -156,12 +156,15 @@ class EffectiveIsolationTests(OfflineTests):
                               {"source_commit": "a" * 40}, generations)["distinct_owned_generations"], 2)
 
     def test_reviewed_feature_metadata_matches_current_source(self):
-        source = Path(__file__).resolve().parents[2] / "crates/mike/src/feature_toggles/mod.rs"
+        source = Path(__file__).resolve().parents[2] / "crates/mike/src/feature_toggles/meta.rs"
         text = source.read_text()
         actual = {}
         for key, scope, applies in re.findall(r'ToggleMeta\s*\{\s*key:\s*"([a-z_]+)",\s*scope:\s*ToggleScope::([A-Za-z]+),\s*applies:\s*ToggleApplies::([A-Za-z]+)', text):
             snake = re.sub(r"(?<!^)(?=[A-Z])", "_", applies).lower()
             actual[key] = (scope.lower(), snake)
+        # client_serves(key) is the const constructor for a global, immediate toggle.
+        for key in re.findall(r'^\s*client_serves\("([a-z_]+)"\),', text, re.MULTILINE):
+            actual[key] = ("global", "immediate")
         self.assertEqual(actual, isolation.FEATURES)
 
 

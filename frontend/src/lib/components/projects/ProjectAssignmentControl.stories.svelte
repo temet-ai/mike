@@ -14,8 +14,8 @@
 			label: 'Supplier charges'
 		},
 		{
-			path: '/Users/vimes/projects/temet/finite',
-			label: 'finite'
+			path: '/Users/vimes/projects/temet/radar',
+			label: 'radar'
 		}
 	] as const;
 

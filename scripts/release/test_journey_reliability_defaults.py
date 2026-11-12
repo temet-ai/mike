@@ -34,7 +34,7 @@ class DefaultConfigurationTests(OfflineTests):
             "proxy_listen_addr": "127.0.0.1:14000", "inspect_listen_addr": "127.0.0.1:14001",
             "spa_bind": "127.0.0.1:14002",
             "spa_origins": ["http://127.0.0.1:14002", "http://localhost:14002"],
-            "upstream_url": "http://127.0.0.1:14003", "finite_url": "http://127.0.0.1:14004",
+            "upstream_url": "http://127.0.0.1:14003",
             "database_url": f"postgres://postgres@127.0.0.1:14005/{DATABASE}?sslmode=disable",
             "steerer": {"openrouter_base_url": "http://127.0.0.1:14004"},
         })
@@ -134,10 +134,9 @@ class SourceDependencyTests(OfflineTests):
         self.assertFalse(contract["candidate_defaults_observed"])
         self.assertFalse(contract["endpoint_ownership_observed"])
         self.assertFalse(contract["feature_api_mutations_allowed"])
-        self.assertEqual(contract["finite_service"]["core_workload_expected_requests"], 0)
         self.assertFalse(contract["embedding_service"]["compiled_enabled"])
         self.assertNotIn("PASSED", json.dumps(contract))
-        sources = [contract["background_worker_entrypoint"], contract["finite_service"]["source"],
+        sources = [contract["background_worker_entrypoint"],
                    contract["embedding_service"]["source"], *contract["workspace_registration"]["source"]]
         for path in sources:
             self.assertTrue((ROOT / path).is_file(), path)

@@ -14,7 +14,7 @@ from journey_reliability_isolation import FEATURES, feature_row
 ENDPOINT_ROLES = ("proxy", "inspect", "spa", "upstream", "services", "postgres")
 ENDPOINT_OVERRIDES = (
     "proxy_listen_addr", "inspect_listen_addr", "spa_bind", "spa_origins",
-    "upstream_url", "database_url", "finite_url", "steerer.openrouter_base_url",
+    "upstream_url", "database_url", "steerer.openrouter_base_url",
 )
 
 # Every direct spawn in serve/workers.rs, including workers without a feature
@@ -43,11 +43,20 @@ WORKER_CONDITIONS = {
     "change_record::watch::spawn_change_record_watcher": "compiled_feature_disabled",
     "launch::fleet::brief_version::spawn_brief_refresh": "no_fleets_or_launches",
     "launch::cli::spawn_queue_replay": "empty_private_launch_queue",
-    "launch::cli::spawn_repair_sweep": "empty_private_repair_state",
     "retention_worker::spawn_retention_sweep_worker": "owned_database_and_compiled_retention_settings",
     "api::handlers::spawn_health_refresher": "owned_database_and_disabled_embedding",
     "knowledge_scan::spawn_knowledge_scan": "private_claude_home_without_operator_projects",
     "scheduled_jobs::spawn_scheduled_jobs": "working_directory_without_repository_job_scripts",
+    "settings::running_services::spawn_running_service_sync": "owned_database_and_disabled_embedding_and_rerank",
+    "memory_keeper::worker::spawn_memory_keeper": "compiled_feature_disabled",
+    "mail_outbox::spawn_mail_outbox": "owned_database_without_operator_mail",
+    "seat_memory_worker::spawn_seat_memory_worker": "compiled_feature_disabled",
+    "wright::watch::spawn_wright_worker": "compiled_feature_disabled",
+    "db_cost::spawn_db_cost_monitor": "owned_database_and_compiled_db_cost_settings",
+    "search_events::spawn_search_events_worker": "owned_database_without_operator_search_events",
+    "analysis::rerank::spawn_rerank_warmup": "compiled_disabled_rerank_without_operator_sessions",
+    "rerank_nightly::spawn_rerank_nightly": "owned_database_and_compiled_disabled_rerank",
+    "judge_worker::supply_verdict::spawn_supply_verdict": "owned_database_without_operator_judged_sessions",
 }
 
 
@@ -82,7 +91,6 @@ def normal_default_config(ports, database):
         "spa_origins": ["http://" + endpoints["spa"], f"http://localhost:{ports['spa']}"],
         "upstream_url": "http://" + endpoints["upstream"],
         "database_url": f"postgres://postgres@{endpoints['postgres']}/{database}?sslmode=disable",
-        "finite_url": services,
     }
     lines = [key + " = " + json.dumps(value) for key, value in values.items()]
     lines.extend(("[steerer]", "openrouter_base_url = " + json.dumps(services)))
@@ -120,13 +128,8 @@ def default_dependency_contract():
         "background_worker_entrypoint": "crates/mike/src/serve/workers.rs",
         "background_worker_conditions": dict(WORKER_CONDITIONS),
         "required_private_state": ["fresh_database", "private_home_and_xdg_state",
-                                   "empty_launch_queue", "empty_repair_state",
+                                   "empty_launch_queue",
                                    "owned_synthetic_project_directory", "no_real_credentials"],
-        "finite_service": {
-            "core_workload_expected_requests": 0,
-            "optional_operator_routes": ["GET /api/runs", "GET /api/run/{synthetic_run_id}/manifest"],
-            "source": "crates/mike/src/fleet/finite_client.rs",
-        },
         "embedding_service": {
             "compiled_enabled": False, "expected_requests": 0,
             "compiled_url": "http://127.0.0.1:7997",
