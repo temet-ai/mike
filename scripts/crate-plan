@@ -151,8 +151,9 @@ def module_of(rel):
     return parts
 
 
-def relative_refs(cmap, rel, text):
-    base_module = module_of(rel)
+def relative_refs(cmap, rel, text, inline=False):
+    # inside an inline `mod tests { .. }`, super:: is the file's own module
+    base_module = module_of(rel) + (["tests"] if inline else [])
     for match in RELATIVE.finditer(text):
         prefix, middle, tail = match.groups()
         ups = prefix.count("super::")
@@ -184,9 +185,9 @@ def child_refs(cmap, rel, text):
         yield cmap.crate_of_modpath(parts), "::".join(parts)
 
 
-def file_refs(cmap, methods, text, rel=None):
+def file_refs(cmap, methods, text, rel=None, inline=False):
     if rel is not None:
-        yield from relative_refs(cmap, rel, text)
+        yield from relative_refs(cmap, rel, text, inline)
         yield from child_refs(cmap, rel, text)
     for match in BRACE.finditer(text):
         for item in match.group(2).split(","):
@@ -202,11 +203,16 @@ def file_refs(cmap, methods, text, rel=None):
             yield crate, "." + match.group(1) + "()"
 
 
+# the files behind each seam, filled by scan() for --detail
+SITES = collections.defaultdict(collections.Counter)
+
+
 def scan(cmap, files):
     cmap.globs = glob_index(files)
     methods = method_crates(cmap, files)
     lines = collections.Counter()
     edges = collections.defaultdict(collections.Counter)
+    SITES.clear()
     for rel, raw in files.items():
         src = cmap.crate_of_path(rel)
         lines[src] += raw.count("\n")
@@ -215,13 +221,15 @@ def scan(cmap, files):
         # An inline `#[cfg(test)] mod tests { .. }` at the end of a production file
         # is test code: everything from the first such block on counts as test.
         cut = INLINE_TEST.search(text)
-        parts = [(text, True)] if whole_test else (
-            [(text[: cut.start()], False), (text[cut.start():], True)] if cut else [(text, False)])
-        for part, test in parts:
+        parts = [(text, True, False)] if whole_test else (
+            [(text[: cut.start()], False, False), (text[cut.start():], True, True)] if cut
+            else [(text, False, False)])
+        for part, test, inline in parts:
             kind = "test" if test else "prod"
-            for dst, symbol in file_refs(cmap, methods, part, rel):
+            for dst, symbol in file_refs(cmap, methods, part, rel, inline):
                 if dst and dst != src:
                     edges[(src, dst, kind)][symbol] += 1
+                    SITES[(src, dst, kind)][rel] += 1
     return lines, edges
 
 
@@ -406,6 +414,8 @@ def main(argv):
         for kind in ("prod", "test"):
             for symbol, n in edges[(a, b, kind)].most_common():
                 print(f"  {kind} {n:4} {symbol}")
+            for rel, n in SITES[(a, b, kind)].most_common():
+                print(f"  {kind} {n:4} in {rel}")
         return 0
     if "--matrix" in args:
         print_matrix(cmap, edges)

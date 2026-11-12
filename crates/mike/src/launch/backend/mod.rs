@@ -310,6 +310,9 @@ pub fn backend_for(id: BackendId) -> Option<Box<dyn TerminalBackend>> {
 }
 
 #[cfg(test)]
+mod names_tests;
+
+#[cfg(test)]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,

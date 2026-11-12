@@ -5,6 +5,7 @@ mod api_handlers_recall_turns_rerank_tests;
 mod api_handlers_recall_turns_rerank_text_tests;
 mod api_handlers_search_session_filters_tests;
 mod api_handlers_search_unified_log_tests;
+mod api_launches_ledger_tests;
 mod api_project_knowledge_detail_tests;
 mod api_project_knowledge_outside_project_tests;
 mod api_project_knowledge_ranking_live_tests;

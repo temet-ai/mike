@@ -1,6 +1,6 @@
 use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
 
-pub(super) const BACKEND_NAMES: &[&str] =
+pub(crate) const BACKEND_NAMES: &[&str] =
     &["herdr", "herdr-core", "tmux", "terminal", "ghostty", "none"];
 
 const GROUP: &str = "Launcher";
@@ -195,13 +195,6 @@ fn budget_entries() -> Vec<SettingMeta> {
 mod tests {
     use super::*;
     use crate::config::LaunchConfig;
-    use crate::launch::BackendId;
-
-    #[test]
-    fn backend_names_match_backend_id_all_in_order() {
-        let from_enum: Vec<&str> = BackendId::ALL.iter().map(|id| id.as_str()).collect();
-        assert_eq!(BACKEND_NAMES, from_enum.as_slice());
-    }
 
     #[test]
     fn launch_entries_cover_every_launch_config_key_with_its_default() -> anyhow::Result<()> {
