@@ -62,7 +62,10 @@ fn contract_text(repo: &str, state: &Path, file: &str, run: &str) -> Option<Text
 
 fn texts(def: &FleetDefinition, state: &Path, run: &str) -> Vec<Text> {
     let mut found: BTreeMap<String, Text> = BTreeMap::new();
-    let files = def.workers.values().map(|worker| worker.contract_file());
+    let files = def
+        .workers
+        .values()
+        .filter_map(|worker| worker.contract_file());
     for file in files {
         if let Some(text) = contract_text(&def.repo, state, &file, run) {
             found.entry(text.tag.clone()).or_insert(text);

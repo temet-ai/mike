@@ -29,12 +29,7 @@ fn worker_goal(def: &FleetDefinition, seat: &str) -> Option<String> {
         .iter()
         .find(|(id, task)| worker_seat_name(&task.discipline, id) == seat)?;
     let text = filled(&task.goal).or_else(|| filled(&def.goals.workers))?;
-    Some(bounded_worker_goal(
-        &filled_in(&text, id, task),
-        id,
-        task,
-        seat,
-    ))
+    Some(bounded_worker_goal(&filled_in(&text, id, task), id, seat))
 }
 
 fn filled_in(text: &str, id: &str, task: &TaskDefinition) -> String {
@@ -53,19 +48,8 @@ fn task_obligations(id: &str, task: &TaskDefinition) -> String {
     }
 }
 
-fn bounded_worker_goal(text: &str, id: &str, task: &TaskDefinition, seat: &str) -> String {
-    let owner = match task
-        .session
-        .as_deref()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-    {
-        Some(session) => format!("Fleet-Seat: {seat} ({session})"),
-        None => format!("Fleet-Seat: {seat} ("),
-    };
-    format!(
-        "Task {id}, seat {seat}: only its assigned contribution per brief. Configured goal: {text}\nThese rules override broader conditions: judge files/checks at own SHA(s) with `{owner}` trailer, never shared HEAD/worktree or peers' commits. Goal met after all own work, exercise/evidence and fleet_report; acceptance/gates/peers need not finish. Also met-for-now after all actionable work is done and an external blocker plus next action is recorded with ask (blocked true). Stop polling; resume on actionable mail/digest. Waiting is not acceptance or task completion.",
-    )
+fn bounded_worker_goal(text: &str, id: &str, seat: &str) -> String {
+    format!("Task {id}, seat {seat}: {text}")
 }
 
 #[cfg(test)]

@@ -37,20 +37,11 @@ pub struct FleetDefinition {
     pub goals: GoalsDefinition,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct StaffingDefinition {
     pub adopt_unowned: bool,
     pub warm_siblings: bool,
-}
-
-impl Default for StaffingDefinition {
-    fn default() -> Self {
-        Self {
-            adopt_unowned: true,
-            warm_siblings: false,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -166,6 +157,7 @@ pub struct ReferenceDefinition {
     pub enabled: bool,
     pub discipline: Option<String>,
     pub session: Option<String>,
+    pub quiet_minutes: Option<i64>,
 }
 
 impl Default for ReferenceDefinition {
@@ -174,6 +166,7 @@ impl Default for ReferenceDefinition {
             enabled: true,
             discipline: None,
             session: None,
+            quiet_minutes: None,
         }
     }
 }
@@ -211,14 +204,17 @@ pub struct WorkerDefinition {
 
 pub const WORKER_SKILL_CONTRACT: &str = ".claude/fleet/worker-contract.md";
 
+pub const NO_CONTRACT: &str = "none";
+
 impl WorkerDefinition {
-    pub fn contract_file(&self) -> String {
-        self.contract
+    pub fn contract_file(&self) -> Option<String> {
+        let named = self
+            .contract
             .as_deref()
             .map(str::trim)
             .filter(|file| !file.is_empty())
-            .unwrap_or(WORKER_SKILL_CONTRACT)
-            .to_string()
+            .unwrap_or(WORKER_SKILL_CONTRACT);
+        (named != NO_CONTRACT).then(|| named.to_string())
     }
 }
 
