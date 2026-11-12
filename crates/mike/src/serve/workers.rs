@@ -36,6 +36,8 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::mailbox_reaper::spawn_mailbox_reaper(state);
 
+    crate::mail_outbox::spawn_mail_outbox(state);
+
     crate::work_registry_worker::spawn_work_registry_worker(state);
 
     crate::eval_metrics::spawn_eval_metrics_worker(state);
@@ -60,6 +62,8 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::seat_memory_worker::spawn_seat_memory_worker(state);
 
+    crate::wright::watch::spawn_wright_worker(state);
+
     crate::api::handlers::spawn_health_refresher(state);
 
     crate::db_cost::spawn_db_cost_monitor(state);
@@ -71,4 +75,5 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
     crate::analysis::rerank::spawn_rerank_warmup(state);
 
     crate::rerank_nightly::spawn_rerank_nightly(state);
+    crate::judge_worker::supply_verdict::spawn_supply_verdict(state);
 }

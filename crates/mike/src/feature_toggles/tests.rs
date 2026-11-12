@@ -299,7 +299,8 @@ fn toggle_meta_covers_all_keys() {
             "turn_guard",
             "weasel_intercept",
             "workspace_briefing",
-            "workspace_capture_registration"
+            "workspace_capture_registration",
+            "wright"
         ]
     );
 }
@@ -314,6 +315,7 @@ fn live_disable_workers_re_read_their_own_toggle_every_iteration() {
         "channel_link_sweep",
         "memory_keeper",
         "seat_memory_index",
+        "wright",
     ] {
         let meta = TOGGLE_META
             .iter()

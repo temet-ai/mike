@@ -6,6 +6,7 @@ pub(crate) const COMPRESSOR_LOOP_ENABLED_KEY: &str = "compressor_loop.enabled";
 pub(crate) const CARGO_SWEEP_ENABLED_KEY: &str = "cargo_sweep.enabled";
 pub(crate) const LESSONS_COMMIT_ENABLED_KEY: &str = "lessons_commit.enabled";
 pub(crate) const USAGE_AUDIT_ENABLED_KEY: &str = "usage_audit.enabled";
+pub(crate) const LESSON_RELATIONS_ENABLED_KEY: &str = "lesson_relations_job.enabled";
 
 fn enabled_entry(key: &'static str, label: &'static str, description: &'static str) -> SettingMeta {
     SettingMeta {
@@ -89,6 +90,17 @@ pub(super) fn entries() -> Vec<SettingMeta> {
             wrong. One machine per database runs it (the job lease). It makes no LLM call \
             and sends nothing off the machine. Read on every check, once a minute; a run \
             already under way finishes.",
+        ),
+        enabled_entry(
+            LESSON_RELATIONS_ENABLED_KEY,
+            "Nightly lesson relation detector",
+            "Daily, once between 22:00 and 23:59 UTC, run scripts/lesson-relations from the \
+            checkout this proxy was started in. It runs `mike detect-lesson-relations`, which \
+            sends pairs of lesson texts to the proposer and adjudicator models set under \
+            Lesson relations, and only when lesson_relations.enabled is on. The nightly \
+            lesson consolidation then retires the older lesson of each contradiction the \
+            adjudicator agreed with. One machine per database runs it (the job lease). Read \
+            on every check, once a minute; a run already under way finishes.",
         ),
     ]
 }

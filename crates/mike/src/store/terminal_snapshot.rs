@@ -20,6 +20,9 @@ impl RequestStore {
         store: &Arc<RwLock<RequestStore>>,
         request_id: RequestId,
     ) {
+        if Self::hand_off_deferred(store, request_id).await {
+            return;
+        }
         let Some(ctx) = Self::load_snapshot_context(store, request_id).await else {
             return;
         };

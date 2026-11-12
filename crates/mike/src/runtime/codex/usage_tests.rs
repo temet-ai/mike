@@ -1,7 +1,89 @@
 use serde_json::json;
 
+use super::ingest::IngestOutcome;
+use super::ingest::transcript::{LIVE_TURN, RECONNECT, Transcript, connection, replay};
 use super::test_support::{notification, observation, scope};
 use super::*;
+
+fn replayed(texts: &[&str]) -> anyhow::Result<Vec<ProjectionEffect>> {
+    let mut effects = Vec::new();
+    for text in texts {
+        let transcript = Transcript::parse(text)?;
+        let mut connection = connection(&transcript)?;
+        for outcome in replay(&transcript, &mut connection)? {
+            if let IngestOutcome::Capture(frame) = outcome {
+                effects
+                    .extend(decode_observation(&frame.observation, frame.intake_context()).effects);
+            }
+        }
+    }
+    Ok(effects)
+}
+
+fn ledger(effects: &[ProjectionEffect]) -> UsageLedger {
+    let mut ledger = UsageLedger::default();
+    for effect in effects {
+        ledger.apply(effect);
+    }
+    ledger
+}
+
+#[test]
+fn usage_fork_compaction_and_resume_replay_count_the_source_thread_once() -> anyhow::Result<()> {
+    let transcript = Transcript::parse(LIVE_TURN)?;
+    let source = transcript.header_text("thread_id")?;
+    let fork = transcript.header_text("fork_thread_id")?;
+    let ledger = ledger(&replayed(&[LIVE_TURN, RECONNECT])?);
+    let spend = ledger.spend();
+    let thread = |id: &str| spend.iter().find(|spend| spend.thread_id == id).cloned();
+    let source_spend = thread(&source).ok_or_else(|| anyhow::anyhow!("no source spend"))?;
+    let fork_spend = thread(&fork).ok_or_else(|| anyhow::anyhow!("no fork spend"))?;
+    assert_eq!(source_spend.cumulative, 119_940);
+    assert_eq!(source_spend.own, 119_940);
+    assert_eq!(fork_spend.cumulative, 119_940);
+    assert_eq!(fork_spend.inherited, 119_940);
+    assert_eq!(fork_spend.own, 0);
+    assert_eq!(ledger.own_total(), 119_940);
+    Ok(())
+}
+
+#[test]
+fn usage_repeated_sample_and_missing_total_add_nothing() -> anyhow::Result<()> {
+    let mut ledger = UsageLedger::default();
+    for total in [json!(100), json!(100), json!(null), json!(160)] {
+        let event = notification(
+            "thread/tokenUsage/updated",
+            json!({"threadId":"t","turnId":"u","tokenUsage":{"total":{"totalTokens":total}}}),
+        )?;
+        for effect in decode_observation(&event, IntakeContext::new(None)).effects {
+            ledger.apply(&effect);
+        }
+    }
+    let spend = ledger.spend();
+    assert_eq!(spend.len(), 1);
+    assert_eq!(spend[0].own, 160);
+    assert_eq!(spend[0].samples, 4);
+    assert_eq!(spend[0].unreported_samples, 1);
+    assert_eq!(spend[0].decreases, 0);
+    Ok(())
+}
+
+#[test]
+fn usage_fork_link_arriving_before_any_sample_or_in_a_cycle_terminates() -> anyhow::Result<()> {
+    let mut ledger = UsageLedger::default();
+    ledger.inherits_from("a", "b");
+    ledger.inherits_from("b", "a");
+    ledger.inherits_from("c", "c");
+    let event = notification(
+        "thread/tokenUsage/updated",
+        json!({"threadId":"a","turnId":"x","tokenUsage":{"total":{"totalTokens":5}}}),
+    )?;
+    for effect in decode_observation(&event, IntakeContext::new(None)).effects {
+        ledger.apply(&effect);
+    }
+    assert_eq!(ledger.own_total(), 5);
+    Ok(())
+}
 
 #[test]
 fn usage_cumulative_samples_remain_separate_without_implicit_sums() -> anyhow::Result<()> {

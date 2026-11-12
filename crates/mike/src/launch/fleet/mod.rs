@@ -104,6 +104,7 @@ pub mod shutdown;
 pub mod staff;
 pub mod start;
 pub mod start_baseline;
+mod start_failure;
 pub mod status;
 mod status_pane;
 mod status_tasks;

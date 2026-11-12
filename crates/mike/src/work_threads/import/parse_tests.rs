@@ -331,6 +331,7 @@ fn worklogs_are_found_in_slug_order_and_the_registry_reports_its_bad_lines() -> 
             "branch-consolidation",
             "frontend-motion",
             "judgement-context",
+            "legacy-labels",
             "no-title"
         ]
     );
@@ -436,6 +437,24 @@ fn a_title_written_as_thread_colon_slug_drops_the_label() {
         "---\nthread: anti-false\nstatus: active\n---\n\n# thread: Anti false claims\n",
     );
     assert_eq!(heading.thread.title.as_deref(), Some("Anti false claims"));
+}
+
+#[test]
+fn a_legacy_worklog_is_stored_with_an_allowed_status_and_no_thread_label() {
+    let legacy = parsed(
+        "legacy-labels",
+        include_str!(
+            "../../../tests/fixtures/threads/repo/artifacts/threads/legacy-labels/worklog.md"
+        ),
+    );
+    assert_eq!(legacy.thread.title.as_deref(), Some("Legacy labels"));
+    assert_eq!(legacy.thread.status.as_deref(), Some("done"));
+    assert!(legacy.thread.notes.iter().any(|n| n.contains("`done`")));
+    let in_progress = parsed(
+        "moving",
+        "---\nthread: moving\ntitle: Moving\nstatus: in-progress\n---\n",
+    );
+    assert_eq!(in_progress.thread.status.as_deref(), Some("implementing"));
 }
 
 #[test]

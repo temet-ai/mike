@@ -59,12 +59,8 @@ fn selector_legacy_default_and_explicit_claude_are_compatible() -> anyhow::Resul
     let explicit: Config = serde_json::from_str(r#"{"runtime":"claude"}"#)?;
     assert_eq!(legacy.runtime, explicit.runtime);
     assert_eq!(legacy.runtime.as_str(), "claude");
-    legacy.runtime.ensure_managed_launch_supported()?;
-    assert!(
-        RuntimeKind::Codex
-            .ensure_managed_launch_supported()
-            .is_err()
-    );
+    assert!(legacy.runtime.controls_through_terminal());
+    assert!(!RuntimeKind::Codex.controls_through_terminal());
     assert!(serde_json::from_str::<Config>(r#"{"runtime":"unknown"}"#).is_err());
     Ok(())
 }

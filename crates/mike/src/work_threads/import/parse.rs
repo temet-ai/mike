@@ -10,7 +10,7 @@ use crate::store::persistence::work_threads::{
 };
 
 const TLDR_CHARS: usize = 600;
-const LEGACY_STATUSES: [&str; 2] = ["complete", "in-progress"];
+const LEGACY_STATUSES: [(&str, &str); 2] = [("complete", "done"), ("in-progress", "implementing")];
 
 pub(super) struct ParseContext<'a> {
     pub slug: &'a str,
@@ -49,8 +49,12 @@ fn normalise_status(raw: Option<&str>, notes: &mut Vec<String>) -> Option<String
     if raw.is_empty() {
         return None;
     }
-    if ALLOWED_STATUSES.contains(&raw.as_str()) || LEGACY_STATUSES.contains(&raw.as_str()) {
+    if ALLOWED_STATUSES.contains(&raw.as_str()) {
         return Some(raw);
+    }
+    if let Some((_, mapped)) = LEGACY_STATUSES.iter().find(|(legacy, _)| *legacy == raw) {
+        notes.push(format!("status `{raw}` is stored as `{mapped}`"));
+        return Some((*mapped).to_owned());
     }
     notes.push(format!(
         "status `{raw}` is not a known status; stored as none"

@@ -1,11 +1,19 @@
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::time::Instant;
 
 use sha2::{Digest, Sha256};
 use tokio::sync::Mutex;
 
 use super::{InjectableLesson, LessonSnapshot};
 use crate::analysis::EmbeddingService;
-use crate::store::persistence::lessons::ChangeMark;
+use crate::store::persistence::lessons::{ChangeMark, LessonOutcome};
+
+#[path = "relevance_outcome.rs"]
+mod outcome;
+
+#[cfg(test)]
+#[path = "relevance_tests.rs"]
+mod relevance_tests;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 const QUERY_CAPACITY: usize = 128;
@@ -27,6 +35,7 @@ struct State {
     context_sizes: HashMap<String, usize>,
     mod_sessions: HashSet<String>,
     vectors_key: Option<VectorsKey>,
+    outcomes: outcome::Outcomes,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -89,17 +98,19 @@ impl LessonRelevance {
             .collect();
         ranked.sort_by(|a, b| b.1.total_cmp(&a.1));
         let mut remaining = 6000usize;
-        ranked
+        let chosen: Vec<_> = ranked
             .into_iter()
-            .filter_map(|(lesson, _)| {
+            .filter(|(lesson, _)| {
                 if lesson.text.len() > remaining {
-                    return None;
+                    return false;
                 }
                 remaining -= lesson.text.len();
-                Some(lesson)
+                true
             })
             .take(limit)
-            .collect()
+            .collect();
+        crate::lesson_delivery::remember_scores(session, &chosen);
+        chosen.into_iter().map(|(lesson, _)| lesson).collect()
     }
 
     pub(crate) fn observe_context(&self, session: &str, messages: usize) {
@@ -148,27 +159,41 @@ impl LessonRelevance {
         delivered.extend(lessons.iter().map(|lesson| lesson_key(lesson)));
     }
 
+    pub(crate) async fn replace_outcomes(&self, rows: Vec<LessonOutcome>) {
+        self.state
+            .lock()
+            .await
+            .outcomes
+            .replace(rows, Instant::now());
+    }
+
+    async fn refresh_outcomes(&self, persist: &PersistHandle, eligible: &HashSet<i64>) {
+        if !self.state.lock().await.outcomes.due(Instant::now()) {
+            return;
+        }
+        let ids: Vec<i64> = eligible.iter().copied().collect();
+        match persist.lesson_outcomes(&ids).await {
+            Ok(rows) => self.replace_outcomes(rows).await,
+            Err(error) => {
+                tracing::warn!(%error, "lesson outcome records unavailable; ranking by match alone");
+                self.state.lock().await.outcomes.touch(Instant::now());
+            }
+        }
+    }
+
     pub(crate) async fn refresh(
         &self,
         service: &EmbeddingService,
         persist: &PersistHandle,
         snapshot: &LessonSnapshot,
     ) {
+        let eligible = eligible_ids(snapshot);
+        self.refresh_outcomes(persist, &eligible).await;
         if !service.is_available() {
-            let mut state = self.state.lock().await;
-            state.documents.clear();
-            state.queries.clear();
-            state.vectors_key = None;
+            self.forget_vectors().await;
             return;
         }
         let model = format!("{}:{}", service.url(), service.model_name());
-        let eligible: HashSet<_> = snapshot
-            .by_project
-            .values()
-            .flatten()
-            .chain(snapshot.shared.iter())
-            .map(|l| l.id)
-            .collect();
         let changed = match self
             .load_changed_vectors(persist, &service.model_name(), eligible)
             .await
@@ -179,20 +204,33 @@ impl LessonRelevance {
                 return;
             }
         };
-        let pending = {
-            let mut state = self.state.lock().await;
-            if state.model != model {
-                state.model = model.clone();
-                state.queries.clear();
-            }
-            if let Some((key, documents)) = changed {
-                state.documents = documents;
-                state.vectors_key = Some(key);
-            }
-            let count = state.pending.len().min(8);
-            state.pending.drain(..count).collect::<Vec<_>>()
-        };
+        let pending = self.take_pending(&model, changed).await;
         self.embed_pending_queries(service, &model, pending).await;
+    }
+
+    async fn forget_vectors(&self) {
+        let mut state = self.state.lock().await;
+        state.documents.clear();
+        state.queries.clear();
+        state.vectors_key = None;
+    }
+
+    async fn take_pending(
+        &self,
+        model: &str,
+        changed: Option<(VectorsKey, HashMap<i64, Vec<f32>>)>,
+    ) -> Vec<(String, String, String)> {
+        let mut state = self.state.lock().await;
+        if state.model != model {
+            state.model = model.to_owned();
+            state.queries.clear();
+        }
+        if let Some((key, documents)) = changed {
+            state.documents = documents;
+            state.vectors_key = Some(key);
+        }
+        let count = state.pending.len().min(8);
+        state.pending.drain(..count).collect()
     }
 
     async fn load_changed_vectors(
@@ -350,7 +388,18 @@ fn score(
         .and_then(|s| Some((s.queries.get(key)?, s.documents.get(&lesson.id)?)))
         .map(|(query, document)| cosine(query, document))
         .unwrap_or(0.0);
-    lexical + if semantic >= 0.55 { semantic } else { 0.0 }
+    let matched = lexical + if semantic >= 0.55 { semantic } else { 0.0 };
+    matched * state.map_or(1.0, |s| s.outcomes.weight(lesson.id))
+}
+
+fn eligible_ids(snapshot: &LessonSnapshot) -> HashSet<i64> {
+    snapshot
+        .by_project
+        .values()
+        .flatten()
+        .chain(snapshot.shared.iter())
+        .map(|l| l.id)
+        .collect()
 }
 
 fn cosine(left: &[f32], right: &[f32]) -> f32 {
@@ -361,132 +410,4 @@ fn cosine(left: &[f32], right: &[f32]) -> f32 {
     let norm =
         (left.iter().map(|v| v * v).sum::<f32>() * right.iter().map(|v| v * v).sum::<f32>()).sqrt();
     if norm > 0.0 { dot / norm } else { 0.0 }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn distinctive_task_terms_outweigh_repeated_project_boilerplate() {
-        let snapshot = LessonSnapshot::from_pairs([(
-            "/repo".into(),
-            vec![
-                ("convention".into(), "project checks alpha".into()),
-                ("convention".into(), "project checks beta".into()),
-                ("convention".into(), "project checks gamma".into()),
-                ("convention".into(), "project checks delta".into()),
-                ("correction".into(), "cache invalidation".into()),
-            ],
-        )]);
-        let candidates: Vec<_> = snapshot.for_project("/repo").iter().collect();
-        let selected = snapshot
-            .relevance
-            .select(&candidates, "session", "project checks cache", 1);
-        assert_eq!(selected.len(), 1);
-        assert_eq!(selected[0].text, "cache invalidation");
-    }
-
-    #[test]
-    fn lexical_matching_beats_recency_and_delivery_is_versioned() {
-        let snapshot = LessonSnapshot::from_pairs([(
-            "project".into(),
-            vec![
-                ("correction".into(), "Use blue backgrounds".into()),
-                (
-                    "correction".into(),
-                    "Reuse cargo test results before running cargo again".into(),
-                ),
-            ],
-        )]);
-        let cache = LessonRelevance::default();
-        let selected = cache.select(
-            &snapshot.for_project("project").iter().collect::<Vec<_>>(),
-            "session",
-            "cargo test",
-            1,
-        );
-        assert!(selected[0].text.contains("cargo"));
-        cache.delivered("session", &selected);
-        let next = cache.select(
-            &snapshot.for_project("project").iter().collect::<Vec<_>>(),
-            "session",
-            "cargo test",
-            1,
-        );
-        assert!(next.is_empty());
-        assert_eq!(
-            cache.select(
-                &snapshot.for_project("project").iter().collect::<Vec<_>>(),
-                "other",
-                "cargo test",
-                1
-            )[0]
-            .id,
-            selected[0].id
-        );
-    }
-
-    #[tokio::test]
-    async fn cached_semantics_retrieves_without_word_overlap() {
-        let snapshot = LessonSnapshot::from_pairs([(
-            "project".into(),
-            vec![
-                ("correction".into(), "Blue backgrounds".into()),
-                ("correction".into(), "Reuse verification evidence".into()),
-            ],
-        )]);
-        let cache = LessonRelevance::default();
-        {
-            let mut state = cache.state.lock().await;
-            state
-                .queries
-                .insert(fingerprint("avoid duplicate checks"), vec![1.0, 0.0]);
-            state.documents.insert(2, vec![1.0, 0.0]);
-        }
-        assert_eq!(
-            cache.select(
-                &snapshot.for_project("project").iter().collect::<Vec<_>>(),
-                "session",
-                "avoid duplicate checks",
-                1
-            )[0]
-            .id,
-            2
-        );
-    }
-
-    #[test]
-    fn pending_queries_are_bounded_and_repeated_queries_are_coalesced() {
-        let mut state = State::default();
-        for n in 0..256 {
-            queue_query(&mut state, "session", &n.to_string(), "query");
-        }
-        queue_query(&mut state, "session", "1", "query");
-        assert_eq!(state.pending.len(), QUERY_CAPACITY);
-    }
-    #[test]
-    fn context_compaction_rearms_delivery_and_long_queries_still_queue() {
-        let snapshot = LessonSnapshot::from_pairs([(
-            "project".into(),
-            vec![("correction".into(), "Reuse cargo results".into())],
-        )]);
-        let cache = LessonRelevance::default();
-        let candidates = snapshot.for_project("project").iter().collect::<Vec<_>>();
-        cache.observe_context("session", 100);
-        let selected = cache.select(&candidates, "session", "cargo", 1);
-        cache.delivered("session", &selected);
-        assert!(cache.select(&candidates, "session", "cargo", 1).is_empty());
-        cache.observe_context("session", 2);
-        assert_eq!(cache.select(&candidates, "session", "cargo", 1).len(), 1);
-        let mut state = State::default();
-        queue_query(
-            &mut state,
-            "session",
-            "long",
-            &"current context ".repeat(2000),
-        );
-        assert_eq!(state.pending.len(), 1);
-        assert!(state.pending[0].2.len() < 9000);
-    }
 }

@@ -301,6 +301,8 @@ pub(super) async fn begin_check(
     )
     .await?;
     configure(&mut queued.context, def, &def.check.command);
+    queued.context.operation =
+        super::managed_queue::reserve_for_commit_check(runner.run, queued.context.operation.take());
     enlist(
         &queued,
         &super::managed_queue::Enlisted {

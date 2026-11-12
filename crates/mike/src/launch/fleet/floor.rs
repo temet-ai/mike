@@ -276,6 +276,118 @@ async fn commit_files(repo: &str, sha: &str) -> (Vec<String>, Vec<String>) {
     parse_name_status(&String::from_utf8_lossy(&raw))
 }
 
+const FULL_SUITE_COMMANDS: [&str; 6] = [
+    "scripts/gate",
+    "make check",
+    "make test-all",
+    "make test-db",
+    "make gate",
+    "make lint",
+];
+const TEST_RUNNERS: [&str; 2] = ["nextest run", "cargo test"];
+const VALUE_FLAGS: [&str; 14] = [
+    "-p",
+    "--package",
+    "--profile",
+    "--features",
+    "-F",
+    "--target-dir",
+    "--test",
+    "--bin",
+    "--example",
+    "--bench",
+    "-j",
+    "--jobs",
+    "--manifest-path",
+    "--config",
+];
+const FILTER_FLAGS: [&str; 4] = ["-E", "--filterset", "--filter-expr", "--"];
+
+fn after_runner(command: &str) -> Option<&str> {
+    TEST_RUNNERS
+        .iter()
+        .find_map(|runner| command.find(runner).map(|at| &command[at + runner.len()..]))
+}
+
+fn names_a_filter(arguments: &str) -> bool {
+    let mut words = arguments.split_whitespace();
+    while let Some(word) = words.next() {
+        if matches!(word, "&&" | ";" | "|" | "||") {
+            return false;
+        }
+        if FILTER_FLAGS.contains(&word) {
+            return true;
+        }
+        if VALUE_FLAGS.contains(&word) {
+            words.next();
+        } else if !word.starts_with('-') {
+            return true;
+        }
+    }
+    false
+}
+
+pub fn heavy_reason(command: &str) -> Option<&'static str> {
+    let command = command.trim();
+    if command.contains("--workspace") || command.contains("--all-targets") {
+        return Some("it builds or tests the whole workspace");
+    }
+    if FULL_SUITE_COMMANDS
+        .iter()
+        .any(|full| command.contains(full))
+    {
+        return Some("it runs the project's full gate or test suite");
+    }
+    if command.contains("make test-p")
+        || (command.contains("make test") && !command.contains("make test-t"))
+    {
+        return Some("it runs every test of a crate");
+    }
+    let arguments = after_runner(command)?;
+    (!names_a_filter(arguments)).then_some("it runs every test of a crate, with no test filter")
+}
+
+fn floor_commands(def: &FleetDefinition, done: &DoneWhen) -> Vec<(String, String)> {
+    let mut found: Vec<(String, String)> = done
+        .checks
+        .iter()
+        .filter_map(|check| {
+            let op = def.execution.operations.get(&check.operation)?;
+            Some((
+                format!("done_when check `{}`", check.operation),
+                op.command.clone(),
+            ))
+        })
+        .collect();
+    found.extend(
+        done.exercise
+            .iter()
+            .map(|exercise| ("done_when exercise".to_string(), exercise.command.clone())),
+    );
+    found
+}
+
+pub fn heavy_floor_warnings(def: &FleetDefinition) -> Vec<super::Missing> {
+    let mut warnings = Vec::new();
+    for (id, task) in &def.tasks {
+        let Some(done) = &task.done_when else {
+            continue;
+        };
+        for (what, command) in floor_commands(def, done) {
+            if let Some(why) = heavy_reason(&command) {
+                warnings.push(super::Missing::new(
+                    format!("tasks.{id}.done_when"),
+                    format!(
+                        "the {what} runs `{}`, and {why}; mike runs a floor at every report of the task, in the check slot, so a whole-crate or full-suite floor holds every report for many minutes. Name the task's own tests (a nextest filter such as `-p mike --lib launch::fleet::floor`) and leave the full suite to gate.full_command",
+                        command.trim()
+                    ),
+                ));
+            }
+        }
+    }
+    warnings
+}
+
 pub struct FloorInput<'a> {
     pub def: &'a FleetDefinition,
     pub run: &'a str,

@@ -3,6 +3,9 @@ mod codec;
 mod context;
 mod effects;
 mod generation;
+mod ingest;
+#[cfg(test)]
+mod ingest_db_tests;
 mod intake;
 mod projection_reads;
 mod reads;

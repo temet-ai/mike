@@ -1,12 +1,61 @@
 use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
 
+const LESSON_OUTCOME_MIN_JUDGED_KEY: &str = "lesson_outcome.min_judged_supplies";
+const LESSON_OUTCOME_MIN_JUDGED_DEFAULT: i64 = 10;
+const LESSON_OUTCOME_FLOOR_KEY: &str = "lesson_outcome.retire_floor";
+const LESSON_OUTCOME_FLOOR_DEFAULT: f64 = 0.15;
+
 pub(super) fn entries() -> Vec<SettingMeta> {
     let mut v = turn_judge_entries();
     v.extend(session_judge_schedule_entries());
     v.extend(session_judge_content_entries());
     v.extend(lesson_worker_entries());
     v.extend(lesson_relations_entries());
+    v.extend(lesson_outcome_entries());
     v
+}
+
+fn lesson_outcome_entries() -> Vec<SettingMeta> {
+    vec![
+        SettingMeta {
+            key: LESSON_OUTCOME_MIN_JUDGED_KEY,
+            group: "Lesson worker",
+            kind: SettingKind::Int,
+            scope: SettingScope::Global,
+            applies: SettingApplies::NextCycle,
+            default: serde_json::json!(LESSON_OUTCOME_MIN_JUDGED_DEFAULT),
+            label: "Judged supplies before a lesson can be retired",
+            description: "The nightly consolidation retires a lesson from supply only after \
+                the overnight verdicts cover at least this many sessions it was supplied to. \
+                Read at the start of each nightly run.",
+            min_i64: Some(1),
+            max_i64: Some(10_000),
+            min_f64: None,
+            max_f64: None,
+            max_len: None,
+            enum_variants: None,
+        },
+        SettingMeta {
+            key: LESSON_OUTCOME_FLOOR_KEY,
+            group: "Lesson worker",
+            kind: SettingKind::Float,
+            scope: SettingScope::Global,
+            applies: SettingApplies::NextCycle,
+            default: serde_json::json!(LESSON_OUTCOME_FLOOR_DEFAULT),
+            label: "Retirement floor (share followed)",
+            description: "A lesson whose judged supplies were followed in less than this \
+                share of sessions is retired from supply by the nightly consolidation. It \
+                stays searchable and keeps its source corrections, and its page says why. \
+                Set from the supply verdict counts, as there is no lesson holdout. Read at \
+                the start of each nightly run.",
+            min_i64: None,
+            max_i64: None,
+            min_f64: Some(0.0),
+            max_f64: Some(1.0),
+            max_len: None,
+            enum_variants: None,
+        },
+    ]
 }
 
 fn turn_judge_entries() -> Vec<SettingMeta> {
@@ -368,8 +417,11 @@ fn lesson_relations_entries() -> Vec<SettingMeta> {
             default: serde_json::Value::Bool(true),
             label: "Lesson relations: enabled",
             description: "Enable the `mike detect-lesson-relations` detector, which proposes \
-                supersedes/refines/recurs/contradicts relations between lessons. Detection only \
-                ever proposes — nothing here archives, deletes, or auto-confirms a lesson.",
+                supersedes/refines/recurs/contradicts relations between lessons and runs \
+                nightly as the lesson_relations scheduled job. When the adjudicator agrees \
+                with a proposed contradiction, the nightly consolidation confirms it and \
+                retires the older lesson from supply as superseded; it stays searchable and \
+                nothing is deleted.",
             min_i64: None,
             max_i64: None,
             min_f64: None,

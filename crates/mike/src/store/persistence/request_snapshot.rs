@@ -254,10 +254,12 @@ impl PersistHandle {
             if models::is_fallback(req.id.as_u64()) {
                 tracing::warn!(
                     request_id = req.id.as_u64(),
-                    "skipping persistence for fallback request id (stub INSERT was in DB-down mode at intercept)"
+                    "skipping terminal snapshot for fallback request id: its first write failed, capture_retry owns it"
                 );
                 return Ok((None, None));
             }
+            let req = super::text_sanitize::request_with_clean_text(req);
+            let req = req.as_ref();
 
             let prep = SnapshotPrep::compute(req)?;
             let assembled_streaming_body = self

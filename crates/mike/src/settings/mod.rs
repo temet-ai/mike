@@ -75,6 +75,35 @@ pub enum SettingKind {
 pub enum SettingScope {
     Session,
     Global,
+    Machine,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ValueSource {
+    Own,
+    SharedDefault,
+    CompiledDefault,
+}
+
+pub(crate) fn is_machine_scoped(key: &str) -> bool {
+    SETTINGS_META
+        .iter()
+        .any(|m| m.key == key && m.scope == SettingScope::Machine)
+}
+
+pub(crate) fn value_source(
+    key: &str,
+    own: &std::collections::HashMap<String, serde_json::Value>,
+    shared: &std::collections::HashMap<String, serde_json::Value>,
+) -> ValueSource {
+    if own.contains_key(key) {
+        ValueSource::Own
+    } else if shared.contains_key(key) {
+        ValueSource::SharedDefault
+    } else {
+        ValueSource::CompiledDefault
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

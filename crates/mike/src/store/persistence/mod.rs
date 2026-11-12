@@ -4,6 +4,7 @@ pub mod agents;
 pub mod ask_ledger_backfill;
 pub mod assemble;
 pub(crate) mod capture_classification;
+pub(crate) mod capture_retry;
 pub(crate) mod capture_support;
 pub mod change_log;
 pub mod change_record;
@@ -146,9 +147,11 @@ pub mod steering;
 pub(crate) mod steering_backfill;
 pub mod steering_evaluations;
 pub mod steering_facts;
+pub(crate) mod supplied_items;
 pub(crate) mod system_prompt_backfill;
 #[cfg(any(test, feature = "test-seams"))]
 pub mod test_support;
+pub(crate) mod text_sanitize;
 #[cfg(test)]
 mod thread_card_generations_tests;
 pub(crate) mod time_spent;
@@ -175,6 +178,7 @@ pub mod work_threads;
 pub mod worker_leases;
 pub(crate) mod workflow_judge_reads;
 pub mod workspace;
+pub(crate) mod wright;
 
 use std::collections::HashSet;
 use std::sync::Arc;

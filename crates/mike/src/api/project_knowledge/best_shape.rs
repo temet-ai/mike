@@ -1,6 +1,6 @@
 use serde_json::{Value, json};
 
-use super::best_lean::{lead_item, lean_envelope};
+use super::best_lean::{later_mark, lead_item, lean_envelope, retired, session_title};
 use super::item_header;
 use super::passage_excerpt::{Passages, head, show_passage};
 use crate::search_ranking::is_outside_project;
@@ -11,6 +11,9 @@ const PART_SEPARATOR: &str = " \u{b7} ";
 const MACHINE_WRITTEN: &str = " \u{b7} machine-written";
 const OUTSIDE_PROJECT: &str = " \u{b7} outside this project";
 const CUT_MARK: &str = "...";
+const SHORT_KEY_CHARS: usize = 8;
+const RETIRED_MARK: &str = " \u{b7} retired";
+const SESSION_TITLE_CHARS: usize = 32;
 pub(crate) const HOW_TO_GET_THE_REST: &str =
     "Read one with read_project_knowledge or use detail=full. Cite the reference you use.";
 
@@ -55,13 +58,15 @@ pub(crate) fn line(item: &Value) -> String {
     let prefix = format!("{label}{PART_SEPARATOR}{day}{PART_SEPARATOR}");
     let machine = item["provenance"]["written_by"].as_str() == Some("machine");
     let suffix = format!(
-        "{}{}",
+        "{}{}{}{}",
         if machine { MACHINE_WRITTEN } else { "" },
+        later_suffix(item),
         if is_outside_project(item) {
             OUTSIDE_PROJECT
         } else {
             ""
-        }
+        },
+        session_suffix(item)
     );
     let used = prefix.chars().count() + suffix.chars().count();
     let title = one_line(item["title"].as_str().unwrap_or("(untitled)"));
@@ -69,6 +74,34 @@ pub(crate) fn line(item: &Value) -> String {
         "{prefix}{}{suffix}",
         fit(&title, LINE_CHARS.saturating_sub(used))
     )
+}
+
+fn later_suffix(item: &Value) -> String {
+    let retired = if retired(item) { RETIRED_MARK } else { "" };
+    let later = later_mark(item)
+        .map(|(_, words, reference)| {
+            let (kind, key) = reference.split_once(':').unwrap_or(("", reference));
+            format!(
+                "{PART_SEPARATOR}{words} {kind}:{}",
+                head(key, SHORT_KEY_CHARS)
+            )
+        })
+        .unwrap_or_default();
+    format!("{retired}{later}")
+}
+
+fn session_suffix(item: &Value) -> String {
+    if item["source_kind"] == "session" {
+        return String::new();
+    }
+    session_title(item)
+        .map(|title| {
+            format!(
+                "{PART_SEPARATOR}by {}",
+                fit(&one_line(title), SESSION_TITLE_CHARS)
+            )
+        })
+        .unwrap_or_default()
 }
 
 pub(super) fn one_line(text: &str) -> String {

@@ -1,8 +1,11 @@
 mod held;
 mod origin;
 mod select;
+pub(crate) mod supplied;
 
 use sha2::{Digest, Sha256};
+
+pub(crate) use supplied::remember_scores;
 
 pub(crate) use held::held_lesson_ids;
 pub(crate) use origin::label_mod_lessons;

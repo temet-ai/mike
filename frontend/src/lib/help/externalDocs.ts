@@ -44,6 +44,13 @@ export const EXTERNAL_DOCS: ExternalDoc[] = [
 		internal: true
 	},
 	{
+		label: 'Threads',
+		href: '/help/docs/threads',
+		description: 'Work threads per project: state, acceptance criteria, history and editing.',
+		group: 'project',
+		internal: true
+	},
+	{
 		label: 'Anthropic API docs',
 		href: 'https://docs.anthropic.com/',
 		description: 'API reference for the upstream Anthropic service.',

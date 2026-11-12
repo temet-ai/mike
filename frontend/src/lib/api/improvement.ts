@@ -97,6 +97,24 @@ export interface LessonDetail {
 	injectionCount: number | null;
 	wentLiveAt: string | null;
 	effect: MeasuredEffectResult | null;
+	outcomes: LessonOutcomeCounts;
+	retirement: LessonRetirement | null;
+}
+
+/** Overnight verdicts on the sessions this lesson was supplied to, one per session. */
+export interface LessonOutcomeCounts {
+	judged: number;
+	used: number;
+	correctedAnyway: number;
+	ignored: number;
+}
+
+/** Why a lesson stopped being supplied; it stays searchable either way. */
+export interface LessonRetirement {
+	kind: 'outcome' | 'superseded';
+	reason: string;
+	retiredAt: string;
+	byLessonId: number | null;
 }
 
 export interface ActionEffectItem {
@@ -237,6 +255,10 @@ interface LessonCandidateRowDto {
 	user_prompt: string | null;
 	final_assistant_text: string | null;
 	correcting_message: string | null;
+	retired_at?: string | null;
+	retired_kind?: string | null;
+	retired_reason?: string | null;
+	retired_by_lesson_id?: number | null;
 }
 
 function sessionHrefFor(sessionUuid: string | null): string {
@@ -312,11 +334,38 @@ interface LessonInjectionSummaryDto {
 	last_injected_at: string | null;
 }
 
+interface LessonOutcomeDto {
+	judged: number;
+	used: number;
+	corrected_anyway: number;
+	ignored: number;
+}
+
 interface LessonDetailDto extends LessonCandidateRowDto {
 	reinforcements: LessonEvidenceRowDto[];
 	injections: LessonInjectionSummaryDto;
 	went_live_at: string | null;
 	effect: EffectViewDto | null;
+	outcomes?: LessonOutcomeDto;
+}
+
+function toLessonRetirement(c: LessonCandidateRowDto): LessonRetirement | null {
+	if (!c.retired_at || !c.retired_reason) return null;
+	return {
+		kind: c.retired_kind === 'superseded' ? 'superseded' : 'outcome',
+		reason: c.retired_reason,
+		retiredAt: c.retired_at,
+		byLessonId: c.retired_by_lesson_id ?? null
+	};
+}
+
+function toLessonOutcomes(dto: LessonOutcomeDto | undefined): LessonOutcomeCounts {
+	return {
+		judged: dto?.judged ?? 0,
+		used: dto?.used ?? 0,
+		correctedAnyway: dto?.corrected_anyway ?? 0,
+		ignored: dto?.ignored ?? 0
+	};
 }
 
 /**
@@ -371,7 +420,9 @@ export async function getLessonDetail(id: number): Promise<LessonDetail> {
 		reinforcingCorrections: [],
 		injectionCount: c.injections.count,
 		wentLiveAt: c.went_live_at,
-		effect: c.effect ? toEffectResult(c.effect) : null
+		effect: c.effect ? toEffectResult(c.effect) : null,
+		outcomes: toLessonOutcomes(c.outcomes),
+		retirement: toLessonRetirement(c)
 	};
 }
 

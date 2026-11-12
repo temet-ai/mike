@@ -14,6 +14,7 @@ use crate::config::AppState;
 
 mod anthropic;
 mod changes;
+mod codex_observe;
 mod compression_review;
 mod config_history;
 mod cross_session;
@@ -46,10 +47,12 @@ mod skill_outcomes;
 mod skills;
 mod steer_questions;
 mod steering;
+mod supplied_items;
 mod verdicts;
 mod websocket;
 mod work_threads;
 mod workspace;
+mod wright;
 
 const REQUEST_ID_HEADER: HeaderName = HeaderName::from_static("x-request-id");
 const INSPECT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -95,6 +98,7 @@ pub fn inspect_route_manifest() -> Vec<RouteEntry> {
         fleets::ROUTES,
         changes::ROUTES,
         lesson_delivery::ROUTES,
+        supplied_items::ROUTES,
         session_proxy_tools::ROUTES,
         session_reconcile::ROUTES,
         knowledge::ROUTES,
@@ -113,9 +117,11 @@ pub fn inspect_route_manifest() -> Vec<RouteEntry> {
         questions::ROUTES,
         skills::ROUTES,
         skill_outcomes::ROUTES,
+        codex_observe::ROUTES,
         proposals::ROUTES,
         setup::ROUTES,
         work_threads::ROUTES,
+        wright::ROUTES,
         session_recall::ROUTES,
         session_agent_context::ROUTES,
     ]
@@ -146,6 +152,7 @@ pub(crate) fn local_router(state: AppState, policy: host_guard::LocalAccessPolic
     let router = fleets::register(router);
     let router = changes::register(router);
     let router = lesson_delivery::register(router);
+    let router = supplied_items::register(router);
     let router = session_proxy_tools::register(router);
     let router = session_reconcile::register(router);
     let router = knowledge::register(router);
@@ -164,9 +171,11 @@ pub(crate) fn local_router(state: AppState, policy: host_guard::LocalAccessPolic
     let router = questions::register(router);
     let router = skills::register(router);
     let router = skill_outcomes::register(router);
+    let router = codex_observe::register(router);
     let router = proposals::register(router);
     let router = setup::register(router);
     let router = work_threads::register(router);
+    let router = wright::register(router);
     let router = session_recall::register(router);
     let router = session_agent_context::register(router);
     let router = websocket::register(router);
@@ -326,7 +335,8 @@ mod tests {
                 "compressor_loop",
                 "cargo_sweep",
                 "lessons_commit",
-                "usage_audit"
+                "usage_audit",
+                "lesson_relations"
             ]
         );
         for job in body["jobs"].as_array().into_iter().flatten() {

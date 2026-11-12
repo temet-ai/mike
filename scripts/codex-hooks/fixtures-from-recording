@@ -1,0 +1,108 @@
+#!/usr/bin/env python3
+"""Turn a recorded Codex run (hook payloads and OTLP exports) into scrubbed test fixtures.
+
+Usage: fixtures-from-recording <recording-dir> <run-name> <fixture-dir> <temp-root>
+
+<recording-dir> holds hooks/<ns>-<Event>.json (one hook stdin each, written by
+record-capture) and otel/<ns>-v1_logs.json / v1_traces.json (one OTLP/JSON export
+body each, written by otel-sink). <temp-root> is replaced by /CODEX_TMP in every
+string so a later recording gives the same fixture apart from what Codex changed.
+The operator's e-mail, account id and host name are replaced by fixed values.
+Only hook handlers named exactly after their event are kept; the deliberate
+slow, failing and async duplicates are counted in the manifest instead.
+"""
+import glob
+import json
+import os
+import re
+import sys
+
+REDACT_ATTRS = {
+    "user.email": "operator@example.invalid",
+    "user.account_id": "00000000-0000-0000-0000-000000000000",
+    "host.name": "host",
+}
+
+
+def scrub_text(text, root):
+    return text.replace(root, "/CODEX_TMP")
+
+
+def scrub_attrs(attrs):
+    for attr in attrs or []:
+        if attr.get("key") in REDACT_ATTRS:
+            attr["value"] = {"stringValue": REDACT_ATTRS[attr["key"]]}
+
+
+def scrub_otlp(body):
+    for group_key, scope_key, item_key in (
+        ("resourceLogs", "scopeLogs", "logRecords"),
+        ("resourceSpans", "scopeSpans", "spans"),
+        ("resourceMetrics", "scopeMetrics", "metrics"),
+    ):
+        for group in body.get(group_key, []):
+            scrub_attrs(group.get("resource", {}).get("attributes"))
+            for scope in group.get(scope_key, []):
+                for item in scope.get(item_key, []):
+                    scrub_attrs(item.get("attributes"))
+    return body
+
+
+def hook_lines(rec, root):
+    lines, extras = [], {}
+    for path in sorted(glob.glob(os.path.join(rec, "hooks", "*.json"))):
+        label = os.path.basename(path).split("-", 1)[1][: -len(".json")]
+        raw = open(path, encoding="utf-8").read()
+        if "-" in label:
+            extras[label] = extras.get(label, 0) + 1
+            continue
+        lines.append(scrub_text(raw, root))
+    return lines, extras
+
+
+def otlp_bodies(rec, root, signal, keep_span=None):
+    bodies = []
+    for path in sorted(glob.glob(os.path.join(rec, "otel", f"*-v1_{signal}.json"))):
+        body = json.loads(scrub_text(open(path, encoding="utf-8").read(), root))
+        if keep_span:
+            for rs in body.get("resourceSpans", []):
+                for ss in rs.get("scopeSpans", []):
+                    ss["spans"] = [s for s in ss.get("spans", []) if s.get("name") == keep_span]
+                rs["scopeSpans"] = [ss for ss in rs.get("scopeSpans", []) if ss["spans"]]
+            body["resourceSpans"] = [rs for rs in body.get("resourceSpans", []) if rs["scopeSpans"]]
+            if not body["resourceSpans"]:
+                continue
+        bodies.append(scrub_otlp(body))
+    return bodies
+
+
+def main():
+    rec, run, out, root = sys.argv[1:5]
+    os.makedirs(out, exist_ok=True)
+    lines, extras = hook_lines(rec, root)
+    with open(os.path.join(out, f"{run}_hooks.jsonl"), "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+    logs = otlp_bodies(rec, root, "logs")
+    spans = otlp_bodies(rec, root, "traces", keep_span="codex.hooks.command")
+    with open(os.path.join(out, f"{run}_otel_logs.json"), "w", encoding="utf-8") as fh:
+        json.dump(logs, fh, indent=1)
+    with open(os.path.join(out, f"{run}_otel_hook_spans.json"), "w", encoding="utf-8") as fh:
+        json.dump(spans, fh, indent=1)
+    manifest = {
+        "codex_version": os.environ.get("CODEX_VERSION", "codex-cli 0.167.1"),
+        "run": run,
+        "hook_payloads": len(lines),
+        "dropped_duplicate_handlers": extras,
+        "otel_log_exports": len(logs),
+        "otel_trace_exports_with_hook_spans": len(spans),
+        "synthetic": False,
+    }
+    with open(os.path.join(out, f"{run}_manifest.json"), "w", encoding="utf-8") as fh:
+        json.dump(manifest, fh, indent=1)
+    leaked = [p for p in os.listdir(out) if re.search(re.escape(root), open(os.path.join(out, p), encoding="utf-8").read())]
+    if leaked:
+        sys.exit(f"temp root still present in {leaked}")
+
+
+if __name__ == "__main__":
+    main()

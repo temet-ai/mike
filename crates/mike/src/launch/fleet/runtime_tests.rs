@@ -26,18 +26,39 @@ fn unknown_runtime_selectors_are_rejected() {
 }
 
 #[test]
-fn codex_selector_reports_unsupported_runtime_without_claude_model_errors() -> anyhow::Result<()> {
+fn codex_worker_is_checked_by_codex_rules_not_claude_rules() -> anyhow::Result<()> {
     let mut value = super::tests::complete();
     value["workers"]["db-dev"]["runtime"] = json!("codex");
     value["workers"]["db-dev"]["model"] = json!("gpt-5");
+    value["workers"]["db-dev"]["agent"] = json!("");
+    value["workers"]["db-dev"]["effort"] = json!("minimal");
     let def = FleetDefinition::from_value(&value).map_err(anyhow::Error::msg)?;
     let found = check_definition(&def);
     assert!(
-        found
+        !found
             .iter()
-            .any(|item| item.item == "workers.db-dev.runtime")
+            .any(|item| item.item.starts_with("workers.db-dev")),
+        "{found:?}"
     );
-    assert!(!found.iter().any(|item| item.item == "workers.db-dev.model"));
+    Ok(())
+}
+
+#[test]
+fn codex_worker_with_claude_model_agent_or_effort_is_reported() -> anyhow::Result<()> {
+    let mut value = super::tests::complete();
+    value["workers"]["db-dev"]["runtime"] = json!("codex");
+    value["workers"]["db-dev"]["model"] = json!("sonnet");
+    value["workers"]["db-dev"]["effort"] = json!("max");
+    let def = FleetDefinition::from_value(&value).map_err(anyhow::Error::msg)?;
+    let found = check_definition(&def);
+    for item in [
+        "workers.db-dev.model",
+        "workers.db-dev.agent",
+        "workers.db-dev.effort",
+    ] {
+        assert!(found.iter().any(|f| f.item == item), "{item} in {found:?}");
+    }
+    assert!(!found.iter().any(|f| f.item == "workers.db-dev.runtime"));
     Ok(())
 }
 
@@ -56,7 +77,7 @@ fn runtime_selection_is_preserved_in_worker_template_and_reference_plans() -> an
     for candidate in plans {
         let seat = candidate.ok_or_else(|| anyhow::anyhow!("fixture should produce a seat"))?;
         assert_eq!(seat.runtime, RuntimeKind::Codex);
-        assert!(seat.runtime.ensure_managed_launch_supported().is_err());
+        assert!(!seat.runtime.controls_through_terminal());
     }
     Ok(())
 }

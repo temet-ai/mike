@@ -17,6 +17,8 @@ impl PersistHandle {
             if let Some(early) = fallback_id_skip_outcome(id_mode, req) {
                 return Ok(early);
             }
+            let req = super::text_sanitize::request_with_clean_text(req);
+            let req = req.as_ref();
             let prep = RequestEnvelopePrep::compute(req)?;
             let session_epoch = self.session_epoch();
             let mut tx = self.pool.begin().await?;
@@ -30,7 +32,7 @@ impl PersistHandle {
             let request_db_id = returned_id.unwrap_or(prep.request_id);
 
             let inserted_results = self
-                .write_request_dependent_rows(&mut tx, req, session_db_id, request_db_id)
+                .write_dependent_rows_or_keep_request(&mut tx, req, session_db_id, request_db_id)
                 .await?;
 
             if row_inserted {
@@ -92,6 +94,40 @@ impl PersistHandle {
             })
         })
         .await
+    }
+
+    async fn write_dependent_rows_or_keep_request(
+        &self,
+        tx: &mut sqlx::PgConnection,
+        req: &InterceptedRequest,
+        session_db_id: i64,
+        request_db_id: i64,
+    ) -> Result<Vec<InsertedToolResult>, PersistError> {
+        let mut savepoint = sqlx::Acquire::begin(&mut *tx).await?;
+        let written = self
+            .write_request_dependent_rows(&mut savepoint, req, session_db_id, request_db_id)
+            .await;
+        let error = match written {
+            Ok(results) => {
+                savepoint.commit().await?;
+                return Ok(results);
+            }
+            Err(error) => error,
+        };
+        let super::capture_retry::WriteFailure::Refused(reason) =
+            super::capture_retry::classify(&error)
+        else {
+            return Err(error);
+        };
+        savepoint.rollback().await?;
+        tracing::error!(
+            request_id = request_db_id,
+            session_id = %req.session_id,
+            reason,
+            "insert_request_initial: rows derived from the body were refused; \
+             the request row and its raw body are kept"
+        );
+        Ok(Vec::new())
     }
 
     async fn write_request_dependent_rows(

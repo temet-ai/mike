@@ -3,7 +3,7 @@
 	import { userEvent, expect, waitFor, within } from 'storybook/test';
 	import LessonDetailPage from './+page.svelte';
 	import type { LessonDetailPageData } from './+page';
-	import { LESSON_DETAIL_RAW } from '$lib/test-support/improvementFixtures';
+	import { LESSON_DETAIL_RAW, LESSON_DETAIL_RETIRED } from '$lib/test-support/improvementFixtures';
 	import { stubFetchJsonRouter, typed, type TypedBody } from '$lib/test-support/storyFetchStubs';
 
 	const DATA: LessonDetailPageData = {
@@ -114,5 +114,35 @@
 		await expect(
 			canvas.getByRole('heading', { level: 1, name: 'Approved lesson' })
 		).toBeInTheDocument();
+	}}
+/>
+
+<Story
+	name="Retired"
+	loaders={[
+		async () => {
+			stubFetchJsonRouter(router);
+			return {};
+		}
+	]}
+	args={{
+		data: { id: LESSON_DETAIL_RETIRED.id, lesson: LESSON_DETAIL_RETIRED, error: null }
+	}}
+	play={async ({ canvasElement }) => {
+		const canvas = within(canvasElement);
+		await expect(
+			canvas.getByRole('heading', { level: 2, name: 'Since it went live' })
+		).toBeInTheDocument();
+		const outcomes = canvas.getByTestId('lesson-outcomes');
+		await expect(outcomes).toHaveTextContent(
+			'Judged in 12 sessions: followed in 1, corrected anyway in 2, ignored in 9.'
+		);
+		const retired = canvas.getByTestId('lesson-retired');
+		await expect(retired).toHaveTextContent(/Superseded: no longer supplied\./);
+		await expect(retired).toHaveTextContent(/Contradicted by the newer lesson 68/);
+		await expect(retired).toHaveTextContent(/Search still finds it\./);
+		await expect(
+			within(retired).getByRole('link', { name: 'Read the newer lesson' })
+		).toHaveAttribute('href', '/sessions/improvement/lessons/68');
 	}}
 />

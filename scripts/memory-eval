@@ -2,9 +2,14 @@
 # Scores knowledge search against the memory-keeper evaluation sets (P9).
 #
 #   scripts/memory-eval [--data DIR] [--limit N] [--url URL]
+#   scripts/memory-eval --export-graded --db URL [--data DIR]
 #
-# recall-searches.jsonl and past-pointing.jsonl: is a labelled answer reference
-# in the top N results of /api/knowledge/search for the row's query (or prompt)?
+# recall-searches.jsonl, past-pointing.jsonl and graded-searches.jsonl: is a labelled answer
+# reference in the top N results of /api/knowledge/search for the row's query (or prompt)?
+# graded-searches.jsonl is scored twice: all rows, and the rows a person checked
+# (hand_checked true). --export-graded appends the searches the overnight grader graded
+# (memory.search_grades: used references plus results graded relevant) that the file lacks,
+# unchecked, reading the database at URL with psql; it writes nothing to the database.
 # lesson-paraphrase-probes.tsv: is the probed lesson in the top 2 lesson results?
 # Prints one line per set (exact answers, items from the answer's session, mean reciprocal
 # rank) and the rows where neither appears.
@@ -16,19 +21,49 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 data="$root/artifacts/research/session-memory-companion/data"
 limit=10
 url="${MIKE_INSPECT_URL:-http://127.0.0.1:9989}"
+export_db=""
+export_graded=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --data) data="$2"; shift 2 ;;
     --limit) limit="$2"; shift 2 ;;
     --url) url="$2"; shift 2 ;;
-    -h|--help) sed -n 2,11p "$0"; exit 0 ;;
+    --export-graded) export_graded=1; shift ;;
+    --db) export_db="$2"; shift 2 ;;
+    -h|--help) sed -n 2,19p "$0"; exit 0 ;;
     *) echo "memory-eval: unknown argument $1" >&2; exit 2 ;;
   esac
 done
 [ -d "$data" ] || { echo "memory-eval: no evaluation data at $data" >&2; exit 1; }
 
+if [ "$export_graded" = 1 ]; then
+  [ -n "$export_db" ] || { echo "memory-eval: --export-graded needs --db URL" >&2; exit 2; }
+  graded="$data/graded-searches.jsonl"
+  touch "$graded"
+  known="$(python3 -I -c 'import json,sys; print(",".join(str(json.loads(l)["search_id"]) for l in open(sys.argv[1]) if l.strip()) or "0")' "$graded")"
+  PGOPTIONS='-c statement_timeout=30000 -c default_transaction_read_only=on' psql "$export_db" -X -At -v ON_ERROR_STOP=1 -c "
+SELECT json_build_object(
+  'search_id', e.id, 'tool', e.tool, 'created_at', e.created_at, 'query', e.query,
+  'kind', e.kind_filter, 'project', p.project_uuid, 'session_uuid', s.session_uuid,
+  'prompt', g.turn_prompt,
+  'answer_refs', (SELECT coalesce(array_agg(DISTINCT r), '{}') FROM unnest(g.used_references || g.relevant_references) AS r),
+  'first_ten', (SELECT coalesce(json_agg(f->>'reference' ORDER BY o), '[]') FROM jsonb_array_elements(g.first_ten) WITH ORDINALITY AS x(f, o)),
+  'label_source', CASE WHEN cardinality(g.used_references) > 0 THEN 'used' ELSE 'graded' END,
+  'hand_checked', false)
+  FROM memory.search_grades g
+  JOIN memory.search_events e ON e.id = g.event_id
+  JOIN sessions.sessions s ON s.id = e.session_id
+  JOIN projects.projects p ON p.id = s.project_id
+ WHERE e.query <> ''
+   AND cardinality(g.used_references || g.relevant_references) > 0
+   AND e.id <> ALL ('{$known}'::bigint[])
+ ORDER BY e.id" >> "$graded"
+  echo "memory-eval: $(grep -c . "$graded") rows in $graded"
+  exit 0
+fi
+
 exec python3 -I - "$data" "$limit" "$url" <<'PY'
-import json, sys, urllib.error, urllib.parse, urllib.request
+import json, os, sys, urllib.error, urllib.parse, urllib.request
 
 data, limit, url = sys.argv[1], int(sys.argv[2]), sys.argv[3].rstrip("/")
 
@@ -94,8 +129,13 @@ recall = [
     for r in jsonl("recall-searches.jsonl")
 ]
 past = [
-    (f"turn {r['turn_id']}", r["project_uuid"], r["prompt"], r["answer_refs"], None, limit, f"turn:{r['turn_id']}", set(r.get("answer_sessions", [])))
+    (f"turn {r['turn_id']}", r.get("project_uuid") or str(r["project_id"]), r["prompt"], r["answer_refs"], None, limit, f"turn:{r['turn_id']}", set(r.get("answer_sessions", [])))
     for r in jsonl("past-pointing.jsonl")
+]
+graded_rows = jsonl("graded-searches.jsonl") if os.path.exists(f"{data}/graded-searches.jsonl") else []
+graded = [
+    (f"graded {r['search_id']}", r["project"], r["query"], r["answer_refs"], r.get("kind"), limit, None, {r.get("session_uuid")}, r.get("hand_checked") is True)
+    for r in graded_rows
 ]
 probes = []
 with open(f"{data}/lesson-paraphrase-probes.tsv") as handle:
@@ -106,6 +146,13 @@ with open(f"{data}/lesson-paraphrase-probes.tsv") as handle:
 
 score("recall-searches", recall)
 score("past-pointing", past)
+if graded:
+    score("graded-searches", [row[:8] for row in graded])
+    checked = [row[:8] for row in graded if row[8]]
+    if checked:
+        score("graded-searches (hand-checked)", checked)
+    else:
+        print(f"graded-searches (hand-checked): 0/{len(graded)} rows checked by a person yet")
 
 hits, misses = 0, []
 for label, project, query, _, kind, n, _skip, _sessions in probes:

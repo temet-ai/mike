@@ -1,0 +1,234 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT i.id, i.request_id, s.session_uuid AS session_id, i.item_kind, i.lesson_id, i.thread_id,\n       t.slug AS \"thread_slug?\", i.card_hash, i.route, i.score, i.chance, i.item_text,\n       i.supplied_at, v.verdict AS \"verdict?\", v.rationale AS \"rationale?\",\n       v.evidence AS \"evidence?\", v.judged_at AS \"judged_at?\", v.hand_verdict\n  FROM memory.supplied_items i\n  JOIN sessions.sessions s ON s.id = i.session_id\n  LEFT JOIN work.threads t ON t.id = i.thread_id\n  LEFT JOIN memory.supplied_item_verdicts v ON v.supplied_item_id = i.id\n WHERE i.request_id = $1\n ORDER BY i.supplied_at, i.id\n LIMIT $2 OFFSET $3\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "request_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_items",
+            "name": "request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "session_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "sessions.sessions",
+            "name": "session_uuid"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "item_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_items",
+            "name": "item_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "lesson_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_items",
+            "name": "lesson_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "thread_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_items",
+            "name": "thread_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "thread_slug?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "work.threads",
+            "name": "slug"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "card_hash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_items",
+            "name": "card_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "route",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_items",
+            "name": "route"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "score",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_items",
+            "name": "score"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "chance",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_items",
+            "name": "chance"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "item_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_items",
+            "name": "item_text"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "supplied_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_items",
+            "name": "supplied_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "verdict?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_item_verdicts",
+            "name": "verdict"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "rationale?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_item_verdicts",
+            "name": "rationale"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "evidence?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_item_verdicts",
+            "name": "evidence"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "judged_at?",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_item_verdicts",
+            "name": "judged_at"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "hand_verdict",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "memory.supplied_item_verdicts",
+            "name": "hand_verdict"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "a391e39c0ec73d5a8f3225fe658ce2e3119d406dce5ff7d2a15112cdaddf2f47"
+}

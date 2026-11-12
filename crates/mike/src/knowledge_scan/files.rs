@@ -10,6 +10,8 @@ use crate::store::persistence::project_knowledge::DocumentInput;
 const MAX_DOCUMENTS: usize = 5000;
 const MEMORY_INDEX_FILE: &str = "MEMORY.md";
 const SKILL_FILE: &str = "SKILL.md";
+const WORKLOG_FILE: &str = "worklog.md";
+const THREADS_DIRECTORY: &str = "threads";
 const SKIPPED_DIRECTORIES: [&str; 4] = [".git", "node_modules", "target", ".venv"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -121,12 +123,24 @@ fn tree_paths(root: &Path, excludes: &[String]) -> Result<Vec<PathBuf>, ScanErro
                 {
                     pending.push(path);
                 }
-            } else if file_type.is_file() && is_markdown(&path) {
+            } else if file_type.is_file() && is_markdown(&path) && !is_thread_worklog(&path) {
                 found.push(path);
             }
         }
     }
     Ok(found)
+}
+
+fn is_thread_worklog(path: &Path) -> bool {
+    let named =
+        |part: Option<&std::ffi::OsStr>, name: &str| part.and_then(|p| p.to_str()) == Some(name);
+    named(path.file_name(), WORKLOG_FILE)
+        && named(
+            path.parent()
+                .and_then(Path::parent)
+                .and_then(Path::file_name),
+            THREADS_DIRECTORY,
+        )
 }
 
 fn is_excluded(root: &Path, path: &Path, excludes: &[String]) -> bool {

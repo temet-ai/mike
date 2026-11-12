@@ -5,11 +5,11 @@ use crate::store::persistence::migrations;
 use super::ResyncError;
 
 pub async fn reset_local(pool: &PgPool) -> Result<(), ResyncError> {
-    sqlx::query!(
+    sqlx::query(
         "DROP SCHEMA IF EXISTS agents, claude_proxy, config, eval, jobs, launch, llm, mailbox, \
          memory, messages, mike, overrides, projects, prompt_kinds, remote_control, requests, \
          responses, rules, runtime, session_judges, sessions, steering, sync, system_prompts, \
-         tools, work, workspace CASCADE"
+         tools, work, workspace, wright CASCADE",
     )
     .execute(pool)
     .await?;

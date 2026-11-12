@@ -407,3 +407,60 @@ fn best_only_worst_case_ten_results_serialise_under_4000_characters() {
     let size = shaped.to_string().chars().count();
     assert!(size < 4_000, "{size} characters");
 }
+
+#[test]
+fn line_of_a_lesson_a_later_lesson_supersedes_names_it_and_the_author_session() {
+    let mut row = item("lesson:6", "lesson", "Build on your own machine");
+    row["author"] = json!({"role": "lesson", "session_uuid": SESSION, "session_title": "Release batch for the Mac"});
+    row["provenance"] = json!({"superseded_by": {"reference": "lesson:9d1c2e4f-0000-4000-8000-000000000001", "status": "confirmed"}});
+
+    assert_eq!(
+        line(&row),
+        "lesson \u{b7} 2026-11-09 \u{b7} Build on your own machine \u{b7} superseded by lesson:9d1c2e4f \u{b7} by Release batch for the Mac"
+    );
+}
+
+#[test]
+fn line_of_a_contradicted_lesson_says_contradicted() {
+    let mut row = item("lesson:7", "lesson", "Deploy after each PR");
+    row["provenance"] = json!({"contradicted_by": {"reference": "lesson:aaaabbbb-0000-4000-8000-000000000002", "status": "proposed"}});
+
+    assert!(line(&row).ends_with("\u{b7} contradicted by lesson:aaaabbbb"));
+}
+
+#[test]
+fn best_only_first_item_carries_the_author_session_title_and_the_later_mark() {
+    let mut first = item("lesson:8", "lesson", "Build on your own machine");
+    first["author"] =
+        json!({"role": "lesson", "session_uuid": SESSION, "session_title": "Release batch"});
+    first["provenance"] =
+        json!({"superseded_by": {"reference": "lesson:x", "status": "confirmed"}});
+    let mut shaped = answer(vec![first, item("note:2", "note", "second")]);
+
+    best_only(&mut shaped, &Passages::new());
+
+    let lead = &shaped["items"][0];
+    assert_eq!(lead["session_title"], "Release batch");
+    assert_eq!(lead["updated_at"], "2026-11-09T14:03:22+00:00");
+    assert_eq!(
+        lead["provenance"],
+        json!({"superseded_by": {"reference": "lesson:x", "status": "confirmed"}})
+    );
+}
+
+#[test]
+fn line_of_a_retired_lesson_says_retired_and_the_first_result_keeps_the_mark() {
+    let mut row = item("lesson:9", "lesson", "Lock the build");
+    row["provenance"] = json!({"retired": {"kind": "outcome", "reason": "ignored 12 of 14 supplies", "at": "2026-11-11T00:00:00Z", "by_lesson": null}});
+    assert_eq!(
+        line(&row),
+        "lesson \u{b7} 2026-11-09 \u{b7} Lock the build \u{b7} retired"
+    );
+
+    let mut shaped = answer(vec![row.clone(), item("note:2", "note", "second")]);
+    best_only(&mut shaped, &Passages::new());
+    assert_eq!(
+        shaped["items"][0]["provenance"]["retired"]["kind"],
+        "outcome"
+    );
+}

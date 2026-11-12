@@ -55,7 +55,7 @@ pub enum FleetCommand {
     #[command(about = "Where a name is defined in the fleet's checkout, in any language")]
     Where(check::WhereArgs),
     #[command(
-        about = "Run the project's full gate at the branch's newest commit, in mike's own checkout beside the repository, once per commit; for the acceptance seat"
+        about = "Run the fleet's full gate (gate.full_command, else gate.command) at the branch's newest commit, in mike's own checkout beside the repository, once per commit; for the acceptance seat"
     )]
     Gate(gate::GateArgs),
     #[command(

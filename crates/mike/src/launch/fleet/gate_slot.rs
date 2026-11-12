@@ -30,6 +30,28 @@ pub fn check_slot_for(repo: &str) -> Option<PathBuf> {
     inside(repo, CHECK_NAME)
 }
 
+pub(super) fn check_slot_names(commit_check: bool) -> &'static [&'static str] {
+    if commit_check {
+        &CHECK_SLOT_NAMES
+    } else {
+        &CHECK_SLOT_NAMES[1..]
+    }
+}
+
+pub(super) const KEEP_WARM_REASON: &str = "mike's fleet check slot: kept between fleets so its build stays warm; mike resets it before every check";
+
+pub(super) async fn keep_warm(repo: &Path, slot: &Path) {
+    let shown = slot.to_string_lossy();
+    let args = ["worktree", "lock", "--reason", KEEP_WARM_REASON, &shown];
+    match super::owned_git::run_plain(repo, &args).await {
+        Ok(_) => {}
+        Err(why) if why.contains("already locked") => {}
+        Err(why) => {
+            tracing::warn!(slot = %shown, %why, "fleet: the check slot could not be locked, so worktree clean-up may remove its warm build");
+        }
+    }
+}
+
 pub(super) fn managed_slot_name(name: &str) -> bool {
     name == SLOT_NAME || CHECK_SLOT_NAMES.contains(&name)
 }
@@ -217,6 +239,59 @@ mod tests {
         )
         .await?;
         assert_eq!((code, output.as_str()), (Some(3), "broken\n"));
+        Ok(())
+    }
+
+    #[test]
+    fn floors_and_rulings_never_take_the_slot_kept_for_the_commit_check() {
+        assert_eq!(check_slot_names(true), &CHECK_SLOT_NAMES);
+        assert!(!check_slot_names(false).contains(&CHECK_NAME));
+        assert!(!check_slot_names(false).is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_check_slot_is_locked_so_worktree_clean_up_keeps_its_warm_build() -> anyhow::Result<()>
+    {
+        let root = tempfile::tempdir()?;
+        let repo = root.path().join("project");
+        std::fs::create_dir_all(&repo)?;
+        said(&repo, &["init", "-q", "-b", "main"]).await?;
+        said(&repo, &["config", "user.email", "t@example.com"]).await?;
+        said(&repo, &["config", "user.name", "t"]).await?;
+        std::fs::write(repo.join("a.txt"), "committed\n")?;
+        said(&repo, &["add", "-A"]).await?;
+        said(&repo, &["commit", "-q", "-m", "base"]).await?;
+        let slot = check_slot_for(&repo.to_string_lossy())
+            .ok_or_else(|| anyhow::anyhow!("no check slot"))?;
+        let shown = slot.to_string_lossy().into_owned();
+        said(
+            &repo,
+            &["worktree", "add", "-q", "--detach", &shown, "HEAD"],
+        )
+        .await?;
+        std::fs::create_dir_all(slot.join("target/fleet-check"))?;
+        std::fs::write(slot.join("target/fleet-check/built"), "warm\n")?;
+
+        keep_warm(&repo, &slot).await;
+        keep_warm(&repo, &slot).await;
+
+        let listed = said(&repo, &["worktree", "list", "--porcelain"]).await?;
+        assert!(
+            listed.contains(&format!("locked {KEEP_WARM_REASON}")),
+            "{listed}"
+        );
+        let removed = tokio::process::Command::new("git")
+            .arg("-C")
+            .arg(&repo)
+            .args(["worktree", "remove", "--force", &shown])
+            .output()
+            .await?;
+        assert!(
+            !removed.status.success(),
+            "a locked slot must survive worktree remove --force"
+        );
+        said(&repo, &["worktree", "prune"]).await?;
+        assert!(slot.join("target/fleet-check/built").is_file());
         Ok(())
     }
 

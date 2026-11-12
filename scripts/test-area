@@ -36,7 +36,7 @@ filter_for() {
       local harness=${1#crates/mike/tests/}
       harness=${harness%%/*}
       harness=${harness%.rs}
-      printf 'binary(=%s)\n' "$harness"
+      [ -f "crates/mike/tests/$harness.rs" ] && printf 'binary(=%s)\n' "$harness"
       ;;
     crates/*.rs)
       local crate=${1#crates/}

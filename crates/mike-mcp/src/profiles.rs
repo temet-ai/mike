@@ -203,6 +203,7 @@ pub const ONLY_IN_FULL: &[&str] = &[
     "get_cross_session_calibration",
     "list_directive_proposals",
     "get_fleet_record",
+    "list_supplied_items",
 ];
 
 fn concat(parts: &[&[&'static str]]) -> Vec<&'static str> {

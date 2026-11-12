@@ -43,6 +43,7 @@ mod session_verdicts;
 mod sessions;
 mod steer_questions;
 mod steering_evaluations;
+mod supplied;
 mod text_search;
 mod text_search_find;
 mod threads;

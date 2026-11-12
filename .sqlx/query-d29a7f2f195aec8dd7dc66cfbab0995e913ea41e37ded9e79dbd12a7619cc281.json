@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.supplied_items\n       (session_id, request_id, item_kind, lesson_id, route, score, chance, item_text)\nSELECT s.id, $1, 'lesson', l.id, u.route, u.score, 1.0, l.text\n  FROM UNNEST($2::bigint[], $3::text[], $4::float8[]) AS u(lesson_id, route, score)\n  JOIN memory.lessons l ON l.id = u.lesson_id\n  JOIN sessions.sessions s ON s.session_uuid = $5\n WHERE NOT EXISTS (\n       SELECT 1 FROM memory.supplied_items seen\n        WHERE seen.session_id = s.id\n          AND seen.lesson_id = l.id\n          AND seen.route = u.route\n          AND (u.route <> 'proxy' OR seen.request_id = $1))\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8Array",
+        "TextArray",
+        "Float8Array",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "d29a7f2f195aec8dd7dc66cfbab0995e913ea41e37ded9e79dbd12a7619cc281"
+}

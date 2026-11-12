@@ -308,3 +308,32 @@ fn recorded_fleet_acceptance_wake_is_not_operator_feedback() {
         PromptKind::Genuine
     );
 }
+
+#[test]
+fn tool_written_openings_are_tool_prompts_not_operator_words() {
+    let tool_written = [
+        "A session-scoped Stop hook is now active with condition: \"done\"",
+        "The tether plugin sent a message:\nMail from mike",
+        "  The fleet-comms plugin sent a message:\nhi",
+        "Perform a web search for the query: sqlx",
+        "You score how well a stand-in predicted the answer",
+        "Coordinator wake for fleet open-issues: act",
+    ];
+    for text in tool_written {
+        let class = operator(text);
+        assert_eq!(class.kind, PromptKind::ToolPrompt, "text: {text}");
+        assert_eq!(class.kind.class(), DispositionClass::InLaneMachine);
+        assert!(is_tool_prompt(text));
+        assert!(!is_genuine_text(text));
+    }
+    assert_eq!(PromptKind::ToolPrompt.stored_code(), "tool-prompt");
+    assert_eq!(PromptKind::ToolPrompt.j2_code(), "background-event");
+    for text in [
+        "why did the tether plugin sent a message: show up?",
+        "Please perform a web search for the query: sqlx",
+        "Coordinator wake for fleets is broken",
+    ] {
+        assert_eq!(operator(text).kind, PromptKind::Genuine, "text: {text}");
+        assert!(!is_tool_prompt(text));
+    }
+}

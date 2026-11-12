@@ -2,7 +2,7 @@
 title: Capture outages
 status: active
 created: 2026-11-05
-updated: 2026-11-05
+updated: 2026-11-11
 summary: What mike does when the database is down or the disk is full, how the person is told, which captures are lost, and how a stop that could not finish says so.
 ---
 
@@ -39,6 +39,27 @@ the notice.
 - A request evicted or lost at stop has no durable record. Mike does not mark it as
   complete; its `stream_blocks` rows are missing.
 - Nothing already stored is affected.
+
+## A request whose first write fails
+
+The first write of a request (`insert_request_initial`, before it is forwarded) can fail
+while the database still answers other statements. `capture_retry`
+(`crates/mike/src/store/persistence/capture_retry/`) sorts the error:
+
+- **Temporary** (pool, statement or lock timeout, lost connection, serialization conflict):
+  the request is kept in memory and written, row, raw body, messages, tool calls and
+  response together, when its answer completes, or as failed when it ends in an error. If
+  that write also hits a temporary error it is tried again with a doubling delay from one
+  second to one minute, for up to 30 minutes. The late request gets its `request_number` by
+  send time, so it sits in its session's history in the order it was sent. The log names
+  the timeout; it no longer calls the database down.
+- **Refused** (a value Postgres rejects, class 22): the request row and raw body are still
+  written; only the rows derived from the body are dropped, inside a savepoint. NUL
+  characters no longer reach this path (see `docs/SCHEMA.md`, "NUL characters").
+- A request that could not be recorded at all (refused, or still failing after 30 minutes)
+  is listed in `/api/health` under `unrecorded_captures.unrecorded` with its session, the
+  time it was sent and the reason; `unrecorded_captures.waiting` lists requests that are
+  kept and not written yet. Both are per process and start empty after a restart.
 
 ## Stopping
 

@@ -14,6 +14,8 @@ mod outcomes;
 pub mod projection;
 pub mod projection_reads;
 mod reads;
+#[cfg(test)]
+mod tool_origin_tests;
 mod unjudged;
 
 pub(crate) use embedding::vector_to_text_literal;

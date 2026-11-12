@@ -13,7 +13,7 @@ async fn fetch_feature_toggles_returns_all_operator_set_rows() -> anyhow::Result
 
     let toggles = handle.fetch_feature_toggles().await?;
 
-    assert_eq!(toggles.len(), 24);
+    assert_eq!(toggles.len(), 25);
     let not_operator_set_but_enabled = ["prompt_assistant", "semantic_context"];
     let fresh_install_off = [
         "agent_lessons",
@@ -31,6 +31,7 @@ async fn fetch_feature_toggles_returns_all_operator_set_rows() -> anyhow::Result
         "steerer",
         "weasel_intercept",
         "workspace_briefing",
+        "wright",
     ];
     for (key, enabled, operator_set) in &toggles {
         if not_operator_set_but_enabled.contains(&key.as_str()) {
@@ -84,6 +85,7 @@ async fn fetch_feature_toggles_returns_all_operator_set_rows() -> anyhow::Result
             "weasel_intercept",
             "workspace_briefing",
             "workspace_capture_registration",
+            "wright",
         ]
     );
 

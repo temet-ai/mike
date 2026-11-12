@@ -3,6 +3,7 @@ use serde_json::Value as JsonValue;
 use super::PersistError;
 use super::capture_support::operation_for_tool;
 use super::id_resolvers::{resolve_or_create_agent_id, resolve_tool_use_id};
+use super::text_sanitize;
 use crate::store::models::InterceptedRequest;
 use crate::types::ToolCall;
 
@@ -29,11 +30,14 @@ impl ToolUseColumns {
             cols.tool_ids.push(call.tool_id.clone());
             cols.ords.push(ord as i32);
             cols.names.push(call.name.clone());
-            let input_val: Option<JsonValue> = if call.input_json.is_empty() {
+            let mut input_val: Option<JsonValue> = if call.input_json.is_empty() {
                 None
             } else {
                 serde_json::from_str(&call.input_json).ok()
             };
+            if let Some(value) = input_val.as_mut() {
+                text_sanitize::clean_json(value);
+            }
             let fp: Option<String> = input_val
                 .as_ref()
                 .and_then(|v| v.get("file_path"))
@@ -144,7 +148,8 @@ impl FailedStreamBlockColumns {
         for b in blocks {
             cols.seq_ords.push(b.seq_ord);
             cols.block_types.push(b.block_type.clone());
-            cols.contents.push(b.content.clone());
+            cols.contents
+                .push(text_sanitize::clean_text(&b.content).into_owned());
             cols.signatures.push(b.signature.clone());
             cols.wire_tool_use_ids.push(b.wire_tool_use_id.clone());
             cols.shas.push(b.content_sha256.clone());
@@ -259,7 +264,7 @@ pub(crate) async fn write_tool_results(
         tr_ords.push(ord as i32);
         tr_tool_use_ids.push(result.tool_use_id.clone());
         tr_is_errors.push(result.is_error);
-        tr_contents.push(result.content.clone());
+        tr_contents.push(text_sanitize::cleaned_json(&result.content).into_owned());
         tr_shas.push(result.content_sha256.clone());
         tr_bytes.push(result.content_bytes as i64);
     }

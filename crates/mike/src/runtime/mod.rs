@@ -1,4 +1,5 @@
 pub mod codex;
+pub(crate) mod codex_observe;
 mod events;
 mod identity;
 
@@ -11,8 +12,6 @@ pub enum RuntimeContractError {
     InvalidText(&'static str),
     #[error("runtime field {0} must not be a nil UUID")]
     InvalidUuid(&'static str),
-    #[error("Codex managed fleet launch is not supported yet; choose runtime = \"claude\"")]
-    UnsupportedManagedRuntime,
     #[error("a runtime thread cannot be its own {0}")]
     SelfReference(&'static str),
     #[error("native child threads require an owning Mike seat")]

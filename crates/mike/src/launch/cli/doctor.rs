@@ -37,7 +37,10 @@ impl DoctorReport {
 
 pub(crate) async fn execute(runner: &Runner<'_>, env: &DoctorEnv) -> DoctorReport {
     let id = runner.backend.id();
-    let mut checks = vec![backend_chosen(id)];
+    let mut checks = vec![
+        backend_chosen(id),
+        stored_backend_check(fetch_settings_body(&env.inspect_addr).await.as_ref()),
+    ];
     let probe = runner.backend.probe().await;
     checks.extend(prefixed("probe", &probe.checks));
     let validation = if probe.available {
@@ -91,6 +94,59 @@ fn backend_chosen(id: BackendId) -> Check {
     } else {
         Check::pass("backend chosen", id.as_str())
     }
+}
+
+async fn fetch_settings_body(inspect_addr: &str) -> Result<serde_json::Value, String> {
+    let url = format!("http://{inspect_addr}/api/settings");
+    let response = reqwest::Client::new()
+        .get(&url)
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|e| format!("{url} did not answer: {e}"))?;
+    response
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|e| format!("{url} answered with something other than settings JSON: {e}"))
+}
+
+pub(crate) fn stored_backend_check(body: Result<&serde_json::Value, &String>) -> Check {
+    let body = match body {
+        Ok(body) => body,
+        Err(why) => {
+            return Check::fail(
+                "stored launch_backend",
+                format!("cannot tell which machine's launch_backend applies: {why}"),
+                "start the proxy (`mike serve`) and run doctor again",
+            );
+        }
+    };
+    let machine = body["machine"]["name"]
+        .as_str()
+        .or_else(|| body["machine"]["uuid"].as_str())
+        .unwrap_or("this machine (no identity)");
+    let entry = body["settings"]
+        .as_array()
+        .and_then(|rows| rows.iter().find(|row| row["key"] == "launch_backend"));
+    let Some(entry) = entry else {
+        return Check::fail(
+            "stored launch_backend",
+            "the settings catalogue has no launch_backend entry",
+            "deploy a proxy built from the same commit as this mike",
+        );
+    };
+    let value = entry["value"].as_str().unwrap_or("?");
+    let from = match entry["source"].as_str() {
+        Some("own") => format!("{machine}'s own value"),
+        Some("shared_default") => {
+            format!("the shared default; {machine} has no launch_backend of its own")
+        }
+        Some("compiled_default") => {
+            format!("the compiled default; neither {machine} nor the shared settings set one")
+        }
+        _ => "a proxy that does not report per-machine sources".to_owned(),
+    };
+    Check::pass("stored launch_backend", format!("{value} ({from})"))
 }
 
 async fn sidecar_check(url: &str) -> Check {
@@ -250,5 +306,42 @@ async fn record(ledger: &Ledger, probe: &ProbeReport, report: &ValidationReport)
     };
     if let Err(e) = ledger.insert_validation(&row).await {
         eprintln!("mike spawn doctor: could not record the validation: {e}");
+    }
+}
+
+#[cfg(test)]
+mod stored_backend_tests {
+    use super::stored_backend_check;
+
+    fn body(source: &str) -> serde_json::Value {
+        serde_json::json!({
+            "machine": {"uuid": "7d0a6f8e-0000-4000-8000-000000000001", "name": "omit"},
+            "settings": [{"key": "launch_backend", "value": "tmux", "source": source}],
+        })
+    }
+
+    #[test]
+    fn stored_backend_check_names_the_machines_own_value() {
+        let check = stored_backend_check(Ok(&body("own")));
+        assert!(check.passed);
+        assert_eq!(check.detail, "tmux (omit's own value)");
+    }
+
+    #[test]
+    fn stored_backend_check_says_when_it_is_the_shared_default() {
+        let check = stored_backend_check(Ok(&body("shared_default")));
+        assert!(check.passed);
+        assert_eq!(
+            check.detail,
+            "tmux (the shared default; omit has no launch_backend of its own)"
+        );
+    }
+
+    #[test]
+    fn stored_backend_check_without_a_proxy_fails_with_a_remedy() {
+        let why = "http://127.0.0.1:1/api/settings did not answer".to_owned();
+        let check = stored_backend_check(Err(&why));
+        assert!(!check.passed);
+        assert!(check.detail.contains(&why), "{}", check.detail);
     }
 }

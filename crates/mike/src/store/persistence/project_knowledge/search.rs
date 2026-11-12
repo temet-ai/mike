@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use serde_json::Value;
 
+use super::window::SearchWindow;
 use super::{QueryEmbedding, invalid};
 use crate::analysis::embeddings::{ScoreFloor, score_floor_for};
 use crate::search_ranking::identifiers::query_identifiers;
@@ -41,14 +42,6 @@ pub(crate) fn cut_for(model_name: &str, cut: SemanticCut) -> ScoreFloor {
     }
 }
 
-pub(crate) const TOOL_WRITTEN_OPENINGS: [&str; 5] = [
-    "A session-scoped Stop hook is now active with condition:",
-    "The tether plugin sent a message:",
-    "Perform a web search for the query:",
-    "You score how well a stand-in predicted",
-    "Coordinator wake for fleet ",
-];
-
 #[derive(Clone, Default, Deserialize)]
 pub struct KnowledgeQuery {
     #[serde(skip)]
@@ -69,6 +62,22 @@ pub struct KnowledgeQuery {
     pub include_own_turn: bool,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
+    pub since: Option<String>,
+    pub until: Option<String>,
+    pub thread: Option<String>,
+}
+
+impl KnowledgeQuery {
+    pub(crate) fn window(&self) -> Result<SearchWindow, String> {
+        SearchWindow::parse(self.since.as_deref(), self.until.as_deref())
+    }
+
+    fn thread_slug(&self) -> Option<&str> {
+        self.thread
+            .as_deref()
+            .map(str::trim)
+            .filter(|slug| !slug.is_empty())
+    }
 }
 
 struct QueryVector<'a> {
@@ -106,20 +115,22 @@ impl<'a> QueryVector<'a> {
 
 struct CallScope {
     caller: Option<uuid::Uuid>,
-    openings: Vec<String>,
     identifiers: Vec<String>,
+    thread: Option<String>,
+    window: SearchWindow,
 }
 
 impl CallScope {
-    fn of(input: &KnowledgeQuery) -> Self {
+    fn of(input: &KnowledgeQuery, window: SearchWindow) -> Self {
         Self {
+            thread: input.thread_slug().map(str::to_owned),
+            window,
             identifiers: query_identifiers(&input.query),
             caller: input
                 .caller_session
                 .as_deref()
                 .filter(|_| !input.include_own_turn)
                 .and_then(|session| uuid::Uuid::parse_str(session.trim()).ok()),
-            openings: TOOL_WRITTEN_OPENINGS.map(String::from).to_vec(),
         }
     }
 }
@@ -130,24 +141,24 @@ fn fetch_hits<'a>(
     (limit, offset): (i64, i64),
     (bound, scope): (&'a QueryVector<'_>, &'a CallScope),
 ) -> impl std::future::Future<Output = Result<Vec<Value>, sqlx::Error>> + 'a {
-    sqlx::query_file_scalar!(
-        "src/store/persistence/project_knowledge/search.sql",
-        project_id,
-        input.query,
-        input.kind,
-        input.include_historical,
-        limit,
-        offset,
-        bound.literal,
-        bound.model_keys.as_deref(),
-        bound.model_name,
-        &bound.cut_bounds(),
-        &[input.any_term, bound.nearest_first],
-        scope.caller,
-        &scope.openings,
-        &scope.identifiers,
-    )
-    .fetch_all(&mut **tx)
+    sqlx::query_scalar::<_, Value>(include_str!("search.sql"))
+        .bind(project_id)
+        .bind(&input.query)
+        .bind(&input.kind)
+        .bind(input.include_historical)
+        .bind(limit)
+        .bind(offset)
+        .bind(bound.literal)
+        .bind(bound.model_keys.as_deref())
+        .bind(bound.model_name)
+        .bind(bound.cut_bounds().to_vec())
+        .bind(vec![input.any_term, bound.nearest_first])
+        .bind(scope.caller)
+        .bind(&scope.identifiers)
+        .bind(scope.thread.as_deref())
+        .bind(scope.window.since)
+        .bind(scope.window.until)
+        .fetch_all(&mut **tx)
 }
 
 pub(crate) fn search_page(
@@ -229,6 +240,10 @@ impl PersistHandle {
         offset: i64,
         vector: Option<&QueryEmbedding>,
     ) -> Result<Vec<Value>, PersistError> {
+        let window = input.window().map_err(|refusal| invalid(&refusal))?;
+        if let Some(slug) = input.thread_slug() {
+            self.require_work_thread(project_id, slug).await?;
+        }
         let nearest_first = match vector {
             Some((_, keys, _)) => self.knowledge_nearest_first(project_id, keys).await?,
             None => false,
@@ -238,7 +253,7 @@ impl PersistHandle {
             set_vector_scan_limits(&mut tx).await?;
         }
         let bound = QueryVector::from(vector, input.semantic_cut, nearest_first);
-        let scope = CallScope::of(input);
+        let scope = CallScope::of(input, window);
         let rows = crate::metrics::time_db(
             "knowledge_search",
             fetch_hits(
@@ -251,6 +266,22 @@ impl PersistHandle {
         .await?;
         tx.commit().await?;
         Ok(rows)
+    }
+
+    async fn require_work_thread(&self, project_id: i64, slug: &str) -> Result<(), PersistError> {
+        let known: bool = sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM work.threads WHERE project_id = $1 AND slug = $2)",
+        )
+        .bind(project_id)
+        .bind(slug)
+        .fetch_one(self.pool())
+        .await?;
+        if known {
+            return Ok(());
+        }
+        Err(invalid(&format!(
+            "thread {slug:?} is not a work thread of this project; list them with work_thread_list and pass the slug"
+        )))
     }
 
     pub async fn read_project_knowledge(

@@ -215,4 +215,9 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
         scope: ToggleScope::Session,
         applies: ToggleApplies::NewSessions,
     },
+    ToggleMeta {
+        key: "wright",
+        scope: ToggleScope::Global,
+        applies: ToggleApplies::LiveDisable,
+    },
 ];

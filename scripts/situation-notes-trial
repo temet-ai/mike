@@ -1,0 +1,457 @@
+#!/usr/bin/env python3
+"""Offline trial of situation notes (temet-ai/mike#163).
+
+  scripts/situation-notes-trial [--out DIR] [--labels FILE] [--eval-set FILE] STEP...
+
+Steps, run in order (`all` runs every one):
+  sessions   find the sessions behind the answers of the 23 past-pointing prompts and the
+             45 graded searches, and behind every first-ten result of their baseline searches
+  notes      have Claude Sonnet (the `claude` CLI on the subscription) write situation notes
+             for each of those sessions, recording input and output tokens per session
+  index      embed and word-index the notes into a scratch database on the test server
+             (MIKE_TEST_ADMIN_URL) as extra entries, each pointing at its item
+  replay     replay both sets against the running mike with and without the notes
+  report     write report.md with the figures and the build/adjust/stop decision
+
+The capture database (MIKE_DATABASE_URL) is read in read-only transactions. The knowledge
+store is searched through the running mike's inspect API (MIKE_INSPECT_URL); the notes live
+only in the scratch database, so nothing here writes to the capture database.
+"""
+import argparse, concurrent.futures, json, math, os, re, statistics, subprocess, sys, tempfile, urllib.parse, urllib.request
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA = os.path.join(ROOT, "artifacts/research/session-memory-companion/data")
+INSPECT = os.environ.get("MIKE_INSPECT_URL", "http://127.0.0.1:9989").rstrip("/")
+EMBED_URL = os.environ.get("TRIAL_EMBED_URL", "http://omit:11434/v1").rstrip("/")
+RERANK_URL = os.environ.get("TRIAL_RERANK_URL", "http://omit:11435").rstrip("/")
+EMBED_MODEL, RERANK_MODEL = "embeddinggemma", "bge-reranker-v2-m3"
+QUERY_PREFIX = "task: search result | query: "
+FLOOR, WINDOW, RESCUE = 0.45, 0.12, -1.25
+POOL, NOTE_HITS, QUERY_CHARS = 50, 10, 500
+SCRATCH_DB = "situation_notes_trial"
+NOTE_PROMPT_VERSION = os.environ.get("TRIAL_PROMPT_VERSION", "per-session-v1")
+
+SYSTEM = """You write situation notes for a memory store of coding sessions. A situation note says, in one
+sentence, a future moment in which an item of this session would help someone: written in the words a
+person would use when they are in that situation, not in the item's own subject words. Start each note
+with "Useful when". Name the concrete symptom, question or task, for example "Useful when a deploy stops
+because another session's migration has not been applied to the shared database." Write notes only for
+items that hold something worth finding again: a decision, a fix, a cause found, an explanation, a status,
+a dead end. Never invent what the item does not contain. Answer with JSON only."""
+
+INSTRUCTIONS = {
+    "per-session-v1": """Write between 2 and 10 situation notes for the session below. Each note points at one item by
+its reference, exactly as written in brackets. Prefer the item that holds the answer itself.
+Answer with a JSON array only: [{"ref": "<reference>", "note": "Useful when ..."}]
+
+""",
+    "per-part-v2": """Split the session below into its parts: each separate piece of work, ticket, question, fix,
+decision or dead end. For each part write two situation notes, both pointing at the item that holds the
+part's outcome (its reference exactly as written in brackets):
+1. a return note, in the plain words of someone coming back to it days later who remembers it only
+   vaguely, naming the topic, product, ticket or tool in everyday words: "Useful when asking what happened
+   with the compressor work, or where the Keycloak upgrade ticket got to";
+2. a recurrence note, for when the same problem or question comes up again, written as the symptom:
+   "Useful when old Rust build folders are filling the disk again".
+Keep each note under 30 words and leave out the solution's details. Answer with a JSON array only:
+[{"ref": "<reference>", "note": "Useful when ..."}]
+
+""",
+}
+
+
+def env(name):
+    value = os.environ.get(name)
+    if value:
+        return value
+    with open(os.path.join(ROOT, ".env")) as handle:
+        for line in handle:
+            key, _, rest = line.strip().partition("=")
+            if key == name:
+                return rest.strip().strip('"')
+    sys.exit(f"situation-notes-trial: {name} is not set")
+
+
+def psql(url, sql, variables=None, read_only=True):
+    args = ["psql", url, "-X", "-q", "-At", "-v", "ON_ERROR_STOP=1"]
+    for key, value in (variables or {}).items():
+        args += ["-v", f"{key}={value}"]
+    if read_only:
+        sql = "SET default_transaction_read_only = on; SET statement_timeout = '30s';\n" + sql
+    done = subprocess.run(args, input=sql, capture_output=True, text=True)
+    if done.returncode:
+        sys.exit(f"situation-notes-trial: psql failed: {done.stderr.strip()}")
+    return done.stdout
+
+
+def rows(url, sql, variables=None):
+    out = psql(url, f"SELECT coalesce(json_agg(t), '[]') FROM ({sql}) t;", variables)
+    return json.loads(out)
+
+
+def http(path, params=None, body=None, base=INSPECT, timeout=120):
+    url = base + path + ("?" + urllib.parse.urlencode({k: v for k, v in params.items() if v is not None}) if params else "")
+    data = json.dumps(body).encode() if body is not None else None
+    request = urllib.request.Request(url, data=data, headers={"content-type": "application/json"})
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return json.loads(response.read())
+
+
+def canonical(ref):
+    kind, _, rest = ref.partition(":")
+    return f"thread_entry:{rest}" if kind == "entry" else ref
+
+
+def load(path):
+    with open(path) as handle:
+        return json.load(handle)
+
+
+def save(path, value):
+    with open(path, "w") as handle:
+        json.dump(value, handle, indent=1, ensure_ascii=False)
+
+
+# ---- the two sets -------------------------------------------------------------------------
+
+def cases(opts):
+    capture = env("MIKE_DATABASE_URL")
+    past = [json.loads(l) for l in open(os.path.join(DATA, "past-pointing.jsonl")) if l.strip()]
+    projects = {r["id"]: r["project_uuid"] for r in rows(capture, "SELECT id, project_uuid FROM projects.projects WHERE id = ANY(string_to_array(:'ids', ',')::bigint[])", {"ids": ",".join(str(p["project_id"]) for p in past)})}
+    out = []
+    for r in past:
+        out.append({"set": "past", "id": f"turn:{r['turn_id']}", "tool": "search_project_knowledge", "project": projects[r["project_id"]],
+                    "query": r["prompt"][:QUERY_CHARS], "kind": None, "asker": r["session_uuid"], "skip": f"turn:{r['turn_id']}",
+                    "answers": [canonical(a) for a in r["answer_refs"]]})
+    grades = load(opts.labels)
+    for r in load(opts.eval_set):
+        graded = grades.get(str(r["first_id"]), {})
+        answers = [ref for ref, grade in graded.items() if grade == 2]
+        if answers:
+            out.append({"set": "search", "id": str(r["first_id"]), "tool": r["tool"], "project": r["project"], "query": r["query"][:QUERY_CHARS],
+                        "kind": r.get("kind_filter"), "asker": None, "skip": None, "answers": answers, "grades": graded})
+    return out
+
+
+def search(case, order=None, limit=POOL):
+    if case["tool"] == "recall_similar_turns":
+        body = {"project": case["project"], "query": case["query"], "limit": limit}
+        if order:
+            body["order"] = order
+        data = http("/api/recall/similar-turns", body=body)
+        items = [{"reference": f"turn:{t['turn_id']}", "rerank_score": t.get("rerank_score"), "session_uuid": t.get("session_id"), "identifier_hits": 0} for t in data.get("turns") or []]
+    else:
+        data = http("/api/knowledge/search", {"project": case["project"], "query": case["query"], "kind": case["kind"], "limit": limit, "order": order, "detail": "full"})
+        items = [{"reference": i["reference"], "rerank_score": i.get("rerank_score"), "identifier_hits": i.get("identifier_hits") or 0,
+                  "session_uuid": (i.get("provenance") or {}).get("session_uuid") or (i.get("author") or {}).get("session_uuid")} for i in data.get("items") or []]
+    items = [i for i in items if i["reference"] != case["skip"]]
+    return items, (data.get("rerank") or {}).get("state")
+
+
+# ---- step: sessions -------------------------------------------------------------------------
+
+SESSION_OF = """
+WITH r AS (SELECT split_part(x, ':', 1) AS kind, split_part(x, ':', 2) AS id, x AS ref FROM unnest(string_to_array(:'refs', ' ')) x)
+SELECT r.ref, s.session_uuid::text AS session_uuid FROM r
+JOIN memory.operator_turns t ON r.kind = 'turn' AND t.id = r.id::bigint JOIN sessions.sessions s ON s.id = t.session_id
+UNION ALL SELECT r.ref, m_s.session_uuid::text FROM r JOIN mailbox.messages m ON r.kind = 'mail' AND m.message_uuid::text = r.id JOIN sessions.sessions m_s ON m_s.id = m.from_session_id
+UNION ALL SELECT r.ref, l.session_uuid::text FROM r JOIN work.thread_log l ON r.kind = 'thread_entry' AND l.id = r.id::bigint WHERE l.session_uuid IS NOT NULL
+UNION ALL SELECT r.ref, n_s.session_uuid::text FROM r JOIN workspace.session_notes n ON r.kind = 'note' AND n.note_uuid::text = r.id JOIN sessions.sessions n_s ON n_s.id = n.session_id
+UNION ALL SELECT r.ref, v_s.session_uuid::text FROM r JOIN memory.turn_verdicts v ON r.kind IN ('unmet_ask', 'correction') AND v.id = r.id::bigint JOIN sessions.sessions v_s ON v_s.id = v.session_id
+UNION ALL SELECT r.ref, r.id FROM r WHERE r.kind IN ('session', 'learning')
+"""
+
+
+def step_sessions(opts):
+    capture = env("MIKE_DATABASE_URL")
+    all_cases, baseline = cases(opts), {}
+    for case in all_cases:
+        ranked, state = search(case)
+        pool, _ = search(case, order="recent")
+        baseline[case["set"] + ":" + case["id"]] = {"ranked": ranked, "pool": pool, "rerank_state": state}
+        print(f"baseline {case['set']} {case['id']}: {len(ranked)} ranked, {len(pool)} in pool, rerank {state}", file=sys.stderr)
+    refs = set()
+    for case in all_cases:
+        refs.update(case["answers"])
+        refs.update(i["reference"] for i in baseline[case["set"] + ":" + case["id"]]["ranked"][:10])
+    mapped = rows(capture, SESSION_OF, {"refs": " ".join(sorted(refs))})
+    by_ref = {m["ref"]: m["session_uuid"] for m in mapped}
+    for b in baseline.values():
+        for item in b["ranked"] + b["pool"]:
+            if item.get("session_uuid"):
+                by_ref.setdefault(item["reference"], item["session_uuid"])
+    askers = {c["asker"] for c in all_cases if c["asker"]}
+    answer_sessions = sorted({by_ref[a] for c in all_cases for a in c["answers"] if a in by_ref} - askers)
+    rival_sessions = sorted({by_ref[i["reference"]] for c in all_cases for i in baseline[c["set"] + ":" + c["id"]]["ranked"][:10] if i["reference"] in by_ref} - askers - set(answer_sessions))
+    save(os.path.join(opts.out, "cases.json"), all_cases)
+    save(os.path.join(opts.out, "baseline.json"), baseline)
+    save(os.path.join(opts.out, "sessions.json"), {"answer_sessions": answer_sessions, "rival_sessions": rival_sessions, "ref_session": by_ref})
+    print(f"sessions: {len(answer_sessions)} behind answers, {len(rival_sessions)} more behind first-ten results")
+
+
+# ---- step: notes -------------------------------------------------------------------------
+
+SESSION_INPUT = """
+WITH s AS (SELECT id, session_uuid, coalesce(title, '') AS title, coalesce(overview, '') AS overview FROM sessions.sessions WHERE session_uuid = :'session'::uuid)
+SELECT 'session' AS kind, s.session_uuid::text AS ref, s.title AS head, s.overview AS body, NULL::timestamptz AS at FROM s
+UNION ALL SELECT 'turn', 'turn:' || t.id, left(coalesce(t.user_prompt, ''), 700), left(coalesce(t.final_assistant_text, ''), 1400), t.created_at
+  FROM memory.operator_turns t JOIN s ON t.session_id = s.id WHERE coalesce(t.opened_by, 'operator') = 'operator'
+UNION ALL SELECT 'mail', 'mail:' || m.message_uuid, '', left(m.body, 700), m.queued_at FROM mailbox.messages m JOIN s ON m.from_session_id = s.id
+UNION ALL SELECT 'thread_entry', 'thread_entry:' || l.id, l.summary, left(l.body, 700), l.created_at FROM work.thread_log l JOIN s ON l.session_uuid = s.session_uuid
+UNION ALL SELECT 'note', 'note:' || n.note_uuid, n.title, left(n.body, 500), n.created_at FROM workspace.session_notes n JOIN s ON n.session_id = s.id WHERE n.kind <> 'brief'
+ORDER BY at NULLS FIRST
+"""
+
+MAX_INPUT_CHARS = 60000
+
+
+def session_text(capture, session):
+    items = rows(capture, SESSION_INPUT, {"session": session})
+    if not items:
+        return None, []
+    head, refs, parts = items[0], [], []
+    parts.append(f"Session title: {head['head'] or '(none)'}\nSession overview: {head['body'] or '(none)'}\n")
+    for item in items[1:]:
+        block = f"[{item['ref']}] ({item['kind']}, {str(item['at'])[:10]})\n"
+        if item["kind"] == "turn":
+            block += f"Operator: {item['head']}\nAssistant: {item['body']}\n"
+        else:
+            block += (item["head"] + "\n" if item["head"] else "") + item["body"] + "\n"
+        if sum(len(p) for p in parts) + len(block) > MAX_INPUT_CHARS:
+            break
+        parts.append(block)
+        refs.append(item["ref"])
+    return "\n".join(parts), refs
+
+
+def write_notes(capture, session, workdir):
+    text, refs = session_text(capture, session)
+    if not refs:
+        return {"session": session, "notes": [], "error": "no items", "usage": None}
+    command = ["claude", "-p", "--model", "sonnet", "--output-format", "json", "--tools", "", "--strict-mcp-config", "--setting-sources", "",
+               "--no-session-persistence", "--system-prompt", SYSTEM]
+    child_env = {k: v for k, v in os.environ.items() if k not in ("ANTHROPIC_BASE_URL", "CLAUDE_CODE_SESSION_ID")}
+    for attempt in range(2):
+        done = subprocess.run(command, input=INSTRUCTIONS[NOTE_PROMPT_VERSION] + text, capture_output=True, text=True, cwd=workdir, env=child_env, timeout=600)
+        try:
+            answer = json.loads(done.stdout)
+            result = answer.get("result") or ""
+            notes = json.loads(result[result.index("["):result.rindex("]") + 1])
+            allowed = set(refs)
+            kept = [{"ref": n["ref"], "note": n["note"].strip()} for n in notes if n.get("ref") in allowed and n.get("note")]
+            return {"session": session, "notes": kept, "dropped": len(notes) - len(kept), "usage": answer.get("usage"), "cost_usd": answer.get("total_cost_usd"),
+                    "input_chars": len(text), "prompt_version": NOTE_PROMPT_VERSION}
+        except (ValueError, KeyError, TypeError) as error:
+            last = f"{error}: {done.stdout[-300:]} {done.stderr[-300:]}"
+    return {"session": session, "notes": [], "error": last, "usage": None}
+
+
+def step_notes(opts):
+    capture = env("MIKE_DATABASE_URL")
+    sessions = load(os.path.join(opts.out, "sessions.json"))
+    wanted = sessions["answer_sessions"] + sessions["rival_sessions"]
+    path = os.path.join(opts.out, f"notes-{NOTE_PROMPT_VERSION}.jsonl")
+    done = {json.loads(l)["session"] for l in open(path)} if os.path.exists(path) else set()
+    todo = [s for s in wanted if s not in done]
+    print(f"notes: {len(done)} sessions already written, {len(todo)} to write", file=sys.stderr)
+    with tempfile.TemporaryDirectory() as workdir, open(path, "a") as sink, concurrent.futures.ThreadPoolExecutor(opts.parallel) as pool:
+        for result in pool.map(lambda s: write_notes(capture, s, workdir), todo):
+            sink.write(json.dumps(result, ensure_ascii=False) + "\n")
+            sink.flush()
+            print(f"  {result['session']}: {len(result['notes'])} notes {result.get('error', '')}", file=sys.stderr)
+
+
+# ---- step: index -------------------------------------------------------------------------
+
+def embed(texts):
+    vectors = []
+    for start in range(0, len(texts), 32):
+        data = http("/embeddings", body={"model": EMBED_MODEL, "input": texts[start:start + 32]}, base=EMBED_URL)
+        vectors += [d["embedding"] for d in sorted(data["data"], key=lambda d: d["index"])]
+    return vectors
+
+
+def scratch_url():
+    admin = env("MIKE_TEST_ADMIN_URL")
+    return admin.rsplit("/", 1)[0] + "/" + SCRATCH_DB, admin
+
+
+def step_index(opts):
+    url, admin = scratch_url()
+    exists = psql(admin, f"SELECT 1 FROM pg_database WHERE datname = '{SCRATCH_DB}'", read_only=False).strip()
+    if not exists:
+        psql(admin, f"CREATE DATABASE {SCRATCH_DB}", read_only=False)
+    psql(url, """CREATE EXTENSION IF NOT EXISTS vector;
+CREATE TABLE IF NOT EXISTS situation_notes (id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, prompt_version text NOT NULL, session_uuid uuid NOT NULL,
+  ref text NOT NULL, note text NOT NULL, search_tsv tsvector GENERATED ALWAYS AS (to_tsvector('english', note)) STORED, embedding vector(768) NOT NULL);
+CREATE INDEX IF NOT EXISTS situation_notes_search_tsv ON situation_notes USING gin (search_tsv);""", read_only=False)
+    psql(url, f"DELETE FROM situation_notes WHERE prompt_version = '{NOTE_PROMPT_VERSION}'", read_only=False)
+    path = os.path.join(opts.out, f"notes-{NOTE_PROMPT_VERSION}.jsonl")
+    notes = [(r["session"], n["ref"], n["note"]) for r in map(json.loads, open(path)) for n in r["notes"]]
+    vectors = embed([f"title: note: {ref.split(':')[0]} | text: {note}" for _, ref, note in notes])
+    with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as handle:
+        import csv
+        writer = csv.writer(handle)
+        for (session, ref, note), vector in zip(notes, vectors):
+            writer.writerow([NOTE_PROMPT_VERSION, session, ref, note, "[" + ",".join(f"{x:.7g}" for x in vector) + "]"])
+        name = handle.name
+    psql(url, f"\\copy situation_notes (prompt_version, session_uuid, ref, note, embedding) FROM '{name}' WITH (FORMAT csv)", read_only=False)
+    os.unlink(name)
+    print(f"index: {len(notes)} notes in {SCRATCH_DB}")
+
+
+# ---- step: replay -------------------------------------------------------------------------
+
+NOTE_SEARCH = """
+WITH q AS (SELECT websearch_to_tsquery('english', :'query') AS w, :'vector'::vector AS v),
+lex AS (SELECT n.id, row_number() OVER (ORDER BY ts_rank_cd(n.search_tsv, to_tsquery('english', replace(q.w::text, '&', '|'))) DESC) AS rank
+        FROM situation_notes n, q WHERE n.prompt_version = :'version' AND n.session_uuid::text <> :'asker' AND q.w::text <> ''
+          AND n.search_tsv @@ to_tsquery('english', replace(q.w::text, '&', '|')) LIMIT 50),
+sem AS (SELECT n.id, 1 - (n.embedding <=> q.v) AS score FROM situation_notes n, q WHERE n.prompt_version = :'version' AND n.session_uuid::text <> :'asker'
+        ORDER BY n.embedding <=> q.v LIMIT 50),
+sem_kept AS (SELECT id, row_number() OVER (ORDER BY score DESC) AS rank FROM sem WHERE score >= :floor AND score >= (SELECT max(score) FROM sem) - :window),
+fused AS (SELECT id, sum(1.0 / (60 + rank)) AS score FROM (SELECT * FROM lex UNION ALL SELECT * FROM sem_kept) x GROUP BY id)
+SELECT n.ref, n.note, n.session_uuid::text AS session_uuid, f.score FROM fused f JOIN situation_notes n ON n.id = f.id ORDER BY f.score DESC
+"""
+
+
+def note_hits(case, vector):
+    url, _ = scratch_url()
+    hits = rows(url, NOTE_SEARCH, {"query": case["query"], "vector": "[" + ",".join(f"{x:.7g}" for x in vector) + "]", "version": NOTE_PROMPT_VERSION,
+                                    "asker": case["asker"] or "", "floor": FLOOR, "window": WINDOW})
+    items, seen = [], set()
+    for hit in hits:
+        ref = hit["ref"]
+        if ref in seen or ref == case["skip"] or (case["tool"] == "recall_similar_turns" and not ref.startswith("turn:")):
+            continue
+        if case["kind"] and not ref.startswith(case["kind"] + ":"):
+            continue
+        seen.add(ref)
+        items.append(hit)
+        if len(items) == NOTE_HITS:
+            break
+    return items
+
+
+def passage(case, ref):
+    try:
+        data = http("/api/knowledge/read", {"reference": ref, "project": case["project"]})
+    except Exception:
+        return ref
+    text = json.dumps(data.get("knowledge", data), ensure_ascii=False)
+    words = set(re.findall(r"\w+", case["query"].lower()))
+    best, best_score = text[:600], -1
+    for start in range(0, max(1, len(text) - 600), 150):
+        window = text[start:start + 600]
+        score = len(words & set(re.findall(r"\w+", window.lower())))
+        if score > best_score:
+            best, best_score = window, score
+    return best
+
+
+def rerank(query, documents):
+    if not documents:
+        return []
+    data = http("/v1/rerank", body={"model": RERANK_MODEL, "query": query[:600], "documents": [d[:600] for d in documents]}, base=RERANK_URL)
+    scores = [None] * len(documents)
+    for r in data["results"]:
+        scores[r["index"]] = r["relevance_score"]
+    return scores
+
+
+def with_notes(case, base, hits):
+    have = {i["reference"] for i in base["ranked"]}
+    added = [h for h in hits if h["ref"] not in have]
+    scores = rerank(case["query"], [passage(case, h["ref"]) for h in added])
+    ranked = [dict(i) for i in base["ranked"]]
+    kept = sorted(((s, h) for h, s in zip(added, scores) if s is not None and s >= RESCUE), key=lambda pair: -pair[0])
+    for score, hit in kept:
+        at = next((n for n, i in enumerate(ranked) if not i.get("identifier_hits") and (i["rerank_score"] is None or i["rerank_score"] < score)), len(ranked))
+        ranked.insert(at, {"reference": hit["ref"], "rerank_score": score, "identifier_hits": 0, "via_note": hit["note"]})
+    pool = [i["reference"] for i in base["pool"]] + [h["ref"] for h in hits if h["ref"] not in {i["reference"] for i in base["pool"]}]
+    return ranked, pool
+
+
+def measure(case, ranked, pool):
+    refs = [i["reference"] for i in ranked]
+    if case["set"] == "past":
+        answers = set(case["answers"])
+        return {"candidate": bool(answers & (set(pool) | set(refs))), "top10": bool(answers & set(refs[:10])), "first": bool(refs and refs[0] in answers)}
+    grades = case["grades"]
+    return {"candidate": any(grades.get(r) == 2 for r in set(pool) | set(refs)), "top10": any(grades.get(r) == 2 for r in refs[:10]),
+            "first": bool(refs and grades.get(refs[0]) == 2), "ungraded_top10": [r for r in refs[:10] if r not in grades]}
+
+
+def step_replay(opts):
+    all_cases = load(os.path.join(opts.out, "cases.json"))
+    baseline = load(os.path.join(opts.out, "baseline.json"))
+    vectors = embed([QUERY_PREFIX + c["query"] for c in all_cases])
+    results = []
+    for case, vector in zip(all_cases, vectors):
+        base = baseline[case["set"] + ":" + case["id"]]
+        hits = note_hits(case, vector)
+        ranked, pool = with_notes(case, base, hits)
+        results.append({"set": case["set"], "id": case["id"], "query": case["query"][:200], "answers": case["answers"],
+                        "without": measure(case, base["ranked"], [i["reference"] for i in base["pool"]]), "with": measure(case, ranked, pool),
+                        "note_hits": [{"ref": h["ref"], "note": h["note"], "is_answer": h["ref"] in case["answers"] or case.get("grades", {}).get(h["ref"]) == 2} for h in hits],
+                        "first_ten_with": [{"reference": i["reference"], "via_note": i.get("via_note")} for i in ranked[:10]]})
+        print(f"replay {case['set']} {case['id']}: without {results[-1]['without']} with {results[-1]['with']}", file=sys.stderr)
+    save(os.path.join(opts.out, f"replay-{NOTE_PROMPT_VERSION}.json"), results)
+
+
+# ---- step: report -------------------------------------------------------------------------
+
+def step_report(opts):
+    results = load(os.path.join(opts.out, f"replay-{NOTE_PROMPT_VERSION}.json"))
+    notes = [json.loads(l) for l in open(os.path.join(opts.out, f"notes-{NOTE_PROMPT_VERSION}.jsonl"))]
+    count = lambda subset, arm, key: sum(1 for r in results if r["set"] == subset and r[arm][key])
+    past_n = sum(1 for r in results if r["set"] == "past")
+    search_n = sum(1 for r in results if r["set"] == "search")
+    usage = [n["usage"] for n in notes if n.get("usage")]
+    tokens_in = [u["input_tokens"] + u.get("cache_creation_input_tokens", 0) + u.get("cache_read_input_tokens", 0) for u in usage]
+    tokens_out = [u["output_tokens"] for u in usage]
+    cost = [n["cost_usd"] for n in notes if n.get("cost_usd") is not None]
+    past_top10 = count("past", "with", "top10")
+    first_loss = count("search", "without", "first") - count("search", "with", "first")
+    if past_top10 >= 6 and first_loss <= 2:
+        decision = "build"
+    elif first_loss > 2:
+        decision = "stop"
+    elif past_top10 > count("past", "without", "top10") or count("past", "with", "candidate") > count("past", "without", "candidate"):
+        decision = "adjust" if NOTE_PROMPT_VERSION == "per-session-v1" else "stop"
+    else:
+        decision = "stop"
+    lines = [f"# Situation-notes trial ({NOTE_PROMPT_VERSION})", "",
+             f"Past-pointing prompts ({past_n}): answer among candidates {count('past', 'without', 'candidate')} without notes, {count('past', 'with', 'candidate')} with; "
+             f"in the first ten {count('past', 'without', 'top10')} without, {past_top10} with; first {count('past', 'without', 'first')} without, {count('past', 'with', 'first')} with.",
+             f"Graded searches ({search_n}): a grade-2 result first {count('search', 'without', 'first')} without notes, {count('search', 'with', 'first')} with "
+             f"(in the first ten {count('search', 'without', 'top10')} and {count('search', 'with', 'top10')}).",
+             f"Note writing: {len(notes)} sessions, {sum(len(n['notes']) for n in notes)} notes; per session median input {statistics.median(tokens_in) if tokens_in else 0:.0f} tokens, "
+             f"output {statistics.median(tokens_out) if tokens_out else 0:.0f} tokens, mean {sum(tokens_in) / max(1, len(tokens_in)):.0f} in and {sum(tokens_out) / max(1, len(tokens_out)):.0f} out; "
+             f"cost at API prices median ${statistics.median(cost) if cost else 0:.4f} per session, x75 sessions a day = ${75 * (sum(cost) / max(1, len(cost))):.2f} a day.",
+             f"Decision against the thresholds set in #163 (build: first ten >= 6 of 23 with notes and answer-first loss <= 2): **{decision}**.", "",
+             "| Set | Row | Candidate | First ten | First | Notes that matched (answer?) |", "|---|---|---|---|---|---|"]
+    for r in results:
+        cell = lambda key: f"{int(r['without'][key])}->{int(r['with'][key])}"
+        lines.append(f"| {r['set']} | {r['id']} | {cell('candidate')} | {cell('top10')} | {cell('first')} | {sum(1 for h in r['note_hits'] if h['is_answer'])}/{len(r['note_hits'])} |")
+    with open(os.path.join(opts.out, f"report-{NOTE_PROMPT_VERSION}.md"), "w") as handle:
+        handle.write("\n".join(lines) + "\n")
+    print("\n".join(lines[:6]))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--out", default=os.path.join(ROOT, "artifacts/research/situation-notes-trial"))
+    parser.add_argument("--labels", default=os.path.join(ROOT, "artifacts/research/situation-notes-trial/inputs/labels_v2.json"))
+    parser.add_argument("--eval-set", default=os.path.join(ROOT, "artifacts/research/situation-notes-trial/inputs/eval_set.json"))
+    parser.add_argument("--parallel", type=int, default=6)
+    parser.add_argument("steps", nargs="+", choices=["sessions", "notes", "index", "replay", "report", "all"])
+    opts = parser.parse_args()
+    os.makedirs(opts.out, exist_ok=True)
+    steps = ["sessions", "notes", "index", "replay", "report"] if "all" in opts.steps else opts.steps
+    for step in steps:
+        globals()["step_" + step](opts)
+
+
+if __name__ == "__main__":
+    main()

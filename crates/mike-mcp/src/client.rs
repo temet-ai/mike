@@ -15,6 +15,7 @@ mod semantic;
 mod session_verdicts;
 mod steer_questions;
 mod steering_evaluations;
+mod supplied;
 mod turn_verdicts;
 pub(crate) use config_history::ConfigChangesQuery;
 pub(crate) use eval_bundles::BundlesQuery;

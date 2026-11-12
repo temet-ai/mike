@@ -12,6 +12,7 @@ use crate::store::persistence::capture_classification::classify_author_kind;
 
 use super::attribution;
 use super::capture_prep::{self, CapturePrepInputs, CapturePrepOutcome};
+use CaptureAndRegisterOutcome as Outcome;
 
 pub(super) struct CaptureAndRegisterArgs<'a> {
     pub(super) state: &'a AppState,
@@ -47,6 +48,40 @@ pub(super) enum CaptureAndRegisterOutcome {
     EarlyResponse(axum::response::Response),
 }
 
+fn lesson_labels(
+    signals: &RequestSignals,
+    body: &bytes::Bytes,
+    manifest: &mut crate::compress::manifest::ManifestBuilder,
+) -> (&'static str, Option<String>, Vec<i64>) {
+    let lane = if matches!(signals.turn_origin, TurnOrigin::Subagent) {
+        "subagent"
+    } else {
+        "primary"
+    };
+    let mod_lessons = crate::lesson_delivery::label_mod_lessons(body, manifest);
+    (lane, signals.subagent_persona.clone(), mod_lessons)
+}
+
+fn spawn_supply_records(
+    state: &AppState,
+    request_id: RequestId,
+    session_id: &str,
+    (original, sent): (&bytes::Bytes, &bytes::Bytes),
+    proxy_lessons: &[i64],
+) {
+    crate::lesson_delivery::supplied::spawn_supply_records(
+        state,
+        crate::lesson_delivery::supplied::SupplyCapture {
+            request_id,
+            session_id,
+            original,
+            sent,
+            proxy_lessons,
+        },
+    );
+    spawn_mail_consumption(state, session_id, original.clone());
+}
+
 pub(super) async fn capture_and_register(
     args: CaptureAndRegisterArgs<'_>,
 ) -> Result<CaptureAndRegisterOutcome, ProxyError> {
@@ -70,13 +105,8 @@ pub(super) async fn capture_and_register(
         injected_reminders,
     } = args;
 
-    let lesson_injection_lane = if matches!(signals.turn_origin, TurnOrigin::Subagent) {
-        "subagent"
-    } else {
-        "primary"
-    };
-    let lesson_injection_persona = signals.subagent_persona.clone();
-    let mod_lesson_ids = crate::lesson_delivery::label_mod_lessons(body_bytes, &mut manifest);
+    let (lesson_injection_lane, lesson_injection_persona, mod_lesson_ids) =
+        lesson_labels(&signals, body_bytes, &mut manifest);
 
     let CapturePrepOutcome {
         mut intercepted,
@@ -110,6 +140,13 @@ pub(super) async fn capture_and_register(
     let request_id =
         capture::insert_stub_and_mint_id(&state.store, &mut intercepted, is_new_session).await;
 
+    spawn_supply_records(
+        state,
+        request_id,
+        &session_id,
+        (body_bytes, upstream_body),
+        &injected_lesson_ids,
+    );
     run_post_mint_attribution(PostMintAttributionArgs {
         state,
         request_id,
@@ -127,8 +164,6 @@ pub(super) async fn capture_and_register(
     })
     .await;
 
-    spawn_mail_consumption(state, &session_id, body_bytes.clone());
-
     let in_flight_guard = match finish_capture_and_register(CaptureFinishArgs {
         state,
         request_id,
@@ -141,20 +176,18 @@ pub(super) async fn capture_and_register(
     {
         CaptureFinishOutcome::Registered(guard) => guard,
         CaptureFinishOutcome::EarlyResponse(response) => {
-            return Ok(CaptureAndRegisterOutcome::EarlyResponse(response));
+            return Ok(Outcome::EarlyResponse(response));
         }
     };
 
-    Ok(CaptureAndRegisterOutcome::Registered(
-        CapturedPipelineTail {
-            request_id,
-            session_id,
-            project_path,
-            streaming_model,
-            injected_reminders,
-            in_flight_guard,
-        },
-    ))
+    Ok(Outcome::Registered(CapturedPipelineTail {
+        request_id,
+        session_id,
+        project_path,
+        streaming_model,
+        injected_reminders,
+        in_flight_guard,
+    }))
 }
 
 fn spawn_mail_consumption(state: &AppState, session_id: &str, request_body: bytes::Bytes) {

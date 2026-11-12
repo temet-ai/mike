@@ -149,6 +149,9 @@ async fn dispatch_judgement_tools(
     if improvement::owns(name) {
         return improvement::call_tool(client, name, arguments).await;
     }
+    if super::supplied::owns(name) {
+        return super::supplied::call_tool(client, name, arguments).await;
+    }
     dispatch_eval_tools(client, name, arguments).await
 }
 

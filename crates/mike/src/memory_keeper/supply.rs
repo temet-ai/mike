@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-use super::arm::{KeeperArm, arm_for};
+use super::arm::{KEEPER_CONTROL_PERCENT, KeeperArm, arm_for};
 use super::block::{Block, render};
 use super::resolve::{Resolution, ResolveInput, SessionFacts, resolve};
 use super::snapshot::KeeperSnapshot;
@@ -46,6 +46,10 @@ pub(crate) struct SupplyRecord {
     pub(crate) arm: KeeperArm,
     pub(crate) resolution: &'static str,
     pub(crate) signals: Value,
+    pub(crate) block_hash: Option<String>,
+    pub(crate) card_text: Option<String>,
+    pub(crate) score: Option<f64>,
+    pub(crate) chance: f64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -98,6 +102,10 @@ pub(crate) fn supply(snapshot: &KeeperSnapshot, request: &SupplyRequest<'_>) -> 
         arm,
         resolution: resolution_name(&resolution),
         signals: signals_json(&resolution),
+        block_hash: block.as_ref().map(|b| b.hash.clone()),
+        card_text: block.as_ref().map(|b| b.text.clone()),
+        score: best_score(&resolution),
+        chance: keeper_chance(),
     };
     Supply {
         block,
@@ -109,6 +117,18 @@ fn single_slug(resolution: &Resolution) -> Option<String> {
     match resolution {
         Resolution::One(pick) => Some(pick.slug.clone()),
         Resolution::Several(_) | Resolution::None => None,
+    }
+}
+
+pub(crate) fn keeper_chance() -> f64 {
+    f64::from(100 - KEEPER_CONTROL_PERCENT) / 100.0
+}
+
+fn best_score(resolution: &Resolution) -> Option<f64> {
+    match resolution {
+        Resolution::One(pick) => Some(pick.score),
+        Resolution::Several(picks) => picks.iter().map(|p| p.score).reduce(f64::max),
+        Resolution::None => None,
     }
 }
 

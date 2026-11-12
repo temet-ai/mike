@@ -140,14 +140,29 @@ fn effort(value: &Option<String>, item: &str, found: &mut Vec<Missing>) {
 }
 
 fn runtime_model(
-    runtime: crate::runtime::RuntimeKind,
-    name: &str,
+    worker: &super::definition::WorkerDefinition,
     path: &str,
     found: &mut Vec<Missing>,
 ) {
-    match runtime.ensure_managed_launch_supported() {
-        Ok(()) => model(name, &format!("{path}.model"), found),
-        Err(error) => found.push(Missing::new(format!("{path}.runtime"), error.to_string())),
+    use crate::launch::codex;
+    use crate::runtime::RuntimeKind;
+    match worker.runtime {
+        RuntimeKind::Claude => {
+            model(&worker.model, &format!("{path}.model"), found);
+            effort(&worker.effort, path, found);
+        }
+        RuntimeKind::Codex => {
+            let problems = [
+                ("model", codex::model_problem(&worker.model)),
+                ("effort", codex::effort_problem(worker.effort.as_deref())),
+                ("agent", codex::agent_problem(&worker.agent)),
+            ];
+            for (field, problem) in problems {
+                if let Some(problem) = problem {
+                    found.push(Missing::new(format!("{path}.{field}"), problem));
+                }
+            }
+        }
     }
 }
 
@@ -156,13 +171,7 @@ fn workers(def: &FleetDefinition, found: &mut Vec<Missing>) {
         found.push(Missing::new("workers", "no discipline has workers"));
     }
     for (discipline, worker) in &def.workers {
-        runtime_model(
-            worker.runtime,
-            &worker.model,
-            &format!("workers.{discipline}"),
-            found,
-        );
-        effort(&worker.effort, &format!("workers.{discipline}"), found);
+        runtime_model(worker, &format!("workers.{discipline}"), found);
     }
 }
 

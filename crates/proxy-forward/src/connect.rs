@@ -74,8 +74,28 @@ async fn serve_tunnel_leg(
     target: &ConnectTarget,
     leftover_bytes: usize,
 ) -> Result<(), ForwardError> {
-    tracing::info!(host = %target.host, port = target.port, leftover_bytes, "CONNECT → blind tunnel (NOT captured)");
+    if is_uncaptured_model_host(&target.host) {
+        warn_uncaptured_model_tunnel(target);
+    } else {
+        log_blind_tunnel(target, leftover_bytes);
+    }
     tunnel::blind(client, &target.host, target.port).await
+}
+
+fn warn_uncaptured_model_tunnel(target: &ConnectTarget) {
+    tracing::warn!(host = %target.host, port = target.port, "CONNECT → blind tunnel to an OpenAI model host: Codex traffic through this sidecar is NOT captured; start Codex with `cdx` so it reaches mike's /codex route");
+}
+
+fn log_blind_tunnel(target: &ConnectTarget, leftover_bytes: usize) {
+    tracing::info!(host = %target.host, port = target.port, leftover_bytes, "CONNECT → blind tunnel (NOT captured)");
+}
+
+const UNCAPTURED_MODEL_HOSTS: &[&str] = &["api.openai.com", "chatgpt.com"];
+
+pub(crate) fn is_uncaptured_model_host(host: &str) -> bool {
+    UNCAPTURED_MODEL_HOSTS
+        .iter()
+        .any(|known| host.eq_ignore_ascii_case(known))
 }
 
 fn is_intercept_host(host: &str, intercept_host: &str) -> bool {
@@ -299,6 +319,14 @@ mod tests {
             "a non-intercept host must NOT route to MITM"
         );
         Ok(())
+    }
+
+    #[test]
+    fn openai_model_hosts_are_flagged_as_uncaptured_tunnels() {
+        assert!(is_uncaptured_model_host("api.openai.com"));
+        assert!(is_uncaptured_model_host("ChatGPT.com"));
+        assert!(!is_uncaptured_model_host("api.anthropic.com"));
+        assert!(!is_uncaptured_model_host("example.com"));
     }
 
     #[test]

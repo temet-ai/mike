@@ -92,7 +92,8 @@ fn log_composition_fetch_error(
 
 pub(crate) fn build_verdict_system_prompt() -> String {
     "You are a session grounding assistant. Your job is to assess whether a Claude Code session \
-     has drifted from its current thread anchor (the worklog's State of play + Next steps). \
+     has drifted from its current work thread, anchored on the thread's latest checkpoint \
+     (where it stands and what is next up). \
      \n\nAssess the session's last turn against the anchor. Return a JSON verdict:\n\
      - drifting: true if the session is working on something not in Next steps\n\
      - confidence: 0.0–1.0 confidence in your drift assessment\n\
@@ -118,6 +119,14 @@ mod tests {
         let prompt = build_verdict_system_prompt();
         assert!(!prompt.is_empty());
         assert!(prompt.contains("drift"));
+    }
+
+    #[test]
+    fn verdict_system_prompt_names_the_work_thread_checkpoint_not_a_worklog() {
+        let prompt = build_verdict_system_prompt();
+        assert!(prompt.contains("work thread"));
+        assert!(prompt.contains("checkpoint"));
+        assert!(!prompt.to_lowercase().contains("worklog"));
     }
 
     #[tokio::test]

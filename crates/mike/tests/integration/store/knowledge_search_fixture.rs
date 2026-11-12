@@ -55,7 +55,9 @@ impl Fixture {
         )
         .await?;
         Ok(sqlx::query_scalar(
-            "UPDATE memory.operator_turns SET user_prompt = $2, final_assistant_text = $3
+            "UPDATE memory.operator_turns SET user_prompt = $2, final_assistant_text = $3,
+                    opened_by = CASE WHEN $2 ~ '^\\s*(A session-scoped Stop hook is now active with condition:|The [A-Za-z0-9_.-]+ plugin sent a message:|Perform a web search for the query:|You score how well a stand-in predicted|Coordinator wake for fleet )'
+                                     THEN 'machine' ELSE opened_by END
               WHERE id = (SELECT max(id) FROM memory.operator_turns
                            WHERE session_id = $1 AND user_prompt IS NULL)
           RETURNING id",

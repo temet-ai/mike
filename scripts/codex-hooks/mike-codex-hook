@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# mike-codex-hook — forward one Codex hook delivery to mike, observe-only.
+#
+# Codex runs this with the hook payload (JSON) on stdin. It posts the bytes unchanged to
+# mike's /api/codex/observe/hooks and prints nothing, so it never blocks, allows or edits
+# what Codex does: mike observes sessions it did not launch and claims no control of them.
+# It always exits 0. When mike is down the delivery is appended to a spool file and sent
+# on the next call, oldest first, under the same delivery id so a replay is recognised.
+#
+# Environment:
+#   MIKE_INSPECT_URL       mike's inspect bind (default http://127.0.0.1:9989)
+#   MIKE_CODEX_SOURCE      a label for this machine or Codex home (default: hostname)
+#   MIKE_CODEX_SPOOL_DIR   where undelivered payloads wait (default ${XDG_STATE_HOME:-~/.local/state}/mike/codex-hooks)
+#   MIKE_CODEX_HOOK_TIMEOUT seconds per post (default 2; keep it under the hook's own timeout)
+set -u
+url="${MIKE_INSPECT_URL:-http://127.0.0.1:9989}/api/codex/observe/hooks"
+source_label="${MIKE_CODEX_SOURCE:-$(hostname 2>/dev/null || echo unknown)}"
+spool="${MIKE_CODEX_SPOOL_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/mike/codex-hooks}"
+timeout_s="${MIKE_CODEX_HOOK_TIMEOUT:-2}"
+version="$(codex --version 2>/dev/null | awk '{print $NF}')"
+
+new_id() {
+  if [ -r /proc/sys/kernel/random/uuid ]; then cat /proc/sys/kernel/random/uuid
+  else uuidgen | tr 'A-Z' 'a-z'; fi
+}
+
+post() {
+  curl -fsS -o /dev/null --max-time "$timeout_s" -X POST "$url" \
+    -H 'content-type: application/json' \
+    -H "x-mike-codex-source: $source_label" \
+    -H "x-mike-codex-version: $version" \
+    -H "x-mike-delivery-id: $1" \
+    --data-binary @"$2" 2>/dev/null
+}
+
+mkdir -p "$spool" 2>/dev/null || exit 0
+id="$(new_id)"
+body="$spool/$(date +%s)-$id.json"
+cat > "$body"
+
+for queued in $(ls "$spool"/*.json 2>/dev/null | sort); do
+  queued_id="$(basename "$queued" .json)"
+  queued_id="${queued_id#*-}"
+  if post "$queued_id" "$queued"; then
+    rm -f "$queued"
+  else
+    break
+  fi
+done
+exit 0

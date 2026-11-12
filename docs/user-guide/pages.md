@@ -18,6 +18,7 @@ The menu on the left groups the pages as Overview, Levers, Insight and System. P
 | A session, its flow graph and its messages | `/sessions/<session>`, `/sessions/<session>/graph`, `/sessions/<session>/comms` | [Read a session](reading-sessions.md) |
 | A request | `/sessions/<session>/requests/<request>` | [Read a session](reading-sessions.md) |
 | Comms | `/comms` | [Read a session](reading-sessions.md) |
+| Threads | `/threads`, and a thread at `/threads/<thread>` | [Work threads](threads.md) |
 | What the judge did | `/sessions/improvement`, and a lesson at `/sessions/improvement/lessons/<lesson>` | [The judge](judge.md) |
 | Guard nudges | `/sessions/improvement/guard` | [The judge](judge.md) |
 | Judge | `/sessions/labelling` | [The judge](judge.md) |

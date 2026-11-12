@@ -99,6 +99,9 @@ pub struct FeatureToggles {
     #[serde(default)]
     pub seat_memory_index: bool,
 
+    #[serde(default)]
+    pub wright: bool,
+
     #[serde(default = "on")]
     pub client_serves_self_identity: bool,
     #[serde(default)]
@@ -169,6 +172,7 @@ impl Default for FeatureToggles {
             context_focus_question: false,
             memory_keeper: false,
             seat_memory_index: false,
+            wright: false,
             client_serves_self_identity: true,
             client_serves_workspace_briefing: false,
             client_serves_change_record_tail: false,
@@ -311,6 +315,7 @@ pub fn get_toggle_enabled(toggles: &FeatureToggles, key: &str) -> Option<bool> {
         "mailbox_redelivery" => Some(toggles.mailbox_redelivery),
         "memory_keeper" => Some(toggles.memory_keeper),
         "seat_memory_index" => Some(toggles.seat_memory_index),
+        "wright" => Some(toggles.wright),
         "mod_lesson_delivery" => Some(toggles.mod_lesson_delivery),
         "native_peer_mail" => Some(toggles.native_peer_mail),
         "prompt_assistant" => Some(toggles.prompt_assistant),
@@ -395,6 +400,7 @@ pub(crate) fn set_toggle_enabled(
         "mailbox_redelivery" => updated.mailbox_redelivery = enabled,
         "memory_keeper" => updated.memory_keeper = enabled,
         "seat_memory_index" => updated.seat_memory_index = enabled,
+        "wright" => updated.wright = enabled,
         "mod_lesson_delivery" => updated.mod_lesson_delivery = enabled,
         "native_peer_mail" => updated.native_peer_mail = enabled,
         "prompt_assistant" => updated.prompt_assistant = enabled,

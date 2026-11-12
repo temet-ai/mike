@@ -165,3 +165,195 @@ fn judge_worker_reasoning_effort_registry_default_matches_overlay_default() {
         SettingsOverlay::default().judge_worker_reasoning_effort
     );
 }
+
+async fn machine_settings_service(
+    url: &str,
+) -> anyhow::Result<std::sync::Arc<service::SettingsService>> {
+    let handle = crate::store::persistence::PersistHandle::connect(url).await?;
+    let overlay = std::sync::Arc::new(arc_swap::ArcSwap::from_pointee(SettingsOverlay::default()));
+    let write_lock =
+        std::sync::Arc::new(tokio::sync::Mutex::new(crate::config::SettingsWriteGuard));
+    service::SettingsService::reconcile_on_startup(overlay, write_lock, handle).await
+}
+
+#[tokio::test]
+async fn machine_scoped_launch_backend_each_machine_reads_its_own_and_the_rest_the_shared_default()
+-> anyhow::Result<()> {
+    let Some(db) = crate::store::persistence::test_support::acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let svc = machine_settings_service(&db.database_url).await?;
+    let source = crate::change_log::ChangeSource::internal();
+    let (machine_a, machine_b, machine_c) = (
+        uuid::Uuid::new_v4(),
+        uuid::Uuid::new_v4(),
+        uuid::Uuid::new_v4(),
+    );
+    svc.persist
+        .upsert_setting("launch_backend", &serde_json::json!("herdr"))
+        .await?;
+    svc.set_for_machine_with_source(
+        "launch_backend",
+        serde_json::json!("tmux"),
+        Some(machine_a),
+        &source,
+    )
+    .await?;
+    svc.set_for_machine_with_source(
+        "launch_backend",
+        serde_json::json!("herdr-core"),
+        Some(machine_b),
+        &source,
+    )
+    .await?;
+
+    let read = |rows: Vec<(String, serde_json::Value)>| {
+        rows.into_iter()
+            .find(|(k, _)| k == "launch_backend")
+            .map(|(_, v)| v)
+    };
+    for (machine, expected, expected_source) in [
+        (machine_a, "tmux", ValueSource::Own),
+        (machine_b, "herdr-core", ValueSource::Own),
+        (machine_c, "herdr", ValueSource::SharedDefault),
+    ] {
+        let resolved = read(
+            svc.persist
+                .fetch_settings_for_machine(Some(machine))
+                .await?,
+        );
+        assert_eq!(resolved, Some(serde_json::json!(expected)), "{machine}");
+        let view = svc.machine_view(Some(machine)).await?;
+        assert_eq!(
+            view.value("launch_backend"),
+            Some(&serde_json::json!(expected))
+        );
+        assert_eq!(view.source("launch_backend"), expected_source, "{machine}");
+    }
+    assert_eq!(
+        read(svc.persist.fetch_shared_settings().await?),
+        Some(serde_json::json!("herdr")),
+        "a machine's own write never changes the shared row"
+    );
+
+    let (cleared_for, cleared) = svc
+        .clear_machine_value("launch_backend", Some(machine_a), &source)
+        .await?;
+    assert_eq!((cleared_for, cleared), (machine_a, true));
+    let view = svc.machine_view(Some(machine_a)).await?;
+    assert_eq!(view.source("launch_backend"), ValueSource::SharedDefault);
+    assert_eq!(
+        view.value("launch_backend"),
+        Some(&serde_json::json!("herdr"))
+    );
+
+    db.cleanup().await
+}
+
+#[tokio::test]
+async fn shared_setting_refuses_a_named_machine_and_clear_refuses_a_shared_key()
+-> anyhow::Result<()> {
+    let Some(db) = crate::store::persistence::test_support::acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let svc = machine_settings_service(&db.database_url).await?;
+    let source = crate::change_log::ChangeSource::internal();
+    let named = svc
+        .set_for_machine_with_source(
+            "launch_max_surfaces",
+            serde_json::json!(4),
+            Some(uuid::Uuid::new_v4()),
+            &source,
+        )
+        .await;
+    assert!(
+        matches!(&named, Err(service::SettingsServiceError::InvalidValue { reason, .. }) if reason.contains("shared by every machine")),
+        "{named:?}"
+    );
+    let cleared = svc
+        .clear_machine_value("launch_max_surfaces", Some(uuid::Uuid::new_v4()), &source)
+        .await;
+    assert!(
+        matches!(&cleared, Err(service::SettingsServiceError::InvalidValue { reason, .. }) if reason.contains("machine-scoped")),
+        "{cleared:?}"
+    );
+    db.cleanup().await
+}
+
+#[tokio::test]
+async fn existing_shared_rows_stay_the_value_every_machine_reads_after_the_upgrade()
+-> anyhow::Result<()> {
+    let Some(db) = crate::store::persistence::test_support::acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let svc = machine_settings_service(&db.database_url).await?;
+    svc.persist
+        .upsert_setting("launch_claude_args", &serde_json::json!(["--chrome"]))
+        .await?;
+    for machine in [uuid::Uuid::new_v4(), uuid::Uuid::new_v4()] {
+        let view = svc.machine_view(Some(machine)).await?;
+        assert_eq!(
+            view.value("launch_claude_args"),
+            Some(&serde_json::json!(["--chrome"]))
+        );
+        assert_eq!(
+            view.source("launch_claude_args"),
+            ValueSource::SharedDefault
+        );
+        assert_eq!(view.source("launch_ca_cert"), ValueSource::CompiledDefault);
+    }
+    db.cleanup().await
+}
+
+#[tokio::test]
+async fn repo_location_on_machine_finds_own_root_another_machines_path_and_no_location()
+-> anyhow::Result<()> {
+    let Some(db) = crate::store::persistence::test_support::acquire_ephemeral_db().await? else {
+        return Ok(());
+    };
+    let svc = machine_settings_service(&db.database_url).await?;
+    let pool = svc.persist.pool();
+    let linux_root = format!("/mnt/data/projects/repo-{}", uuid::Uuid::new_v4());
+    let mac_root = format!("/Users/dawid/projects/repo-{}", uuid::Uuid::new_v4());
+    let project_id: i64 = sqlx::query_scalar(
+        "INSERT INTO projects.projects (project_path, display_name) VALUES ($1, $1) RETURNING id",
+    )
+    .bind(&linux_root)
+    .fetch_one(pool)
+    .await?;
+    let (linux, mac, bare) = (
+        uuid::Uuid::new_v4(),
+        uuid::Uuid::new_v4(),
+        uuid::Uuid::new_v4(),
+    );
+    for (machine, root) in [(linux, &linux_root), (mac, &mac_root)] {
+        sqlx::query("INSERT INTO projects.machines (machine_uuid, name) VALUES ($1, 'm')")
+            .bind(machine)
+            .execute(pool)
+            .await?;
+        sqlx::query(
+            "INSERT INTO projects.locations (project_id, machine_uuid, root_path) VALUES ($1, $2, $3)",
+        )
+        .bind(project_id)
+        .bind(machine)
+        .bind(root)
+        .execute(pool)
+        .await?;
+    }
+    let found = |machine| svc.persist.repo_location_on_machine(&linux_root, machine);
+    let own = found(linux).await?;
+    assert_eq!((own.known, own.own_root), (true, Some(linux_root.clone())));
+    let other = found(mac).await?;
+    assert_eq!(
+        (other.known, other.own_root),
+        (true, Some(mac_root.clone()))
+    );
+    let none = found(bare).await?;
+    assert_eq!((none.known, none.own_root), (true, None));
+    let unknown = svc
+        .persist
+        .repo_location_on_machine("/nowhere/at/all", linux)
+        .await?;
+    assert_eq!((unknown.known, unknown.own_root), (false, None));
+    db.cleanup().await
+}

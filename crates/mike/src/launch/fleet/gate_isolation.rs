@@ -87,7 +87,7 @@ async fn lock(repo: &str, names: &[String]) -> Result<(File, String), String> {
 
 fn candidates(operation: &Operation, at: &Target) -> Vec<String> {
     match operation {
-        Operation::Check { .. } => super::CHECK_SLOT_NAMES
+        Operation::Check { configured, .. } => super::check_slot_names(*configured)
             .iter()
             .map(|name| (*name).to_string())
             .collect(),
@@ -217,6 +217,9 @@ async fn checkout(repo: &str, at: &Target) -> Result<Option<String>, String> {
                 .to_string(),
         );
     }
+    if super::CHECK_SLOT_NAMES.contains(&name) {
+        super::keep_warm(Path::new(repo), slot).await;
+    }
     let restored = reset(slot, &at.commit).await?;
     if git(slot, &["rev-parse", "HEAD"]).await? != at.commit {
         git(
@@ -282,7 +285,7 @@ pub(in crate::launch::fleet) async fn execute(
     let held = tokio::select! {
         biased;
         _ = context.owner.token().cancelled() => return (None, crate::launch::fleet::managed_command::cancelled(&context.owner), false),
-        held = tokio::time::timeout(operation.timeout(), lock(repo, &names)) => held,
+        held = tokio::time::timeout(crate::launch::fleet::managed_queue::waiting_limit(operation.timeout()), lock(repo, &names)) => held,
     };
     let (_held, name) = match held {
         Ok(Ok(held)) => held,

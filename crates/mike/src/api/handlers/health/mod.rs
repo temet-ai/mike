@@ -9,6 +9,8 @@ mod rerank;
 #[cfg(test)]
 mod rerank_tests;
 mod stored;
+#[cfg(test)]
+mod unrecorded_captures_tests;
 
 pub(crate) use dto::*;
 pub(crate) use probe::ProbeState;
@@ -79,6 +81,7 @@ pub(crate) async fn health(State(state): State<AppState>) -> Json<HealthResponse
         rerank: rerank_health(&state),
         persistence,
         capture_gap,
+        unrecorded_captures: crate::store::persistence::capture_retry::health(),
         llm,
         judge,
         db_cost,

@@ -1,5 +1,6 @@
 mod cards;
 mod checkpoint;
+mod cleanup;
 mod criteria;
 mod entries;
 mod import;

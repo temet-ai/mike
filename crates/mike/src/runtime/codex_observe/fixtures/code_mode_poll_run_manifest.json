@@ -1,0 +1,13 @@
+{
+ "codex_version": "codex-cli 0.167.1",
+ "run": "code_mode_poll_run",
+ "hook_payloads": 20,
+ "dropped_duplicate_handlers": {
+  "PreToolUse-slow": 2,
+  "PostToolUse-fail": 2,
+  "PostToolUse-async": 2
+ },
+ "otel_log_exports": 17,
+ "otel_trace_exports_with_hook_spans": 9,
+ "synthetic": false
+}

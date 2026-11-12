@@ -6,6 +6,7 @@ mod injectable;
 pub mod maintenance_budget;
 #[cfg(test)]
 mod maintenance_budget_tests;
+mod outcomes;
 pub mod placement;
 pub mod placement_proposals;
 pub mod proposals;
@@ -31,7 +32,9 @@ mod writes;
 
 pub use detail::{LessonEvidenceRow, LessonInjectionSummary};
 pub use injectable::{ChangeMark, InjectableLessonRow};
+pub use outcomes::{LessonOutcome, LessonRetirement};
 
+#[derive(sqlx::FromRow)]
 pub struct LessonRow {
     pub id: i64,
     pub project_id: Option<i64>,

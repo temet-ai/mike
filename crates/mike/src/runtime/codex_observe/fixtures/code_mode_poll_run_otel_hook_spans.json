@@ -1,0 +1,3628 @@
+[
+ {
+  "resourceSpans": [
+   {
+    "resource": {
+     "attributes": [
+      {
+       "key": "telemetry.sdk.version",
+       "value": {
+        "stringValue": "0.31.0"
+       }
+      },
+      {
+       "key": "service.name",
+       "value": {
+        "stringValue": "codex_exec"
+       }
+      },
+      {
+       "key": "telemetry.sdk.name",
+       "value": {
+        "stringValue": "opentelemetry"
+       }
+      },
+      {
+       "key": "telemetry.sdk.language",
+       "value": {
+        "stringValue": "rust"
+       }
+      },
+      {
+       "key": "env",
+       "value": {
+        "stringValue": "dev"
+       }
+      },
+      {
+       "key": "service.version",
+       "value": {
+        "stringValue": "0.167.1"
+       }
+      }
+     ],
+     "droppedAttributesCount": 0,
+     "entityRefs": []
+    },
+    "scopeSpans": [
+     {
+      "scope": {
+       "name": "codex_exec",
+       "version": "",
+       "attributes": [],
+       "droppedAttributesCount": 0
+      },
+      "spans": [
+       {
+        "traceId": "a3dca1b51fda678033bb40864b9e1e6c",
+        "spanId": "be4c20506f0be47c",
+        "traceState": "",
+        "parentSpanId": "4d622c94d0f356a8",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423475488637381",
+        "endTimeUnixNano": "1794423475513629182",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "4"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "SessionStart"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "thread"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "10"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "679665"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "24312315"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       },
+       {
+        "traceId": "a3dca1b51fda678033bb40864b9e1e6c",
+        "spanId": "a95015609e65177c",
+        "traceState": "",
+        "parentSpanId": "8b23937e74d0aa4d",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423475515914577",
+        "endTimeUnixNano": "1794423475544304238",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "18"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "UserPromptSubmit"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "12"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "3011662"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "25378165"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       },
+       {
+        "traceId": "a3dca1b51fda678033bb40864b9e1e6c",
+        "spanId": "3ebc1778ec8bce38",
+        "traceState": "",
+        "parentSpanId": "0d93ade92563be94",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423475560813909",
+        "endTimeUnixNano": "1794423475584548407",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "15"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PreModelRequest"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "0"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "726119"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "23008537"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       }
+      ],
+      "schemaUrl": ""
+     }
+    ],
+    "schemaUrl": ""
+   }
+  ]
+ },
+ {
+  "resourceSpans": [
+   {
+    "resource": {
+     "attributes": [
+      {
+       "key": "telemetry.sdk.version",
+       "value": {
+        "stringValue": "0.31.0"
+       }
+      },
+      {
+       "key": "service.name",
+       "value": {
+        "stringValue": "codex_exec"
+       }
+      },
+      {
+       "key": "telemetry.sdk.name",
+       "value": {
+        "stringValue": "opentelemetry"
+       }
+      },
+      {
+       "key": "telemetry.sdk.language",
+       "value": {
+        "stringValue": "rust"
+       }
+      },
+      {
+       "key": "env",
+       "value": {
+        "stringValue": "dev"
+       }
+      },
+      {
+       "key": "service.version",
+       "value": {
+        "stringValue": "0.167.1"
+       }
+      }
+     ],
+     "droppedAttributesCount": 0,
+     "entityRefs": []
+    },
+    "scopeSpans": [
+     {
+      "scope": {
+       "name": "codex_exec",
+       "version": "",
+       "attributes": [],
+       "droppedAttributesCount": 0
+      },
+      "spans": [
+       {
+        "traceId": "42d0a677bd576a9de3d161a3ad27d4e3",
+        "spanId": "c2908d58b51a78a0",
+        "traceState": "",
+        "parentSpanId": "",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423479155889935",
+        "endTimeUnixNano": "1794423479166432292",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "15"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PostModelRequest"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "1"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "751885"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "9790695"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       },
+       {
+        "traceId": "a3dca1b51fda678033bb40864b9e1e6c",
+        "spanId": "b965965a7428d1ce",
+        "traceState": "",
+        "parentSpanId": "9b90493296c99c52",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423479185380371",
+        "endTimeUnixNano": "1794423479196818080",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "15"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PreToolUse"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "2"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "715863"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "10722010"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       },
+       {
+        "traceId": "a3dca1b51fda678033bb40864b9e1e6c",
+        "spanId": "a6455f9908a3bff4",
+        "traceState": "",
+        "parentSpanId": "9b90493296c99c52",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423479186062788",
+        "endTimeUnixNano": "1794423481187034810",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "15"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PreToolUse"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "3"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "2"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "timeout"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "803628"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "2000168651"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       }
+      ],
+      "schemaUrl": ""
+     }
+    ],
+    "schemaUrl": ""
+   }
+  ]
+ },
+ {
+  "resourceSpans": [
+   {
+    "resource": {
+     "attributes": [
+      {
+       "key": "telemetry.sdk.version",
+       "value": {
+        "stringValue": "0.31.0"
+       }
+      },
+      {
+       "key": "service.name",
+       "value": {
+        "stringValue": "codex_exec"
+       }
+      },
+      {
+       "key": "telemetry.sdk.name",
+       "value": {
+        "stringValue": "opentelemetry"
+       }
+      },
+      {
+       "key": "telemetry.sdk.language",
+       "value": {
+        "stringValue": "rust"
+       }
+      },
+      {
+       "key": "env",
+       "value": {
+        "stringValue": "dev"
+       }
+      },
+      {
+       "key": "service.version",
+       "value": {
+        "stringValue": "0.167.1"
+       }
+      }
+     ],
+     "droppedAttributesCount": 0,
+     "entityRefs": []
+    },
+    "scopeSpans": [
+     {
+      "scope": {
+       "name": "codex_exec",
+       "version": "",
+       "attributes": [],
+       "droppedAttributesCount": 0
+      },
+      "spans": [
+       {
+        "traceId": "a3dca1b51fda678033bb40864b9e1e6c",
+        "spanId": "1e0a9cf81af41227",
+        "traceState": "",
+        "parentSpanId": "8aa3d17bfde449a2",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423482378628233",
+        "endTimeUnixNano": "1794423482388275570",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "13"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PreModelRequest"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "0"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "570413"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "9077029"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       },
+       {
+        "traceId": "3159c2bf2b49525a5fa6b7ed23da6214",
+        "spanId": "e47b6f2f1e866e12",
+        "traceState": "",
+        "parentSpanId": "",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423485120937177",
+        "endTimeUnixNano": "1794423485129891854",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "4"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PostModelRequest"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "1"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "642474"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "8312361"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       }
+      ],
+      "schemaUrl": ""
+     }
+    ],
+    "schemaUrl": ""
+   }
+  ]
+ },
+ {
+  "resourceSpans": [
+   {
+    "resource": {
+     "attributes": [
+      {
+       "key": "telemetry.sdk.version",
+       "value": {
+        "stringValue": "0.31.0"
+       }
+      },
+      {
+       "key": "service.name",
+       "value": {
+        "stringValue": "codex_exec"
+       }
+      },
+      {
+       "key": "telemetry.sdk.name",
+       "value": {
+        "stringValue": "opentelemetry"
+       }
+      },
+      {
+       "key": "telemetry.sdk.language",
+       "value": {
+        "stringValue": "rust"
+       }
+      },
+      {
+       "key": "env",
+       "value": {
+        "stringValue": "dev"
+       }
+      },
+      {
+       "key": "service.version",
+       "value": {
+        "stringValue": "0.167.1"
+       }
+      }
+     ],
+     "droppedAttributesCount": 0,
+     "entityRefs": []
+    },
+    "scopeSpans": [
+     {
+      "scope": {
+       "name": "codex_exec",
+       "version": "",
+       "attributes": [],
+       "droppedAttributesCount": 0
+      },
+      "spans": [
+       {
+        "traceId": "a3dca1b51fda678033bb40864b9e1e6c",
+        "spanId": "a36e586d42dde102",
+        "traceState": "",
+        "parentSpanId": "8b5d7853f254a4a1",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423490148309890",
+        "endTimeUnixNano": "1794423490157729077",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "15"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PreModelRequest"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "0"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "635465"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "8783878"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       }
+      ],
+      "schemaUrl": ""
+     }
+    ],
+    "schemaUrl": ""
+   }
+  ]
+ },
+ {
+  "resourceSpans": [
+   {
+    "resource": {
+     "attributes": [
+      {
+       "key": "telemetry.sdk.version",
+       "value": {
+        "stringValue": "0.31.0"
+       }
+      },
+      {
+       "key": "service.name",
+       "value": {
+        "stringValue": "codex_exec"
+       }
+      },
+      {
+       "key": "telemetry.sdk.name",
+       "value": {
+        "stringValue": "opentelemetry"
+       }
+      },
+      {
+       "key": "telemetry.sdk.language",
+       "value": {
+        "stringValue": "rust"
+       }
+      },
+      {
+       "key": "env",
+       "value": {
+        "stringValue": "dev"
+       }
+      },
+      {
+       "key": "service.version",
+       "value": {
+        "stringValue": "0.167.1"
+       }
+      }
+     ],
+     "droppedAttributesCount": 0,
+     "entityRefs": []
+    },
+    "scopeSpans": [
+     {
+      "scope": {
+       "name": "codex_exec",
+       "version": "",
+       "attributes": [],
+       "droppedAttributesCount": 0
+      },
+      "spans": [
+       {
+        "traceId": "e7b6b1ddf4f0d8fdee4f1c7c5c6ca3b6",
+        "spanId": "89dd39af2068c499",
+        "traceState": "",
+        "parentSpanId": "",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423493763118787",
+        "endTimeUnixNano": "1794423493782122955",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "15"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PostModelRequest"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "1"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "1277575"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "17726763"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       }
+      ],
+      "schemaUrl": ""
+     }
+    ],
+    "schemaUrl": ""
+   }
+  ]
+ },
+ {
+  "resourceSpans": [
+   {
+    "resource": {
+     "attributes": [
+      {
+       "key": "telemetry.sdk.version",
+       "value": {
+        "stringValue": "0.31.0"
+       }
+      },
+      {
+       "key": "service.name",
+       "value": {
+        "stringValue": "codex_exec"
+       }
+      },
+      {
+       "key": "telemetry.sdk.name",
+       "value": {
+        "stringValue": "opentelemetry"
+       }
+      },
+      {
+       "key": "telemetry.sdk.language",
+       "value": {
+        "stringValue": "rust"
+       }
+      },
+      {
+       "key": "env",
+       "value": {
+        "stringValue": "dev"
+       }
+      },
+      {
+       "key": "service.version",
+       "value": {
+        "stringValue": "0.167.1"
+       }
+      }
+     ],
+     "droppedAttributesCount": 0,
+     "entityRefs": []
+    },
+    "scopeSpans": [
+     {
+      "scope": {
+       "name": "codex_exec",
+       "version": "",
+       "attributes": [],
+       "droppedAttributesCount": 0
+      },
+      "spans": [
+       {
+        "traceId": "a3dca1b51fda678033bb40864b9e1e6c",
+        "spanId": "afa0a2c995b44868",
+        "traceState": "",
+        "parentSpanId": "6a76058551965953",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423498804690273",
+        "endTimeUnixNano": "1794423498813440096",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "15"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PreModelRequest"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "0"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "583403"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "8166560"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       },
+       {
+        "traceId": "52d3ecdb06fbb09ca8117e08c5cf276c",
+        "spanId": "3a667c14f609bdff",
+        "traceState": "",
+        "parentSpanId": "",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423501515344331",
+        "endTimeUnixNano": "1794423501526308228",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "11"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PostModelRequest"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "1"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "623081"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "10340970"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       }
+      ],
+      "schemaUrl": ""
+     }
+    ],
+    "schemaUrl": ""
+   }
+  ]
+ },
+ {
+  "resourceSpans": [
+   {
+    "resource": {
+     "attributes": [
+      {
+       "key": "telemetry.sdk.version",
+       "value": {
+        "stringValue": "0.31.0"
+       }
+      },
+      {
+       "key": "service.name",
+       "value": {
+        "stringValue": "codex_exec"
+       }
+      },
+      {
+       "key": "telemetry.sdk.name",
+       "value": {
+        "stringValue": "opentelemetry"
+       }
+      },
+      {
+       "key": "telemetry.sdk.language",
+       "value": {
+        "stringValue": "rust"
+       }
+      },
+      {
+       "key": "env",
+       "value": {
+        "stringValue": "dev"
+       }
+      },
+      {
+       "key": "service.version",
+       "value": {
+        "stringValue": "0.167.1"
+       }
+      }
+     ],
+     "droppedAttributesCount": 0,
+     "entityRefs": []
+    },
+    "scopeSpans": [
+     {
+      "scope": {
+       "name": "codex_exec",
+       "version": "",
+       "attributes": [],
+       "droppedAttributesCount": 0
+      },
+      "spans": [
+       {
+        "traceId": "a3dca1b51fda678033bb40864b9e1e6c",
+        "spanId": "ad513d532c06dc45",
+        "traceState": "",
+        "parentSpanId": "30d2552511500d20",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423506256406465",
+        "endTimeUnixNano": "1794423506266852226",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "13"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PostToolUse"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "6"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "645903"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "9800195"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       },
+       {
+        "traceId": "a3dca1b51fda678033bb40864b9e1e6c",
+        "spanId": "dcd411e7436599e6",
+        "traceState": "",
+        "parentSpanId": "30d2552511500d20",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423506255694758",
+        "endTimeUnixNano": "1794423506266896215",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "13"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PostToolUse"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "5"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "722960"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "10478703"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       },
+       {
+        "traceId": "8ad68040853416016dc0361fcd8e218c",
+        "spanId": "8e2ec6a62345f106",
+        "traceState": "",
+        "parentSpanId": "",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423506257641506",
+        "endTimeUnixNano": "1794423506267997432",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "13"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PostToolUse"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "async"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "7"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "757978"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "9598903"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       },
+       {
+        "traceId": "a3dca1b51fda678033bb40864b9e1e6c",
+        "spanId": "0f0d7fac15bc08c8",
+        "traceState": "",
+        "parentSpanId": "2cb0d46460c88354",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423506285277558",
+        "endTimeUnixNano": "1794423506296964267",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "15"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PreModelRequest"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "0"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "593539"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "11093321"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       }
+      ],
+      "schemaUrl": ""
+     }
+    ],
+    "schemaUrl": ""
+   }
+  ]
+ },
+ {
+  "resourceSpans": [
+   {
+    "resource": {
+     "attributes": [
+      {
+       "key": "telemetry.sdk.version",
+       "value": {
+        "stringValue": "0.31.0"
+       }
+      },
+      {
+       "key": "service.name",
+       "value": {
+        "stringValue": "codex_exec"
+       }
+      },
+      {
+       "key": "telemetry.sdk.name",
+       "value": {
+        "stringValue": "opentelemetry"
+       }
+      },
+      {
+       "key": "telemetry.sdk.language",
+       "value": {
+        "stringValue": "rust"
+       }
+      },
+      {
+       "key": "env",
+       "value": {
+        "stringValue": "dev"
+       }
+      },
+      {
+       "key": "service.version",
+       "value": {
+        "stringValue": "0.167.1"
+       }
+      }
+     ],
+     "droppedAttributesCount": 0,
+     "entityRefs": []
+    },
+    "scopeSpans": [
+     {
+      "scope": {
+       "name": "codex_exec",
+       "version": "",
+       "attributes": [],
+       "droppedAttributesCount": 0
+      },
+      "spans": [
+       {
+        "traceId": "f03bafd51b5608be86f569d56c2be3f7",
+        "spanId": "00ac311a89b3ca62",
+        "traceState": "",
+        "parentSpanId": "",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423508414238193",
+        "endTimeUnixNano": "1794423508423555523",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "4"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PostModelRequest"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "1"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "697130"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "8620394"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       },
+       {
+        "traceId": "a3dca1b51fda678033bb40864b9e1e6c",
+        "spanId": "7c1211c8d9ca9088",
+        "traceState": "",
+        "parentSpanId": "28effb28f3322c80",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423508430676470",
+        "endTimeUnixNano": "1794423508440980290",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "13"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PreToolUse"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "2"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "537720"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "9766229"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       },
+       {
+        "traceId": "a3dca1b51fda678033bb40864b9e1e6c",
+        "spanId": "13fcc7c381af27ad",
+        "traceState": "",
+        "parentSpanId": "28effb28f3322c80",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423508431168701",
+        "endTimeUnixNano": "1794423510432216290",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "13"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PreToolUse"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "3"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "2"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "timeout"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "658178"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "2000389715"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       },
+       {
+        "traceId": "a3dca1b51fda678033bb40864b9e1e6c",
+        "spanId": "41f5664fab541244",
+        "traceState": "",
+        "parentSpanId": "28effb28f3322c80",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423510510249814",
+        "endTimeUnixNano": "1794423510522526285",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "4"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PostToolUse"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "5"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "766467"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "11510233"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       },
+       {
+        "traceId": "a3dca1b51fda678033bb40864b9e1e6c",
+        "spanId": "0e3392a00c25fa5a",
+        "traceState": "",
+        "parentSpanId": "28effb28f3322c80",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423510510989301",
+        "endTimeUnixNano": "1794423510523901204",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "4"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PostToolUse"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "6"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "744926"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "12167597"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       },
+       {
+        "traceId": "beb651141027a207e9f1c8bae8cf71ce",
+        "spanId": "d6f54b0c711b6d90",
+        "traceState": "",
+        "parentSpanId": "",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423510511656586",
+        "endTimeUnixNano": "1794423510524734150",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "4"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PostToolUse"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "async"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "7"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "673315"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "12404621"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       },
+       {
+        "traceId": "a3dca1b51fda678033bb40864b9e1e6c",
+        "spanId": "0eb4aef51736606f",
+        "traceState": "",
+        "parentSpanId": "650c4aa381867a07",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423510535380099",
+        "endTimeUnixNano": "1794423510545793916",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "4"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PreModelRequest"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "0"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "848383"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "9565632"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       }
+      ],
+      "schemaUrl": ""
+     }
+    ],
+    "schemaUrl": ""
+   }
+  ]
+ },
+ {
+  "resourceSpans": [
+   {
+    "resource": {
+     "attributes": [
+      {
+       "key": "telemetry.sdk.version",
+       "value": {
+        "stringValue": "0.31.0"
+       }
+      },
+      {
+       "key": "service.name",
+       "value": {
+        "stringValue": "codex_exec"
+       }
+      },
+      {
+       "key": "telemetry.sdk.name",
+       "value": {
+        "stringValue": "opentelemetry"
+       }
+      },
+      {
+       "key": "telemetry.sdk.language",
+       "value": {
+        "stringValue": "rust"
+       }
+      },
+      {
+       "key": "env",
+       "value": {
+        "stringValue": "dev"
+       }
+      },
+      {
+       "key": "service.version",
+       "value": {
+        "stringValue": "0.167.1"
+       }
+      }
+     ],
+     "droppedAttributesCount": 0,
+     "entityRefs": []
+    },
+    "scopeSpans": [
+     {
+      "scope": {
+       "name": "codex_exec",
+       "version": "",
+       "attributes": [],
+       "droppedAttributesCount": 0
+      },
+      "spans": [
+       {
+        "traceId": "95467d59ee658e0af1dff5ee68af2fd0",
+        "spanId": "375df0b532171f68",
+        "traceState": "",
+        "parentSpanId": "",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423512478285213",
+        "endTimeUnixNano": "1794423512488162987",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "15"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "PostModelRequest"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "1"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "831841"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "9046108"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       },
+       {
+        "traceId": "a3dca1b51fda678033bb40864b9e1e6c",
+        "spanId": "937699bd3293b521",
+        "traceState": "",
+        "parentSpanId": "fa6bebaeae179330",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423512490761077",
+        "endTimeUnixNano": "1794423512500675589",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "16"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "Stop"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "turn"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "15"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "10"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "641367"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "9273282"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       },
+       {
+        "traceId": "ee5573e4d73f0c2493658000ab5dc93f",
+        "spanId": "0dfbceafdb407b60",
+        "traceState": "",
+        "parentSpanId": "cf9a7eac47c1b82d",
+        "flags": 257,
+        "name": "codex.hooks.command",
+        "kind": 1,
+        "startTimeUnixNano": "1794423512524983291",
+        "endTimeUnixNano": "1794423512535684949",
+        "attributes": [
+         {
+          "key": "code.file.path",
+          "value": {
+           "stringValue": "hooks/src/engine/command_runner.rs"
+          }
+         },
+         {
+          "key": "code.module.name",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "code.line.number",
+          "value": {
+           "intValue": "201"
+          }
+         },
+         {
+          "key": "thread.id",
+          "value": {
+           "intValue": "15"
+          }
+         },
+         {
+          "key": "thread.name",
+          "value": {
+           "stringValue": "tokio-rt-worker"
+          }
+         },
+         {
+          "key": "target",
+          "value": {
+           "stringValue": "codex_hooks::engine::command_runner"
+          }
+         },
+         {
+          "key": "hook.event_name",
+          "value": {
+           "stringValue": "SessionEnd"
+          }
+         },
+         {
+          "key": "hook.handler_type",
+          "value": {
+           "stringValue": "command"
+          }
+         },
+         {
+          "key": "hook.execution_mode",
+          "value": {
+           "stringValue": "sync"
+          }
+         },
+         {
+          "key": "hook.scope",
+          "value": {
+           "stringValue": "thread"
+          }
+         },
+         {
+          "key": "hook.source",
+          "value": {
+           "stringValue": "user"
+          }
+         },
+         {
+          "key": "hook.display_order",
+          "value": {
+           "intValue": "11"
+          }
+         },
+         {
+          "key": "hook.timeout_sec",
+          "value": {
+           "stringValue": "3"
+          }
+         },
+         {
+          "key": "hook.command_outcome",
+          "value": {
+           "stringValue": "completed"
+          }
+         },
+         {
+          "key": "busy_ns",
+          "value": {
+           "intValue": "768727"
+          }
+         },
+         {
+          "key": "idle_ns",
+          "value": {
+           "intValue": "9933030"
+          }
+         }
+        ],
+        "droppedAttributesCount": 0,
+        "events": [],
+        "droppedEventsCount": 0,
+        "links": [],
+        "droppedLinksCount": 0,
+        "status": {
+         "message": "",
+         "code": 0
+        }
+       }
+      ],
+      "schemaUrl": ""
+     }
+    ],
+    "schemaUrl": ""
+   }
+  ]
+ }
+]

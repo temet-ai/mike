@@ -1,7 +1,7 @@
 use chrono::{Duration, Utc};
 use serde_json::json;
 
-use super::{NewGrade, NewTuningRun};
+use super::{NewGrade, NewTuningRun, TuningOutcome};
 use crate::store::persistence::search_events::fixture_tests::Fixture;
 
 async fn finalise(fixture: &Fixture, event: i64, used: &[&str]) -> anyhow::Result<()> {
@@ -23,8 +23,13 @@ fn grade<'a>(event_id: i64, candidates: &'a serde_json::Value, used: &'a [String
         used_references: used,
         plain_positions: &[2],
         reranked_positions: &[1],
+        first_ten: &FIRST_TEN,
+        turn_prompt: None,
+        relevant_references: &[],
     }
 }
+
+static FIRST_TEN: std::sync::LazyLock<serde_json::Value> = std::sync::LazyLock::new(|| json!([]));
 
 fn run(key: &str, kept: bool) -> NewTuningRun {
     NewTuningRun {
@@ -39,8 +44,8 @@ fn run(key: &str, kept: bool) -> NewTuningRun {
 }
 
 #[tokio::test]
-async fn ungraded_search_events_returns_only_finalised_events_that_have_used_references()
--> anyhow::Result<()> {
+async fn ungraded_search_events_returns_every_finalised_event_with_a_session() -> anyhow::Result<()>
+{
     let fixture = Fixture::boot(2).await?;
     let ready = fixture
         .record(Some(fixture.session), "ready query", &["lesson:a"])
@@ -57,18 +62,22 @@ async fn ungraded_search_events_returns_only_finalised_events_that_have_used_ref
         .execute(fixture.handle.pool())
         .await?;
     finalise(&fixture, unused, &[]).await?;
+    let replay = fixture.record(None, "replay query", &["lesson:a"]).await?;
+    finalise(&fixture, replay, &[]).await?;
 
     let events = fixture.handle.ungraded_search_events(100).await?;
 
     let ids: Vec<i64> = events.iter().map(|e| e.event_id).collect();
     assert!(ids.contains(&ready));
     assert!(!ids.contains(&open));
-    assert!(!ids.contains(&unused));
+    assert!(ids.contains(&unused));
+    assert!(!ids.contains(&replay));
     let Some(event) = events.iter().find(|e| e.event_id == ready) else {
         anyhow::bail!("the finalised event must be listed");
     };
     assert_eq!(event.query, "ready query");
     assert_eq!(event.used_references, vec!["lesson:a".to_owned()]);
+    assert_eq!(event.returned[0]["reference"], json!("lesson:a"));
     fixture.cleanup().await
 }
 
@@ -145,7 +154,12 @@ async fn insert_search_tuning_runs_writes_every_row_and_marks_the_window_tuned()
 
     let written = fixture
         .handle
-        .insert_search_tuning_runs(&[run(&key, true), run(&key, false)], 31, ran_at)
+        .insert_search_tuning_runs(
+            TuningOutcome::Changed,
+            &[run(&key, true), run(&key, false)],
+            31,
+            ran_at,
+        )
         .await?;
 
     assert_eq!(written, 2);

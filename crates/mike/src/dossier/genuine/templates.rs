@@ -11,7 +11,10 @@ fn compile(source: &str) -> Regex {
     }
 }
 
-const TEMPLATE_SOURCES: [(&str, PromptKind); 24] = [
+pub const TOOL_PROMPT_PATTERN: &str = r"^\s*(A session-scoped Stop hook is now active with condition:|The [A-Za-z0-9_.-]+ plugin sent a message:|Perform a web search for the query:|You score how well a stand-in predicted|Coordinator wake for fleet )";
+
+const TEMPLATE_SOURCES: [(&str, PromptKind); 25] = [
+    (TOOL_PROMPT_PATTERN, PromptKind::ToolPrompt),
     (r"^\s*Another Claude session sent", PromptKind::PeerMessage),
     (
         r"^\s*<(teammate-message|agent-message)",

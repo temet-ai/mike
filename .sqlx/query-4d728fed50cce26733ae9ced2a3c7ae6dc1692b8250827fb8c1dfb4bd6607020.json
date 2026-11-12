@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO memory.supplied_item_verdicts\n       (supplied_item_id, verdict, rationale, evidence, model, input_text)\nVALUES ($1, $2, $3, $4, $5, $6)\nON CONFLICT (supplied_item_id) DO NOTHING\n",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4d728fed50cce26733ae9ced2a3c7ae6dc1692b8250827fb8c1dfb4bd6607020"
+}
