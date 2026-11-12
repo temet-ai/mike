@@ -6,6 +6,8 @@
 #
 # recall-searches.jsonl, past-pointing.jsonl and graded-searches.jsonl: is a labelled answer
 # reference in the top N results of /api/knowledge/search for the row's query (or prompt)?
+# past-pointing is scored twice: plain, and limited to before the prompt (until), with since
+# set when the prompt names a time ("yesterday", "last week") (issue #166).
 # graded-searches.jsonl is scored twice: all rows, and the rows a person checked
 # (hand_checked true). --export-graded appends the searches the overnight grader graded
 # (memory.search_grades: used references plus results graded relevant) that the file lacks,
@@ -64,6 +66,7 @@ fi
 
 exec python3 -I - "$data" "$limit" "$url" <<'PY'
 import json, os, sys, urllib.error, urllib.parse, urllib.request
+from datetime import datetime, timedelta
 
 data, limit, url = sys.argv[1], int(sys.argv[2]), sys.argv[3].rstrip("/")
 
@@ -76,9 +79,10 @@ lesson_project = "ec5bcb17-7792-47c2-9f7b-c07b1f417f92"
 
 QUERY_CHARS = 500
 
-def refs(project, query, kind=None, n=limit, skip=None):
+def refs(project, query, kind=None, n=limit, skip=None, window=None):
+    since, until = window or (None, None)
     try:
-        body = get("/api/knowledge/search", project=project, query=query[:QUERY_CHARS], kind=kind, limit=n + 1)
+        body = get("/api/knowledge/search", project=project, query=query[:QUERY_CHARS], kind=kind, limit=n + 1, since=since, until=until)
     except urllib.error.HTTPError as error:
         return None, f"{error.code} {error.read().decode(errors='replace')[:160]}"
     except Exception as error:
@@ -99,9 +103,9 @@ def canonical(ref):
 
 def score(name, rows):
     hits, session_hits, rr, misses = 0, 0, 0.0, []
-    for label, project, query, wanted, kind, n, skip, sessions in rows:
+    for label, project, query, wanted, kind, n, skip, sessions, *window in rows:
         wanted = [canonical(w) for w in wanted]
-        items, error = refs(project, query, kind, n, skip)
+        items, error = refs(project, query, kind, n, skip, window[0] if window else None)
         if items is None:
             misses.append(f"  {label}: error {error}")
             continue
@@ -132,6 +136,18 @@ past = [
     (f"turn {r['turn_id']}", r.get("project_uuid") or str(r["project_id"]), r["prompt"], r["answer_refs"], None, limit, f"turn:{r['turn_id']}", set(r.get("answer_sessions", [])))
     for r in jsonl("past-pointing.jsonl")
 ]
+PAST_WORDS = (("yesterday", 2), ("last night", 2), ("this morning", 1), ("last week", 14), ("few days", 7))
+
+def implied_window(row):
+    asked = datetime.fromisoformat(row["created_at"].replace("Z", "+00:00"))
+    prompt = row["prompt"].lower()
+    days = next((d for word, d in PAST_WORDS if word in prompt), None)
+    since = (asked - timedelta(days=days)).isoformat() if days else None
+    return since, asked.isoformat()
+
+past_dated = [
+    (*row, implied_window(r)) for row, r in zip(past, jsonl("past-pointing.jsonl"))
+]
 graded_rows = jsonl("graded-searches.jsonl") if os.path.exists(f"{data}/graded-searches.jsonl") else []
 graded = [
     (f"graded {r['search_id']}", r["project"], r["query"], r["answer_refs"], r.get("kind"), limit, None, {r.get("session_uuid")}, r.get("hand_checked") is True)
@@ -146,6 +162,7 @@ with open(f"{data}/lesson-paraphrase-probes.tsv") as handle:
 
 score("recall-searches", recall)
 score("past-pointing", past)
+score("past-pointing (until the prompt; since when it names a time)", past_dated)
 if graded:
     score("graded-searches", [row[:8] for row in graded])
     checked = [row[:8] for row in graded if row[8]]
