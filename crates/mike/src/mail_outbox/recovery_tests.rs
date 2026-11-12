@@ -113,8 +113,8 @@ async fn mail_outbox_mirrors_claude_to_codex_and_codex_to_claude_mail_once() -> 
     let pool = persist.pool();
     let (claude, codex) = (Uuid::new_v4(), Uuid::new_v4());
     persist.ensure_session_exists(&claude.to_string()).await?;
-    let home = std::env::temp_dir().join(format!("mail-outbox-{codex}"));
-    bind_seat_thread(&persist, &home, codex, "thread-1", None).await?;
+    let home = tempfile::tempdir()?;
+    bind_seat_thread(&persist, home.path(), codex, "thread-1", None).await?;
     let (to_codex, to_claude) = (Uuid::new_v4(), Uuid::new_v4());
     persist
         .insert_message(to_codex, codex, Some(claude), "from claude")
