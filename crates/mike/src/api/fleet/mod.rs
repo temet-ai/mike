@@ -2,22 +2,20 @@ mod at_ready;
 mod changes;
 mod check;
 mod decide;
-mod definition_patch;
+pub(crate) mod definition_patch;
 mod definition_view;
 mod definitions;
 mod graph;
 mod observations;
 mod propose;
 mod record;
-mod report;
+pub(crate) mod report;
 mod reuse;
 mod session_fleet;
 mod status_poll;
 mod tree;
 mod verdict;
 
-#[cfg(test)]
-mod definition_db_tests;
 #[cfg(test)]
 mod definition_paths_tests;
 #[cfg(test)]

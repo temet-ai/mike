@@ -1,25 +1,14 @@
 mod candidates;
-mod first_ten;
-#[cfg(test)]
-mod first_ten_tests;
-mod grade;
+pub(crate) mod first_ten;
+pub(crate) mod grade;
 mod lesson_pairs;
 mod load;
 #[cfg(test)]
 mod load_tests;
-mod run_now;
-mod tune;
+pub(crate) mod run_now;
+pub(crate) mod tune;
 
 pub(crate) use run_now::{RunNow, run_pass_now};
-
-#[cfg(test)]
-mod candidates_tests;
-#[cfg(test)]
-mod lesson_pairs_tests;
-#[cfg(test)]
-mod run_now_tests;
-#[cfg(test)]
-mod worker_tests;
 
 use std::time::Duration;
 
@@ -40,7 +29,7 @@ const TICK_INTERVAL: Duration = Duration::from_secs(600);
 const GRADE_BATCH: i64 = 200;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Tick {
+pub(crate) enum Tick {
     TuningOff,
     OutsideWindow,
     Busy,
@@ -49,16 +38,16 @@ enum Tick {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-struct Pass {
-    graded: usize,
-    thread_candidates: usize,
-    lesson_pairs: usize,
-    stopped: Option<Stop>,
-    tuned: Option<Tuned>,
+pub(crate) struct Pass {
+    pub(crate) graded: usize,
+    pub(crate) thread_candidates: usize,
+    pub(crate) lesson_pairs: usize,
+    pub(crate) stopped: Option<Stop>,
+    pub(crate) tuned: Option<Tuned>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Stop {
+pub(crate) enum Stop {
     MachineBusy,
     RerankerFailed,
     DatabaseFailed,
@@ -92,7 +81,11 @@ pub(crate) fn spawn_rerank_nightly(state: &AppState) {
     );
 }
 
-async fn run_tick(state: &AppState, persist: &PersistHandle, now: DateTime<Utc>) -> Tick {
+pub(crate) async fn run_tick(
+    state: &AppState,
+    persist: &PersistHandle,
+    now: DateTime<Utc>,
+) -> Tick {
     if !state.rerank_service().current_config().tuning_enabled {
         return Tick::TuningOff;
     }
@@ -112,7 +105,7 @@ async fn run_tick(state: &AppState, persist: &PersistHandle, now: DateTime<Utc>)
     Tick::Ran(pass)
 }
 
-async fn night_pass(
+pub(crate) async fn night_pass(
     state: &AppState,
     persist: &PersistHandle,
     budget: &QuietBudget,
@@ -198,7 +191,7 @@ async fn grade_events(
     None
 }
 
-trait Idle {
+pub(crate) trait Idle {
     fn is_idle(&self) -> impl Future<Output = bool> + Send;
 }
 
@@ -213,11 +206,11 @@ impl Idle for LoadIdle<'_> {
     }
 }
 
-fn quiet_budget(state: &AppState) -> QuietBudget {
+pub(crate) fn quiet_budget(state: &AppState) -> QuietBudget {
     state.rerank_service().current_config().nightly
 }
 
-fn window_start(now: DateTime<Utc>, start_hour: u32) -> DateTime<Utc> {
+pub(crate) fn window_start(now: DateTime<Utc>, start_hour: u32) -> DateTime<Utc> {
     let today = now.date_naive().and_hms_opt(start_hour, 0, 0);
     let start = today.map(|t| Utc.from_utc_datetime(&t)).unwrap_or(now);
     if start > now {

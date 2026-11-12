@@ -78,8 +78,6 @@ mod models;
 mod operator_turns;
 mod operator_turns_ledger;
 mod operator_turns_outcomes;
-#[cfg(test)]
-mod project_identity_tests;
 mod project_merge;
 mod projects;
 mod prompt_anomalies;
@@ -95,14 +93,8 @@ mod recall_own_turn_tests;
 #[cfg(test)]
 mod recall_recent_tests;
 mod recall_turns;
-#[cfg(test)]
-mod recall_turns_ambiguous_tests;
-mod recall_turns_detail;
-#[cfg(test)]
-mod recall_turns_detail_tests;
-mod recall_turns_rerank;
-#[cfg(test)]
-mod recall_turns_rerank_tests;
+pub(crate) mod recall_turns_detail;
+pub(crate) mod recall_turns_rerank;
 pub mod receipts_01;
 mod remote_control_link;
 mod request_body;
@@ -116,7 +108,7 @@ mod scheduled_jobs;
 mod search_body;
 mod search_own;
 mod search_reminders;
-mod search_session;
+pub(super) mod search_session;
 mod search_session_messages;
 mod search_session_scan;
 mod search_unified;

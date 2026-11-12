@@ -5,7 +5,7 @@ use super::grade::rerank_all;
 use crate::search_ranking::tuning::GradeCandidate;
 use crate::state::AppState;
 
-pub(super) const FIRST_TEN: usize = 10;
+pub(crate) const FIRST_TEN: usize = 10;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub(super) struct ResultGrade {
@@ -26,7 +26,7 @@ pub(super) struct Scored<'a> {
     pub(super) documents: &'a [String],
 }
 
-pub(super) fn first_ten_references(returned: &Value) -> Vec<String> {
+pub(crate) fn first_ten_references(returned: &Value) -> Vec<String> {
     returned
         .as_array()
         .map(|items| {
@@ -39,7 +39,7 @@ pub(super) fn first_ten_references(returned: &Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-pub(super) fn turn_query(query: &str, turn_prompt: Option<&str>) -> Option<String> {
+pub(crate) fn turn_query(query: &str, turn_prompt: Option<&str>) -> Option<String> {
     let prompt = turn_prompt.map(str::trim).filter(|p| !p.is_empty())?;
     Some(format!("{query}\n\nAsked in the turn: {prompt}"))
 }
@@ -117,7 +117,7 @@ async fn turn_scores(
     out
 }
 
-pub(super) fn relevance(
+pub(crate) fn relevance(
     query_score: Option<f64>,
     turn_score: Option<f64>,
     threshold: f64,

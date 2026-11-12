@@ -41,3 +41,6 @@ pub(crate) use cli::{
     DoctorReport, KillReport, ServerOpenRequest, ServerOpenStart, doctor_for_server,
     kill_for_server, open_for_server,
 };
+
+#[cfg(test)]
+mod cross_crate_tests;

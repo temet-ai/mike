@@ -10,7 +10,7 @@ use crate::store::persistence::search_grades::{NewTuningRun, TuningOutcome};
 pub(super) const ACTOR: &str = "rerank_tuner";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum Tuned {
+pub(crate) enum Tuned {
     AlreadyToday,
     TooFewGrades(usize),
     NoSettingsService,
@@ -73,7 +73,7 @@ pub(super) async fn tune_if_due(
     Ok(Tuned::Recorded { kept, tried })
 }
 
-pub(super) fn targets(used: Vec<String>, relevant: Vec<String>) -> Vec<String> {
+pub(crate) fn targets(used: Vec<String>, relevant: Vec<String>) -> Vec<String> {
     let mut targets = used;
     for reference in relevant {
         if !targets.contains(&reference) {

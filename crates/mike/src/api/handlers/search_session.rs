@@ -123,19 +123,11 @@ pub(crate) async fn find_text_scoped_session(
 
 #[cfg(test)]
 #[path = "search_session_support_tests.rs"]
-mod search_session_test_support;
+pub(crate) mod search_session_test_support;
 
 #[cfg(test)]
 #[path = "search_session_tests.rs"]
 mod search_session_tests;
-
-#[cfg(test)]
-#[path = "search_unified_log_tests.rs"]
-mod search_unified_log_tests;
-
-#[cfg(test)]
-#[path = "search_session_filters_tests.rs"]
-mod search_session_filters_tests;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct SessionTextMatch {

@@ -85,7 +85,7 @@ pub(super) async fn rerank_turns(
     }
 }
 
-const PROMPT_HEAD_CHARS: usize = 200;
+pub(crate) const PROMPT_HEAD_CHARS: usize = 200;
 
 async fn session_titles(state: &AppState, rows: &[RankedTurnRow]) -> HashMap<String, String> {
     let Some(handle) = state.persist.as_ref() else {
@@ -109,16 +109,12 @@ fn document(row: &RankedTurnRow, session_title: Option<&str>) -> String {
     turn_text(&header, &row.user_prompt, &row.final_assistant_text)
 }
 
-fn turn_text(header: &str, prompt: &str, reply: &str) -> String {
+pub(crate) fn turn_text(header: &str, prompt: &str, reply: &str) -> String {
     let room = MAX_DOCUMENT_CHARS.saturating_sub(header.chars().count() + 1);
     let prompt = head(prompt, PROMPT_HEAD_CHARS.min(room));
     let reply_room = room.saturating_sub(prompt.chars().count() + 2);
     format!("{header}\n{prompt}\n\n{}", head(reply, reply_room))
 }
-
-#[cfg(test)]
-#[path = "recall_turns_rerank_text_tests.rs"]
-mod text_tests;
 
 fn head(text: &str, max_chars: usize) -> &str {
     match text.char_indices().nth(max_chars) {

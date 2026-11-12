@@ -24,8 +24,6 @@ mod session_index;
 #[cfg(test)]
 mod session_lookup;
 #[cfg(test)]
-mod snapshot_terminal;
-#[cfg(test)]
 pub(crate) use helpers::*;
 
 use super::models::{InterceptedRequest, RequestId, RequestStatus, SystemPromptObservation};

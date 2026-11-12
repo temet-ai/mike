@@ -5,8 +5,6 @@ use crate::config::ProxyConfig;
 mod authority;
 mod middleware;
 mod policy;
-#[cfg(test)]
-mod proxy_tests;
 
 pub(crate) use middleware::guard;
 pub(crate) use policy::LocalAccessPolicy;

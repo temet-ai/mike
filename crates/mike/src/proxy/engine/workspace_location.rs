@@ -61,7 +61,3 @@ fn log_bind_failure(session: Uuid, cwd: &str, error: &PersistError) {
         "could not bind session to a knowledge location from the first captured request"
     );
 }
-
-#[cfg(test)]
-#[path = "workspace_location_db_tests.rs"]
-mod db_tests;

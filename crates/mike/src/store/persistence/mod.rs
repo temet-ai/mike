@@ -40,8 +40,6 @@ pub mod fleet;
 pub mod fleet_correlation;
 pub(crate) mod flow_capture_admission;
 mod id_cache;
-#[cfg(test)]
-mod id_cache_db_tests;
 pub mod id_resolvers;
 pub mod improvement;
 pub mod judge;
@@ -152,8 +150,6 @@ pub(crate) mod system_prompt_backfill;
 #[cfg(any(test, feature = "test-seams"))]
 pub mod test_support;
 pub(crate) mod text_sanitize;
-#[cfg(test)]
-mod thread_card_generations_tests;
 pub(crate) mod time_spent;
 pub mod tool_call_reads;
 pub mod tool_errors;

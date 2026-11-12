@@ -22,14 +22,14 @@ pub(super) const STATE_FAILED: &str = "failed";
 #[derive(Debug, Deserialize)]
 pub(crate) struct PatchFleetRequest {
     #[serde(default)]
-    pub(super) patch: Option<Value>,
+    pub(crate) patch: Option<Value>,
     #[serde(default)]
-    pub(super) ready: bool,
+    pub(crate) ready: bool,
 }
 
-pub(super) struct Saved {
-    pub(super) row: FleetRow,
-    pub(super) missing: Vec<Missing>,
+pub(crate) struct Saved {
+    pub(crate) row: FleetRow,
+    pub(crate) missing: Vec<Missing>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -233,7 +233,7 @@ async fn save_once(
     }))
 }
 
-pub(super) async fn save_definition(
+pub(crate) async fn save_definition(
     state: &AppState,
     persist: &PersistHandle,
     row: FleetRow,

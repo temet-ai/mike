@@ -9,10 +9,6 @@ use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::content_search::{ContentSearchRow, PageRequest, SessionOrder};
 
-#[cfg(test)]
-#[path = "content_search_tests.rs"]
-mod content_search_tests;
-
 const CONTENT_SEARCH_MAX_QUERY_BYTES: usize = 8192;
 const DEFAULT_SESSION_LIMIT: u32 = 20;
 const MAX_SESSION_LIMIT: u32 = 100;

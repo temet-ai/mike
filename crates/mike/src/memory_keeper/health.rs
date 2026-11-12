@@ -124,7 +124,3 @@ pub(crate) fn capability_row(
     }
     running_row(health.last.as_ref())
 }
-
-#[cfg(test)]
-#[path = "health_tests.rs"]
-mod health_tests;

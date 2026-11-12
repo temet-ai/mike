@@ -222,7 +222,7 @@ pub(crate) async fn define_project(
 }
 
 mod best_lean;
-mod best_shape;
+pub(crate) mod best_shape;
 mod disk_check;
 mod health;
 pub(crate) mod item_header;
@@ -235,37 +235,15 @@ pub(crate) use rerank_pass::rerank_pass;
 mod recent;
 mod rescue;
 pub(crate) mod retrieval;
-mod wide;
+pub(crate) mod wide;
 #[cfg(test)]
 mod wide_tests;
 pub(crate) use health::embedding_capability;
 pub(crate) use retrieval::{retrieve_page, retrieve_without_rerank};
 
 #[cfg(test)]
-mod detail_tests;
-#[cfg(test)]
 mod disk_check_tests;
-#[cfg(test)]
-mod outside_project_tests;
 #[cfg(test)]
 mod query_vector_cache_tests;
 #[cfg(test)]
-mod ranking_live_tests;
-#[cfg(test)]
-mod registration_tests;
-#[cfg(test)]
-mod rerank_cache_tests;
-#[cfg(test)]
-mod rerank_header_tests;
-#[cfg(test)]
-mod rerank_identifier_tests;
-#[cfg(test)]
-mod rerank_machine_tests;
-#[cfg(test)]
-pub(crate) mod rerank_tests;
-#[cfg(test)]
 mod rescue_tests;
-#[cfg(test)]
-mod session_overview_tests;
-#[cfg(test)]
-mod wide_pools_tests;

@@ -13,8 +13,6 @@ mod identifiers_tests;
 #[cfg(test)]
 mod machine_order_tests;
 #[cfg(test)]
-mod ranking_tests;
-#[cfg(test)]
 mod tuning_tests;
 
 pub(crate) const KEY_LEXICAL_WEIGHT: &str = "search.ranking.lexical_weight";

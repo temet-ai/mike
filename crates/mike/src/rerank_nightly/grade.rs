@@ -140,7 +140,7 @@ fn reranked_references(candidates: &[GradeCandidate], window: usize) -> Vec<Stri
         .collect()
 }
 
-pub(super) fn positions(used: &[String], ordered: &[String]) -> Vec<i32> {
+pub(crate) fn positions(used: &[String], ordered: &[String]) -> Vec<i32> {
     used.iter()
         .map(|reference| {
             ordered

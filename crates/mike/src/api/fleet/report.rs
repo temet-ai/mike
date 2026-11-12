@@ -365,9 +365,5 @@ pub(crate) async fn report_slice(
 }
 
 #[cfg(test)]
-#[path = "report_http_tests.rs"]
-mod tests;
-
-#[cfg(test)]
 #[path = "report_events_tests.rs"]
 mod event_tests;

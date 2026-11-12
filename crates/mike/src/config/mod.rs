@@ -7,9 +7,6 @@ pub(crate) mod lesson_relations;
 pub(crate) mod load;
 pub(crate) mod memory_cap;
 pub(crate) mod memory_harvester;
-#[cfg(test)]
-#[path = "paths_env_tests.rs"]
-mod paths_env_tests;
 pub mod recall_injector;
 pub(crate) mod reminders;
 pub(crate) mod retention_sweep;

@@ -9,15 +9,15 @@ use crate::store::persistence::project_knowledge::{
 };
 use crate::store::persistence::{PersistError, PersistHandle};
 
-pub(super) struct Pool<'a> {
-    pub(super) project: &'a ProjectIdentity,
-    pub(super) input: &'a KnowledgeQuery,
-    pub(super) wanted: i64,
-    pub(super) vector: Option<&'a QueryEmbedding>,
-    pub(super) reranked: bool,
+pub(crate) struct Pool<'a> {
+    pub(crate) project: &'a ProjectIdentity,
+    pub(crate) input: &'a KnowledgeQuery,
+    pub(crate) wanted: i64,
+    pub(crate) vector: Option<&'a QueryEmbedding>,
+    pub(crate) reranked: bool,
 }
 
-pub(super) async fn candidate_rows(
+pub(crate) async fn candidate_rows(
     state: &AppState,
     handle: &PersistHandle,
     pool: Pool<'_>,
@@ -52,7 +52,7 @@ async fn extra_rows(
     Ok(Some(rows))
 }
 
-pub(super) fn merge(own: Vec<Value>, extra: Vec<Value>, wanted: usize) -> Vec<Value> {
+pub(crate) fn merge(own: Vec<Value>, extra: Vec<Value>, wanted: usize) -> Vec<Value> {
     let mut seen = HashSet::new();
     let mut merged: Vec<Value> = own
         .into_iter()

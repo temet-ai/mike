@@ -53,3 +53,6 @@ pub(crate) mod work_threads;
 pub(crate) mod workspace;
 pub(crate) mod wright;
 pub(crate) mod ws;
+
+#[cfg(test)]
+mod cross_crate_tests;
