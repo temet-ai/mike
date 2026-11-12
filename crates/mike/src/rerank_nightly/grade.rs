@@ -1,5 +1,6 @@
 use serde_json::Value;
 
+use super::first_ten::{Scored, first_ten_references, grade_first_ten, turn_query};
 use crate::api::project_knowledge::rerank_page::documents_for;
 use crate::api::project_knowledge::retrieval::query_vector;
 use crate::api::rerank_search::score;
@@ -46,6 +47,18 @@ pub(super) async fn grade_event(
     let stored = serde_json::to_value(&candidates).unwrap_or(Value::Null);
     let plain = plain_references(&candidates);
     let reranked = reranked_references(&candidates, window);
+    let turn = turn_query(&event.query, event.turn_prompt.as_deref());
+    let first = grade_first_ten(
+        state,
+        &first_ten_references(&event.returned),
+        turn.as_deref(),
+        &Scored {
+            candidates: &candidates,
+            documents: &documents,
+        },
+    )
+    .await;
+    let first_ten = serde_json::to_value(&first.results).unwrap_or(Value::Array(Vec::new()));
     persist
         .insert_search_grade(&NewGrade {
             event_id: event.event_id,
@@ -53,6 +66,9 @@ pub(super) async fn grade_event(
             used_references: &event.used_references,
             plain_positions: &positions(&event.used_references, &plain),
             reranked_positions: &positions(&event.used_references, &reranked),
+            first_ten: &first_ten,
+            turn_prompt: event.turn_prompt.as_deref(),
+            relevant_references: &first.relevant,
         })
         .await?;
     Ok(Graded::Recorded)

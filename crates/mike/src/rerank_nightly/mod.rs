@@ -1,4 +1,7 @@
 mod candidates;
+mod first_ten;
+#[cfg(test)]
+mod first_ten_tests;
 mod grade;
 mod lesson_pairs;
 mod load;

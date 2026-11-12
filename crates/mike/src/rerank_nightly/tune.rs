@@ -5,7 +5,7 @@ use crate::change_log::{ChangeSource, ChangeVia};
 use crate::config::AppState;
 use crate::search_ranking::tuning::{Attempt, Grade, tune};
 use crate::store::persistence::PersistHandle;
-use crate::store::persistence::search_grades::NewTuningRun;
+use crate::store::persistence::search_grades::{NewTuningRun, TuningOutcome};
 
 pub(super) const ACTOR: &str = "rerank_tuner";
 
@@ -33,9 +33,17 @@ pub(super) async fn tune_if_due(
         .await?;
     let grades: Vec<Grade> = stored
         .into_iter()
-        .filter_map(|grade| Grade::from_stored(grade.candidates, grade.used_references))
+        .filter_map(|grade| {
+            let targets = targets(grade.used_references, grade.relevant_references);
+            Grade::from_stored(grade.candidates, targets)
+        })
+        .filter(|grade| !grade.used.is_empty())
         .collect();
+    let graded = i32::try_from(grades.len()).unwrap_or(i32::MAX);
     if grades.len() < config.nightly.min_graded_searches {
+        persist
+            .insert_search_tuning_runs(TuningOutcome::TooFewGrades, &[], graded, now)
+            .await?;
         return Ok(Tuned::TooFewGrades(grades.len()));
     }
     let Some(settings) = state.settings_service() else {
@@ -54,10 +62,25 @@ pub(super) async fn tune_if_due(
     }
     let kept = runs.iter().filter(|run| run.kept).count();
     let tried = runs.len();
+    let outcome = if kept > 0 {
+        TuningOutcome::Changed
+    } else {
+        TuningOutcome::NoChange
+    };
     persist
-        .insert_search_tuning_runs(&runs, i32::try_from(grades.len()).unwrap_or(i32::MAX), now)
+        .insert_search_tuning_runs(outcome, &runs, graded, now)
         .await?;
     Ok(Tuned::Recorded { kept, tried })
+}
+
+pub(super) fn targets(used: Vec<String>, relevant: Vec<String>) -> Vec<String> {
+    let mut targets = used;
+    for reference in relevant {
+        if !targets.contains(&reference) {
+            targets.push(reference);
+        }
+    }
+    targets
 }
 
 async fn apply(

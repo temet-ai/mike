@@ -286,13 +286,16 @@ async fn grade_synthetic(harness: &Harness, events: &[i64]) -> anyhow::Result<()
                 used_references: &used,
                 plain_positions: &[7],
                 reranked_positions: &[7],
+                first_ten: &json!([]),
+                turn_prompt: None,
+                relevant_references: &[],
             })
             .await?;
     }
     Ok(())
 }
 
-async fn with_settings_service(harness: &mut Harness) -> anyhow::Result<()> {
+pub(super) async fn with_settings_service(harness: &mut Harness) -> anyhow::Result<()> {
     harness.state.settings_service = Some(
         SettingsService::reconcile_on_startup(
             harness.state.settings_overlay.clone(),
@@ -350,7 +353,7 @@ async fn run_tick_with_enough_grades_tunes_once_and_applies_the_kept_value() -> 
 }
 
 #[tokio::test]
-async fn run_tick_with_too_few_grades_records_nothing() -> anyhow::Result<()> {
+async fn run_tick_with_too_few_grades_changes_nothing_and_records_the_run() -> anyhow::Result<()> {
     let mut harness = Harness::boot().await?;
     with_settings_service(&mut harness).await?;
     harness.enable_rerank(2_000);
@@ -369,6 +372,20 @@ async fn run_tick_with_too_few_grades_records_nothing() -> anyhow::Result<()> {
         }) if n >= 3
     ));
     assert!(harness.state.rerank_service().ranking().is_default());
+    let passes: Vec<(String, i32)> = sqlx::query_as(
+        "SELECT outcome, settings_tried FROM memory.search_tuning_passes ORDER BY id",
+    )
+    .fetch_all(harness.handle.pool())
+    .await?;
+    assert_eq!(passes, vec![("too_few_grades".to_owned(), 0)]);
+    let second = run_tick(&harness.state, &harness.handle, at(23)).await;
+    assert!(matches!(
+        second,
+        Tick::Ran(Pass {
+            tuned: Some(Tuned::AlreadyToday),
+            ..
+        })
+    ));
     harness.cleanup().await
 }
 

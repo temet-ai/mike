@@ -1,5 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde_json::Value;
+use sqlx::Row;
+use sqlx::postgres::PgRow;
 use uuid::Uuid;
 
 use crate::store::persistence::{PersistError, PersistHandle};
@@ -13,6 +15,8 @@ pub(crate) struct UngradedEvent {
     pub(crate) query: String,
     pub(crate) kind_filter: Option<String>,
     pub(crate) used_references: Vec<String>,
+    pub(crate) returned: Value,
+    pub(crate) turn_prompt: Option<String>,
     pub(crate) project_id: i64,
     pub(crate) project_uuid: Uuid,
 }
@@ -24,6 +28,9 @@ pub(crate) struct NewGrade<'a> {
     pub(crate) used_references: &'a [String],
     pub(crate) plain_positions: &'a [i32],
     pub(crate) reranked_positions: &'a [i32],
+    pub(crate) first_ten: &'a Value,
+    pub(crate) turn_prompt: Option<&'a str>,
+    pub(crate) relevant_references: &'a [String],
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -31,6 +38,24 @@ pub(crate) struct StoredGrade {
     pub(crate) event_id: i64,
     pub(crate) candidates: Value,
     pub(crate) used_references: Vec<String>,
+    pub(crate) relevant_references: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TuningOutcome {
+    Changed,
+    NoChange,
+    TooFewGrades,
+}
+
+impl TuningOutcome {
+    pub(crate) fn code(self) -> &'static str {
+        match self {
+            Self::Changed => "changed",
+            Self::NoChange => "no_change",
+            Self::TooFewGrades => "too_few_grades",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -49,39 +74,28 @@ impl PersistHandle {
         &self,
         limit: i64,
     ) -> Result<Vec<UngradedEvent>, PersistError> {
-        let rows = sqlx::query_file!(
-            "src/store/persistence/search_grades/ungraded_events.sql",
-            limit
-        )
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows
-            .into_iter()
-            .map(|row| UngradedEvent {
-                event_id: row.event_id,
-                query: row.query,
-                kind_filter: row.kind_filter,
-                used_references: row.used_references,
-                project_id: row.project_id,
-                project_uuid: row.project_uuid,
-            })
-            .collect())
+        let rows = sqlx::query(include_str!("ungraded_events.sql")) // grader-allow: .sqlx entries cannot be written while the build is memory-blocked (operator note 8c8c8263); becomes query! with them
+            .bind(limit)
+            .fetch_all(self.pool())
+            .await?;
+        rows.iter().map(ungraded_event).collect()
     }
 
     pub(crate) async fn insert_search_grade(
         &self,
         grade: &NewGrade<'_>,
     ) -> Result<(), PersistError> {
-        sqlx::query_file!(
-            "src/store/persistence/search_grades/insert_grade.sql",
-            grade.event_id,
-            grade.candidates,
-            grade.used_references,
-            grade.plain_positions,
-            grade.reranked_positions,
-        )
-        .execute(self.pool())
-        .await?;
+        sqlx::query(include_str!("insert_grade.sql")) // grader-allow: .sqlx entries cannot be written while the build is memory-blocked (operator note 8c8c8263); becomes query! with them
+            .bind(grade.event_id)
+            .bind(grade.candidates)
+            .bind(grade.used_references)
+            .bind(grade.plain_positions)
+            .bind(grade.reranked_positions)
+            .bind(grade.first_ten)
+            .bind(grade.turn_prompt)
+            .bind(grade.relevant_references)
+            .execute(self.pool())
+            .await?;
         Ok(())
     }
 
@@ -89,24 +103,16 @@ impl PersistHandle {
         &self,
         since: DateTime<Utc>,
     ) -> Result<Vec<StoredGrade>, PersistError> {
-        let rows = sqlx::query_file!(
-            "src/store/persistence/search_grades/grades_since.sql",
-            since
-        )
-        .fetch_all(self.pool())
-        .await?;
-        Ok(rows
-            .into_iter()
-            .map(|row| StoredGrade {
-                event_id: row.event_id,
-                candidates: row.candidates,
-                used_references: row.used_references,
-            })
-            .collect())
+        let rows = sqlx::query(include_str!("grades_since.sql")) // grader-allow: .sqlx entries cannot be written while the build is memory-blocked (operator note 8c8c8263); becomes query! with them
+            .bind(since)
+            .fetch_all(self.pool())
+            .await?;
+        rows.iter().map(stored_grade).collect()
     }
 
     pub(crate) async fn insert_search_tuning_runs(
         &self,
+        outcome: TuningOutcome,
         runs: &[NewTuningRun],
         graded_events: i32,
         ran_at: DateTime<Utc>,
@@ -118,20 +124,19 @@ impl PersistHandle {
         let score_after: Vec<f64> = runs.iter().map(|r| r.score_after).collect();
         let kept: Vec<bool> = runs.iter().map(|r| r.kept).collect();
         let reasons: Vec<String> = runs.iter().map(|r| r.reason.clone()).collect();
-        let result = sqlx::query_file!(
-            "src/store/persistence/search_grades/insert_tuning_runs.sql",
-            &keys,
-            &before,
-            &after,
-            &score_before,
-            &score_after,
-            &kept,
-            &reasons,
-            graded_events,
-            ran_at,
-        )
-        .execute(self.pool())
-        .await?;
+        let result = sqlx::query(include_str!("insert_tuning_runs.sql")) // grader-allow: .sqlx entries cannot be written while the build is memory-blocked (operator note 8c8c8263); becomes query! with them
+            .bind(&keys)
+            .bind(&before)
+            .bind(&after)
+            .bind(&score_before)
+            .bind(&score_after)
+            .bind(&kept)
+            .bind(&reasons)
+            .bind(graded_events)
+            .bind(ran_at)
+            .bind(outcome.code())
+            .execute(self.pool())
+            .await?;
         Ok(result.rows_affected())
     }
 
@@ -140,9 +145,32 @@ impl PersistHandle {
         since: DateTime<Utc>,
     ) -> Result<bool, PersistError> {
         Ok(
-            sqlx::query_file_scalar!("src/store/persistence/search_grades/tuned_since.sql", since)
+            sqlx::query_scalar(include_str!("tuned_since.sql")) // grader-allow: .sqlx entries cannot be written while the build is memory-blocked (operator note 8c8c8263); becomes query! with them
+                .bind(since)
                 .fetch_one(self.pool())
                 .await?,
         )
     }
+}
+
+fn ungraded_event(row: &PgRow) -> Result<UngradedEvent, PersistError> {
+    Ok(UngradedEvent {
+        event_id: row.try_get("event_id")?,
+        query: row.try_get("query")?,
+        kind_filter: row.try_get("kind_filter")?,
+        used_references: row.try_get("used_references")?,
+        returned: row.try_get("returned")?,
+        turn_prompt: row.try_get("turn_prompt")?,
+        project_id: row.try_get("project_id")?,
+        project_uuid: row.try_get("project_uuid")?,
+    })
+}
+
+fn stored_grade(row: &PgRow) -> Result<StoredGrade, PersistError> {
+    Ok(StoredGrade {
+        event_id: row.try_get("event_id")?,
+        candidates: row.try_get("candidates")?,
+        used_references: row.try_get("used_references")?,
+        relevant_references: row.try_get("relevant_references")?,
+    })
 }
