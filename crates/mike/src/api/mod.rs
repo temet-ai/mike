@@ -38,7 +38,6 @@ pub(crate) mod session_delivery;
 pub(crate) mod session_flow;
 pub(crate) mod session_mail;
 pub(crate) mod session_proxy_tools;
-pub(crate) mod supplied_items;
 pub(crate) mod session_recall;
 pub(crate) mod session_reconcile;
 pub(crate) mod session_verdicts;
@@ -50,6 +49,7 @@ pub(crate) mod steering_evaluations;
 pub(crate) mod steering_facts;
 pub(crate) mod steering_guard;
 pub(crate) mod steering_guard_effect;
+pub(crate) mod supplied_items;
 #[cfg(feature = "ts-export")]
 pub mod ts_export;
 pub(crate) mod turn_verdicts;

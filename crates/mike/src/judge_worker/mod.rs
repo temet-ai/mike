@@ -8,9 +8,9 @@ mod rejudge;
 pub(crate) mod session_end;
 mod session_poll;
 mod spawn;
-pub(crate) mod supply_verdict;
 #[cfg(any(test, feature = "test-seams"))]
 mod spawn_test_seams;
+pub(crate) mod supply_verdict;
 mod turn_sweep;
 mod turn_sweep_log;
 pub(crate) mod v2_judge;
