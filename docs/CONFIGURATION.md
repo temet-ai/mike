@@ -380,7 +380,6 @@ The runtime setting `steerer.openrouter_api_key_env` (default `MIKE_STEERER_OPEN
 | `spa_origins` | `MIKE_SPA_ORIGINS` | `["http://127.0.0.1:9990", "http://localhost:9990"]` | CORS allow-list for the inspect API, and one of the inputs to the Host/Origin guard. Comma-separated; replaces the default list. |
 | `inspect_allowed_hosts` | `MIKE_INSPECT_ALLOWED_HOSTS` | empty | Extra `Host` header values the guard accepts beyond localhost, loopback, the bind addresses and the origin hosts. **This is not authentication** — see [`SECURITY.md`](SECURITY.md). |
 | `upstream_url` | `MIKE_UPSTREAM_URL` | `https://api.anthropic.com` | Where the proxy forwards. You should not need to change this. Also `--upstream-url`. |
-| `finite_url` | `MIKE_FINITE_URL` | `http://127.0.0.1:3000` | Base URL for the optional fleet-graph enrichment service. |
 
 ### Storage
 

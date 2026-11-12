@@ -25,8 +25,6 @@ export interface FleetGraphNode {
 	unconsumed_mail?: number;
 	last_activity_at: string;
 	request_count: number;
-	run_id: string | null;
-	actor_id: string | null;
 }
 
 export type FleetGraphEdgeKind = 'messaged';

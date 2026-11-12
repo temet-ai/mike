@@ -2,7 +2,49 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use serde_json::Value;
 
+mod checks;
 mod problems;
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub(crate) struct CheckRow {
+    pub(crate) name: String,
+    pub(crate) source: String,
+    pub(crate) cadence: String,
+    pub(crate) expects: String,
+    pub(crate) probe: String,
+    pub(crate) query: Option<String>,
+    pub(crate) params: Value,
+    pub(crate) enabled: bool,
+    pub(crate) created_at: DateTime<Utc>,
+    pub(crate) updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct NewCheck {
+    pub(crate) name: String,
+    pub(crate) source: String,
+    pub(crate) cadence: String,
+    pub(crate) expects: String,
+    pub(crate) probe: String,
+    pub(crate) query: Option<String>,
+    pub(crate) params: Value,
+    pub(crate) enabled: bool,
+}
+
+impl From<CheckRow> for NewCheck {
+    fn from(row: CheckRow) -> Self {
+        Self {
+            name: row.name,
+            source: row.source,
+            cadence: row.cadence,
+            expects: row.expects,
+            probe: row.probe,
+            query: row.query,
+            params: row.params,
+            enabled: row.enabled,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 pub(crate) struct RecordedRun {

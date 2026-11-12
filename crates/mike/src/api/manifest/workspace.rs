@@ -59,20 +59,6 @@ pub(super) const ROUTES: &[RouteEntry] = &[
             reason: "pending-wake probe for the sibling wake/channel server, not an agent-facing investigation surface; no MCP tool until one needs it",
         },
     ),
-    route(
-        "GET",
-        "/api/fleet/runs",
-        Coverage::Exempt {
-            reason: "finite run-list passthrough (issue temet-ai/mike-private#148 seam S2); SPA-driven Runs view discovery, no MCP tool until an agent workflow needs it",
-        },
-    ),
-    route(
-        "GET",
-        "/api/fleet/runs/{run_id}",
-        Coverage::Exempt {
-            reason: "finite fleet-run correlation (issue temet-ai/mike-private#148 seam S2); SPA-driven Runs view, no MCP tool until an agent workflow needs it",
-        },
-    ),
     route("GET", "/api/fleet/graph", Coverage::Tool("get_fleet_graph")),
 ];
 
@@ -108,7 +94,5 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
             "/api/workspace/wake-pending",
             get(workspace::get_wake_pending),
         )
-        .route("/api/fleet/runs", get(fleet::get_fleet_runs))
-        .route("/api/fleet/runs/{run_id}", get(fleet::get_fleet_run))
         .route("/api/fleet/graph", get(fleet::get_fleet_graph))
 }

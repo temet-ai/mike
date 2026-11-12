@@ -131,9 +131,6 @@
 				{#if node.worktree}<span
 						><span class="fleet-inspector__k">worktree</span> {node.worktree}</span
 					>{/if}
-				{#if node.runId}<span><span class="fleet-inspector__k">run</span> {node.runId}</span>{/if}
-				{#if node.actorId}<span><span class="fleet-inspector__k">actor</span> {node.actorId}</span
-					>{/if}
 			</div>
 		</div>
 

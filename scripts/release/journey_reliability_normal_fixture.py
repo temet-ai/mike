@@ -102,10 +102,10 @@ def normal_fixture(count, project):
 
 @contextmanager
 def normal_services():
-    """Owned Finite endpoint; any core-workload call is an unexpected dependency."""
+    """Owned services endpoint; any core-workload call is an unexpected dependency."""
     from http.server import BaseHTTPRequestHandler
-    from journey_reliability_services import FiniteContract
-    contract = FiniteContract(request_limit=4096)
+    from journey_reliability_services import ServiceGuard
+    contract = ServiceGuard(request_limit=4096)
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_args):
             pass

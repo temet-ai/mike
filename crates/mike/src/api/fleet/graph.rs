@@ -13,7 +13,6 @@ use crate::config::AppState;
 use crate::fleet::derive::{
     derive_error_kind, derive_quality, derive_role, derive_state, derive_state_detail,
 };
-use crate::fleet::finite_client::fetch_runs_list;
 use crate::store::persistence::PersistHandle;
 use crate::workspace::Liveness;
 
@@ -43,8 +42,6 @@ pub(crate) struct FleetGraphNodeDto {
     pub(crate) last_activity_at: String,
     pub(crate) request_count: i64,
     pub(crate) unconsumed_mail: i64,
-    pub(crate) run_id: Option<String>,
-    pub(crate) actor_id: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -107,39 +104,6 @@ async fn resolve_fleet_graph_project(
     }
 }
 
-async fn build_finite_actor_index(
-    client: &reqwest::Client,
-    finite_base: &str,
-) -> HashMap<Uuid, (String, String)> {
-    let run_ids: Vec<String> = match fetch_runs_list(client, finite_base).await {
-        Ok(runs) => runs.into_iter().map(|r| r.run_id).collect(),
-        Err(e) => {
-            tracing::warn!(
-                error = %e,
-                "fleet graph: finite run-list fetch failed; run_id/actor_id enrichment skipped"
-            );
-            Vec::new()
-        }
-    };
-    let by_run = super::runs::correlate_all_runs(client, finite_base, run_ids).await;
-
-    let mut actor_by_session_uuid: HashMap<Uuid, (String, String)> = HashMap::new();
-    for (run_id, actors) in &by_run {
-        for actor in actors {
-            let Some(uuid_str) = &actor.session_uuid else {
-                continue;
-            };
-            let Ok(uuid) = Uuid::parse_str(uuid_str) else {
-                continue;
-            };
-            actor_by_session_uuid
-                .entry(uuid)
-                .or_insert_with(|| (run_id.clone(), actor.actor_id.clone()));
-        }
-    }
-    actor_by_session_uuid
-}
-
 struct FleetNodeRowFields {
     session_uuid: Uuid,
     title: Option<String>,
@@ -163,7 +127,6 @@ fn build_fleet_graph_node(
     row: FleetNodeRowFields,
     busy_ids: &std::collections::HashSet<String>,
     now: DateTime<Utc>,
-    actor_by_session_uuid: &HashMap<Uuid, (String, String)>,
 ) -> FleetGraphNodeDto {
     let session_uuid_str = row.session_uuid.to_string();
     let busy = busy_ids.contains(&session_uuid_str);
@@ -185,10 +148,6 @@ fn build_fleet_graph_node(
         rationale: q.rationale,
     });
     let role = derive_role(row.declared_role.as_deref());
-    let (run_id, actor_id) = actor_by_session_uuid
-        .get(&row.session_uuid)
-        .cloned()
-        .map_or((None, None), |(r, a)| (Some(r), Some(a)));
     FleetGraphNodeDto {
         session_id: session_uuid_str,
         title: row.title,
@@ -207,8 +166,6 @@ fn build_fleet_graph_node(
         last_activity_at: row.last_activity_at.to_rfc3339(),
         request_count: row.request_count,
         unconsumed_mail: row.unconsumed_mail,
-        run_id,
-        actor_id,
     }
 }
 
@@ -242,9 +199,6 @@ pub(crate) async fn get_fleet_graph(
         .await
         .map_err(persist_error_response)?;
 
-    let actor_by_session_uuid =
-        build_finite_actor_index(&state.client, &state.config.finite_url).await;
-
     let busy_ids = state.in_flight.busy_session_ids();
     let now = Utc::now();
     let nodes = node_rows
@@ -268,7 +222,7 @@ pub(crate) async fn get_fleet_graph(
                 request_count: row.request_count,
                 unconsumed_mail: row.unconsumed_mail,
             };
-            build_fleet_graph_node(fields, &busy_ids, now, &actor_by_session_uuid)
+            build_fleet_graph_node(fields, &busy_ids, now)
         })
         .collect();
 

@@ -7,11 +7,40 @@ use serde_json::{Value, json};
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
 use crate::wright::Finding;
+use crate::wright::definition::int_param;
 
 pub(crate) const TAIL_BYTES: u64 = 4 * 1024 * 1024;
-const WINDOW_MINUTES: i64 = 60;
-const REPEATS: usize = 3;
 const STALE_HOURS: i64 = 48;
+const LEVELS: [&str; 3] = ["ERROR", "WARN", "INFO"];
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LogParams {
+    pub(crate) level: String,
+    pub(crate) repeats: usize,
+    pub(crate) window_minutes: i64,
+}
+
+impl LogParams {
+    pub(crate) fn from_value(params: &Value) -> Result<Self, String> {
+        let level = params
+            .get("level")
+            .and_then(Value::as_str)
+            .filter(|level| LEVELS.contains(level))
+            .ok_or_else(|| {
+                format!(
+                    "params.level is {}; it must be one of {}",
+                    params.get("level").unwrap_or(&Value::Null),
+                    LEVELS.join(", ")
+                )
+            })?;
+        let repeats = int_param(params, "repeats", 1, 1_000_000)?;
+        Ok(Self {
+            level: level.to_owned(),
+            repeats: usize::try_from(repeats).map_err(|e| e.to_string())?,
+            window_minutes: int_param(params, "window_minutes", 1, 1440)?,
+        })
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct LogLine {
@@ -63,10 +92,18 @@ fn is_panic(line: &LogLine) -> bool {
     line.message.contains("panicked")
 }
 
-pub(crate) fn findings_from(lines: &[LogLine], now: DateTime<Utc>, file: &Path) -> Vec<Finding> {
-    let since = now - Duration::minutes(WINDOW_MINUTES);
+pub(crate) fn findings_from(
+    lines: &[LogLine],
+    now: DateTime<Utc>,
+    file: &Path,
+    params: &LogParams,
+) -> Vec<Finding> {
+    let since = now - Duration::minutes(params.window_minutes);
     let mut grouped: BTreeMap<(String, String), Vec<&LogLine>> = BTreeMap::new();
-    for line in lines.iter().filter(|l| l.level == "ERROR" && l.at >= since) {
+    for line in lines
+        .iter()
+        .filter(|l| l.level == params.level && l.at >= since)
+    {
         grouped
             .entry((line.target.clone(), shape(&line.message)))
             .or_default()
@@ -74,14 +111,15 @@ pub(crate) fn findings_from(lines: &[LogLine], now: DateTime<Utc>, file: &Path) 
     }
     grouped
         .into_iter()
-        .filter(|(_, hits)| hits.len() >= REPEATS || hits.iter().any(|l| is_panic(l)))
+        .filter(|(_, hits)| hits.len() >= params.repeats || hits.iter().any(|l| is_panic(l)))
         .map(|((target, message), hits)| Finding {
             scope: "log".to_owned(),
             resource: format!("{target}: {message}"),
             evidence: json!({
-                "window_minutes": WINDOW_MINUTES,
+                "level": params.level,
+                "window_minutes": params.window_minutes,
                 "file": file.display().to_string(),
-                "errors": hits.len(),
+                "lines": hits.len(),
                 "first_at": hits.first().map(|l| l.at),
                 "last_at": hits.last().map(|l| l.at),
                 "sample_line": hits.last().map(|l| l.raw.clone()),
@@ -142,7 +180,12 @@ pub(crate) async fn read_tail(path: &Path) -> Result<String, String> {
     Ok(whole_lines.to_owned())
 }
 
-pub(crate) async fn check(dir: Option<&Path>, now: DateTime<Utc>) -> Result<Vec<Finding>, String> {
+pub(crate) async fn check(
+    dir: Option<&Path>,
+    now: DateTime<Utc>,
+    params: &Value,
+) -> Result<Vec<Finding>, String> {
+    let params = LogParams::from_value(params)?;
     let dir = dir.ok_or_else(|| "no log folder is configured (log_dir)".to_owned())?;
     let file = newest_log(dir).await?;
     let text = read_tail(&file).await?;
@@ -158,5 +201,5 @@ pub(crate) async fn check(dir: Option<&Path>, now: DateTime<Utc>) -> Result<Vec<
             file.display()
         ));
     }
-    Ok(findings_from(&lines, now, &file))
+    Ok(findings_from(&lines, now, &file, &params))
 }

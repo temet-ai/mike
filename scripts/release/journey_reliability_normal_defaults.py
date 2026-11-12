@@ -117,8 +117,15 @@ judge_worker.max_output_tokens
 judge_worker.model
 judge_worker.reasoning_effort
 judge_worker.system_prompt
+context_focus_question.mode
+knowledge_embedding.batch_sources
+knowledge_embedding.budget_secs
+knowledge_embedding.chunks_per_call
+knowledge_embedding.concurrency
+knowledge_embedding.interval_secs
 launch_auto_trust
 launch_backend
+launch_backend_follow_caller
 launch_brief_inline_max
 launch_ca_cert
 launch_channel_check_enabled
@@ -137,6 +144,9 @@ lesson_relations.adjudicator_model
 lesson_relations.candidate_distance_threshold
 lesson_relations.enabled
 lesson_relations.proposer_model
+lesson_relations_job.enabled
+lesson_outcome.min_judged_supplies
+lesson_outcome.retire_floor
 lesson_worker.dedup_threshold
 lesson_worker.gc_interval_secs
 lesson_worker.max_lessons_per_project
@@ -194,6 +204,19 @@ rerank.model
 rerank.timeout_ms
 rerank.tuning.enabled
 rerank.url
+rerank.cold_timeout_ms
+rerank.lesson_pairs.min_score
+rerank.min_query_words
+rerank.nightly.end_hour_utc
+rerank.nightly.max_load_per_cpu
+rerank.nightly.start_hour_utc
+rerank.related.per_thread
+rerank.rescue_min_kept
+rerank.rescue_score
+rerank.search_no_project
+rerank.tuning.lookback_days
+rerank.tuning.min_gain
+rerank.tuning.min_graded_searches
 semantic.allow_remote_embedding
 semantic.batch_turns
 semantic.cluster_floor_quantile
@@ -229,6 +252,14 @@ session_judge.rejudge_daily_call_cap
 session_judge.request_timeout_secs
 session_judge.system_prompt
 session_judge.v3_lookback_hours
+shell_output_compression.forward_share
+shell_output_compression.grace_turns
+shell_output_compression.head_lines
+shell_output_compression.min_bytes
+shell_output_compression.mode
+shell_output_compression.signal_context_lines
+shell_output_compression.signal_line_cap
+shell_output_compression.tail_lines
 steerer.intake_criteria.input_budget
 steerer.max_output_tokens
 steerer.model
@@ -293,7 +324,6 @@ def validate_boot_defaults(actual, defaults, config, baseline_config, endpoints,
         "spa_origins": [f"http://127.0.0.1:{endpoints['spa']}", f"http://localhost:{endpoints['spa']}"],
         "upstream_url": f"http://127.0.0.1:{endpoints['upstream']}",
         "database_url": f"postgres://postgres@127.0.0.1:{endpoints['postgres']}/{database}",
-        "finite_url": f"http://127.0.0.1:{endpoints['services']}",
         "steerer.openrouter_base_url": f"http://127.0.0.1:{endpoints['services']}",
     }
     require(set(relocations) == set(ENDPOINT_OVERRIDES), "NORMAL_DEFAULT_BOOT_RELOCATION_SET")

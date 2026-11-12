@@ -195,6 +195,7 @@ async fn a_query_that_fails_reports_its_error_instead_of_no_findings() -> anyhow
         db.handle.pool(),
         "broken",
         "SELECT * FROM wright.no_such_table",
+        &json!({}),
     )
     .await;
     let Err(reason) = result else {
@@ -205,6 +206,7 @@ async fn a_query_that_fails_reports_its_error_instead_of_no_findings() -> anyhow
         db.handle.pool(),
         "slow",
         "SELECT 'x'::text, 'y'::text, '{}'::jsonb FROM pg_sleep(11)",
+        &json!({}),
     )
     .await;
     let Err(reason) = slow else {
@@ -225,11 +227,108 @@ async fn checks_read_through_a_read_only_transaction() -> anyhow::Result<()> {
         "writer",
         "INSERT INTO wright.client_errors (route, kind, message) VALUES ('/', 'load', 'x')
          RETURNING route, kind, detail",
+        &json!({}),
     )
     .await;
     let Err(reason) = result else {
         anyhow::bail!("a check must not be able to write");
     };
     assert!(reason.contains("read-only"), "{reason}");
+    db.cleanup().await
+}
+
+#[tokio::test]
+async fn the_seed_holds_every_check_with_its_thresholds_in_params() -> anyhow::Result<()> {
+    let db = Db::boot().await?;
+    let checks = db.handle.list_wright_checks().await?;
+    let names: Vec<&str> = checks.iter().map(|c| c.name.as_str()).collect();
+    assert_eq!(
+        names,
+        [
+            "cold_forks",
+            "hook_errors",
+            "llm_role_errors",
+            "log_errors",
+            "log_warnings",
+            "mcp_tool_errors",
+            "page_client_errors",
+            "request_failures",
+            "scheduled_job_failures",
+            "session_tool_errors",
+            "undelivered_mail",
+        ]
+    );
+    assert!(checks.iter().all(|c| c.enabled));
+    let warnings = checks.iter().find(|c| c.name == "log_warnings");
+    assert_eq!(
+        warnings.map(|c| c.params.clone()),
+        Some(json!({"level": "WARN", "repeats": 100, "window_minutes": 60}))
+    );
+    db.cleanup().await
+}
+
+#[tokio::test]
+async fn mcp_tool_errors_fires_when_one_error_hits_many_sessions_once_each() -> anyhow::Result<()> {
+    let db = Db::boot().await?;
+    for _ in 0..14 {
+        let session = db.session(Uuid::new_v4(), "1 minute").await?;
+        let request = db.request(session, "10 minutes", "primary").await?;
+        db.tool_error(request, session, "mcp__mike__ask", "ask refused: no peer")
+            .await?;
+    }
+    let findings = db.findings("mcp_tool_errors").await?;
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].resource, "mcp__mike__ask: ask refused: no peer");
+    assert_eq!(findings[0].evidence["failures"], 14);
+    assert_eq!(findings[0].evidence["sessions"], 14);
+    db.cleanup().await
+}
+
+#[tokio::test]
+async fn changed_params_change_what_a_stored_check_reports() -> anyhow::Result<()> {
+    let db = Db::boot().await?;
+    let session = db.session(Uuid::new_v4(), "1 minute").await?;
+    let request = db.request(session, "10 minutes", "primary").await?;
+    for _ in 0..2 {
+        db.tool_error(request, session, "mcp__mike__ask", "ask refused")
+            .await?;
+    }
+    assert_eq!(db.findings("mcp_tool_errors").await?, Vec::new());
+    let Some(row) = db.handle.wright_check("mcp_tool_errors").await? else {
+        anyhow::bail!("the seed must hold mcp_tool_errors");
+    };
+    let mut changed = crate::store::persistence::wright::NewCheck::from(row);
+    changed.params = json!({"window_hours": 24, "min_failures": 2, "min_sessions": 3});
+    db.handle.replace_wright_check(&changed).await?;
+    assert_eq!(db.findings("mcp_tool_errors").await?.len(), 1);
+    db.cleanup().await
+}
+
+#[tokio::test]
+async fn validate_refuses_a_failing_query_and_the_wrong_columns() -> anyhow::Result<()> {
+    let db = Db::boot().await?;
+    let pool = db.handle.pool();
+    let params = json!({"n": 1});
+    let ok = "SELECT 'a'::text, 'b'::text, jsonb_build_object('n', $1->>'n')";
+    assert_eq!(bounded::validate(pool, ok, &params).await, Ok(()));
+
+    let missing = bounded::validate(pool, "SELECT * FROM wright.no_such_table", &params).await;
+    assert!(missing.is_err_and(|e| e.contains("no_such_table")));
+
+    let two = bounded::validate(pool, "SELECT 'a'::text, 'b'::text", &params).await;
+    assert!(two.is_err_and(|e| e.contains("(text, text, jsonb)")));
+
+    let wrong = bounded::validate(pool, "SELECT 1, 'b'::text, '{}'::jsonb", &params).await;
+    assert!(wrong.is_err_and(|e| e.contains("int4, text, jsonb")));
+
+    let write = bounded::validate(
+        pool,
+        "WITH w AS (INSERT INTO wright.client_errors (route, kind, message)
+                    VALUES ('/', 'load', 'x') RETURNING route)
+         SELECT route, route, '{}'::jsonb FROM w",
+        &params,
+    )
+    .await;
+    assert!(write.is_err_and(|e| e.contains("read-only")));
     db.cleanup().await
 }

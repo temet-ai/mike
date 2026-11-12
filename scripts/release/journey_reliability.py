@@ -36,7 +36,7 @@ MAX_REQUESTS = 25000
 MAX_OVERRUN = 120
 ISOLATION_OVERRIDE_NAMES = (
     "persist_enabled", "proxy_listen_addr", "inspect_listen_addr", "spa_bind", "upstream_url", "database_url",
-    "finite_url", "db_fallback_enabled", "db_resync_enabled", "composition_enabled", "max_requests", "max_age",
+    "db_fallback_enabled", "db_resync_enabled", "composition_enabled", "max_requests", "max_age",
     "max_request_body_bytes", "max_response_body_bytes", "max_in_flight", "max_store_bytes", "log_level", "log_max_files",
     "analysis.enabled", "compress.enabled", "reminders.enabled",
     "weasel_intercept.enabled", "recall_injector.enabled", "harvester.enabled", "lesson_worker.enabled",
@@ -308,7 +308,7 @@ def isolated_config(config, upstream_port, policy):
     # Observed disabled-service prerequisites are checked separately; these
     # settings do not establish all-transport network isolation.
     local = f"http://127.0.0.1:{upstream_port}"
-    fields = {"finite_url": local, "db_fallback_enabled": False, "db_resync_enabled": False,
+    fields = {"db_fallback_enabled": False, "db_resync_enabled": False,
               "composition_enabled": False, "max_requests": policy["max_requests"],
               "max_age": "24h", "max_request_body_bytes": MAX_BODY, "max_response_body_bytes": MAX_BODY,
               "max_in_flight": policy["concurrent_sessions"], "max_store_bytes": 256 * 1024 * 1024,
