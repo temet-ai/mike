@@ -2,7 +2,6 @@ pub(crate) mod engine;
 pub(crate) mod error_response;
 pub(crate) mod forward;
 pub(crate) mod handler;
-pub(crate) mod headers;
 pub(crate) mod remote_control;
 pub(crate) mod response;
 pub(crate) mod responses_capture;

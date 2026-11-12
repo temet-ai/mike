@@ -186,7 +186,7 @@ impl Default for ProxyConfig {
             spa_bind: default_spa_bind(),
             compress: crate::compress::CompressConfig::default(),
             reminders: crate::reminders::RemindersConfig::default(),
-            weasel_intercept: crate::weasel_intercept::config::WeaselInterceptConfig::default(),
+            weasel_intercept: crate::config::weasel_intercept::WeaselInterceptConfig::default(),
             composition_enabled: false,
             spa_origins: default_spa_origins(),
             inspect_allowed_hosts: Vec::new(),
@@ -211,7 +211,7 @@ impl Default for ProxyConfig {
             lesson_worker: LessonWorkerConfig::default(),
             recall_injector: crate::recall_injector::RecallInjectorConfig::default(),
             harvester: crate::memory_harvester::HarvesterConfig::default(),
-            steerer: crate::steerer::config::SteererConfig::default(),
+            steerer: crate::config::steerer::SteererConfig::default(),
             session_judge: crate::config::session_judge::SessionJudgeConfig::default(),
             retention_sweep: crate::config::retention_sweep::RetentionSweepConfig::default(),
             channel_link_sweep: crate::config::channel_link_sweep::ChannelLinkSweepConfig::default(

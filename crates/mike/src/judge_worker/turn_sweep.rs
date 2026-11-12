@@ -65,7 +65,7 @@ pub(crate) struct TurnJudgeRuntime {
 
 pub(crate) fn resolve_turn_judge_runtime(
     overlay: &crate::settings::SettingsOverlay,
-    cfg: &crate::steerer::config::JudgeConfig,
+    cfg: &crate::config::steerer::JudgeConfig,
     fallback_model: &str,
 ) -> TurnJudgeRuntime {
     let model = overlay

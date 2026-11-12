@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use crate::circuit_breaker::CircuitBreaker;
+use crate::config::steerer::JudgeConfig;
 use crate::llm::OpenRouterClient;
 use crate::settings::SettingsOverlay;
-use crate::steerer::config::JudgeConfig;
 use crate::store::persistence::PersistHandle;
 
 use super::live_judge::{

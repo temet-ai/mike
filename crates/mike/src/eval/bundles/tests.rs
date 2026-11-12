@@ -29,7 +29,7 @@ fn judge_probes_are_deterministic() {
 #[test]
 fn turn_judge_components_carry_the_whole_compiled_prompt() {
     let overlay = crate::settings::SettingsOverlay::default();
-    let cfg = crate::steerer::config::JudgeConfig::default();
+    let cfg = crate::config::steerer::JudgeConfig::default();
     let components = turn_judge_components(&overlay, &cfg, "openai/gpt-test");
     assert_eq!(
         components["system_prompt"],
@@ -45,7 +45,7 @@ fn turn_judge_components_carry_the_whole_compiled_prompt() {
 
 #[test]
 fn a_model_setting_changes_the_turn_judge_bundle_content() {
-    let cfg = crate::steerer::config::JudgeConfig::default();
+    let cfg = crate::config::steerer::JudgeConfig::default();
     let base = crate::settings::SettingsOverlay::default();
     let changed = crate::settings::SettingsOverlay {
         judge_worker_model: Some("openai/other".to_owned()),

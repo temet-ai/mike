@@ -9,12 +9,14 @@ pub(crate) mod load;
 mod paths_env_tests;
 pub(crate) mod retention_sweep;
 pub(crate) mod session_judge;
+pub(crate) mod steerer;
 pub mod subcommands;
 
 mod child;
 mod credentials;
 pub mod endpoint;
 pub mod paths;
+pub(crate) mod weasel_intercept;
 pub mod write;
 
 pub use child::configure_child;

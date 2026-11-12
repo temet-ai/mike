@@ -77,7 +77,7 @@ pub(crate) async fn forward_and_capture(
     let upstream_resp =
         super::super::forward::send_upstream(state, method.clone(), uri, headers, body).await?;
     let status = upstream_resp.status();
-    let resp_headers = super::super::headers::filter_response_headers(upstream_resp.headers());
+    let resp_headers = crate::extract::headers::filter_response_headers(upstream_resp.headers());
     let is_sse = resp_headers
         .get("content-type")
         .and_then(|v| v.to_str().ok())

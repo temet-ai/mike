@@ -10,7 +10,7 @@ fn turn_judge_settings_row_outranks_config_and_compiled_default() {
         ..Default::default()
     };
 
-    let cfg = crate::steerer::config::JudgeConfig {
+    let cfg = crate::config::steerer::JudgeConfig {
         model: Some("google/gemini-3.5-flash-lite".to_owned()),
         system_prompt: "config rubric".to_owned(),
         ..Default::default()
@@ -26,7 +26,7 @@ fn turn_judge_settings_row_outranks_config_and_compiled_default() {
 #[test]
 fn turn_judge_falls_back_config_then_compiled() {
     let overlay = crate::settings::SettingsOverlay::default();
-    let cfg = crate::steerer::config::JudgeConfig {
+    let cfg = crate::config::steerer::JudgeConfig {
         model: None,
         system_prompt: "config rubric".to_owned(),
         ..Default::default()
@@ -36,7 +36,7 @@ fn turn_judge_falls_back_config_then_compiled() {
     assert_eq!(r.model, "steerer/model");
     assert_eq!(r.system_prompt, "config rubric");
 
-    let bare = crate::steerer::config::JudgeConfig::default();
+    let bare = crate::config::steerer::JudgeConfig::default();
     let r = resolve_turn_judge_runtime(&overlay, &bare, "steerer/model");
     assert_eq!(
         r.system_prompt,
@@ -52,7 +52,7 @@ fn turn_judge_blank_prompt_row_does_not_blank_the_rubric() {
         judge_worker_system_prompt: Some("   \n  ".to_owned()),
         ..Default::default()
     };
-    let cfg = crate::steerer::config::JudgeConfig::default();
+    let cfg = crate::config::steerer::JudgeConfig::default();
 
     let r = resolve_turn_judge_runtime(&overlay, &cfg, "steerer/model");
     assert_eq!(
@@ -74,7 +74,7 @@ fn turn_judge_base() -> anyhow::Result<crate::llm::OpenRouterClient> {
 
 #[test]
 fn turn_judge_without_a_key_runs_on_a_codex_or_claude_model_from_settings() -> anyhow::Result<()> {
-    let cfg = crate::steerer::config::JudgeConfig::default();
+    let cfg = crate::config::steerer::JudgeConfig::default();
     for model in ["codex/gpt-6-sol", "claude/sonnet"] {
         let overlay = crate::settings::SettingsOverlay {
             judge_worker_model: Some(model.to_owned()),
@@ -93,7 +93,7 @@ fn turn_judge_without_a_key_runs_on_a_codex_or_claude_model_from_settings() -> a
 
 #[test]
 fn turn_judge_without_a_key_skips_an_openrouter_model() -> anyhow::Result<()> {
-    let cfg = crate::steerer::config::JudgeConfig::default();
+    let cfg = crate::config::steerer::JudgeConfig::default();
     let overlay = crate::settings::SettingsOverlay::default();
     let runtime = resolve_turn_judge_runtime(&overlay, &cfg, "steerer/model");
     let llm =
@@ -111,7 +111,7 @@ fn turn_judge_model_follows_the_provider_tier_so_a_keyless_codex_provider_runs()
         llm_provider: std::sync::Arc::new(policy),
         ..Default::default()
     };
-    let cfg = crate::steerer::config::JudgeConfig::default();
+    let cfg = crate::config::steerer::JudgeConfig::default();
     let runtime = resolve_turn_judge_runtime(&overlay, &cfg, "google/gemini-3.8-flash");
     assert_eq!(runtime.model, "codex/gpt-6-sol");
     let llm =

@@ -1,4 +1,3 @@
-pub(crate) mod config;
 mod correction;
 pub(crate) mod corrector;
 pub(crate) mod evidence;

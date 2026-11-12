@@ -203,7 +203,7 @@ pub(crate) async fn forward_to_upstream(
     let upstream_url =
         super::upstream::build_upstream_url(&state.config.upstream_url, uri.path(), uri.query());
     let upstream_host = super::upstream::extract_host(&state.config.upstream_url);
-    let req_headers = super::headers::filter_request_headers(headers, &upstream_host);
+    let req_headers = crate::extract::headers::filter_request_headers(headers, &upstream_host);
     let forwarded_headers_for_correction = req_headers.clone();
 
     let upstream_body_for_correction = upstream_body.clone();
@@ -227,7 +227,7 @@ pub(crate) async fn forward_to_upstream(
         "status" => status_bucket(status.as_u16())
     )
     .increment(1);
-    let resp_headers = super::headers::filter_response_headers(upstream_resp.headers());
+    let resp_headers = crate::extract::headers::filter_response_headers(upstream_resp.headers());
 
     let is_sse_response = resp_headers
         .get("content-type")

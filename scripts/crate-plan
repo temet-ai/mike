@@ -15,6 +15,7 @@ the lower crate can be extracted. The scan is textual, not a compiler query.
   scripts/crate-plan --blame         which crates' changes cost the most
   scripts/crate-plan --stages        the staged plan, graded stage by stage
   scripts/crate-plan --map FILE      grade another map
+  scripts/crate-plan --stage NAME    grade a stage's grouping (a key of `stages`)
   scripts/crate-plan --check         fail when production seams exceed the ratchet
                                      recorded in the map (ratchet.crate_seams)
 
@@ -43,6 +44,7 @@ METHOD = re.compile(r"\n    pub(?:\([^)]*\))? (?:async )?fn (\w+)")
 
 ITEM = re.compile(r"^\s*pub(?:\([^)]*\))?\s+(?:async\s+)?(?:const\s+fn|fn|struct|enum|trait|type|const|static|mod)\s+(\w+)", re.M)
 GLOB = re.compile(r"^\s*pub(?:\([^)]*\))?\s+use\s+(?:self::)?(\w+)::\*;", re.M)
+NAMED = re.compile(r"^\s*pub(?:\([^)]*\))?\s+use\s+(?:self::)?(\w+)::(?:(\w+)|\{([^{}]*)\});", re.M)
 
 
 def glob_index(files):
@@ -60,6 +62,14 @@ def glob_index(files):
                 continue
             for item in ITEM.findall(files[child_rel]):
                 index.setdefault((tuple(module), item), child_rel)
+        for child, one, many in NAMED.findall(text):
+            child_rel = by_module.get(tuple(module + [child]))
+            if child_rel is None:
+                continue
+            for item in [one] if one else many.split(","):
+                item = item.strip().split(" as ")[-1].strip()
+                if re.fullmatch(r"\w+", item or ""):
+                    index.setdefault((tuple(module), item), child_rel)
     return index
 
 
@@ -351,6 +361,9 @@ def main(argv):
     with open(path, encoding="utf-8") as handle:
         cfg = json.load(handle)
     cmap = Map(cfg)
+    if "--stage" in args:
+        name = args[args.index("--stage") + 1]
+        cmap = staged_map(cfg, cfg["stages"][name])
     files = read_sources()
     missing = sorted({r.split("/")[0] for r in files if not cmap.crate_of_path(r)})
     if missing:

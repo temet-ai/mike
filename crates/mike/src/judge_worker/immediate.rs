@@ -26,7 +26,7 @@ pub(crate) struct ImmediateJudge {
     pub(crate) toggles: Arc<ArcSwap<FeatureToggles>>,
     pub(crate) settings: Arc<ArcSwap<SettingsOverlay>>,
     pub(crate) shared: LiveJudgeShared,
-    pub(crate) judge_cfg: crate::steerer::config::JudgeConfig,
+    pub(crate) judge_cfg: crate::config::steerer::JudgeConfig,
     pub(crate) shutdown: CancellationToken,
 }
 

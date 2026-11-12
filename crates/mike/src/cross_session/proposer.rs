@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use super::settings::CrossSessionSettings;
+use crate::settings::cross_session::CrossSessionSettings;
 use crate::store::persistence::cross_session::ProposerParams;
 use crate::store::persistence::{PersistError, PersistHandle};
 

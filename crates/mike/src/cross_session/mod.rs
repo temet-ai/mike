@@ -3,7 +3,6 @@ pub mod calibration_block;
 pub mod effective;
 mod fire_pass;
 pub mod proposer;
-pub mod settings;
 pub mod snapshot;
 pub mod threshold;
 pub mod threshold_pass;

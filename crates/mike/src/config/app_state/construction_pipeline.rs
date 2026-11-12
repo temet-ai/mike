@@ -219,7 +219,7 @@ pub(super) fn build_shed_registry(
 
 pub(super) fn build_model_catalogue(
     client: &reqwest::Client,
-    config: &crate::steerer::config::SteererConfig,
+    config: &crate::config::steerer::SteererConfig,
 ) -> Arc<crate::steerer::model_catalogue::ModelCatalogue> {
     use secrecy::ExposeSecret;
     let catalogue_api_key: Option<String> = config

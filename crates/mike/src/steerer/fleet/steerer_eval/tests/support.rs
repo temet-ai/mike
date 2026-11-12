@@ -5,7 +5,7 @@ use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
 use super::super::*;
-use crate::steerer::config::SteererConfig;
+use crate::config::steerer::SteererConfig;
 use crate::steerer::registry::{Steerer, SteererParams, SteererRegistry};
 use crate::store::RequestStore;
 use crate::store::persistence::PersistHandle;

@@ -1,3 +1,4 @@
+pub mod cross_session;
 pub mod service;
 
 pub(crate) mod live_bundle_follow;
@@ -55,7 +56,7 @@ pub(crate) use validate::validate_setting_value;
 
 use serde::{Deserialize, Serialize};
 
-use crate::weasel_intercept::config::DEFAULT_CORRECTION_PROMPT;
+use crate::config::weasel_intercept::DEFAULT_CORRECTION_PROMPT;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

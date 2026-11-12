@@ -1,5 +1,5 @@
 use super::{DEFAULT_PROTECTED_PATHS, SettingApplies, SettingKind, SettingMeta, SettingScope};
-use crate::weasel_intercept::config::DEFAULT_CORRECTION_PROMPT;
+use crate::config::weasel_intercept::DEFAULT_CORRECTION_PROMPT;
 
 pub(super) fn entries() -> Vec<SettingMeta> {
     let mut v = session_toggle_entries();

@@ -4,6 +4,7 @@ use super::COMPONENTS_VERSION;
 use super::fingerprint;
 use crate::analysis::judge::{JUDGE_RUBRIC_VERSION, judge_verdict_schema};
 use crate::config::session_judge::SessionJudgeConfig;
+use crate::config::steerer::JudgeConfig;
 use crate::judge_worker::session_poll_digest::{
     RELATED_SESSION_LEARNING_MAX_CHARS, RELATED_SESSION_OVERVIEW_MAX_CHARS,
     RELATED_SESSIONS_BLOCK_MAX_CHARS, judge_verdict_schema as session_verdict_schema,
@@ -13,7 +14,6 @@ use crate::settings::{
     SettingsOverlay, resolve_judge_worker_llm_settings, resolve_session_judge_llm_settings,
     resolve_steerer_llm_settings,
 };
-use crate::steerer::config::JudgeConfig;
 use crate::steerer::registry::Steerer;
 use crate::steerer::verdict::steerer_verdict_schema;
 

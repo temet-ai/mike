@@ -15,7 +15,7 @@ pub(crate) async fn send_upstream(
     let upstream_url =
         super::upstream::build_upstream_url(&state.config.upstream_url, uri.path(), uri.query());
     let upstream_host = super::upstream::extract_host(&state.config.upstream_url);
-    let req_headers = super::headers::filter_request_headers(headers, &upstream_host);
+    let req_headers = crate::extract::headers::filter_request_headers(headers, &upstream_host);
     let upstream_req = state
         .client
         .request(method, &upstream_url)
@@ -37,7 +37,7 @@ pub(crate) async fn forward_without_capture(
 ) -> Result<Response, ProxyError> {
     let upstream_resp = send_upstream(state, method, uri, headers, body).await?;
     let status = upstream_resp.status();
-    let resp_headers = super::headers::filter_response_headers(upstream_resp.headers());
+    let resp_headers = crate::extract::headers::filter_response_headers(upstream_resp.headers());
     let resp_body = axum::body::Body::from_stream(upstream_resp.bytes_stream());
     let mut builder = Response::builder().status(status);
     for (name, value) in resp_headers.iter() {

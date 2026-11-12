@@ -48,7 +48,7 @@ fn settings_overlay_defaults_match_toggle_off_by_default_contract() {
 fn weasel_correction_prompt_default_matches_compiled_and_catalogue() {
     let overlay_default = SettingsOverlay::default().weasel_intercept_correction_prompt;
     let compiled_default =
-        crate::weasel_intercept::config::WeaselInterceptConfig::default().correction_prompt;
+        crate::config::weasel_intercept::WeaselInterceptConfig::default().correction_prompt;
     assert_eq!(
         overlay_default, compiled_default,
         "SettingsOverlay::default must mirror WeaselInterceptConfig::default"
@@ -135,7 +135,7 @@ fn meta_default_string(key: &str) -> String {
 
 #[test]
 fn model_settings_registry_defaults_match_compiled_defaults() {
-    let steerer = crate::steerer::config::SteererConfig::default();
+    let steerer = crate::config::steerer::SteererConfig::default();
     let lesson_relations = crate::config::lesson_relations::LessonRelationsConfig::default();
     let session_judge = crate::config::session_judge::SessionJudgeConfig::default();
 

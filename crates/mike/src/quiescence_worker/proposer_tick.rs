@@ -1,11 +1,11 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::config::steerer::SteererConfig;
 use crate::lesson_proposer::{self, ProposerDeps, ProposerSettings};
 use crate::llm::key::OpenRouterKeySlot;
 use crate::llm::{LlmRole, LlmUsageSink, OpenRouterClient};
 use crate::semantic::SemanticConfig;
-use crate::steerer::config::SteererConfig;
 
 use super::sweep::SweepContext;
 

@@ -4,8 +4,8 @@ use serde_json::Value;
 
 use super::request::{self, TurnOrigin, TurnType};
 use crate::config::AppState;
+use crate::extract::headers::{is_sensitive_header, mask_header_value};
 use crate::proxy::handler::{MAX_HEADER_BYTES, MAX_HEADERS};
-use crate::proxy::headers::{is_sensitive_header, mask_header_value};
 use crate::types::RequestParams;
 
 #[derive(Debug, Clone)]
@@ -128,7 +128,7 @@ impl RequestSignals {
             capture_request_headers(parts);
         let project_path =
             derive_project_signals(json_body.as_ref(), basic.system_prompt.as_deref());
-        let mutation_exempt = crate::proxy::headers::is_mutation_exempt_client(&parts.headers);
+        let mutation_exempt = crate::extract::headers::is_mutation_exempt_client(&parts.headers);
 
         Ok(Self {
             session_id,

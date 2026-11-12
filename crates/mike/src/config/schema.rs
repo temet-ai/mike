@@ -98,7 +98,7 @@ pub struct ProxyConfig {
     pub(crate) reminders: crate::reminders::RemindersConfig,
 
     #[serde(default)]
-    pub(crate) weasel_intercept: crate::weasel_intercept::config::WeaselInterceptConfig,
+    pub(crate) weasel_intercept: crate::config::weasel_intercept::WeaselInterceptConfig,
 
     #[serde(deserialize_with = "deserialize_permissive_bool")]
     pub(crate) composition_enabled: bool,
@@ -171,7 +171,7 @@ pub struct ProxyConfig {
     pub(crate) harvester: crate::memory_harvester::HarvesterConfig,
 
     #[serde(default)]
-    pub(crate) steerer: crate::steerer::config::SteererConfig,
+    pub(crate) steerer: crate::config::steerer::SteererConfig,
 
     #[serde(default)]
     pub(crate) session_judge: crate::config::session_judge::SessionJudgeConfig,

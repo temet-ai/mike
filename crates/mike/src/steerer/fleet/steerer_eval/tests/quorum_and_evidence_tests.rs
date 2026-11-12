@@ -6,7 +6,7 @@ use tokio_util::sync::CancellationToken;
 
 use super::super::*;
 use super::support::{make_verifier_steerer, mock_openrouter_returning};
-use crate::steerer::config::SteererConfig;
+use crate::config::steerer::SteererConfig;
 use crate::steerer::registry::{Steerer, SteererRegistry};
 use crate::store::RequestStore;
 use crate::store::retention::RetentionPolicy;

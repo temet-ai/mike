@@ -15,7 +15,7 @@ pub(super) fn seed_anthropic_key_slot() -> crate::llm::key::AnthropicKeySlot {
 }
 
 pub(super) fn build_judge_llm(
-    steerer_config: &crate::steerer::config::SteererConfig,
+    steerer_config: &crate::config::steerer::SteererConfig,
     usage_sink: Option<&std::sync::Arc<dyn LlmUsageSink>>,
 ) -> Option<crate::llm::OpenRouterClient> {
     let judge_cfg = steerer_config.judge.clone();
@@ -45,7 +45,7 @@ fn resolve_role_model(role_model: Option<&str>, steerer_model: &str) -> String {
 }
 
 fn build_role_client(
-    steerer_config: &crate::steerer::config::SteererConfig,
+    steerer_config: &crate::config::steerer::SteererConfig,
     model: String,
 ) -> Result<crate::llm::OpenRouterClient, crate::llm::LlmError> {
     crate::llm::OpenRouterClient::new(
@@ -61,7 +61,7 @@ fn build_role_client(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::steerer::config::SteererConfig;
+    use crate::config::steerer::SteererConfig;
 
     #[test]
     fn build_judge_llm_builds_a_client_even_when_boot_judge_flag_is_false() {

@@ -1,7 +1,6 @@
 mod ac2_demo;
 pub(crate) mod anchor;
 pub(crate) mod arming;
-pub(crate) mod config;
 pub(crate) mod criteria_contract;
 pub(crate) mod fleet;
 pub(crate) mod gate;
@@ -52,7 +51,7 @@ pub fn spawn_steerer_fleet(state: &AppState) {
 
 fn build_openrouter_client(
     state: &AppState,
-    config: &config::SteererConfig,
+    config: &crate::config::steerer::SteererConfig,
 ) -> Option<crate::llm::OpenRouterClient> {
     match crate::llm::OpenRouterClient::new(
         String::new(),
@@ -76,7 +75,7 @@ fn build_openrouter_client(
 
 fn fleet_args_from_state(
     state: &AppState,
-    config: config::SteererConfig,
+    config: crate::config::steerer::SteererConfig,
     llm: crate::llm::OpenRouterClient,
 ) -> fleet::FleetArgs {
     fleet::FleetArgs {

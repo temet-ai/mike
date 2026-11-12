@@ -68,7 +68,7 @@ pub(crate) async fn finalize_and_respond(
     .await;
 
     let stored_resp_headers: Vec<(String, String)> =
-        super::super::headers::captured_header_pairs(&resp_headers);
+        crate::extract::headers::captured_header_pairs(&resp_headers);
 
     let upstream_request_id: Option<String> = resp_headers
         .get("request-id")

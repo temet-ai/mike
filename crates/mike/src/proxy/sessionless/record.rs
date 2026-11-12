@@ -5,7 +5,7 @@ use serde_json::{Value, json};
 use tokio_util::task::TaskTracker;
 
 use crate::config::AppState;
-use crate::proxy::headers::captured_header_pairs;
+use crate::extract::headers::captured_header_pairs;
 use crate::store::persistence::PersistHandle;
 
 const INSERT: &str = "INSERT INTO requests.sessionless_requests

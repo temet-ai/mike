@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-use super::settings::CrossSessionSettings;
+use crate::settings::cross_session::CrossSessionSettings;
 use crate::store::persistence::cross_session::{CalibrationRateRow, RollupRef, ThresholdRow};
 use crate::store::persistence::{PersistError, PersistHandle};
 

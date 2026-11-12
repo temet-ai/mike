@@ -13,7 +13,7 @@ use crate::store::persistence::test_support;
 
 fn publisher(persist: &PersistHandle, smoke_run: bool) -> BundlePublisher {
     let inputs = BundleStaticInputs {
-        judge: crate::steerer::config::JudgeConfig::default(),
+        judge: crate::config::steerer::JudgeConfig::default(),
         session_judge: crate::config::session_judge::SessionJudgeConfig::default(),
         fleet_default_model: "openai/gpt-test".to_owned(),
         smoke_run,

@@ -6,9 +6,9 @@ use tokio::sync::RwLock;
 use tokio::sync::broadcast::Sender as BroadcastSender;
 use tokio_util::sync::CancellationToken;
 
+use crate::config::steerer::SteererConfig;
 use crate::llm::OpenRouterClient;
 use crate::steerer::anchor::Anchor;
-use crate::steerer::config::SteererConfig;
 use crate::steerer::registry::{Steerer, SteererRegistry};
 use crate::store::RequestStore;
 use crate::store::models::{Diagnostic, ProxyEvent};

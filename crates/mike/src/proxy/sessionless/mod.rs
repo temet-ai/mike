@@ -32,7 +32,7 @@ pub(crate) async fn forward_and_capture(
         }
     };
     let status = upstream.status();
-    let resp_headers = super::headers::filter_response_headers(upstream.headers());
+    let resp_headers = crate::extract::headers::filter_response_headers(upstream.headers());
     record.set_response(status.as_u16(), upstream.headers());
     let cap = state.config.max_response_body_bytes;
     let tee = Tee::new(Box::pin(upstream.bytes_stream()), cap, recorder, record);

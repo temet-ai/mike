@@ -2,7 +2,7 @@ use axum::http::HeaderMap;
 use serde_json::{Value, json};
 
 use super::AuthRoute;
-use crate::proxy::headers::{captured_header_pairs, mask_header_value};
+use crate::extract::headers::{captured_header_pairs, mask_header_value};
 
 const ACCOUNT_HEADERS: &[&str] = &[
     "chatgpt-account-id",

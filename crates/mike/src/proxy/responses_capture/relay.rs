@@ -12,7 +12,7 @@ use super::record::{ExchangeRecord, ExchangeStatus, Finished, spawn_finish};
 use super::request_body::{RequestBody, SharedCapture};
 use super::tee::Tee;
 use super::{AuthRoute, ROUTE_PREFIX, ResponsesState, correlate, headers};
-use crate::proxy::headers::{filter_request_headers, filter_response_headers};
+use crate::extract::headers::{filter_request_headers, filter_response_headers};
 
 const REFUSED_WEBSOCKET: &str = "mike captures Codex Responses traffic over HTTP; the WebSocket transport is refused so Codex falls back to HTTP/SSE";
 
