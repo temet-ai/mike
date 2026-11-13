@@ -95,7 +95,7 @@ forwarded upstream unchanged and is never stored: see the header list under
 
 ## What the Host/Origin guard does
 
-`crates/mike/src/web_base/host_guard.rs` (with `host_guard/policy.rs`) is a middleware layer on the whole inspect router, so it
+`crates/mike-base/src/web_base/host_guard.rs` (with `host_guard/policy.rs`) is a middleware layer on the whole inspect router, so it
 applies on both `:9989` and `:9990`. It exists to stop a web page you visit from using your
 browser as a proxy into mike. It does two checks.
 

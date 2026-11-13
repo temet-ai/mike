@@ -16,7 +16,7 @@ set -euo pipefail
 MODE="${1:---full}"
 MIGRATION_ARG="${2:-}"
 CRATE_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
-MIGRATIONS_DIR="$CRATE_ROOT/crates/mike/src/store/persistence/migrations"
+MIGRATIONS_DIR="$CRATE_ROOT/crates/mike-base/src/store/persistence/migrations"
 RS_GLOB="$CRATE_ROOT/crates/**/*.rs"
 
 # ──────────────────────────────────────────────────────────────────────────────

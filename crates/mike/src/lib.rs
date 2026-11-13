@@ -22,3 +22,6 @@ pub mod tui;
 pub mod uninstall;
 pub mod user_config;
 pub mod wright;
+
+#[cfg(test)]
+mod cross_crate_tests;

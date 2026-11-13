@@ -37,7 +37,7 @@
 set -uo pipefail
 
 CRATE_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
-MIGRATIONS_DIR="crates/mike/src/store/persistence/migrations"
+MIGRATIONS_DIR="crates/mike-base/src/store/persistence/migrations"
 INSPECT_URL="${MIKE_INSPECT_URL:-http://127.0.0.1:9989}"
 
 commit_scope=""

@@ -46,7 +46,7 @@ class TestTierContracts(unittest.TestCase):
 
     def test_known_db_consumers_and_colocated_pure_tests_are_db(self):
         for path in ["crates/mike/src/api/fleet/report_http_tests.rs",
-                     "crates/mike/src/store/persistence/test_support/provisioning_tests.rs",
+                     "crates/mike-base/src/store/persistence/test_support/provisioning_tests.rs",
                      "crates/mike/src/steerer/pure_test.rs",
                      "crates/mike/tests/proxy/filter_rules_edge_cases.rs",
                      "crates/mike/tests/cli/eval_import_holdout.rs",

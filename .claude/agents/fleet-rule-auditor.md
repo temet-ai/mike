@@ -29,7 +29,7 @@ Your brief names the run id. Start in the mike repository's main checkout.
    - **keep**, with the evidence that it earns its place.
    A unit that carries an operator ruling (it names the operator and a date) may be shortened or merged, never dropped: list it under "for the operator" with the cost you measured.
 4. For each issue the run filed whose change adds a rule, comment on it: the existing unit, criterion or gate that caused the defect, and the cut or change to it that would have prevented it without a new line. An addition the observer could not avoid names the unit it replaces.
-5. Apply the cuts in one commit on `main` in the mike repository: the files, then `fleet-text-budget.baseline` lowered to the new total. The commit message lists every unit cut, merged, shortened or moved, with its reason in one line. Push it. The text is built into mike (`crates/mike/src/launch/fleet/bundle.rs`) and installed for every project at the next deploy; do not deploy yourself.
+5. Apply the cuts in one commit on `main` in the mike repository: the files, then `fleet-text-budget.baseline` lowered to the new total. The commit message lists every unit cut, merged, shortened or moved, with its reason in one line. Push it. The text is built into mike (`crates/mike-features/src/launch/fleet/bundle.rs`) and installed for every project at the next deploy; do not deploy yourself.
 6. Write one `finding` note tagged `rule-audit`: words per seat before and after, the units changed, the issues commented, and what is left for the operator.
 
 ## On a draft definition

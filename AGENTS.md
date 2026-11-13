@@ -27,7 +27,7 @@ the non-obvious parts are here.
 
 | Surface         | Bind    | What is non-obvious                                                                                                                                                                                                                                                                                                                            |
 |-----------------|---------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Proxy           | `:9988` | Mutates both directions of the wire (`crates/mike/src/proxy/handler.rs`): outbound filter-rule rewrites and recall/lesson/reminder/steerer injection; inbound weasel intercept and proxy-declared tools can cut the model's answer and continue it (`weasel_intercept/mod.rs`). Capture stores the original inbound bytes before any mutation. |
+| Proxy           | `:9988` | Mutates both directions of the wire (`crates/mike-features/src/proxy/handler.rs`): outbound filter-rule rewrites and recall/lesson/reminder/steerer injection; inbound weasel intercept and proxy-declared tools can cut the model's answer and continue it (`weasel_intercept/mod.rs`). Capture stores the original inbound bytes before any mutation. |
 | Inspect         | `:9989` | `/api/*` REST + `/api/ws` WebSocket. Same `mike` binary, shared `AppState`.                                                                                                                                                                                                                                                                    |
 | SPA             | `:9990` | Independent `vite dev` process, decoupled from the proxy binary.                                                                                                                                                                                                                                                                               |
 | Forward sidecar | `:9987` | `proxy-forward` HTTPS MITM sidecar; fails over to Anthropic during a cutover.                                                                                                                                                                                                                                                                  |
@@ -186,7 +186,7 @@ Make small edits and subtle or cross-cutting changes yourself.
 - Capture DB `claude_proxy`: Docker container `armitage-pg` (`scripts/capture-db/`), port 5440. `up.sh` / `down.sh` start and stop it and keep the data.
 - Test DB: container `mike-test-pg` (`scripts/test-db/`) on `127.0.0.1:6667`, `fsync=off`, via `MIKE_TEST_ADMIN_URL`.
   Tests never touch the capture DB.
-- Migrations: `crates/mike/src/store/persistence/migrations/`. Only `mike serve` applies them; other subcommands refuse
+- Migrations: `crates/mike-base/src/store/persistence/migrations/`. Only `mike serve` applies them; other subcommands refuse
   while the ledger differs from the binary.
 - Use `scripts/sqlx-prepare`, never `cargo sqlx prepare` — the latter empties `.sqlx/` while it runs and breaks every
   session in the checkout.

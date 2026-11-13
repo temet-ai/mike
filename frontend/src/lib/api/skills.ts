@@ -3,7 +3,7 @@ import { ApiError } from '$lib/api';
 /**
  * Client for the Skills page: the skills mike writes into a project's `.claude/skills/` from its
  * accepted lessons, the reviewer's evaluation of each draft, and the user's decisions on them.
- * Wire shapes follow crates/mike/src/api/skills/*.rs.
+ * Wire shapes follow crates/mike-features/src/api/skills/*.rs.
  */
 
 export type SkillMode = 'auto' | 'ask';

@@ -22,7 +22,7 @@ Rules:
 
 
 def run(diff: str) -> list[str]:
-    migration_diff = git_util.scope_diff_to(diff, "crates/mike/src/store/persistence/migrations/")
+    migration_diff = git_util.scope_diff_to(diff, "crates/mike-base/src/store/persistence/migrations/")
     if not migration_diff.strip():
         return []
 

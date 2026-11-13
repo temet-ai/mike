@@ -13,7 +13,7 @@ import {
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS_DIR = path.resolve(
 	dirname,
-	'../../../crates/mike/src/store/persistence/migrations'
+	'../../../crates/mike-base/src/store/persistence/migrations'
 );
 
 function seededOriginCodes(): Set<string> {

@@ -41,16 +41,23 @@ def path_entry_is_fast(path, modules):
     )
 
 
+# Crate mike and the crates split from it (docs/adr/0002): their unit-test
+# binaries share one module list because the split keeps module paths.
+SPLIT_CRATES = ("mike", "mike-base", "mike-features")
+
+
 def db_filter(spec):
     fast = [f"binary(={name})" for name in spec["fast_mike_harnesses"]]
-    fast.append(f"(binary(=mike) & {name_filter(spec['fast_mike_lib_modules'])})")
+    libs = " | ".join(f"binary(={name.replace('-', '_')})" for name in SPLIT_CRATES)
+    fast.append(f"(({libs}) & {name_filter(spec['fast_mike_lib_modules'])})")
     fast.append(f"(binary(=cli) & {name_filter(spec['fast_mike_cli_modules'])})")
-    return "package(=mike) & not (" + " | ".join(fast) + ")"
+    packages = " | ".join(f"package(={name})" for name in SPLIT_CRATES)
+    return f"({packages}) & not (" + " | ".join(fast) + ")"
 
 
 def source_is_fast(path, spec):
     parts = Path(path).parts
-    if parts[:2] != ("crates", "mike"):
+    if parts[0] != "crates" or len(parts) < 2 or parts[1] not in SPLIT_CRATES:
         return True
     if len(parts) < 4:
         return False

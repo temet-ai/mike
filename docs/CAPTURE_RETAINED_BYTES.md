@@ -10,7 +10,7 @@ summary: Where one streamed response's bytes are held between the upstream read 
 
 One path: an incoming response chunk, through the client/parser tee, to parsed events, a
 persistence attempt, and the work retained for the terminal retry (temet-ai/mike-private#624). The plain tee is
-`crates/mike/src/sse/tee.rs`; the gated forwarder (`weasel_intercept`) uses the same two
+`crates/mike-base/src/sse/tee.rs`; the gated forwarder (`weasel_intercept`) uses the same two
 channels and capacities.
 
 Logical bytes below are payload lengths. They are not allocator figures: a shared `Bytes`

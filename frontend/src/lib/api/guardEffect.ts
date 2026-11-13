@@ -31,7 +31,7 @@ export { labelGuardWake, labelGuardWake as labelGuardEvaluation };
 
 /**
  * The turn-guard questions this install has configured, with the plain-language text each one
- * asks. There is no server-side label for a `Question` (`crates/mike/src/steerer/guard/mod.rs`
+ * asks. There is no server-side label for a `Question` (`crates/mike-features/src/steerer/guard/mod.rs`
  * only exposes `code()` — a wire key, never display text), so this is a small, deliberately
  * static map over the closed 4-value enum rather than a fabricated per-request field. Only
  * `relapse` and `unobserved_done` are live on this install (PLAN.md §2.6); the other two codes

@@ -12,7 +12,7 @@
 #
 # Examples:
 #   read-anchored CLAUDE.md 'Quick Reference'
-#   read-anchored crates/mike/src/proxy/handler.rs 'fn stored_body' --context 10
+#   read-anchored crates/mike-features/src/proxy/handler.rs 'fn stored_body' --context 10
 #   read-anchored .gitlab-ci.yml '^db-init-prod:' --all --context 5
 #
 # By default prints only the FIRST match's region; --all prints every match's

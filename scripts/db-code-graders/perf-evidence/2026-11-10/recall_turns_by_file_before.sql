@@ -91,6 +91,6 @@
       ) stp_text ON stp.stop_request_id IS NOT NULL
  WHERE t.project_id = 993478 AND (t.opened_by IS NULL OR t.opened_by = 'operator')
    AND EXISTS (SELECT 1 FROM mike.file_touches_v ft JOIN requests.requests r ON r.id = ft.request_id
-                WHERE ft.file_path = '/Users/dawiddutoit/projects/temet/temet-proxy/crates/mike/src/store/persistence/project_knowledge/search.sql'
+                WHERE ft.file_path = '/Users/dawiddutoit/projects/temet/temet-proxy/crates/mike-features/src/store/persistence/project_knowledge/search.sql'
                   AND ft.request_id BETWEEN t.start_request_id AND t.end_request_id AND r.session_id = s.id)
  ORDER BY t.created_at DESC LIMIT 5

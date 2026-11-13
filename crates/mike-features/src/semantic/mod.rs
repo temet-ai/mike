@@ -133,6 +133,3 @@ impl SemanticHandle {
         self.inner.store(Arc::new(next));
     }
 }
-
-#[cfg(test)]
-pub mod cross_crate_tests;

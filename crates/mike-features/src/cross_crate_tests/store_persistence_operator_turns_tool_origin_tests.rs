@@ -8,7 +8,7 @@ use crate::store::persistence::request_write::IdMode;
 use crate::store::persistence::test_support;
 
 const BACKFILL: &str = include_str!(
-    "../../../../mike-base/src/store/persistence/migrations/20261111170200_operator_turns_tool_origin.sql"
+    "../../../mike-base/src/store/persistence/migrations/20261111170200_operator_turns_tool_origin.sql"
 );
 
 const TOOL_PROMPTS: [&str; 6] = [

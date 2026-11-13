@@ -2748,7 +2748,7 @@
 						class="gf-textarea"
 						rows={4}
 						placeholder="Example: 'Implement the steering backend. Do not refactor unrelated files.'"
-						>Implement the Phase 13 steering backend. Stay within crates/mike/src/steerer/. Do not touch frontend or migration files.</textarea
+						>Implement the Phase 13 steering backend. Stay within crates/mike-features/src/steerer/. Do not touch frontend or migration files.</textarea
 					>
 					<div class="gf-live-preview" aria-live="polite">
 						<strong>This becomes the steerer's prompt anchor.</strong> When the session's turns diverge
@@ -3213,7 +3213,7 @@
 						<div class="ai-row">
 							<div class="ai-row-field">Prompt anchor</div>
 							<div class="ai-row-value">
-								Stay within crates/mike/src/steerer/ and implement the Phase 13 steering fleet
+								Stay within crates/mike-features/src/steerer/ and implement the Phase 13 steering fleet
 								backend. Do not touch frontend/ or migration files.
 							</div>
 							<div class="ai-row-rationale">
@@ -3633,7 +3633,7 @@
 						<div class="gf-summary-row">
 							<span class="gf-summary-key">Thread anchor</span>
 							<span class="gf-summary-val gf-summary-val--prompt">
-								Implement the Phase 13 steering backend. Stay within crates/mike/src/steerer/. Do
+								Implement the Phase 13 steering backend. Stay within crates/mike-features/src/steerer/. Do
 								not touch frontend or migration files.
 							</span>
 						</div>

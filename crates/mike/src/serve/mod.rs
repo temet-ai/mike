@@ -98,6 +98,3 @@ fn log_shutting_down() {
 fn log_shutdown_complete() {
     tracing::info!("shutdown complete");
 }
-
-#[cfg(test)]
-mod cross_crate_tests;

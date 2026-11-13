@@ -1128,7 +1128,7 @@ Every claim of completion must be accompanied by the test output that proves it.
 				<p class="compare-col-head compare-col-head--wrong">✗ Current (generic completion — BUG)</p>
 				<div class="compare-box compare-box--wrong">
 					The session is currently working on implementing the steering fleet backend in <code
-						>crates/mike/src/steerer/</code
+						>crates/mike-features/src/steerer/</code
 					>. The assistant has been focused on writing Rust code for the fleet evaluation loop. You
 					are right that a RIGHT JOIN would be better for this query. The session should continue
 					working on Phase 13.

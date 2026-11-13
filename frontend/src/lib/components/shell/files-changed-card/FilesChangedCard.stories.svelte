@@ -5,11 +5,11 @@
 
 	const CHANGED_FILES = [
 		'crates/mike/src/store/persistence/messages.rs',
-		'crates/mike/src/store/persistence/judge.rs',
+		'crates/mike-features/src/store/persistence/judge.rs',
 		'crates/mike/src/store/persistence/mailbox.rs',
 		'crates/mike/src/api/handlers.rs',
 		'crates/mike/src/api/manifest.rs',
-		'crates/mike/src/proxy/handler.rs',
+		'crates/mike-features/src/proxy/handler.rs',
 		'crates/mike-mcp/src/tools.rs',
 		'frontend/src/lib/components/shell/files-changed-card/FilesChangedCard.svelte',
 		'frontend/src/lib/components/shell/SessionOverview.svelte',

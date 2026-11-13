@@ -1,7 +1,7 @@
 import type { InspectClient } from './inspectClient.js';
 import type { AssistantProvider, Effort, MayApply, PromptAssistantSettings } from './types.js';
 
-// Mirrors DEFAULT_PROMPT_ASSISTANT_INSTRUCTIONS in crates/mike/src/settings/meta_assistants.rs —
+// Mirrors DEFAULT_PROMPT_ASSISTANT_INSTRUCTIONS in crates/mike-base/src/settings/meta_assistants.rs —
 // the fallback used when mike's settings catalogue has no prompt_assistant.instructions row yet.
 export const BUILTIN_INSTRUCTIONS = `You help the operator edit the Claude Code system prompt that mike captures and rewrites.
 That prompt is shared across every project mike has captured traffic for — a global filter edit
@@ -59,7 +59,7 @@ function asMayApply(v: unknown, fallback: MayApply): MayApply {
  * Fetches mike's settings catalogue and the `prompt_assistant` feature toggle,
  * then merges them over `SETTINGS_DEFAULTS`. Missing keys fall back to the
  * defaults above rather than erroring — the settings-registry half of this
- * change (`crates/mike/src/settings/meta_assistants.rs`) may not have shipped
+ * change (`crates/mike-base/src/settings/meta_assistants.rs`) may not have shipped
  * yet, or an operator's install may predate it. Called fresh on every health
  * check and every message, per the spec ("no restart to pick up a change").
  */

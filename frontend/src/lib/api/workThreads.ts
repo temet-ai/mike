@@ -2,7 +2,7 @@ import { ApiError } from '$lib/api';
 
 /**
  * Client for the Threads page: mike's work threads, per project. Wire shapes follow
- * crates/mike/src/api/work_threads/mod.rs and crates/mike/src/store/persistence/work_threads/.
+ * crates/mike-features/src/api/work_threads/mod.rs and crates/mike-features/src/store/persistence/work_threads/.
  */
 
 export const THREAD_STATUSES = ['active', 'implementing', 'review', 'parked', 'done'] as const;

@@ -159,7 +159,7 @@ jobs:
           docker exec mike-ci-pg psql -U postgres -d claude_proxy_ci -c "CREATE EXTENSION pg_stat_statements;"
 
       - name: Run migrations for sqlx prepare check
-        run: cargo sqlx migrate run --source crates/mike/src/store/persistence/migrations
+        run: cargo sqlx migrate run --source crates/mike-base/src/store/persistence/migrations
 
       - name: cargo nextest (DB tier, this shard)
         run: |

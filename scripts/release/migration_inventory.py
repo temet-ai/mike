@@ -13,7 +13,7 @@ import stat
 
 from common import ReleaseError, clean_source, source_git
 
-SOURCE_PATH = "crates/mike/src/store/persistence/migrations"
+SOURCE_PATH = "crates/mike-base/src/store/persistence/migrations"
 MAX_VERSION = 2**63 - 1
 
 

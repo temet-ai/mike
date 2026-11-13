@@ -1,6 +1,6 @@
 /**
  * Extracts the text of the LAST user message from a raw Anthropic Messages-API `messages`
- * array — mirroring `crates/mike/src/extract/request/fields.rs`'s
+ * array — mirroring `crates/mike-base/src/extract/request/fields.rs`'s
  * `extract_last_user_message`/`extract_text_from_content` exactly, since the dry-run
  * endpoint's `filtered_messages` field is the raw post-filter `messages` JSON value (an
  * `Option<serde_json::Value>` server-side), not a typed block list. Used for the "Session

@@ -106,7 +106,7 @@ flowchart TD
 
 ### Background workers and their gates
 
-These 29 entry points are called from `serve/workers.rs` in this order. The gate column distinguishes spawn gates from work gates inside already-running tasks. Defaults below are code defaults, before boot overrides and persisted settings; an enabled default does not guarantee that its dependencies are available. Toggle defaults come from `FeatureToggles::default()` in `crates/mike/src/feature_toggles/mod.rs`. `/settings` exposes runtime settings, while `TOGGLE_META` records whether a toggle is immediate, live-disable, or restart-bound. OpenRouter-backed workers are marked below; embedding and database destinations are separately configurable, so this is not a whole-process egress inventory.
+These 29 entry points are called from `serve/workers.rs` in this order. The gate column distinguishes spawn gates from work gates inside already-running tasks. Defaults below are code defaults, before boot overrides and persisted settings; an enabled default does not guarantee that its dependencies are available. Toggle defaults come from `FeatureToggles::default()` in `crates/mike-base/src/feature_toggles/mod.rs`. `/settings` exposes runtime settings, while `TOGGLE_META` records whether a toggle is immediate, live-disable, or restart-bound. OpenRouter-backed workers are marked below; embedding and database destinations are separately configurable, so this is not a whole-process egress inventory.
 
 | Worker | Gate | Default | Notes |
 |---|---|---|---|

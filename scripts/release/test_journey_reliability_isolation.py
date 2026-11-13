@@ -156,7 +156,7 @@ class EffectiveIsolationTests(OfflineTests):
                               {"source_commit": "a" * 40}, generations)["distinct_owned_generations"], 2)
 
     def test_reviewed_feature_metadata_matches_current_source(self):
-        source = Path(__file__).resolve().parents[2] / "crates/mike/src/feature_toggles/meta.rs"
+        source = Path(__file__).resolve().parents[2] / "crates/mike-base/src/feature_toggles/meta.rs"
         text = source.read_text()
         actual = {}
         for key, scope, applies in re.findall(r'ToggleMeta\s*\{\s*key:\s*"([a-z_]+)",\s*scope:\s*ToggleScope::([A-Za-z]+),\s*applies:\s*ToggleApplies::([A-Za-z]+)', text):

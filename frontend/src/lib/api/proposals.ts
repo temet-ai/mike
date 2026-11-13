@@ -3,7 +3,7 @@ import { ApiError } from '$lib/api';
 /**
  * Client for the Proposals page: lessons mike placed as a rule or an agent statement, which mike
  * never writes on its own, and the user's decision on each. Wire shapes follow
- * crates/mike/src/api/proposals.rs.
+ * crates/mike-features/src/api/proposals.rs.
  */
 
 export type ProposalPlacement = 'rule' | 'agent';

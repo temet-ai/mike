@@ -21,7 +21,7 @@
 set -euo pipefail
 
 CRATE_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
-MIGRATIONS_DIR="$CRATE_ROOT/crates/mike/src/store/persistence/migrations"
+MIGRATIONS_DIR="$CRATE_ROOT/crates/mike-base/src/store/persistence/migrations"
 
 ALL_RS=$(find "$CRATE_ROOT/crates" -name "*.rs" \
     ! -path "*/target/*" 2>/dev/null | sort)

@@ -564,7 +564,7 @@ export interface FilterRuleDto {
 	fires_24h: number;
 	fires_7d: number;
 	last_fired_at: string | null;
-	/** Absent/omitted means the rule is global. See `crates/mike/src/filter/mod.rs::project_scope_matches`. */
+	/** Absent/omitted means the rule is global. See `crates/mike-features/src/filter/mod.rs::project_scope_matches`. */
 	project_path?: string | null;
 }
 
@@ -618,7 +618,7 @@ export interface FilterDryRunResponse {
 	filtered_system: FilterDryRunBlock[] | null;
 	/**
 	 * The post-filter `messages` array as raw JSON (server-side an `Option<serde_json::Value>`,
-	 * `crates/mike/src/api/handlers/filters.rs`) — the ordinary Anthropic Messages-API shape
+	 * `crates/mike-features/src/api/handlers/filters.rs`) — the ordinary Anthropic Messages-API shape
 	 * (`{role, content}[]`), never `FilterDryRunBlock[]`. Read it with
 	 * `extractLastUserMessageText` (`lastUserMessage.ts`), which mirrors the server's own
 	 * `extract_last_user_message` extraction, rather than assuming a block shape here.

@@ -113,10 +113,10 @@ class FixtureTests(OfflineTests):
         self.assertEqual(rows[0]["request_id"], 1)
 
     def test_marker_and_tag_source_contracts_remain_current(self):
-        parser = (ROOT / "crates/mike/src/memory_harvester/parser.rs").read_text()
+        parser = (ROOT / "crates/mike-features/src/memory_harvester/parser.rs").read_text()
         self.assertIn('find("<mem:update ")', parser)
         self.assertIn('let close_tag = "</mem:update>"', parser)
-        source = (ROOT / "crates/mike/src/extract/request/project_scan.rs").read_text()
+        source = (ROOT / "crates/mike-base/src/extract/request/project_scan.rs").read_text()
         self.assertIn('stripped.strip_prefix("Working directory:")', source)
         self.assertIn('out.push(sp)', source)
 
@@ -231,14 +231,14 @@ class DefaultTests(OfflineTests):
 
     def test_settings_inventory_tracks_source_metadata_and_imported_keys(self):
         keys = set()
-        for path in (ROOT / "crates/mike/src/settings").glob("meta_*.rs"):
+        for path in (ROOT / "crates/mike-base/src/settings").glob("meta_*.rs"):
             if "tests" in path.stem:
                 continue
             source = path.read_text()
             keys.update(re.findall(r'key:\s*"([^"]+)"', source))
             keys.update(re.findall(r'"((?:[a-z][a-z0-9_]*\.)+[a-z][a-z0-9_]*|launch_[a-z_]+)"', source))
         keys.discard("meta_assistants_tests.rs")
-        source = (ROOT / "crates/mike/src/settings/cross_session.rs").read_text()
+        source = (ROOT / "crates/mike-base/src/settings/cross_session.rs").read_text()
         keys.update(re.findall(r'const [A-Z_]+_KEY: &str = "([^"]+)"', source))
         self.assertEqual(keys, defaults.SETTINGS_KEYS)
 

@@ -133,7 +133,7 @@ export interface FilterRuleDto {
 	fires_7d: number;
 	last_fired_at: string | null;
 	title?: string | null;
-	/** Absent/omitted means the rule is global. See `crates/mike/src/filter/mod.rs::project_scope_matches`. */
+	/** Absent/omitted means the rule is global. See `crates/mike-features/src/filter/mod.rs::project_scope_matches`. */
 	project_path?: string | null;
 }
 

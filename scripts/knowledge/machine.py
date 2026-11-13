@@ -1,6 +1,6 @@
 """The one identity file of this machine, shared with the proxy.
 
-The proxy (crates/mike/src/machine_identity.rs) reads and creates the same file, so every
+The proxy (crates/mike-base/src/machine_identity.rs) reads and creates the same file, so every
 Python tool and the proxy register checkouts under one machine_uuid.
 """
 import json

@@ -25,20 +25,20 @@ class Token(NamedTuple):
 AXUM_ADAPTER_FILES = frozenset(
     {
         "crates/mike/src/app.rs",  # top-level router composition
-        "crates/mike/src/error.rs",  # shared HTTP error mapping
+        "crates/mike-base/src/error.rs",  # shared HTTP error mapping
         "crates/mike/src/main.rs",  # binary HTTP server boundary
         "crates/mike/src/serve.rs",  # listener and Axum server composition
         "crates/mike/src/serve/listeners.rs",  # listener construction adapter
         "crates/mike/src/serve/shutdown.rs",  # Axum serve/shutdown adapter
         "crates/mike/src/spa.rs",  # embedded SPA HTTP adapter
-        "crates/mike/src/sse/tee.rs",  # upstream stream to Axum body bridge
+        "crates/mike-base/src/sse/tee.rs",  # upstream stream to Axum body bridge
         "crates/mike/src/stack/mod.rs",  # cfg(test) health server used by stop safety tests
-        "crates/mike/src/extract/headers.rs",  # hop-by-hop and sensitive header handling
-        "crates/mike/src/extract/request/fields.rs",  # inbound HTTP request extraction
-        "crates/mike/src/extract/request/fields_tests.rs",  # inbound HTTP request extraction
-        "crates/mike/src/extract/signals.rs",  # inbound HTTP request signals
-        "crates/mike/src/extract/signals_tests.rs",  # inbound HTTP request signals
-        "crates/mike/src/extract/signals_agent_id_tests.rs",  # inbound HTTP request signals
+        "crates/mike-base/src/extract/headers.rs",  # hop-by-hop and sensitive header handling
+        "crates/mike-base/src/extract/request/fields.rs",  # inbound HTTP request extraction
+        "crates/mike-base/src/extract/request/fields_tests.rs",  # inbound HTTP request extraction
+        "crates/mike-features/src/extract/signals.rs",  # inbound HTTP request signals
+        "crates/mike-features/src/extract/signals_tests.rs",  # inbound HTTP request signals
+        "crates/mike-features/src/extract/signals_agent_id_tests.rs",  # inbound HTTP request signals
     }
 )
 
@@ -189,11 +189,15 @@ def axum_line(tokens: list[Token]) -> int | None:
     return None
 
 
+def module_relative(path: str) -> str:
+    return re.sub(r"^crates/mike-(?:base|features)/src/", "crates/mike/src/", path)
+
+
 def is_axum_adapter(relative: str) -> bool:
     # The crate split (docs/adr/0002) keeps module paths, so a file moved into
     # mike-base or mike-features keeps its entry under crates/mike/src/.
-    relative = re.sub(r"^crates/mike-(?:base|features)/src/", "crates/mike/src/", relative)
-    if relative in AXUM_ADAPTER_FILES:
+    relative = module_relative(relative)
+    if relative in {module_relative(path) for path in AXUM_ADAPTER_FILES}:
         return True
     parts = Path(relative).parts
     try:
@@ -204,8 +208,8 @@ def is_axum_adapter(relative: str) -> bool:
     # share, kept in the base crate of the split (docs/adr/0002-split-crate-mike.md).
     if len(parts) > source_index + 1 and parts[source_index + 1] in {"api", "proxy", "web_base"}:
         return True
-    # serve's cross-crate tests drive the HTTP adapters over a real listener.
-    return parts[source_index + 1 : source_index + 3] == ("serve", "cross_crate_tests")
+    # the top crate's cross-crate tests drive the HTTP adapters over a real listener.
+    return parts[source_index + 1] == "cross_crate_tests"
 
 
 def source_line(source: str, line: int) -> str:

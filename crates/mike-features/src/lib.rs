@@ -59,3 +59,6 @@ pub mod weasel_intercept;
 pub mod work_registry_worker;
 pub mod work_threads;
 pub mod workspace;
+
+#[cfg(test)]
+mod cross_crate_tests;

@@ -298,7 +298,7 @@ sessions from inheriting a spawning session's turn; existing historical mislinks
 from this exposure measure, not silently rewritten.
 
 One session in five (a stable share by hash of the session id, `CONTROL_PERCENT` in
-`crates/mike/src/lesson_delivery/mod.rs`) is the control arm: the route sends nothing
+`crates/mike-features/src/lesson_delivery/mod.rs`) is the control arm: the route sends nothing
 and the proxy keeps injecting. Each session that asked is recorded in
 `memory.lesson_delivery_arms` with its arm and the lessons and bytes the mod delivered.
 Sessions without the mod never ask and stay on the proxy.

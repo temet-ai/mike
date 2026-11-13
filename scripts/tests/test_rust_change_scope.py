@@ -126,14 +126,14 @@ class RustChangeScopeTests(unittest.TestCase):
         self.assertEqual(command[-1], "(package(=mike-codex))")
 
     def test_mike_source_keeps_module_filter_and_all_tiers(self):
-        command = self.commands("crates/mike/src/launch/codex/model.rs")[0]
+        command = self.commands("crates/mike-features/src/launch/codex/model.rs")[0]
         self.assertEqual(command[3:5], ["-p", "mike"])
         self.assertIn("--tests", command)
         self.assertIn("--ignore-default-filter", command)
         self.assertEqual(command[-1], "(package(=mike) & test(/^launch::codex(::|$)/))")
 
     def test_workspace_and_query_metadata_do_not_expand_changed_module_db_scope(self):
-        source = "crates/mike/src/launch/codex/model.rs"
+        source = "crates/mike-features/src/launch/codex/model.rs"
         self.assertEqual(self.commands(source, "Cargo.toml", "Cargo.lock", "crates/mike/Cargo.toml", ".sqlx/query.json"), self.commands(source))
         for path in ["Cargo.toml", "Cargo.lock", "crates/mike/Cargo.toml", ".sqlx/query.json"]:
             with self.subTest(path=path):
@@ -163,7 +163,7 @@ class RustChangeScopeTests(unittest.TestCase):
 
     def test_docs_do_not_broaden_source_filter(self):
         self.assertEqual(self.commands("crates/mike/README.md"), [])
-        self.assertEqual(self.commands("crates/mike/src/launch/codex/model.rs", "crates/mike/README.md"), self.commands("crates/mike/src/launch/codex/model.rs"))
+        self.assertEqual(self.commands("crates/mike-features/src/launch/codex/model.rs", "crates/mike/README.md"), self.commands("crates/mike-features/src/launch/codex/model.rs"))
 
     def test_deleted_and_renamed_files_keep_both_package_owners(self):
         self.git("mv", "crates/mike-codex/src/lib.rs", "crates/unrelated/src/renamed.rs")
