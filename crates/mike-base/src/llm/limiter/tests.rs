@@ -104,6 +104,7 @@ fn role_inside_its_share_is_never_refused_while_another_role_saturates() {
         judge_worker: 25,
         lesson_relations: 5,
         lesson_proposer: 0,
+        decision: 0,
         eval: 0,
         other: 0,
     });
@@ -128,6 +129,7 @@ fn role_saturating_the_shared_pool_cannot_touch_reserved_slots() {
         judge_worker: 25,
         lesson_relations: 5,
         lesson_proposer: 0,
+        decision: 0,
         eval: 0,
         other: 0,
     });
@@ -151,6 +153,7 @@ fn borrowed_capacity_is_reclaimed_when_the_window_rolls() {
         judge_worker: 25,
         lesson_relations: 5,
         lesson_proposer: 0,
+        decision: 0,
         eval: 0,
         other: 0,
     });
@@ -176,6 +179,7 @@ fn rate_window_applies_the_same_per_role_guarantee() {
         judge_worker: 0,
         lesson_relations: 0,
         lesson_proposer: 0,
+        decision: 0,
         eval: 0,
         other: 0,
     });
@@ -224,8 +228,8 @@ fn available_reports_calls_now_and_ceiling_headroom_separately() {
     let budget = limiter.available_at(LlmRole::Unattributed, Instant::now());
     assert_eq!(budget.calls_now, 3);
     assert_eq!(
-        budget.window_remaining_calls, 9,
-        "the ceiling window offers the role its 10% guarantee (5) plus the 4 calls no role is guaranteed"
+        budget.window_remaining_calls, 7,
+        "the ceiling window offers the role its 5% guarantee (2) plus the 5 calls no role is guaranteed"
     );
 }
 
@@ -237,6 +241,7 @@ fn available_predicts_exactly_how_many_admits_succeed() {
         judge_worker: 25,
         lesson_relations: 5,
         lesson_proposer: 0,
+        decision: 0,
         eval: 0,
         other: 0,
     });
@@ -284,6 +289,7 @@ fn live_overlay_shares_change_the_guarantee_immediately() {
         llm_budget_judge_worker_share_pct: 10,
         llm_budget_lesson_relations_share_pct: 10,
         llm_budget_other_share_pct: 10,
+        llm_budget_decision_share_pct: 0,
         ..SettingsOverlay::default()
     }));
     let limiter = CallLimiter::new(1, MINUTE, 1, HOUR);
@@ -299,6 +305,7 @@ fn live_overlay_shares_change_the_guarantee_immediately() {
         llm_budget_judge_worker_share_pct: 0,
         llm_budget_lesson_relations_share_pct: 0,
         llm_budget_other_share_pct: 0,
+        llm_budget_decision_share_pct: 0,
         ..SettingsOverlay::default()
     }));
     assert_eq!(limiter.available_at(LlmRole::Steerer, now).calls_now, 90);

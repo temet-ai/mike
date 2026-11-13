@@ -21,6 +21,7 @@ pub mod call;
 pub mod claude_call;
 pub mod cli_call;
 pub mod codex_call;
+pub mod jev_call;
 pub mod key_guard;
 pub mod recording;
 

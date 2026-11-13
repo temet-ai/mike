@@ -57,6 +57,7 @@ async fn insert_minimal_call(
             steerer_id: None,
             operator_turn_id: None,
             request_body: None,
+            response_body: None,
         })
         .await?;
     Ok(id)
@@ -180,6 +181,7 @@ async fn insert_llm_call_round_trips_full_request_body_and_stores_null_when_abse
             steerer_id: None,
             operator_turn_id: None,
             request_body: Some(body.clone()),
+            response_body: Some(serde_json::json!({"answers": {"q": {"type": "refusal"}}})),
         })
         .await?;
 
@@ -193,6 +195,41 @@ async fn insert_llm_call_round_trips_full_request_body_and_stores_null_when_abse
         stored,
         Some(body),
         "request_body must round-trip byte-for-byte, not a sliced/summarized copy"
+    );
+    let stored_answers = sqlx::query_scalar!(
+        r#"SELECT response_body AS "response_body: serde_json::Value" FROM llm.calls WHERE id = $1"#,
+        id
+    )
+    .fetch_one(handle.pool())
+    .await?;
+    assert_eq!(
+        stored_answers,
+        Some(serde_json::json!({"answers": {"q": {"type": "refusal"}}}))
+    );
+
+    let decision_id = handle
+        .insert_llm_call(LlmCallInsert {
+            role: "decision",
+            model: "typesafe/jev-1.14",
+            generation_id: None,
+            prompt_tokens: None,
+            completion_tokens: None,
+            reasoning_tokens: None,
+            cached_tokens: None,
+            cost_usd: Some(0.00001),
+            latency_ms: Some(300),
+            outcome: "schema_error",
+            http_status: Some(200),
+            session_id: None,
+            steerer_id: None,
+            operator_turn_id: None,
+            request_body: None,
+            response_body: Some(serde_json::json!("not json")),
+        })
+        .await?;
+    assert!(
+        decision_id > 0,
+        "role decision and outcome schema_error are accepted"
     );
 
     let no_body_id = insert_minimal_call(&handle, "steerer", Some(0.0)).await?;

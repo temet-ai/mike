@@ -7,6 +7,7 @@ mod args;
 mod backfill_flow_admission;
 mod backfill_predecessors;
 mod backfill_session_prompts;
+mod decisions;
 mod directives;
 pub mod dossier_backfill;
 mod dossier_backfill_entries;
@@ -67,6 +68,8 @@ pub enum ConfigCommand {
     Semantic(semantic::SemanticCommand),
     #[command(subcommand)]
     Guard(guard_report::GuardCommand),
+    #[command(subcommand)]
+    Decisions(decisions::DecisionsCommand),
     #[command(subcommand)]
     SteerQuestions(steer_questions::SteerQuestionsCommand),
     #[command(subcommand)]
@@ -142,6 +145,7 @@ async fn run_judgement_command(cmd: ConfigCommand, cli: CliOverrides) -> Result<
         ConfigCommand::Eval(command) => eval::run(command, cli).await,
         ConfigCommand::Semantic(command) => semantic::run(command, cli).await,
         ConfigCommand::Guard(command) => guard_report::run(command, cli).await,
+        ConfigCommand::Decisions(command) => decisions::run(command, cli).await,
         ConfigCommand::SteerQuestions(command) => steer_questions::run(command, cli).await,
         ConfigCommand::Directives(command) => directives::run(command, cli).await,
         ConfigCommand::OriginBackfill(args) => origin_backfill::origin_backfill(args, cli).await,

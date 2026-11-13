@@ -66,6 +66,11 @@ pub static TOGGLE_META: &[ToggleMeta] = &[
         applies: ToggleApplies::OnRestart,
     },
     ToggleMeta {
+        key: "decisions",
+        scope: ToggleScope::Global,
+        applies: ToggleApplies::Immediate,
+    },
+    ToggleMeta {
         key: "directive_proposer",
         scope: ToggleScope::Global,
         applies: ToggleApplies::LiveDisable,

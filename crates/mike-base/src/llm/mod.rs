@@ -3,6 +3,7 @@ pub mod budget;
 pub mod child_stdin;
 pub mod claude;
 pub mod codex;
+pub mod decisions;
 pub mod error;
 pub mod health;
 pub mod key;

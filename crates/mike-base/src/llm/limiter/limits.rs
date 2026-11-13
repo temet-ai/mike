@@ -65,6 +65,7 @@ impl LimiterLimits {
                 lesson_proposer: share(overlay.llm_budget_lesson_proposer_share_pct),
                 eval: share(overlay.llm_budget_eval_share_pct),
                 other: share(overlay.llm_budget_other_share_pct),
+                decision: share(overlay.llm_budget_decision_share_pct),
             }),
         }
     }

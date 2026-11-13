@@ -16,6 +16,7 @@ pub struct RoleSharePcts {
     pub lesson_proposer: u32,
     pub eval: u32,
     pub other: u32,
+    pub decision: u32,
 }
 
 impl RoleShares {
@@ -28,6 +29,7 @@ impl RoleShares {
         pct[LlmRole::LessonProposer.slot()] = p.lesson_proposer;
         pct[LlmRole::Eval.slot()] = p.eval;
         pct[LlmRole::Unattributed.slot()] = p.other;
+        pct[LlmRole::Decision.slot()] = p.decision;
         Self { pct }
     }
 
@@ -66,7 +68,8 @@ impl Default for RoleShares {
             lesson_relations: 5,
             lesson_proposer: 10,
             eval: 0,
-            other: 10,
+            other: 5,
+            decision: 5,
         })
     }
 }
@@ -177,7 +180,7 @@ mod tests {
         lesson: u32,
         other: u32,
     ) -> [u32; ROLE_COUNT] {
-        [steerer, session, worker, lesson, 0, 0, other]
+        [steerer, session, worker, lesson, 0, 0, other, 0]
     }
 
     #[test]
@@ -189,14 +192,16 @@ mod tests {
         assert_eq!(shares.pct(LlmRole::LessonRelations), 5);
         assert_eq!(shares.pct(LlmRole::LessonProposer), 10);
         assert_eq!(shares.pct(LlmRole::Eval), 0);
-        assert_eq!(shares.pct(LlmRole::Unattributed), 10);
+        assert_eq!(shares.pct(LlmRole::Unattributed), 5);
+        assert_eq!(shares.pct(LlmRole::Decision), 5);
     }
 
     #[test]
     fn eval_role_inside_its_share_is_not_refused_when_pool_is_gone() {
         let shares = RoleShares::default()
             .with_pct(LlmRole::Eval, 10)
-            .with_pct(LlmRole::Unattributed, 5);
+            .with_pct(LlmRole::Unattributed, 5)
+            .with_pct(LlmRole::Decision, 0);
         let mut full = counts(25, 20, 25, 5, 0);
         full[LlmRole::Unattributed.index()] = 15;
         assert_eq!(calls_available(100, &shares, &full, LlmRole::Eval), 10);
@@ -229,6 +234,7 @@ mod tests {
             lesson_proposer: 0,
             eval: 0,
             other: 0,
+            decision: 0,
         });
         for limit in [1, 7, 12, 30, 100, 600, 100_000] {
             let sum: u32 = LlmRole::ALL
@@ -249,6 +255,7 @@ mod tests {
             lesson_proposer: 0,
             eval: 0,
             other: 0,
+            decision: 0,
         });
         let sum: u32 = LlmRole::ALL
             .iter()
@@ -268,6 +275,7 @@ mod tests {
             lesson_proposer: 0,
             eval: 0,
             other: 0,
+            decision: 0,
         });
         let full = counts(50, 30, 0, 0, 0);
         assert_eq!(
@@ -287,6 +295,7 @@ mod tests {
             lesson_proposer: 0,
             eval: 0,
             other: 0,
+            decision: 0,
         });
         let steerer_saturated = counts(25, 0, 0, 0, 0);
         assert_eq!(
@@ -314,6 +323,7 @@ mod tests {
             lesson_proposer: 0,
             eval: 0,
             other: 0,
+            decision: 0,
         });
         assert_eq!(
             calls_available(100, &shares, &counts(0, 0, 0, 0, 0), LlmRole::Unattributed),
@@ -327,6 +337,7 @@ mod tests {
             lesson_proposer: 0,
             eval: 0,
             other: 0,
+            decision: 0,
         });
         assert_eq!(
             calls_available(100, &shares, &counts(0, 0, 0, 0, 0), LlmRole::Unattributed),
@@ -352,6 +363,7 @@ mod tests {
             lesson_proposer: 0,
             eval: 0,
             other: 0,
+            decision: 0,
         });
         let mut spent = RoleSpend::default();
         spent.add(LlmRole::Steerer, 0.5);
@@ -378,6 +390,7 @@ mod tests {
             lesson_proposer: 0,
             eval: 0,
             other: 0,
+            decision: 0,
         });
         let mut spent = RoleSpend::default();
         spent.add(LlmRole::SessionJudge, 0.3);
