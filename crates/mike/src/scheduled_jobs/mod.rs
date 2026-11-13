@@ -61,6 +61,7 @@ pub(crate) fn spawn_scheduled_jobs(state: &AppState) {
             .is_some_and(|root| script_dir_missing(root, job));
         status::update(job.name, |s| {
             s.started = true;
+            s.process_started_at = Some(now);
             s.enabled = true;
             s.root = root.clone();
             s.script_dir_missing = no_scripts;

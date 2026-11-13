@@ -45,6 +45,7 @@ pub(crate) struct RunRecord {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct JobStatus {
     pub(crate) started: bool,
+    pub(crate) process_started_at: Option<DateTime<Utc>>,
     pub(crate) enabled: bool,
     pub(crate) held_elsewhere: bool,
     pub(crate) root: Option<PathBuf>,

@@ -31,6 +31,8 @@ pub(crate) struct JobView {
     pub(crate) label: &'static str,
     pub(crate) description: &'static str,
     pub(crate) schedule: &'static str,
+    pub(crate) group: JobGroup,
+    pub(crate) window: JobWindow,
     pub(crate) scope: JobScope,
     pub(crate) owner_machine_uuid: Option<Uuid>,
     pub(crate) enabled: bool,
@@ -112,7 +114,31 @@ fn overdue(job: &Job, status: &JobStatus, now: DateTime<Utc>) -> Option<DateTime
         .last_scheduled_started_at
         .or(status.last_started_at)?;
     let missed = job.cadence.next_due_after(started)?;
-    (now - missed > job.cadence.interval()).then_some(missed)
+    let caught_up = status.last_started_at.is_some_and(|last| last > missed);
+    (!caught_up && now - missed > job.cadence.interval()).then_some(missed)
+}
+
+fn missed_run(status: &JobStatus, due: DateTime<Utc>) -> Assessment {
+    let fix = "Press Run now to catch up; the row then shows that run.";
+    match status.process_started_at {
+        Some(up) if up > due => Assessment::new(
+            JobState::Overdue,
+            format!(
+                "A run was due at {} but mike was not running on this machine then; it started at {}.",
+                utc_text(due),
+                utc_text(up)
+            ),
+            fix,
+        ),
+        _ => Assessment::new(
+            JobState::Overdue,
+            format!(
+                "A run was due at {} and did not start, although mike was running. The scheduler's lines around that time are in .deploy/mike.log (search scheduled_jobs).",
+                utc_text(due)
+            ),
+            fix,
+        ),
+    }
 }
 
 fn alarmed(job: &Job, status: &JobStatus) -> Option<Assessment> {
@@ -211,11 +237,7 @@ fn assess(job: &Job, status: &JobStatus, owner: Option<Uuid>, now: DateTime<Utc>
         return Assessment::quiet(JobState::NeverRun);
     }
     match overdue(job, status, now) {
-        Some(due) => Assessment::new(
-            JobState::Overdue,
-            format!("A run was due at {} and did not start.", utc_text(due)),
-            "Check that the proxy was running then, and look for scheduled_jobs lines in the proxy log (.deploy/mike.log).",
-        ),
+        Some(due) => missed_run(status, due),
         None => alarmed(job, status).unwrap_or_else(|| Assessment::quiet(JobState::Ok)),
     }
 }
@@ -238,6 +260,8 @@ pub(crate) fn build_view(
         label: job.label,
         description: job.description,
         schedule: job.schedule_text,
+        group: window::group_of(job),
+        window: window::window_of(job),
         scope,
         owner_machine_uuid: if job.leased { owner } else { None },
         enabled: status.enabled,
@@ -265,3 +289,6 @@ pub(crate) fn build_view(
 
 #[cfg(test)]
 mod tests;
+mod window;
+
+pub(crate) use window::{JobGroup, JobWindow};

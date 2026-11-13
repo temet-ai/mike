@@ -316,15 +316,41 @@ fn a_running_job_reports_when_it_started_and_a_manual_trigger() -> anyhow::Resul
 }
 
 #[test]
-fn a_manual_run_does_not_hide_a_missed_scheduled_run() {
+fn the_view_carries_each_jobs_group_and_utc_window() -> anyhow::Result<()> {
+    let v = build_view(&PROMOTE, &ready(), None, at(14, 12, 0));
+    let value = serde_json::to_value(&v)?;
+    assert_eq!(value["group"], "learning_and_memory");
+    assert_eq!(value["window"]["period"], "hour");
+    assert_eq!(value["window"]["minute"], 30);
+    assert_eq!(value["window"]["hours_utc"][0], 20);
+    let sweep = serde_json::to_value(build_view(&CARGO_SWEEP, &ready(), None, at(14, 12, 0)))?;
+    assert_eq!(sweep["group"], "builds_and_tests");
+    let audit = serde_json::to_value(build_view(&USAGE_AUDIT, &ready(), None, at(14, 12, 0)))?;
+    assert_eq!(audit["group"], "measurement");
+    assert_eq!(audit["window"]["weekday"], "Sun");
+    Ok(())
+}
+
+#[test]
+fn a_manual_run_after_a_missed_scheduled_run_clears_overdue() {
     let mut status = ready();
     status.last_scheduled_started_at = Some(at(4, 6, 0));
     status.last_started_at = Some(at(30, 11, 0));
     status.last_run = Some(ran(at(30, 11, 1), RunResult::Succeeded));
-    assert_eq!(
-        state_of(&USAGE_AUDIT, &status, at(30, 12, 0)),
-        JobState::Overdue
-    );
+    assert_eq!(state_of(&USAGE_AUDIT, &status, at(30, 12, 0)), JobState::Ok);
+}
+
+#[test]
+fn a_run_missed_before_mike_started_says_mike_was_not_running() {
+    let mut status = ready();
+    status.last_started_at = Some(at(14, 20, 31));
+    status.last_run = Some(ran(at(14, 20, 35), RunResult::Succeeded));
+    status.process_started_at = Some(at(15, 6, 23));
+    let v = build_view(&PROMOTE, &status, None, at(15, 7, 0));
+    assert_eq!(v.state, JobState::Overdue);
+    assert!(v.detail.contains("mike was not running"), "{}", v.detail);
+    assert!(v.detail.contains("2026-10-15 06:23 UTC"), "{}", v.detail);
+    assert!(v.fix.contains("Run now"), "{}", v.fix);
 }
 
 fn without_scripts() -> JobStatus {
