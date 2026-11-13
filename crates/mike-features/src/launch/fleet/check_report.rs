@@ -191,10 +191,7 @@ fn tail(output: &str) -> String {
     lines[start..].join("\n")
 }
 
-pub async fn definition_now(
-    persist: &PersistHandle,
-    fleet: Uuid,
-) -> Option<FleetDefinition> {
+pub async fn definition_now(persist: &PersistHandle, fleet: Uuid) -> Option<FleetDefinition> {
     let found = persist
         .fleet()
         .find_fleet(&fleet.to_string())

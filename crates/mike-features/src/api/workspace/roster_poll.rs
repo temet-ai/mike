@@ -65,10 +65,7 @@ pub async fn load_roster(
     })
 }
 
-pub fn present_roster(
-    state: &AppState,
-    answer: &RosterAnswer,
-) -> Result<Presented, PollError> {
+pub fn present_roster(state: &AppState, answer: &RosterAnswer) -> Result<Presented, PollError> {
     let busy_ids = state.in_flight.busy_session_ids();
     let roster: Vec<RosterEntryDto> = answer
         .rows

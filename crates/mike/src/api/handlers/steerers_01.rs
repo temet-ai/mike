@@ -2,7 +2,6 @@ use super::*;
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use crate::store::persistence::steerer_repo::SteererPersist as _;
 
-
 #[derive(Debug, Serialize)]
 pub(crate) struct SteererEnvelope {
     pub(crate) steerer: SteererDto,

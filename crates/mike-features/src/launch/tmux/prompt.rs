@@ -18,11 +18,7 @@ pub struct PromptOutcome {
     pub detail: Option<String>,
 }
 
-pub async fn deliver(
-    cli: &TmuxCli,
-    pane: &str,
-    text: &str,
-) -> Result<PromptOutcome, LaunchError> {
+pub async fn deliver(cli: &TmuxCli, pane: &str, text: &str) -> Result<PromptOutcome, LaunchError> {
     let baseline = capture_pane(cli, pane).await;
     let buffer = format!("mike-prompt-{pane}").replace(['%', ':'], "_");
     let set = argv(&["set-buffer", "-b", &buffer, "--", text]);

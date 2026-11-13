@@ -1,10 +1,6 @@
 use super::RerankConfig;
 
-pub fn assign_rerank_key(
-    config: &mut RerankConfig,
-    key: &str,
-    value: &serde_json::Value,
-) -> bool {
+pub fn assign_rerank_key(config: &mut RerankConfig, key: &str, value: &serde_json::Value) -> bool {
     if let Some(applied) = config.nightly.assign(key, value) {
         return applied;
     }

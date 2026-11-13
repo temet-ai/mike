@@ -64,11 +64,7 @@ pub struct Attempt {
     pub reason: String,
 }
 
-pub fn reranked_order(
-    order: Vec<usize>,
-    scores: &[Option<f64>],
-    window: usize,
-) -> Vec<usize> {
+pub fn reranked_order(order: Vec<usize>, scores: &[Option<f64>], window: usize) -> Vec<usize> {
     let split = window.min(order.len());
     let (head, tail) = order.split_at(split);
     let (mut scored, unscored): (Vec<usize>, Vec<usize>) = head
@@ -140,11 +136,7 @@ fn top_references<'a>(
         .collect()
 }
 
-pub fn verdict(
-    before: &Evaluation,
-    after: &Evaluation,
-    min_gain: f64,
-) -> Result<String, String> {
+pub fn verdict(before: &Evaluation, after: &Evaluation, min_gain: f64) -> Result<String, String> {
     let gain = after.overall - before.overall;
     if gain < min_gain - TOLERANCE {
         return Err(format!(
@@ -164,12 +156,7 @@ pub fn verdict(
     ))
 }
 
-pub fn tune(
-    grades: &[Grade],
-    start: &RankingConfig,
-    window: usize,
-    min_gain: f64,
-) -> Vec<Attempt> {
+pub fn tune(grades: &[Grade], start: &RankingConfig, window: usize, min_gain: f64) -> Vec<Attempt> {
     let kinds = used_kinds(grades);
     let mut config = start.clone();
     let mut attempts = Vec::new();

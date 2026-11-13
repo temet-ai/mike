@@ -34,10 +34,7 @@ impl PersistHandle {
         }
     }
 
-    pub async fn demote_duplicate_first_turns(
-        &self,
-        dry_run: bool,
-    ) -> Result<u64, PersistError> {
+    pub async fn demote_duplicate_first_turns(&self, dry_run: bool) -> Result<u64, PersistError> {
         crate::metrics::time_db("demote_duplicate_first_turns", async move {
             if dry_run {
                 let count = sqlx::query_scalar!(

@@ -16,11 +16,7 @@ pub struct RouteEntry {
     pub coverage: Coverage,
 }
 
-pub const fn route(
-    method: &'static str,
-    path: &'static str,
-    coverage: Coverage,
-) -> RouteEntry {
+pub const fn route(method: &'static str, path: &'static str, coverage: Coverage) -> RouteEntry {
     RouteEntry {
         method,
         path,

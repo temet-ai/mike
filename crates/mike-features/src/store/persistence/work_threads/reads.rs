@@ -6,10 +6,7 @@ use super::{
     ThreadState, WorkThreadError,
 };
 
-pub async fn identity_by_id(
-    pool: &PgPool,
-    thread_id: i64,
-) -> Result<ThreadIdentity, sqlx::Error> {
+pub async fn identity_by_id(pool: &PgPool, thread_id: i64) -> Result<ThreadIdentity, sqlx::Error> {
     sqlx::query_as!(
         ThreadIdentity,
         "SELECT id, slug, title, goal, status, branch, worktree, last_session_uuid, source_path, parse_error, created_at, updated_at

@@ -1,6 +1,5 @@
 //! Facade: `store::persistence` as mike_features sees it (crate split, ADR 0002).
 
-
 pub use mike_base::store::persistence::*;
 pub mod acceptance_criteria;
 pub mod ask_ledger_backfill;

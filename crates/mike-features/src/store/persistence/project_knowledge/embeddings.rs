@@ -130,9 +130,7 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         Ok(())
     }
 
-    pub async fn knowledge_embedding_url_candidates(
-        self,
-    ) -> Result<Vec<String>, PersistError> {
+    pub async fn knowledge_embedding_url_candidates(self) -> Result<Vec<String>, PersistError> {
         Ok(sqlx::query_scalar!(
             r#"SELECT url AS "url!" FROM (
                SELECT unnest(urls_seen) AS url FROM memory.semantic_embedders

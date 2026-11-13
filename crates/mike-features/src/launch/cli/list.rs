@@ -30,11 +30,7 @@ impl ListRow {
     }
 }
 
-pub fn merge(
-    rows: Vec<LaunchRow>,
-    surfaces: Vec<Surface>,
-    run_scoped: bool,
-) -> Vec<ListRow> {
+pub fn merge(rows: Vec<LaunchRow>, surfaces: Vec<Surface>, run_scoped: bool) -> Vec<ListRow> {
     let mut remaining = surfaces;
     let mut out = Vec::with_capacity(remaining.len());
     for row in rows {
@@ -72,10 +68,7 @@ pub fn merge(
     out
 }
 
-pub async fn execute(
-    runner: &Runner<'_>,
-    run: Option<&str>,
-) -> Result<Vec<ListRow>, LaunchError> {
+pub async fn execute(runner: &Runner<'_>, run: Option<&str>) -> Result<Vec<ListRow>, LaunchError> {
     let surfaces = runner.backend.list().await?;
     let filter = LaunchListFilter {
         run_id: run.map(str::to_string),

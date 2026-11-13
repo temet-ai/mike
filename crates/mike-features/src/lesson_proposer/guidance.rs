@@ -38,10 +38,7 @@ async fn query_vector(deps: &ProposerDeps<'_>, text: &str) -> Option<QueryEmbedd
     }
 }
 
-pub async fn closest(
-    deps: &ProposerDeps<'_>,
-    candidate: &CorrectionCandidate,
-) -> Vec<GuidanceRow> {
+pub async fn closest(deps: &ProposerDeps<'_>, candidate: &CorrectionCandidate) -> Vec<GuidanceRow> {
     closest_to_text(deps, candidate.project_id, &query_text(candidate)).await
 }
 

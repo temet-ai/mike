@@ -253,9 +253,7 @@ impl crate::store::persistence::steerer_repo::SteererDb<'_> {
         .await
     }
 
-    pub async fn fetch_steering_vocabulary(
-        self,
-    ) -> Result<SteeringVocabulary, PersistError> {
+    pub async fn fetch_steering_vocabulary(self) -> Result<SteeringVocabulary, PersistError> {
         let rows = sqlx::query!(
             r#"SELECT 'authority' AS "kind!", code AS "code!", description AS "description!"
                  FROM steering.authorities

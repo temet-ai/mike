@@ -10,10 +10,7 @@ pub struct InjectBookkeeping<'a> {
     pub request_id: RequestId,
 }
 
-pub fn inject_system_reminder(
-    reminder: &SystemReminder,
-    bk: &mut InjectBookkeeping<'_>,
-) -> bool {
+pub fn inject_system_reminder(reminder: &SystemReminder, bk: &mut InjectBookkeeping<'_>) -> bool {
     match append_block_to_last_user_message(bk.post_filter_body, &reminder.payload, bk.request_id) {
         Some(new_bytes) => {
             let new_bytes = Bytes::from(new_bytes);

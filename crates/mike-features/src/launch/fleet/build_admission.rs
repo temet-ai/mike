@@ -217,10 +217,7 @@ pub struct Pending {
 }
 
 impl Pending {
-    pub fn open_slot(
-        private_state_root: &Path,
-        slot: usize,
-    ) -> Result<Self, AdmissionError> {
+    pub fn open_slot(private_state_root: &Path, slot: usize) -> Result<Self, AdmissionError> {
         #[cfg(unix)]
         {
             let name = slot_name(slot);
@@ -241,10 +238,7 @@ impl Pending {
         }
     }
 
-    pub fn try_take(
-        &self,
-        cancellation: &CancellationToken,
-    ) -> Result<bool, AdmissionError> {
+    pub fn try_take(&self, cancellation: &CancellationToken) -> Result<bool, AdmissionError> {
         #[cfg(unix)]
         {
             try_lock_once(

@@ -61,8 +61,7 @@ pub const REMOTE_CONTROL_STREAM_EVENTS: &[&str] = &[
     "closed_upstream_error",
 ];
 
-pub const COUNTER_CAPTURE_THROTTLE_OVERRIDE_TOTAL: &str =
-    "proxy_capture_throttle_override_total";
+pub const COUNTER_CAPTURE_THROTTLE_OVERRIDE_TOTAL: &str = "proxy_capture_throttle_override_total";
 
 pub const GAUGE_MEMORY_RSS_PEAK_BYTES: &str = "proxy_memory_rss_peak_bytes";
 
@@ -78,19 +77,15 @@ pub const GAUGE_MEMORY_BROADCAST_RECEIVERS: &str = "proxy_memory_broadcast_recei
 
 pub const GAUGE_MEMORY_BROADCAST_BACKLOG: &str = "proxy_memory_broadcast_backlog";
 
-pub const COUNTER_MEMORY_BROADCAST_LAGGED_TOTAL: &str =
-    "proxy_memory_broadcast_lagged_total";
+pub const COUNTER_MEMORY_BROADCAST_LAGGED_TOTAL: &str = "proxy_memory_broadcast_lagged_total";
 
-pub const GAUGE_MEMORY_FETCH_ALL_ROWS_IN_FLIGHT: &str =
-    "proxy_memory_fetch_all_rows_in_flight";
+pub const GAUGE_MEMORY_FETCH_ALL_ROWS_IN_FLIGHT: &str = "proxy_memory_fetch_all_rows_in_flight";
 
 pub const GAUGE_MEMORY_FASTEMBED_BYTES: &str = "proxy_memory_fastembed_bytes";
 
-pub const COUNTER_MEMORY_SSE_BUFFER_BYTES_TOTAL: &str =
-    "proxy_memory_sse_buffer_bytes_total";
+pub const COUNTER_MEMORY_SSE_BUFFER_BYTES_TOTAL: &str = "proxy_memory_sse_buffer_bytes_total";
 
-pub const COUNTER_MEMORY_SSE_BUFFER_CAPPED_TOTAL: &str =
-    "proxy_memory_sse_buffer_capped_total";
+pub const COUNTER_MEMORY_SSE_BUFFER_CAPPED_TOTAL: &str = "proxy_memory_sse_buffer_capped_total";
 
 pub const COUNTER_MEMORY_REQUEST_BODY_REJECTED_TOTAL: &str =
     "proxy_memory_request_body_rejected_total";
@@ -104,11 +99,9 @@ pub const COUNTER_STORE_EVENT_BACKPRESSURED_TOTAL: &str =
 
 pub const COUNTER_MEMORY_TICKER_RUNS_TOTAL: &str = "proxy_memory_ticker_runs_total";
 
-pub const HISTOGRAM_MEMORY_TICKER_DURATION_SECONDS: &str =
-    "proxy_memory_ticker_duration_seconds";
+pub const HISTOGRAM_MEMORY_TICKER_DURATION_SECONDS: &str = "proxy_memory_ticker_duration_seconds";
 
-pub const HISTOGRAM_MEMORY_BANNER_RENDER_SECONDS: &str =
-    "proxy_memory_banner_render_seconds";
+pub const HISTOGRAM_MEMORY_BANNER_RENDER_SECONDS: &str = "proxy_memory_banner_render_seconds";
 
 pub const MEMORY_STORE_BYTES_FIELDS: &[&str] = &[
     "request_body",
@@ -132,7 +125,6 @@ pub const MEMORY_SHED_PATHS: &[&str] = &[
     "store_insert",
 ];
 
-pub const MEMORY_SHED_REASONS: &[&str] =
-    &["reject_incoming", "evict_existing", "soft_watermark"];
+pub const MEMORY_SHED_REASONS: &[&str] = &["reject_incoming", "evict_existing", "soft_watermark"];
 
 pub const MEMORY_TICKER_OUTCOMES: &[&str] = &["ok", "error"];

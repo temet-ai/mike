@@ -43,18 +43,12 @@ pub async fn request(
     Ok((request, ledger))
 }
 
-pub fn diagnostics(
-    def: &FleetDefinition,
-    row: &TreeCheckRow,
-) -> Vec<Diagnostic> {
+pub fn diagnostics(def: &FleetDefinition, row: &TreeCheckRow) -> Vec<Diagnostic> {
     let root = diagnostic_root(def, &row.run_id);
     crate::launch::fleet::diagnostics::parse(&row.output, root.as_deref().unwrap_or(&def.repo))
 }
 
-pub fn diagnostic_root(
-    def: &FleetDefinition,
-    run: &str,
-) -> Option<String> {
+pub fn diagnostic_root(def: &FleetDefinition, run: &str) -> Option<String> {
     if super::is_command(run) && !is_baseline(run) {
         return None;
     }

@@ -59,10 +59,7 @@ pub fn dtos(rows: Vec<TurnVerdictRow>) -> Vec<TurnVerdictDto> {
         .collect()
 }
 
-pub fn turn_dtos(
-    rows: Vec<TurnVerdictRow>,
-    live_verdict_id: Option<i64>,
-) -> Vec<TurnVerdictDto> {
+pub fn turn_dtos(rows: Vec<TurnVerdictRow>, live_verdict_id: Option<i64>) -> Vec<TurnVerdictDto> {
     rows.into_iter()
         .map(|row| TurnVerdictDto {
             is_live_projection: Some(Some(row.id) == live_verdict_id),

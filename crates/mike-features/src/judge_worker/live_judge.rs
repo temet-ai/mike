@@ -58,10 +58,7 @@ impl LiveJudge<'_> {
     }
 }
 
-pub async fn load_live_bundle(
-    persist: &PersistHandle,
-    bundle_id: i64,
-) -> Option<LiveBundle> {
+pub async fn load_live_bundle(persist: &PersistHandle, bundle_id: i64) -> Option<LiveBundle> {
     let Some(row) = ok_or_warn(
         persist.eval().get_bundle(bundle_id).await,
         "live_judge.read_bundle",
@@ -101,11 +98,7 @@ pub async fn announce_bundle(
     mark_bundle_live(persist, bundle.id, ANNOUNCE_SOURCE).await;
 }
 
-pub async fn mark_bundle_live(
-    persist: &PersistHandle,
-    bundle_id: i64,
-    source_json: &'static str,
-) {
+pub async fn mark_bundle_live(persist: &PersistHandle, bundle_id: i64, source_json: &'static str) {
     let gate = ok_or_warn(
         persist.eval().passing_holdout_gate(bundle_id).await,
         "live_bundle.holdout_gate",

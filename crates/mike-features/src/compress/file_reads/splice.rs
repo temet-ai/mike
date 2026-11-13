@@ -16,10 +16,7 @@ pub struct PendingSplice {
     pub target_index: usize,
 }
 
-pub fn resolve_overlaps(
-    targets: &mut [TargetEntry],
-    pending: &mut Vec<PendingSplice>,
-) {
+pub fn resolve_overlaps(targets: &mut [TargetEntry], pending: &mut Vec<PendingSplice>) {
     pending.sort_by_key(|p| p.start);
     let mut accepted: Vec<PendingSplice> = Vec::with_capacity(pending.len());
     let mut last_end: Option<usize> = None;

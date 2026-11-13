@@ -72,11 +72,7 @@ fn verifier_context(budget: VerifierInputBudget) -> VerifierJudgeContext {
     }
 }
 
-pub fn steerer_input_probe(
-    kind: &str,
-    trigger_point: &str,
-    verifier_budget: &str,
-) -> String {
+pub fn steerer_input_probe(kind: &str, trigger_point: &str, verifier_budget: &str) -> String {
     let budget = if kind == "verifier" {
         VerifierInputBudget::from_setting(verifier_budget)
     } else {

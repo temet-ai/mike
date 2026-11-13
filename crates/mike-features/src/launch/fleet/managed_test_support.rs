@@ -176,10 +176,7 @@ impl Execution {
 }
 
 #[cfg(test)]
-pub async fn with_context<T>(
-    ledger: &str,
-    work: impl Future<Output = T>,
-) -> anyhow::Result<T> {
+pub async fn with_context<T>(ledger: &str, work: impl Future<Output = T>) -> anyhow::Result<T> {
     let execution = Execution::new(ledger).await?;
     let output = execution.scope(work).await;
     execution.finish().await?;

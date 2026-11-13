@@ -91,11 +91,7 @@ pub fn register_autoack_stream(streams: &ReplyStreams) -> super::streams::Regist
     registration
 }
 
-pub fn deps(
-    persist: PersistHandle,
-    streams: ReplyStreams,
-    gate: Arc<InjectionGate>,
-) -> PushDeps {
+pub fn deps(persist: PersistHandle, streams: ReplyStreams, gate: Arc<InjectionGate>) -> PushDeps {
     PushDeps {
         persist: Some(persist),
         remote_control_streams: streams,

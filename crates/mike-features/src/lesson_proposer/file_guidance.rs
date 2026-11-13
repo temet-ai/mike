@@ -100,11 +100,7 @@ async fn read_directory(
     }
 }
 
-pub async fn closest(
-    deps: &ProposerDeps<'_>,
-    project_id: i64,
-    text: &str,
-) -> Vec<GuidanceRow> {
+pub async fn closest(deps: &ProposerDeps<'_>, project_id: i64, text: &str) -> Vec<GuidanceRow> {
     let Ok(machine) = crate::machine_identity::load_default().await else {
         return Vec::new();
     };

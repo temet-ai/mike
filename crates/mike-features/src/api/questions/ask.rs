@@ -90,10 +90,7 @@ async fn prepare(persist: &PersistHandle, body: &AskBody) -> Result<Prepared, Bo
     Ok(Prepared { asker, to, note })
 }
 
-pub async fn post_question(
-    State(state): State<AppState>,
-    Json(body): Json<AskBody>,
-) -> Response {
+pub async fn post_question(State(state): State<AppState>, Json(body): Json<AskBody>) -> Response {
     let Some(persist) = state.persist() else {
         return unavailable();
     };

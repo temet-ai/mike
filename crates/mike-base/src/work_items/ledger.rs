@@ -237,11 +237,7 @@ fn agent_entry(
     }
 }
 
-pub fn build_ledger(
-    session_id: &str,
-    rows: &[WorkItemRow],
-    git_rows: &[GitOutputRow],
-) -> Ledger {
+pub fn build_ledger(session_id: &str, rows: &[WorkItemRow], git_rows: &[GitOutputRow]) -> Ledger {
     let mut git = git_by_agent(git_rows);
     let finished = finished_agents(rows);
     let background: Vec<BackgroundEntry> = rows

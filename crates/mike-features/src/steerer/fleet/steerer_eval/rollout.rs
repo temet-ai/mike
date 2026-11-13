@@ -1,9 +1,7 @@
 use crate::steerer::registry::Steerer;
 use crate::steerer::rollout_params::Rollout;
 
-pub fn live_before_shadow<'r>(
-    steerers: &[&'r Steerer],
-) -> Vec<&'r Steerer> {
+pub fn live_before_shadow<'r>(steerers: &[&'r Steerer]) -> Vec<&'r Steerer> {
     let (mut live, shadow): (Vec<&Steerer>, Vec<&Steerer>) = steerers
         .iter()
         .partition(|s| s.params.delivery.rollout == Rollout::Live);

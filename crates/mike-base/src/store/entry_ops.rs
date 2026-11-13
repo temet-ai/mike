@@ -94,11 +94,7 @@ impl RequestStore {
             .collect()
     }
 
-    pub fn update(
-        &mut self,
-        id: &RequestId,
-        f: impl FnOnce(&mut InterceptedRequest),
-    ) -> bool {
+    pub fn update(&mut self, id: &RequestId, f: impl FnOnce(&mut InterceptedRequest)) -> bool {
         match self.entries.get_mut(id) {
             Some(req) => {
                 f(req);

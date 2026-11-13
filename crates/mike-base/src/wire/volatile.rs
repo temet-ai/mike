@@ -12,11 +12,7 @@ pub struct VolatilePattern {
     pub enabled: bool,
 }
 
-pub fn strip_volatile_lines(
-    text: &str,
-    patterns: &[VolatilePattern],
-    block_index: u8,
-) -> String {
+pub fn strip_volatile_lines(text: &str, patterns: &[VolatilePattern], block_index: u8) -> String {
     if !patterns
         .iter()
         .any(|p| p.enabled && p.applies_to_block_index == block_index)

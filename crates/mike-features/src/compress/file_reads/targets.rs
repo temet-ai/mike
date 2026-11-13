@@ -10,11 +10,7 @@ fn generic_content_hash(block: &Value) -> String {
     sha256_hex(&bytes)
 }
 
-pub fn unpaired_target(
-    block: &Value,
-    base_path: &str,
-    tool_use_id: Option<&str>,
-) -> TargetEntry {
+pub fn unpaired_target(block: &Value, base_path: &str, tool_use_id: Option<&str>) -> TargetEntry {
     let hash = generic_content_hash(block);
     TargetEntry {
         outcome: StageOutcome::Skipped,

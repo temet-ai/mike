@@ -31,11 +31,7 @@ pub struct ContextRequest<'a> {
     pub verifier_pattern: &'a str,
 }
 
-pub fn turn_ending(
-    rows: &[OpenTextRow],
-    live_request_id: Option<i64>,
-    live_text: &str,
-) -> String {
+pub fn turn_ending(rows: &[OpenTextRow], live_request_id: Option<i64>, live_text: &str) -> String {
     let live = live_request_id.filter(|_| !live_text.trim().is_empty());
     let mut text: String = rows
         .iter()

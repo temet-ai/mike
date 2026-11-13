@@ -124,10 +124,7 @@ impl fmt::Debug for FeedMemos {
 }
 
 impl FeedMemos {
-    pub fn bound<'a, V>(
-        &'a self,
-        memo: &'a Memo<V>,
-    ) -> Option<Bound<'a, V>> {
+    pub fn bound<'a, V>(&'a self, memo: &'a Memo<V>) -> Option<Bound<'a, V>> {
         self.inner.feed.get().map(|feed| Bound { feed, memo })
     }
 
@@ -139,11 +136,7 @@ impl FeedMemos {
         self.inner.briefs.forget_all();
     }
 
-    pub fn record(
-        &self,
-        table: RowChangedTable,
-        session: Option<Uuid>,
-    ) {
+    pub fn record(&self, table: RowChangedTable, session: Option<Uuid>) {
         if let Some(feed) = self.inner.feed.get() {
             let session = session.map(|s| s.to_string());
             feed.record(table, session.as_deref());

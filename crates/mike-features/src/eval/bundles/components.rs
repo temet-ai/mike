@@ -37,10 +37,7 @@ pub fn turn_judge_components(
     })
 }
 
-pub fn session_judge_components(
-    overlay: &SettingsOverlay,
-    cfg: &SessionJudgeConfig,
-) -> Value {
+pub fn session_judge_components(overlay: &SettingsOverlay, cfg: &SessionJudgeConfig) -> Value {
     let runtime = resolve_session_judge_runtime(overlay, cfg);
     let llm = resolve_session_judge_llm_settings(overlay);
     json!({

@@ -22,9 +22,7 @@ pub struct Finish<'a> {
     pub exit: Option<i32>,
 }
 
-pub fn state_of(
-    row: &crate::store::persistence::fleet::TreeCheckRow,
-) -> &'static str {
+pub fn state_of(row: &crate::store::persistence::fleet::TreeCheckRow) -> &'static str {
     let cancelled = row
         .state_after
         .as_deref()
@@ -44,12 +42,7 @@ async fn append(persist: &PersistHandle, run: &str, payload: EventPayload) {
     }
 }
 
-pub async fn queued(
-    persist: &PersistHandle,
-    run: &str,
-    receipt: i64,
-    operation: &str,
-) {
+pub async fn queued(persist: &PersistHandle, run: &str, receipt: i64, operation: &str) {
     live().insert(receipt);
     let payload = EventPayload::CheckQueued(CheckQueued {
         receipt_id: receipt,
@@ -58,11 +51,7 @@ pub async fn queued(
     append(persist, run, payload).await;
 }
 
-pub async fn finished(
-    persist: &PersistHandle,
-    run: &str,
-    finish: Finish<'_>,
-) {
+pub async fn finished(persist: &PersistHandle, run: &str, finish: Finish<'_>) {
     live().remove(&finish.receipt);
     let payload = EventPayload::CheckFinished(CheckFinished {
         receipt_id: finish.receipt,
@@ -74,9 +63,7 @@ pub async fn finished(
     append(persist, run, payload).await;
 }
 
-pub fn unfinished(
-    events: &[crate::launch::fleet::events::FleetEvent],
-) -> Vec<i64> {
+pub fn unfinished(events: &[crate::launch::fleet::events::FleetEvent]) -> Vec<i64> {
     let receipt = |event: &crate::launch::fleet::events::FleetEvent| {
         event
             .payload

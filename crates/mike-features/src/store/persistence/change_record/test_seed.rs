@@ -16,11 +16,7 @@ pub async fn project(pool: &PgPool) -> anyhow::Result<i64> {
     seed_project(pool, CHECKOUT).await
 }
 
-pub async fn session(
-    pool: &PgPool,
-    project_id: i64,
-    cwd: Option<&str>,
-) -> anyhow::Result<i64> {
+pub async fn session(pool: &PgPool, project_id: i64, cwd: Option<&str>) -> anyhow::Result<i64> {
     let id = sqlx::query_scalar!(
         "INSERT INTO sessions.sessions (session_uuid, project_id, first_seen, last_seen, cwd)
          VALUES ($1, $2, NOW(), NOW(), $3)

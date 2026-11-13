@@ -81,10 +81,7 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         rows.iter().map(ungraded_event).collect()
     }
 
-    pub async fn insert_search_grade(
-        self,
-        grade: &NewGrade<'_>,
-    ) -> Result<(), PersistError> {
+    pub async fn insert_search_grade(self, grade: &NewGrade<'_>) -> Result<(), PersistError> {
         sqlx::query(include_str!("insert_grade.sql")) // grader-allow: .sqlx entries cannot be written while the build is memory-blocked (operator note 8c8c8263); becomes query! with them
             .bind(grade.event_id)
             .bind(grade.candidates)
@@ -140,10 +137,7 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         Ok(result.rows_affected())
     }
 
-    pub async fn search_tuned_since(
-        self,
-        since: DateTime<Utc>,
-    ) -> Result<bool, PersistError> {
+    pub async fn search_tuned_since(self, since: DateTime<Utc>) -> Result<bool, PersistError> {
         Ok(
             sqlx::query_scalar(include_str!("tuned_since.sql")) // grader-allow: .sqlx entries cannot be written while the build is memory-blocked (operator note 8c8c8263); becomes query! with them
                 .bind(since)

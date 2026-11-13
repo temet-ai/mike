@@ -190,9 +190,7 @@ fn log_agent_scan_completed(agents_scanned: usize) {
     );
 }
 
-pub fn build_in_flight_registry(
-    max_in_flight: u64,
-) -> Arc<crate::in_flight::InFlightRegistry> {
+pub fn build_in_flight_registry(max_in_flight: u64) -> Arc<crate::in_flight::InFlightRegistry> {
     let cap = usize::try_from(max_in_flight).unwrap_or(usize::MAX);
     Arc::new(crate::in_flight::InFlightRegistry::with_capacity(cap))
 }

@@ -107,12 +107,7 @@ fn detail_of(events: &[FleetEvent], problem_id: &str) -> String {
         .to_string()
 }
 
-pub async fn pass(
-    state: &AppState,
-    persist: &PersistHandle,
-    _def: &FleetDefinition,
-    run: &str,
-) {
+pub async fn pass(state: &AppState, persist: &PersistHandle, _def: &FleetDefinition, run: &str) {
     let Ok(events) = persist.fleet().fleet_events_since(run, 0).await else {
         return;
     };

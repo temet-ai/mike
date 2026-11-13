@@ -14,10 +14,7 @@ pub fn spawn_record(persist: Option<PersistHandle>, record: SupplyRecord) {
 }
 
 impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
-    pub async fn record_keeper_supply(
-        self,
-        record: &SupplyRecord,
-    ) -> Result<(), sqlx::Error> {
+    pub async fn record_keeper_supply(self, record: &SupplyRecord) -> Result<(), sqlx::Error> {
         let carrier = record.carrier.as_str();
         let arm = record.arm.as_str();
         crate::metrics::time_db("record_keeper_supply", async move {

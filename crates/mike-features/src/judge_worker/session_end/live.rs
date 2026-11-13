@@ -79,10 +79,7 @@ pub fn verdict_row<'a>(
     }
 }
 
-pub async fn load_config(
-    persist: &PersistHandle,
-    bundle_id: i64,
-) -> Option<SessionJudgeV3Config> {
+pub async fn load_config(persist: &PersistHandle, bundle_id: i64) -> Option<SessionJudgeV3Config> {
     let row = ok_or_warn(
         persist.eval().get_bundle(bundle_id).await,
         "session_judge_v3.read_bundle",
@@ -140,12 +137,7 @@ impl LivePoll<'_> {
         );
     }
 
-    pub async fn record(
-        &self,
-        session_db_id: i64,
-        cfg: &SessionJudgeV3Config,
-        failed: bool,
-    ) {
+    pub async fn record(&self, session_db_id: i64, cfg: &SessionJudgeV3Config, failed: bool) {
         ok_or_warn(
             self.persist
                 .eval()

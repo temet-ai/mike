@@ -43,10 +43,7 @@ impl crate::store::persistence::steerer_repo::SteererDb<'_> {
         .await
     }
 
-    pub async fn fetch_steerer_by_id(
-        self,
-        id: i64,
-    ) -> Result<Option<SteererRow>, PersistError> {
+    pub async fn fetch_steerer_by_id(self, id: i64) -> Result<Option<SteererRow>, PersistError> {
         crate::metrics::time_db("fetch_steerer_by_id", async move {
             let row = sqlx::query_as!(
                 SteererRow,
@@ -254,11 +251,7 @@ impl crate::store::persistence::steerer_repo::SteererDb<'_> {
         .await
     }
 
-    pub async fn delete_steerer(
-        self,
-        id: i64,
-        source: Option<&str>,
-    ) -> Result<bool, PersistError> {
+    pub async fn delete_steerer(self, id: i64, source: Option<&str>) -> Result<bool, PersistError> {
         crate::metrics::time_db("delete_steerer", async move {
             let mut tx = self.pool.begin().await?;
             if let Some(source) = source {

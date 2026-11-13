@@ -421,12 +421,7 @@ async fn check_and_attribute(
     record(persist, evaluate(def, &roster, &prior, &broken, &at), run).await;
 }
 
-pub async fn pass(
-    state: &AppState,
-    persist: &PersistHandle,
-    def: &FleetDefinition,
-    run: &str,
-) {
+pub async fn pass(state: &AppState, persist: &PersistHandle, def: &FleetDefinition, run: &str) {
     if !def.check.declared() {
         return;
     }

@@ -32,11 +32,7 @@ pub async fn reserve(deps: &ProposerDeps<'_>, pass: MaintenancePass) -> Reservat
     }
 }
 
-pub async fn note_refusal(
-    deps: &ProposerDeps<'_>,
-    pass: MaintenancePass,
-    reason: RefusalReason,
-) {
+pub async fn note_refusal(deps: &ProposerDeps<'_>, pass: MaintenancePass, reason: RefusalReason) {
     let cap = deps.settings.maintenance_max_per_day;
     match deps
         .persist

@@ -107,10 +107,7 @@ pub async fn list_eval_bundles(
     }
 }
 
-pub async fn get_eval_bundle(
-    State(state): State<AppState>,
-    Path(id): Path<i64>,
-) -> Response {
+pub async fn get_eval_bundle(State(state): State<AppState>, Path(id): Path<i64>) -> Response {
     let Some(persist) = state.persist() else {
         return unavailable();
     };

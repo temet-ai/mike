@@ -301,11 +301,7 @@ fn issue(obligation: &mut AcceptanceObligation, message: &str) {
     obligation.required = true;
 }
 
-pub fn validate_write(
-    fleet: &str,
-    def: &FleetDefinition,
-    note: &NoteFacts,
-) -> Result<(), String> {
+pub fn validate_write(fleet: &str, def: &FleetDefinition, note: &NoteFacts) -> Result<(), String> {
     if note.kind != "task" {
         return Err("acceptance-obligation requires kind task".into());
     }

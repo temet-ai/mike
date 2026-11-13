@@ -33,11 +33,7 @@ pub mod rule_validation_tests;
 pub use types::FilterOutcome;
 pub use types::{FilterAction, FilterConfig, FilterKind, FilterRule, RuleSource};
 
-pub fn apply_request_filter(
-    raw: &[u8],
-    cfg: &FilterConfig,
-    project_path: &str,
-) -> FilterOutcome {
+pub fn apply_request_filter(raw: &[u8], cfg: &FilterConfig, project_path: &str) -> FilterOutcome {
     if cfg.rules.is_empty() {
         return FilterOutcome::Unchanged;
     }

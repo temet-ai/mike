@@ -21,10 +21,7 @@ pub fn load(cli: CliOverrides) -> anyhow::Result<ProxyConfig> {
     load_with(cli, &ProcessEnvironment)
 }
 
-pub fn load_with(
-    cli: CliOverrides,
-    environment: &dyn Environment,
-) -> anyhow::Result<ProxyConfig> {
+pub fn load_with(cli: CliOverrides, environment: &dyn Environment) -> anyhow::Result<ProxyConfig> {
     load_layered(cli, environment)
 }
 

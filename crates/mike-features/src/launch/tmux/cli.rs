@@ -63,11 +63,7 @@ impl TmuxCli {
         Ok(String::from_utf8_lossy(&output.stdout).into_owned())
     }
 
-    pub async fn run_ok(
-        &self,
-        args: &[String],
-        timeout: Duration,
-    ) -> Result<(), LaunchError> {
+    pub async fn run_ok(&self, args: &[String], timeout: Duration) -> Result<(), LaunchError> {
         let output = self.run_raw(args, timeout).await?;
         if !output.status.success() {
             return Err(failure(args, &output));

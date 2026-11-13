@@ -48,11 +48,7 @@ pub struct QueueJob {
     thread: String,
 }
 
-pub async fn prepare(
-    persist: &PersistHandle,
-    session: Uuid,
-    message: Uuid,
-) -> Option<QueueJob> {
+pub async fn prepare(persist: &PersistHandle, session: Uuid, message: Uuid) -> Option<QueueJob> {
     match prepare_job(persist, session, message).await {
         Ok(job) => job,
         Err(error) => {

@@ -6,8 +6,9 @@ use crate::store::persistence::PersistHandle;
 use crate::store::persistence::launch::{NewLaunch, NewRun};
 use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db};
 
-const SENDER_NOTIFIED_MIGRATION: &str =
-    include_str!("../../../../../../mike-base/src/store/persistence/migrations/20261102360000_mailbox_messages_sender_notified_at.sql");
+const SENDER_NOTIFIED_MIGRATION: &str = include_str!(
+    "../../../../../../mike-base/src/store/persistence/migrations/20261102360000_mailbox_messages_sender_notified_at.sql"
+);
 
 async fn fixture() -> anyhow::Result<Option<(TestDbHandle, PersistHandle, String)>> {
     let Some(db) = acquire_ephemeral_db().await? else {

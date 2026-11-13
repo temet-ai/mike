@@ -76,8 +76,8 @@ fn tokens(folder: &std::path::Path, row: &FleetRow) -> anyhow::Result<Vec<String
 }
 
 #[cfg_attr(test, tokio::test)]
-pub async fn stopped_fleet_explicit_settings_cannot_bypass_actual_open_fence()
--> anyhow::Result<()> {
+pub async fn stopped_fleet_explicit_settings_cannot_bypass_actual_open_fence() -> anyhow::Result<()>
+{
     let Some((db, persist, row)) = fleet().await? else {
         return Ok(());
     };

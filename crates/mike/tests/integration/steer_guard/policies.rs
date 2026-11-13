@@ -3,8 +3,9 @@ use serde_json::Value;
 
 use crate::turn_facts::{Fixture, fixture};
 
-const MIGRATION: &str =
-    include_str!("../../../../mike-base/src/store/persistence/migrations/20260925000600_turn_guard.sql");
+const MIGRATION: &str = include_str!(
+    "../../../../mike-base/src/store/persistence/migrations/20260925000600_turn_guard.sql"
+);
 
 async fn guard_id(f: &Fixture) -> anyhow::Result<i64> {
     Ok(f.handle

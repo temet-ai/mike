@@ -4,9 +4,7 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
-    pub async fn lesson_session_projects_fingerprint(
-        self,
-    ) -> Result<ChangeMark, PersistError> {
+    pub async fn lesson_session_projects_fingerprint(self) -> Result<ChangeMark, PersistError> {
         crate::metrics::time_db("lesson_session_projects_fingerprint", async move {
             let fingerprint = sqlx::query_as!(
                 ChangeMark,

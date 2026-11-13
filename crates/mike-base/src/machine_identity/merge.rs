@@ -78,10 +78,7 @@ pub async fn merge_legacy_identity(
     Ok(Some((legacy.machine_uuid, report)))
 }
 
-pub async fn merge_legacy_at_startup(
-    persist: &PersistHandle,
-    identity: &MachineIdentity,
-) -> bool {
+pub async fn merge_legacy_at_startup(persist: &PersistHandle, identity: &MachineIdentity) -> bool {
     let Some(dir) = legacy_state_dir(std::env::var("HOME").ok().as_deref()) else {
         return true;
     };

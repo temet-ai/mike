@@ -74,10 +74,7 @@ pub async fn list_rejudge_runs(State(state): State<AppState>) -> Response {
     Json(serde_json::json!({ "runs": views })).into_response()
 }
 
-pub async fn get_rejudge_run(
-    State(state): State<AppState>,
-    Path(id): Path<i64>,
-) -> Response {
+pub async fn get_rejudge_run(State(state): State<AppState>, Path(id): Path<i64>) -> Response {
     let Some(persist) = state.persist() else {
         return error(
             StatusCode::SERVICE_UNAVAILABLE,

@@ -58,20 +58,14 @@ pub async fn probe_embedding_url(
     }
 }
 
-pub async fn probe_embedding(
-    embedding_service: &EmbeddingService,
-    limit: Duration,
-) -> ProbeState {
+pub async fn probe_embedding(embedding_service: &EmbeddingService, limit: Duration) -> ProbeState {
     if !embedding_service.is_available() {
         return ProbeState::NotConfigured;
     }
     probe_embedding_url(embedding_service, limit).await
 }
 
-pub async fn probe_persistence(
-    persist: Option<&PersistHandle>,
-    limit: Duration,
-) -> ProbeState {
+pub async fn probe_persistence(persist: Option<&PersistHandle>, limit: Duration) -> ProbeState {
     let Some(persist) = persist else {
         return ProbeState::NotConfigured;
     };

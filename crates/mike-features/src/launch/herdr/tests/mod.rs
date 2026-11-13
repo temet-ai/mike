@@ -47,12 +47,7 @@ pub fn agent_entry(pane: &str, agent: &str, session: Option<&str>, status: &str)
     entry
 }
 
-pub fn process_info(
-    pane: &str,
-    shell_pid: u64,
-    leader: u64,
-    claude_pid: Option<u64>,
-) -> Value {
+pub fn process_info(pane: &str, shell_pid: u64, leader: u64, claude_pid: Option<u64>) -> Value {
     let mut processes = vec![
         json!({"argv": ["/usr/bin/zsh"], "cmdline": "/usr/bin/zsh", "cwd": "/tmp/project", "name": "zsh", "pid": shell_pid}),
     ];

@@ -275,10 +275,7 @@ async fn fetch_composable_session_seed_uuids(persist: &PersistHandle) -> Vec<uui
     }
 }
 
-pub async fn reload_mailbox_for_session(
-    state: &crate::state::AppState,
-    session_uuid: uuid::Uuid,
-) {
+pub async fn reload_mailbox_for_session(state: &crate::state::AppState, session_uuid: uuid::Uuid) {
     let Some(persist) = state.persist() else {
         return;
     };

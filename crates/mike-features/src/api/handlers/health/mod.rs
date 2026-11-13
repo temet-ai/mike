@@ -142,10 +142,7 @@ fn persistence_health(
     }
 }
 
-pub fn capture_stall_fix(
-    stalled: bool,
-    capture_write_age_secs: Option<i64>,
-) -> Option<String> {
+pub fn capture_stall_fix(stalled: bool, capture_write_age_secs: Option<i64>) -> Option<String> {
     if !stalled {
         return None;
     }

@@ -19,9 +19,7 @@ fn infinity_response(embedding: Vec<f32>) -> serde_json::Value {
     })
 }
 
-pub async fn embedding_service_returning(
-    embedding: Vec<f32>,
-) -> (MockServer, EmbeddingService) {
+pub async fn embedding_service_returning(embedding: Vec<f32>) -> (MockServer, EmbeddingService) {
     let server = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/embeddings"))

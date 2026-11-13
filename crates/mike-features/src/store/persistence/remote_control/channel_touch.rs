@@ -46,10 +46,7 @@ fn later(a: Option<DateTime<Utc>>, b: Option<DateTime<Utc>>) -> Option<DateTime<
 }
 
 impl<'a> ChannelTouch<'a> {
-    pub fn merge(
-        calls: &[RemoteControlCall<'a>],
-        params: &[CallInsertParams],
-    ) -> Option<Self> {
+    pub fn merge(calls: &[RemoteControlCall<'a>], params: &[CallInsertParams]) -> Option<Self> {
         let mut pairs = calls.iter().zip(params);
         let (first, first_params) = pairs.next()?;
         let mut touch = Self::of(first, first_params);

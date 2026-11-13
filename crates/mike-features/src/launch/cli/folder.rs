@@ -2,11 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::launch::LaunchError;
 
-pub fn resolve(
-    raw: &str,
-    home: Option<&str>,
-    cwd: Option<&Path>,
-) -> Result<PathBuf, LaunchError> {
+pub fn resolve(raw: &str, home: Option<&str>, cwd: Option<&Path>) -> Result<PathBuf, LaunchError> {
     if raw.is_empty() {
         return Err(LaunchError::Usage("the folder argument is empty".into()));
     }

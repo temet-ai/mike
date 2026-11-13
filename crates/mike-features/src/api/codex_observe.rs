@@ -59,11 +59,7 @@ fn answer(result: Result<ingest::IngestReport, IngestError>) -> Response {
     }
 }
 
-pub async fn post_hook(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    body: Bytes,
-) -> Response {
+pub async fn post_hook(State(state): State<AppState>, headers: HeaderMap, body: Bytes) -> Response {
     let Some(persist) = state.persist() else {
         return (StatusCode::SERVICE_UNAVAILABLE, "persistence is disabled").into_response();
     };

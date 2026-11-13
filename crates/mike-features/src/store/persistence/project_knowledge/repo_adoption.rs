@@ -103,10 +103,7 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         Ok(())
     }
 
-    pub async fn project_ids_for_origin(
-        self,
-        origin: &str,
-    ) -> Result<Vec<i64>, PersistError> {
+    pub async fn project_ids_for_origin(self, origin: &str) -> Result<Vec<i64>, PersistError> {
         Ok(sqlx::query_scalar!(
             r#"SELECT DISTINCT COALESCE(p.merged_into_id, p.id) AS "project_id!"
              FROM projects.locations l JOIN projects.projects p ON p.id = l.project_id

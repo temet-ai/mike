@@ -61,10 +61,7 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
         Ok(consumed.is_some())
     }
 
-    pub async fn save_lesson_proposal(
-        self,
-        saved: &SavedProposal,
-    ) -> Result<(), PersistError> {
+    pub async fn save_lesson_proposal(self, saved: &SavedProposal) -> Result<(), PersistError> {
         sqlx::query!(
             "INSERT INTO memory.lesson_proposal_jobs
                 (verdict_id, candidate, proposed, \"similar\", model, cost_usd, generation_id, status)

@@ -96,10 +96,7 @@ pub async fn place_folder(
     Ok(Some(project))
 }
 
-pub async fn record_origins(
-    persist: &PersistHandle,
-    machine: Uuid,
-) -> Result<(), PersistError> {
+pub async fn record_origins(persist: &PersistHandle, machine: Uuid) -> Result<(), PersistError> {
     for location in persist.knowledge().locations_on_machine(machine).await? {
         let root = Path::new(location.root_path.trim_end_matches('/'));
         let Some(identity) = repo_identity(root) else {

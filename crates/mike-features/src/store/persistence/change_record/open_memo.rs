@@ -39,21 +39,12 @@ impl OpenChangesMemo {
         self.inner.revision.fetch_add(1, Ordering::AcqRel);
     }
 
-    pub fn get(
-        &self,
-        checkout: &str,
-        at: Watermark,
-    ) -> Option<Arc<Vec<OpenChange>>> {
+    pub fn get(&self, checkout: &str, at: Watermark) -> Option<Arc<Vec<OpenChange>>> {
         let entry = self.inner.entries.get(checkout)?;
         (entry.at == at).then(|| Arc::clone(&entry.rows))
     }
 
-    pub fn remember(
-        &self,
-        checkout: &str,
-        at: Watermark,
-        rows: Arc<Vec<OpenChange>>,
-    ) {
+    pub fn remember(&self, checkout: &str, at: Watermark, rows: Arc<Vec<OpenChange>>) {
         if at.revision != self.revision() {
             return;
         }

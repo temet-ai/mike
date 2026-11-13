@@ -209,10 +209,7 @@ pub async fn prepare(
     })
 }
 
-pub fn with_operator_args(
-    mut split: SplitLaunchArgs,
-    operator: &[String],
-) -> SplitLaunchArgs {
+pub fn with_operator_args(mut split: SplitLaunchArgs, operator: &[String]) -> SplitLaunchArgs {
     let mut args = operator.to_vec();
     args.append(&mut split.claude_args);
     split.claude_args = args;

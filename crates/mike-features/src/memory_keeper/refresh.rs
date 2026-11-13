@@ -24,11 +24,7 @@ pub async fn refresh(
     Ok(true)
 }
 
-pub fn build(
-    generation: i64,
-    rows: Vec<OpenCardRow>,
-    roots: Vec<LocationRoot>,
-) -> KeeperSnapshot {
+pub fn build(generation: i64, rows: Vec<OpenCardRow>, roots: Vec<LocationRoot>) -> KeeperSnapshot {
     let mut projects: HashMap<i64, ProjectThreads> = HashMap::new();
     for row in rows {
         projects

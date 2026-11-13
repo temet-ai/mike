@@ -126,10 +126,7 @@ impl ProxyLedger {
             .await
     }
 
-    pub async fn fleet_settings(
-        &self,
-        key: &str,
-    ) -> Result<Option<RecordedSettings>, String> {
+    pub async fn fleet_settings(&self, key: &str) -> Result<Option<RecordedSettings>, String> {
         self.read(self.get(&format!("/api/fleets/{key}"))).await
     }
 
@@ -138,20 +135,12 @@ impl ProxyLedger {
         Ok(id.id)
     }
 
-    pub async fn record_opened(
-        &self,
-        id: i64,
-        refs: &LaunchSurfaceRefs,
-    ) -> Result<(), String> {
+    pub async fn record_opened(&self, id: i64, refs: &LaunchSurfaceRefs) -> Result<(), String> {
         self.write(self.post(&format!("{LAUNCHES_PATH}/{id}/opened"), refs))
             .await
     }
 
-    pub async fn record_outcome(
-        &self,
-        id: i64,
-        outcome: &LaunchOutcome,
-    ) -> Result<(), String> {
+    pub async fn record_outcome(&self, id: i64, outcome: &LaunchOutcome) -> Result<(), String> {
         self.write(self.post(&format!("{LAUNCHES_PATH}/{id}/outcome"), outcome))
             .await
     }
@@ -161,18 +150,12 @@ impl ProxyLedger {
             .await
     }
 
-    pub async fn find_launch_by_session(
-        &self,
-        session: Uuid,
-    ) -> Result<Option<LaunchRow>, String> {
+    pub async fn find_launch_by_session(&self, session: Uuid) -> Result<Option<LaunchRow>, String> {
         self.read(self.get(&format!("/api/launches/{session}")))
             .await
     }
 
-    pub async fn list_launches(
-        &self,
-        filter: &LaunchListFilter,
-    ) -> Result<Vec<LaunchRow>, String> {
+    pub async fn list_launches(&self, filter: &LaunchListFilter) -> Result<Vec<LaunchRow>, String> {
         let mut request = self.get("/api/launches");
         if let Some(run) = &filter.run_id {
             request = request.query(&[("run", run.as_str())]);

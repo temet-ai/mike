@@ -35,9 +35,7 @@ pub fn migration_lock_timeout_secs() -> u64 {
         .unwrap_or(DEFAULT_MIGRATION_LOCK_TIMEOUT_SECS)
 }
 
-pub async fn build_migration_connection(
-    database_url: &str,
-) -> Result<PgConnection, PersistError> {
+pub async fn build_migration_connection(database_url: &str) -> Result<PgConnection, PersistError> {
     let parsed: PgConnectOptions =
         database_url
             .parse()

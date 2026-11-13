@@ -110,9 +110,7 @@ pub use operator_turns::JudgeCandidateRow;
 pub use rehydrate::SessionSummaryRow;
 
 pub use agent_dispatch_reads::AgentDispatchFilter;
-pub use capture_classification::{
-    extract_system_blocks_from_body, session_prompt_content_sha256,
-};
+pub use capture_classification::{extract_system_blocks_from_body, session_prompt_content_sha256};
 pub use capture_support::StreamBlockRow;
 #[cfg(any(test, feature = "test-seams"))]
 pub use id_resolvers::resolve_session_id;
@@ -218,9 +216,7 @@ impl PersistHandle {
         Ok(())
     }
 
-    pub async fn latest_capture_write_at(
-        &self,
-    ) -> Result<Option<DateTime<Utc>>, PersistError> {
+    pub async fn latest_capture_write_at(&self) -> Result<Option<DateTime<Utc>>, PersistError> {
         crate::metrics::time_db("latest_capture_write_at", async move {
             let ts = sqlx::query_scalar!("SELECT MAX(created_at) FROM requests.requests")
                 .fetch_one(&self.pool)

@@ -132,11 +132,7 @@ impl Recorder<'_> {
         }
     }
 
-    pub async fn resolve(
-        &self,
-        rows: &[uuid::Uuid],
-        resolution: &Resolution,
-    ) {
+    pub async fn resolve(&self, rows: &[uuid::Uuid], resolution: &Resolution) {
         let (fired, intervention, judgement) = match resolution {
             Resolution::Pass(j) => (false, None, j),
             Resolution::Fired {

@@ -182,10 +182,7 @@ pub async fn get_session_prompt_stream(
     }
 }
 
-pub async fn get_turn_facts(
-    State(state): State<AppState>,
-    Path(turn_id): Path<i64>,
-) -> Response {
+pub async fn get_turn_facts(State(state): State<AppState>, Path(turn_id): Path<i64>) -> Response {
     let Some(persist) = state.persist() else {
         return unavailable();
     };

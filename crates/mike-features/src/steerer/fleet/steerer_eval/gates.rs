@@ -8,11 +8,7 @@ use crate::steerer::fleet::context::{DebounceLedger, EvalInputs, EvalTarget, Fle
 use crate::steerer::registry::Steerer;
 use crate::store::persistence::PersistError;
 
-pub fn invocation_gate_passed(
-    ctx: &FleetCtx,
-    steerer: &Steerer,
-    eval_inputs: &EvalInputs,
-) -> bool {
+pub fn invocation_gate_passed(ctx: &FleetCtx, steerer: &Steerer, eval_inputs: &EvalInputs) -> bool {
     if ctx.config.force_fire {
         return true;
     }
@@ -30,10 +26,7 @@ pub fn invocation_gate_passed(
     }
 }
 
-pub fn pattern_gate_admits(
-    steerer: &Steerer,
-    eval_inputs: &EvalInputs,
-) -> bool {
+pub fn pattern_gate_admits(steerer: &Steerer, eval_inputs: &EvalInputs) -> bool {
     let pattern = steerer.pattern.as_deref().unwrap_or_default();
     pattern_invocation_matches(pattern, eval_inputs)
         || (steerer.kind == "verifier" && has_done_claim_wording(&eval_inputs.eval_text))

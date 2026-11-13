@@ -18,8 +18,9 @@ const FRONTEND_MOTION: &str = include_str!(
 const JUDGEMENT_CONTEXT: &str = include_str!(
     "../../../../mike/tests/fixtures/threads/repo/artifacts/threads/judgement-context/worklog.md"
 );
-const NO_TITLE: &str =
-    include_str!("../../../../mike/tests/fixtures/threads/repo/artifacts/threads/no-title/worklog.md");
+const NO_TITLE: &str = include_str!(
+    "../../../../mike/tests/fixtures/threads/repo/artifacts/threads/no-title/worklog.md"
+);
 
 fn fixture_repo() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/threads/repo")

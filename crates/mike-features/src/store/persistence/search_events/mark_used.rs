@@ -13,10 +13,7 @@ pub struct UsedPass {
 }
 
 impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
-    pub async fn mark_used_search_references(
-        self,
-        batch: i64,
-    ) -> Result<UsedPass, PersistError> {
+    pub async fn mark_used_search_references(self, batch: i64) -> Result<UsedPass, PersistError> {
         self.mark_used_within(batch, WINDOW_TURNS, MAX_OPEN_SECS)
             .await
     }

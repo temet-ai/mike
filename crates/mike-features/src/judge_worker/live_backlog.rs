@@ -17,11 +17,7 @@ pub struct StaleBacklog {
 }
 
 impl LiveQueueReading {
-    pub fn from_claim(
-        claimed: &[(i64, DateTime<Utc>)],
-        limit: i64,
-        at: DateTime<Utc>,
-    ) -> Self {
+    pub fn from_claim(claimed: &[(i64, DateTime<Utc>)], limit: i64, at: DateTime<Utc>) -> Self {
         let mut owed_closed_at: Vec<DateTime<Utc>> =
             claimed.iter().map(|(_, closed_at)| *closed_at).collect();
         owed_closed_at.sort_unstable();

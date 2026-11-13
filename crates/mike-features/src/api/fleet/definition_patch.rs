@@ -104,9 +104,7 @@ fn check_changed_overlaps(
     ))
 }
 
-pub fn parse_new(
-    definition: Option<Value>,
-) -> Result<(Value, FleetDefinition), DefinitionError> {
+pub fn parse_new(definition: Option<Value>) -> Result<(Value, FleetDefinition), DefinitionError> {
     merged(&json!({"briefs": {"as_notes": true}}), definition.as_ref())
 }
 

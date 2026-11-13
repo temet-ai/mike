@@ -14,9 +14,7 @@ pub fn mailbox_served(session_id: &str) -> bool {
     MAILBOX_SERVED.contains(session_id)
 }
 
-pub fn split_mailbox(
-    pending: Vec<SystemReminder>,
-) -> (Vec<SystemReminder>, Vec<SystemReminder>) {
+pub fn split_mailbox(pending: Vec<SystemReminder>) -> (Vec<SystemReminder>, Vec<SystemReminder>) {
     pending
         .into_iter()
         .partition(|r| !matches!(r.source, ReminderSource::SessionMailbox { .. }))

@@ -134,10 +134,7 @@ impl LessonSnapshot {
     }
 
     #[cfg(test)]
-    pub fn from_topic_fixtures(
-        project: &str,
-        lessons: Vec<(&str, Option<&str>, bool)>,
-    ) -> Self {
+    pub fn from_topic_fixtures(project: &str, lessons: Vec<(&str, Option<&str>, bool)>) -> Self {
         let mut withheld = HashSet::new();
         let injectable = lessons
             .into_iter()
@@ -278,9 +275,7 @@ fn persona_alias_map_from_rows(aliases: Vec<AgentAlias>) -> HashMap<String, i64>
         .collect()
 }
 
-pub async fn load_topic_withheld(
-    persist: &PersistHandle,
-) -> Result<HashSet<i64>, PersistError> {
+pub async fn load_topic_withheld(persist: &PersistHandle) -> Result<HashSet<i64>, PersistError> {
     let ids = persist
         .lessons()
         .list_topic_lessons_withheld_from_content()

@@ -6,8 +6,7 @@ use crate::wire::manifest::{ManifestBuilder, UnchangedStage};
 
 pub const MOD_LESSONS_STAGE: &str = "mod_lessons";
 pub const MOD_LESSONS_REASON: &str = "lessons_added_by_mod";
-pub const TETHER_LESSON_PREFIX: &str =
-    "Lesson recorded from earlier sessions in this project ";
+pub const TETHER_LESSON_PREFIX: &str = "Lesson recorded from earlier sessions in this project ";
 
 pub fn mod_lesson_ids(body: &[u8]) -> Vec<i64> {
     let mut ids = heading_block_ids(body);

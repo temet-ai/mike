@@ -175,10 +175,7 @@ impl PersistHandle {
         };
         self.session_row_id(session_uuid).await
     }
-    pub async fn mark_session_prompt_altered(
-        &self,
-        session_id: &str,
-    ) -> Result<(), PersistError> {
+    pub async fn mark_session_prompt_altered(&self, session_id: &str) -> Result<(), PersistError> {
         crate::metrics::time_db("mark_session_prompt_altered", async move {
             let Some(session_db_id) = self.resolve_session_db_id(session_id).await? else {
                 return Ok(());
@@ -236,10 +233,7 @@ impl PersistHandle {
         )
         .await
     }
-    pub async fn fetch_request_number(
-        &self,
-        request_id: u64,
-    ) -> Result<Option<i64>, PersistError> {
+    pub async fn fetch_request_number(&self, request_id: u64) -> Result<Option<i64>, PersistError> {
         crate::metrics::time_db(
             "fetch_request_number",
             rehydrate::fetch_request_number(&self.pool, request_id),

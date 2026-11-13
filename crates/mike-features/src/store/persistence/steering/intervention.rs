@@ -148,11 +148,7 @@ impl crate::store::persistence::steerer_repo::SteererDb<'_> {
         .await
     }
 
-    pub async fn revert_intervention(
-        self,
-        id: i64,
-        reason: &str,
-    ) -> Result<bool, PersistError> {
+    pub async fn revert_intervention(self, id: i64, reason: &str) -> Result<bool, PersistError> {
         crate::metrics::time_db("revert_intervention", async move {
             let rows_affected = sqlx::query!(
                 r#"UPDATE steering.interventions

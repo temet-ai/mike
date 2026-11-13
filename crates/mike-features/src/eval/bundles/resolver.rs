@@ -212,11 +212,7 @@ impl BundlePublisher {
         }
     }
 
-    pub async fn resolve_ids(
-        &self,
-        overlay: &SettingsOverlay,
-        cause: BundleCause,
-    ) -> BundleIds {
+    pub async fn resolve_ids(&self, overlay: &SettingsOverlay, cause: BundleCause) -> BundleIds {
         if self.smoke_run {
             return BundleIds::default();
         }
@@ -245,11 +241,7 @@ impl BundlePublisher {
         self.last_failed.load(Ordering::Relaxed)
     }
 
-    pub fn spawn_retry(
-        self: &Arc<Self>,
-        tracker: &TaskTracker,
-        shutdown: CancellationToken,
-    ) {
+    pub fn spawn_retry(self: &Arc<Self>, tracker: &TaskTracker, shutdown: CancellationToken) {
         let publisher = Arc::clone(self);
         tracker.spawn(async move {
             let mut ticker = tokio::time::interval(RETRY_INTERVAL);

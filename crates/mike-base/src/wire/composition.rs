@@ -73,10 +73,7 @@ pub struct DecisionInputs<'a> {
     pub lookup: Option<&'a Composition>,
 }
 
-pub fn decide(
-    inputs: DecisionInputs<'_>,
-    computed_prompt_sha256: Option<String>,
-) -> Decision {
+pub fn decide(inputs: DecisionInputs<'_>, computed_prompt_sha256: Option<String>) -> Decision {
     if !inputs.enabled {
         return Decision::Passthrough {
             prompt_sha256: None,

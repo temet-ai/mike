@@ -37,11 +37,7 @@ fn destination(review: &Review) -> String {
     }
 }
 
-pub fn decide(
-    first: &TriggerEval,
-    recheck: Option<&TriggerEval>,
-    review: &Review,
-) -> Verdict {
+pub fn decide(first: &TriggerEval, recheck: Option<&TriggerEval>, review: &Review) -> Verdict {
     let reasons: Vec<String> = match review.decision {
         Decision::Approve => weak_trigger(first.score, "the draft's")
             .map(|r| format!("{r} and the reviewer approved it without a patch"))

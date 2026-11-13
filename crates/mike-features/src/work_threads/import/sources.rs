@@ -105,10 +105,7 @@ fn candidates(repo: &str) -> Vec<String> {
     list
 }
 
-pub async fn resolve_repo(
-    handle: &PersistHandle,
-    repo: &str,
-) -> Result<ResolvedProject, String> {
+pub async fn resolve_repo(handle: &PersistHandle, repo: &str) -> Result<ResolvedProject, String> {
     for candidate in candidates(repo) {
         match handle
             .launch()

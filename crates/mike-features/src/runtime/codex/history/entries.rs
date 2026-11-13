@@ -123,11 +123,7 @@ pub fn item<'a>(
     }))
 }
 
-pub fn identifier<'a>(
-    value: &'a Value,
-    key: &str,
-    pointer: &str,
-) -> Result<&'a str, HistoryError> {
+pub fn identifier<'a>(value: &'a Value, key: &str, pointer: &str) -> Result<&'a str, HistoryError> {
     value
         .get(key)
         .and_then(Value::as_str)

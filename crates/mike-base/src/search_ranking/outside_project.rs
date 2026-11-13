@@ -24,9 +24,7 @@ fn ordering_score((row, score): &(Value, Option<f32>)) -> f64 {
     f64::from(score.unwrap_or_default()) - margin
 }
 
-pub fn weigh_outside_project(
-    arranged: Vec<(Value, Option<f32>)>,
-) -> Vec<(Value, Option<f32>)> {
+pub fn weigh_outside_project(arranged: Vec<(Value, Option<f32>)>) -> Vec<(Value, Option<f32>)> {
     if !arranged.iter().any(|(row, _)| is_outside_project(row)) {
         return arranged;
     }

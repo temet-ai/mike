@@ -66,10 +66,7 @@ pub async fn trust_gate(
     }
 }
 
-pub async fn surface_cap(
-    runner: &Runner<'_>,
-    output: &LaunchOutput,
-) -> Result<(), OpenFailure> {
+pub async fn surface_cap(runner: &Runner<'_>, output: &LaunchOutput) -> Result<(), OpenFailure> {
     let (warn, max) = (runner.config.warn_surfaces, runner.config.max_surfaces);
     if warn == 0 && max == 0 {
         return Ok(());

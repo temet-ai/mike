@@ -3,11 +3,7 @@ use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 const DRAIN_RELOAD_LIMIT: i64 = 256;
 
-pub async fn queue_mail_from_the_record(
-    state: &AppState,
-    session_id: &str,
-    mailbox_served: bool,
-) {
+pub async fn queue_mail_from_the_record(state: &AppState, session_id: &str, mailbox_served: bool) {
     if mailbox_served {
         return;
     }

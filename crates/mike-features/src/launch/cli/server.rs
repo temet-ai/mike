@@ -281,10 +281,7 @@ async fn close_late_pane(state: &AppState, session: Uuid) {
     tracing::warn!(session_id = %session, %outcome, "mike spawn: the seat's pane never opened; mike closed any late pane and does not relaunch the seat");
 }
 
-pub async fn kill_for_server(
-    state: &AppState,
-    session: Uuid,
-) -> Result<KillReport, LaunchError> {
+pub async fn kill_for_server(state: &AppState, session: Uuid) -> Result<KillReport, LaunchError> {
     let backend = configured_backend(state).await?;
     let runner = build_runner(state, backend.as_ref()).await?;
     kill::execute(&runner, session).await

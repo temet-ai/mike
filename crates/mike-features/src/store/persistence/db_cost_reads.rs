@@ -25,9 +25,7 @@ pub struct StatementStatsReading {
 }
 
 impl crate::store::persistence::state_repo::StateDb<'_> {
-    pub async fn read_statement_stats(
-        self,
-    ) -> Result<Option<StatementStatsReading>, PersistError> {
+    pub async fn read_statement_stats(self) -> Result<Option<StatementStatsReading>, PersistError> {
         crate::metrics::time_db("db_cost_read_snapshot", async move {
             let present = sqlx::query_scalar!(
                 "SELECT to_regclass('pg_stat_statements_info')::text"

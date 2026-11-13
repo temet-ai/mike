@@ -15,9 +15,7 @@ pub use diagnostics::{Diagnostic, DiagnosticCategory};
 pub use intercepted_request::InterceptedRequest;
 pub use proxy_event::MemoryTickPayload;
 pub use proxy_event::{ProxyEvent, ResyncReason, RowChangedOp, RowChangedTable};
-pub use reminder::{
-    ReminderSource, SELF_IDENTITY_ID_LINE, SELF_IDENTITY_MARKER, SystemReminder,
-};
+pub use reminder::{ReminderSource, SELF_IDENTITY_ID_LINE, SELF_IDENTITY_MARKER, SystemReminder};
 pub use request_id::RequestId;
 pub use request_id::is_fallback;
 pub use request_status::RequestStatus;

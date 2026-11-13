@@ -63,10 +63,7 @@ pub fn warnings(def: &FleetDefinition) -> Vec<Missing> {
         .collect()
 }
 
-pub fn full_gate_reason(
-    def: &FleetDefinition,
-    measured: Option<Duration>,
-) -> Option<String> {
+pub fn full_gate_reason(def: &FleetDefinition, measured: Option<Duration>) -> Option<String> {
     let command = def.gate.command.trim();
     if let Some((name, op)) = def.execution.named(command) {
         let said = format!("{name} {}", op.purpose).to_lowercase();

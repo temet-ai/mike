@@ -143,11 +143,7 @@ impl Ledger {
         }
     }
 
-    pub async fn try_record_opened(
-        &self,
-        id: i64,
-        refs: &LaunchSurfaceRefs,
-    ) -> Result<(), String> {
+    pub async fn try_record_opened(&self, id: i64, refs: &LaunchSurfaceRefs) -> Result<(), String> {
         match &self.store {
             Store::Database(h) => h
                 .launch()
@@ -159,11 +155,7 @@ impl Ledger {
         }
     }
 
-    pub async fn try_record_outcome(
-        &self,
-        id: i64,
-        outcome: &LaunchOutcome,
-    ) -> Result<(), String> {
+    pub async fn try_record_outcome(&self, id: i64, outcome: &LaunchOutcome) -> Result<(), String> {
         match &self.store {
             Store::Database(h) => h
                 .launch()
@@ -253,10 +245,7 @@ impl Ledger {
         noted("run lookup", result).flatten()
     }
 
-    pub async fn fleet_settings(
-        &self,
-        key: &str,
-    ) -> Result<Option<RecordedSettings>, String> {
+    pub async fn fleet_settings(&self, key: &str) -> Result<Option<RecordedSettings>, String> {
         match &self.store {
             Store::Database(h) => h
                 .fleet()
@@ -424,10 +413,7 @@ impl Ledger {
             .map_err(|e| e.to_string())
     }
 
-    pub async fn insert_template(
-        &self,
-        new: &NewTemplate,
-    ) -> Result<InsertedTemplate, String> {
+    pub async fn insert_template(&self, new: &NewTemplate) -> Result<InsertedTemplate, String> {
         self.handle()?
             .launch()
             .insert_template(new)
@@ -435,10 +421,7 @@ impl Ledger {
             .map_err(|e| e.to_string())
     }
 
-    pub async fn find_template_by_name(
-        &self,
-        name: &str,
-    ) -> Result<Option<TemplateRow>, String> {
+    pub async fn find_template_by_name(&self, name: &str) -> Result<Option<TemplateRow>, String> {
         self.handle()?
             .launch()
             .find_live_template_by_name(name)

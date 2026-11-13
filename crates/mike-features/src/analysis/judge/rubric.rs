@@ -55,10 +55,7 @@ pub fn sha12(text: &str) -> String {
     digest.iter().take(6).map(|b| format!("{b:02x}")).collect()
 }
 
-pub fn effective_rubric(
-    base: &'static Rubric,
-    override_text: Option<&str>,
-) -> EffectiveRubric {
+pub fn effective_rubric(base: &'static Rubric, override_text: Option<&str>) -> EffectiveRubric {
     match override_text.filter(|t| !t.trim().is_empty() && *t != base.system_prompt) {
         Some(text) => EffectiveRubric {
             id: format!("{}+{}", base.id, sha12(text)),

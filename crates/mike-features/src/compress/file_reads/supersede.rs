@@ -66,10 +66,7 @@ fn read_call<'a>(block: &'a Value, msg_idx: usize, producers: &[String]) -> Opti
     })
 }
 
-pub fn superseded_reads<'a>(
-    messages: &'a [Value],
-    producers: &[String],
-) -> HashSet<&'a str> {
+pub fn superseded_reads<'a>(messages: &'a [Value], producers: &[String]) -> HashSet<&'a str> {
     let answered = answered_ids(messages);
     let calls: Vec<ReadCall<'a>> = messages
         .iter()

@@ -49,10 +49,7 @@ pub fn encode_item(item: &ProjectedItem) -> Result<String, PersistError> {
     Ok(serde_json::to_string(&StoredProjectedItemV1::from(item))?)
 }
 
-pub fn decode_item(
-    document: &str,
-    expected_key: &ItemKey,
-) -> Result<ProjectedItem, PersistError> {
+pub fn decode_item(document: &str, expected_key: &ItemKey) -> Result<ProjectedItem, PersistError> {
     let stored: StoredProjectedItemV1 = serde_json::from_str(document)?;
     if stored.state_codec_version != STATE_CODEC_VERSION {
         return Err(invalid_state("unsupported item state codec version"));

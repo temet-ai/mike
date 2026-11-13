@@ -4,12 +4,7 @@ pub fn marker(message: Uuid) -> String {
     format!("mike-mail:{message}")
 }
 
-pub fn envelope(
-    message: Uuid,
-    from: Option<Uuid>,
-    scope: Option<&str>,
-    body: &str,
-) -> String {
+pub fn envelope(message: Uuid, from: Option<Uuid>, scope: Option<&str>, body: &str) -> String {
     let sender = from.map_or_else(
         || "an unnamed sender".to_string(),
         |s| format!("session {s}"),

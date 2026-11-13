@@ -29,20 +29,12 @@ impl HcCli {
         &self.hc
     }
 
-    pub async fn hc_json(
-        &self,
-        args: &[String],
-        timeout: Duration,
-    ) -> Result<Value, LaunchError> {
+    pub async fn hc_json(&self, args: &[String], timeout: Duration) -> Result<Value, LaunchError> {
         let output = run(&self.hc, args, timeout).await?;
         parse_json(&self.hc, args, &output)
     }
 
-    pub async fn hc_text(
-        &self,
-        args: &[String],
-        timeout: Duration,
-    ) -> Result<String, LaunchError> {
+    pub async fn hc_text(&self, args: &[String], timeout: Duration) -> Result<String, LaunchError> {
         let output = run(&self.hc, args, timeout).await?;
         if !output.status.success() {
             return Err(failure(&self.hc, args, &output));
@@ -50,11 +42,7 @@ impl HcCli {
         Ok(String::from_utf8_lossy(&output.stdout).into_owned())
     }
 
-    pub async fn app_json(
-        &self,
-        args: &[String],
-        timeout: Duration,
-    ) -> Result<Value, LaunchError> {
+    pub async fn app_json(&self, args: &[String], timeout: Duration) -> Result<Value, LaunchError> {
         let output = run(&self.app, args, timeout).await?;
         parse_json(&self.app, args, &output)
     }

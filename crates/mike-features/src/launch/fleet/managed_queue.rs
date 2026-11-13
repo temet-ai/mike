@@ -216,11 +216,7 @@ pub fn expected_wait(depth: Depth, measured: Duration) -> Duration {
     measured.saturating_mul(rounds)
 }
 
-pub fn admit(
-    depth: Depth,
-    measured: Option<Duration>,
-    patience: Duration,
-) -> Result<(), String> {
+pub fn admit(depth: Depth, measured: Option<Duration>, patience: Duration) -> Result<(), String> {
     let Some(measured) = measured else {
         return Ok(());
     };

@@ -431,11 +431,7 @@ async fn tell_acceptance(
     mail(persist, current, &body).await;
 }
 
-pub fn completion_log(
-    target: &Target,
-    command: &str,
-    execution: &str,
-) -> std::path::PathBuf {
+pub fn completion_log(target: &Target, command: &str, execution: &str) -> std::path::PathBuf {
     use sha2::{Digest, Sha256};
     let command_hash = hex::encode(Sha256::digest(command.as_bytes()));
     target.slot.join(format!(

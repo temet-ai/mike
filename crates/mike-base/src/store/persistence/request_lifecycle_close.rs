@@ -323,11 +323,7 @@ impl PersistHandle {
         Ok(result.rows_affected())
     }
 
-    pub async fn mark_intercepted(
-        &self,
-        original_request_id: i64,
-        correction_request_id: i64,
-    ) {
+    pub async fn mark_intercepted(&self, original_request_id: i64, correction_request_id: i64) {
         if crate::store::models::is_fallback(original_request_id as u64) {
             tracing::warn!(
                 original_request_id,

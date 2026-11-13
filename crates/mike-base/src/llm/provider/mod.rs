@@ -25,8 +25,7 @@ pub enum LlmProvider {
 }
 
 impl LlmProvider {
-    pub const VARIANTS: &'static [&'static str] =
-        &["per_role", "openrouter", "claude", "codex"];
+    pub const VARIANTS: &'static [&'static str] = &["per_role", "openrouter", "claude", "codex"];
 
     pub fn as_str(self) -> &'static str {
         match self {

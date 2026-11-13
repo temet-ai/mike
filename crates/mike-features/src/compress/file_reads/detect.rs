@@ -294,10 +294,7 @@ pub fn inspect_tool_result<'a>(
     );
 }
 
-pub fn extract_content<'a>(
-    block: &'a Value,
-    base_path: &str,
-) -> Option<(&'a str, String)> {
+pub fn extract_content<'a>(block: &'a Value, base_path: &str) -> Option<(&'a str, String)> {
     match block.get("content") {
         Some(Value::String(s)) => Some((s.as_str(), format!("{base_path}/content"))),
         Some(Value::Array(parts)) if parts.len() == 1 => {

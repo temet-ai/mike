@@ -39,10 +39,7 @@ fn parse_clients(value: &Value) -> Vec<ClientInfo> {
         .collect()
 }
 
-pub async fn clients(
-    cli: &TerminalCli,
-    timeout: Duration,
-) -> Result<Vec<ClientInfo>, LaunchError> {
+pub async fn clients(cli: &TerminalCli, timeout: Duration) -> Result<Vec<ClientInfo>, LaunchError> {
     let value = cli
         .run_hypr_json(&super::cli::argv(&["clients", "-j"]), timeout)
         .await?;
@@ -76,10 +73,7 @@ pub async fn find_by_session(
     }))
 }
 
-pub async fn list(
-    cli: &TerminalCli,
-    timeout: Duration,
-) -> Result<Vec<Surface>, LaunchError> {
+pub async fn list(cli: &TerminalCli, timeout: Duration) -> Result<Vec<Surface>, LaunchError> {
     Ok(clients(cli, timeout)
         .await?
         .into_iter()

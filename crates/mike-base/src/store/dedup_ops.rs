@@ -25,7 +25,10 @@ impl RequestStore {
         session_id: &str,
         body: &serde_json::Value,
         now: DateTime<Utc>,
-    ) -> (Vec<crate::wire::read_dedup::DedupHit>, Option<serde_json::Value>) {
+    ) -> (
+        Vec<crate::wire::read_dedup::DedupHit>,
+        Option<serde_json::Value>,
+    ) {
         let index = self
             .session_dedup_index
             .entry(session_id.to_owned())

@@ -27,12 +27,7 @@ impl BlockRequest {
         Self::at(session_db_id, turn_id, notes_window, Utc::now())
     }
 
-    pub fn at(
-        session_db_id: i64,
-        turn_id: i64,
-        notes_window: Duration,
-        at: DateTime<Utc>,
-    ) -> Self {
+    pub fn at(session_db_id: i64, turn_id: i64, notes_window: Duration, at: DateTime<Utc>) -> Self {
         Self {
             session_db_id,
             turn_id,

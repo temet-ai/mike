@@ -154,10 +154,7 @@ impl RequestStore {
         top_entries
     }
 
-    pub fn diagnostic_stats(
-        &self,
-        now: chrono::DateTime<chrono::Utc>,
-    ) -> DiagnosticStatsView {
+    pub fn diagnostic_stats(&self, now: chrono::DateTime<chrono::Utc>) -> DiagnosticStatsView {
         use chrono::Duration;
         let cutoff_24h = now - Duration::hours(24);
         let mut view = DiagnosticStatsView::default();

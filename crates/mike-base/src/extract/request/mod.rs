@@ -17,8 +17,6 @@ pub use project_root::{compute_project_root, project_display_name};
 pub use project_root::{extract_project, legacy_trimmed_alias};
 pub use project_scan::{ProjectSignals, collect_project_scan_sources};
 pub use turn_origin::TurnOrigin;
-pub use turn_origin_classify::{
-    extract_subagent_persona, extract_turn_origin, is_workflow_agent,
-};
+pub use turn_origin_classify::{extract_subagent_persona, extract_turn_origin, is_workflow_agent};
 pub use turn_type::TurnType;
 pub use turn_type::extract_turn_type;

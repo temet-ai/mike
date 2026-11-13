@@ -94,12 +94,7 @@ pub async fn next_commit(
         .map(|commit| commit.sha)
 }
 
-pub async fn record(
-    persist: &PersistHandle,
-    def: &FleetDefinition,
-    run: &str,
-    verdict: &Verdict,
-) {
+pub async fn record(persist: &PersistHandle, def: &FleetDefinition, run: &str, verdict: &Verdict) {
     if !super::check_report::verified(verdict) {
         return;
     }

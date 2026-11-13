@@ -233,11 +233,7 @@ impl CallLimiter {
         )
     }
 
-    pub fn admit(
-        &self,
-        role: LlmRole,
-        reservation: Option<&Reservation>,
-    ) -> Result<(), LlmError> {
+    pub fn admit(&self, role: LlmRole, reservation: Option<&Reservation>) -> Result<(), LlmError> {
         self.admit_at(role, reservation, Instant::now())
     }
 

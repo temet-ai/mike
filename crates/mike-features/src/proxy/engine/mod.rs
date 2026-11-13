@@ -95,10 +95,7 @@ async fn forward_sessionless(
     .await
 }
 
-pub async fn accept(
-    state: &AppState,
-    req: Request<Body>,
-) -> Result<AcceptOutcome, ProxyError> {
+pub async fn accept(state: &AppState, req: Request<Body>) -> Result<AcceptOutcome, ProxyError> {
     state.inc_request_count();
 
     let (parts, body) = req.into_parts();

@@ -61,9 +61,7 @@ pub struct VolatilePatternPatch<'a> {
 }
 
 impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
-    pub async fn list_volatile_patterns(
-        self,
-    ) -> Result<Vec<VolatilePatternRow>, PersistError> {
+    pub async fn list_volatile_patterns(self) -> Result<Vec<VolatilePatternRow>, PersistError> {
         crate::metrics::time_db("list_volatile_patterns", async {
             let rows = sqlx::query_as!(
                 VolatilePatternDbRow,

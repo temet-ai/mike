@@ -29,11 +29,7 @@ impl SeatFact {
         role: SeatRole::Plain,
     };
 
-    pub fn from_launch(
-        run_id: Option<&str>,
-        seat: Option<&str>,
-        template_id: Option<i64>,
-    ) -> Self {
+    pub fn from_launch(run_id: Option<&str>, seat: Option<&str>, template_id: Option<i64>) -> Self {
         Self {
             fleet_seat: run_id.is_some_and(|run| !run.trim().is_empty()),
             role: role_from_launch(seat, template_id),

@@ -7,10 +7,7 @@ use crate::launch::{LaunchError, SplitLaunchArgs};
 
 pub const EVIDENCE_ENV: &str = "MIKE_ACCEPTANCE_EVIDENCE";
 
-pub fn for_launch(
-    briefs: &Path,
-    split: &SplitLaunchArgs,
-) -> Result<Option<PathBuf>, LaunchError> {
+pub fn for_launch(briefs: &Path, split: &SplitLaunchArgs) -> Result<Option<PathBuf>, LaunchError> {
     let Some(run) = split.run.as_deref().filter(|run| run.starts_with("fleet-")) else {
         return Ok(None);
     };

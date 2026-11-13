@@ -46,9 +46,7 @@ pub enum LocationOutcome {
     Unavailable(String),
 }
 
-pub async fn read_project_uuid(
-    repo_root: &Path,
-) -> Result<Option<Uuid>, KnowledgeConfigError> {
+pub async fn read_project_uuid(repo_root: &Path) -> Result<Option<Uuid>, KnowledgeConfigError> {
     let path = repo_root.join(".mike").join("knowledge.json");
     let bytes = match tokio::fs::read(&path).await {
         Ok(bytes) => bytes,

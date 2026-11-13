@@ -234,10 +234,7 @@ pub async fn get_semantic_neighbours(
     }
 }
 
-pub async fn get_semantic_item(
-    State(state): State<AppState>,
-    Path(id): Path<i64>,
-) -> Response {
+pub async fn get_semantic_item(State(state): State<AppState>, Path(id): Path<i64>) -> Response {
     let Some(persist) = state.persist() else {
         return unavailable();
     };

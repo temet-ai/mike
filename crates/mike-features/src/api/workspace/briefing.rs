@@ -199,11 +199,7 @@ pub fn build_briefing(ctx: BriefingContext) -> String {
     build_briefing_parts(ctx).text()
 }
 
-pub fn build_unresolved_briefing(
-    session_id: Uuid,
-    cwd: &str,
-    registered_via: &str,
-) -> String {
+pub fn build_unresolved_briefing(session_id: Uuid, cwd: &str, registered_via: &str) -> String {
     format!(
         "Workspace registration captured session {session_id} via {registered_via}, but no Git repository could be determined for cwd {cwd:?}.\n\n\
          This session is unresolved and has not been grouped with other unresolved sessions. Ask the user which project it belongs to, then assign it with PATCH /api/sessions/{session_id}/project."

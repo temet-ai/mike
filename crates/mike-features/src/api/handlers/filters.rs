@@ -76,9 +76,7 @@ pub enum OptionalField<T> {
     Some(T),
 }
 
-pub fn deserialize_optional_string_field<'de, D>(
-    de: D,
-) -> Result<OptionalField<String>, D::Error>
+pub fn deserialize_optional_string_field<'de, D>(de: D) -> Result<OptionalField<String>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {

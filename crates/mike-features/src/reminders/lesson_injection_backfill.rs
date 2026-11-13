@@ -45,10 +45,7 @@ fn collect_blocks_from_str(s: &str, out: &mut Vec<String>) {
     out.push(after_open[..close_at].to_string());
 }
 
-pub fn matching_lesson_ids(
-    blocks: &[String],
-    candidates: &[LessonMatchCandidate],
-) -> Vec<i64> {
+pub fn matching_lesson_ids(blocks: &[String], candidates: &[LessonMatchCandidate]) -> Vec<i64> {
     candidates
         .iter()
         .filter(|c| {

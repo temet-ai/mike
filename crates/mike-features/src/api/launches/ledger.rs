@@ -68,10 +68,7 @@ pub async fn upsert_run(State(state): State<AppState>, Json(run): Json<NewRun>) 
     }
 }
 
-pub async fn find_run(
-    State(state): State<AppState>,
-    Query(query): Query<RunQuery>,
-) -> Response {
+pub async fn find_run(State(state): State<AppState>, Query(query): Query<RunQuery>) -> Response {
     let Some(h) = state.persist() else {
         return unavailable();
     };
@@ -82,10 +79,7 @@ pub async fn find_run(
     }
 }
 
-pub async fn insert_launch(
-    State(state): State<AppState>,
-    Json(new): Json<NewLaunch>,
-) -> Response {
+pub async fn insert_launch(State(state): State<AppState>, Json(new): Json<NewLaunch>) -> Response {
     let Some(h) = state.persist() else {
         return unavailable();
     };
@@ -132,10 +126,7 @@ pub async fn record_closed(
     }
 }
 
-pub async fn channel_present(
-    State(state): State<AppState>,
-    Path(session): Path<Uuid>,
-) -> Response {
+pub async fn channel_present(State(state): State<AppState>, Path(session): Path<Uuid>) -> Response {
     let Some(h) = state.persist() else {
         return unavailable();
     };

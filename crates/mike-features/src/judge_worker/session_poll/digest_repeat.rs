@@ -46,11 +46,7 @@ pub async fn is_repeat(
     }
 }
 
-pub async fn remember(
-    ctx: &SessionJudgeCtx<'_>,
-    session: &SessionForJudgment,
-    digest: &[u8],
-) {
+pub async fn remember(ctx: &SessionJudgeCtx<'_>, session: &SessionForJudgment, digest: &[u8]) {
     if let Err(e) = ctx
         .persist
         .eval()

@@ -129,10 +129,7 @@ pub fn relative_path<'a>(label: &str, value: &'a str) -> Result<&'a str, WorkThr
     Ok(path)
 }
 
-pub fn relative_paths(
-    label: &str,
-    values: &[String],
-) -> Result<Vec<String>, WorkThreadError> {
+pub fn relative_paths(label: &str, values: &[String]) -> Result<Vec<String>, WorkThreadError> {
     values
         .iter()
         .enumerate()

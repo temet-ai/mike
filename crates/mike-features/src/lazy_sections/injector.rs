@@ -1,10 +1,6 @@
 use serde_json::{Value, json};
 
-pub fn inject_after_trigger(
-    messages: &mut [Value],
-    token: &str,
-    reminder_text: &str,
-) -> bool {
+pub fn inject_after_trigger(messages: &mut [Value], token: &str, reminder_text: &str) -> bool {
     let Some(trigger_idx) = latest_trigger_index(messages, token) else {
         return false;
     };

@@ -161,11 +161,7 @@ pub struct Unverified {
 }
 
 impl Unverified {
-    pub fn observe(
-        &mut self,
-        activity: Activity,
-        now: std::time::Instant,
-    ) -> Option<String> {
+    pub fn observe(&mut self, activity: Activity, now: std::time::Instant) -> Option<String> {
         match activity {
             Activity::Active => {
                 self.since = None;
@@ -316,11 +312,7 @@ pub async fn begin_check(
     Ok(queued)
 }
 
-pub fn configure(
-    context: &mut Context,
-    def: &super::definition::FleetDefinition,
-    command: &str,
-) {
+pub fn configure(context: &mut Context, def: &super::definition::FleetDefinition, command: &str) {
     context.operation = def.execution.operation(command).cloned();
     context
         .strip_environment
@@ -400,11 +392,7 @@ pub async fn begin_baseline(
     Ok(queued)
 }
 
-pub fn normalize_cancellation(
-    owner: &Owner,
-    code: &mut Option<i32>,
-    output: &mut String,
-) -> bool {
+pub fn normalize_cancellation(owner: &Owner, code: &mut Option<i32>, output: &mut String) -> bool {
     let Some(reason) = owner.cancelled() else {
         return false;
     };

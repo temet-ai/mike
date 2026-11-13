@@ -64,10 +64,7 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
         Ok(row)
     }
 
-    pub async fn list_project_locations(
-        self,
-        include_all: bool,
-    ) -> Result<Value, PersistError> {
+    pub async fn list_project_locations(self, include_all: bool) -> Result<Value, PersistError> {
         let rows = sqlx::query_scalar!(
             r#"SELECT jsonb_build_object('project_uuid', p.project_uuid,
                'project_id', p.id, 'name', COALESCE(p.custom_name, p.display_name),

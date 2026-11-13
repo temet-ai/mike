@@ -4,8 +4,9 @@ use mike::store::persistence::PersistHandle;
 
 use crate::test_db::TestDb;
 
-const LAUNCH_DOMAIN_MIGRATION: &str =
-    include_str!("../../../../../mike-base/src/store/persistence/migrations/20260916000001_launch_domain.sql");
+const LAUNCH_DOMAIN_MIGRATION: &str = include_str!(
+    "../../../../../mike-base/src/store/persistence/migrations/20260916000001_launch_domain.sql"
+);
 
 #[tokio::test]
 async fn launch_migration_applied_twice_converges() -> anyhow::Result<()> {

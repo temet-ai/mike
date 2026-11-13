@@ -101,11 +101,7 @@ pub async fn start_after_close(
     }
 }
 
-pub async fn close_idle(
-    effects: &dyn Effects,
-    shots: &[OneShot],
-    now: DateTime<Utc>,
-) -> Vec<i64> {
+pub async fn close_idle(effects: &dyn Effects, shots: &[OneShot], now: DateTime<Utc>) -> Vec<i64> {
     let mut closed = Vec::new();
     for shot in shots.iter().filter(|shot| is_idle(shot, now)) {
         closed.extend(close_one(effects, shot).await);

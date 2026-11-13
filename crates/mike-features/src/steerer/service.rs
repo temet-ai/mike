@@ -271,11 +271,7 @@ impl SteeringService {
         })
     }
 
-    pub async fn delete(
-        &self,
-        id: i64,
-        source: &ChangeSource,
-    ) -> Result<(), SteeringServiceError> {
+    pub async fn delete(&self, id: i64, source: &ChangeSource) -> Result<(), SteeringServiceError> {
         let source_json = source.to_setting_json(&current_build());
         let _guard = self.write_lock.lock().await;
 
@@ -353,10 +349,7 @@ impl SteeringService {
             })
     }
 
-    pub async fn disenrol_session(
-        &self,
-        enrolment_id: i64,
-    ) -> Result<bool, SteeringServiceError> {
+    pub async fn disenrol_session(&self, enrolment_id: i64) -> Result<bool, SteeringServiceError> {
         self.persist
             .steerer()
             .delete_enrolment(enrolment_id)

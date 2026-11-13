@@ -131,11 +131,7 @@ pub fn score(results: Vec<QueryResult>) -> TriggerEval {
     }
 }
 
-pub fn batch_input(
-    entries: &[(String, String)],
-    rotate: usize,
-    messages: &[&str],
-) -> String {
+pub fn batch_input(entries: &[(String, String)], rotate: usize, messages: &[&str]) -> String {
     let mut out = format!(
         "## AVAILABLE SKILLS\n{}\n## USER MESSAGES\n",
         listing(entries, rotate)

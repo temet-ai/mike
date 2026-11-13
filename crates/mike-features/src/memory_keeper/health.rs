@@ -96,11 +96,7 @@ fn running_row(last: Option<&LastPass>) -> CapabilityRow {
     }
 }
 
-pub fn capability_row(
-    persistence: bool,
-    enabled: bool,
-    health: &KeeperHealth,
-) -> CapabilityRow {
+pub fn capability_row(persistence: bool, enabled: bool, health: &KeeperHealth) -> CapabilityRow {
     if !persistence {
         return row(
             CapabilityState::Off,

@@ -106,11 +106,7 @@ pub fn live_addresses(listed: &Value) -> Vec<String> {
         .collect()
 }
 
-pub async fn labelled(
-    cli: &HcCli,
-    key: &str,
-    value: &str,
-) -> Result<Vec<Terminal>, LaunchError> {
+pub async fn labelled(cli: &HcCli, key: &str, value: &str) -> Result<Vec<Terminal>, LaunchError> {
     let mut found = Vec::new();
     for address in addresses_labelled(cli, key, value).await? {
         if let Some(terminal) = get(cli, &address).await? {
@@ -120,10 +116,7 @@ pub async fn labelled(
     Ok(found)
 }
 
-pub async fn find_by_session(
-    cli: &HcCli,
-    session: Uuid,
-) -> Result<Option<Surface>, LaunchError> {
+pub async fn find_by_session(cli: &HcCli, session: Uuid) -> Result<Option<Surface>, LaunchError> {
     let terminals = labelled(cli, SESSION_LABEL, &session.to_string()).await?;
     Ok(terminals
         .into_iter()

@@ -14,12 +14,7 @@ use crate::store::persistence::PersistHandle;
 const SILENT_SECONDS: i64 = 300;
 pub const SEAT_WOKEN: &str = "seat_woken";
 
-pub async fn pass(
-    state: &AppState,
-    persist: &PersistHandle,
-    def: &FleetDefinition,
-    run: &str,
-) {
+pub async fn pass(state: &AppState, persist: &PersistHandle, def: &FleetDefinition, run: &str) {
     let now = Utc::now();
     let deps = state.push_deps();
     for (task, session) in seats(def) {

@@ -142,9 +142,7 @@ impl PersistHandle {
         Ok(rows)
     }
 
-    pub async fn list_tool_error_facets(
-        &self,
-    ) -> Result<(Vec<String>, Vec<String>), PersistError> {
+    pub async fn list_tool_error_facets(&self) -> Result<(Vec<String>, Vec<String>), PersistError> {
         crate::metrics::time_db("list_tool_error_facets", async move {
             let projects = sqlx::query_scalar!(
                 r#"SELECT DISTINCT p.project_path AS "project_path!"

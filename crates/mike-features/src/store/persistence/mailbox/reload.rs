@@ -5,10 +5,7 @@ use crate::store::persistence::PersistError;
 use super::types::{InboxCounts, MailboxMessageRow, ReloadedMailboxRow};
 
 impl crate::store::persistence::launch_repo::LaunchDb<'_> {
-    pub async fn fetch_inbox_counts(
-        self,
-        session_id: i64,
-    ) -> Result<InboxCounts, PersistError> {
+    pub async fn fetch_inbox_counts(self, session_id: i64) -> Result<InboxCounts, PersistError> {
         crate::metrics::time_db("mailbox_fetch_inbox_counts", async move {
             let row = sqlx::query!(
                 r#"SELECT

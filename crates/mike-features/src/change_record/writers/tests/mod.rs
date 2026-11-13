@@ -103,10 +103,7 @@ pub async fn seed_session(
     })
 }
 
-pub async fn events_in(
-    handle: &PersistHandle,
-    checkout: &str,
-) -> anyhow::Result<Vec<ChangeEvent>> {
+pub async fn events_in(handle: &PersistHandle, checkout: &str) -> anyhow::Result<Vec<ChangeEvent>> {
     Ok(handle
         .fleet()
         .change_events_after(&ChangeQuery::everything_after(checkout, 0, 100))

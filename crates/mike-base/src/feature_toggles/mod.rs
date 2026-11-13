@@ -344,10 +344,7 @@ pub fn get_toggle_enabled(toggles: &FeatureToggles, key: &str) -> Option<bool> {
     }
 }
 
-pub fn client_serves_mut<'a>(
-    toggles: &'a mut FeatureToggles,
-    key: &str,
-) -> Option<&'a mut bool> {
+pub fn client_serves_mut<'a>(toggles: &'a mut FeatureToggles, key: &str) -> Option<&'a mut bool> {
     Some(match key {
         "client_serves_self_identity" => &mut toggles.client_serves_self_identity,
         "client_serves_workspace_briefing" => &mut toggles.client_serves_workspace_briefing,

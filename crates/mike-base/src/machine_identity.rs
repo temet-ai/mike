@@ -62,9 +62,7 @@ pub fn file_in(state_dir: &Path) -> PathBuf {
     state_dir.join(FILE_NAME)
 }
 
-pub async fn read_file(
-    path: &Path,
-) -> Result<Option<MachineIdentity>, MachineIdentityError> {
+pub async fn read_file(path: &Path) -> Result<Option<MachineIdentity>, MachineIdentityError> {
     match tokio::fs::read(path).await {
         Ok(bytes) => serde_json::from_slice(&bytes).map(Some).map_err(|source| {
             MachineIdentityError::Malformed {
@@ -91,9 +89,7 @@ pub async fn load_default() -> Result<MachineIdentity, MachineIdentityError> {
     load_or_create_in(&default_state_dir()?).await
 }
 
-pub async fn load_or_create_in(
-    state_dir: &Path,
-) -> Result<MachineIdentity, MachineIdentityError> {
+pub async fn load_or_create_in(state_dir: &Path) -> Result<MachineIdentity, MachineIdentityError> {
     let path = file_in(state_dir);
     if let Some(identity) = read_file(&path).await? {
         return Ok(identity);

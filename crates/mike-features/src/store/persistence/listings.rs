@@ -134,9 +134,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
         .await
     }
 
-    pub async fn list_projects(
-        self,
-    ) -> Result<Vec<rehydrate::ProjectListRow>, PersistError> {
+    pub async fn list_projects(self) -> Result<Vec<rehydrate::ProjectListRow>, PersistError> {
         crate::metrics::time_db("list_projects", rehydrate::list_projects(&self.pool)).await
     }
 

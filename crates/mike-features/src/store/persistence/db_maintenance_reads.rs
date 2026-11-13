@@ -44,9 +44,7 @@ pub struct IoUsage {
 }
 
 impl crate::store::persistence::state_repo::StateDb<'_> {
-    pub async fn read_database_maintenance(
-        self,
-    ) -> Result<DatabaseMaintenance, PersistError> {
+    pub async fn read_database_maintenance(self) -> Result<DatabaseMaintenance, PersistError> {
         crate::metrics::time_db("db_cost_read_maintenance", async {
             let tables = sqlx::query_as!(
                 TableMaintenance,

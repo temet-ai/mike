@@ -124,11 +124,7 @@ fn ago_text(minutes: i64) -> String {
     }
 }
 
-pub fn context_for(
-    command: &str,
-    receipts: &[Receipt],
-    now: DateTime<Utc>,
-) -> Option<String> {
+pub fn context_for(command: &str, receipts: &[Receipt], now: DateTime<Utc>) -> Option<String> {
     let receipt = receipts
         .iter()
         .filter(|r| r.command.as_deref().map(str::trim) == Some(command))

@@ -86,10 +86,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
         .await
     }
 
-    pub async fn closed_fleet_seat(
-        self,
-        to: Uuid,
-    ) -> Result<Option<ClosedSeat>, PersistError> {
+    pub async fn closed_fleet_seat(self, to: Uuid) -> Result<Option<ClosedSeat>, PersistError> {
         if !crate::launch::seat_fact::is_fleet_seat(&self, to).await {
             return Ok(None);
         }

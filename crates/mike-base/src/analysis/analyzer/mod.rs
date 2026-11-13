@@ -191,10 +191,7 @@ impl AnalyzerRegistry {
         })
     }
 
-    pub fn patterns_by_enforcement(
-        &self,
-        class: Enforcement,
-    ) -> Vec<&'static CompiledPattern> {
+    pub fn patterns_by_enforcement(&self, class: Enforcement) -> Vec<&'static CompiledPattern> {
         super::patterns::CATEGORIZED
             .iter()
             .flat_map(|(_, pats)| pats.iter())

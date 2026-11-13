@@ -2,11 +2,7 @@ use std::path::Path;
 
 use serde_json::json;
 
-pub fn completed(
-    context: &super::managed_command::Context,
-    queue_ms: u128,
-    execution_ms: u128,
-) {
+pub fn completed(context: &super::managed_command::Context, queue_ms: u128, execution_ms: u128) {
     if let Some(receipt) = context.receipt_id
         && let Err(error) = record(
             &context.private_host_root,

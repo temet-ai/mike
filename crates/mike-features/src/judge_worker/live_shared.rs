@@ -41,12 +41,7 @@ impl LiveJudgeShared {
         self.announced_bundle.swap(bundle_id, Ordering::AcqRel) != bundle_id
     }
 
-    pub fn queue_reconcile_due(
-        &self,
-        bundle_id: i64,
-        now_unix: i64,
-        max_age_secs: i64,
-    ) -> bool {
+    pub fn queue_reconcile_due(&self, bundle_id: i64, now_unix: i64, max_age_secs: i64) -> bool {
         self.queue_reconciled_bundle.load(Ordering::Acquire) != bundle_id
             || now_unix - self.queue_reconciled_at_unix.load(Ordering::Acquire) >= max_age_secs
     }

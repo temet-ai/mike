@@ -117,10 +117,7 @@ pub struct PersistedRequestRow {
     pub transformation_manifest: Option<serde_json::Value>,
 }
 
-pub fn parse_json_column<T, D>(
-    column: &str,
-    value: &serde_json::Value,
-) -> Result<T, PersistError>
+pub fn parse_json_column<T, D>(column: &str, value: &serde_json::Value) -> Result<T, PersistError>
 where
     D: serde::de::DeserializeOwned + Into<T>,
 {

@@ -22,11 +22,7 @@ pub async fn show(runner: &Runner<'_>, name: &str) -> Result<TemplateRow, Launch
         .ok_or_else(|| LaunchError::Refused(format!("no live template named `{name}`")))
 }
 
-pub async fn delete(
-    runner: &Runner<'_>,
-    name: &str,
-    yes: bool,
-) -> Result<bool, LaunchError> {
+pub async fn delete(runner: &Runner<'_>, name: &str, yes: bool) -> Result<bool, LaunchError> {
     if !yes {
         return Err(LaunchError::Usage(format!(
             "templates delete needs --yes to confirm closing `{name}`"

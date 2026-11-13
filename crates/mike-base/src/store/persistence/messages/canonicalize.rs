@@ -124,10 +124,7 @@ fn escape_pointer_segment(key: &str) -> String {
     }
 }
 
-pub fn write_canonical(
-    buf: &mut Vec<u8>,
-    value: &JsonValue,
-) -> Result<(), serde_json::Error> {
+pub fn write_canonical(buf: &mut Vec<u8>, value: &JsonValue) -> Result<(), serde_json::Error> {
     match value {
         JsonValue::Null | JsonValue::Bool(_) | JsonValue::Number(_) | JsonValue::String(_) => {
             serde_json::to_writer(buf, value)

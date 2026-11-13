@@ -97,10 +97,7 @@ impl Api {
         }
     }
 
-    pub fn parse<T: serde::de::DeserializeOwned>(
-        &self,
-        body: &str,
-    ) -> Result<T, FleetError> {
+    pub fn parse<T: serde::de::DeserializeOwned>(&self, body: &str) -> Result<T, FleetError> {
         serde_json::from_str(body).map_err(|source| FleetError::Unreadable {
             addr: self.addr.clone(),
             source,

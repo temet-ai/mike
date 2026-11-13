@@ -127,10 +127,7 @@ fn unchanged(
     }
 }
 
-pub fn reduce_shell_output(
-    raw: &[u8],
-    policy: &ShellOutputPolicy<'_>,
-) -> ShellOutputReduction {
+pub fn reduce_shell_output(raw: &[u8], policy: &ShellOutputPolicy<'_>) -> ShellOutputReduction {
     let Ok(body) = serde_json::from_slice::<Value>(raw) else {
         return unchanged(raw, policy, reason::STAGE_MALFORMED_BODY);
     };

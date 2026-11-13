@@ -118,10 +118,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn count_dispatches_for_agent(
-        &self,
-        agent_id: i64,
-    ) -> Result<i64, PersistError> {
+    pub async fn count_dispatches_for_agent(&self, agent_id: i64) -> Result<i64, PersistError> {
         crate::metrics::time_db("count_dispatches_for_agent", async move {
             let count = sqlx::query_scalar!(
                 "SELECT COUNT(*) AS \"count!\" FROM agents.dispatches WHERE agent_id = $1",

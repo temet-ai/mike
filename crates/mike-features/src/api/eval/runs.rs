@@ -114,10 +114,7 @@ fn paged<T: Serialize>(
     }
 }
 
-pub async fn list_eval_runs(
-    State(state): State<AppState>,
-    Query(q): Query<RunsQuery>,
-) -> Response {
+pub async fn list_eval_runs(State(state): State<AppState>, Query(q): Query<RunsQuery>) -> Response {
     let (limit, offset) = match page(q.limit, q.offset) {
         Ok(p) => p,
         Err(r) => return *r,

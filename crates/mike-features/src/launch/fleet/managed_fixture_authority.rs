@@ -79,8 +79,7 @@ fn state(allowed: Allowed) -> &'static str {
     }
 }
 
-pub async fn fixture_lifecycle_change_waits_for_retained_spawn_fence()
--> anyhow::Result<()> {
+pub async fn fixture_lifecycle_change_waits_for_retained_spawn_fence() -> anyhow::Result<()> {
     let root = Arc::new(tempfile::tempdir()?);
     let authority = FixtureAuthority::new(root, "exact", Allowed::Running);
     let held = authority.lock().await.map_err(anyhow::Error::msg)?;
@@ -98,8 +97,7 @@ pub async fn fixture_lifecycle_change_waits_for_retained_spawn_fence()
     Ok(())
 }
 
-pub async fn fixture_rejects_a_different_exact_run_and_a_wrong_lifecycle()
--> anyhow::Result<()> {
+pub async fn fixture_rejects_a_different_exact_run_and_a_wrong_lifecycle() -> anyhow::Result<()> {
     let root = Arc::new(tempfile::tempdir()?);
     let authority = FixtureAuthority::new(root, "exact", Allowed::Starting);
     assert!(authority.still_active().await.is_ok());

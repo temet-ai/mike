@@ -1,10 +1,6 @@
 use super::schema::ProxyConfig;
 
-pub fn apply_launch_override(
-    cfg: &mut ProxyConfig,
-    key: &str,
-    value: &serde_json::Value,
-) -> bool {
+pub fn apply_launch_override(cfg: &mut ProxyConfig, key: &str, value: &serde_json::Value) -> bool {
     let launch = &mut cfg.launch;
     match key {
         "launch_backend" => set_string(&mut launch.backend, value),

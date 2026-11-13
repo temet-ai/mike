@@ -1,4 +1,3 @@
-
 use bytes::Bytes;
 
 use crate::extract::request::TurnOrigin;
@@ -254,11 +253,7 @@ pub fn stages_after_steerer() -> Vec<Box<dyn RequestStage>> {
     ]
 }
 
-pub async fn run(
-    stages: &[Box<dyn RequestStage>],
-    ctx: &StageContext<'_>,
-    body: &mut StageBody,
-) {
+pub async fn run(stages: &[Box<dyn RequestStage>], ctx: &StageContext<'_>, body: &mut StageBody) {
     if is_session_own_lane(ctx) && !ctx.is_tool_loop {
         crate::explained::observe_body(ctx.session_id, body.body());
     }

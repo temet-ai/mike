@@ -19,8 +19,7 @@ pub enum ReportStatus {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct DbCostReport {
     pub status: ReportStatus,
-    pub maintenance:
-        Option<crate::store::persistence::db_maintenance_reads::DatabaseMaintenance>,
+    pub maintenance: Option<crate::store::persistence::db_maintenance_reads::DatabaseMaintenance>,
     pub generated_at: DateTime<Utc>,
     pub window_from: Option<DateTime<Utc>>,
     pub window_to: Option<DateTime<Utc>>,

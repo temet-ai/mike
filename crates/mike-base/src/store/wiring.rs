@@ -56,11 +56,7 @@ impl RequestStore {
         meta.pinned = pinned;
     }
 
-    pub fn set_session_ttl_override(
-        &mut self,
-        session_id: &str,
-        ttl_override: Option<String>,
-    ) {
+    pub fn set_session_ttl_override(&mut self, session_id: &str, ttl_override: Option<String>) {
         let meta = self.session_meta.entry(session_id.to_string()).or_default();
         meta.ttl_override = ttl_override;
     }

@@ -94,11 +94,7 @@ impl RerankService {
     }
 
     #[cfg(test)]
-    pub fn with_score_limits(
-        config: &RerankConfig,
-        capacity: usize,
-        lifetime: Duration,
-    ) -> Self {
+    pub fn with_score_limits(config: &RerankConfig, capacity: usize, lifetime: Duration) -> Self {
         Self::assemble(
             config,
             HEALTH_TIMEOUT,

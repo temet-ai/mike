@@ -77,10 +77,7 @@ pub struct PageQuery {
     pub steerer_id: Option<i64>,
 }
 
-pub async fn get_thresholds(
-    State(state): State<AppState>,
-    Query(q): Query<PageQuery>,
-) -> Response {
+pub async fn get_thresholds(State(state): State<AppState>, Query(q): Query<PageQuery>) -> Response {
     let Some(persist) = state.persist() else {
         return unavailable();
     };
@@ -119,10 +116,7 @@ pub async fn get_thresholds(
     }
 }
 
-pub async fn list_proposals(
-    State(state): State<AppState>,
-    Query(q): Query<PageQuery>,
-) -> Response {
+pub async fn list_proposals(State(state): State<AppState>, Query(q): Query<PageQuery>) -> Response {
     let Some(persist) = state.persist() else {
         return unavailable();
     };

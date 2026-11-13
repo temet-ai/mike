@@ -93,10 +93,7 @@ impl PersistHandle {
         .await?;
         Ok(ids)
     }
-    pub async fn backfill_recompute_deltas(
-        &self,
-        request_id: i64,
-    ) -> Result<bool, PersistError> {
+    pub async fn backfill_recompute_deltas(&self, request_id: i64) -> Result<bool, PersistError> {
         let mut tx = self.pool.begin().await?;
 
         let row = sqlx::query!(

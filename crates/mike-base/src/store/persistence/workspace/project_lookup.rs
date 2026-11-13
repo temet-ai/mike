@@ -157,10 +157,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn list_recent_project_paths(
-        &self,
-        limit: i64,
-    ) -> Result<Vec<String>, PersistError> {
+    pub async fn list_recent_project_paths(&self, limit: i64) -> Result<Vec<String>, PersistError> {
         crate::metrics::time_db("workspace_list_recent_project_paths", async move {
             let paths = sqlx::query_scalar!(
                 "SELECT project_path FROM projects.projects ORDER BY last_seen DESC LIMIT $1",

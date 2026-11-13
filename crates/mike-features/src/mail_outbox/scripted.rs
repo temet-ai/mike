@@ -168,8 +168,7 @@ impl SeatRpc for ScriptedSeat {
     }
 }
 
-pub async fn database() -> anyhow::Result<Option<(test_support::TestDbHandle, PersistHandle)>>
-{
+pub async fn database() -> anyhow::Result<Option<(test_support::TestDbHandle, PersistHandle)>> {
     let Some(db) = test_support::acquire_ephemeral_db().await? else {
         return Ok(None);
     };

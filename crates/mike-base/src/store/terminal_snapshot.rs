@@ -16,10 +16,7 @@ struct SnapshotContext {
 }
 
 impl RequestStore {
-    pub async fn snapshot_terminal(
-        store: &Arc<RwLock<RequestStore>>,
-        request_id: RequestId,
-    ) {
+    pub async fn snapshot_terminal(store: &Arc<RwLock<RequestStore>>, request_id: RequestId) {
         if Self::hand_off_deferred(store, request_id).await {
             return;
         }

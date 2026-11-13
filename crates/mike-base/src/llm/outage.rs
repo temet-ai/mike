@@ -88,11 +88,7 @@ impl OutageTracker {
         })
     }
 
-    pub fn record_success(
-        &self,
-        role: LlmRole,
-        now: DateTime<Utc>,
-    ) -> Option<OperatorNotice> {
+    pub fn record_success(&self, role: LlmRole, now: DateTime<Utc>) -> Option<OperatorNotice> {
         let mut roles = self.roles.lock().unwrap_or_else(|e| e.into_inner());
         let run = roles.get_mut(role.index())?;
         let finished = std::mem::take(run);

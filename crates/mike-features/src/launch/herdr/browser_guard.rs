@@ -52,11 +52,7 @@ impl Receipt {
     }
 }
 
-pub async fn prepare(
-    cli: &HerdrCli,
-    args: &[String],
-    pane: &str,
-) -> Result<(), LaunchError> {
+pub async fn prepare(cli: &HerdrCli, args: &[String], pane: &str) -> Result<(), LaunchError> {
     prepare_with_wait(cli, args, pane, WAIT, POLL).await
 }
 

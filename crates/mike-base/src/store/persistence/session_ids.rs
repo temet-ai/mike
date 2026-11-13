@@ -5,10 +5,7 @@ use uuid::Uuid;
 use super::{PersistError, PersistHandle};
 
 impl PersistHandle {
-    pub async fn session_row_id(
-        &self,
-        session_uuid: Uuid,
-    ) -> Result<Option<i64>, PersistError> {
+    pub async fn session_row_id(&self, session_uuid: Uuid) -> Result<Option<i64>, PersistError> {
         self.session_row_id_in(&self.pool, session_uuid).await
     }
 

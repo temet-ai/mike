@@ -130,11 +130,7 @@ pub fn after_verdict(notes: Option<&SessionNotes>, need: Need) -> Option<NoteRef
     (need < required).then_some(NoteRefusal::NeedBelowLevel)
 }
 
-pub fn refusal(
-    notes: Option<&SessionNotes>,
-    steerer_id: i64,
-    need: Need,
-) -> Option<NoteRefusal> {
+pub fn refusal(notes: Option<&SessionNotes>, steerer_id: i64, need: Need) -> Option<NoteRefusal> {
     before_judging(notes, steerer_id).or_else(|| after_verdict(notes, need))
 }
 

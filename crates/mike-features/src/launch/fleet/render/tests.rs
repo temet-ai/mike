@@ -40,13 +40,7 @@ pub fn task(id: &str, name: &str, discipline: &str, state: &str) -> TaskStatus {
     }
 }
 
-pub fn seat(
-    name: &str,
-    role: &str,
-    state: &str,
-    tokens: Option<i64>,
-    closed: bool,
-) -> SeatStatus {
+pub fn seat(name: &str, role: &str, state: &str, tokens: Option<i64>, closed: bool) -> SeatStatus {
     SeatStatus {
         seat: name.to_string(),
         role: role.to_string(),

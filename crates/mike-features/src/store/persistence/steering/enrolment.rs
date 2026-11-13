@@ -31,10 +31,7 @@ impl crate::store::persistence::steerer_repo::SteererDb<'_> {
         Ok(rows)
     }
 
-    pub async fn enrol_auto_steerers(
-        self,
-        session_uuid: uuid::Uuid,
-    ) -> Result<u64, PersistError> {
+    pub async fn enrol_auto_steerers(self, session_uuid: uuid::Uuid) -> Result<u64, PersistError> {
         crate::metrics::time_db("enrol_auto_steerers", async move {
             let result = sqlx::query!(
                 r#"INSERT INTO steering.enrolments

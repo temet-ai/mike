@@ -3,8 +3,9 @@ use serde_json::{Value, json};
 use crate::steerer::rollout_params::{RolloutParams, SteererClass};
 use crate::store::persistence::{PersistHandle, test_support};
 
-const EFFICIENCY_STEERER_CLASS_MIGRATION: &str =
-    include_str!("../../../../../mike-base/src/store/persistence/migrations/20260928070000_efficiency_steerer_class.sql");
+const EFFICIENCY_STEERER_CLASS_MIGRATION: &str = include_str!(
+    "../../../../../mike-base/src/store/persistence/migrations/20260928070000_efficiency_steerer_class.sql"
+);
 
 const EFFICIENCY: [&str; 5] = [
     "no-full-spill-read",

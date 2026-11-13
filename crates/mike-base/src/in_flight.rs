@@ -55,11 +55,7 @@ impl InFlightRegistry {
         }
     }
 
-    pub fn register(
-        &self,
-        id: RequestId,
-        record: InFlightRecord,
-    ) -> Result<(), CapacityError> {
+    pub fn register(&self, id: RequestId, record: InFlightRecord) -> Result<(), CapacityError> {
         if self.max > 0 {
             let current = self.inner.len();
             if current >= self.max {

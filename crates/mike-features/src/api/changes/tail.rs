@@ -72,10 +72,7 @@ pub async fn note_answer_tail(state: &AppState, session: Uuid) -> Option<Vec<Str
     session_tail_lines(state.persist()?, session).await
 }
 
-pub async fn session_tail_lines(
-    persist: &PersistHandle,
-    session: Uuid,
-) -> Option<Vec<String>> {
+pub async fn session_tail_lines(persist: &PersistHandle, session: Uuid) -> Option<Vec<String>> {
     let query = ChangesQuery {
         session: Some(session.to_string()),
         ..ChangesQuery::default()

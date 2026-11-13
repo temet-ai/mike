@@ -92,11 +92,7 @@ pub fn spawn_supply_verdict(state: &AppState) {
     });
 }
 
-pub async fn run_tick(
-    state: &AppState,
-    persist: &PersistHandle,
-    now: DateTime<Utc>,
-) -> Tick {
+pub async fn run_tick(state: &AppState, persist: &PersistHandle, now: DateTime<Utc>) -> Tick {
     if !state.feature_toggle_overlay.load().judge_lessons {
         return Tick::Off;
     }

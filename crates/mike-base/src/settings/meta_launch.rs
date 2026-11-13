@@ -1,7 +1,6 @@
 use super::{SettingApplies, SettingKind, SettingMeta, SettingScope};
 
-pub const BACKEND_NAMES: &[&str] =
-    &["herdr", "herdr-core", "tmux", "terminal", "ghostty", "none"];
+pub const BACKEND_NAMES: &[&str] = &["herdr", "herdr-core", "tmux", "terminal", "ghostty", "none"];
 
 const GROUP: &str = "Launcher";
 

@@ -99,10 +99,7 @@ pub fn coordinator_seat(definition: &FleetDefinition) -> Result<FleetTarget, Tar
         .ok_or_else(|| TargetError::NoSeatYet("the coordinator".to_owned()))
 }
 
-pub fn seat_of_owner(
-    definition: &FleetDefinition,
-    path: &str,
-) -> Result<FleetTarget, TargetError> {
+pub fn seat_of_owner(definition: &FleetDefinition, path: &str) -> Result<FleetTarget, TargetError> {
     let wanted = normal(path);
     let owner = definition.tasks.iter().find(|(_, task)| {
         let owned: Vec<String> = task

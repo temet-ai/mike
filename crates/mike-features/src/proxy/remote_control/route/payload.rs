@@ -3,8 +3,7 @@ use serde_json::value::RawValue;
 
 use super::policy::BodyCapture;
 
-pub const DUPLICATED_PAYLOAD_TYPES: &[&str] =
-    &["stream_event", "user", "assistant", "message"];
+pub const DUPLICATED_PAYLOAD_TYPES: &[&str] = &["stream_event", "user", "assistant", "message"];
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RequestPlan<'a> {

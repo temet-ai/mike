@@ -67,10 +67,7 @@ fn snapshot(
     })
 }
 
-pub fn delta_channel(
-    method: &str,
-    params: &Value,
-) -> Result<Option<TextChannel>, ProjectionIssue> {
+pub fn delta_channel(method: &str, params: &Value) -> Result<Option<TextChannel>, ProjectionIssue> {
     let channel = match method {
         "item/agentMessage/delta" => TextChannel::Message,
         "item/plan/delta" => TextChannel::Plan,

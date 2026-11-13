@@ -24,9 +24,7 @@ use crate::config::write_guards::{
     FeatureToggleWriteGuard, FilterWriteGuard, SettingsWriteGuard, SteeringWriteGuard,
 };
 
-pub async fn seed_persistence(
-    config: &ProxyConfig,
-) -> anyhow::Result<Option<PersistHandle>> {
+pub async fn seed_persistence(config: &ProxyConfig) -> anyhow::Result<Option<PersistHandle>> {
     let persist = crate::config::persist_bootstrap::build_persist_handle(
         config,
         crate::store::persistence::SchemaPolicy::Migrate,

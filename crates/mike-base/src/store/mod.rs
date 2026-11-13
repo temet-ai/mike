@@ -1,5 +1,5 @@
-pub mod dedup_ops;
 pub mod composable_session;
+pub mod dedup_ops;
 pub mod entry_ops;
 pub mod eviction;
 pub mod memory_stats;

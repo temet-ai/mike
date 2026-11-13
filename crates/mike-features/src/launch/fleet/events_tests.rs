@@ -107,8 +107,9 @@ fn every_kind_has_a_unique_name_that_parses_back() {
 
 #[test]
 fn every_kind_has_exactly_one_payload_and_is_allowed_by_the_migration() -> anyhow::Result<()> {
-    let migration =
-        include_str!("../../../../mike-base/src/store/persistence/migrations/20261022000000_launch_fleet_events.sql");
+    let migration = include_str!(
+        "../../../../mike-base/src/store/persistence/migrations/20261022000000_launch_fleet_events.sql"
+    );
     let payloads = one_of_each();
     assert_eq!(payloads.len(), EventKind::ALL.len());
     let mut seen = Vec::new();

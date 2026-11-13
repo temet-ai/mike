@@ -105,12 +105,7 @@ pub fn mark_run_clone(def: &FleetDefinition, project: &Path, slug: &str) {
     }
 }
 
-pub async fn verdict(
-    repo: &Path,
-    slug: &str,
-    run: &str,
-    in_use_by: Option<&str>,
-) -> Verdict {
+pub async fn verdict(repo: &Path, slug: &str, run: &str, in_use_by: Option<&str>) -> Verdict {
     if is_protected(repo) {
         return Verdict::Keep("the folder is not one a run could have made".to_string());
     }
@@ -207,12 +202,7 @@ async fn remove_tree(path: PathBuf) -> bool {
     removed
 }
 
-pub async fn clean_run(
-    repo: &Path,
-    slug: &str,
-    run: &str,
-    in_use_by: Option<&str>,
-) -> Cleaned {
+pub async fn clean_run(repo: &Path, slug: &str, run: &str, in_use_by: Option<&str>) -> Cleaned {
     let mut cleaned = Cleaned::default();
     if let Verdict::Keep(why) = verdict(repo, slug, run, in_use_by).await {
         cleaned.kept = Some(why);

@@ -61,11 +61,7 @@ fn run_space(run: &RunSeat) -> (String, bool) {
     }
 }
 
-pub fn choose_space(
-    caller_space: Option<String>,
-    candidates: &[String],
-    tab: String,
-) -> Place {
+pub fn choose_space(caller_space: Option<String>, candidates: &[String], tab: String) -> Place {
     if let Some(space) = caller_space.filter(|s| candidates.contains(s)) {
         return Place {
             space,

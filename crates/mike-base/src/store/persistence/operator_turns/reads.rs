@@ -102,10 +102,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn get_by_id(
-        &self,
-        turn_id: i64,
-    ) -> Result<Option<OperatorTurnRow>, PersistError> {
+    pub async fn get_by_id(&self, turn_id: i64) -> Result<Option<OperatorTurnRow>, PersistError> {
         crate::metrics::time_db("get_operator_turn_by_id", async move {
             let row = QueryBuilder::<Postgres>::new(TURN_SELECT_BASE)
                 .push(" WHERE t.id = ")
@@ -193,10 +190,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn session_id_for_turn(
-        &self,
-        turn_id: i64,
-    ) -> Result<Option<i64>, PersistError> {
+    pub async fn session_id_for_turn(&self, turn_id: i64) -> Result<Option<i64>, PersistError> {
         crate::metrics::time_db("session_id_for_turn", async move {
             let id: Option<i64> = sqlx::query_scalar!(
                 "SELECT session_id FROM memory.operator_turns WHERE id = $1",

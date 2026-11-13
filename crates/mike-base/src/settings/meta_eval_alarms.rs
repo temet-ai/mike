@@ -18,8 +18,7 @@ pub const EVAL_CALL_LOOP_MIN_CALLS: &str = "eval.alarm.judge_call_loop.min_calls
 pub const EVAL_CALL_LOOP_MAX_PER_ROW: &str = "eval.alarm.judge_call_loop.max_calls_per_row";
 pub const EVAL_SHADOW_DISAGREEMENT_ENABLED: &str = "eval.alarm.shadow_disagreement.enabled";
 pub const EVAL_SHADOW_DISAGREEMENT_MIN_N: &str = "eval.alarm.shadow_disagreement.min_n";
-pub const EVAL_SHADOW_DISAGREEMENT_MIN_KAPPA: &str =
-    "eval.alarm.shadow_disagreement.min_kappa";
+pub const EVAL_SHADOW_DISAGREEMENT_MIN_KAPPA: &str = "eval.alarm.shadow_disagreement.min_kappa";
 pub const EVAL_METRIC_DROP_ENABLED: &str = "eval.alarm.metric_drop.enabled";
 pub const EVAL_METRIC_DROP_MIN_N: &str = "eval.alarm.metric_drop.min_n";
 

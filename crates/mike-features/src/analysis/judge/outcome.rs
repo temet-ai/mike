@@ -30,12 +30,7 @@ pub fn log_and_credential_failure(turn_id: i64, attempt: u32, e: &LlmError) -> J
     JudgeOutcome::CredentialFailure
 }
 
-pub async fn log_and_backoff(
-    turn_id: i64,
-    attempt: u32,
-    e: &LlmError,
-    backoff_base: Duration,
-) {
+pub async fn log_and_backoff(turn_id: i64, attempt: u32, e: &LlmError, backoff_base: Duration) {
     let delay = backoff_for_attempt(attempt, backoff_base);
     tracing::warn!(
         turn_id,

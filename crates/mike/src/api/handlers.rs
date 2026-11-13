@@ -145,15 +145,25 @@ pub(crate) use tools_03::*;
 pub(crate) use usage_workflows_01::*;
 pub(crate) use worker_toggles::*;
 
-#[cfg(test)]
-mod health_03;
 mod capabilities;
+mod compression_01;
 mod diagnostics;
 mod filter_dry_run;
+#[cfg(test)]
+mod health_03;
+mod mailbox_post;
+mod mailbox_post_fanout;
+mod mailbox_post_name;
+#[cfg(test)]
+mod mailbox_post_tests;
 mod recall_context;
 mod recall_turns;
+pub(crate) mod recall_turns_detail;
 pub mod receipts_01;
+mod remote_control_link;
 mod request_detail;
+#[cfg(test)]
+mod request_recovery_tests;
 mod request_summary;
 pub(super) mod search_session;
 mod search_session_messages;
@@ -161,21 +171,11 @@ mod search_session_scan;
 mod search_unified;
 mod session_list;
 mod session_overview;
+mod steerer_model_check;
 mod steerers_01;
 mod steerers_02;
+mod steering_views_01;
+mod steering_views_02;
 mod tools_01;
 mod tools_03;
 mod usage_workflows_01;
-pub(crate) mod recall_turns_detail;
-mod compression_01;
-mod remote_control_link;
-mod steering_views_01;
-mod steering_views_02;
-mod mailbox_post_fanout;
-mod mailbox_post_name;
-mod steerer_model_check;
-mod mailbox_post;
-#[cfg(test)]
-mod mailbox_post_tests;
-#[cfg(test)]
-mod request_recovery_tests;

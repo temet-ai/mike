@@ -117,10 +117,7 @@ fn is_missing_template<T>(res: &Result<T, sqlx::Error>) -> bool {
     }
 }
 
-pub async fn create_database_from_template(
-    admin_url: &str,
-    db_name: &str,
-) -> anyhow::Result<()> {
+pub async fn create_database_from_template(admin_url: &str, db_name: &str) -> anyhow::Result<()> {
     let admin_pool = connect_single(admin_url).await?;
     let stmt = format!(
         "CREATE DATABASE \"{db_name}\" TEMPLATE \"{}\" STRATEGY FILE_COPY",

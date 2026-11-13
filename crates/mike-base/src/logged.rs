@@ -1,7 +1,4 @@
-pub fn ok_or_warn<T, E: std::fmt::Display>(
-    result: Result<T, E>,
-    step: &'static str,
-) -> Option<T> {
+pub fn ok_or_warn<T, E: std::fmt::Display>(result: Result<T, E>, step: &'static str) -> Option<T> {
     result
         .map_err(|e| tracing::warn!(step, error = %e, "background step failed"))
         .ok()

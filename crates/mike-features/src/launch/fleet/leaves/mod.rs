@@ -50,10 +50,8 @@ pub fn model(state: &AppState) -> Option<OpenRouterLeaf> {
     ));
     crate::llm::key::effective_client(&base, &state.steerer_openrouter_key).map(OpenRouterLeaf::new)
 }
-pub const JUDGE_PROMPT: &str =
-    include_str!("../../../../../../.claude/fleet/leaves/judge.md");
-pub const CHECKER_PROMPT: &str =
-    include_str!("../../../../../../.claude/fleet/leaves/checker.md");
+pub const JUDGE_PROMPT: &str = include_str!("../../../../../../.claude/fleet/leaves/judge.md");
+pub const CHECKER_PROMPT: &str = include_str!("../../../../../../.claude/fleet/leaves/checker.md");
 pub const SOLVER_PROMPT: &str =
     include_str!("../../../../../../.claude/fleet/leaves/problem-solver.md");
 

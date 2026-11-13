@@ -44,10 +44,7 @@ pub fn keep_reporting(
     (kept, report.with_left_out(left_out, rescue.score))
 }
 
-pub fn keep(
-    arranged: Vec<(Value, Option<f32>)>,
-    rescue: Rescue,
-) -> Vec<(Value, Option<f32>)> {
+pub fn keep(arranged: Vec<(Value, Option<f32>)>, rescue: Rescue) -> Vec<(Value, Option<f32>)> {
     let best = arranged
         .iter()
         .map(|(row, _)| semantic(row))

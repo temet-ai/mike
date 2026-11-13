@@ -3,10 +3,7 @@ use super::overrides_launch::apply_launch_override;
 use super::overrides_rerank::apply_rerank_override;
 use super::schema::ProxyConfig;
 
-pub fn apply_settings_overrides(
-    cfg: &mut ProxyConfig,
-    rows: &[(String, serde_json::Value)],
-) {
+pub fn apply_settings_overrides(cfg: &mut ProxyConfig, rows: &[(String, serde_json::Value)]) {
     for (key, value) in rows {
         let key = key.as_str();
         let _handled = apply_composition_and_embedding_override(cfg, key, value)

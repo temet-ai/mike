@@ -23,11 +23,7 @@ pub fn relative_path(value: &str) -> Result<&str, String> {
     Ok(value)
 }
 
-pub async fn run(
-    repo: &str,
-    args: &[&str],
-    differences: bool,
-) -> Result<(Vec<u8>, bool), String> {
+pub async fn run(repo: &str, args: &[&str], differences: bool) -> Result<(Vec<u8>, bool), String> {
     tokio::time::timeout(Duration::from_secs(10), output(repo, args, differences))
         .await
         .map_err(|_| "diff lookup exceeded ten seconds".to_string())?

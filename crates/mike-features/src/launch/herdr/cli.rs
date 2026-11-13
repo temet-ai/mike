@@ -65,11 +65,7 @@ impl HerdrCli {
         Ok(String::from_utf8_lossy(&output.stdout).into_owned())
     }
 
-    pub async fn run_json(
-        &self,
-        args: &[String],
-        timeout: Duration,
-    ) -> Result<Value, LaunchError> {
+    pub async fn run_json(&self, args: &[String], timeout: Duration) -> Result<Value, LaunchError> {
         let output = self.run_raw(args, timeout).await?;
         if !output.status.success() {
             return Err(failure(args, &output));

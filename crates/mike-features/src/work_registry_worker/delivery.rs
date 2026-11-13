@@ -93,9 +93,7 @@ pub fn retry_state(
     }
 }
 
-pub fn next_retry<'a>(
-    records: impl Iterator<Item = &'a AttentionRecord>,
-) -> Option<DateTime<Utc>> {
+pub fn next_retry<'a>(records: impl Iterator<Item = &'a AttentionRecord>) -> Option<DateTime<Utc>> {
     records
         .filter(|r| may_act(r) && r.delivery_attempts > 0)
         .filter_map(|r| {
@@ -116,10 +114,7 @@ fn is_recent(item: &Attention, now: DateTime<Utc>) -> bool {
     item.since > now - chrono::Duration::hours(DELIVER_RECENT_HOURS)
 }
 
-pub fn current<'a>(
-    still_true: Option<&'a [Attention]>,
-    item: &Attention,
-) -> Option<&'a Attention> {
+pub fn current<'a>(still_true: Option<&'a [Attention]>, item: &Attention) -> Option<&'a Attention> {
     still_true?
         .iter()
         .find(|other| other.kind == item.kind && other.subject == item.subject)
@@ -137,10 +132,7 @@ pub async fn settle(
         .await
 }
 
-pub async fn rescan(
-    persist: &PersistHandle,
-    session_db_id: i64,
-) -> Result<(), PersistError> {
+pub async fn rescan(persist: &PersistHandle, session_db_id: i64) -> Result<(), PersistError> {
     persist.launch().backfill_work_items(session_db_id).await?;
     for job in persist.launch().open_background_jobs(session_db_id).await? {
         let Some((ended, at)) = read_end(&job.output_path).await else {

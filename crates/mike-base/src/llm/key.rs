@@ -109,10 +109,7 @@ pub fn cli_api_key_in(
     Err(missing_key_error(model, tier.is_some(), policy.provider()))
 }
 
-pub fn keyed_client(
-    base: &OpenRouterClient,
-    slot: &OpenRouterKeySlot,
-) -> Option<OpenRouterClient> {
+pub fn keyed_client(base: &OpenRouterClient, slot: &OpenRouterKeySlot) -> Option<OpenRouterClient> {
     with_key(base, api_key_text(slot))
 }
 

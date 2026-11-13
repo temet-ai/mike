@@ -47,12 +47,7 @@ pub fn log_sweep_tripped(turn_id: i64) {
     );
 }
 
-pub fn log_below_threshold(
-    turn_id: i64,
-    label: &JudgeLabel,
-    confidence: f32,
-    threshold: f32,
-) {
+pub fn log_below_threshold(turn_id: i64, label: &JudgeLabel, confidence: f32, threshold: f32) {
     tracing::debug!(
         turn_id,
         label = ?label,

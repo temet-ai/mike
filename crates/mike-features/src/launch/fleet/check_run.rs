@@ -235,11 +235,7 @@ pub fn checkout_used(repo: &str, isolated: bool) -> std::path::PathBuf {
     clean.unwrap_or_else(|| std::path::PathBuf::from(repo))
 }
 
-pub async fn execute(
-    def: &FleetDefinition,
-    at: &Target,
-    run: &str,
-) -> (Option<i32>, String) {
+pub async fn execute(def: &FleetDefinition, at: &Target, run: &str) -> (Option<i32>, String) {
     let isolated = !is_command(run) || baseline::is_baseline(run);
     if !isolated {
         return check_shared_tree(def, base_run(run), &def.check.command).await;

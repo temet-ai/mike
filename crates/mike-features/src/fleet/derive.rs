@@ -62,10 +62,7 @@ pub struct DerivedQuality {
     pub rationale: String,
 }
 
-pub fn derive_quality(
-    outcome: Option<&str>,
-    rationale: Option<&str>,
-) -> Option<DerivedQuality> {
+pub fn derive_quality(outcome: Option<&str>, rationale: Option<&str>) -> Option<DerivedQuality> {
     let outcome = outcome?.trim();
     if outcome.is_empty() || outcome == "unknown" {
         return None;

@@ -82,11 +82,7 @@ pub fn spawn_rerank_nightly(state: &AppState) {
     );
 }
 
-pub async fn run_tick(
-    state: &AppState,
-    persist: &PersistHandle,
-    now: DateTime<Utc>,
-) -> Tick {
+pub async fn run_tick(state: &AppState, persist: &PersistHandle, now: DateTime<Utc>) -> Tick {
     if !state.rerank_service().current_config().tuning_enabled {
         return Tick::TuningOff;
     }

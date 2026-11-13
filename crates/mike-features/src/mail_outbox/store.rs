@@ -107,11 +107,7 @@ pub async fn load(pool: &PgPool, message: Uuid) -> Result<Option<Mail>, sqlx::Er
     }))
 }
 
-pub async fn rebind(
-    pool: &PgPool,
-    message: Uuid,
-    generation: i64,
-) -> Result<(), sqlx::Error> {
+pub async fn rebind(pool: &PgPool, message: Uuid, generation: i64) -> Result<(), sqlx::Error> {
     sqlx::query(sql::REBIND) // grader-allow: runtime query, the fleet cannot build .sqlx entries
         .bind(message)
         .bind(generation)

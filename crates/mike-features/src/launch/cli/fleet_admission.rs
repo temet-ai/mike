@@ -82,11 +82,7 @@ pub async fn record_opened(
     Ok(())
 }
 
-pub async fn record_unconfirmed(
-    runner: &Runner<'_>,
-    launch: Option<i64>,
-    error: &LaunchError,
-) {
+pub async fn record_unconfirmed(runner: &Runner<'_>, launch: Option<i64>, error: &LaunchError) {
     let mut outcome = super::super::open_outcome::failed_outcome("fleet_open_unconfirmed", error);
     outcome.result = "pending".into();
     runner.ledger.record_outcome(launch, &outcome).await;

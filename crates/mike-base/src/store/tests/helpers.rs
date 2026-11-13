@@ -1,9 +1,7 @@
 use super::*;
 pub use crate::store::FindingView;
 pub use crate::store::RequestStore;
-pub use crate::store::models::{
-    Diagnostic, DiagnosticCategory, InterceptedRequest, RequestId,
-};
+pub use crate::store::models::{Diagnostic, DiagnosticCategory, InterceptedRequest, RequestId};
 pub use crate::store::retention::RetentionPolicy;
 pub use crate::store::views::FindingRequestRef;
 pub use chrono::{DateTime, Duration as ChronoDuration, Utc};

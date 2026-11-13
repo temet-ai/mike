@@ -83,11 +83,7 @@ pub async fn mailbox_state(
     .await
 }
 
-pub async fn mark_taken(
-    pool: &PgPool,
-    message: Uuid,
-    consumed: bool,
-) -> Result<(), sqlx::Error> {
+pub async fn mark_taken(pool: &PgPool, message: Uuid, consumed: bool) -> Result<(), sqlx::Error> {
     sqlx::query(
         // grader-allow: runtime query, the fleet cannot build .sqlx entries
         "UPDATE mailbox.messages

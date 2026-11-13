@@ -15,10 +15,7 @@ impl LoginRegistry {
         }
     }
 
-    pub async fn start(
-        &self,
-        cli: &AnthropicCli,
-    ) -> Result<LoginStatusDto, AnthropicCliError> {
+    pub async fn start(&self, cli: &AnthropicCli) -> Result<LoginStatusDto, AnthropicCliError> {
         let mut guard = self.slot.lock().await;
         if let Some(existing) = guard.as_ref()
             && !existing.is_terminal().await

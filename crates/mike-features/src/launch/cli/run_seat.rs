@@ -25,11 +25,7 @@ pub async fn resolve(runner: &Runner<'_>, split: &SplitLaunchArgs) -> RunPlaceme
     RunPlacement { run_tab, run }
 }
 
-pub async fn record_workspace(
-    runner: &Runner<'_>,
-    request: &OpenRequest,
-    surface: &Surface,
-) {
+pub async fn record_workspace(runner: &Runner<'_>, request: &OpenRequest, surface: &Surface) {
     let (Some(run), Some(workspace)) = (&request.run, &surface.workspace_ref) else {
         return;
     };

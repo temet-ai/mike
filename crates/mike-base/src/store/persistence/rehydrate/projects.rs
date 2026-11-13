@@ -57,9 +57,7 @@ pub struct ProjectCountsRow {
     pub request_count: i64,
 }
 
-pub async fn list_project_counts(
-    pool: &PgPool,
-) -> Result<Vec<ProjectCountsRow>, PersistError> {
+pub async fn list_project_counts(pool: &PgPool) -> Result<Vec<ProjectCountsRow>, PersistError> {
     let rows = sqlx::query_as!(
         ProjectCountsRow,
         r#"SELECT COALESCE(sa.project_id, ra.project_id) AS "project_id!",

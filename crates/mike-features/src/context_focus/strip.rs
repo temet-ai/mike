@@ -112,9 +112,7 @@ fn cleaned_delta_event(index: u64, json: &str) -> Vec<u8> {
     format!("event: content_block_delta\ndata: {data}\n\n").into_bytes()
 }
 
-pub fn strip_stream<S, E>(
-    upstream: S,
-) -> impl futures::Stream<Item = Result<Bytes, std::io::Error>>
+pub fn strip_stream<S, E>(upstream: S) -> impl futures::Stream<Item = Result<Bytes, std::io::Error>>
 where
     S: futures::Stream<Item = Result<Bytes, E>> + Unpin,
     E: std::fmt::Display,

@@ -215,10 +215,7 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
         .await
     }
 
-    pub async fn restore_lesson(
-        self,
-        id: i64,
-    ) -> Result<RestoreLessonOutcome, PersistError> {
+    pub async fn restore_lesson(self, id: i64) -> Result<RestoreLessonOutcome, PersistError> {
         crate::metrics::time_db("restore_lesson", async move {
             let restored_id = sqlx::query_file_scalar!(
                 "src/store/persistence/consolidation_reads/restore_lesson.sql",

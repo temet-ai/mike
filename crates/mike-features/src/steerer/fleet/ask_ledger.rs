@@ -230,11 +230,7 @@ fn log_no_usable_key_for_reauthoring(session_uuid: Uuid) {
     );
 }
 
-pub async fn reauthor_intake_criteria(
-    ctx: &FleetCtx,
-    ph: &PersistHandle,
-    session_uuid: Uuid,
-) {
+pub async fn reauthor_intake_criteria(ctx: &FleetCtx, ph: &PersistHandle, session_uuid: Uuid) {
     let Some(session_db_id) = ph
         .resolve_session_db_id(&session_uuid.to_string())
         .await

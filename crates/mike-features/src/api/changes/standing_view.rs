@@ -7,10 +7,7 @@ use super::resolve::{FleetSeat, Resolved};
 use crate::change_record::answers;
 use crate::store::persistence::PersistHandle;
 
-pub async fn standing(
-    persist: &PersistHandle,
-    resolved: &Resolved,
-) -> Result<Value, ChangesError> {
+pub async fn standing(persist: &PersistHandle, resolved: &Resolved) -> Result<Value, ChangesError> {
     let caller = resolved.caller()?;
     let answer = answers::standing(persist, &caller).await?;
     let mut value =
