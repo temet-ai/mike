@@ -42,7 +42,7 @@ pub fn model_keys(service: &EmbeddingService) -> ModelKeys {
     keys_for(&service.model_name(), service.chunk_max_chars())
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub fn unversioned_v2_key(model: &str, chunk_max_chars: usize) -> String {
     hex_digest(&format!("knowledge-v2:{model}:{chunk_max_chars}"))
 }

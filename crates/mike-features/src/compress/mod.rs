@@ -26,11 +26,11 @@ pub struct BlockStat {
 pub enum CompressOutcome {
     Unchanged,
     Compressed {
-        #[cfg(any(test, feature = "test-seams"))]
+        #[cfg(test)]
         new_body: Bytes,
         original_len: usize,
         compressed_len: usize,
-        #[cfg(any(test, feature = "test-seams"))]
+        #[cfg(test)]
         blocks: Vec<BlockStat>,
     },
 }

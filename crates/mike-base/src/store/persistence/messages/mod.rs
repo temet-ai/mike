@@ -22,7 +22,7 @@ pub use canonicalize::{CanonicalMessage, canonicalise_body_messages, write_reque
 pub use canonicalize::{hex_lowercase, invariant};
 pub use delta::{DeltaRow, SentPatch};
 pub use delta::{compute_delta, write_request_deltas};
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub use envelope_patch::compute_envelope_patch;
 pub use envelope_patch::whole_body_envelope_patch;
 pub use reads::{PersistedDeltaRow, fetch_request_deltas_by_id};

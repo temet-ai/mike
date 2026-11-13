@@ -14,7 +14,7 @@ pub use fleet::{
 pub use mike_codex::{CodexError, CodexSeat, McpBinding, SeatOptions, TurnOutcome};
 pub use model::{CODEX_EFFORTS, agent_problem, effort_problem, model_problem};
 pub use options::seat_codex_home;
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub use options::{operator_codex_home, prepare_home, seat_policy};
 pub use plan::{begin_planned, seat_options};
 pub use register::{CODEX_BACKEND, CODEX_BACKEND_REASON, bind_seat_thread, namespace_for};

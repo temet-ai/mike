@@ -54,7 +54,7 @@ impl QueryVectorCache {
         entries.vectors.insert(key, vector);
     }
 
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.entries
             .lock()

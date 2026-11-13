@@ -31,7 +31,7 @@ impl RoleShares {
         Self { pct }
     }
 
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     pub fn with_pct(mut self, role: LlmRole, pct: u32) -> Self {
         if let Some(slot) = self.pct.get_mut(role.index()) {
             *slot = pct;
@@ -87,7 +87,7 @@ impl Budget {
         }
     }
 
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     pub fn is_exhausted(&self) -> bool {
         self.calls_now == 0
     }

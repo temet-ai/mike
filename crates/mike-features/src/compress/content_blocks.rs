@@ -44,9 +44,9 @@ pub fn measure_body(raw: &[u8], cfg: &CompressConfig) -> CompressOutcome {
     CompressOutcome::Compressed {
         original_len: raw.len(),
         compressed_len: new_bytes.len(),
-        #[cfg(any(test, feature = "test-seams"))]
+        #[cfg(test)]
         new_body: Bytes::from(new_bytes),
-        #[cfg(any(test, feature = "test-seams"))]
+        #[cfg(test)]
         blocks,
     }
 }

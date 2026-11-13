@@ -74,7 +74,7 @@ pub enum ModelTier {
 }
 
 impl ModelTier {
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     pub const ALL: [ModelTier; 3] = [Self::Fast, Self::Standard, Self::Strong];
 
     pub fn for_role(role: LlmRole) -> Option<Self> {

@@ -4,7 +4,7 @@ use uuid::Uuid;
 use super::store_sql as sql;
 use super::{Mode, Runtime, Stage};
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub struct NewMail<'a> {
     pub message: Uuid,
     pub to: Uuid,
@@ -68,7 +68,7 @@ pub enum StageWrite {
     Stale,
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub async fn enqueue(pool: &PgPool, mail: &NewMail<'_>) -> Result<bool, sqlx::Error> {
     sqlx::query_scalar::<_, bool>(sql::ENQUEUE) // grader-allow: runtime query, the fleet cannot build .sqlx entries
         .bind(mail.message)
@@ -207,7 +207,7 @@ pub async fn stages(
         .collect())
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub async fn attempts(pool: &PgPool, message: Uuid) -> Result<Vec<Attempt>, sqlx::Error> {
     sqlx::query_as::<_, Attempt>(sql::ALL_ATTEMPTS) // grader-allow: runtime query, the fleet cannot build .sqlx entries
         .bind(message)

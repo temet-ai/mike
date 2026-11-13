@@ -68,7 +68,7 @@ impl StepClass {
     }
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub const JC03_CLASSES: [&str; 7] = [
     "commit",
     "push",
@@ -78,7 +78,7 @@ pub const JC03_CLASSES: [&str; 7] = [
     "proceed",
     "ask_first",
 ];
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub const PENDING_JC03_CLASSES: [&str; 4] =
     ["file_issue", "fix_found", "pick_option", "run_command"];
 

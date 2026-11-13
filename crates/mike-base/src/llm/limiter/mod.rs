@@ -163,7 +163,7 @@ pub struct CallLimiter {
 }
 
 impl CallLimiter {
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     pub fn new(
         rate_limit_per_minute: u32,
         rate_window: Duration,

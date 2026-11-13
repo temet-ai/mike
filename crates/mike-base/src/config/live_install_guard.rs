@@ -19,7 +19,7 @@ pub fn home() -> Option<PathBuf> {
     directories::BaseDirs::new().map(|dirs| private(dirs.home_dir().to_path_buf()))
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub fn private(path: PathBuf) -> PathBuf {
     if path.starts_with(std::env::temp_dir()) {
         return path;
@@ -30,12 +30,12 @@ pub fn private(path: PathBuf) -> PathBuf {
     }
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 fn test_home() -> PathBuf {
     std::env::temp_dir().join(format!("mike-test-home-{}", unsafe { libc::getuid() }))
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub fn refuse(path: &Path) {
     if path.starts_with(std::env::temp_dir()) {
         return;
@@ -49,7 +49,7 @@ pub fn refuse(path: &Path) {
     }
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 fn live_roots() -> &'static [std::path::PathBuf] {
     static ROOTS: std::sync::OnceLock<Vec<std::path::PathBuf>> = std::sync::OnceLock::new();
     ROOTS.get_or_init(|| {
@@ -59,7 +59,7 @@ fn live_roots() -> &'static [std::path::PathBuf] {
     })
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 fn roots_in(home: &Path) -> Vec<std::path::PathBuf> {
     [
         ".local/state/mike",
@@ -72,7 +72,7 @@ fn roots_in(home: &Path) -> Vec<std::path::PathBuf> {
     .collect()
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 fn account_home() -> Option<std::path::PathBuf> {
     use std::ffi::CStr;
     use std::os::unix::ffi::OsStrExt;

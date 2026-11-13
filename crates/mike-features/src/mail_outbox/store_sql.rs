@@ -1,4 +1,4 @@
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub const ENQUEUE: &str = "WITH row AS (
          INSERT INTO mailbox.outbox
              (message_uuid, to_session, from_session, runtime, scope, body, generation)
@@ -21,7 +21,7 @@ pub const LATEST_ATTEMPT: &str = "SELECT attempt_uuid AS attempt, attempt_no AS 
    FROM mailbox.outbox_attempts
   WHERE message_uuid = $1 ORDER BY attempt_no DESC LIMIT 1";
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub const ALL_ATTEMPTS: &str = "SELECT attempt_uuid AS attempt, attempt_no AS number,
         generation, mode, expected_turn_id, outcome, turn_id, detail
    FROM mailbox.outbox_attempts

@@ -215,7 +215,7 @@ impl OpenRouterClient {
         }
     }
 
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     pub fn call_context(&self) -> LlmCallContext {
         self.inner.call_context
     }

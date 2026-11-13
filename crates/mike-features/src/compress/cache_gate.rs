@@ -80,7 +80,7 @@ impl CacheGate {
     }
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub fn seed_cold_lane(reducer: &'static str, raw: &[u8]) {
     let body: Value = serde_json::from_slice(raw).unwrap_or(Value::Null);
     LANES.lock().unwrap_or_else(PoisonError::into_inner).insert(

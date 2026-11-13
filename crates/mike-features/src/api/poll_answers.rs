@@ -168,7 +168,7 @@ impl<V: Clone + Weigh> AnswerCache<V> {
         );
     }
 
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     pub fn len(&self) -> usize {
         self.shelf().entries.len()
     }
@@ -202,7 +202,7 @@ impl PollAnswers {
         }
     }
 
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     pub fn freeze_clock(&self, unix_secs: u64) {
         self.shelves.frozen_at.store(unix_secs, Ordering::Relaxed);
     }

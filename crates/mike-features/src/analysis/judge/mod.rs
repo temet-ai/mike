@@ -194,7 +194,7 @@ impl JudgeFailure {
     }
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub async fn run_judge(
     llm: &crate::llm::OpenRouterClient,
     c: &JudgeCandidateRow,
@@ -215,7 +215,7 @@ pub async fn run_judge_with_usage(
     .await
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 async fn run_judge_with_backoff_base(
     llm: &crate::llm::OpenRouterClient,
     c: &JudgeCandidateRow,

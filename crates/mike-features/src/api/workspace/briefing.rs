@@ -194,7 +194,7 @@ pub fn build_briefing_parts(ctx: BriefingContext) -> Briefing {
     }
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub fn build_briefing(ctx: BriefingContext) -> String {
     build_briefing_parts(ctx).text()
 }

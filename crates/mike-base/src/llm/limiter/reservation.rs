@@ -52,7 +52,7 @@ impl Reservation {
         self.held.granted
     }
 
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     pub fn remaining(&self) -> u32 {
         self.held.remaining.load(Ordering::Relaxed)
     }

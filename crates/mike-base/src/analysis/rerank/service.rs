@@ -93,7 +93,7 @@ impl RerankService {
         }
     }
 
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     pub fn with_score_limits(
         config: &RerankConfig,
         capacity: usize,
@@ -106,12 +106,12 @@ impl RerankService {
         )
     }
 
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     pub fn age_cached_scores(&self, by: Duration) {
         self.inner.scores.advance(by);
     }
 
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     pub fn cached_score_count(&self) -> usize {
         self.inner.scores.len()
     }

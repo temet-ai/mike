@@ -177,12 +177,12 @@ impl ChangeFeed {
         lock(&self.inner.state).current
     }
 
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     pub fn table_generation(&self, table: RowChangedTable) -> Generation {
         lock(&self.inner.state).table_generation(table)
     }
 
-    #[cfg(any(test, feature = "test-seams"))]
+    #[cfg(test)]
     pub fn session_generation(&self, table: RowChangedTable, session: &str) -> Generation {
         lock(&self.inner.state).session_generation(table, session)
     }

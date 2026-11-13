@@ -11,7 +11,7 @@ pub mod status_cache;
 #[cfg(test)]
 pub mod tests;
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub use cli::AnthropicCli;
 pub use env::clean_cli_env_from;
 pub use error::AnthropicCliError;
