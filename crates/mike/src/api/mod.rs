@@ -1,4 +1,4 @@
-pub use mike_features::api::*;
+pub use mike_lessons::api::*;
 pub(crate) mod compression_review;
 pub(crate) mod config_history;
 pub(crate) mod db_cost;

@@ -1,0 +1,116 @@
+[package]
+name = "mike-lessons"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "Lessons, memory keeper, recall and lesson delivery of mike (crate split S5, docs/adr/0002-split-crate-mike.md)."
+
+[lib]
+name = "mike_lessons"
+path = "src/lib.rs"
+
+[features]
+default = []
+# Test-only seams other crates' tests reach (see crates/mike/Cargo.toml).
+test-seams = ["mike-base/test-seams", "mike-runtime/test-seams", "mike-launch/test-seams", "mike-knowledge/test-seams", "mike-features/test-seams"]
+ts-export = ["dep:ts-rs", "mike-base/ts-export", "mike-runtime/ts-export", "mike-launch/ts-export", "mike-knowledge/ts-export", "mike-features/ts-export"]
+
+[dependencies]
+mike-base = { path = "../mike-base" }
+mike-runtime = { path = "../mike-runtime" }
+mike-launch = { path = "../mike-launch" }
+mike-knowledge = { path = "../mike-knowledge" }
+mike-features = { path = "../mike-features" }
+anyhow = { workspace = true }
+arc-swap = "1"
+async-trait = { workspace = true }
+axum = { version = "0.8", features = ["ws"] }
+bytes = { workspace = true }
+bytesize = { workspace = true }
+chrono = { workspace = true }
+clap = { version = "4", features = ["derive"] }
+# TUI control center (temet-ai/mike-private#50). Only mike consumes these, so they stay direct
+# crate deps rather than a workspace.dependencies entry, matching rust-embed
+# below. ratatui and crossterm move together — ratatui re-exports the crossterm
+# event types the TUI matches on, so a mismatched pair compiles two crossterms
+# and the types stop lining up.
+crossterm = "0.29"
+ratatui = "0.30"
+dashmap = { workspace = true }
+notify = { version = "8.2", default-features = false, features = ["macos_fsevent"] }
+directories = { workspace = true }
+dotenvy = "0.15"
+eventsource-stream = "0.2"
+figment = { workspace = true }
+futures = "0.3"
+hex = { workspace = true }
+http-body-util = "0.1"
+humantime = { workspace = true }
+# Phase 1 — memory attribution. `getrusage(RUSAGE_SELF)` for peak RSS
+# in `crate::diagnostics::rss`. Already a transitive dep through tokio
+# / sqlx; explicit here is cheaper than peeling those features apart.
+libc = "0.2"
+metrics = "0.24"
+metrics-exporter-prometheus = { version = "0.18", default-features = false }
+mike-codex = { path = "../mike-codex" }
+# Embeds the built SvelteKit SPA (`frontend/build/`) into the binary for
+# the third (SPA) bind — see `src/spa.rs` and `build.rs`. Only `mike`
+# consumes this, so it stays a direct crate dep rather than a
+# `[workspace.dependencies]` entry.
+mime_guess = "2"
+# The TLS-MITM sidecar, run from this binary as `mike forward`; also the single
+# source of the sidecar CA's location.
+proxy-forward = { path = "../proxy-forward" }
+regex = "1"
+reqwest = { workspace = true }
+rust-embed = "8"
+rustix = { version = "1.1.6", features = ["process", "fs"] }
+secrecy = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+similar = { workspace = true }
+sqlx = { workspace = true }
+tempfile = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = "0.1"
+tokio-util = { version = "0.7", features = ["rt"] }
+toml = "1.1"
+toml_edit = { workspace = true }
+# Already present in the build graph transitively (via reqwest); promoted to
+# a direct dep so the mailbox `context` XSS guard (kind:url must be http(s))
+# parses with a real URL grammar instead of a hand-rolled prefix check. Only
+# mike consumes this, so it stays a direct crate dep per the workspace's
+# single-consumer convention (see `mime_guess`/`crossterm` above).
+url = "2"
+# Optional: only compiled under `--features ts-export` (the Rust→TS type
+# generator). Default builds never pull it in. `no-serde-warnings` silences
+# the build-time advice about serde attrs ts-rs can't fully model; the DTOs
+# annotate any foreign field types explicitly via `#[ts(type = "...")]`.
+ts-rs = { version = "12", optional = true, features = ["no-serde-warnings"] }
+tower = "0.5"
+tower-http = { version = "0.7", features = ["compression-gzip", "cors", "request-id", "timeout", "trace"] }
+tracing = { workspace = true }
+tracing-opentelemetry = "0.33"
+tracing-appender = "0.2"
+tracing-subscriber = { workspace = true, features = ["json"] }
+opentelemetry = { version = "0.32", features = ["trace"] }
+opentelemetry_sdk = { version = "0.32", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.32", features = ["grpc-tonic", "trace"] }
+uuid = { workspace = true }
+
+[dev-dependencies]
+mike-base = { path = "../mike-base", features = ["test-seams"] }
+mike-runtime = { path = "../mike-runtime", features = ["test-seams"] }
+mike-launch = { path = "../mike-launch", features = ["test-seams"] }
+mike-knowledge = { path = "../mike-knowledge", features = ["test-seams"] }
+mike-features = { path = "../mike-features", features = ["test-seams"] }
+futures = "0.3"
+insta = { version = "1", features = ["json"] }
+proptest = "1"
+proptest-derive = "0.8"
+serial_test = { version = "4", default-features = false }
+tokio-tungstenite = { version = "0.29", default-features = false, features = ["connect", "handshake"] }
+wiremock = "0.6"

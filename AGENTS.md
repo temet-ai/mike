@@ -23,7 +23,10 @@ A Rust reverse proxy for Claude API traffic: two Rust binaries, one SPA process.
 Crate mike is being split ([ADR 0002](docs/adr/0002-split-crate-mike.md)): `crates/mike-base`
 (shared types, wire, config, `PersistHandle`, LLM clients), `crates/mike-runtime` (runtime
 observation, Codex), `crates/mike-launch` (launch, mailbox, work threads, fleet),
-`crates/mike-features` (proxy features, knowledge, steering, eval, lessons) and `crates/mike`
+`crates/mike-knowledge` (project knowledge, semantic, rerank, embeddings),
+`crates/mike-features` (proxy features, dossier, steering, eval), `crates/mike-lessons`
+(lessons, memory keeper, recall, lesson delivery; reached by the proxy through
+`LessonHooks`) and `crates/mike`
 (API, serve, CLI, binary). Modules keep their paths in every crate; `scripts/crate-plan`
 names the crate a new module belongs in.
 Design rationale lives in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); only

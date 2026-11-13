@@ -1,6 +1,5 @@
 pub mod brief_delivery_tests;
 pub mod fleet_admission_tests;
-pub mod fleet_carry_tests;
 pub mod fleet_run_notes_tests;
 pub mod mailbox_drain_integration_tests;
 pub mod mailbox_drain_support_tests;

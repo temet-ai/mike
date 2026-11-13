@@ -161,7 +161,7 @@ def default_dependency_contract():
                 "state": "NOT_RUN", "current_response_has_update_tag": False,
                 "required_response_tag": '<mem:update topic="synthetic">synthetic lesson</mem:update>',
                 "needed": "Synthetic update tag plus durable harvested-lesson/provenance checks.",
-                "source": "crates/mike-features/src/memory_harvester/parser.rs",
+                "source": "crates/mike-lessons/src/memory_harvester/parser.rs",
             },
         },
         "limits": [

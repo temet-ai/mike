@@ -1,4 +1,3 @@
-use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::collections::BTreeMap;
 
@@ -87,7 +86,7 @@ async fn project_pairs(
         })
         .collect();
     Ok(Ok(persist
-        .knowledge()
+        .lessons()
         .upsert_lesson_pair_candidates(&kept)
         .await?))
 }

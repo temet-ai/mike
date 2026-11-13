@@ -113,7 +113,7 @@ class FixtureTests(OfflineTests):
         self.assertEqual(rows[0]["request_id"], 1)
 
     def test_marker_and_tag_source_contracts_remain_current(self):
-        parser = (ROOT / "crates/mike-features/src/memory_harvester/parser.rs").read_text()
+        parser = (ROOT / "crates/mike-lessons/src/memory_harvester/parser.rs").read_text()
         self.assertIn('find("<mem:update ")', parser)
         self.assertIn('let close_tag = "</mem:update>"', parser)
         source = (ROOT / "crates/mike-base/src/extract/request/project_scan.rs").read_text()
