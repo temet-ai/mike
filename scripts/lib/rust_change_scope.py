@@ -106,7 +106,7 @@ def area_commands(root, paths, packages):
     area_paths = [path for path in paths if not global_change(path)
                   and not path.endswith("Cargo.toml") and not path.startswith(".sqlx/")]
     selected = changed_packages(root, area_paths, packages)
-    suffix = ["--ignore-default-filter", "--no-fail-fast"]
+    suffix = ["--ignore-default-filter", "--no-fail-fast", "--no-tests=pass"]
     if selected is None:
         return [prefix + ["--workspace", "--tests", "--no-fail-fast"]]
     if not selected and any(rust_input(path) for path in paths):
