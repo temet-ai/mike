@@ -3,7 +3,9 @@ use serde_json::Value;
 
 use super::BUILDER_VERSION;
 use super::checks::{BashResult, BashUse, Check, RegistryRow, derive_checks, failed_count};
-use super::ended_on::{ENDED_ON_VERSION, TextSpan, non_sidecar_text};
+pub use crate::wire::text_span::parse_spans;
+
+use super::ended_on::{ENDED_ON_VERSION, non_sidecar_text};
 use super::resolve::{AsOf, TurnResolved};
 use super::session_class::ClassResult;
 use crate::store::persistence::turn_facts::{
@@ -96,24 +98,6 @@ impl Derived {
 
 fn checks_json(checks: &[Check]) -> Value {
     serde_json::to_value(checks).unwrap_or_else(|_| Value::Array(Vec::new()))
-}
-
-pub fn parse_spans(value: &Value) -> Vec<TextSpan> {
-    let Some(items) = value.as_array() else {
-        return Vec::new();
-    };
-    items
-        .iter()
-        .filter_map(|item| {
-            Some(TextSpan {
-                origin: item.get("origin")?.as_str()?.to_string(),
-                start: usize::try_from(item.get("start")?.as_i64()?).ok()?,
-                end: usize::try_from(item.get("end")?.as_i64()?).ok()?,
-                first_request_id: item.get("first_request_id")?.as_i64()?,
-                last_request_id: item.get("last_request_id")?.as_i64()?,
-            })
-        })
-        .collect()
 }
 
 pub fn content_text(content: &Value) -> String {

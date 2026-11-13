@@ -51,7 +51,6 @@ async fn turn_closed_at(
     turn_id: i64,
 ) -> Result<DateTime<Utc>, Response> {
     let located = persist
-        .dossier()
         .locate_turn(turn_id)
         .await
         .map_err(|e| error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
@@ -186,7 +185,7 @@ pub async fn get_turn_facts(State(state): State<AppState>, Path(turn_id): Path<i
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    let located = match persist.dossier().locate_turn(turn_id).await {
+    let located = match persist.locate_turn(turn_id).await {
         Ok(Some(located)) => located,
         Ok(None) => return error(StatusCode::NOT_FOUND, format!("unknown turn {turn_id}")),
         Err(e) => return error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),

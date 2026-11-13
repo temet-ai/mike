@@ -1,4 +1,5 @@
 pub mod bundles;
+pub mod embedding_drift;
 pub mod labels;
 pub mod metrics;
 pub mod projection;

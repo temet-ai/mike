@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use super::GraphEdgeDto;
 use super::bad_request;
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::web_base::{persist_error_response, persist_unavailable_response};
 
 #[derive(Debug, Clone, Serialize)]
@@ -234,7 +234,7 @@ async fn build_neighbour_graph(
 }
 
 pub async fn get_session_embedding_graph(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Path(id): Path<String>,
     Query(params): Query<SessionEmbeddingGraphParams>,
 ) -> Result<Json<SessionEmbeddingGraphResponse>, Response> {

@@ -265,7 +265,7 @@
   "api/handlers/filter_dry_run": "web",
   "api/handlers/filter_rule_dto": "proxy",
   "api/handlers/filters": "proxy",
-  "api/handlers/health": "knowledge",
+  "api/handlers/health": "web",
   "api/handlers/health_03": "web",
   "api/handlers/lesson_create": "lessons",
   "api/handlers/lesson_project_guard": "lessons",
@@ -608,7 +608,10 @@
   "work_registry_worker": "launch",
   "work_threads": "launch",
   "workspace": "db",
-  "wright": "serve"
+  "wright": "serve",
+  "dossier/as_of": "model",
+  "eval_metrics/drift_alarms": "eval",
+  "state/knowledge_state": "state"
  },
  "schemas": {
   "comment": "Owning crate per Postgres schema, or per schema.table where a table belongs elsewhere (ADR 0003). Longest key wins. Only the owner writes; other crates read the owner's tables or its contract views.",

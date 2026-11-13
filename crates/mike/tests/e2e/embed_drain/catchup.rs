@@ -38,7 +38,10 @@ async fn idle_catchup_drains_multiple_batches_and_active_catchup_limits_work() -
         serde_json::json!(embedding.uri()),
     )
     .await?;
-    assert_eq!(mike::embed_worker::run_catchup_once(&state).await, 40);
+    assert_eq!(
+        mike::embed_worker::run_catchup_once(&state.knowledge_state()).await,
+        40
+    );
     for index in 0..20 {
         insert_closed_turn(
             &pool,
@@ -49,8 +52,14 @@ async fn idle_catchup_drains_multiple_batches_and_active_catchup_limits_work() -
         )
         .await?;
     }
-    assert_eq!(mike::embed_worker::run_catchup_once(&state).await, 16);
-    assert_eq!(mike::embed_worker::run_catchup_once(&state).await, 4);
+    assert_eq!(
+        mike::embed_worker::run_catchup_once(&state.knowledge_state()).await,
+        16
+    );
+    assert_eq!(
+        mike::embed_worker::run_catchup_once(&state.knowledge_state()).await,
+        4
+    );
     shutdown.cancel();
     test_db.cleanup().await?;
     Ok(())

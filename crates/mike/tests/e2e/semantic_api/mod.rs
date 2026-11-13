@@ -51,7 +51,7 @@ async fn semantic_toggle_off_idles_worker_and_on_resumes_without_restart() -> an
         toggle(false).await?.status().is_success(),
         "PATCH semantic_context off failed"
     );
-    let off = mike::semantic::run_semantic_once(&state).await?;
+    let off = mike::semantic::run_semantic_once(&state.knowledge_state()).await?;
     assert_eq!(off.status, "disabled");
     let items: i64 = sqlx::query_scalar("SELECT count(*) FROM memory.semantic_items")
         .fetch_one(&pool)
@@ -61,7 +61,7 @@ async fn semantic_toggle_off_idles_worker_and_on_resumes_without_restart() -> an
         toggle(true).await?.status().is_success(),
         "PATCH semantic_context on failed"
     );
-    let on = mike::semantic::run_semantic_once(&state).await;
+    let on = mike::semantic::run_semantic_once(&state.knowledge_state()).await;
     assert!(
         on.is_err() || on.is_ok_and(|r| r.status != "disabled"),
         "the next tick does work again"

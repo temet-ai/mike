@@ -2,7 +2,7 @@ use chrono::Utc;
 use serde_json::{Value, json};
 
 use super::{Idle, LEASE_ROLE, Pass, Stop, TICK_INTERVAL, night_pass, quiet_budget, report};
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::PersistHandle;
 
 const MAX_PASSES: usize = 50;
@@ -23,7 +23,7 @@ impl Idle for OperatorAsked {
     }
 }
 
-pub async fn run_pass_now(state: &AppState) -> RunNow {
+pub async fn run_pass_now(state: &KnowledgeState) -> RunNow {
     let Some(persist) = state.persist().cloned() else {
         return RunNow::NoDatabase;
     };
@@ -38,7 +38,7 @@ pub async fn run_pass_now(state: &AppState) -> RunNow {
     RunNow::Ran(pass_json(&total))
 }
 
-async fn passes(state: &AppState, persist: &PersistHandle) -> Pass {
+async fn passes(state: &KnowledgeState, persist: &PersistHandle) -> Pass {
     let budget = quiet_budget(state);
     let mut total = Pass::default();
     for _ in 0..MAX_PASSES {

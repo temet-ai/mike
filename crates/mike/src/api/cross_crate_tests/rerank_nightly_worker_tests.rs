@@ -141,7 +141,7 @@ async fn run_tick_with_tuning_off_grades_nothing() -> anyhow::Result<()> {
     let (project, references) = seeded_documents(&harness).await?;
     let (_, events) = seed_events(&harness, project, &[&references[0]], 1).await?;
 
-    let tick = run_tick(&harness.state, &harness.handle, at(23)).await;
+    let tick = run_tick(&harness.state.knowledge_state(), &harness.handle, at(23)).await;
 
     assert_eq!(tick, Tick::TuningOff);
     assert_eq!(graded_count(&harness, &events).await?, 0);
@@ -158,7 +158,7 @@ async fn run_tick_outside_the_quiet_window_grades_nothing() -> anyhow::Result<()
     let (project, references) = seeded_documents(&harness).await?;
     let (_, events) = seed_events(&harness, project, &[&references[0]], 1).await?;
 
-    let tick = run_tick(&harness.state, &harness.handle, at(12)).await;
+    let tick = run_tick(&harness.state.knowledge_state(), &harness.handle, at(12)).await;
 
     assert_eq!(tick, Tick::OutsideWindow);
     assert_eq!(graded_count(&harness, &events).await?, 0);
@@ -179,7 +179,7 @@ async fn run_tick_with_the_machine_over_its_load_ceiling_grades_nothing() -> any
     let (project, references) = seeded_documents(&harness).await?;
     let (_, events) = seed_events(&harness, project, &[&references[0]], 1).await?;
 
-    let tick = run_tick(&harness.state, &harness.handle, at(23)).await;
+    let tick = run_tick(&harness.state.knowledge_state(), &harness.handle, at(23)).await;
 
     assert_eq!(tick, Tick::Busy);
     assert_eq!(graded_count(&harness, &events).await?, 0);
@@ -201,7 +201,7 @@ async fn run_tick_in_the_quiet_window_grades_the_search_and_records_both_orders(
     );
     let (_, events) = seed_events(&harness, project, &[&references[2]], 1).await?;
 
-    let tick = run_tick(&harness.state, &harness.handle, at(23)).await;
+    let tick = run_tick(&harness.state.knowledge_state(), &harness.handle, at(23)).await;
 
     let Tick::Ran(pass) = tick else {
         anyhow::bail!("the tick must run, got {tick:?}");
@@ -238,9 +238,16 @@ async fn night_pass_stops_grading_when_the_machine_gets_busy_between_two_events(
     let (project, references) = seeded_documents(&harness).await?;
     let (_, events) = seed_events(&harness, project, &[&references[0]], 2).await?;
     let idle = IdleOnce(AtomicUsize::new(0));
-    let budget = quiet_budget(&harness.state);
+    let budget = quiet_budget(&harness.state.knowledge_state());
 
-    let pass = night_pass(&harness.state, &harness.handle, &budget, at(23), &idle).await;
+    let pass = night_pass(
+        &harness.state.knowledge_state(),
+        &harness.handle,
+        &budget,
+        at(23),
+        &idle,
+    )
+    .await;
 
     assert_eq!(pass.graded, 1);
     assert_eq!(pass.stopped, Some(Stop::MachineBusy));
@@ -258,10 +265,10 @@ async fn night_pass_when_the_reranker_fails_leaves_the_search_ungraded() -> anyh
         .await;
     let (project, references) = seeded_documents(&harness).await?;
     let (_, events) = seed_events(&harness, project, &[&references[0]], 2).await?;
-    let budget = quiet_budget(&harness.state);
+    let budget = quiet_budget(&harness.state.knowledge_state());
 
     let pass = night_pass(
-        &harness.state,
+        &harness.state.knowledge_state(),
         &harness.handle,
         &budget,
         at(23),
@@ -329,8 +336,8 @@ async fn run_tick_with_enough_grades_tunes_once_and_applies_the_kept_value() -> 
     let (_, events) = seed_events(&harness, project, &["turn:t"], 20).await?;
     grade_synthetic(&harness, &events).await?;
 
-    let first = run_tick(&harness.state, &harness.handle, at(23)).await;
-    let second = run_tick(&harness.state, &harness.handle, at(23)).await;
+    let first = run_tick(&harness.state.knowledge_state(), &harness.handle, at(23)).await;
+    let second = run_tick(&harness.state.knowledge_state(), &harness.handle, at(23)).await;
 
     let Tick::Ran(Pass {
         tuned: Some(Tuned::Recorded { kept, tried }),
@@ -374,7 +381,7 @@ async fn run_tick_with_too_few_grades_changes_nothing_and_records_the_run() -> a
     let (_, events) = seed_events(&harness, project, &["turn:t"], 3).await?;
     grade_synthetic(&harness, &events).await?;
 
-    let tick = run_tick(&harness.state, &harness.handle, at(23)).await;
+    let tick = run_tick(&harness.state.knowledge_state(), &harness.handle, at(23)).await;
 
     assert!(matches!(
         tick,
@@ -390,7 +397,7 @@ async fn run_tick_with_too_few_grades_changes_nothing_and_records_the_run() -> a
     .fetch_all(harness.handle.pool())
     .await?;
     assert_eq!(passes, vec![("too_few_grades".to_owned(), 0)]);
-    let second = run_tick(&harness.state, &harness.handle, at(23)).await;
+    let second = run_tick(&harness.state.knowledge_state(), &harness.handle, at(23)).await;
     assert!(matches!(
         second,
         Tick::Ran(Pass {

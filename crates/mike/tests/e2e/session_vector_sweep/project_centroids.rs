@@ -38,7 +38,7 @@ async fn sweep_refreshes_project_centroids_end_to_end() -> anyhow::Result<()> {
     )
     .await?;
 
-    let outcome = mike::embed_worker::run_session_vector_sweep_once(&state)
+    let outcome = mike::embed_worker::run_session_vector_sweep_once(&state.knowledge_state())
         .await?
         .ok_or_else(|| anyhow::anyhow!("persistence is enabled; sweep must run"))?;
     assert_eq!(outcome.centroid_written, 1);

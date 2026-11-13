@@ -9,7 +9,7 @@ use super::grade::{embed_query, rerank_all};
 use super::{Idle, Stop, database_failed};
 use crate::analysis::rerank::MAX_QUERY_CHARS;
 use crate::api::project_knowledge::rerank_page::documents_for;
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::project_knowledge::KnowledgeQuery;
 use crate::store::persistence::work_threads::{
@@ -35,7 +35,7 @@ struct Contender {
 }
 
 pub async fn candidates_phase(
-    state: &AppState,
+    state: &KnowledgeState,
     persist: &PersistHandle,
     idle: &impl Idle,
     written: &mut usize,
@@ -58,7 +58,7 @@ pub async fn candidates_phase(
 }
 
 async fn visit(
-    state: &AppState,
+    state: &KnowledgeState,
     persist: &PersistHandle,
     idle: &impl Idle,
     thread: &CandidateThread,
@@ -79,7 +79,7 @@ async fn visit(
 }
 
 async fn build_thread(
-    state: &AppState,
+    state: &KnowledgeState,
     persist: &PersistHandle,
     thread: &CandidateThread,
 ) -> Result<Built, WorkThreadError> {

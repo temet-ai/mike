@@ -11,6 +11,7 @@ pub mod embedder;
 pub mod facets;
 pub mod floors;
 pub mod floors_job;
+pub mod knowledge_state;
 pub mod neighbours;
 pub mod retrieve;
 pub mod sections;
@@ -38,6 +39,7 @@ use crate::analysis::embeddings::EmbedError;
 use crate::store::persistence::PersistError;
 
 pub use config::SemanticConfig;
+pub use knowledge_state::KnowledgeState;
 #[cfg(any(test, feature = "test-seams"))]
 pub use worker::run_semantic_once;
 pub use worker::spawn_semantic_worker;

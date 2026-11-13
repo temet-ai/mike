@@ -1,4 +1,5 @@
 use crate::store::persistence::eval_repo::EvalPersist as _;
+pub mod drift_alarms;
 pub mod schedule;
 pub mod settings;
 

@@ -86,10 +86,10 @@ async fn night_pass_with_a_pair_the_reranker_rates_high_queues_it_and_writes_no_
     harness.enable_rerank(2_000);
     answering(&harness, 0.9).await;
     let (a, b) = embedded_pair(&harness).await?;
-    let budget = quiet_budget(&harness.state);
+    let budget = quiet_budget(&harness.state.knowledge_state());
 
     let pass = night_pass(
-        &harness.state,
+        &harness.state.knowledge_state(),
         &harness.handle,
         &budget,
         at(23),
@@ -116,10 +116,10 @@ async fn night_pass_with_a_pair_the_reranker_rates_low_queues_nothing() -> anyho
     harness.enable_rerank(2_000);
     answering(&harness, 0.2).await;
     let (a, _) = embedded_pair(&harness).await?;
-    let budget = quiet_budget(&harness.state);
+    let budget = quiet_budget(&harness.state.knowledge_state());
 
     let pass = night_pass(
-        &harness.state,
+        &harness.state.knowledge_state(),
         &harness.handle,
         &budget,
         at(23),
@@ -138,9 +138,9 @@ async fn night_pass_with_a_queued_pair_found_again_keeps_its_judged_mark() -> an
     harness.enable_rerank(2_000);
     answering(&harness, 0.9).await;
     let (a, _) = embedded_pair(&harness).await?;
-    let budget = quiet_budget(&harness.state);
+    let budget = quiet_budget(&harness.state.knowledge_state());
     night_pass(
-        &harness.state,
+        &harness.state.knowledge_state(),
         &harness.handle,
         &budget,
         at(23),
@@ -155,7 +155,7 @@ async fn night_pass_with_a_queued_pair_found_again_keeps_its_judged_mark() -> an
     .await?;
 
     night_pass(
-        &harness.state,
+        &harness.state.knowledge_state(),
         &harness.handle,
         &budget,
         at(23),
@@ -175,10 +175,10 @@ async fn night_pass_when_the_reranker_fails_queues_no_pair() -> anyhow::Result<(
     harness.enable_rerank(2_000);
     harness.reranker_answers(failing_answer()).await;
     let (a, _) = embedded_pair(&harness).await?;
-    let budget = quiet_budget(&harness.state);
+    let budget = quiet_budget(&harness.state.knowledge_state());
 
     let pass = night_pass(
-        &harness.state,
+        &harness.state.knowledge_state(),
         &harness.handle,
         &budget,
         at(23),

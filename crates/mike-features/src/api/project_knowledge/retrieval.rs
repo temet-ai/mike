@@ -5,7 +5,7 @@ use super::rerank_page::QueryVector;
 use crate::analysis::EmbeddingService;
 use crate::api::rerank_search::RerankReport;
 use crate::embed_worker::knowledge::{model_key, model_keys, valid_vector};
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, ProjectIdentity};
 use crate::store::persistence::{PersistError, PersistHandle};
@@ -49,14 +49,14 @@ pub struct Retrieved {
 }
 
 pub async fn retrieve_page(
-    state: &AppState,
+    state: &KnowledgeState,
     input: &KnowledgeQuery,
 ) -> Result<Retrieved, Response> {
     retrieve_with(state, input, true).await
 }
 
 pub async fn retrieve_without_rerank(
-    state: &AppState,
+    state: &KnowledgeState,
     input: &KnowledgeQuery,
 ) -> Result<Value, Response> {
     retrieve_with(state, input, false)
@@ -84,7 +84,7 @@ async fn embed_for(
 type Searched = (Value, Option<RerankReport>, Passages);
 
 async fn search_stage(
-    state: &AppState,
+    state: &KnowledgeState,
     handle: &PersistHandle,
     project: &ProjectIdentity,
     (input, vector): (&KnowledgeQuery, Option<&QueryVector>),
@@ -103,7 +103,7 @@ async fn search_stage(
 }
 
 async fn retrieve_with(
-    state: &AppState,
+    state: &KnowledgeState,
     input: &KnowledgeQuery,
     rerank: bool,
 ) -> Result<Retrieved, Response> {

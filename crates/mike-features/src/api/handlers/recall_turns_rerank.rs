@@ -5,14 +5,14 @@ use crate::api::project_knowledge::item_header;
 use crate::api::rerank_search::{
     RerankReport, arrange, candidates_wanted, score, short_query_report,
 };
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::recall_reads::RankedTurnRow;
 use crate::web_base::result_order::ResultOrder;
 
 const MAX_FETCH_ROWS: i64 = 200;
 
 pub async fn order_turns(
-    state: &AppState,
+    state: &KnowledgeState,
     query: &str,
     rows: Vec<RankedTurnRow>,
     (candidates, order): (Option<usize>, ResultOrder),
@@ -34,7 +34,7 @@ fn newest_first(mut rows: Vec<RankedTurnRow>) -> (Vec<(RankedTurnRow, Option<f32
 }
 
 pub fn rows_to_fetch(
-    state: &AppState,
+    state: &KnowledgeState,
     limit: i64,
     query: &str,
     recent: bool,
@@ -54,7 +54,7 @@ pub fn rows_to_fetch(
 }
 
 pub async fn rerank_turns(
-    state: &AppState,
+    state: &KnowledgeState,
     query: &str,
     rows: Vec<RankedTurnRow>,
     candidates: Option<usize>,
@@ -87,7 +87,7 @@ pub async fn rerank_turns(
 
 pub const PROMPT_HEAD_CHARS: usize = 200;
 
-async fn session_titles(state: &AppState, rows: &[RankedTurnRow]) -> HashMap<String, String> {
+async fn session_titles(state: &KnowledgeState, rows: &[RankedTurnRow]) -> HashMap<String, String> {
     let Some(handle) = state.persist.as_ref() else {
         return HashMap::new();
     };

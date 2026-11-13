@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::GraphEdgeDto;
 use super::bad_request;
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::web_base::persist_error_response;
 use crate::web_base::persist_unavailable_response;
 
@@ -56,7 +56,7 @@ pub struct ProjectEmbeddingGraphResponse {
 }
 
 pub async fn get_project_embedding_graph(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Path(id): Path<i64>,
     Query(params): Query<ProjectEmbeddingGraphParams>,
 ) -> Result<Json<ProjectEmbeddingGraphResponse>, Response> {

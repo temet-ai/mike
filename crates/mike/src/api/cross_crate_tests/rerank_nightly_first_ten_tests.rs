@@ -91,10 +91,10 @@ async fn night_pass_grades_a_search_without_a_used_result_and_scores_its_first_t
     ]);
     let event = unused_search(&harness, Some(session), &returned).await?;
     let replay = unused_search(&harness, None, &returned).await?;
-    let budget = quiet_budget(&harness.state);
+    let budget = quiet_budget(&harness.state.knowledge_state());
 
     let pass = night_pass(
-        &harness.state,
+        &harness.state.knowledge_state(),
         &harness.handle,
         &budget,
         at(23),
@@ -189,7 +189,7 @@ async fn run_tick_tunes_on_searches_graded_relevant_without_a_used_result_and_re
     }
     grade_relevant_only(&harness, &events).await?;
 
-    let tick = run_tick(&harness.state, &harness.handle, at(23)).await;
+    let tick = run_tick(&harness.state.knowledge_state(), &harness.handle, at(23)).await;
 
     let Tick::Ran(Pass {
         tuned: Some(Tuned::Recorded { kept, tried }),

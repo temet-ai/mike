@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::dossier::view::types::AsOf;
+use crate::dossier::as_of::AsOf;
 use crate::store::persistence::PersistHandle;
 
 use super::SemanticError;

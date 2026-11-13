@@ -12,11 +12,11 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::settings::running_services::spawn_running_service_sync(state);
 
-    crate::embed_worker::spawn_embed_backfill(state);
+    crate::embed_worker::spawn_embed_backfill(&state.knowledge_state());
 
-    crate::knowledge_scan::spawn_knowledge_scan(state);
+    crate::knowledge_scan::spawn_knowledge_scan(&state.knowledge_state());
 
-    crate::semantic::spawn_semantic_worker(state);
+    crate::semantic::spawn_semantic_worker(&state.knowledge_state());
 
     crate::judge_worker::spawn_judge_worker(state);
 
@@ -75,10 +75,10 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::scheduled_jobs::spawn_scheduled_jobs(state);
 
-    crate::search_events::spawn_search_events_worker(state);
+    crate::search_events::spawn_search_events_worker(&state.knowledge_state());
 
     crate::analysis::rerank::warmup::spawn_rerank_warmup(state);
 
-    crate::rerank_nightly::spawn_rerank_nightly(state);
+    crate::rerank_nightly::spawn_rerank_nightly(&state.knowledge_state());
     crate::judge_worker::supply_verdict::spawn_supply_verdict(state);
 }

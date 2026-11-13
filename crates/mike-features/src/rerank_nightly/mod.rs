@@ -17,7 +17,7 @@ use chrono::{DateTime, TimeZone, Timelike, Utc};
 use tokio::time::{MissedTickBehavior, interval};
 
 use crate::analysis::rerank::RerankNightly as QuietBudget;
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::search_grades::UngradedEvent;
 use candidates::candidates_phase;
@@ -55,7 +55,7 @@ pub enum Stop {
     MoreToGrade,
 }
 
-pub fn spawn_rerank_nightly(state: &AppState) {
+pub fn spawn_rerank_nightly(state: &KnowledgeState) {
     let Some(persist) = state.persist().cloned() else {
         tracing::debug!("rerank_nightly: no persistence — not spawning");
         return;
@@ -82,7 +82,7 @@ pub fn spawn_rerank_nightly(state: &AppState) {
     );
 }
 
-pub async fn run_tick(state: &AppState, persist: &PersistHandle, now: DateTime<Utc>) -> Tick {
+pub async fn run_tick(state: &KnowledgeState, persist: &PersistHandle, now: DateTime<Utc>) -> Tick {
     if !state.rerank_service().current_config().tuning_enabled {
         return Tick::TuningOff;
     }
@@ -103,7 +103,7 @@ pub async fn run_tick(state: &AppState, persist: &PersistHandle, now: DateTime<U
 }
 
 pub async fn night_pass(
-    state: &AppState,
+    state: &KnowledgeState,
     persist: &PersistHandle,
     budget: &QuietBudget,
     now: DateTime<Utc>,
@@ -125,7 +125,7 @@ pub async fn night_pass(
 }
 
 async fn tune_phase(
-    state: &AppState,
+    state: &KnowledgeState,
     persist: &PersistHandle,
     window_start: DateTime<Utc>,
     now: DateTime<Utc>,
@@ -146,7 +146,7 @@ fn database_failed(error: &dyn std::fmt::Display, step: &'static str) -> Stop {
 }
 
 async fn grade_phase(
-    state: &AppState,
+    state: &KnowledgeState,
     persist: &PersistHandle,
     idle: &impl Idle,
     graded: &mut usize,
@@ -170,7 +170,7 @@ async fn grade_phase(
 }
 
 async fn grade_events(
-    state: &AppState,
+    state: &KnowledgeState,
     persist: &PersistHandle,
     events: Vec<UngradedEvent>,
     idle: &impl Idle,
@@ -197,7 +197,7 @@ pub trait Idle {
 }
 
 struct LoadIdle<'a> {
-    state: &'a AppState,
+    state: &'a KnowledgeState,
 }
 
 impl Idle for LoadIdle<'_> {
@@ -207,7 +207,7 @@ impl Idle for LoadIdle<'_> {
     }
 }
 
-pub fn quiet_budget(state: &AppState) -> QuietBudget {
+pub fn quiet_budget(state: &KnowledgeState) -> QuietBudget {
     state.rerank_service().current_config().nightly
 }
 

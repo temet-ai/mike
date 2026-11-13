@@ -12,7 +12,7 @@ async fn run_now_with_tuning_off_is_refused_and_grades_nothing() -> anyhow::Resu
     let (project, references) = seeded_documents(&harness).await?;
     let (_, events) = seed_events(&harness, project, &[&references[0]], 2).await?;
 
-    let outcome = run_pass_now(&harness.state).await;
+    let outcome = run_pass_now(&harness.state.knowledge_state()).await;
 
     assert_eq!(outcome, RunNow::TuningOff);
     assert_eq!(graded_count(&harness, &events).await?, 0);
@@ -29,7 +29,7 @@ async fn run_now_grades_every_waiting_search_without_waiting_for_the_quiet_windo
     let (project, references) = seeded_documents(&harness).await?;
     let (_, events) = seed_events(&harness, project, &[&references[0]], 3).await?;
 
-    let outcome = run_pass_now(&harness.state).await;
+    let outcome = run_pass_now(&harness.state.knowledge_state()).await;
 
     let RunNow::Ran(body) = outcome else {
         anyhow::bail!("expected a pass, got {outcome:?}");

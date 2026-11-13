@@ -40,7 +40,7 @@ async fn sweep_gives_chunk_only_session_a_centroid_row() -> anyhow::Result<()> {
     )
     .await?;
 
-    let outcome = mike::embed_worker::run_session_vector_sweep_once(&state)
+    let outcome = mike::embed_worker::run_session_vector_sweep_once(&state.knowledge_state())
         .await?
         .ok_or_else(|| anyhow::anyhow!("persistence is enabled; sweep must run"))?;
     assert_eq!(
@@ -104,7 +104,7 @@ async fn sweep_gives_overview_session_an_overview_sourced_row() -> anyhow::Resul
     )
     .await?;
 
-    let outcome = mike::embed_worker::run_session_vector_sweep_once(&state)
+    let outcome = mike::embed_worker::run_session_vector_sweep_once(&state.knowledge_state())
         .await?
         .ok_or_else(|| anyhow::anyhow!("persistence is enabled; sweep must run"))?;
     assert_eq!(

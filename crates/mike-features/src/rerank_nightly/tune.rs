@@ -3,8 +3,11 @@ use chrono::{DateTime, Duration, Utc};
 use serde_json::json;
 
 use crate::change_log::{ChangeSource, ChangeVia};
+use std::sync::Arc;
+
 use crate::search_ranking::tuning::{Attempt, Grade, tune};
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
+use crate::semantic::knowledge_state::SettingWriter;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::search_grades::{NewTuningRun, TuningOutcome};
 
@@ -19,7 +22,7 @@ pub enum Tuned {
 }
 
 pub async fn tune_if_due(
-    state: &AppState,
+    state: &KnowledgeState,
     persist: &PersistHandle,
     window_start: DateTime<Utc>,
     now: DateTime<Utc>,
@@ -49,7 +52,7 @@ pub async fn tune_if_due(
             .await?;
         return Ok(Tuned::TooFewGrades(grades.len()));
     }
-    let Some(settings) = state.settings_service() else {
+    let Some(settings) = state.settings() else {
         return Ok(Tuned::NoSettingsService);
     };
     let attempts = tune(
@@ -88,8 +91,8 @@ pub fn targets(used: Vec<String>, relevant: Vec<String>) -> Vec<String> {
 }
 
 async fn apply(
-    state: &AppState,
-    settings: &crate::settings::service::SettingsService,
+    state: &KnowledgeState,
+    settings: &Arc<dyn SettingWriter>,
     attempt: &Attempt,
     graded_events: usize,
 ) -> NewTuningRun {
@@ -118,10 +121,10 @@ async fn apply(
         }),
     };
     match settings
-        .set_with_source(attempt.key, attempt.after.clone(), &source)
+        .write(attempt.key, attempt.after.clone(), &source)
         .await
     {
-        Ok((validated, _)) => {
+        Ok(validated) => {
             state
                 .rerank_service()
                 .apply_setting(attempt.key, &validated);

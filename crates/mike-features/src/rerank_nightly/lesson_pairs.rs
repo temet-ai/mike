@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use super::grade::rerank_all;
 use super::{Idle, Stop, database_failed};
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::lesson_pair_candidates::NewPairCandidate;
 use crate::store::persistence::lesson_relations::CandidateLessonPair;
 use crate::store::persistence::{PersistError, PersistHandle};
@@ -20,7 +20,7 @@ struct Side<'a> {
 }
 
 pub async fn pairs_phase(
-    state: &AppState,
+    state: &KnowledgeState,
     persist: &PersistHandle,
     idle: &impl Idle,
     found: &mut usize,
@@ -54,7 +54,7 @@ fn looser_threshold(configured: f64) -> f64 {
 }
 
 async fn project_pairs(
-    state: &AppState,
+    state: &KnowledgeState,
     persist: &PersistHandle,
     idle: &impl Idle,
     project_id: i64,
@@ -92,7 +92,7 @@ async fn project_pairs(
 }
 
 async fn score_pairs(
-    state: &AppState,
+    state: &KnowledgeState,
     idle: &impl Idle,
     pairs: &[CandidateLessonPair],
 ) -> Result<Vec<f32>, Stop> {

@@ -8,6 +8,7 @@ pub mod change_log;
 pub mod circuit_breaker;
 pub mod config;
 pub mod diagnostics;
+pub mod dossier;
 pub mod environment;
 pub mod error;
 pub mod explained;

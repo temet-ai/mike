@@ -64,7 +64,7 @@ pub async fn get_turn_steering_facts(
             "session persistence is disabled; steering facts are not available".to_owned(),
         );
     };
-    let turn = match persist.dossier().locate_turn(turn_id).await {
+    let turn = match persist.locate_turn(turn_id).await {
         Ok(Some(turn)) if turn.session_uuid == session_uuid => turn,
         Ok(_) => {
             return error(

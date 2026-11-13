@@ -3,14 +3,14 @@ use std::collections::HashSet;
 use serde_json::{Value, json};
 
 use super::record::{Draft, spawn_record};
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 
 const CONVERSATION_TOOL: &str = "search_session_content";
 const TEXT_TOOL: &str = "find_text";
 pub const MAX_TEXT_REFERENCES: usize = 50;
 
 pub fn record_conversation_search(
-    state: &AppState,
+    state: &KnowledgeState,
     caller: Option<&str>,
     query: &str,
     sessions: &[(String, u64)],
@@ -21,7 +21,7 @@ pub fn record_conversation_search(
 }
 
 pub fn record_text_search(
-    state: &AppState,
+    state: &KnowledgeState,
     caller: Option<&str>,
     needle: &str,
     request_ids: impl IntoIterator<Item = u64>,

@@ -19,6 +19,7 @@ pub mod construction;
 pub mod construction_llm;
 pub mod construction_pipeline;
 pub mod construction_services;
+pub mod knowledge_state;
 pub mod launch_state;
 pub mod mail_push;
 #[cfg(test)]

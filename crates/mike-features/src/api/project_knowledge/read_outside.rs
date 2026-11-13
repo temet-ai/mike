@@ -3,12 +3,12 @@ use axum::response::Response;
 use serde_json::{Value, json};
 
 use super::knowledge_error;
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::project_knowledge::REFERENCE_NOT_IN_PROJECT;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 pub async fn read(
-    state: &AppState,
+    state: &KnowledgeState,
     handle: &PersistHandle,
     project: Option<&str>,
     reference: &str,
@@ -25,7 +25,7 @@ pub async fn read(
 }
 
 async fn read_outside(
-    state: &AppState,
+    state: &KnowledgeState,
     handle: &PersistHandle,
     reference: &str,
     error: PersistError,

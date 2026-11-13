@@ -1,9 +1,8 @@
 pub mod import;
-pub mod spa_origin;
 pub mod split;
 pub mod vocabulary;
 
-pub use spa_origin::SpaOrigin;
+pub use crate::web_base::spa_origin::SpaOrigin;
 pub use vocabulary::{Axis, Method, SubjectKind, Tier};
 
 use crate::settings::meta_eval::{HOLDOUT_PERCENT_KEY, RELAY_ENABLED_KEY};

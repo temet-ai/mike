@@ -7,9 +7,9 @@ use axum::{
 use serde_json::json;
 
 use crate::rerank_nightly::{RunNow, run_pass_now};
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 
-pub async fn rerank_pass(State(state): State<AppState>) -> Response {
+pub async fn rerank_pass(State(state): State<KnowledgeState>) -> Response {
     match run_pass_now(&state).await {
         RunNow::Ran(body) => (StatusCode::OK, Json(body)).into_response(),
         RunNow::NoDatabase => refused(StatusCode::SERVICE_UNAVAILABLE, "mike has no database"),
