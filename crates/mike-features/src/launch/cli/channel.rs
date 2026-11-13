@@ -63,7 +63,7 @@ pub fn as_str(check: ChannelCheck) -> &'static str {
     }
 }
 
-pub async fn check<S: ChannelStore>(
+pub(crate) async fn check<S: ChannelStore>(
     store: &S,
     session: Option<Uuid>,
     source: &ChannelSource,

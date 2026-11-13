@@ -66,7 +66,7 @@ impl<K: Eq + Hash, V: Clone> Remembered<K, V> {
         self.entries.clear();
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn fetched(&self) -> usize {
         self.fetched.load(Ordering::Relaxed)
     }

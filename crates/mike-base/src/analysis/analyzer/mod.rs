@@ -191,14 +191,6 @@ impl AnalyzerRegistry {
         })
     }
 
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "exposed for the steerer-6 wiring corpus-consolidation-spec.md defers to \
-                      a later change"
-        )
-    )]
     pub fn patterns_by_enforcement(
         &self,
         class: Enforcement,

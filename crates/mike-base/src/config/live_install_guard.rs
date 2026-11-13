@@ -98,7 +98,7 @@ fn account_home() -> Option<std::path::PathBuf> {
     )))
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 pub mod tests {
     use super::*;
 
