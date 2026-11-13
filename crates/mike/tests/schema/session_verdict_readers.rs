@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use crate::split_crates::src_roots;
+
 const TABLE: &str = "session_judges.verdicts";
 
 const WINDOW: usize = 400;
@@ -29,21 +31,12 @@ const NOT_LIVE_READS: [NotLiveRead; 3] = [
     },
 ];
 
-fn src_roots() -> Vec<PathBuf> {
-    let crates = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
-    ["mike", "mike-base", "mike-features"]
-        .iter()
-        .map(|name| crates.join(name).join("src"))
-        .collect()
-}
-
-fn locate(relative: &str) -> PathBuf {
-    let roots = src_roots();
-    roots
+fn locate(relative: &str) -> anyhow::Result<PathBuf> {
+    src_roots()?
         .iter()
         .map(|root| root.join(relative))
         .find(|path| path.exists())
-        .unwrap_or_else(|| roots[0].join(relative))
+        .ok_or_else(|| anyhow::anyhow!("{relative} is in no split crate's src/"))
 }
 
 fn source_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
@@ -107,7 +100,7 @@ fn offending_reads(rel: &str, text: &str) -> Vec<usize> {
 #[test]
 fn session_verdict_readers_every_read_filters_live_mode() -> anyhow::Result<()> {
     let mut offenders = Vec::new();
-    for root in src_roots() {
+    for root in src_roots()? {
         let mut files = Vec::new();
         source_files(&root, &mut files)?;
         for file in files {
@@ -131,7 +124,7 @@ fn session_verdict_readers_every_read_filters_live_mode() -> anyhow::Result<()> 
 #[test]
 fn session_verdict_readers_every_listed_read_is_still_that_read() -> anyhow::Result<()> {
     for read in &NOT_LIVE_READS {
-        let text = std::fs::read_to_string(locate(read.file))?;
+        let text = std::fs::read_to_string(locate(read.file)?)?;
         assert_eq!(
             unfiltered_reads(&text).len(),
             1,

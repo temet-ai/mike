@@ -201,10 +201,8 @@ fn rust_and_sql_files(
 
 #[test]
 fn seat_tier_is_read_only_by_knowledge_search() -> anyhow::Result<()> {
-    let crates = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     let mut readers = Vec::new();
-    for crate_name in ["mike", "mike-base", "mike-features"] {
-        let src = crates.join(crate_name).join("src");
+    for src in crate::split_crates::src_roots()? {
         let mut files = Vec::new();
         rust_and_sql_files(&src, &mut files)?;
         for file in files {

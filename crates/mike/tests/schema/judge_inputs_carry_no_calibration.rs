@@ -1,10 +1,6 @@
 use std::path::{Path, PathBuf};
 
-const JUDGE_INPUT_DIRS: [&str; 3] = [
-    "src/analysis/judge",
-    "src/judge_worker",
-    "src/dossier/render",
-];
+const JUDGE_INPUT_DIRS: [&str; 3] = ["analysis/judge", "judge_worker", "dossier/render"];
 const MARKERS: [&str; 4] = [
     "calibration_block",
     "cross_session",
@@ -32,11 +28,10 @@ fn files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
 
 #[test]
 fn turn_and_session_judge_inputs_carry_no_calibration_line() -> anyhow::Result<()> {
-    let crates = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     let mut all = Vec::new();
-    for name in ["mike", "mike-base", "mike-features"] {
+    for src in crate::split_crates::src_roots()? {
         for dir in JUDGE_INPUT_DIRS {
-            files(&crates.join(name).join(dir), &mut all)?;
+            files(&src.join(dir), &mut all)?;
         }
     }
     assert!(!all.is_empty());

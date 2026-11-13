@@ -4,6 +4,8 @@ mod anthropic_fixtures;
 mod db_helpers;
 #[path = "common/seed.rs"]
 mod seed;
+#[path = "common/split_crates.rs"]
+mod split_crates;
 #[path = "common/test_db.rs"]
 mod test_db;
 

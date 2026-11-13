@@ -34,9 +34,7 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
     #[cfg(unix)]
-    unsafe {
-        libc::umask(0o077);
-    }
+    rustix::process::umask(rustix::fs::Mode::from_raw_mode(0o077));
     if fleet_invocation::background_hook(std::env::args_os().skip(1)) {
         std::process::exit(mike::launch::fleet::background_hook());
     }
@@ -46,6 +44,10 @@ fn main() -> anyhow::Result<()> {
     if let Some((program, args)) = fleet_invocation::timed_run(std::env::args_os().skip(1)) {
         std::process::exit(mike::launch::fleet::timed_run(program, args));
     }
+    mike::store::persistence::migrations::install(
+        sqlx::migrate!("../mike-base/src/store/persistence/migrations"),
+        sqlx::migrate!("../mike-base/src/store/persistence/migrations"),
+    );
     let cli = Cli::parse();
     mike::user_config::observe_selected(cli.overrides.config.as_deref())?;
     if cli.overrides.boot_config_snapshot.is_some() && !matches!(cli.command, Some(Command::Serve))

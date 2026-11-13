@@ -66,6 +66,7 @@ libc = "0.2"
 metrics = "0.24"
 metrics-exporter-prometheus = { version = "0.18", default-features = false }
 mike-codex = { path = "../mike-codex" }
+rustix = { version = "1.1.6", features = ["process", "fs"] }
 # Embeds the built SvelteKit SPA (`frontend/build/`) into the binary for
 # the third (SPA) bind — see `src/spa.rs` and `build.rs`. Only `mike`
 # consumes this, so it stays a direct crate dep rather than a

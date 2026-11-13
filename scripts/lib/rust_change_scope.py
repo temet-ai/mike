@@ -75,8 +75,11 @@ def affected_args(root, paths, packages):
     return [arg for name in sorted(selected) for arg in ("-p", name)]
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import split_crates  # noqa: E402
+
 # crate mike and the crates split from it keep module paths (docs/adr/0002)
-SPLIT_CRATES = ("mike", "mike-base", "mike-features")
+SPLIT_CRATES = split_crates.names()
 
 
 def path_area(root, path, package):

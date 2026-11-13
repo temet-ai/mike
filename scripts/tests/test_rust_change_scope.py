@@ -58,7 +58,8 @@ class RustChangeScopeTests(unittest.TestCase):
         return scope.area_commands(self.root, paths, self.packages)
 
     def install_runner(self):
-        for file in ["scripts/test-area", "scripts/pre-push-check", "scripts/lib/rust_change_scope.py"]:
+        for file in ["scripts/test-area", "scripts/pre-push-check", "scripts/lib/rust_change_scope.py",
+                     "scripts/lib/split_crates.py", "docs/adr/0002-crate-map.json"]:
             target = self.root / file
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(REPO / file, target)
