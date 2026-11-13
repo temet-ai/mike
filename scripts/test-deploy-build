@@ -57,8 +57,10 @@ eq "mbx found: mbx" mbx "$(deploy_build_cache /x/mbx)"
 eq "no mbx: cargo" cargo "$(deploy_build_cache "")"
 eq "MIKE_DEPLOY_BUILD_CACHE=cargo: cargo" cargo "$(MIKE_DEPLOY_BUILD_CACHE=cargo deploy_build_cache /x/mbx)"
 
-# ── deploy_low_priority ──────────────────────────────────────────────────────
-prefix="$(deploy_low_priority | tr '\n' ' ')"
+# ── heavy-build.sh: priority, jobs, which subcommands lock ───────────────────
+# shellcheck source=lib/heavy-build.sh
+source "$root/scripts/lib/heavy-build.sh"
+prefix="$(heavy_build_priority | tr '\n' ' ')"
 eq "lowest CPU priority first" "nice -n 19" "${prefix:0:10}"
 if command -v ionice >/dev/null 2>&1; then
     eq "idle I/O class where ionice exists" "nice -n 19 ionice -c 3 " "$prefix"
@@ -66,8 +68,60 @@ else
     eq "no ionice: nice alone" "nice -n 19 " "$prefix"
 fi
 words=()
-while IFS= read -r w; do words+=("$w"); done < <(deploy_low_priority)
+while IFS= read -r w; do words+=("$w"); done < <(heavy_build_priority)
 eq "the prefix runs a command" "ran" "$("${words[@]}" sh -c 'echo ran')"
+
+cpus="$(heavy_build_cpus)"
+half=$(( cpus / 2 )); (( half > 0 )) || half=1
+eq "jobs default to half the processors" "$half" "$(env -u MIKE_BUILD_JOBS -u CARGO_BUILD_JOBS bash -c "source '$root/scripts/lib/heavy-build.sh'; heavy_build_jobs")"
+eq "MIKE_BUILD_JOBS overrides" "3" "$(MIKE_BUILD_JOBS=3 CARGO_BUILD_JOBS=9 heavy_build_jobs)"
+eq "CARGO_BUILD_JOBS is kept when set" "5" "$(env -u MIKE_BUILD_JOBS CARGO_BUILD_JOBS=5 bash -c "source '$root/scripts/lib/heavy-build.sh'; heavy_build_jobs")"
+for sub in check clippy build test nextest; do
+    if heavy_build_is_heavy "$sub"; then ok "$sub takes the lock"; else bad "$sub takes the lock"; fi
+done
+for sub in fmt metadata tree run doc ""; do
+    if heavy_build_is_heavy "$sub"; then bad "${sub:-<none>} is exempt"; else ok "${sub:-<none>} is exempt"; fi
+done
+
+# ── heavy-build.sh: one heavy build at a time ────────────────────────────────
+# A holder takes the lock and keeps it for 2 s; a second taker must wait for it. Each mode is
+# checked: flock where the command exists, and the directory lock macOS falls back to.
+lock_case() {
+    local mode="$1" lockfile="$scratch/heavy-$1.lock" started waited
+    ( export MIKE_HEAVY_BUILD_LOCK="$lockfile" MIKE_HEAVY_BUILD_LOCK_MODE="$mode"
+      unset MIKE_HEAVY_BUILD_LOCK_HELD
+      source "$root/scripts/lib/heavy-build.sh"
+      heavy_build_lock holder 2>/dev/null; touch "$scratch/held-$mode"; sleep 2; heavy_build_unlock ) &
+    local holder=$!
+    for _ in $(seq 1 50); do [[ -e "$scratch/held-$mode" ]] && break; sleep 0.1; done
+    started="$(date +%s)"
+    out="$( export MIKE_HEAVY_BUILD_LOCK="$lockfile" MIKE_HEAVY_BUILD_LOCK_MODE="$mode"
+            unset MIKE_HEAVY_BUILD_LOCK_HELD
+            source "$root/scripts/lib/heavy-build.sh"
+            heavy_build_lock second 2>&1; echo "held=${MIKE_HEAVY_BUILD_LOCK_HELD:-}"; heavy_build_unlock )"
+    waited=$(( $(date +%s) - started ))
+    wait "$holder"
+    if (( waited >= 1 )); then ok "$mode: a second heavy build waits for the first"; else bad "$mode: a second heavy build waits for the first" "waited ${waited}s"; fi
+    if [[ "$out" == *"another heavy build is running (pid "*"holder"* ]]; then ok "$mode: the waiter is told who holds the lock"; else bad "$mode: the waiter is told who holds the lock" "$out"; fi
+    if [[ "$out" == *"held=1"* ]]; then ok "$mode: the waiter holds the lock once it is free"; else bad "$mode: the waiter holds the lock once it is free" "$out"; fi
+    started="$(date +%s)"
+    ( export MIKE_HEAVY_BUILD_LOCK="$lockfile" MIKE_HEAVY_BUILD_LOCK_MODE="$mode"
+      source "$root/scripts/lib/heavy-build.sh"
+      heavy_build_lock outer 2>/dev/null
+      ( heavy_build_lock nested 2>/dev/null ); heavy_build_unlock )
+    waited=$(( $(date +%s) - started ))
+    if (( waited < 2 )); then ok "$mode: a nested build under the holder does not wait on itself"; else bad "$mode: a nested build under the holder does not wait on itself"; fi
+}
+if command -v flock >/dev/null 2>&1; then lock_case flock; else skip "flock lock (flock is missing)"; fi
+lock_case mkdir
+
+stale="$scratch/stale.lock"
+mkdir "$stale.d"; printf '999999\n' >"$stale.d/pid"
+out="$( export MIKE_HEAVY_BUILD_LOCK="$stale" MIKE_HEAVY_BUILD_LOCK_MODE=mkdir; unset MIKE_HEAVY_BUILD_LOCK_HELD
+        source "$root/scripts/lib/heavy-build.sh"; heavy_build_lock t 2>&1; echo "held=${MIKE_HEAVY_BUILD_LOCK_HELD:-}"; heavy_build_unlock )"
+if [[ "$out" == "held=1" ]]; then ok "mkdir: a dead holder's lock is taken over"; else bad "mkdir: a dead holder's lock is taken over" "$out"; fi
+eq "the lock lives under XDG_RUNTIME_DIR" "/run/user/42/mike-heavy-build.lock" \
+    "$(env -u MIKE_HEAVY_BUILD_LOCK XDG_RUNTIME_DIR=/run/user/42 bash -c "source '$root/scripts/lib/heavy-build.sh'; heavy_build_lock_path")"
 
 # ── deploy_tree_dirty ────────────────────────────────────────────────────────
 if command -v git >/dev/null 2>&1; then
@@ -92,6 +146,11 @@ else
     bad "deploy stamps the staged copy, never the build output"
 fi
 if grep -q -- '--build-only)' "$deploy"; then ok "deploy takes --build-only"; else bad "deploy takes --build-only"; fi
+if grep -q 'heavy_build_lock "deploy-proxy.sh build"' "$deploy" && grep -q 'CARGO_BUILD_JOBS="${BUILD_JOBS}"' "$deploy"; then
+    ok "the deploy build takes the machine-wide lock and the job cap"
+else
+    bad "the deploy build takes the machine-wide lock and the job cap"
+fi
 
 echo "deploy build: ${pass} passed, ${fail} failed, ${notrun} not run"
 (( fail == 0 ))

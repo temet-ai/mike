@@ -13,16 +13,20 @@ checkout and have identical units restored, so it does not queue.
 
 ## The default, and the opt-in
 
-Since 12 November 2026, `scripts/cx` sends `check`, `clippy` and `test` through mbx
+`scripts/cx` sends `check`, `clippy`, `test`, `nextest` and `build` through mbx
 whenever mbx is installed and no other build directory is named, into
-`target/mbx-<session>` (`select_build_cache` in `scripts/lib/preflight-toolchain.sh`).
-`nextest` and every other uncached subcommand stay on plain cargo, because mbx runs
-what it does not cache as plain cargo inside its own directory; `scripts/cx build` stays
-on plain cargo so `make install` and the release scripts embed the commit through
-build.rs. The deploy build is the exception, below. Agents check and test through
-`scripts/cx check` and `scripts/cx test`, never plain `cargo`; only one heavy build (a
-release build, a deploy, a full test run) runs on the machine at a time, and a deploy
-runs once per landed change, not after each step. Plain cargo is refused
+`target/mbx-<session>` (`select_build_cache` in `scripts/lib/preflight-toolchain.sh`),
+so a new worktree restores from the store instead of building cold. `nextest` runs as
+`cargo-nextest` with `CARGO` set to mbx, so the `cargo test --no-run` it issues to build
+the test binaries goes through the store and nextest only runs them. `build` with
+`MIKE_BUILD_IDENTITY=git` (`make install`, the release scripts) stays on plain cargo,
+which embeds the commit through build.rs; the deploy build stamps it instead (below).
+Every uncached subcommand stays on plain cargo, because mbx runs what it does not cache
+as plain cargo inside its own directory. Agents check and test through `scripts/cx
+check` and `scripts/cx test` (a project hook refuses raw cargo builds), a deploy runs
+once per landed change, not after each step, and heavy builds queue one at a time on
+the machine's build lock, at the lowest priority on half the processors
+(`scripts/lib/heavy-build.sh`). Plain cargo is refused
 in an `mbx-*` directory, and `MIKE_BUILD_CACHE=cargo` forces plain cargo. What
 follows describes the explicit form, `MIKE_BUILD_CACHE=mbx` with a named directory,
 which the default uses under the hood.

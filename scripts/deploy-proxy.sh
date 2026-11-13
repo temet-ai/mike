@@ -458,6 +458,8 @@ fi
 source "${SCRIPT_DIR}/lib/preflight-toolchain.sh"
 # shellcheck source=lib/deploy-build.sh
 source "${SCRIPT_DIR}/lib/deploy-build.sh"
+# shellcheck source=lib/heavy-build.sh
+source "${SCRIPT_DIR}/lib/heavy-build.sh"
 
 # Under the installed service the live binary is the file the service runs, not the record.
 LIVE_BIN="${DEPLOYED_BIN}"
@@ -475,14 +477,16 @@ if [[ "${DRY_RUN}" == "false" && "${BUILD_ONLY}" == "false" ]] \
 fi
 
 LOW_PRIORITY=()
-while IFS= read -r _word; do LOW_PRIORITY+=("${_word}"); done < <(deploy_low_priority)
+while IFS= read -r _word; do LOW_PRIORITY+=("${_word}"); done < <(heavy_build_priority)
 BUILD_CACHE="$(deploy_build_cache "$(mbx_bin_path)")"
 BUILT_BIN="${MIKE_BIN}"
 if [[ "${BUILD_NEEDED}" == "false" ]]; then
     echo "==> The live mike was deployed from HEAD ${HEAD_SHA:0:12} (${BUILD_PROFILE}) and reports it — nothing to build"
     BUILT_BIN="${LIVE_BIN}"
 else
-    echo "==> Building mike ${RELEASE_FLAG:+(release) }through ${BUILD_CACHE} at the lowest priority (${LOW_PRIORITY[*]})"
+    BUILD_JOBS="$(heavy_build_jobs)"
+    heavy_build_lock "deploy-proxy.sh build" || exit 1
+    echo "==> Building mike ${RELEASE_FLAG:+(release) }through ${BUILD_CACHE} at the lowest priority (${LOW_PRIORITY[*]}), ${BUILD_JOBS} jobs"
     # Build against the committed .sqlx offline cache — this script runs with no
     # DATABASE_URL (only MIKE_DATABASE_URL, read at runtime), so without offline
     # mode the sqlx query macros try to validate online, find no DATABASE_URL, and
@@ -496,13 +500,16 @@ else
         BUILT_BIN="${TARGET_DIR}/mbx-deploy/${BUILD_PROFILE}/mike"
         (
             prepare_mbx_build_cache "${PROJECT_ROOT}" "${TARGET_DIR}/mbx-deploy"
-            SQLX_OFFLINE="${SQLX_OFFLINE:-true}" "${LOW_PRIORITY[@]}" "${MBX_BIN}" build ${RELEASE_FLAG} -p mike --bin mike --quiet
+            CARGO_BUILD_JOBS="${BUILD_JOBS}" SQLX_OFFLINE="${SQLX_OFFLINE:-true}" \
+                "${LOW_PRIORITY[@]}" "${MBX_BIN}" build ${RELEASE_FLAG} -p mike --bin mike --quiet 8>&- 9>&-
         )
     else
         ensure_build_toolchain
         # MIKE_BUILD_IDENTITY=git: the deployed binary carries its commit even as a --debug build.
-        MIKE_BUILD_IDENTITY=git SQLX_OFFLINE="${SQLX_OFFLINE:-true}" "${LOW_PRIORITY[@]}" cargo build ${RELEASE_FLAG} --manifest-path crates/mike/Cargo.toml --quiet
+        MIKE_BUILD_IDENTITY=git CARGO_BUILD_JOBS="${BUILD_JOBS}" SQLX_OFFLINE="${SQLX_OFFLINE:-true}" \
+            "${LOW_PRIORITY[@]}" cargo build ${RELEASE_FLAG} --manifest-path crates/mike/Cargo.toml --quiet 8>&- 9>&-
     fi
+    heavy_build_unlock
     echo "==> Build OK in $(( SECONDS - BUILD_STARTED ))s"
 fi
 

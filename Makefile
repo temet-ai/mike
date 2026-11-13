@@ -36,7 +36,7 @@ spa:
 ## Build mike-mcp and install to ~/.local/bin.
 ## Re-run after pulling changes to crates/mike-mcp or crates/mike.
 install:
-	CARGO_TARGET_DIR=$(CARGO_TARGET_DIR) ./scripts/cx build --release --bin mike-mcp
+	MIKE_BUILD_IDENTITY=git CARGO_TARGET_DIR=$(CARGO_TARGET_DIR) ./scripts/cx build --release --bin mike-mcp
 	mkdir -p $(INSTALL_DIR)
 	rm -f $(INSTALL_DIR)/mike-mcp   # fresh inode: cp over a previously-executed binary trips macOS's stale code-sign vnode cache -> silent SIGKILL (exit 137)
 	cp $(CARGO_TARGET_DIR)/release/mike-mcp $(INSTALL_DIR)/mike-mcp

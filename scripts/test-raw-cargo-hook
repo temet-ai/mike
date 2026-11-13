@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# Checks .claude/hooks/raw-cargo-guard.sh, the PreToolUse hook that refuses raw cargo builds:
+# feeds it Bash tool events and reads its exit code (2 = refused, 0 = allowed). Runs no cargo.
+#
+# Usage: scripts/test-raw-cargo-hook     Exit: 0 = no FAIL. Without python3 the hook allows
+# everything by design, so every case prints NOT RUN and none counts as a pass.
+set -uo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+hook="$root/.claude/hooks/raw-cargo-guard.sh"
+pass=0 fail=0 notrun=0
+
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "NOT RUN: every case (python3 is missing; the hook fails open without it)"
+    echo "raw cargo hook: 0 passed, 0 failed, 1 not run"
+    exit 0
+fi
+
+event() {
+    python3 -c 'import json,sys; print(json.dumps({"tool_name": sys.argv[1], "tool_input": {"command": sys.argv[2]}, "cwd": "/x"}))' "$1" "$2"
+}
+run() { # tool command [env...]
+    local tool="$1" cmd="$2"; shift 2
+    event "$tool" "$cmd" | env -u MIKE_RAW_CARGO "$@" sh "$hook" 2>"$err"
+}
+err="$(mktemp /tmp/rc.XXXXXX)"
+trap 'rm -f "$err"' EXIT
+
+expect() { # want(refused|allowed) command [env...]
+    local want="$1" cmd="$2" rc got; shift 2
+    run Bash "$cmd" "$@"; rc=$?
+    case "$rc" in 2) got=refused ;; 0) got=allowed ;; *) got="exit $rc" ;; esac
+    if [[ "$got" == "$want" ]]; then
+        pass=$((pass+1)); echo "PASS: $want: $cmd"
+    else
+        fail=$((fail+1)); echo "FAIL: wanted $want, got $got: $cmd"; sed 's/^/  /' "$err"
+    fi
+}
+
+# shellcheck disable=SC2088  # the commands are text the hook reads, never run
+for cmd in \
+    "cargo build" \
+    "cargo build --release -p mike" \
+    "cargo check -p mike --lib" \
+    "cargo test -p mike-base" \
+    "cargo clippy --all-targets" \
+    "cargo nextest run -p mike" \
+    "cargo-nextest nextest run" \
+    "cargo +1.95.0 check" \
+    "cargo -q build" \
+    "cargo b" "cargo c" "cargo t" \
+    "cd crates/mike && cargo build" \
+    "git status; cargo test" \
+    "SQLX_OFFLINE=true cargo build" \
+    "env CARGO_TARGET_DIR=x cargo check" \
+    "nice -n 19 cargo build" \
+    "nice -n 19 ionice -c 3 cargo build --release" \
+    "timeout 600 cargo test" \
+    "bash -c 'cargo build -p mike'" \
+    "echo \$(cargo check)" \
+    "~/.cargo/bin/cargo build" \
+    "cargo build 2>&1 | tail -5"; do
+    expect refused "$cmd"
+done
+
+for cmd in \
+    "cargo fmt" \
+    "cargo fmt --check" \
+    "cargo metadata --format-version 1 --no-deps" \
+    "cargo tree -p mike" \
+    "cargo --version" \
+    "scripts/cx check -p mike --lib" \
+    "scripts/cx nextest run -p mike" \
+    "./scripts/cx build --release" \
+    "make test-t t=stamp" \
+    "make install" \
+    "scripts/lint-rust -p mike-base" \
+    "scripts/deploy-proxy.sh --build-only" \
+    "git push origin fix/x" \
+    "grep -rn 'cargo build' scripts" \
+    "echo 'cargo build'" \
+    "rg -n \"cargo test\" docs" \
+    "ls ~/.cargo/bin" \
+    "cargo install cargo-nextest --locked"; do
+    expect allowed "$cmd"
+done
+
+# Bypass: per command and per session.
+expect allowed "MIKE_RAW_CARGO=1 cargo build --release"
+expect allowed "env MIKE_RAW_CARGO=1 cargo check"
+expect allowed "cargo build" MIKE_RAW_CARGO=1
+expect refused "MIKE_RAW_CARGO=0 cargo build"
+
+# The refusal is one line that names scripts/cx and the bypass.
+run Bash "cargo build"
+if [[ "$(wc -l <"$err" | tr -d ' ')" == 1 ]] && grep -q 'scripts/cx' "$err" && grep -q 'MIKE_RAW_CARGO=1' "$err"; then
+    pass=$((pass+1)); echo "PASS: the refusal is one line naming scripts/cx and MIKE_RAW_CARGO=1"
+else
+    fail=$((fail+1)); echo "FAIL: the refusal is one line naming scripts/cx and MIKE_RAW_CARGO=1"; cat "$err"
+fi
+
+# Other tools and broken input are allowed (fail open).
+if run Edit "cargo build"; then pass=$((pass+1)); echo "PASS: allowed: a tool other than Bash"
+else fail=$((fail+1)); echo "FAIL: a tool other than Bash was refused"; fi
+if printf 'not json cargo' | sh "$hook" 2>/dev/null; then pass=$((pass+1)); echo "PASS: allowed: input that is not JSON"
+else fail=$((fail+1)); echo "FAIL: input that is not JSON was refused"; fi
+
+# Registered in the project settings every session loads.
+if python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); hs=[h["command"] for m in s["hooks"]["PreToolUse"] if m.get("matcher")=="Bash" for h in m["hooks"]]; sys.exit(0 if any("raw-cargo-guard.sh" in c for c in hs) else 1)' "$root/.claude/settings.json"; then
+    pass=$((pass+1)); echo "PASS: .claude/settings.json registers the hook for Bash"
+else
+    fail=$((fail+1)); echo "FAIL: .claude/settings.json does not register the hook for Bash"
+fi
+
+echo "raw cargo hook: ${pass} passed, ${fail} failed, ${notrun} not run"
+(( fail == 0 ))

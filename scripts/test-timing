@@ -89,7 +89,8 @@ run_rust() {
     "$SCRIPT_DIR/cx" nextest run --all --profile timing --no-run
   phase rust "nextest run" "$OUT/rust-run.log" \
     "$SCRIPT_DIR/cx" nextest run --all --profile timing "${filter[@]}"
-  local junit="${CARGO_TARGET_DIR:-$REPO/target}/nextest/timing/junit.xml"
+  local junit
+  junit="$(CX_PRINT_TARGET_DIR=1 "$SCRIPT_DIR/cx" nextest run)/nextest/timing/junit.xml"
   if [[ -f "$junit" ]]; then cp "$junit" "$OUT/rust-junit.xml"
   else echo "test-timing: no nextest JUnit at $junit" >&2; fi
 }

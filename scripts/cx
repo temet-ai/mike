@@ -47,21 +47,46 @@ export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$repo_root/target}"
 # shellcheck disable=SC1091
 source "$script_dir/lib/preflight-toolchain.sh"
 
-# check, clippy and test run through mbx by default when mbx is installed, into
-# target/mbx-<session> (select_build_cache in preflight-toolchain.sh), so a
-# session neither queues behind another's build nor starts a new worktree cold.
-# build, nextest and everything else stay on plain cargo in target/: deploys and
-# installs take their binary from there, and mbx would run them uncached inside
-# its own directory. MIKE_BUILD_CACHE=mbx forces mbx into a named directory;
-# MIKE_BUILD_CACHE=cargo forces plain cargo. See scripts/mbx-trial/README.md.
-select_build_cache "$repo_root" "$cx_target_named" "$(cx_cargo_subcommand "$@")"
+# check, clippy, test, nextest and build run through mbx by default when mbx is
+# installed, into target/mbx-<session> (select_build_cache in preflight-toolchain.sh),
+# so a new worktree restores from the shared store instead of building cold. nextest
+# runs with CARGO pointing at mbx, so the test binaries it builds come from the store.
+# build stays on plain cargo in target/ when MIKE_BUILD_IDENTITY=git (make install, the
+# release scripts), which embed the commit through build.rs. MIKE_BUILD_CACHE=mbx forces
+# mbx into a named directory; MIKE_BUILD_CACHE=cargo forces plain cargo. See
+# scripts/mbx-trial/README.md.
+cx_sub="$(cx_cargo_subcommand "$@")"
+select_build_cache "$repo_root" "$cx_target_named" "$cx_sub"
 if [[ "$CX_CACHE_MODE" == mbx ]]; then
   prepare_mbx_build_cache "$repo_root" "$CX_MBX_TARGET"
-  cx_cmd=("$MBX_BIN" "$@")
+  if [[ "$cx_sub" == nextest ]]; then
+    cx_nextest="$(command -v cargo-nextest || true)"
+    if [[ -z "$cx_nextest" ]]; then
+      echo "cx: cargo-nextest is not installed (cargo install cargo-nextest --locked)" >&2
+      exit 1
+    fi
+    cx_cmd=(env "CARGO=$MBX_BIN" "$cx_nextest" "$@")
+  else
+    cx_cmd=("$MBX_BIN" "$@")
+  fi
 else
   ensure_build_toolchain
   compute_accelerator_cargo_args
   cx_cmd=(cargo "${ACCELERATOR_CARGO_ARGS[@]}" "$@")
+fi
+
+# A heavy build runs at the lowest priority, on at most half the processors, and one at a
+# time on the machine (scripts/lib/heavy-build.sh). fmt, metadata and the rest are exempt.
+# shellcheck source=lib/heavy-build.sh
+source "$script_dir/lib/heavy-build.sh"
+cx_heavy=0
+if heavy_build_is_heavy "$cx_sub"; then
+  cx_heavy=1
+  CARGO_BUILD_JOBS="$(heavy_build_jobs)"
+  export CARGO_BUILD_JOBS
+  cx_priority=()
+  while IFS= read -r cx_word; do cx_priority+=("$cx_word"); done < <(heavy_build_priority)
+  cx_cmd=("${cx_priority[@]}" "${cx_cmd[@]}")
 fi
 
 if [[ -n "${CX_PRINT_TARGET_DIR:-}" ]]; then
@@ -124,8 +149,11 @@ lock_before=""
 source "$script_dir/lib/sha256.sh"
 [[ -f Cargo.lock ]] && lock_before="$(sha256 < Cargo.lock)"
 
+if (( cx_heavy )); then
+  heavy_build_lock "cx $cx_sub" || exit 1
+fi
 guard_build_enter
-trap guard_build_leave EXIT
+trap 'guard_build_leave; heavy_build_unlock' EXIT
 
 # ── A query without its .sqlx entry must not stop the crate for everyone (#533) ─
 # sqlx's macros read .sqlx/ offline. A seat that saves a new query! before its entry
@@ -144,14 +172,14 @@ fi
 cx_errlog=""
 if (( cx_autoprepare_ok )); then
   cx_errlog="$(mktemp "${TMPDIR:-/tmp}/cx-err.XXXXXX")"
-  trap 'guard_build_leave; rm -f "${cx_errlog:?}"' EXIT
+  trap 'guard_build_leave; heavy_build_unlock; rm -f "${cx_errlog:?}"' EXIT
 fi
 
 cx_run() {
   if [[ -n "$cx_errlog" ]]; then
-    { "${cx_cmd[@]}" 2>&1 1>&3 | tee "$cx_errlog" >&2; return "${PIPESTATUS[0]}"; } 3>&1
+    { "${cx_cmd[@]}" 2>&1 1>&3 8>&- | tee "$cx_errlog" >&2; return "${PIPESTATUS[0]}"; } 3>&1
   else
-    "${cx_cmd[@]}"
+    "${cx_cmd[@]}" 8>&-
   fi
 }
 
@@ -176,9 +204,9 @@ cx_prepare_once() {
   done
   echo "cx: a query has no .sqlx entry; running scripts/sqlx-prepare once for the checkout (#533)" >&2
   if (( ${#pkgs[@]} )); then
-    CX_AUTOPREPARE=0 "$script_dir/sqlx-prepare" -- "${pkgs[@]}" --all-targets >&2 || rc=$?
+    CX_AUTOPREPARE=0 "$script_dir/sqlx-prepare" -- "${pkgs[@]}" --all-targets >&2 8>&- || rc=$?
   else
-    CX_AUTOPREPARE=0 "$script_dir/sqlx-prepare" >&2 || rc=$?
+    CX_AUTOPREPARE=0 "$script_dir/sqlx-prepare" >&2 8>&- || rc=$?
   fi
   rm -rf "${lock:?}"
   return "$rc"
@@ -201,6 +229,7 @@ fi
 set -e
 
 guard_build_leave
+heavy_build_unlock
 trap - EXIT
 [[ -n "$cx_errlog" ]] && rm -f "$cx_errlog"
 

@@ -41,15 +41,6 @@ deploy_tree_dirty() {
     fi
 }
 
-# deploy_low_priority: the command prefix a deploy build runs under, one word per line —
-# the lowest CPU priority, and the idle I/O class where ionice exists (Linux).
-deploy_low_priority() {
-    printf '%s\n' nice -n 19
-    if command -v ionice >/dev/null 2>&1; then
-        printf '%s\n' ionice -c 3
-    fi
-}
-
 # deploy_build_cache <mbx_path>: mbx when an mbx binary was found and MIKE_DEPLOY_BUILD_CACHE is
 # not cargo; else cargo.
 deploy_build_cache() {
