@@ -1,14 +1,8 @@
 #[cfg(unix)]
 pub fn read_max_rss() -> Option<u64> {
-    let rusage = unsafe {
-        let mut r = std::mem::MaybeUninit::<libc::rusage>::zeroed();
-        if libc::getrusage(libc::RUSAGE_SELF, r.as_mut_ptr()) != 0 {
-            return None;
-        }
-        r.assume_init()
-    };
-
-    let raw = rusage.ru_maxrss.max(0) as u64;
+    use nix::sys::resource::{UsageWho, getrusage};
+    let usage = getrusage(UsageWho::RUSAGE_SELF).ok()?;
+    let raw = u64::try_from(usage.max_rss()).unwrap_or(0);
     #[cfg(target_os = "macos")]
     {
         Some(raw)

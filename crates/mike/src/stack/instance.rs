@@ -158,7 +158,7 @@ fn read_record(path: &Path) -> Result<Option<InstanceIdentity>> {
     {
         use std::os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt};
         anyhow::ensure!(
-            metadata.uid() == unsafe { libc::geteuid() }
+            metadata.uid() == rustix::process::geteuid().as_raw()
                 && metadata.permissions().mode() & 0o077 == 0,
             "daemon identity must be private and owned by this user"
         );

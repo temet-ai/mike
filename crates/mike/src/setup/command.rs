@@ -128,7 +128,7 @@ fn read_url_file(path: &Path) -> Result<String> {
     {
         use std::os::unix::fs::{MetadataExt, PermissionsExt};
         ensure!(
-            metadata.uid() == unsafe { libc::geteuid() }
+            metadata.uid() == rustix::process::geteuid().as_raw()
                 && metadata.permissions().mode() & 0o077 == 0,
             "database URL file must belong to this user with owner-only permissions (chmod 600)"
         );

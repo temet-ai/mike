@@ -118,6 +118,7 @@ uuid = { workspace = true }
 # (`crate::in_flight::register_for_tests`) without requiring callers to
 # pass `--features test-seams` on the cargo test command line.
 mike = { path = ".", features = ["test-seams"] }
+nix = { version = "0.29.0", default-features = false, features = ["user"] }
 futures = "0.3"
 insta = { version = "1", features = ["json"] }
 proptest = "1"

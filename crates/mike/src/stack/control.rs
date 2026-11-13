@@ -129,7 +129,7 @@ fn require_same_user(stream: &tokio::net::UnixStream) -> Result<()> {
         .peer_cred()
         .context("cannot verify private daemon control peer")?;
     anyhow::ensure!(
-        credentials.uid() == unsafe { libc::geteuid() },
+        credentials.uid() == rustix::process::geteuid().as_raw(),
         "private daemon control peer has a different owner"
     );
     Ok(())
@@ -145,7 +145,7 @@ fn socket_metadata(path: &Path) -> Result<Option<std::fs::Metadata>> {
     };
     anyhow::ensure!(
         metadata.file_type().is_socket()
-            && metadata.uid() == unsafe { libc::geteuid() }
+            && metadata.uid() == rustix::process::geteuid().as_raw()
             && metadata.permissions().mode() & 0o077 == 0,
         "private daemon control path is not a private socket owned by this user; nothing was removed"
     );

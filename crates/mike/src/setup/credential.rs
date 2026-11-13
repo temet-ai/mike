@@ -76,7 +76,7 @@ fn read(path: &Path) -> Result<String> {
     {
         use std::os::unix::fs::{MetadataExt, PermissionsExt};
         ensure!(
-            metadata.uid() == unsafe { libc::geteuid() }
+            metadata.uid() == rustix::process::geteuid().as_raw()
                 && metadata.permissions().mode() & 0o077 == 0,
             "database credential must be owned by the current user and readable by its owner only"
         );

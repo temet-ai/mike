@@ -10,7 +10,7 @@ mod tests;
 pub(crate) use bootstrap::{
     FileState, overridden_by_environment, provenance, render_sources, resolved_config_file,
 };
-pub use bootstrap::{load_environment, observe_selected, require_valid_config_file};
+pub use bootstrap::{observe_selected, require_valid_config_file};
 pub use command::{ImportEnvArgs, UserConfigArgs, UserConfigCommand, run};
 #[cfg(test)]
 pub(crate) use file::Setting;
