@@ -3,8 +3,8 @@ use sqlx::{Postgres, QueryBuilder};
 
 use super::super::super::{PersistError, PersistHandle};
 use super::types::{
-    PromptClassDetailRow, PromptClassObservationRow, PromptClassRow, PromptClassScope,
-    PromptClassVersionRow,
+    PromptClassDetailRow, PromptClassInstructionsRow, PromptClassObservationRow, PromptClassRow,
+    PromptClassScope, PromptClassVersionRow,
 };
 
 const LIST_TAIL: &str = include_str!("prompt_classes/list_tail.sql");
@@ -130,6 +130,45 @@ impl PersistHandle {
                 .build_query_as::<PromptClassObservationRow>()
                 .fetch_all(&self.pool)
                 .await?)
+        })
+        .await
+    }
+
+    pub(crate) async fn list_prompt_class_instructions(
+        &self,
+        lane: &str,
+        persona: Option<&str>,
+        limit: i64,
+    ) -> Result<Vec<PromptClassInstructionsRow>, PersistError> {
+        crate::metrics::time_db("list_prompt_class_instructions", async {
+            Ok(sqlx::query_as::<_, PromptClassInstructionsRow>(
+                "WITH windowed AS MATERIALIZED (
+                    SELECT sp.request_id, sp.created_at, sp.blocks->2->>'text' AS instructions
+                    FROM system_prompts.session_prompts sp
+                    WHERE sp.lane = $1
+                      AND COALESCE(sp.subagent_persona, '') = COALESCE($2::text, '')
+                      AND sp.created_at >= NOW() - INTERVAL '7 days'
+                ),
+                ranked AS (
+                    SELECT instructions, request_id, created_at,
+                           COUNT(*) OVER (PARTITION BY instructions)::bigint AS observation_count,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY instructions ORDER BY created_at DESC, request_id DESC
+                           ) AS rn
+                    FROM windowed
+                )
+                SELECT instructions, observation_count, created_at AS last_seen,
+                       request_id AS latest_request_id
+                FROM ranked
+                WHERE rn = 1
+                ORDER BY observation_count DESC, last_seen DESC
+                LIMIT $3",
+            )
+            .bind(lane)
+            .bind(persona)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?)
         })
         .await
     }

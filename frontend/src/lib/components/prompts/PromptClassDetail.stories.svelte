@@ -133,7 +133,7 @@
 		const registerCta = await canvas.findByText('Register this');
 		await expect(registerCta.closest('a')).toHaveAttribute(
 			'href',
-			'/prompts/new?from=request:8801&persona=Postgres%20%2B%20Rust%20Database%20Specialist'
+			'/prompts/new?persona=Postgres%20%2B%20Rust%20Database%20Specialist'
 		);
 	}}
 >
