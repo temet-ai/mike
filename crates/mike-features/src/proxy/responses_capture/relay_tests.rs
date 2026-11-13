@@ -347,7 +347,10 @@ async fn responses_websocket_upgrade_is_refused_with_426_and_recorded() -> anyho
         .header("connection", "Upgrade")
         .header("upgrade", "websocket")
         .header("sec-websocket-version", "13")
-        .header("sec-websocket-key", "dGhlIHNhbXBsZSBub25jZQ==")
+        .header(
+            "sec-websocket-key",
+            tokio_tungstenite::tungstenite::handshake::client::generate_key(),
+        )
         .header("authorization", "Bearer k")
         .body(Body::empty())?;
     let response = routes(h.state.clone()).oneshot(request).await?;
@@ -415,7 +418,7 @@ async fn responses_unreachable_upstream_answers_502_and_records_the_error() -> a
     assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
     let id = next_recorded(&mut h).await?;
     let row = sqlx::query(
-        "SELECT status, error, request_body_encoding, model, request_body FROM runtime.responses_exchanges WHERE id = $1",
+        "SELECT status, error, request_body_encoding, model, request_body, evidence_status FROM runtime.responses_exchanges WHERE id = $1",
     )
     .bind(id)
     .fetch_one(h.persist.pool())
@@ -431,9 +434,7 @@ async fn responses_unreachable_upstream_answers_502_and_records_the_error() -> a
         Some("zstd")
     );
     assert_eq!(row.try_get::<Option<String>, _>("model")?, None);
-    assert_eq!(
-        row.try_get::<Vec<u8>, _>("request_body")?,
-        b"\x28\xb5\x2f\xfd-not-json"
-    );
+    assert_eq!(row.try_get::<String, _>("evidence_status")?, "incomplete");
+    assert!(row.try_get::<Option<Vec<u8>>, _>("request_body")?.is_none());
     Ok(())
 }

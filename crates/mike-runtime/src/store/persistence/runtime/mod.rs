@@ -10,6 +10,20 @@ pub mod observation_budget;
 pub mod observation_reads;
 pub mod observation_write;
 pub mod retention;
+#[cfg(test)]
+mod tests;
+#[cfg(test)]
+pub mod tests_diagnostics;
+#[cfg(test)]
+pub mod tests_events;
+#[cfg(test)]
+pub mod tests_identity;
+#[cfg(test)]
+pub mod tests_observation_boundaries;
+#[cfg(test)]
+pub mod tests_observation_retention;
+#[cfg(any(test, feature = "test-seams"))]
+pub mod tests_observation_support;
 
 pub use notification_targets::RuntimeNotificationTarget;
 pub use observation::{ObservationApplyOutcome, ObservationLimits};
@@ -42,20 +56,3 @@ fn same_or_conflict<T: PartialEq>(
         "runtime {kind} conflicts with an existing identity or references a missing Mike session"
     )))
 }
-
-#[cfg(test)]
-mod tests;
-#[cfg(test)]
-pub mod tests_events;
-#[cfg(test)]
-pub mod tests_identity;
-
-#[cfg(test)]
-pub mod tests_observation_support;
-
-#[cfg(test)]
-pub mod tests_diagnostics;
-#[cfg(test)]
-pub mod tests_observation_boundaries;
-#[cfg(test)]
-pub mod tests_observation_retention;

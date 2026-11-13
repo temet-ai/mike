@@ -142,8 +142,11 @@ def write_config(root, spec):
     the crate list give, e.g. after a crate is added to the map's "packages"."""
     path = root / ".config/nextest.toml"
     text = path.read_text()
-    current = tomllib.loads(text)["profile"]["db"]["default-filter"]
-    path.write_text(text.replace(json.dumps(current), json.dumps(db_filter(spec))))
+    profiles = tomllib.loads(text)["profile"]
+    current, wanted = profiles["db"]["default-filter"], db_filter(spec)
+    text = text.replace(json.dumps(profiles["default"]["default-filter"]),
+                        json.dumps(f"not ({wanted})"))
+    path.write_text(text.replace(json.dumps(current), json.dumps(wanted)))
 
 
 def main(args):

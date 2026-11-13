@@ -43,11 +43,15 @@
    "db",
    "llm"
   ],
+  "mike-runtime": [
+   "runtime"
+  ],
+  "mike-launch": [
+   "launch",
+   "fleet"
+  ],
   "mike-features": [
    "proxy",
-   "runtime",
-   "launch",
-   "fleet",
    "knowledge",
    "dossier",
    "steerer",

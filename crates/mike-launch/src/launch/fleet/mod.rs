@@ -170,6 +170,8 @@ pub mod report_tests;
 pub mod run_record_tests;
 #[cfg(test)]
 pub mod seated_tests;
+#[cfg(any(test, feature = "test-seams"))]
+pub mod test_fixtures;
 #[cfg(test)]
 pub mod tests;
 

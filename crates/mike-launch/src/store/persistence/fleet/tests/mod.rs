@@ -1,15 +1,27 @@
+#[cfg(test)]
 pub mod acceptance_notes;
+#[cfg(test)]
 pub mod comms_thread;
+#[cfg(test)]
 pub mod crud;
+#[cfg(test)]
 pub mod events;
+#[cfg(test)]
 pub mod for_session;
+#[cfg(test)]
 pub mod notes;
+#[cfg(test)]
 pub mod run_record;
+#[cfg(test)]
 pub mod seats;
 pub mod seed;
+#[cfg(test)]
 pub mod session_memo;
+#[cfg(test)]
 pub mod state;
+#[cfg(test)]
 pub mod told;
+#[cfg(test)]
 pub mod tripwires;
 
 use serde_json::json;
