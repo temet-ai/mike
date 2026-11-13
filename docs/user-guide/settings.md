@@ -117,6 +117,7 @@ These are off, and none of the first four sends text to another service:
 | `memory_keeper` | Keeps a short card for each open work thread: where it stands, what is next, blockers, the last handoff and decisions since. Built from the database; nothing leaves the machine. Turning it back on needs a restart. |
 | `seat_memory_index` | Knowledge search also finds fleet seats' briefs, reports and mail, labelled by seat and run and ranked below your own material. Turning it back on needs a restart. |
 | `wright` | Wright watches mike's own signals (tool errors, hook errors, failed jobs) and records each recurring fault as a problem with its episodes. Reads only this machine's database. Turning it off stops the checks at once. The checks are stored rows, not code: list, add, change, disable and remove them while mike runs with the `wright_checks` tool. |
+| `codex_diagnostic_capture` | Keeps the complete request and response bodies of Codex sessions for diagnosis, within the byte, row and age limits shown on the settings page. Off, Codex sessions keep only bounded facts. Nothing leaves the machine. |
 
 `workspace_briefing`, `context_focus_question`, `native_peer_mail`, `mod_lesson_delivery` and the `client_serves_*` switches other than `client_serves_self_identity` are also off. They relate to fleets, messages between sessions and mods; the settings page describes each.
 

@@ -188,8 +188,8 @@ async fn session_head_prompt_kind_counts_match_seeded_distribution() -> anyhow::
         .ok_or_else(|| anyhow::anyhow!("missing prompt_kind_counts object: {head}"))?;
     assert_eq!(
         counts.len(),
-        17,
-        "all 17 known kind codes must be present: {counts:?}"
+        18,
+        "all 18 known kind codes must be present: {counts:?}"
     );
     assert_eq!(counts["operator"], 2, "counts: {counts:?}");
     assert_eq!(counts["activity-label"], 1, "counts: {counts:?}");
@@ -237,7 +237,7 @@ async fn session_head_prompt_kind_counts_all_zero_for_empty_session() -> anyhow:
     let counts = head["prompt_kind_counts"]
         .as_object()
         .ok_or_else(|| anyhow::anyhow!("missing prompt_kind_counts object: {head}"))?;
-    assert_eq!(counts.len(), 17, "all 17 known kind codes: {counts:?}");
+    assert_eq!(counts.len(), 18, "all 18 known kind codes: {counts:?}");
     for kind in [
         "operator",
         "activity-label",

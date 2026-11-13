@@ -122,10 +122,10 @@ fn assert_session_list_shape(rows: &[Value], sess_a: &str, sess_b: &str) -> anyh
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("models must be an array"))?;
     let model_strs: Vec<&str> = models.iter().filter_map(Value::as_str).collect();
-    assert!(
-        model_strs.is_empty(),
-        "session-list `models` is intentionally empty since c01d9232 (the \
-         per-session models scan was dropped); got {model_strs:?}"
+    assert_eq!(
+        model_strs,
+        ["claude-sonnet-4-20250514"],
+        "session-list `models` carries the session's last observed model"
     );
 
     for required in [
