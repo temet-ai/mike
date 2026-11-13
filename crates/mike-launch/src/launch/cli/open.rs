@@ -15,11 +15,8 @@ use super::run_seat;
 use super::runner::Runner;
 use crate::launch::{
     AssembleOptions, BackendId, ChannelCheck, LaunchError, LaunchOutput, LaunchSpec, OpenRequest,
-    Placement, SplitLaunchArgs, WorktreeKind, brief, split_launch_args, worktree,
+    Placement, SplitLaunchArgs, Surface, WorktreeKind, brief, split_launch_args, worktree,
 };
-
-#[path = "fleet_admission.rs"]
-pub mod fleet_admission;
 
 pub const MCP_MISSING: &str = "mike_mcp_missing";
 
@@ -70,7 +67,7 @@ impl Prepared {
 }
 
 pub struct Started {
-    admission: Option<fleet_admission::Admission>,
+    admission: Option<Box<dyn crate::launch::seat::SeatAdmission>>,
     output: LaunchOutput,
     spec: LaunchSpec,
     delivery: Delivery,
@@ -222,7 +219,7 @@ async fn launch(runner: &Runner<'_>, p: Prepared) -> OpenResult {
 }
 
 pub async fn start(runner: &Runner<'_>, p: Prepared) -> Result<Started, OpenFailure> {
-    let admission = fleet_admission::admit(runner, p.split.run.as_deref())
+    let admission = crate::launch::seat::admit(&runner.ledger, p.split.run.as_deref())
         .await
         .map_err(|error| fail(p.output.clone(), error, "fleet_admission"))?;
     let mut split = with_operator_args(p.split.clone(), &runner.config.claude_args);
@@ -288,7 +285,7 @@ async fn record_open_failure(
     error: &LaunchError,
 ) {
     if fleet {
-        fleet_admission::record_unconfirmed(runner, launch_id, error).await;
+        record_unconfirmed(runner, launch_id, error).await;
     } else {
         let outcome = failed_outcome(OPEN_FAILED, error);
         runner.ledger.record_outcome(launch_id, &outcome).await;
@@ -319,10 +316,8 @@ pub async fn finish(runner: &Runner<'_>, started: Started) -> OpenResult {
         spec.session,
         &surface,
     );
-    if let Err(error) =
-        fleet_admission::record_opened(runner, admission, launch_id, &request, &surface).await
-    {
-        fleet_admission::record_unconfirmed(runner, launch_id, &error).await;
+    if let Err(error) = record_opened(runner, admission, launch_id, &request, &surface).await {
+        record_unconfirmed(runner, launch_id, &error).await;
         return Err(OpenFailure {
             output: Some(opened_output(output, &spec, &surface, &delivery)),
             error,
@@ -379,6 +374,28 @@ pub async fn finish(runner: &Runner<'_>, started: Started) -> OpenResult {
     Ok(output)
 }
 
-#[cfg(any(test, feature = "test-seams"))]
-#[path = "fleet_admission_tests.rs"]
-pub mod admission_tests;
+async fn record_opened(
+    runner: &Runner<'_>,
+    admission: Option<Box<dyn crate::launch::seat::SeatAdmission>>,
+    launch: Option<i64>,
+    request: &OpenRequest,
+    surface: &Surface,
+) -> Result<(), LaunchError> {
+    let refs = super::open_outcome::surface_refs(surface);
+    if let Some(admission) = admission {
+        let launch = launch.ok_or_else(|| {
+            LaunchError::Failed("fleet opened without a launch reservation".into())
+        })?;
+        admission.record_opened(launch, &refs).await?;
+    } else {
+        runner.ledger.record_opened(launch, &refs).await;
+        super::run_seat::record_workspace(runner, request, surface).await;
+    }
+    Ok(())
+}
+
+async fn record_unconfirmed(runner: &Runner<'_>, launch: Option<i64>, error: &LaunchError) {
+    let mut outcome = failed_outcome("fleet_open_unconfirmed", error);
+    outcome.result = "pending".into();
+    runner.ledger.record_outcome(launch, &outcome).await;
+}

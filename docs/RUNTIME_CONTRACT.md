@@ -112,8 +112,8 @@ runtime-neutral reporting because raw storage is present.
 
 | Reader | Current assumption | Required normalized facts |
 |---|---|---|
-| `fleet/fleet_seat_rows.sql`, `crates/mike-launch/src/launch/fleet/status.rs` | Captured requests/responses drive activity, context, HTTP status and cache; terminal-backend presence supplies liveness fallback | Runtime lifecycle, observed activity time, freshness and reconciliation state; optional scoped context/usage, provider health; terminal presence separate from execution |
-| `crates/mike-launch/src/launch/fleet/staff.rs` | Warm siblings need recent captured HTTP traffic and a successful response | Adapter readiness and runtime-specific warm/resume capability with evidence |
+| `fleet/fleet_seat_rows.sql`, `crates/mike-fleet/src/launch/fleet/status.rs` | Captured requests/responses drive activity, context, HTTP status and cache; terminal-backend presence supplies liveness fallback | Runtime lifecycle, observed activity time, freshness and reconciliation state; optional scoped context/usage, provider health; terminal presence separate from execution |
+| `crates/mike-fleet/src/launch/fleet/staff.rs` | Warm siblings need recent captured HTTP traffic and a successful response | Adapter readiness and runtime-specific warm/resume capability with evidence |
 | `workspace/roster.rs` | Missing request can imply uncaptured and exclude a session | Explicit observation source, capture coverage and registration/liveness independent of wire traffic |
 | `fleet_correlation/nodes.rs`, `rehydrate/session_summary.rs`, `rehydrate/session_filtered.rs`, `rehydrate/session_head.rs` | Request-derived model, activity, counts, prompt, latency and lifecycle | Configured versus observed model; event/turn activity and optional time/usage; evidence source and freshness |
 | `fleet_correlation/actor.rs` | Claude tool projections identify files and dispatched agents; session existence acts as captured-session lookup | Tool kind plus original provider name, file evidence and attribution, native child identity and observed status |

@@ -42,7 +42,7 @@ async fn existing_obligation_accepted_after_final_refreshes_without_rewriting_ve
     f.unchanged_verdict(&verdict).await?;
     let body = "Additional detail keeps the complete previous observation available";
     f.persist
-        .launch()
+        .fleet()
         .update_session_note(
             accepted.note_uuid,
             SessionNoteUpdate {
@@ -148,7 +148,7 @@ async fn valid_obligation_rejects_identity_scope_and_marker_changes_without_losi
         mike::launch::fleet::merge(&mut changed, &patch);
         let error = f
             .persist
-            .launch()
+            .fleet()
             .update_session_note(
                 note.note_uuid,
                 SessionNoteUpdate {
@@ -165,7 +165,7 @@ async fn valid_obligation_rejects_identity_scope_and_marker_changes_without_losi
     let tags = [format!("fleet:{}", f.row.fleet_uuid)];
     let removed = f
         .persist
-        .launch()
+        .fleet()
         .update_session_note(
             note.note_uuid,
             SessionNoteUpdate {
@@ -214,7 +214,7 @@ async fn equivalent_scope_aliases_and_order_keep_existing_obligation_freshness()
     tags.push("extra-observation-tag".into());
     let updated = f
         .persist
-        .launch()
+        .fleet()
         .update_session_note(
             note.note_uuid,
             SessionNoteUpdate {
@@ -254,7 +254,7 @@ async fn malformed_legacy_obligation_can_be_retired_without_rewriting_its_conten
     let tags = [format!("fleet:{}", f.row.fleet_uuid)];
     let retired = f
         .persist
-        .launch()
+        .fleet()
         .update_session_note(
             original.note_uuid,
             SessionNoteUpdate {
@@ -302,7 +302,7 @@ async fn malformed_legacy_observation_can_be_repaired_without_changing_identity(
     assert!(invalid.obligations[0].issue.is_some());
     let repaired = f
         .persist
-        .launch()
+        .fleet()
         .update_session_note(
             original.note_uuid,
             SessionNoteUpdate {

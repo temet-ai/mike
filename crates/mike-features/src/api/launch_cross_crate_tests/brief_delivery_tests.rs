@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
@@ -206,7 +207,7 @@ async fn the_mike_channel_never_claims_brief_mail() -> anyhow::Result<()> {
     env.persist.mail_launch_briefs(session).await?;
     let claimed = env
         .persist
-        .launch()
+        .fleet()
         .claim_channel_messages(session, 10)
         .await?;
     assert!(

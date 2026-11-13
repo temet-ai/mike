@@ -1,3 +1,4 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::Json;
 use axum::http::StatusCode;
@@ -133,7 +134,7 @@ async fn queued_response(
 ) -> Response {
     let from = from_session_uuid.map(|u| u.to_string());
     let sender_label = match from_session_uuid {
-        Some(u) => handle.launch().sender_label(u).await,
+        Some(u) => handle.fleet().sender_label(u).await,
         None => None,
     };
     let reminder = crate::store::models::SystemReminder {

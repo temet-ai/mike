@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 #[path = "mailbox_fanout_delivery.rs"]
@@ -54,7 +55,7 @@ async fn fleet_recipients(
     from_session_uuid: uuid::Uuid,
 ) -> Result<Vec<uuid::Uuid>, Response> {
     match handle
-        .launch()
+        .fleet()
         .resolve_fleet_target(from_session_uuid, "fleet")
         .await
     {
@@ -101,7 +102,7 @@ pub(crate) async fn post_session_message_fanout(
     let recipient_uuids = audience
         .recipients(handle, sender_project_id, from_session_uuid)
         .await?;
-    let sender_label = handle.launch().sender_label(from_session_uuid).await;
+    let sender_label = handle.fleet().sender_label(from_session_uuid).await;
 
     let (thread_id, thread_uuid, subject) = resolve_fanout_thread(
         handle,

@@ -17,8 +17,8 @@ import re
 import sys
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-PLAN = "crates/mike-launch/src/launch/fleet/plan.rs"
-PLAN_BRIEFS = "crates/mike-launch/src/launch/fleet/plan_briefs.rs"
+PLAN = "crates/mike-fleet/src/launch/fleet/plan.rs"
+PLAN_BRIEFS = "crates/mike-fleet/src/launch/fleet/plan_briefs.rs"
 ALLOW = "scripts/rule-checks/fleet-text-overlap.allow"
 RULES = ".claude/fleet/rules.md"
 PROJECT = ".claude/fleet/project.md"
