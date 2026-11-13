@@ -44,10 +44,13 @@ for range in $ranges; do
   fi
 done
 
+# semgrep-new and its rules come from the checkout this hook file lives in, not the
+# pushing worktree, so a branch cut before a semgrep-new change still scans.
+hook_dir=$(python3 -c 'import os, sys; print(os.path.dirname(os.path.realpath(sys.argv[1])))' "$0")
 # SAST on what each pushed range commits, with .semgrep/rules.yml; only findings
 # the range adds fail it, so files a crate move touches keep their old findings.
 for range in $ranges; do
-  python3 "$root/scripts/semgrep-new" "$range" || {
+  python3 "$hook_dir/semgrep-new" "$range" || {
     echo "pre-push: semgrep failed for $range (see above); rerun: scripts/semgrep-new $range" >&2
     status=1
   }

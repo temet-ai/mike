@@ -47,5 +47,10 @@ reset; add_line "$src" 'pub fn added() { unsafe { libc::umask(0); } }' unsafe
 python3 "$sg" "0123456789abcdef0123456789abcdef01234567..HEAD" 2>/dev/null; check "an unknown base still scans (merge-base)" $? 1
 SEMGREP_BIN=/nonexistent/semgrep python3 "$sg" "$base..HEAD" 2>/dev/null; check "a failing semgrep fails the scan" $? 2
 
+reset; printf 'pub fn probe() -> std::path::PathBuf { std::env::temp_dir().join("a") }\n' >>"$src"; commit probe
+base=$(git rev-parse HEAD)
+sed 's/join("a")/join("b")/' "$src" >"$src.new" && mv "$src.new" "$src"; commit "edit beside an old finding"
+scan; check "an edit beside an old finding on its line passes" $? 0
+
 echo "$pass passed, $fail failed"
 (( fail == 0 ))

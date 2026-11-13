@@ -8,12 +8,14 @@ Usage:
 
 Each file is compared with its version at <base> (following renames, so a file
 moved between crates keeps its old findings). A finding is its rule id plus the
-matched source text with whitespace removed, so a line that only moves is not
-new. Both sides are copied out of git into temporary directories and scanned the
+exact source text the rule matched, whitespace removed, so neither a line that
+moves nor an edit elsewhere on the same line makes an old finding new. Both sides are copied out of git into temporary directories and scanned the
 same way, so a peer's uncommitted edit in a shared checkout never enters a range
 scan.
 
-The rules are .semgrep/rules.yml, read from disk: a scan needs no network. Test
+The rules are the .semgrep/rules.yml beside this script's checkout, read from
+disk: a scan needs no network, and a pushing branch that predates the rules
+file is still scanned with them. Test
 files are not scanned. Exit 0 when nothing is new, 1 when a finding is new, 2
 when the scan could not run (semgrep missing or failing, base unknown); the
 hook fails on 1 and 2 alike.
@@ -149,10 +151,10 @@ def keyed(results, root):
     for r in results:
         path = r["path"]
         if path not in cache:
-            cache[path] = (pathlib.Path(root) / path).read_text(errors="replace").splitlines()
-        lines = cache[path][r["start"]["line"] - 1 : r["end"]["line"]]
+            cache[path] = (pathlib.Path(root) / path).read_bytes()
+        matched = cache[path][r["start"]["offset"] : r["end"]["offset"]].decode(errors="replace")
         rule = re.sub(r"^.*?\bmike\.", "mike.", r["check_id"])
-        key = (rule, re.sub(r"\s+", "", "".join(lines)))
+        key = (rule, re.sub(r"\s+", "", matched))
         out[key] += 1
         where.setdefault(key, (f'{path}:{r["start"]["line"]}', r["extra"].get("message", "").strip()))
     return out, where
@@ -177,7 +179,8 @@ def run(argv):
         raise SystemExit(__doc__)
     top = git_text("rev-parse", "--show-toplevel").strip()
     os.chdir(top)
-    rules = extra if extra is not None else ["--config", str(pathlib.Path(top) / ".semgrep" / "rules.yml")]
+    own_rules = pathlib.Path(__file__).resolve().parent.parent / ".semgrep" / "rules.yml"
+    rules = extra if extra is not None else ["--config", str(own_rules)]
     if ".." in argv[0] and len(argv) == 1:
         base, head = argv[0].split("..", 1)
         head = head or "HEAD"
