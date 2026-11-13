@@ -58,7 +58,7 @@ class RustChangeScopeTests(unittest.TestCase):
         return scope.area_commands(self.root, paths, self.packages)
 
     def install_runner(self):
-        for file in ["scripts/test-area", "scripts/pre-push-check", "scripts/lib/rust_change_scope.py",
+        for file in ["scripts/test-area", "scripts/pre-push-check", "scripts/semgrep-new", "scripts/lib/rust_change_scope.py",
                      "scripts/lib/split_crates.py", "docs/adr/0002-crate-map.json"]:
             target = self.root / file
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -75,8 +75,8 @@ class RustChangeScopeTests(unittest.TestCase):
         self.git("commit", "-qm", "change")
         head = self.git("rev-parse", "HEAD")
         base = self.git("rev-parse", "origin/main")
-        for name in ["gitleaks", "semgrep"]:
-            target = self.write(f"tools/{name}", "#!/bin/sh\nexit 0\n")
+        for name, body in [("gitleaks", ""), ("semgrep", "echo '{\"results\": []}'\n")]:
+            target = self.write(f"tools/{name}", f"#!/bin/sh\n{body}exit 0\n")
             target.chmod(0o755)
         env = dict(os.environ, PATH=f"{self.root / 'tools'}:{os.environ['PATH']}")
         env.pop("MIKE_SEAT", None)
