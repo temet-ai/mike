@@ -1,0 +1,135 @@
+# The push hook's semgrep rules (scripts/semgrep-new reads this file; no registry
+# download). Each rule covers a risk clippy and cargo-deny do not see: clippy
+# lints Rust style and correctness, cargo-deny audits dependencies, and neither
+# looks at TLS settings, temp paths, new unsafe code or the frontend's sinks.
+rules:
+  - id: mike.rust.unsafe
+    languages: [rust]
+    severity: WARNING
+    message: >-
+      New unsafe code. Use a safe wrapper instead (rustix for libc calls, std's
+      File::try_lock for flock); if none exists, say why in the commit message.
+    pattern-either:
+      - pattern: unsafe { ... }
+      - pattern: unsafe fn $F(...) { ... }
+      - pattern: unsafe impl $T for $X {}
+
+  - id: mike.rust.temp-dir
+    languages: [rust]
+    severity: WARNING
+    message: >-
+      A path under the shared temp directory can be predicted and pre-created by
+      another user. Use tempfile::tempdir() or a private per-user directory.
+    pattern-regex: '\btemp_dir\(\)'
+
+  - id: mike.rust.tls-verification-off
+    languages: [rust]
+    severity: ERROR
+    message: Certificate or hostname verification is turned off.
+    pattern-either:
+      - pattern: $B.danger_accept_invalid_certs(true)
+      - pattern: $B.danger_accept_invalid_hostnames(true)
+      - pattern: $B.dangerous()
+      - pattern: SslVerifyMode::NONE
+      - pattern: openssl::ssl::SslVerifyMode::NONE
+
+  - id: mike.rust.weak-hash
+    languages: [rust]
+    severity: WARNING
+    message: MD5 and SHA-1 are broken; use sha2 (already a dependency).
+    pattern-regex: '\b(md5|sha1|Md5|Sha1)::'
+
+  - id: mike.js.eval
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: Code built from a value is executed.
+    pattern-either:
+      - patterns:
+          - pattern: eval($X)
+          - pattern-not: eval("...")
+      - pattern: new Function(...)
+
+  - id: mike.js.html-sink
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      A value is written into the page as HTML. Captured traffic is untrusted;
+      render it as text or sanitise it first.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - pattern: $E.innerHTML = $X
+              - pattern: $E.outerHTML = $X
+          - pattern-not: $E.$P = "..."
+      - pattern: $E.insertAdjacentHTML(...)
+      - pattern: document.write(...)
+
+  - id: mike.svelte.raw-html
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      {@html} renders a value as HTML. Captured traffic is untrusted; render it as
+      text or sanitise it first.
+    paths:
+      include: ["*.svelte"]
+    pattern-regex: '\{@html\s'
+
+  - id: mike.js.postmessage-wildcard
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: postMessage to any origin; name the target origin.
+    pattern: $W.postMessage($M, "*")
+
+  - id: mike.js.tls-verification-off
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: Certificate verification is turned off.
+    pattern-either:
+      - pattern: process.env.NODE_TLS_REJECT_UNAUTHORIZED = $V
+      - pattern: '{..., rejectUnauthorized: false, ...}'
+
+  - id: mike.js.shell-command
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      A shell command is built from a value. Pass an argument list to
+      execFile/spawn without shell: true.
+    pattern-either:
+      - patterns:
+          - pattern-either:
+              - patterns:
+                  - pattern-inside: |
+                      import { ..., exec, ... } from "$M"
+                      ...
+                  - pattern: exec($CMD, ...)
+              - patterns:
+                  - pattern-inside: |
+                      import { ..., execSync, ... } from "$M"
+                      ...
+                  - pattern: execSync($CMD, ...)
+              - patterns:
+                  - pattern-inside: |
+                      import * as $CP from "$M"
+                      ...
+                  - pattern-either:
+                      - pattern: $CP.exec($CMD, ...)
+                      - pattern: $CP.execSync($CMD, ...)
+              - pattern-either:
+                  - pattern: require("$M").exec($CMD, ...)
+                  - pattern: require("$M").execSync($CMD, ...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(node:)?child_process$
+          - metavariable-pattern:
+              metavariable: $CMD
+              patterns:
+                - pattern-not: '"..."'
+      - pattern: '$F(..., {..., shell: true, ...})'
+
+  - id: mike.bidi-control-character
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      A bidirectional control character can make code read differently from how
+      it runs (Trojan Source).
+    pattern-regex: "[‪-‮⁦-⁩]"

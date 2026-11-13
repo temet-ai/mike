@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
 """Fail only on semgrep findings a change adds.
 
-Usage: semgrep-new <base-ref> <file>... [-- <semgrep args>...]
+Usage:
+  semgrep-new <base>..<head>          the files the range changes, as committed at <head>
+  semgrep-new <base> <file>...        those files as they are in the working tree
+  Either form may end with "-- <semgrep args>" to replace the rule set.
 
-Scans each file in the working tree and its version at <base-ref> (following
-renames, so a file moved between crates keeps its old findings), and reports a
-finding only when the new side has more of it than the old side. A finding is
-its rule id plus the matched source text with whitespace removed, so a line that
-only moves, or a file that only changes crate, is not new. Exit 1 when a new
-finding exists, 0 otherwise.
+Each file is compared with its version at <base> (following renames, so a file
+moved between crates keeps its old findings). A finding is its rule id plus the
+matched source text with whitespace removed, so a line that only moves is not
+new. Both sides are copied out of git into temporary directories and scanned the
+same way, so a peer's uncommitted edit in a shared checkout never enters a range
+scan.
+
+The rules are .semgrep/rules.yml, read from disk: a scan needs no network. Test
+files are not scanned. Exit 0 when nothing is new, 1 when a finding is new, 2
+when the scan could not run (semgrep missing or failing, base unknown); the
+hook fails on 1 and 2 alike.
 """
 
 import collections
@@ -16,45 +24,125 @@ import json
 import os
 import pathlib
 import re
+import resource
+import shutil
 import subprocess
 import sys
 import tempfile
 
-SEMGREP_DEFAULT = ["--config", "p/rust", "--config", "p/javascript", "--config", "p/typescript"]
+SCANNED = re.compile(r"\.(rs|ts|js|mjs|cjs|svelte)$")
+NOT_SCANNED = re.compile(
+    r"(^|/)tests?/|_tests?\.rs$|(^|/)test_support/|\.test\.(ts|js|mjs)$|\.stories\.svelte$|(^|/)node_modules/|(^|/)fixtures/"
+)
+SCAN_TIMEOUT_SECONDS = 900
 
 
-def git(*args):
-    return subprocess.run(["git", *args], check=True, capture_output=True, text=True).stdout
+class ScanError(Exception):
+    pass
 
 
-def old_paths(base, files):
-    renamed = {}
-    for line in git("diff", "-M", "--name-status", base, "--", *files).splitlines():
+def git(*args, check=True):
+    proc = subprocess.run(["git", *args], capture_output=True)
+    if check and proc.returncode != 0:
+        raise ScanError(f"git {' '.join(args)}: {proc.stderr.decode(errors='replace').strip()}")
+    return proc
+
+
+def git_text(*args):
+    return git(*args).stdout.decode()
+
+
+def is_commit(ref):
+    return git("cat-file", "-e", f"{ref}^{{commit}}", check=False).returncode == 0
+
+
+def resolve_base(base, head):
+    if is_commit(base):
+        return base
+    for main in ("origin/main", "main"):
+        if is_commit(main):
+            fork = git("merge-base", main, head, check=False)
+            if fork.returncode == 0:
+                sys.stderr.write(f"semgrep-new: {base} is not here; comparing with merge-base of {main}\n")
+                return fork.stdout.decode().strip()
+    raise ScanError(f"base {base} is not a commit here; run git fetch")
+
+
+def wanted(path):
+    return bool(SCANNED.search(path)) and not NOT_SCANNED.search(path)
+
+
+def renames(base, head):
+    args = ["diff", "-M", "--name-status", base] + ([head] if head else [])
+    found = {}
+    for line in git_text(*args).splitlines():
         parts = line.split("\t")
         if parts[0].startswith(("R", "C")) and len(parts) == 3:
-            renamed[parts[2]] = parts[1]
-    for line in git("diff", "-M", "--name-status", base).splitlines():
-        parts = line.split("\t")
-        if parts[0].startswith(("R", "C")) and len(parts) == 3:
-            renamed.setdefault(parts[2], parts[1])
-    return {f: renamed.get(f, f) for f in files}
+            found[parts[2]] = parts[1]
+    return found
 
 
-def scan(semgrep, root, files, extra):
+def changed_files(base, head):
+    out = git_text("diff", "--name-only", "--diff-filter=d", "--no-renames", base, head)
+    return sorted(p for p in out.splitlines() if wanted(p))
+
+
+def copy_from_git(ref, paths, root):
+    copied = []
+    for path in paths:
+        show = git("show", f"{ref}:{path}", check=False)
+        if show.returncode != 0:
+            continue
+        dest = pathlib.Path(root) / path
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(show.stdout)
+        copied.append(path)
+    return copied
+
+
+def copy_from_tree(paths, root):
+    copied = []
+    for path in paths:
+        if os.path.isfile(path):
+            dest = pathlib.Path(root) / path
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(path, dest)
+            copied.append(path)
+    return copied
+
+
+def raise_stack_limit():
+    _, hard = resource.getrlimit(resource.RLIMIT_STACK)
+    try:
+        resource.setrlimit(resource.RLIMIT_STACK, (hard, hard))
+    except (ValueError, OSError):
+        pass
+
+
+def scan(semgrep, root, files, rules):
     if not files:
         return []
-    env = dict(os.environ, EIO_BACKEND="posix")
-    proc = subprocess.run(
-        [semgrep, "scan", "--metrics", "off", "--quiet", "--json", *extra, *files],
-        cwd=root, capture_output=True, text=True, env=env,
-    )
+    env = dict(os.environ, EIO_BACKEND="posix", SEMGREP_SEND_METRICS="off")
+    cmd = [semgrep, "scan", "--metrics", "off", "--disable-version-check", "--quiet", "--json", *rules, *files]
+    try:
+        proc = subprocess.run(
+            cmd, cwd=root, capture_output=True, text=True, env=env,
+            preexec_fn=raise_stack_limit, timeout=SCAN_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise ScanError(f"semgrep took longer than {SCAN_TIMEOUT_SECONDS}s") from exc
+    except OSError as exc:
+        raise ScanError(f"cannot run {semgrep}: {exc}") from exc
     if proc.returncode not in (0, 1):
-        sys.stderr.write(proc.stderr)
-        raise SystemExit(f"semgrep-new: semgrep exited {proc.returncode}")
-    return json.loads(proc.stdout).get("results", [])
+        sys.stderr.write(proc.stderr[-4000:])
+        raise ScanError(f"semgrep exited {proc.returncode}")
+    try:
+        return json.loads(proc.stdout).get("results", [])
+    except json.JSONDecodeError as exc:
+        raise ScanError("semgrep printed no JSON") from exc
 
 
-def keyed(results, root, logical):
+def keyed(results, root):
     out = collections.Counter()
     where = {}
     cache = {}
@@ -63,46 +151,63 @@ def keyed(results, root, logical):
         if path not in cache:
             cache[path] = (pathlib.Path(root) / path).read_text(errors="replace").splitlines()
         lines = cache[path][r["start"]["line"] - 1 : r["end"]["line"]]
-        key = (r["check_id"], re.sub(r"\s+", "", "".join(lines)))
+        rule = re.sub(r"^.*?\bmike\.", "mike.", r["check_id"])
+        key = (rule, re.sub(r"\s+", "", "".join(lines)))
         out[key] += 1
-        where.setdefault(key, f'{logical.get(path, path)}:{r["start"]["line"]}')
+        where.setdefault(key, (f'{path}:{r["start"]["line"]}', r["extra"].get("message", "").strip()))
     return out, where
 
 
-def main(argv):
+def find_semgrep():
+    found = os.environ.get("SEMGREP_BIN") or shutil.which("semgrep")
+    fallback = pathlib.Path.home() / ".local/bin/semgrep"
+    if not found and fallback.is_file():
+        found = str(fallback)
+    if not found:
+        raise ScanError("semgrep is not installed; install it with `pipx install semgrep` (or `brew install semgrep`)")
+    return found
+
+
+def run(argv):
+    extra = None
     if "--" in argv:
         i = argv.index("--")
         argv, extra = argv[:i], argv[i + 1 :]
-    else:
-        extra = SEMGREP_DEFAULT
-    if len(argv) < 2:
+    if not argv:
         raise SystemExit(__doc__)
-    base, files = argv[0], argv[1:]
-    semgrep = os.environ.get("SEMGREP_BIN", "semgrep")
-    top = git("rev-parse", "--show-toplevel").strip()
+    top = git_text("rev-parse", "--show-toplevel").strip()
     os.chdir(top)
-
-    new_results = scan(semgrep, top, files, extra)
-    new, where = keyed(new_results, top, {})
-
-    with tempfile.TemporaryDirectory() as old_root:
-        old_files = []
-        for path in set(old_paths(base, files).values()):
-            show = subprocess.run(["git", "show", f"{base}:{path}"], capture_output=True)
-            if show.returncode != 0:
-                continue
-            dest = pathlib.Path(old_root) / path
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_bytes(show.stdout)
-            old_files.append(path)
-        old, _ = keyed(scan(semgrep, old_root, old_files, extra), old_root, {})
-
-    added = new - old
-    if not added:
+    rules = extra if extra is not None else ["--config", str(pathlib.Path(top) / ".semgrep" / "rules.yml")]
+    if ".." in argv[0] and len(argv) == 1:
+        base, head = argv[0].split("..", 1)
+        head = head or "HEAD"
+        base = resolve_base(base, head)
+        files = changed_files(base, head)
+    else:
+        base, head = resolve_base(argv[0], "HEAD"), None
+        files = [f for f in argv[1:] if wanted(f) or extra is not None]
+    if not files:
         return 0
-    for key, count in sorted(added.items(), key=lambda kv: where[kv[0]]):
-        print(f"semgrep-new: {where[key]} {key[0]} (+{count})", file=sys.stderr)
-    return 1
+    semgrep = find_semgrep()
+    moved = renames(base, head)
+    with tempfile.TemporaryDirectory() as new_root, tempfile.TemporaryDirectory() as old_root:
+        new_files = copy_from_git(head, files, new_root) if head else copy_from_tree(files, new_root)
+        new, where = keyed(scan(semgrep, new_root, new_files, rules), new_root)
+        old_files = copy_from_git(base, sorted({moved.get(f, f) for f in new_files}), old_root)
+        old, _ = keyed(scan(semgrep, old_root, old_files, rules), old_root)
+    added = new - old
+    for key, count in sorted(added.items(), key=lambda kv: where[kv[0]][0]):
+        place, message = where[key]
+        print(f"semgrep-new: {place} {key[0]} (+{count}): {message}", file=sys.stderr)
+    return 1 if added else 0
+
+
+def main(argv):
+    try:
+        return run(argv)
+    except ScanError as exc:
+        print(f"semgrep-new: the scan could not run: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":
