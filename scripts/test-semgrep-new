@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Regression test for scripts/semgrep-new with the real semgrep: a finding a file
+# already had passes, a file moved between paths keeps its findings, and a finding
+# the change adds fails.
+set -uo pipefail
+root="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
+sg="$root/scripts/semgrep-new"
+command -v semgrep >/dev/null || { echo "SKIP: semgrep is not installed"; exit 0; }
+wt="$(mktemp -d)"
+trap 'git -C "$root" worktree remove --force "$wt" >/dev/null 2>&1' EXIT
+git -C "$root" worktree add -q --detach "$wt" HEAD
+cd "$wt" || exit 1
+src=crates/mike-base/src/config/live_install_guard.rs
+pass=0 fail=0
+check() { if [[ "$2" == "$3" ]]; then pass=$((pass+1)); echo "PASS: $1"; else fail=$((fail+1)); echo "FAIL: $1 (exit $2, want $3)"; fi; }
+
+python3 "$sg" HEAD "$src" -- --config p/rust 2>/dev/null; check "unchanged file with old findings passes" $? 0
+git mv "$src" crates/mike-base/src/config/moved_guard.rs
+python3 "$sg" HEAD crates/mike-base/src/config/moved_guard.rs -- --config p/rust 2>/dev/null; check "moved file keeps its old findings" $? 0
+printf '\npub fn added() { unsafe { libc::umask(0); } }\n' >>crates/mike-base/src/config/moved_guard.rs
+python3 "$sg" HEAD crates/mike-base/src/config/moved_guard.rs -- --config p/rust 2>/dev/null; check "added unsafe block fails" $? 1
+
+echo "$pass passed, $fail failed"
+(( fail == 0 ))

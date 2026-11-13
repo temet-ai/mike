@@ -45,6 +45,8 @@ for range in $ranges; do
 done
 
 semgrep_bin=$(command -v semgrep || echo "$HOME/.local/bin/semgrep")
+semgrep_base=$(printf '%s\n' $ranges | head -n 1)
+semgrep_base=${semgrep_base%%..*}
 scan_files=()
 while IFS= read -r file; do
   [ -f "$file" ] && scan_files+=("$file")
@@ -52,12 +54,12 @@ done <<<"$(printf '%s\n' "$changed" | grep -E '\.(rs|ts|js|mjs)$' | grep -vE '(^
 if [ -x "$semgrep_bin" ] && [ "${#scan_files[@]}" -gt 0 ]; then
   (
     ulimit -s unlimited 2>/dev/null
-    # semgrep-core's default io_uring backend fails with ENOMEM under a busy build.
-    EIO_BACKEND=posix "$semgrep_bin" scan --metrics off --error --quiet \
+    # Only findings the push adds fail it: files a crate move touches keep their old findings.
+    SEMGREP_BIN="$semgrep_bin" python3 "$(dirname "$0")/semgrep-new" "$semgrep_base" "${scan_files[@]}" -- \
       --exclude-rule rust.lang.security.args-os.args-os \
-      --config p/rust --config p/javascript --config p/typescript "${scan_files[@]}"
+      --config p/rust --config p/javascript --config p/typescript
   ) || {
-    echo "pre-push: semgrep found a problem in the changed files" >&2
+    echo "pre-push: semgrep found a problem the push adds" >&2
     status=1
   }
 fi

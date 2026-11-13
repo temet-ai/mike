@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+"""Fail only on semgrep findings a change adds.
+
+Usage: semgrep-new <base-ref> <file>... [-- <semgrep args>...]
+
+Scans each file in the working tree and its version at <base-ref> (following
+renames, so a file moved between crates keeps its old findings), and reports a
+finding only when the new side has more of it than the old side. A finding is
+its rule id plus the matched source text with whitespace removed, so a line that
+only moves, or a file that only changes crate, is not new. Exit 1 when a new
+finding exists, 0 otherwise.
+"""
+
+import collections
+import json
+import os
+import pathlib
+import re
+import subprocess
+import sys
+import tempfile
+
+SEMGREP_DEFAULT = ["--config", "p/rust", "--config", "p/javascript", "--config", "p/typescript"]
+
+
+def git(*args):
+    return subprocess.run(["git", *args], check=True, capture_output=True, text=True).stdout
+
+
+def old_paths(base, files):
+    renamed = {}
+    for line in git("diff", "-M", "--name-status", base, "--", *files).splitlines():
+        parts = line.split("\t")
+        if parts[0].startswith(("R", "C")) and len(parts) == 3:
+            renamed[parts[2]] = parts[1]
+    for line in git("diff", "-M", "--name-status", base).splitlines():
+        parts = line.split("\t")
+        if parts[0].startswith(("R", "C")) and len(parts) == 3:
+            renamed.setdefault(parts[2], parts[1])
+    return {f: renamed.get(f, f) for f in files}
+
+
+def scan(semgrep, root, files, extra):
+    if not files:
+        return []
+    env = dict(os.environ, EIO_BACKEND="posix")
+    proc = subprocess.run(
+        [semgrep, "scan", "--metrics", "off", "--quiet", "--json", *extra, *files],
+        cwd=root, capture_output=True, text=True, env=env,
+    )
+    if proc.returncode not in (0, 1):
+        sys.stderr.write(proc.stderr)
+        raise SystemExit(f"semgrep-new: semgrep exited {proc.returncode}")
+    return json.loads(proc.stdout).get("results", [])
+
+
+def keyed(results, root, logical):
+    out = collections.Counter()
+    where = {}
+    cache = {}
+    for r in results:
+        path = r["path"]
+        if path not in cache:
+            cache[path] = (pathlib.Path(root) / path).read_text(errors="replace").splitlines()
+        lines = cache[path][r["start"]["line"] - 1 : r["end"]["line"]]
+        key = (r["check_id"], re.sub(r"\s+", "", "".join(lines)))
+        out[key] += 1
+        where.setdefault(key, f'{logical.get(path, path)}:{r["start"]["line"]}')
+    return out, where
+
+
+def main(argv):
+    if "--" in argv:
+        i = argv.index("--")
+        argv, extra = argv[:i], argv[i + 1 :]
+    else:
+        extra = SEMGREP_DEFAULT
+    if len(argv) < 2:
+        raise SystemExit(__doc__)
+    base, files = argv[0], argv[1:]
+    semgrep = os.environ.get("SEMGREP_BIN", "semgrep")
+    top = git("rev-parse", "--show-toplevel").strip()
+    os.chdir(top)
+
+    new_results = scan(semgrep, top, files, extra)
+    new, where = keyed(new_results, top, {})
+
+    with tempfile.TemporaryDirectory() as old_root:
+        old_files = []
+        for path in set(old_paths(base, files).values()):
+            show = subprocess.run(["git", "show", f"{base}:{path}"], capture_output=True)
+            if show.returncode != 0:
+                continue
+            dest = pathlib.Path(old_root) / path
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(show.stdout)
+            old_files.append(path)
+        old, _ = keyed(scan(semgrep, old_root, old_files, extra), old_root, {})
+
+    added = new - old
+    if not added:
+        return 0
+    for key, count in sorted(added.items(), key=lambda kv: where[kv[0]]):
+        print(f"semgrep-new: {where[key]} {key[0]} (+{count})", file=sys.stderr)
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
