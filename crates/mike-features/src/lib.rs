@@ -61,4 +61,4 @@ pub mod work_threads;
 pub mod workspace;
 
 #[cfg(test)]
-mod cross_crate_tests;
+mod features_cross_crate_tests;

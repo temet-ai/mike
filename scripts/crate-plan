@@ -376,8 +376,8 @@ def staged_map(cfg, groups):
         names.append(name)
         for crate in group:
             of[crate] = name
-    order = sorted(names, key=lambda n: min(cfg["order"].index(c) for c in n.split("+")))
-    return Map({"order": order, "rules": {k: of[v] for k, v in cfg["rules"].items()}})
+    # a stage lists its groups bottom to top; that list is the order
+    return Map({"order": names, "rules": {k: of[v] for k, v in cfg["rules"].items()}})
 
 
 def print_stages(cfg, files, commits):

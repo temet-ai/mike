@@ -209,6 +209,8 @@
   "analysis/rerank/warmup": "state",
   "anthropic_cli": "llm",
   "api": "web",
+  "cross_crate_tests": "serve",
+  "features_cross_crate_tests": "knowledge",
   "api/handlers/recall_turns_detail": "web",
   "api/handlers/search_session_scan": "web",
   "api/handlers/search_session_messages": "web",
