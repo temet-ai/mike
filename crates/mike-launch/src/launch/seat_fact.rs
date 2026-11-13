@@ -94,7 +94,7 @@ fn remember(key: String, fact: SeatFact) {
     FACTS.insert(key, fact);
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub fn remember_for_test(session_id: &str, role: SeatRole) {
     remember(
         session_id.to_owned(),

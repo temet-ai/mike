@@ -11,51 +11,7 @@ use super::checks::{Missing, check_definition};
 use super::definition::{FleetDefinition, merge, natural_order};
 use super::environment::{Environment, check_environment};
 use super::status::{FleetHeader, NoteFacts, SeatFacts, build};
-
-pub fn complete() -> Value {
-    json!({
-        "goal": "The improvement pages show what the judge did",
-        "ask": "make the judge's work visible",
-        "repo": "/srv/project",
-        "branch": "main",
-        "rules": ["no seat works on its own branch"],
-        "shared_files": ["crates/mike/src/store/persistence/mod.rs"],
-        "criteria": {
-            "C1": {"text": "proposals are stored", "check": "the integration test passes"},
-            "C2": {"text": "the page lists proposals", "check": "the story test passes"}
-        },
-        "coordinator": {"model": "opus", "agent": "fleet-coordinator", "brief": "Keep every seat busy."},
-        "observer": {"model": "sonnet", "agent": "fleet-observer", "brief": "Watch the run.",
-                     "contract": ".claude/fleet/observer-contract.md"},
-        "acceptance": {"model": "opus", "agent": "fleet-acceptance", "brief": "Judge each slice."},
-        "workers": {
-            "db-dev": {"model": "sonnet", "agent": "db-dev",
-                       "contract": ".claude/fleet/worker-contract.md"},
-            "frontend-developer": {"model": "sonnet", "agent": "frontend-developer",
-                                   "contract": ".claude/fleet/worker-contract.md"}
-        },
-        "tasks": {
-            "P1": {"name": "schema", "discipline": "db-dev", "criteria": ["C1"],
-                   "files": ["crates/mike/src/store/persistence/improvement/",
-                             "crates/mike/src/store/persistence/mod.rs"],
-                   "brief": "Add the proposals table."},
-            "P2": {"name": "page", "discipline": "frontend-developer", "criteria": ["C2"],
-                   "files": ["frontend/src/routes/improvement/**"], "brief": "Build the page."},
-            "P10": {"name": "docs", "discipline": "frontend-developer", "criteria": ["C2"],
-                    "files": ["docs/IMPROVEMENT_LOOP.md"], "brief": "Write it up.", "after": ["P2"]}
-        }
-    })
-}
-
-pub fn parsed(value: &Value) -> FleetDefinition {
-    FleetDefinition::from_value(value).unwrap()
-}
-
-pub fn changed(patch: Value) -> FleetDefinition {
-    let mut value = complete();
-    merge(&mut value, &patch);
-    parsed(&value)
-}
+pub use super::test_fixtures::{changed, complete, parsed};
 
 fn items(found: &[Missing]) -> Vec<&str> {
     found.iter().map(|m| m.item.as_str()).collect()

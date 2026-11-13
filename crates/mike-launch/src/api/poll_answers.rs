@@ -160,12 +160,12 @@ impl<V: Clone + Weigh> AnswerCache<V> {
         );
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn len(&self) -> usize {
         self.shelf().entries.len()
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -199,7 +199,7 @@ impl PollAnswers {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn freeze_clock(&self, unix_secs: u64) {
         self.shelves.frozen_at.store(unix_secs, Ordering::Relaxed);
     }

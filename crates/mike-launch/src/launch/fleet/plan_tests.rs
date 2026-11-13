@@ -8,11 +8,9 @@ use std::collections::BTreeSet;
 use serde_json::json;
 use uuid::Uuid;
 
-use super::bundle::FleetPaths;
 use super::environment::starts;
 use super::plan::{
-    ControlSeats, FleetFacts, ready_tasks, template, template_name, waiting_tasks,
-    warm_disciplines, worker,
+    ControlSeats, ready_tasks, template, template_name, waiting_tasks, warm_disciplines, worker,
 };
 use super::staff::{no_room_state, passed_tasks};
 
@@ -27,29 +25,8 @@ fn a_full_surface_cap_is_named_in_the_tasks_state_and_does_not_unseat_them() {
 }
 use super::start::control_patch;
 use super::status::{FleetHeader, build};
+pub use super::test_fixtures::{facts, seats};
 use super::tests::{changed, complete, parsed};
-
-pub fn seats() -> ControlSeats {
-    ControlSeats {
-        coordinator: Uuid::from_u128(1),
-        acceptance: Uuid::from_u128(2),
-        observer: None,
-    }
-}
-
-pub fn facts() -> FleetFacts {
-    FleetFacts {
-        fleet: "0b6c1f0e-1111-4222-8333-444455556666".into(),
-        slug: "judge-at-work".into(),
-        run_id: "fleet-judge-at-work-0b6c1f0e".into(),
-        seats: seats(),
-        paths: FleetPaths {
-            rules: "/srv/project/.claude/fleet/rules.md".into(),
-            checks: "/srv/project/.claude/fleet/outcome-checks.sh".into(),
-            project: Some("/srv/project/.claude/fleet/project.md".into()),
-        },
-    }
-}
 
 fn set(ids: &[&str]) -> BTreeSet<String> {
     ids.iter().map(|id| (*id).to_string()).collect()

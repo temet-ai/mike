@@ -20,7 +20,7 @@ pub mod tripwires;
 pub mod types;
 pub mod write;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub mod tests;
 
 pub use carry::{CarryNote, CarryOutcome, NewCarry};

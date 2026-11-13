@@ -392,9 +392,9 @@ Added by `20261014070000_codex_projection_receipts.sql` (C02b), together with th
 namespace. The seven tables store trusted Codex receipts and the item projection built from them,
 one projection generation at a time, so a new projector version can rebuild beside the active one
 and replace it. They are scaffolding with no production callers: written and read only through
-`crates/mike-features/src/store/persistence/runtime/codex/` (`intake.rs`, `generation.rs`, `apply.rs`,
+`crates/mike-runtime/src/store/persistence/runtime/codex/` (`intake.rs`, `generation.rs`, `apply.rs`,
 `effects.rs`, `state.rs`, `projection_reads.rs`), whose only callers are
-`crates/mike-features/src/runtime/codex/` and the tests under `tests/integration/runtime_codex/`; no proxy
+`crates/mike-runtime/src/runtime/codex/` and the tests under `tests/integration/runtime_codex/`; no proxy
 path, worker, REST route or MCP tool reaches them.
 
 This table holds one row per namespace: the last capture sequence handed out for that namespace's

@@ -13,11 +13,13 @@ path = "src/lib.rs"
 [features]
 default = []
 # Test-only seams other crates' tests reach (see crates/mike/Cargo.toml).
-test-seams = ["mike-base/test-seams"]
-ts-export = ["dep:ts-rs", "mike-base/ts-export"]
+test-seams = ["mike-base/test-seams", "mike-runtime/test-seams", "mike-launch/test-seams"]
+ts-export = ["dep:ts-rs", "mike-base/ts-export", "mike-runtime/ts-export", "mike-launch/ts-export"]
 
 [dependencies]
 mike-base = { path = "../mike-base" }
+mike-runtime = { path = "../mike-runtime" }
+mike-launch = { path = "../mike-launch" }
 anyhow = { workspace = true }
 arc-swap = "1"
 async-trait = { workspace = true }
@@ -99,6 +101,8 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 mike-base = { path = "../mike-base", features = ["test-seams"] }
+mike-runtime = { path = "../mike-runtime", features = ["test-seams"] }
+mike-launch = { path = "../mike-launch", features = ["test-seams"] }
 futures = "0.3"
 insta = { version = "1", features = ["json"] }
 proptest = "1"

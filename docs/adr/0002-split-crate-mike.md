@@ -140,7 +140,7 @@ Each row is one PR or a few; the seam counts are what each stage newly needs
 | 0 | Done: `scripts/crate-plan`, `scripts/schema-plan` and the map in the repo; the push hook runs `--check` on both against `ratchet` in the map (874 seams, 146 foreign writes on 12 Nov). | grading |
 | 1 | Done (13 Nov): patterns A, B, C, D, F for the base boundary, the repository accessors (H) for every group above `db`, and the S1 extraction: `crates/mike-base`, `crates/mike-features`, and `crates/mike` as the app and binary. | S1 (81%) |
 | 2 | Migrator to the bin; `test_support` behind `test-seams`. | S2 (80%) |
-| 3 | `runtime → launch` (10), `launch → knowledge/steerer/lessons/eval` (16), `fleet → steerer/dossier` (3); move the runtime, launch and fleet persistence groups behind repository accessors (H). | S3: extract `mike-runtime`, `mike-launch` + fleet (68%) |
+| 3 | Done (13 Nov): `BaseState` in `mike-base` (`AppState` derefs to it; handlers extract it or `LaunchState` through `FromRef`), `MailPush` for remote-control pushes, shared reads down to `mike-base`, Codex home helpers into `runtime`; then the S3 extraction: `crates/mike-runtime` and `crates/mike-launch` (launch and fleet). | S3 (68%) |
 | 4 | Pattern E, `launch → fleet` (78). | S4: split `mike-fleet` out (67%) |
 | 5 | `knowledge → dossier/eval/lessons` (30), `steerer → lessons` (5); repository accessors for the knowledge and lessons groups. | S5: extract `mike-knowledge`, `mike-lessons` (61%) |
 | 6 | Optional: pattern G (pipeline stage registration) and the rest of the 18-crate map, only if `--timings` after S5 shows a gain. | full target |
