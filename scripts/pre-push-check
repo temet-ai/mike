@@ -55,7 +55,7 @@ if [ -x "$semgrep_bin" ] && [ "${#scan_files[@]}" -gt 0 ]; then
   (
     ulimit -s unlimited 2>/dev/null
     # Only findings the push adds fail it: files a crate move touches keep their old findings.
-    SEMGREP_BIN="$semgrep_bin" python3 "$(dirname "$0")/semgrep-new" "$semgrep_base" "${scan_files[@]}" -- \
+    SEMGREP_BIN="$semgrep_bin" python3 "$root/scripts/semgrep-new" "$semgrep_base" "${scan_files[@]}" -- \
       --exclude-rule rust.lang.security.args-os.args-os \
       --config p/rust --config p/javascript --config p/typescript
   ) || {

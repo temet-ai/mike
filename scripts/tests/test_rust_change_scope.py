@@ -80,8 +80,11 @@ class RustChangeScopeTests(unittest.TestCase):
             target.chmod(0o755)
         env = dict(os.environ, PATH=f"{self.root / 'tools'}:{os.environ['PATH']}")
         env.pop("MIKE_SEAT", None)
+        hook = self.root / ".git/hooks/pre-push"
+        if not hook.exists():
+            hook.symlink_to(self.root / "scripts/pre-push-check")
         return subprocess.run(
-            [str(self.root / "scripts/pre-push-check")], cwd=self.root,
+            [str(hook)], cwd=self.root,
             input=f"refs/heads/change {head} refs/heads/change {base}\n",
             env=env, check=True, capture_output=True, text=True,
         )
