@@ -32,10 +32,12 @@ fn files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
 
 #[test]
 fn turn_and_session_judge_inputs_carry_no_calibration_line() -> anyhow::Result<()> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let crates = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     let mut all = Vec::new();
-    for dir in JUDGE_INPUT_DIRS {
-        files(&root.join(dir), &mut all)?;
+    for name in ["mike", "mike-base", "mike-features"] {
+        for dir in JUDGE_INPUT_DIRS {
+            files(&crates.join(name).join(dir), &mut all)?;
+        }
     }
     assert!(!all.is_empty());
     let mut hits = Vec::new();

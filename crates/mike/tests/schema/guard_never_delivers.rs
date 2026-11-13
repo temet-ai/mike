@@ -23,13 +23,17 @@ fn guard_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
 
 #[test]
 fn guard_code_has_no_delivery_path() -> anyhow::Result<()> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/steerer/guard");
+    let crates = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     let mut files = Vec::new();
-    guard_files(&root, &mut files)?;
+    for name in ["mike", "mike-base", "mike-features"] {
+        let root = crates.join(name).join("src/steerer/guard");
+        if root.is_dir() {
+            guard_files(&root, &mut files)?;
+        }
+    }
     assert!(
         !files.is_empty(),
-        "no guard sources under {}",
-        root.display()
+        "no guard sources under any crate's src/steerer/guard"
     );
     let mut hits = Vec::new();
     for file in files {

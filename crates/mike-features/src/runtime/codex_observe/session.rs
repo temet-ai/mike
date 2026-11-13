@@ -1,5 +1,5 @@
 use crate::store::persistence::runtime_repo::RuntimePersist as _;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, SubsecRound, Utc};
 use uuid::Uuid;
 
 use super::ingest::{IngestError, ObserveSource};
@@ -23,7 +23,7 @@ pub async fn hook(
         .runtime()
         .session_observation_time(session, delivery)
         .await?
-        .unwrap_or_else(Utc::now);
+        .unwrap_or_else(|| Utc::now().trunc_subsecs(6));
     let mut observation = base(session, delivery, source, "hook", at);
     observation.lifecycle = match payload.event() {
         HookEvent::SessionStart | HookEvent::Stop | HookEvent::Interrupt => {
