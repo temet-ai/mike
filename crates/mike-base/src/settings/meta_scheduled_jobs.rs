@@ -9,7 +9,11 @@ pub const USAGE_AUDIT_ENABLED_KEY: &str = "usage_audit.enabled";
 pub const LESSON_RELATIONS_ENABLED_KEY: &str = "lesson_relations_job.enabled";
 pub const NIGHTLY_TESTS_ENABLED_KEY: &str = "nightly_tests.enabled";
 
-fn enabled_entry(key: &'static str, label: &'static str, description: &'static str) -> SettingMeta {
+pub(super) fn enabled_entry(
+    key: &'static str,
+    label: &'static str,
+    description: &'static str,
+) -> SettingMeta {
     SettingMeta {
         key,
         group: "Scheduled jobs",

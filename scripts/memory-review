@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# memory-review — once a day, a Claude Code session reads what mike's memory
+# actually returned to sessions since the last review (searches, thread cards,
+# lessons and their overnight verdicts), finds where a return did not help the
+# session that got it, and records the fix where the next session will act on it.
+#
+# The scheduled job memory_review runs this script after the overnight supply
+# verdicts. It starts `claude -p` from this checkout, through this machine's
+# proxy so the run is captured like any other session, with file edits refused:
+# it reads and records, and another session makes the change it names.
+#
+# The brief is the memory_review.brief setting (/settings, Scheduled jobs), read
+# from the inspect API at the start of every run, so editing it there changes the
+# next run.
+#
+# Usage: scripts/memory-review [--print]   --print shows the command and brief, runs nothing.
+# Environment: MEMORY_REVIEW_MODEL (default opus), CLAUDE_BIN, ANTHROPIC_BASE_URL,
+# MIKE_INSPECT_URL (default http://127.0.0.1:9989).
+set -uo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+model="${MEMORY_REVIEW_MODEL:-opus}"
+print=0
+for arg in "$@"; do
+  case "$arg" in
+    --print) print=1 ;;
+    *) echo "memory-review: unknown argument $arg" >&2; exit 2 ;;
+  esac
+done
+
+claude_bin="${CLAUDE_BIN:-$(command -v claude || true)}"
+[[ -z "$claude_bin" && -x "$HOME/.local/bin/claude" ]] && claude_bin="$HOME/.local/bin/claude"
+if [[ -z "$claude_bin" ]]; then
+  echo "memory-review: no claude binary (set CLAUDE_BIN or put claude on PATH)" >&2
+  exit 1
+fi
+
+inspect="${MIKE_INSPECT_URL:-http://127.0.0.1:9989}"
+brief_text="$(curl -fsS --max-time 10 "$inspect/api/settings" |
+  jq -r '(.settings // .)[] | select(.key == "memory_review.brief") | .value // empty')"
+if [[ -z "${brief_text//[[:space:]]/}" ]]; then
+  echo "memory-review: could not read the memory_review.brief setting from $inspect" >&2
+  exit 1
+fi
+brief="Today is $(date -u +%F).
+
+$brief_text"
+
+if (( print )); then
+  echo "claude:  $claude_bin"
+  echo "model:   $model"
+  echo "cwd:     $root"
+  printf '%s\n' "$brief"
+  exit 0
+fi
+
+cd "$root" || exit 1
+ANTHROPIC_BASE_URL="${ANTHROPIC_BASE_URL:-http://localhost:9988}" \
+  exec "$claude_bin" -p "$brief" \
+    --model "$model" \
+    --permission-mode bypassPermissions \
+    --disallowedTools Edit Write NotebookEdit
