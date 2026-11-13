@@ -1,5 +1,5 @@
 use crate::store::persistence::launch_repo::LaunchPersist as _;
-pub async fn record_failed_send(
+pub(super) async fn record_failed_send(
     handle: &crate::store::persistence::PersistHandle,
     attempted_by: Option<uuid::Uuid>,
     attempted_to: uuid::Uuid,

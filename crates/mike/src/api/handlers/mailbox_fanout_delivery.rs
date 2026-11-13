@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use super::*;
 
 pub(super) struct FanoutDeliveryArgs<'a> {

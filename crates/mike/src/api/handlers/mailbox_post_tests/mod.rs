@@ -23,7 +23,7 @@ use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db
 
 const CHECKOUT: &str = "/tmp/mail-fleet";
 
-pub mod closed_delivery;
+mod closed_delivery;
 
 struct Env {
     db: TestDbHandle,
@@ -406,7 +406,7 @@ async fn a_send_without_fleet_context_still_refuses_a_closed_fleet_recipient() -
     f.env.cleanup().await
 }
 
-pub mod envelope;
+mod envelope;
 
 #[tokio::test]
 async fn send_without_sender_refuses_closed_seat_and_task_form_falls_back_to_coordinator()

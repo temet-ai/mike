@@ -11,7 +11,7 @@ use crate::store::persistence::PersistHandle;
 
 use super::{SendContext, record_failed_send};
 
-pub async fn send(
+pub(super) async fn send(
     handle: &PersistHandle,
     state: &AppState,
     ctx: SendContext<'_>,
@@ -187,7 +187,7 @@ async fn queued_response(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

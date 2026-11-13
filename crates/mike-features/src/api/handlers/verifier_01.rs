@@ -82,3 +82,36 @@ pub struct SteererDto {
     pub project_path: Option<String>,
     pub active_enrolment_count: i64,
 }
+
+impl From<&crate::store::persistence::steering::SteererRow> for SteererDto {
+    fn from(r: &crate::store::persistence::steering::SteererRow) -> Self {
+        Self {
+            id: r.id,
+            uuid: r.uuid,
+            name: r.name.clone(),
+            display_name: r.display_name.clone(),
+            description: r.description.clone(),
+            agent_id: r.agent_id,
+            authority: r.authority.clone(),
+            mode: r.mode.clone(),
+            model: r.model.clone(),
+            effective_model: r.model.clone(),
+            model_inherited: r.model.is_empty(),
+            priority: r.priority,
+            enabled: r.enabled,
+            config: r.config.clone(),
+            prompt: r.prompt.clone(),
+            created_at: r.created_at.to_rfc3339(),
+            updated_at: r.updated_at.to_rfc3339(),
+            kind: r.kind.clone(),
+            trigger_point: r.trigger_point.clone(),
+            invocation: r.invocation.clone(),
+            pattern: r.pattern.clone(),
+            auto_enrol: r.auto_enrol,
+            enrolment_required: !r.auto_enrol,
+            project_id: r.project_id,
+            project_path: r.project_path.clone(),
+            active_enrolment_count: 0,
+        }
+    }
+}

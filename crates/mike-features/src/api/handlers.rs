@@ -37,7 +37,6 @@ pub use health::{capture_outage_notices, refresh_capture_outage_now, refresh_hea
 pub use lesson_create::*;
 pub use lesson_types::*;
 pub use mailbox_dto::*;
-pub use mailbox_post::*;
 pub use mailbox_reads::*;
 pub use mailbox_thread_create::*;
 pub use mailbox_thread_detail::*;
@@ -72,9 +71,6 @@ pub mod lesson_create;
 pub mod lesson_project_guard;
 pub mod lesson_types;
 pub mod mailbox_dto;
-pub mod mailbox_post;
-#[cfg(test)]
-pub mod mailbox_post_tests;
 pub mod mailbox_reads;
 pub mod mailbox_thread_create;
 pub mod mailbox_thread_detail;

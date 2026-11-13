@@ -8,15 +8,15 @@ use crate::store::persistence::PersistHandle;
 
 use super::record_failed_send;
 
-pub struct ParsedSend {
-    pub from_session_uuid: Option<uuid::Uuid>,
-    pub thread_id_param: Option<uuid::Uuid>,
-    pub in_reply_to_param: Option<uuid::Uuid>,
-    pub subject_param: Option<String>,
-    pub threading_requested: bool,
+pub(super) struct ParsedSend {
+    pub(super) from_session_uuid: Option<uuid::Uuid>,
+    pub(super) thread_id_param: Option<uuid::Uuid>,
+    pub(super) in_reply_to_param: Option<uuid::Uuid>,
+    pub(super) subject_param: Option<String>,
+    pub(super) threading_requested: bool,
 }
 
-pub async fn validate_send_request(
+pub(super) async fn validate_send_request(
     handle: &PersistHandle,
     to_session_uuid: uuid::Uuid,
     body: &PostSessionMessageBody,

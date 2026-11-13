@@ -12,15 +12,15 @@ use crate::store::persistence::mailbox::ThreadResolution;
 
 use super::{SendContext, record_failed_send};
 
-pub struct ThreadingParams<'a> {
-    pub thread_id_param: Option<uuid::Uuid>,
-    pub in_reply_to_param: Option<uuid::Uuid>,
-    pub subject_param: Option<&'a str>,
-    pub raw_thread_id: Option<&'a str>,
-    pub raw_in_reply_to: Option<&'a str>,
+pub(super) struct ThreadingParams<'a> {
+    pub(super) thread_id_param: Option<uuid::Uuid>,
+    pub(super) in_reply_to_param: Option<uuid::Uuid>,
+    pub(super) subject_param: Option<&'a str>,
+    pub(super) raw_thread_id: Option<&'a str>,
+    pub(super) raw_in_reply_to: Option<&'a str>,
 }
 
-pub async fn send(
+pub(super) async fn send(
     handle: &PersistHandle,
     state: &AppState,
     ctx: SendContext<'_>,
