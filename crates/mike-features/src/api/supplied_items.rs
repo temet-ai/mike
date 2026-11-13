@@ -8,6 +8,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
+use crate::judge_worker::supply_verdict::{Tick, run_now};
 use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::supplied_items::{HandCheckRow, SupplyFigure};
@@ -204,6 +205,33 @@ pub fn sample_answer(week: DateTime<Utc>, size: i64, rows: &[HandCheckRow]) -> V
         "agreed": agreed,
         "agreement_rate": (!checked.is_empty()).then(|| agreed as f64 / checked.len() as f64),
     })
+}
+
+pub async fn post_verdict_pass(State(state): State<AppState>) -> Response {
+    let Some(persist) = persist(&state) else {
+        return unavailable();
+    };
+    match run_now(&state, persist, Utc::now()).await {
+        Tick::Ran(pass) => Json(json!({
+            "outcome": "ran",
+            "judged": pass.judged,
+            "failed": pass.failed,
+            "database_failed": pass.database_failed,
+        }))
+        .into_response(),
+        Tick::Off => refuse(
+            StatusCode::CONFLICT,
+            "the judge_lessons feature toggle is off; turn it on in /settings to judge supplied items".to_owned(),
+        ),
+        Tick::NoClient => refuse(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "no judge model client: set an OpenRouter key for the steerer, or choose a model this proxy can call".to_owned(),
+        ),
+        other => refuse(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("verdict pass did not run: {other:?}"),
+        ),
+    }
 }
 
 pub async fn post_hand_check(

@@ -6,7 +6,7 @@ use super::schedule::{Cadence, Period};
 use crate::settings::meta_scheduled_jobs::{
     CARGO_SWEEP_ENABLED_KEY, COMPRESSOR_LOOP_ENABLED_KEY, LEARNING_AUDIT_ENABLED_KEY,
     LEARNING_PROMOTE_ENABLED_KEY, LESSON_RELATIONS_ENABLED_KEY, LESSONS_COMMIT_ENABLED_KEY,
-    NIGHTLY_TESTS_ENABLED_KEY, USAGE_AUDIT_ENABLED_KEY,
+    MEMORY_REVIEW_ENABLED_KEY, NIGHTLY_TESTS_ENABLED_KEY, USAGE_AUDIT_ENABLED_KEY,
 };
 
 pub(crate) struct Job {
@@ -193,7 +193,28 @@ pub(super) const NIGHTLY_TESTS: Job = Job {
     failure_hint: "The last line of its output names the commit; rerun the failing tier there with make test-all, or make test-t t=<filter>. A fetch or worktree failure means git could not reach origin or update .claude/worktrees/nightly.",
 };
 
-pub(crate) static JOBS: [Job; 8] = [
+pub(super) const MEMORY_REVIEW: Job = Job {
+    name: "memory_review",
+    label: "Daily memory review",
+    description: "A Claude Code session reads what memory returned to sessions since the last review, judges whether each return helped, and records the fix on the memory-keeper thread and the issue that covers it.",
+    script: "scripts/memory-review",
+    args: &[],
+    timeout: Duration::from_secs(45 * 60),
+    cadence: Cadence {
+        weekday: None,
+        hours: &[5, 6, 7],
+        minute: 15,
+        period: Period::Day,
+    },
+    nice: 10,
+    leased: true,
+    alarm_exit: None,
+    enabled_key: MEMORY_REVIEW_ENABLED_KEY,
+    schedule_text: "daily, once between 05:15 and 07:59 UTC, after the overnight supply verdicts",
+    failure_hint: "It runs `claude -p` (CLAUDE_BIN, else claude on PATH, else ~/.local/bin/claude) through the proxy on localhost:9988, so check that claude is logged in on this machine and that the proxy answers.",
+};
+
+pub(crate) static JOBS: [Job; 9] = [
     PROMOTE,
     AUDIT,
     COMPRESSOR_LOOP,
@@ -202,4 +223,5 @@ pub(crate) static JOBS: [Job; 8] = [
     USAGE_AUDIT,
     LESSON_RELATIONS,
     NIGHTLY_TESTS,
+    MEMORY_REVIEW,
 ];

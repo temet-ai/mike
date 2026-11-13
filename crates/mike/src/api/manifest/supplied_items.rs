@@ -27,6 +27,13 @@ pub(super) const ROUTES: &[RouteEntry] = &[
     ),
     route(
         "POST",
+        "/api/supplied-items/verdict-pass",
+        Coverage::Exempt {
+            reason: "the operator runs the overnight supply-verdict pass now, outside its quiet window, from /settings or curl",
+        },
+    ),
+    route(
+        "POST",
         "/api/supplied-items/{id}/hand-check",
         Coverage::Exempt {
             reason: "a person records their own verdict on a sampled item; no session writes hand labels",
@@ -47,6 +54,10 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
         .route(
             "/api/supplied-items/hand-check",
             get(supplied_items::hand_check_sample),
+        )
+        .route(
+            "/api/supplied-items/verdict-pass",
+            post(supplied_items::post_verdict_pass),
         )
         .route(
             "/api/supplied-items/{id}/hand-check",

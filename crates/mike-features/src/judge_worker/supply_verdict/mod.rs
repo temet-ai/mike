@@ -1,6 +1,8 @@
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
 pub mod prompt;
 #[cfg(test)]
+mod prompt_settings_tests;
+#[cfg(test)]
 mod tests;
 
 use std::time::Duration;
@@ -9,10 +11,12 @@ use chrono::{DateTime, Timelike, Utc};
 use tokio::time::{MissedTickBehavior, interval};
 
 use crate::lesson_proposer::ProposerSettings;
+use crate::settings::meta_memory_loop::SUPPLY_VERDICT_PROMPT_KEY;
 use crate::llm::{LlmCallContext, LlmRole, OpenRouterClient};
 use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::supplied_items::{NewVerdict, PendingVerdict};
+pub use prompt::SYSTEM as SYSTEM_PROMPT;
 use prompt::{Answer, SYSTEM, schema, user_message, valid};
 
 const LEASE_ROLE: &str = "supply_verdict";
@@ -50,6 +54,7 @@ pub trait SupplyJudge {
 struct ModelJudge {
     llm: OpenRouterClient,
     model: String,
+    system: String,
 }
 
 impl SupplyJudge for ModelJudge {
@@ -63,7 +68,7 @@ impl SupplyJudge for ModelJudge {
             steerer_id: None,
             operator_turn_id: Some(item.turn_id),
         });
-        llm.verdict::<Answer>(SYSTEM, user, schema())
+        llm.verdict::<Answer>(&self.system, user, schema())
             .await
             .map_err(|error| error.to_string())
     }
@@ -112,14 +117,46 @@ pub async fn run_tick(state: &AppState, persist: &PersistHandle, now: DateTime<U
     if !persist.holds_worker_role(LEASE_ROLE, TICK_INTERVAL).await {
         return Tick::NotLeader;
     }
+    judge_with_model(state, persist, settings, now).await
+}
+
+pub async fn run_now(state: &AppState, persist: &PersistHandle, now: DateTime<Utc>) -> Tick {
+    if !state.feature_toggle_overlay.load().judge_lessons {
+        return Tick::Off;
+    }
+    let settings = ProposerSettings::load(persist).await;
+    judge_with_model(state, persist, settings, now).await
+}
+
+async fn judge_with_model(
+    state: &AppState,
+    persist: &PersistHandle,
+    settings: ProposerSettings,
+    now: DateTime<Utc>,
+) -> Tick {
     let Some(llm) = client(state, &settings.effective_model) else {
         return Tick::NoClient;
     };
     let judge = ModelJudge {
         llm,
         model: settings.effective_model,
+        system: system_prompt(persist).await,
     };
     Tick::Ran(judge_batch(persist, &judge, now).await)
+}
+
+async fn system_prompt(persist: &PersistHandle) -> String {
+    let rows = persist.fetch_settings().await.unwrap_or_default();
+    prompt_from_rows(&rows)
+}
+
+pub fn prompt_from_rows(rows: &[(String, serde_json::Value)]) -> String {
+    rows.iter()
+        .find(|(key, _)| key == SUPPLY_VERDICT_PROMPT_KEY)
+        .and_then(|(_, value)| value.as_str())
+        .filter(|text| !text.trim().is_empty())
+        .unwrap_or(SYSTEM)
+        .to_owned()
 }
 
 fn client(state: &AppState, model: &str) -> Option<OpenRouterClient> {

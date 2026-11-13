@@ -316,7 +316,8 @@ mod tests {
                 "lessons_commit",
                 "usage_audit",
                 "lesson_relations",
-                "nightly_tests"
+                "nightly_tests",
+                "memory_review"
             ]
         );
         for job in body["jobs"].as_array().into_iter().flatten() {

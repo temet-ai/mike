@@ -21,6 +21,7 @@ pub mod meta_rerank;
 pub mod meta_rerank_nightly;
 #[cfg(test)]
 pub mod meta_rerank_tests;
+pub mod meta_memory_loop;
 pub mod meta_scheduled_jobs;
 pub mod meta_search_ranking;
 #[cfg(test)]
