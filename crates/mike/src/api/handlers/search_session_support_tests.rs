@@ -9,9 +9,9 @@ use crate::store::persistence::test_support::{TestDbHandle, acquire_ephemeral_db
 
 use super::*;
 
-pub struct Fixture {
-    pub state: AppState,
-    pub session_uuid: String,
+pub(crate) struct Fixture {
+    pub(crate) state: AppState,
+    pub(crate) session_uuid: String,
     session_db_id: i64,
     project_id: i64,
     next_offset_ms: i64,
@@ -19,7 +19,7 @@ pub struct Fixture {
     db: Option<TestDbHandle>,
 }
 
-pub async fn fixture() -> anyhow::Result<Option<Fixture>> {
+pub(crate) async fn fixture() -> anyhow::Result<Option<Fixture>> {
     let Some(db) = acquire_ephemeral_db().await? else {
         return Ok(None);
     };
@@ -54,7 +54,7 @@ pub async fn fixture() -> anyhow::Result<Option<Fixture>> {
 }
 
 impl Fixture {
-    pub fn pool(&self) -> anyhow::Result<&sqlx::PgPool> {
+    pub(crate) fn pool(&self) -> anyhow::Result<&sqlx::PgPool> {
         let handle = self
             .state
             .persist()
@@ -62,7 +62,7 @@ impl Fixture {
         Ok(handle.pool())
     }
 
-    pub async fn finish(mut self) -> anyhow::Result<()> {
+    pub(crate) async fn finish(mut self) -> anyhow::Result<()> {
         if let Some(handle) = self.state.persist.take() {
             handle.pool().close().await;
         }
@@ -72,7 +72,7 @@ impl Fixture {
         Ok(())
     }
 
-    pub async fn add_request(&mut self, body: &str) -> anyhow::Result<i64> {
+    pub(crate) async fn add_request(&mut self, body: &str) -> anyhow::Result<i64> {
         self.next_offset_ms += 10;
         let created_at = chrono::Utc::now() + chrono::Duration::milliseconds(self.next_offset_ms);
         let id: i64 = sqlx::query_scalar(
@@ -98,7 +98,7 @@ impl Fixture {
         Ok(id)
     }
 
-    pub async fn add_message(
+    pub(crate) async fn add_message(
         &mut self,
         request_id: i64,
         ord: i32,
@@ -122,7 +122,7 @@ impl Fixture {
         Ok(message_id)
     }
 
-    pub async fn add_delta(
+    pub(crate) async fn add_delta(
         &self,
         request_id: i64,
         ord: i32,
@@ -141,7 +141,7 @@ impl Fixture {
         Ok(())
     }
 
-    pub async fn add_response(&self, request_id: i64, body: &str) -> anyhow::Result<()> {
+    pub(crate) async fn add_response(&self, request_id: i64, body: &str) -> anyhow::Result<()> {
         sqlx::query(
             "INSERT INTO responses.responses (
                 request_id, response_status, response_headers, response_body,
@@ -157,7 +157,7 @@ impl Fixture {
         Ok(())
     }
 
-    pub async fn add_tool_use(
+    pub(crate) async fn add_tool_use(
         &self,
         request_id: i64,
         tool_name: &str,
@@ -177,7 +177,7 @@ impl Fixture {
         Ok(())
     }
 
-    pub async fn find_limited(
+    pub(crate) async fn find_limited(
         &self,
         needle: &str,
         cursor: Option<u64>,
@@ -202,14 +202,14 @@ impl Fixture {
         }
     }
 
-    pub async fn find(&self, query: Value) -> anyhow::Result<Value> {
+    pub(crate) async fn find(&self, query: Value) -> anyhow::Result<Value> {
         let mut query = query;
         query["session_id"] = json!(self.session_uuid);
         run_find(&self.state, query).await
     }
 }
 
-pub async fn run_find(state: &AppState, query: Value) -> anyhow::Result<Value> {
+pub(crate) async fn run_find(state: &AppState, query: Value) -> anyhow::Result<Value> {
     let params: FindTextUnifiedParams = serde_json::from_value(query)?;
     match find_text(State(state.clone()), Query(params)).await {
         Ok(Json(response)) => Ok(serde_json::to_value(&response)?),
@@ -217,11 +217,11 @@ pub async fn run_find(state: &AppState, query: Value) -> anyhow::Result<Value> {
     }
 }
 
-pub fn user_text(text: &str) -> Value {
+pub(crate) fn user_text(text: &str) -> Value {
     json!({"role": "user", "content": [{"type": "text", "text": text}]})
 }
 
-pub fn match_request_ids(answer: &Value) -> Vec<u64> {
+pub(crate) fn match_request_ids(answer: &Value) -> Vec<u64> {
     answer["matches"]
         .as_array()
         .map(|matches| {

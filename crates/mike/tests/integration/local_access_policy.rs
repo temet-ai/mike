@@ -1,8 +1,8 @@
-#[path = "../../src/web_base/host_guard/authority.rs"]
+#[path = "../../../mike-base/src/web_base/host_guard/authority.rs"]
 mod authority;
-#[path = "../../src/web_base/host_guard/policy.rs"]
+#[path = "../../../mike-base/src/web_base/host_guard/policy.rs"]
 mod policy;
 use policy::LocalAccessPolicy;
 
-#[path = "../../src/web_base/host_guard/middleware.rs"]
+#[path = "../../../mike-base/src/web_base/host_guard/middleware.rs"]
 mod middleware;

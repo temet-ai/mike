@@ -18,20 +18,20 @@ mod socket_path;
 #[cfg(unix)]
 pub use mike::config::{paths, write};
 #[cfg(unix)]
-#[path = "../src/owner_only_file.rs"]
+#[path = "../../mike-base/src/owner_only_file.rs"]
 mod owner_only_file;
 #[cfg(unix)]
-#[path = "../src/config/write_transaction.rs"]
+#[path = "../../mike-base/src/config/write_transaction.rs"]
 mod write_transaction;
 
 #[path = "../src/stack/startup_policy.rs"]
 mod startup_policy;
 
-#[path = "../src/config/endpoint.rs"]
+#[path = "../../mike-base/src/config/endpoint.rs"]
 mod endpoint;
 pub use mike::config::ProxyConfig;
 
-#[path = "../src/config/paths.rs"]
+#[path = "../../mike-base/src/config/paths.rs"]
 mod installation_paths;
 
 #[path = "../src/api/handlers/spa_delta_fallback.rs"]
