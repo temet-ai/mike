@@ -36,7 +36,7 @@ pub mod call_count_tests;
 #[cfg(test)]
 pub mod tests;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 thread_local! {
     static RECONCILE_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
@@ -45,7 +45,7 @@ pub async fn reconcile_dispatch_results(
     tx: &mut sqlx::PgConnection,
     wire_ids: &[String],
 ) -> Result<(), PersistError> {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     RECONCILE_CALLS.with(|calls| calls.set(calls.get() + 1));
     if wire_ids.is_empty() {
         return Ok(());

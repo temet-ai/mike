@@ -10,8 +10,7 @@ pub mod diagnostic_stats;
 pub mod entry_ops;
 #[cfg(test)]
 pub mod findings;
-#[cfg(test)]
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub mod helpers;
 #[cfg(test)]
 pub mod memory_breakdown;
@@ -23,7 +22,7 @@ pub mod reminders;
 pub mod session_index;
 #[cfg(test)]
 pub mod session_lookup;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub use helpers::*;
 
 use super::models::{InterceptedRequest, RequestId, RequestStatus, SystemPromptObservation};

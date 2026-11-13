@@ -398,7 +398,7 @@ async fn from_parts_and_body_mutation_exempt_false_without_header() -> anyhow::R
 
 fn workflow_fixture() -> anyhow::Result<Vec<Value>> {
     Ok(serde_json::from_str(include_str!(
-        "../../tests/fixtures/dossier/workflow_agent_requests.json"
+        "../../../mike/tests/fixtures/dossier/workflow_agent_requests.json"
     ))?)
 }
 

@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use crate::store::persistence::{PersistHandle, test_support};
 
 const ENROL_INERT_STEERERS_MIGRATION: &str =
-    include_str!("../migrations/20260921160000_enrol_inert_steerers.sql");
+    include_str!("../../../../../mike-base/src/store/persistence/migrations/20260921160000_enrol_inert_steerers.sql");
 
 const AUTO_ENROLLED: [&str; 3] = [
     "ast-grep-over-grep",

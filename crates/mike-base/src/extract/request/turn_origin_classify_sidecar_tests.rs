@@ -60,7 +60,7 @@ fn turn_origin_title_sidecar_naming_a_coding_session_wording() {
 #[test]
 fn turn_origin_title_sidecar_from_captured_wire_body() -> anyhow::Result<()> {
     const CAPTURED: &str =
-        include_str!("../../../tests/fixtures/turn_origin/title_sidecar_cc_2_1_237.json");
+        include_str!("../../../../mike/tests/fixtures/turn_origin/title_sidecar_cc_2_1_237.json");
     let body: Value = serde_json::from_str(CAPTURED)?;
     let sp = extract_system_prompt(&body);
     let turn_type = extract_turn_type(&body);

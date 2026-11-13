@@ -55,12 +55,12 @@ pub fn snapshot() -> LlmHealthSnapshot {
     (**cell().load()).clone()
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub fn reset_for_test() {
     cell().store(Arc::new(LlmHealthSnapshot::default()));
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub fn test_detail(status: Option<u16>, message: &str) -> LlmFailureDetail {
     LlmFailureDetail {
         status,

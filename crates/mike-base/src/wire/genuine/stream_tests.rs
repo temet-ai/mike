@@ -8,7 +8,7 @@ use super::repeat::repeat_key;
 use super::stream::{StreamMessage, TurnResolution, resolve_turns};
 use super::{PromptInput, classify_prompt};
 
-const FIXTURE: &str = include_str!("../../../tests/fixtures/dossier/j2_controls.json");
+const FIXTURE: &str = include_str!("../../../../mike/tests/fixtures/dossier/j2_controls.json");
 
 fn parse_time(value: &str) -> Result<DateTime<Utc>> {
     Ok(DateTime::parse_from_rfc3339(value)?.with_timezone(&Utc))

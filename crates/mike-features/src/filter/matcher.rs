@@ -213,7 +213,7 @@ pub mod tests {
         _note: Option<String>,
     }
 
-    const VECTORS_JSON: &str = include_str!("../../tests/fixtures/matcher/vectors.json");
+    const VECTORS_JSON: &str = include_str!("../../../mike/tests/fixtures/matcher/vectors.json");
 
     #[test]
     fn vectors_match_shared_fixture() -> anyhow::Result<()> {

@@ -5,7 +5,6 @@ use tokio_util::sync::CancellationToken;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use super::service_tests::enabled;
 use super::warmup::{WARMUP_WINDOW, WarmGate, run};
 use super::{RerankConfig, RerankService};
 use crate::store::models::{ProxyEvent, RowChangedOp, RowChangedTable};
@@ -146,4 +145,12 @@ async fn warm_up_after_rerank_is_switched_on_uses_the_window_from_then() -> anyh
 
     assert_eq!(health_calls(&server).await?, 1);
     Ok(())
+}
+
+fn enabled(url: &str) -> crate::analysis::RerankConfig {
+    crate::analysis::RerankConfig {
+        enabled: true,
+        url: url.to_owned(),
+        ..crate::analysis::RerankConfig::default()
+    }
 }

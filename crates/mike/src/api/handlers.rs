@@ -214,3 +214,5 @@ mod steerer_model_check;
 mod mailbox_post;
 #[cfg(test)]
 mod mailbox_post_tests;
+#[cfg(test)]
+mod request_recovery_tests;

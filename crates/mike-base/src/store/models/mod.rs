@@ -22,7 +22,7 @@ pub use request_id::RequestId;
 pub use request_id::is_fallback;
 pub use request_status::RequestStatus;
 #[cfg(any(test, feature = "test-seams"))]
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub use session::SessionViewDetail;
 pub use session::{SessionMeta, SessionView};
 pub use session_id::is_well_formed_session_id;

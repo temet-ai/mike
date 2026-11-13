@@ -5,7 +5,7 @@ use super::ended_on::{
     EndedOn, INPUT_CHARS, TextSpan, classify, find_bounded, last_line, non_sidecar_text,
 };
 
-const FIXTURE: &str = include_str!("../../../tests/fixtures/dossier/ended_on_d_py.json");
+const FIXTURE: &str = include_str!("../../../../mike/tests/fixtures/dossier/ended_on_d_py.json");
 
 fn code(text: &str) -> &'static str {
     classify(text).class.code()

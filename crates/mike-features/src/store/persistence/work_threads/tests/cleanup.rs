@@ -1,7 +1,7 @@
 use super::{Fixture, fixture};
 
 const CLEANUP_MIGRATION: &str =
-    include_str!("../../migrations/20261111170900_work_threads_cleanup.sql");
+    include_str!("../../../../../../mike-base/src/store/persistence/migrations/20261111170900_work_threads_cleanup.sql");
 
 type ThreadRow = (String, Option<String>, Option<String>, Option<String>);
 

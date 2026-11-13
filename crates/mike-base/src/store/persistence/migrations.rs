@@ -241,7 +241,7 @@ fn successful_checksums(
         .collect())
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub fn migration_count() -> usize {
     MIGRATOR.iter().count()
 }

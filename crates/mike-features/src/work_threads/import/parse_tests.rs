@@ -10,16 +10,16 @@ use super::registry::{self, RegistryEntry};
 use super::sources::find_worklogs;
 
 const BRANCH_CONSOLIDATION: &str = include_str!(
-    "../../../tests/fixtures/threads/repo/artifacts/threads/branch-consolidation/worklog.md"
+    "../../../../mike/tests/fixtures/threads/repo/artifacts/threads/branch-consolidation/worklog.md"
 );
 const FRONTEND_MOTION: &str = include_str!(
-    "../../../tests/fixtures/threads/repo/artifacts/threads/frontend-motion/worklog.md"
+    "../../../../mike/tests/fixtures/threads/repo/artifacts/threads/frontend-motion/worklog.md"
 );
 const JUDGEMENT_CONTEXT: &str = include_str!(
-    "../../../tests/fixtures/threads/repo/artifacts/threads/judgement-context/worklog.md"
+    "../../../../mike/tests/fixtures/threads/repo/artifacts/threads/judgement-context/worklog.md"
 );
 const NO_TITLE: &str =
-    include_str!("../../../tests/fixtures/threads/repo/artifacts/threads/no-title/worklog.md");
+    include_str!("../../../../mike/tests/fixtures/threads/repo/artifacts/threads/no-title/worklog.md");
 
 fn fixture_repo() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/threads/repo")
@@ -444,7 +444,7 @@ fn a_legacy_worklog_is_stored_with_an_allowed_status_and_no_thread_label() {
     let legacy = parsed(
         "legacy-labels",
         include_str!(
-            "../../../tests/fixtures/threads/repo/artifacts/threads/legacy-labels/worklog.md"
+            "../../../../mike/tests/fixtures/threads/repo/artifacts/threads/legacy-labels/worklog.md"
         ),
     );
     assert_eq!(legacy.thread.title.as_deref(), Some("Legacy labels"));

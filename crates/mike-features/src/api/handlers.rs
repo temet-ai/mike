@@ -85,8 +85,6 @@ pub mod prompts_02;
 pub mod prompts_03;
 pub mod prompts_04;
 pub mod recall_turns_rerank;
-#[cfg(test)]
-pub mod request_recovery_tests;
 pub mod session_admin;
 pub mod session_notes;
 pub mod session_quality;

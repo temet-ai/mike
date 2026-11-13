@@ -43,7 +43,7 @@ pub struct InFlightRegistry {
 }
 
 impl InFlightRegistry {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn new() -> Self {
         Self::default()
     }
@@ -85,7 +85,7 @@ impl InFlightRegistry {
         self.inner.len()
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn snapshot_ids(&self) -> Vec<RequestId> {
         self.inner.iter().map(|r| *r.key()).collect()
     }

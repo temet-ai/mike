@@ -9,3 +9,6 @@ pub mod live_bundle_follow;
 pub mod running_services;
 #[cfg(test)]
 pub mod running_services_tests;
+
+#[cfg(test)]
+pub mod settings_tests;

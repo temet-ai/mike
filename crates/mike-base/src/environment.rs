@@ -26,13 +26,13 @@ impl Environment for ProcessEnvironment {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 #[derive(Debug, Clone, Default)]
 pub struct MapEnvironment {
     entries: std::collections::BTreeMap<String, String>,
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 impl MapEnvironment {
     pub fn new(pairs: &[(&str, &str)]) -> Self {
         pairs
@@ -50,7 +50,7 @@ impl MapEnvironment {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 impl Environment for MapEnvironment {
     fn var(&self, name: &str) -> Option<String> {
         self.entries.get(name).cloned()

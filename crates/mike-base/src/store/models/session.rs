@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 use super::intercepted_request::InterceptedRequest;
 
 #[derive(Debug, Clone)]
@@ -18,7 +18,7 @@ pub struct SessionView {
 
 #[cfg(any(test, feature = "test-seams"))]
 #[derive(Debug, Clone)]
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub struct SessionViewDetail {
     pub summary: SessionView,
     pub requests: Vec<InterceptedRequest>,

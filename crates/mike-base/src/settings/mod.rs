@@ -38,8 +38,6 @@ pub mod overlay_apply;
 pub mod overlay_apply_provider;
 pub mod overlay_apply_session_end;
 pub mod overlay_apply_turn_judge;
-#[cfg(test)]
-pub mod settings_tests;
 pub mod validate;
 
 pub use llm_runtime::{

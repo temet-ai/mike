@@ -141,13 +141,13 @@ impl ScoreCache {
         self.entries.retain(|_, (_, stored)| *stored > cutoff);
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn advance(&self, by: Duration) {
         let by = u64::try_from(by.as_millis()).unwrap_or(u64::MAX);
         self.skew_ms.fetch_add(by, Ordering::Relaxed);
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn len(&self) -> usize {
         self.entries.len()
     }
