@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::sync::LazyLock;
+use std::sync::OnceLock;
 
 use sqlx::migrate::Migrator;
 use sqlx::{PgConnection, PgPool};
@@ -7,15 +7,44 @@ use sqlx::{PgConnection, PgPool};
 use super::error::PersistError;
 use super::pool;
 
-static MIGRATOR: Migrator = sqlx::migrate!("src/store/persistence/migrations");
+struct Installed {
+    strict: Migrator,
+    serve: Migrator,
+}
 
-static SERVE_MIGRATOR: LazyLock<Migrator> = LazyLock::new(|| {
-    let mut migrator = sqlx::migrate!("src/store/persistence/migrations");
-    migrator.set_ignore_missing(true);
-    migrator
-});
+static INSTALLED: OnceLock<Installed> = OnceLock::new();
 
-async fn warn_on_newer_migrations(conn: &mut PgConnection) {
+pub fn install(strict: Migrator, mut serve: Migrator) {
+    serve.set_ignore_missing(true);
+    let _ = INSTALLED.set(Installed { strict, serve });
+}
+
+#[cfg(any(test, feature = "test-seams"))]
+pub async fn install_from_source() -> Result<(), PersistError> {
+    if INSTALLED.get().is_some() {
+        return Ok(());
+    }
+    let dir =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/store/persistence/migrations");
+    let strict = Migrator::new(dir.clone()).await?;
+    let serve = Migrator::new(dir).await?;
+    install(strict, serve);
+    Ok(())
+}
+
+async fn installed() -> Result<&'static Installed, PersistError> {
+    #[cfg(any(test, feature = "test-seams"))]
+    install_from_source().await?;
+    INSTALLED.get().ok_or_else(|| {
+        PersistError::SchemaNotCurrent("this binary installed no migrations".to_owned())
+    })
+}
+
+pub async fn installed_migrator() -> Result<&'static Migrator, PersistError> {
+    Ok(&installed().await?.strict)
+}
+
+async fn warn_on_newer_migrations(conn: &mut PgConnection, known: &Migrator) {
     let applied: Vec<i64> =
         sqlx::query_scalar("SELECT version FROM _sqlx_migrations WHERE success")
             .fetch_all(&mut *conn)
@@ -23,7 +52,7 @@ async fn warn_on_newer_migrations(conn: &mut PgConnection) {
             .unwrap_or_default();
     let newer: Vec<i64> = applied
         .into_iter()
-        .filter(|version| !MIGRATOR.migrations.iter().any(|m| m.version == *version))
+        .filter(|version| !known.migrations.iter().any(|m| m.version == *version))
         .collect();
     if !newer.is_empty() {
         tracing::warn!(
@@ -34,12 +63,14 @@ async fn warn_on_newer_migrations(conn: &mut PgConnection) {
 }
 
 pub async fn run(pool: &PgPool) -> Result<(), PersistError> {
+    let installed = installed().await?;
     pool::require_server_version(pool).await?;
-    MIGRATOR.run(pool).await?;
+    installed.strict.run(pool).await?;
     Ok(())
 }
 
 pub async fn run_patient(database_url: &str) -> Result<(), PersistError> {
+    let installed = installed().await?;
     let lock_timeout_secs = pool::migration_lock_timeout_secs();
     tracing::info!(
         lock_timeout_secs,
@@ -47,8 +78,8 @@ pub async fn run_patient(database_url: &str) -> Result<(), PersistError> {
     );
     let mut conn = pool::build_migration_connection(database_url).await?;
     pool::require_server_version(&mut conn).await?;
-    warn_on_newer_migrations(&mut conn).await;
-    SERVE_MIGRATOR.run(&mut conn).await?;
+    warn_on_newer_migrations(&mut conn, &installed.strict).await;
+    installed.serve.run(&mut conn).await?;
     Ok(())
 }
 
@@ -152,7 +183,8 @@ pub async fn assess(pool: &PgPool) -> Result<MigrationAssessment, PersistError> 
             .fetch_one(pool)
             .await?;
 
-    let embedded: HashMap<i64, (&[u8], &str)> = MIGRATOR
+    let embedded: HashMap<i64, (&[u8], &str)> = installed_migrator()
+        .await?
         .migrations
         .iter()
         .map(|m| (m.version, (m.checksum.as_ref(), m.description.as_ref())))
@@ -242,11 +274,6 @@ fn successful_checksums(
 }
 
 #[cfg(test)]
-pub fn migration_count() -> usize {
-    MIGRATOR.iter().count()
-}
-
-#[cfg(test)]
 #[path = "migrations_newer_tests.rs"]
 pub mod newer_tests;
 
@@ -274,12 +301,13 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn migrator_has_at_least_one_migration() {
+    #[tokio::test]
+    async fn migrator_has_at_least_one_migration() -> anyhow::Result<()> {
         assert!(
-            migration_count() >= 1,
-            "expected at least the initial schema migration to be embedded"
+            installed_migrator().await?.iter().count() >= 1,
+            "expected at least the initial schema migration to be installed"
         );
+        Ok(())
     }
 
     fn assessment(pending: Vec<i64>, missing_from_binary: Vec<i64>) -> MigrationAssessment {

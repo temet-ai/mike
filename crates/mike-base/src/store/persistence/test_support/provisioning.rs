@@ -1,23 +1,28 @@
 use sqlx::AssertSqlSafe;
 
-use sqlx::migrate::Migrator;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Executor, PgPool};
 
 use super::url::{extract_db_name, extract_host_port, replace_db_name};
+use crate::store::persistence::migrations::installed_migrator;
 
-static MIGRATOR: Migrator = sqlx::migrate!("src/store/persistence/migrations");
+static TEMPLATE_DB_NAME: tokio::sync::OnceCell<String> = tokio::sync::OnceCell::const_new();
 
-static TEMPLATE_DB_NAME: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    for m in MIGRATOR.iter() {
-        hasher.update(m.version.to_le_bytes());
-        hasher.update(&m.checksum);
-    }
-    let digest = hex::encode(&hasher.finalize()[..6]);
-    format!("claude_proxy_test_template_{digest}")
-});
+async fn template_db_name() -> anyhow::Result<&'static str> {
+    let name = TEMPLATE_DB_NAME
+        .get_or_try_init(|| async {
+            use sha2::{Digest, Sha256};
+            let mut hasher = Sha256::new();
+            for m in installed_migrator().await?.iter() {
+                hasher.update(m.version.to_le_bytes());
+                hasher.update(&m.checksum);
+            }
+            let digest = hex::encode(&hasher.finalize()[..6]);
+            anyhow::Ok(format!("claude_proxy_test_template_{digest}"))
+        })
+        .await?;
+    Ok(name.as_str())
+}
 
 const DEV_DB_NAME: &str = "claude_proxy";
 
@@ -74,6 +79,8 @@ async fn refuse_instance_hosting(admin_url: &str, marker_db: &str) -> anyhow::Re
 }
 
 pub async fn prepare_template_db(admin_url: &str) -> anyhow::Result<()> {
+    let template_name = template_db_name().await?;
+    let migrator = installed_migrator().await?;
     let admin_pool = connect_single(admin_url).await?;
 
     sqlx::query!("SELECT pg_advisory_lock($1)", TEMPLATE_DB_ADVISORY_KEY)
@@ -83,18 +90,18 @@ pub async fn prepare_template_db(admin_url: &str) -> anyhow::Result<()> {
     let result = async {
         let exists = sqlx::query_scalar!(
             "SELECT datname::text FROM pg_database WHERE datname = $1",
-            TEMPLATE_DB_NAME.as_str(),
+            template_name,
         )
         .fetch_optional(&admin_pool)
         .await?;
         if exists.is_none() {
-            let stmt = format!("CREATE DATABASE \"{}\"", *TEMPLATE_DB_NAME);
+            let stmt = format!("CREATE DATABASE \"{template_name}\"");
             ignore_duplicate_database(admin_pool.execute(AssertSqlSafe(stmt)).await.map(|_| ()))?;
         }
 
-        let template_url = replace_db_name(admin_url, TEMPLATE_DB_NAME.as_str())?;
+        let template_url = replace_db_name(admin_url, template_name)?;
         let template_pool = connect_single(&template_url).await?;
-        MIGRATOR.run(&template_pool).await?;
+        migrator.run(&template_pool).await?;
         template_pool.close().await;
         anyhow::Ok(())
     }
@@ -118,11 +125,10 @@ fn is_missing_template<T>(res: &Result<T, sqlx::Error>) -> bool {
 }
 
 pub async fn create_database_from_template(admin_url: &str, db_name: &str) -> anyhow::Result<()> {
+    let template_name = template_db_name().await?;
     let admin_pool = connect_single(admin_url).await?;
-    let stmt = format!(
-        "CREATE DATABASE \"{db_name}\" TEMPLATE \"{}\" STRATEGY FILE_COPY",
-        *TEMPLATE_DB_NAME
-    );
+    let stmt =
+        format!("CREATE DATABASE \"{db_name}\" TEMPLATE \"{template_name}\" STRATEGY FILE_COPY");
     let mut res = admin_pool
         .execute(AssertSqlSafe(stmt.clone()))
         .await
@@ -165,9 +171,9 @@ pub async fn ensure_run_db(admin_url: &str, run_db: &str) -> anyhow::Result<()> 
         .await?;
         if exists.is_none() {
             sweep_orphan_test_dbs(&admin_pool, run_db).await?;
+            let template_name = template_db_name().await?;
             let stmt = format!(
-                "CREATE DATABASE \"{run_db}\" TEMPLATE \"{}\" STRATEGY FILE_COPY",
-                *TEMPLATE_DB_NAME
+                "CREATE DATABASE \"{run_db}\" TEMPLATE \"{template_name}\" STRATEGY FILE_COPY"
             );
             let mut res = admin_pool
                 .execute(AssertSqlSafe(stmt.clone()))

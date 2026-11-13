@@ -4,7 +4,6 @@ use std::path::PathBuf;
 mod build_identity;
 
 fn main() {
-    println!("cargo:rerun-if-changed=src/store/persistence/migrations");
     let Some(manifest_dir) = std::env::var_os("CARGO_MANIFEST_DIR") else {
         return;
     };
