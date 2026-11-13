@@ -30,12 +30,7 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
     if build_info::requested(arguments.into_iter()) {
-        let build = mike_base::change_log::current_build();
-        build_info::print(build_info::Identity {
-            sha: build.sha,
-            dirty: build.dirty,
-            built_at: build.built_at,
-        });
+        build_info::print();
         return Ok(());
     }
     #[cfg(unix)]

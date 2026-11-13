@@ -1,4 +1,5 @@
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU8, Ordering};
 
 use serde::Serialize;
 
@@ -13,22 +14,29 @@ pub struct BuildStamp {
 const STAMP_SLOT_LEN: usize = 256;
 const STAMP_SLOT_MARKER: &[u8] = b"MIKE-BUILD-STAMP-SLOT-V1:";
 
-static STAMP_SLOT: [u8; STAMP_SLOT_LEN] = stamp_slot_template();
+static STAMP_SLOT: [AtomicU8; STAMP_SLOT_LEN] = stamp_slot_template();
 
-const fn stamp_slot_template() -> [u8; STAMP_SLOT_LEN] {
-    let mut slot = [0u8; STAMP_SLOT_LEN];
+const fn stamp_slot_template() -> [AtomicU8; STAMP_SLOT_LEN] {
+    let mut slot = [const { AtomicU8::new(0) }; STAMP_SLOT_LEN];
     let mut index = 0;
     while index < STAMP_SLOT_MARKER.len() {
-        slot[index] = STAMP_SLOT_MARKER[index];
+        slot[index] = AtomicU8::new(STAMP_SLOT_MARKER[index]);
         index += 1;
     }
     slot
 }
 
+fn stamp_slot_bytes() -> Vec<u8> {
+    STAMP_SLOT
+        .iter()
+        .map(|byte| byte.load(Ordering::Relaxed))
+        .collect()
+}
+
 pub fn current_build() -> BuildStamp {
     static CURRENT: OnceLock<BuildStamp> = OnceLock::new();
     *CURRENT.get_or_init(|| {
-        let slot = unsafe { std::ptr::read_volatile(&raw const STAMP_SLOT) };
+        let slot = stamp_slot_bytes();
         stamped_build(&slot[STAMP_SLOT_MARKER.len()..]).unwrap_or_else(compiled_build)
     })
 }
@@ -120,11 +128,8 @@ mod stamp_tests {
 
     #[test]
     fn stamp_slot_template_opens_with_marker_then_zeros() {
-        assert!(STAMP_SLOT.starts_with(STAMP_SLOT_MARKER));
-        assert!(
-            STAMP_SLOT[STAMP_SLOT_MARKER.len()..]
-                .iter()
-                .all(|b| *b == 0)
-        );
+        let slot = stamp_slot_bytes();
+        assert!(slot.starts_with(STAMP_SLOT_MARKER));
+        assert!(slot[STAMP_SLOT_MARKER.len()..].iter().all(|b| *b == 0));
     }
 }

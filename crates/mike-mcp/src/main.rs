@@ -60,11 +60,7 @@ fn no_extra(mut args: impl Iterator<Item = String>) -> anyhow::Result<()> {
 
 fn main() -> anyhow::Result<()> {
     if build_info::requested(std::env::args_os().skip(1)) {
-        build_info::print(build_info::Identity {
-            sha: env!("MIKE_BUILD_SHA"),
-            dirty: env!("MIKE_BUILD_DIRTY") != "false",
-            built_at: env!("MIKE_BUILD_TIME"),
-        });
+        build_info::print();
         return Ok(());
     }
     run()
