@@ -1,10 +1,11 @@
 use std::ffi::{CString, OsStr};
 use std::fs::File;
 use std::io::{Read, Write};
-use std::os::fd::{AsRawFd, FromRawFd};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::{Component, Path};
+
+use rustix::fs::{AtFlags, Mode, OFlags};
 
 const SHARED_CREATE_ATTEMPTS: u32 = 8;
 
@@ -34,13 +35,18 @@ impl PrivateDirectory {
             match component {
                 Component::RootDir => {}
                 Component::Normal(name) => {
-                    file = open_at(&file, name, libc::O_RDONLY | libc::O_DIRECTORY, 0)?;
+                    file = open_at(
+                        &file,
+                        name,
+                        OFlags::RDONLY | OFlags::DIRECTORY,
+                        Mode::empty(),
+                    )?;
                 }
                 _ => return Err(invalid("private transaction directory must be normalized")),
             }
         }
         let metadata = file.metadata()?;
-        if metadata.uid() != unsafe { libc::geteuid() } || metadata.mode() & 0o077 != 0 {
+        if metadata.uid() != rustix::process::geteuid().as_raw() || metadata.mode() & 0o077 != 0 {
             return Err(invalid(
                 "transaction directory must be private and owned by this user",
             ));
@@ -72,7 +78,12 @@ impl PrivateDirectory {
     fn create_or_open_shared(&self, name: &OsStr) -> std::io::Result<File> {
         let mut attempts_left = SHARED_CREATE_ATTEMPTS;
         loop {
-            match open_at(&self.file, name, libc::O_RDWR | libc::O_CREAT, 0o600) {
+            match open_at(
+                &self.file,
+                name,
+                OFlags::RDWR | OFlags::CREATE,
+                owner_read_write(),
+            ) {
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound && attempts_left > 1 => {
                     attempts_left -= 1;
                 }
@@ -82,7 +93,7 @@ impl PrivateDirectory {
     }
 
     pub fn same_file(&self, name: &OsStr, expected: &File) -> std::io::Result<()> {
-        let current = open_at(&self.file, name, libc::O_RDONLY, 0)?.metadata()?;
+        let current = open_at(&self.file, name, OFlags::RDONLY, Mode::empty())?.metadata()?;
         let expected = expected.metadata()?;
         require_regular_owned(&current)?;
         if current.mode() & 0o777 != 0o600 {
@@ -97,7 +108,7 @@ impl PrivateDirectory {
     }
 
     pub fn read(&self, name: &OsStr) -> std::io::Result<Option<SourceSnapshot>> {
-        let mut file = match open_at(&self.file, name, libc::O_RDONLY, 0) {
+        let mut file = match open_at(&self.file, name, OFlags::RDONLY, Mode::empty()) {
             Ok(file) => file,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(error) => return Err(error),
@@ -124,8 +135,8 @@ impl PrivateDirectory {
         let mut file = open_at(
             &self.file,
             name,
-            libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL,
-            0o600,
+            OFlags::WRONLY | OFlags::CREATE | OFlags::EXCL,
+            owner_read_write(),
         )?;
         let result = (|| {
             file.write_all(contents.as_bytes())?;
@@ -134,7 +145,7 @@ impl PrivateDirectory {
         })();
         if result.is_err() {
             let name = single_name(name)?;
-            unsafe { libc::unlinkat(self.file.as_raw_fd(), name.as_ptr(), 0) };
+            let _ = rustix::fs::unlinkat(&self.file, name.as_c_str(), AtFlags::empty());
         }
         result
     }
@@ -150,7 +161,7 @@ impl PrivateDirectory {
         let result = check().and_then(|()| self.rename(OsStr::new(&staged), name));
         if result.is_err() {
             let name = single_name(OsStr::new(&staged))?;
-            unsafe { libc::unlinkat(self.file.as_raw_fd(), name.as_ptr(), 0) };
+            let _ = rustix::fs::unlinkat(&self.file, name.as_c_str(), AtFlags::empty());
         }
         result
     }
@@ -158,10 +169,7 @@ impl PrivateDirectory {
     fn rename(&self, from: &OsStr, to: &OsStr) -> std::io::Result<()> {
         let from = single_name(from)?;
         let to = single_name(to)?;
-        let fd = self.file.as_raw_fd();
-        if unsafe { libc::renameat(fd, from.as_ptr(), fd, to.as_ptr()) } != 0 {
-            return Err(std::io::Error::last_os_error());
-        }
+        rustix::fs::renameat(&self.file, from.as_c_str(), &self.file, to.as_c_str())?;
         self.file.sync_all()
     }
 }
@@ -179,7 +187,9 @@ impl SourceSnapshot {
 }
 
 fn require_regular_owned(metadata: &std::fs::Metadata) -> std::io::Result<()> {
-    if !metadata.is_file() || metadata.uid() != unsafe { libc::geteuid() } || metadata.nlink() != 1
+    if !metadata.is_file()
+        || metadata.uid() != rustix::process::geteuid().as_raw()
+        || metadata.nlink() != 1
     {
         return Err(invalid(
             "configuration transaction requires a regular single-link file owned by this user",
@@ -197,25 +207,19 @@ fn single_name(name: &OsStr) -> std::io::Result<CString> {
     CString::new(name.as_bytes()).map_err(|_| invalid("invalid transaction file name"))
 }
 
-fn open_at(
-    directory: &File,
-    name: &OsStr,
-    flags: i32,
-    mode: libc::mode_t,
-) -> std::io::Result<File> {
+fn owner_read_write() -> Mode {
+    Mode::RUSR | Mode::WUSR
+}
+
+fn open_at(directory: &File, name: &OsStr, flags: OFlags, mode: Mode) -> std::io::Result<File> {
     let name = single_name(name)?;
-    let fd = unsafe {
-        libc::openat(
-            directory.as_raw_fd(),
-            name.as_ptr(),
-            flags | libc::O_NOFOLLOW | libc::O_CLOEXEC | libc::O_NONBLOCK,
-            libc::c_uint::from(mode),
-        )
-    };
-    if fd < 0 {
-        return Err(std::io::Error::last_os_error());
-    }
-    Ok(unsafe { File::from_raw_fd(fd) })
+    let fd = rustix::fs::openat(
+        directory,
+        name.as_c_str(),
+        flags | OFlags::NOFOLLOW | OFlags::CLOEXEC | OFlags::NONBLOCK,
+        mode,
+    )?;
+    Ok(File::from(fd))
 }
 
 fn invalid(message: &'static str) -> std::io::Error {

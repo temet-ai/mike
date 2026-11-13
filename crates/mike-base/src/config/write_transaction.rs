@@ -1,6 +1,5 @@
 use std::ffi::OsString;
 use std::fs::File;
-use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -104,16 +103,13 @@ impl Drop for WriteLease {
 fn acquire(file: File) -> Result<WriteLease> {
     let started = Instant::now();
     loop {
-        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } == 0 {
-            return Ok(WriteLease { file });
+        match file.try_lock() {
+            Ok(()) => return Ok(WriteLease { file }),
+            Err(std::fs::TryLockError::WouldBlock) => {}
+            Err(std::fs::TryLockError::Error(error)) => {
+                return Err(error).context("cannot acquire selected configuration write lock");
+            }
         }
-        let error = std::io::Error::last_os_error();
-        anyhow::ensure!(
-            error
-                .raw_os_error()
-                .is_some_and(|code| code == libc::EWOULDBLOCK || code == libc::EAGAIN),
-            "cannot acquire selected configuration write lock"
-        );
         anyhow::ensure!(
             started.elapsed() < Duration::from_secs(10),
             "another writer still owns the selected configuration; retry after it finishes"

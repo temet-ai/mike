@@ -32,7 +32,10 @@ pub fn private(path: PathBuf) -> PathBuf {
 
 #[cfg(any(test, feature = "test-seams"))]
 fn test_home() -> PathBuf {
-    std::env::temp_dir().join(format!("mike-test-home-{}", unsafe { libc::getuid() }))
+    std::env::temp_dir().join(format!(
+        "mike-test-home-{}",
+        rustix::process::getuid().as_raw()
+    ))
 }
 
 #[cfg(any(test, feature = "test-seams"))]

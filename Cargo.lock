@@ -2133,6 +2133,7 @@ dependencies = [
  "regex",
  "reqwest 0.12.28",
  "rust-embed",
+ "rustix",
  "secrecy",
  "serde",
  "serde_json",

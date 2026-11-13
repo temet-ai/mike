@@ -15,7 +15,7 @@ pub(crate) struct Manager {
 }
 
 fn current_uid() -> u32 {
-    unsafe { libc::getuid() }
+    rustix::process::getuid().as_raw()
 }
 
 fn unit_dir_for(platform: Platform, home: &Path, xdg_config_home: Option<&str>) -> PathBuf {

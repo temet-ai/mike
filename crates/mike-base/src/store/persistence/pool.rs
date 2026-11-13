@@ -28,14 +28,23 @@ const MIGRATION_LOCK_TIMEOUT_ENV: &str = "MIKE_MIGRATION_LOCK_TIMEOUT_SECS";
 const DEFAULT_MIGRATION_LOCK_TIMEOUT_SECS: u64 = 180;
 
 pub fn migration_lock_timeout_secs() -> u64 {
-    env::var(MIGRATION_LOCK_TIMEOUT_ENV)
-        .ok()
-        .and_then(|raw| raw.parse::<u64>().ok())
+    lock_timeout_secs_from(env::var(MIGRATION_LOCK_TIMEOUT_ENV).ok().as_deref())
+}
+
+fn lock_timeout_secs_from(raw: Option<&str>) -> u64 {
+    raw.and_then(|raw| raw.parse::<u64>().ok())
         .filter(|secs| *secs > 0)
         .unwrap_or(DEFAULT_MIGRATION_LOCK_TIMEOUT_SECS)
 }
 
 pub async fn build_migration_connection(database_url: &str) -> Result<PgConnection, PersistError> {
+    connect_for_migration(database_url, migration_lock_timeout_secs()).await
+}
+
+async fn connect_for_migration(
+    database_url: &str,
+    lock_timeout_secs: u64,
+) -> Result<PgConnection, PersistError> {
     let parsed: PgConnectOptions =
         database_url
             .parse()
@@ -44,7 +53,6 @@ pub async fn build_migration_connection(database_url: &str) -> Result<PgConnecti
                 source: e,
             })?;
 
-    let lock_timeout_secs = migration_lock_timeout_secs();
     let lock_timeout = format!("{lock_timeout_secs}s");
     let options = parsed.options([
         ("application_name", "claude-proxy-migrate"),
@@ -257,48 +265,28 @@ mod tests {
     }
 
     #[test]
-    fn migration_lock_timeout_secs_defaults_when_env_unset() {
-        unsafe {
-            env::remove_var(MIGRATION_LOCK_TIMEOUT_ENV);
-        }
+    fn migration_lock_timeout_secs_defaults_when_unset() {
         assert_eq!(
-            migration_lock_timeout_secs(),
+            lock_timeout_secs_from(None),
             DEFAULT_MIGRATION_LOCK_TIMEOUT_SECS
         );
     }
 
     #[test]
-    fn migration_lock_timeout_secs_honors_env_override() {
-        unsafe {
-            env::set_var(MIGRATION_LOCK_TIMEOUT_ENV, "42");
-        }
-        assert_eq!(migration_lock_timeout_secs(), 42);
-        unsafe {
-            env::remove_var(MIGRATION_LOCK_TIMEOUT_ENV);
-        }
+    fn migration_lock_timeout_secs_honors_override() {
+        assert_eq!(lock_timeout_secs_from(Some("42")), 42);
     }
 
     #[test]
     fn migration_lock_timeout_secs_ignores_zero_and_unparseable() {
-        unsafe {
-            env::set_var(MIGRATION_LOCK_TIMEOUT_ENV, "0");
-        }
         assert_eq!(
-            migration_lock_timeout_secs(),
+            lock_timeout_secs_from(Some("0")),
             DEFAULT_MIGRATION_LOCK_TIMEOUT_SECS
         );
-
-        unsafe {
-            env::set_var(MIGRATION_LOCK_TIMEOUT_ENV, "not-a-number");
-        }
         assert_eq!(
-            migration_lock_timeout_secs(),
+            lock_timeout_secs_from(Some("not-a-number")),
             DEFAULT_MIGRATION_LOCK_TIMEOUT_SECS
         );
-
-        unsafe {
-            env::remove_var(MIGRATION_LOCK_TIMEOUT_ENV);
-        }
     }
 
     #[tokio::test]
@@ -308,13 +296,7 @@ mod tests {
             return Ok(());
         };
 
-        unsafe {
-            env::set_var(MIGRATION_LOCK_TIMEOUT_ENV, "91");
-        }
-        let mut conn = build_migration_connection(&db.database_url).await?;
-        unsafe {
-            env::remove_var(MIGRATION_LOCK_TIMEOUT_ENV);
-        }
+        let mut conn = connect_for_migration(&db.database_url, 91).await?;
 
         let app_name = sqlx::query_scalar!(r#"SELECT current_setting('application_name') AS "v!""#)
             .fetch_one(&mut conn)

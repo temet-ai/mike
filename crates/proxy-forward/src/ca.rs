@@ -229,7 +229,8 @@ mod tests {
 
     #[test]
     fn generate_persist_reload_roundtrip() -> Result<(), ForwardError> {
-        let dir = std::env::temp_dir().join(format!("pf-ca-test-{}", uuid_like()));
+        let scratch = scratch_dir()?;
+        let dir = scratch.path().join("ca");
         let ca = Ca::load_or_generate(&dir)?;
         let first_pem = ca.cert_pem().to_string();
 
@@ -252,7 +253,8 @@ mod tests {
     #[test]
     fn key_file_is_owner_only() -> Result<(), ForwardError> {
         use std::os::unix::fs::PermissionsExt;
-        let dir = std::env::temp_dir().join(format!("pf-ca-perm-{}", uuid_like()));
+        let scratch = scratch_dir()?;
+        let dir = scratch.path().join("ca");
         let _ca = Ca::load_or_generate(&dir)?;
         let (_cert, key_path) = ca_paths(&dir);
         let mode = std::fs::metadata(&key_path)
@@ -268,7 +270,8 @@ mod tests {
     #[test]
     fn write_key_0600_forces_mode_over_existing_file() -> Result<(), ForwardError> {
         use std::os::unix::fs::PermissionsExt;
-        let dir = std::env::temp_dir().join(format!("pf-ca-chmod-{}", uuid_like()));
+        let scratch = scratch_dir()?;
+        let dir = scratch.path().join("ca");
         std::fs::create_dir_all(&dir).map_err(ForwardError::Io)?;
         let key_path = dir.join(CA_KEY_FILE);
 
@@ -302,7 +305,8 @@ mod tests {
 
     #[test]
     fn issuer_can_sign_a_leaf() -> Result<(), ForwardError> {
-        let dir = std::env::temp_dir().join(format!("pf-ca-sign-{}", uuid_like()));
+        let scratch = scratch_dir()?;
+        let dir = scratch.path().join("ca");
         let ca = Ca::load_or_generate(&dir)?;
         let leaf_key = KeyPair::generate().map_err(|e| ForwardError::CaInit(e.to_string()))?;
         let mut params = CertificateParams::new(vec!["api.anthropic.com".to_string()])
@@ -322,12 +326,7 @@ mod tests {
         Ok(())
     }
 
-    fn uuid_like() -> String {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0);
-        format!("{nanos}-{:?}", std::thread::current().id()).replace(['(', ')', ' '], "")
+    fn scratch_dir() -> Result<tempfile::TempDir, ForwardError> {
+        tempfile::tempdir().map_err(ForwardError::Io)
     }
 }

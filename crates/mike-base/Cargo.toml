@@ -60,6 +60,7 @@ proxy-forward = { path = "../proxy-forward" }
 regex = "1"
 reqwest = { workspace = true }
 rust-embed = "8"
+rustix = { version = "1.1.6", features = ["process", "fs"] }
 secrecy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
