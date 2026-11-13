@@ -3,10 +3,11 @@ use std::time::Duration;
 use chrono::Weekday;
 
 use super::schedule::{Cadence, Period};
+use crate::settings::meta_memory_loop::MEMORY_REVIEW_ENABLED_KEY;
 use crate::settings::meta_scheduled_jobs::{
     CARGO_SWEEP_ENABLED_KEY, COMPRESSOR_LOOP_ENABLED_KEY, LEARNING_AUDIT_ENABLED_KEY,
     LEARNING_PROMOTE_ENABLED_KEY, LESSON_RELATIONS_ENABLED_KEY, LESSONS_COMMIT_ENABLED_KEY,
-    MEMORY_REVIEW_ENABLED_KEY, NIGHTLY_TESTS_ENABLED_KEY, USAGE_AUDIT_ENABLED_KEY,
+    NIGHTLY_TESTS_ENABLED_KEY, USAGE_AUDIT_ENABLED_KEY,
 };
 
 pub(crate) struct Job {

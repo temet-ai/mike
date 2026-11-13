@@ -15,13 +15,13 @@ pub mod meta_knowledge_embedding;
 pub mod meta_launch;
 pub mod meta_llm_budget;
 pub mod meta_llm_provider;
+pub mod meta_memory_loop;
 pub mod meta_operations;
 pub mod meta_pipeline;
 pub mod meta_rerank;
 pub mod meta_rerank_nightly;
 #[cfg(test)]
 pub mod meta_rerank_tests;
-pub mod meta_memory_loop;
 pub mod meta_scheduled_jobs;
 pub mod meta_search_ranking;
 #[cfg(test)]

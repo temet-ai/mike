@@ -8,9 +8,12 @@ pub const LESSONS_COMMIT_ENABLED_KEY: &str = "lessons_commit.enabled";
 pub const USAGE_AUDIT_ENABLED_KEY: &str = "usage_audit.enabled";
 pub const LESSON_RELATIONS_ENABLED_KEY: &str = "lesson_relations_job.enabled";
 pub const NIGHTLY_TESTS_ENABLED_KEY: &str = "nightly_tests.enabled";
-pub const MEMORY_REVIEW_ENABLED_KEY: &str = "memory_review.enabled";
 
-fn enabled_entry(key: &'static str, label: &'static str, description: &'static str) -> SettingMeta {
+pub(super) fn enabled_entry(
+    key: &'static str,
+    label: &'static str,
+    description: &'static str,
+) -> SettingMeta {
     SettingMeta {
         key,
         group: "Scheduled jobs",
@@ -119,18 +122,5 @@ pub fn entries() -> Vec<SettingMeta> {
                 run already under way finishes.",
             )
         },
-        enabled_entry(
-            MEMORY_REVIEW_ENABLED_KEY,
-            "Daily memory review",
-            "Daily, once between 05:15 and 07:59 UTC, run scripts/memory-review from the \
-            checkout this proxy was started in. It starts a Claude Code session (claude -p, \
-            Opus, file edits refused) through this proxy that reads what memory returned to \
-            sessions since the last review, from the capture database and the mike tools, \
-            and records what did not help and the fix on the memory-keeper work thread and \
-            GitHub. Its instructions are the memory_review.brief setting. That session sends \
-            captured session text to Anthropic like any other session. One machine per \
-            database runs it (the job lease). Read on every check, once a minute; a run \
-            already under way finishes.",
-        ),
     ]
 }
