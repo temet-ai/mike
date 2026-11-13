@@ -147,18 +147,19 @@ pub async fn wait_for_exit(pid: u32, wait: Duration) -> bool {
 }
 
 pub fn terminate(pid: u32) -> Result<(), LaunchError> {
-    let rc = unsafe { libc::kill(pid as libc::pid_t, libc::SIGTERM) };
-    if rc == 0 {
+    let Some(target) = i32::try_from(pid)
+        .ok()
+        .and_then(rustix::process::Pid::from_raw)
+    else {
         return Ok(());
+    };
+    match rustix::process::kill_process(target, rustix::process::Signal::TERM) {
+        Ok(()) | Err(rustix::io::Errno::SRCH) => Ok(()),
+        Err(errno) => Err(LaunchError::io(
+            format!("sending SIGTERM to pid {pid}"),
+            std::io::Error::from(errno),
+        )),
     }
-    let err = std::io::Error::last_os_error();
-    if err.raw_os_error() == Some(libc::ESRCH) {
-        return Ok(());
-    }
-    Err(LaunchError::io(
-        format!("sending SIGTERM to pid {pid}"),
-        err,
-    ))
 }
 
 pub fn spawn_reaper(mut child: tokio::process::Child) {

@@ -68,7 +68,6 @@ fn io_error(action: &'static str, path: &Path, source: std::io::Error) -> Admiss
 
 #[cfg(unix)]
 fn open_directory(path: &Path) -> Result<File, AdmissionError> {
-    use std::os::fd::AsRawFd;
     use std::os::unix::ffi::OsStrExt;
     use std::os::unix::fs::OpenOptionsExt;
     use std::path::Component;
@@ -98,24 +97,28 @@ fn open_directory(path: &Path) -> Result<File, AdmissionError> {
         };
         let name = std::ffi::CString::new(name.as_bytes())
             .map_err(|_| unsafe_path(path, "path contains NUL"))?;
-        let descriptor = unsafe { libc::openat(directory.as_raw_fd(), name.as_ptr(), flags) };
-        directory = from_descriptor(descriptor, "open directory without symlinks", path)?;
+        let opened = rustix::fs::openat(
+            &directory,
+            name.as_c_str(),
+            rustix::fs::OFlags::DIRECTORY
+                | rustix::fs::OFlags::NOFOLLOW
+                | rustix::fs::OFlags::CLOEXEC,
+            rustix::fs::Mode::empty(),
+        );
+        directory = into_file(opened, "open directory without symlinks", path)?;
     }
     Ok(directory)
 }
 
 #[cfg(unix)]
-fn from_descriptor(
-    descriptor: libc::c_int,
+fn into_file(
+    opened: rustix::io::Result<std::os::fd::OwnedFd>,
     action: &'static str,
     path: &Path,
 ) -> Result<File, AdmissionError> {
-    use std::os::fd::FromRawFd;
-
-    if descriptor < 0 {
-        return Err(io_error(action, path, std::io::Error::last_os_error()));
-    }
-    Ok(unsafe { File::from_raw_fd(descriptor) })
+    opened
+        .map(File::from)
+        .map_err(|errno| io_error(action, path, std::io::Error::from(errno)))
 }
 
 #[cfg(unix)]
@@ -131,7 +134,7 @@ fn validate_private(file: &File, path: &Path, directory: bool) -> Result<(), Adm
             "expected an ordinary directory or regular lock file",
         ));
     }
-    if metadata.uid() != unsafe { libc::geteuid() } || metadata.mode() & 0o077 != 0 {
+    if metadata.uid() != rustix::process::geteuid().as_raw() || metadata.mode() & 0o077 != 0 {
         return Err(unsafe_path(
             path,
             "must be owned by the current user with no group or other access",
@@ -161,17 +164,17 @@ fn open_lock(
     name: &str,
     create: bool,
 ) -> Result<File, AdmissionError> {
-    use std::os::fd::AsRawFd;
+    use rustix::fs::{Mode, OFlags};
 
     let path = root.join(name);
     let c_name =
         std::ffi::CString::new(name).map_err(|_| unsafe_path(&path, "name contains NUL"))?;
-    let mut flags = libc::O_RDWR | libc::O_NOFOLLOW | libc::O_CLOEXEC | libc::O_NONBLOCK;
+    let mut flags = OFlags::RDWR | OFlags::NOFOLLOW | OFlags::CLOEXEC | OFlags::NONBLOCK;
     if create {
-        flags |= libc::O_CREAT;
+        flags |= OFlags::CREATE;
     }
-    let descriptor = unsafe { libc::openat(directory.as_raw_fd(), c_name.as_ptr(), flags, 0o600) };
-    let file = from_descriptor(descriptor, "open regular lock file", &path)?;
+    let opened = rustix::fs::openat(directory, c_name.as_c_str(), flags, Mode::RUSR | Mode::WUSR);
+    let file = into_file(opened, "open regular lock file", &path)?;
     validate_private(&file, &path, false)?;
     Ok(file)
 }

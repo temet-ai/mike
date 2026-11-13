@@ -34,26 +34,22 @@ impl ChildGroup {
         let pid = self
             .group
             .ok_or("owned group identity is no longer retained")?;
-        let mut status = std::mem::MaybeUninit::<libc::siginfo_t>::zeroed();
-        let result = unsafe {
-            libc::waitid(
-                libc::P_PID,
-                pid as libc::id_t,
-                status.as_mut_ptr(),
-                libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
-            )
-        };
-        if result != 0 {
-            let error = io::Error::last_os_error();
-            if error.raw_os_error() == Some(libc::EINTR) {
-                return Ok(false);
+        use rustix::process::{Pid, WaitIdOptions};
+        let options = WaitIdOptions::EXITED | WaitIdOptions::NOHANG | WaitIdOptions::NOWAIT;
+        let waited = Pid::from_raw(pid)
+            .ok_or(rustix::io::Errno::INVAL)
+            .and_then(|pid| rustix::process::waitid(rustix::process::WaitId::Pid(pid), options));
+        match waited {
+            Ok(status) => Ok(status.is_some()),
+            Err(rustix::io::Errno::INTR) => Ok(false),
+            Err(errno) => {
+                self.group = None;
+                Err(format!(
+                    "owned child identity cannot be retained; group signalling refused: {}",
+                    io::Error::from(errno)
+                ))
             }
-            self.group = None;
-            return Err(format!(
-                "owned child identity cannot be retained; group signalling refused: {error}"
-            ));
         }
-        Ok(unsafe { status.assume_init().si_pid() } != 0)
     }
 
     pub async fn terminate_and_reap(
@@ -96,14 +92,14 @@ impl Drop for ChildGroup {
 }
 
 fn signal(pid: libc::pid_t) -> Result<(), String> {
-    let result = unsafe { libc::kill(-pid, libc::SIGKILL) };
-    if result == 0 {
+    let Some(group) = rustix::process::Pid::from_raw(pid) else {
         return Ok(());
-    }
-    let error = io::Error::last_os_error();
-    if error.raw_os_error() == Some(libc::ESRCH) {
-        Ok(())
-    } else {
-        Err(format!("owned process group could not be stopped: {error}"))
+    };
+    match rustix::process::kill_process_group(group, rustix::process::Signal::KILL) {
+        Ok(()) | Err(rustix::io::Errno::SRCH) => Ok(()),
+        Err(errno) => Err(format!(
+            "owned process group could not be stopped: {}",
+            io::Error::from(errno)
+        )),
     }
 }

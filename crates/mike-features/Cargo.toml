@@ -47,6 +47,7 @@ humantime = { workspace = true }
 # in `crate::diagnostics::rss`. Already a transitive dep through tokio
 # / sqlx; explicit here is cheaper than peeling those features apart.
 libc = "0.2"
+rustix = { version = "1.1.6", features = ["process", "fs"] }
 metrics = "0.24"
 metrics-exporter-prometheus = { version = "0.18", default-features = false }
 mike-codex = { path = "../mike-codex" }
