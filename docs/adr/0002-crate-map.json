@@ -658,7 +658,7 @@
    "memory.knowledge_sources": "knowledge",
    "memory.lesson_file_conflicts": "knowledge",
    "memory.lesson_file_receipts": "db",
-   "memory.lesson_pair_candidates": "knowledge",
+   "memory.lesson_pair_candidates": "lessons",
    "memory.lesson_proposal_guidance": "knowledge",
    "memory.operator_turn_chunks": "db",
    "memory.operator_turn_legacy_labels": "db",
