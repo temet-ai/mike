@@ -14,6 +14,7 @@ async fn first_send_eligibility_excludes_consumed_and_dead_lettered_rows() -> an
     };
     let handle_db = factory.acquire_isolated().await?;
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
+    let launch_db = handle.launch();
     let pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(2)
         .connect(&handle_db.database_url)
@@ -22,14 +23,12 @@ async fn first_send_eligibility_excludes_consumed_and_dead_lettered_rows() -> an
     let to_uuid = seed_session(&pool, "proj-eligibility-excludes").await?;
 
     let pending_msg = uuid::Uuid::new_v4();
-    handle
-        .launch()
+    launch_db
         .insert_message(pending_msg, to_uuid, None, "still pending")
         .await?;
 
     let consumed_msg = uuid::Uuid::new_v4();
-    handle
-        .launch()
+    launch_db
         .insert_message(
             consumed_msg,
             to_uuid,
@@ -45,8 +44,7 @@ async fn first_send_eligibility_excludes_consumed_and_dead_lettered_rows() -> an
     .await?;
 
     let dead_lettered_msg = uuid::Uuid::new_v4();
-    handle
-        .launch()
+    launch_db
         .insert_message(dead_lettered_msg, to_uuid, None, "already reaped")
         .await?;
     sqlx::query!(
@@ -56,10 +54,7 @@ async fn first_send_eligibility_excludes_consumed_and_dead_lettered_rows() -> an
     .execute(&pool)
     .await?;
 
-    let unclaimed = handle
-        .launch()
-        .fetch_pending_unclaimed(to_uuid, 100)
-        .await?;
+    let unclaimed = launch_db.fetch_pending_unclaimed(to_uuid, 100).await?;
     let unclaimed_uuids: Vec<_> = unclaimed.iter().map(|r| r.row.message_uuid).collect();
     assert_eq!(
         unclaimed_uuids,
@@ -67,7 +62,7 @@ async fn first_send_eligibility_excludes_consumed_and_dead_lettered_rows() -> an
         "fetch_pending_unclaimed must return only the genuinely pending row"
     );
 
-    let all_unclaimed = handle.launch().fetch_all_pending_unclaimed(100).await?;
+    let all_unclaimed = launch_db.fetch_all_pending_unclaimed(100).await?;
     assert!(
         all_unclaimed
             .iter()
@@ -76,13 +71,13 @@ async fn first_send_eligibility_excludes_consumed_and_dead_lettered_rows() -> an
     );
 
     assert!(
-        handle.launch().has_pending_inbound_mail(to_uuid).await?,
+        launch_db.has_pending_inbound_mail(to_uuid).await?,
         "the genuinely pending row still counts"
     );
 
-    handle.launch().claim_message(pending_msg).await?;
+    launch_db.claim_message(pending_msg).await?;
     assert!(
-        !handle.launch().has_pending_inbound_mail(to_uuid).await?,
+        !launch_db.has_pending_inbound_mail(to_uuid).await?,
         "consumed/dead-lettered rows must never count as pending inbound mail"
     );
 
@@ -99,6 +94,7 @@ async fn dead_letter_expired_undelivered_reaps_only_the_expired_undelivered_row(
     };
     let handle_db = factory.acquire_isolated().await?;
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
+    let launch_db = handle.launch();
     let pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(2)
         .connect(&handle_db.database_url)
@@ -107,8 +103,7 @@ async fn dead_letter_expired_undelivered_reaps_only_the_expired_undelivered_row(
     let to_uuid = seed_session(&pool, "proj-ttl-reaper").await?;
 
     let expired_msg = uuid::Uuid::new_v4();
-    handle
-        .launch()
+    launch_db
         .insert_message(expired_msg, to_uuid, None, "stranded past the TTL")
         .await?;
     sqlx::query!(
@@ -119,14 +114,12 @@ async fn dead_letter_expired_undelivered_reaps_only_the_expired_undelivered_row(
     .await?;
 
     let too_recent_msg = uuid::Uuid::new_v4();
-    handle
-        .launch()
+    launch_db
         .insert_message(too_recent_msg, to_uuid, None, "queued moments ago")
         .await?;
 
     let already_consumed_msg = uuid::Uuid::new_v4();
-    handle
-        .launch()
+    launch_db
         .insert_message(already_consumed_msg, to_uuid, None, "already consumed")
         .await?;
     sqlx::query!(
@@ -137,8 +130,7 @@ async fn dead_letter_expired_undelivered_reaps_only_the_expired_undelivered_row(
     .await?;
 
     let already_dead_lettered_msg = uuid::Uuid::new_v4();
-    handle
-        .launch()
+    launch_db
         .insert_message(
             already_dead_lettered_msg,
             to_uuid,
@@ -154,8 +146,7 @@ async fn dead_letter_expired_undelivered_reaps_only_the_expired_undelivered_row(
     .await?;
 
     let cutoff = Utc::now() - chrono::Duration::minutes(60);
-    let outcome = handle
-        .launch()
+    let outcome = launch_db
         .dead_letter_expired_undelivered(cutoff, cutoff)
         .await?;
     assert_eq!(
@@ -217,6 +208,7 @@ async fn backfill_predicate_dead_letters_every_stranded_row_regardless_of_age() 
     };
     let handle_db = factory.acquire_isolated().await?;
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
+    let launch_db = handle.launch();
     let pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(2)
         .connect(&handle_db.database_url)
@@ -225,8 +217,7 @@ async fn backfill_predicate_dead_letters_every_stranded_row_regardless_of_age() 
     let to_uuid = seed_session(&pool, "proj-backfill-predicate").await?;
 
     let fresh_stranded_msg = uuid::Uuid::new_v4();
-    handle
-        .launch()
+    launch_db
         .insert_message(
             fresh_stranded_msg,
             to_uuid,
@@ -236,8 +227,7 @@ async fn backfill_predicate_dead_letters_every_stranded_row_regardless_of_age() 
         .await?;
 
     let already_consumed_msg = uuid::Uuid::new_v4();
-    handle
-        .launch()
+    launch_db
         .insert_message(already_consumed_msg, to_uuid, None, "already consumed")
         .await?;
     sqlx::query!(
@@ -248,8 +238,7 @@ async fn backfill_predicate_dead_letters_every_stranded_row_regardless_of_age() 
     .await?;
 
     let far_future_cutoff = Utc::now() + chrono::Duration::days(3650);
-    let outcome = handle
-        .launch()
+    let outcome = launch_db
         .dead_letter_expired_undelivered(far_future_cutoff, far_future_cutoff)
         .await?;
     assert_eq!(
@@ -288,6 +277,7 @@ async fn dead_letter_expired_undelivered_skips_recipient_with_activity_in_any_la
     };
     let handle_db = factory.acquire_isolated().await?;
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
+    let launch_db = handle.launch();
     let pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(2)
         .connect(&handle_db.database_url)
@@ -299,8 +289,7 @@ async fn dead_letter_expired_undelivered_skips_recipient_with_activity_in_any_la
         seed_session_with_ids(&pool, "proj-reaper-silent-recipient").await?;
 
     let busy_msg = uuid::Uuid::new_v4();
-    handle
-        .launch()
+    launch_db
         .insert_message(busy_msg, busy_uuid, None, "queued for a busy recipient")
         .await?;
     sqlx::query!(
@@ -319,8 +308,7 @@ async fn dead_letter_expired_undelivered_skips_recipient_with_activity_in_any_la
     .await?;
 
     let silent_msg = uuid::Uuid::new_v4();
-    handle
-        .launch()
+    launch_db
         .insert_message(
             silent_msg,
             silent_uuid,
@@ -336,8 +324,7 @@ async fn dead_letter_expired_undelivered_skips_recipient_with_activity_in_any_la
     .await?;
 
     let cutoff = Utc::now() - chrono::Duration::minutes(60);
-    let outcome = handle
-        .launch()
+    let outcome = launch_db
         .dead_letter_expired_undelivered(cutoff, cutoff)
         .await?;
     assert_eq!(

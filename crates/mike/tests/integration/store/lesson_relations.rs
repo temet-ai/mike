@@ -64,20 +64,15 @@ async fn confirm_and_reject_relation_missing_id_return_not_found() -> anyhow::Re
     };
     let handle_db = factory.acquire_shared().await?;
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
+    let lessons_db = handle.lessons();
 
-    let confirm_outcome = handle
-        .lessons()
-        .confirm_relation(999_999_999, "operator")
-        .await?;
+    let confirm_outcome = lessons_db.confirm_relation(999_999_999, "operator").await?;
     assert!(
         matches!(confirm_outcome, RelationDecisionOutcome::NotFound),
         "confirming a nonexistent relation id must report NotFound"
     );
 
-    let reject_outcome = handle
-        .lessons()
-        .reject_relation(999_999_999, "operator")
-        .await?;
+    let reject_outcome = lessons_db.reject_relation(999_999_999, "operator").await?;
     assert!(
         matches!(reject_outcome, RelationDecisionOutcome::NotFound),
         "rejecting a nonexistent relation id must report NotFound"
@@ -94,6 +89,7 @@ async fn confirm_relation_twice_returns_wrong_status_on_the_second_call() -> any
     };
     let handle_db = factory.acquire_shared().await?;
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
+    let lessons_db = handle.lessons();
     let pool = PgPoolOptions::new()
         .max_connections(2)
         .connect(&handle_db.database_url)
@@ -105,24 +101,17 @@ async fn confirm_relation_twice_returns_wrong_status_on_the_second_call() -> any
     .await?;
     let (older_id, newer_id) = seed_two_lessons(&handle, project_id).await?;
 
-    let relation_id = handle
-        .lessons()
+    let relation_id = lessons_db
         .insert_lesson_relation(&draft(newer_id, older_id))
         .await?;
 
-    let first = handle
-        .lessons()
-        .confirm_relation(relation_id, "operator")
-        .await?;
+    let first = lessons_db.confirm_relation(relation_id, "operator").await?;
     assert!(
         matches!(first, RelationDecisionOutcome::Decided(_)),
         "first confirm must succeed on a proposed relation"
     );
 
-    let second = handle
-        .lessons()
-        .confirm_relation(relation_id, "operator")
-        .await?;
+    let second = lessons_db.confirm_relation(relation_id, "operator").await?;
     assert!(
         matches!(second, RelationDecisionOutcome::WrongStatus(ref s) if s == "confirmed"),
         "re-confirming an already-confirmed relation must report WrongStatus(\"confirmed\"), got {second:?}"
@@ -141,6 +130,7 @@ async fn confirmed_supersedes_excludes_only_the_older_lesson_from_injection() ->
     };
     let handle_db = factory.acquire_shared().await?;
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
+    let lessons_db = handle.lessons();
     let pool = PgPoolOptions::new()
         .max_connections(2)
         .connect(&handle_db.database_url)
@@ -149,41 +139,28 @@ async fn confirmed_supersedes_excludes_only_the_older_lesson_from_injection() ->
     let project_id = test_support::seed_project(&pool, &project_path).await?;
     let (older_id, newer_id) = seed_two_lessons(&handle, project_id).await?;
 
-    let before = handle
-        .lessons()
-        .list_injectable_lessons(&project_path)
-        .await?;
+    let before = lessons_db.list_injectable_lessons(&project_path).await?;
     assert_eq!(
         before.len(),
         2,
         "both lessons must be injectable before any relation exists"
     );
 
-    let relation_id = handle
-        .lessons()
+    let relation_id = lessons_db
         .insert_lesson_relation(&draft(newer_id, older_id))
         .await?;
 
-    let while_proposed = handle
-        .lessons()
-        .list_injectable_lessons(&project_path)
-        .await?;
+    let while_proposed = lessons_db.list_injectable_lessons(&project_path).await?;
     assert_eq!(
         while_proposed.len(),
         2,
         "a merely-proposed (not confirmed) relation must not exclude anything yet"
     );
 
-    let outcome = handle
-        .lessons()
-        .confirm_relation(relation_id, "operator")
-        .await?;
+    let outcome = lessons_db.confirm_relation(relation_id, "operator").await?;
     assert!(matches!(outcome, RelationDecisionOutcome::Decided(_)));
 
-    let after = handle
-        .lessons()
-        .list_injectable_lessons(&project_path)
-        .await?;
+    let after = lessons_db.list_injectable_lessons(&project_path).await?;
     let after_ids: Vec<i64> = after.iter().map(|r| r.id).collect();
     assert!(
         !after_ids.contains(&older_id),
@@ -328,6 +305,7 @@ async fn retire_by_outcome_rarely_followed_lesson_leaves_supply_and_stays_search
     };
     let handle_db = factory.acquire_shared().await?;
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
+    let lessons_db = handle.lessons();
     let pool = PgPoolOptions::new()
         .max_connections(2)
         .connect(&handle_db.database_url)
@@ -361,7 +339,7 @@ async fn retire_by_outcome_rarely_followed_lesson_leaves_supply_and_stays_search
     supply_in_sessions(&pool, project_id, followed, &followed_record).await?;
     supply_in_sessions(&pool, project_id, unproven, &["ignored"; 3]).await?;
 
-    let outcome = handle.lessons().lesson_outcome(ignored).await?;
+    let outcome = lessons_db.lesson_outcome(ignored).await?;
     assert_eq!(
         (
             outcome.judged,
@@ -373,9 +351,9 @@ async fn retire_by_outcome_rarely_followed_lesson_leaves_supply_and_stays_search
         "the outcome record counts each judged session once by verdict"
     );
 
-    let retired_now = handle.lessons().retire_lessons_by_outcome(10, 0.15).await?;
+    let retired_now = lessons_db.retire_lessons_by_outcome(10, 0.15).await?;
     let first_reason = retired(&pool, ignored).await?.1;
-    handle.lessons().retire_lessons_by_outcome(10, 0.15).await?;
+    lessons_db.retire_lessons_by_outcome(10, 0.15).await?;
     let (kind, reason, by) = retired(&pool, ignored).await?;
     assert_eq!(
         reason, first_reason,
@@ -398,8 +376,7 @@ async fn retire_by_outcome_rarely_followed_lesson_leaves_supply_and_stays_search
     );
     assert!(retired_now >= 1, "the run retires the ignored lesson");
 
-    let supplied: Vec<i64> = handle
-        .lessons()
+    let supplied: Vec<i64> = lessons_db
         .list_injectable_lessons(&project_path)
         .await?
         .iter()
@@ -429,6 +406,7 @@ async fn adjudicated_contradiction_supersedes_only_the_older_lesson() -> anyhow:
     };
     let handle_db = factory.acquire_shared().await?;
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
+    let lessons_db = handle.lessons();
     let pool = PgPoolOptions::new()
         .max_connections(2)
         .connect(&handle_db.database_url)
@@ -453,11 +431,11 @@ async fn adjudicated_contradiction_supersedes_only_the_older_lesson() -> anyhow:
         adjudicator_agrees: Some(false),
         ..draft(contested_new, contested_old)
     };
-    let relation = handle.lessons().insert_lesson_relation(&agreed).await?;
-    handle.lessons().insert_lesson_relation(&disputed).await?;
+    let relation = lessons_db.insert_lesson_relation(&agreed).await?;
+    lessons_db.insert_lesson_relation(&disputed).await?;
 
-    let first = handle.lessons().supersede_contradicted_lessons().await?;
-    let second = handle.lessons().supersede_contradicted_lessons().await?;
+    let first = lessons_db.supersede_contradicted_lessons().await?;
+    let second = lessons_db.supersede_contradicted_lessons().await?;
     assert!(first >= 1);
     assert_eq!(second, 0, "a second run retires nothing new");
 
@@ -486,8 +464,7 @@ async fn adjudicated_contradiction_supersedes_only_the_older_lesson() -> anyhow:
     .await?;
     assert_eq!(status, "confirmed");
 
-    let supplied: Vec<i64> = handle
-        .lessons()
+    let supplied: Vec<i64> = lessons_db
         .list_injectable_lessons(&project_path)
         .await?
         .iter()

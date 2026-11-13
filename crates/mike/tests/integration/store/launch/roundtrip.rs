@@ -65,6 +65,28 @@ fn assert_succeeded_row(row: &LaunchRow, stderr: &StderrCapture) {
     assert!(row.closed_at.is_none());
 }
 
+fn opened_surface() -> LaunchSurfaceRefs {
+    LaunchSurfaceRefs {
+        workspace_ref: Some("ws-1".to_owned()),
+        tab_ref: Some("tab-1".to_owned()),
+        surface_ref: Some("pane-7".to_owned()),
+        pid: Some(4242),
+        actual_placement: Some("panel".to_owned()),
+    }
+}
+
+fn confirmed_success(stderr: &StderrCapture) -> LaunchOutcome {
+    LaunchOutcome {
+        result: "success".to_owned(),
+        reason: None,
+        opened: true,
+        delivered: Some(true),
+        confirmed: true,
+        channel_check: Some("found".to_owned()),
+        stderr: Some(stderr.clone()),
+    }
+}
+
 #[tokio::test]
 async fn launch_lifecycle_round_trips_every_column_and_lists_newest_first() -> anyhow::Result<()> {
     let Some(factory) = TestDb::bootstrap().await? else {
@@ -73,63 +95,38 @@ async fn launch_lifecycle_round_trips_every_column_and_lists_newest_first() -> a
     };
     let handle_db = factory.acquire_isolated().await?;
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
+    let launch_db = handle.launch();
     let session = Uuid::new_v4();
     let brief = format!("# Brief for {session}\n{}", "detail line\n".repeat(400));
 
-    let id = handle
-        .launch()
+    let id = launch_db
         .insert_launch(&full_launch(session, &brief))
         .await?;
 
-    let pending = handle
-        .launch()
+    let pending = launch_db
         .find_launch_by_session(session)
         .await?
         .ok_or_else(|| anyhow::anyhow!("inserted launch not found by session"))?;
     assert_pending_row(&pending, id, session, &brief);
 
-    handle
-        .launch()
-        .record_launch_opened(
-            id,
-            &LaunchSurfaceRefs {
-                workspace_ref: Some("ws-1".to_owned()),
-                tab_ref: Some("tab-1".to_owned()),
-                surface_ref: Some("pane-7".to_owned()),
-                pid: Some(4242),
-                actual_placement: Some("panel".to_owned()),
-            },
-        )
+    launch_db
+        .record_launch_opened(id, &opened_surface())
         .await?;
-    assert_eq!(handle.launch().count_open_launches("herdr").await?, 1);
-    assert_eq!(handle.launch().count_open_launches("tmux").await?, 0);
+    assert_eq!(launch_db.count_open_launches("herdr").await?, 1);
+    assert_eq!(launch_db.count_open_launches("tmux").await?, 0);
 
     let stderr = StderrCapture::capture("warning: something\n");
-    handle
-        .launch()
-        .record_launch_outcome(
-            id,
-            &LaunchOutcome {
-                result: "success".to_owned(),
-                reason: None,
-                opened: true,
-                delivered: Some(true),
-                confirmed: true,
-                channel_check: Some("found".to_owned()),
-                stderr: Some(stderr.clone()),
-            },
-        )
+    launch_db
+        .record_launch_outcome(id, &confirmed_success(&stderr))
         .await?;
 
-    let done = handle
-        .launch()
+    let done = launch_db
         .find_launch_by_session(session)
         .await?
         .ok_or_else(|| anyhow::anyhow!("launch vanished after outcome"))?;
     assert_succeeded_row(&done, &stderr);
 
-    let listed = handle
-        .launch()
+    let listed = launch_db
         .list_launches(&LaunchListFilter {
             backend: Some("herdr".to_owned()),
             open_only: true,
@@ -139,27 +136,21 @@ async fn launch_lifecycle_round_trips_every_column_and_lists_newest_first() -> a
     assert_eq!(listed.len(), 1);
     assert_eq!(listed[0], done);
 
-    handle
-        .launch()
+    launch_db
         .record_launch_closed(id, "kill", Some(true))
         .await?;
-    handle
-        .launch()
-        .record_launch_closed(id, "reaped", None)
-        .await?;
+    launch_db.record_launch_closed(id, "reaped", None).await?;
 
-    let closed = handle
-        .launch()
+    let closed = launch_db
         .find_launch_by_session(session)
         .await?
         .ok_or_else(|| anyhow::anyhow!("launch vanished after close"))?;
     assert!(closed.closed_at.is_some());
     assert_eq!(closed.close_reason.as_deref(), Some("kill"));
     assert_eq!(closed.close_process_exited, Some(true));
-    assert_eq!(handle.launch().count_open_launches("herdr").await?, 0);
+    assert_eq!(launch_db.count_open_launches("herdr").await?, 0);
     assert!(
-        handle
-            .launch()
+        launch_db
             .list_launches(&LaunchListFilter {
                 open_only: true,
                 ..LaunchListFilter::default()
@@ -168,16 +159,13 @@ async fn launch_lifecycle_round_trips_every_column_and_lists_newest_first() -> a
             .is_empty()
     );
 
-    let second = handle
-        .launch()
+    let second = launch_db
         .insert_launch(&full_launch(session, "relaunch brief"))
         .await?;
-    handle
-        .launch()
+    launch_db
         .record_launch_opened(second, &LaunchSurfaceRefs::default())
         .await?;
-    let found = handle
-        .launch()
+    let found = launch_db
         .find_launch_by_session(session)
         .await?
         .ok_or_else(|| anyhow::anyhow!("no launch for session"))?;
@@ -185,8 +173,7 @@ async fn launch_lifecycle_round_trips_every_column_and_lists_newest_first() -> a
         found.id, second,
         "the open relaunch wins over the closed original"
     );
-    let ids: Vec<i64> = handle
-        .launch()
+    let ids: Vec<i64> = launch_db
         .list_launches(&LaunchListFilter::default())
         .await?
         .into_iter()
@@ -206,8 +193,9 @@ async fn updates_on_unknown_launch_id_return_data_invariant() -> anyhow::Result<
     };
     let handle_db = factory.acquire_shared().await?;
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
+    let launch_db = handle.launch();
 
-    let outcome = handle.launch().record_launch_closed(-1, "kill", None).await;
+    let outcome = launch_db.record_launch_closed(-1, "kill", None).await;
     assert!(
         matches!(
             outcome,

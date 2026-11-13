@@ -192,6 +192,7 @@ async fn closest_guidance_finds_memory_by_text_and_records_what_was_cited() -> a
         .await?
         .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
     let handle = PersistHandle::connect(&db.database_url).await?;
+    let knowledge_db = handle.knowledge();
     let project_id = seed_project(handle.pool(), "/test/scan-find").await?;
     let other_id = seed_project(handle.pool(), "/test/scan-other").await?;
     let home = tempfile::tempdir()?;
@@ -223,8 +224,7 @@ async fn closest_guidance_finds_memory_by_text_and_records_what_was_cited() -> a
     )?;
     scan_machine(&handle, machine, home.path(), &mut ScanMemo::default()).await?;
 
-    let rows = handle
-        .knowledge()
+    let rows = knowledge_db
         .closest_guidance(
             project_id,
             "you claimed the tests pass without running the test suite",
@@ -237,23 +237,20 @@ async fn closest_guidance_finds_memory_by_text_and_records_what_was_cited() -> a
     assert_eq!(rows[0].kind_label(), "memory");
     assert!(rows[0].body.contains("Always run the test suite"));
 
-    let skills = handle
-        .knowledge()
+    let skills = knowledge_db
         .closest_guidance(project_id, "worktree inside the repository", None, 3)
         .await?;
     assert_eq!(skills.len(), 1);
     assert_eq!(skills[0].kind_label(), "skill");
     assert_eq!(skills[0].display_name(), "worktree-rules");
     assert!(
-        handle
-            .knowledge()
+        knowledge_db
             .closest_guidance(project_id, "   ", None, 3)
             .await?
             .is_empty()
     );
     assert!(
-        handle
-            .knowledge()
+        knowledge_db
             .closest_guidance(other_id, "worktree inside the repository", None, 3)
             .await?
             .is_empty()
@@ -270,6 +267,7 @@ async fn proposal_guidance_keeps_one_row_per_correction_and_search_reports_memor
         .await?
         .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
     let handle = PersistHandle::connect(&db.database_url).await?;
+    let knowledge_db = handle.knowledge();
     let project_id = seed_project(handle.pool(), "/test/scan-find").await?;
     let home = tempfile::tempdir()?;
     let root = tempfile::tempdir()?;
@@ -280,15 +278,13 @@ async fn proposal_guidance_keeps_one_row_per_correction_and_search_reports_memor
         "---\nname: feedback-tests\n---\nAlways run the test suite before claiming the tests pass.",
     )?;
     scan_machine(&handle, machine, home.path(), &mut ScanMemo::default()).await?;
-    let rows = handle
-        .knowledge()
+    let rows = knowledge_db
         .closest_guidance(project_id, "run the test suite", None, 3)
         .await?;
     assert_eq!(rows.len(), 1);
 
     let verdict: i64 = 41;
-    handle
-        .knowledge()
+    knowledge_db
         .record_proposal_guidance(
             verdict,
             project_id,
@@ -298,8 +294,7 @@ async fn proposal_guidance_keeps_one_row_per_correction_and_search_reports_memor
             }],
         )
         .await?;
-    handle
-        .knowledge()
+    knowledge_db
         .record_proposal_guidance(
             verdict,
             project_id,
@@ -318,8 +313,7 @@ async fn proposal_guidance_keeps_one_row_per_correction_and_search_reports_memor
     .await?;
     assert_eq!(counts, (1, 1));
 
-    let found = handle
-        .knowledge()
+    let found = knowledge_db
         .search_project_knowledge(&KnowledgeQuery {
             project: "/test/scan-find".into(),
             query: "run the test suite".into(),
@@ -348,6 +342,7 @@ async fn closest_guidance_orders_by_vector_similarity_and_drops_unrelated_docume
         .await?
         .ok_or_else(|| anyhow::anyhow!("MIKE_TEST_ADMIN_URL required"))?;
     let handle = PersistHandle::connect(&db.database_url).await?;
+    let knowledge_db = handle.knowledge();
     let project_id = seed_project(handle.pool(), "/test/scan-vector").await?;
     let home = tempfile::tempdir()?;
     let root = tempfile::tempdir()?;
@@ -383,8 +378,7 @@ async fn closest_guidance_orders_by_vector_similarity_and_drops_unrelated_docume
         ModelKeys::only("model-a"),
         "nomic-embed-text-v1.5".to_owned(),
     );
-    let rows = handle
-        .knowledge()
+    let rows = knowledge_db
         .closest_guidance(project_id, "anything at all", Some(&vector), 3)
         .await?;
     assert_eq!(rows.len(), 1);
@@ -395,8 +389,7 @@ async fn closest_guidance_orders_by_vector_similarity_and_drops_unrelated_docume
         ModelKeys::only("model-b"),
         "nomic-embed-text-v1.5".to_owned(),
     );
-    let none = handle
-        .knowledge()
+    let none = knowledge_db
         .closest_guidance(project_id, "zzzz qqqq", Some(&other_model), 3)
         .await?;
     assert!(none.is_empty());
@@ -405,8 +398,7 @@ async fn closest_guidance_orders_by_vector_similarity_and_drops_unrelated_docume
         ModelKeys::only("model-a"),
         "all-minilm".to_owned(),
     );
-    let every = handle
-        .knowledge()
+    let every = knowledge_db
         .closest_guidance(project_id, "anything at all", Some(&unmeasured), 3)
         .await?;
     assert_eq!(every.len(), 2);

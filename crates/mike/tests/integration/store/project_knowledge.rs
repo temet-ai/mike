@@ -96,6 +96,7 @@ async fn project_knowledge_locations_and_revision_scope() -> anyhow::Result<()> 
     };
     let db = test_db.acquire_shared().await?;
     let handle = PersistHandle::connect(&db.database_url).await?;
+    let knowledge_db = handle.knowledge();
 
     let unique = Uuid::new_v4();
     let project_a = format!("/test/knowledge-a-{unique}");
@@ -104,17 +105,16 @@ async fn project_knowledge_locations_and_revision_scope() -> anyhow::Result<()> 
     seed_project(handle.pool(), &project_b).await?;
     let desktop = location(&handle, &project_a).await?;
     let mac = location(&handle, &project_a).await?;
-    assert_eq!(handle.knowledge().project_for_location(mac).await?.id, a);
+    assert_eq!(knowledge_db.project_for_location(mac).await?.id, a);
     location(&handle, &project_b).await?;
-    let project = handle.knowledge().project_for_location(desktop).await?;
+    let project = knowledge_db.project_for_location(desktop).await?;
     let machine: Uuid =
         sqlx::query_scalar("SELECT machine_uuid FROM projects.locations WHERE location_uuid = $1")
             .bind(desktop)
             .fetch_one(handle.pool())
             .await?;
     assert!(
-        handle
-            .knowledge()
+        knowledge_db
             .register_project_location(&LocationInput {
                 project: project_b.clone(),
                 machine_uuid: machine,
@@ -124,8 +124,7 @@ async fn project_knowledge_locations_and_revision_scope() -> anyhow::Result<()> 
             .await
             .is_err()
     );
-    let source = handle
-        .knowledge()
+    let source = knowledge_db
         .register_knowledge_source(&SourceInput {
             location_uuid: desktop,
             name: "artifacts".into(),
@@ -137,13 +136,9 @@ async fn project_knowledge_locations_and_revision_scope() -> anyhow::Result<()> 
         generation: 0,
         documents: vec![document("Notebook identity evidence", "accepted")],
     };
-    handle
-        .knowledge()
-        .ingest_knowledge_scan(source, &scan)
-        .await?;
+    knowledge_db.ingest_knowledge_scan(source, &scan).await?;
     assert!(
-        handle
-            .knowledge()
+        knowledge_db
             .ingest_knowledge_scan(source, &scan)
             .await
             .is_err()
@@ -153,20 +148,18 @@ async fn project_knowledge_locations_and_revision_scope() -> anyhow::Result<()> 
         query: "notebook".into(),
         ..Default::default()
     };
-    let result = handle.knowledge().search_project_knowledge(&search).await?;
+    let result = knowledge_db.search_project_knowledge(&search).await?;
     let reference = result["items"][0]["reference"]
         .as_str()
         .ok_or_else(|| anyhow::anyhow!("missing result"))?;
     assert_eq!(
-        handle
-            .knowledge()
+        knowledge_db
             .read_project_knowledge(Some(&search.project), reference)
             .await?["body"],
         "Notebook identity evidence"
     );
     assert!(
-        handle
-            .knowledge()
+        knowledge_db
             .read_project_knowledge(Some(&project_b), reference)
             .await
             .is_err()
@@ -255,6 +248,7 @@ async fn project_knowledge_notebook_binding_and_lesson_round_trip() -> anyhow::R
     };
     let db = test_db.acquire_isolated().await?;
     let handle = PersistHandle::connect(&db.database_url).await?;
+    let knowledge_db = handle.knowledge();
     let p = seed_project(handle.pool(), "/test/lesson-origin").await?;
     let target = seed_project(handle.pool(), "/test/lesson-target").await?;
     let session = Uuid::new_v4();
@@ -267,21 +261,16 @@ async fn project_knowledge_notebook_binding_and_lesson_round_trip() -> anyhow::R
     .await?;
     let loc = location(&handle, "/test/lesson-target").await?;
     let note = seed_notebook(&handle, session).await?;
-    handle
-        .knowledge()
-        .bind_session_location(session, loc)
-        .await?;
+    knowledge_db.bind_session_location(session, loc).await?;
     let note_ref = format!("note:{}", note);
     assert!(
-        handle
-            .knowledge()
+        knowledge_db
             .read_project_knowledge(Some("/test/lesson-origin"), &note_ref)
             .await
             .is_err()
     );
     assert_eq!(
-        handle
-            .knowledge()
+        knowledge_db
             .read_project_knowledge(Some("/test/lesson-target"), &note_ref)
             .await?["body"],
         "Notebook evidence"
@@ -293,15 +282,13 @@ async fn project_knowledge_notebook_binding_and_lesson_round_trip() -> anyhow::R
             .await?;
     assert_eq!(actual, target);
     assert_eq!(
-        handle
-            .knowledge()
+        knowledge_db
             .resolve_lesson_project(&session.to_string(), "/remote/other-path")
             .await?,
         target
     );
     assert_eq!(
-        handle
-            .knowledge()
+        knowledge_db
             .lesson_session_projects()
             .await?
             .get(&session.to_string())
@@ -315,21 +302,9 @@ async fn project_knowledge_notebook_binding_and_lesson_round_trip() -> anyhow::R
     Ok(())
 }
 
-#[tokio::test]
-async fn project_knowledge_work_thread_search_and_read_are_project_scoped() -> anyhow::Result<()> {
-    let Some(test_db) = TestDb::bootstrap().await? else {
-        return Ok(());
-    };
-    let db = test_db.acquire().await?;
-    let handle = PersistHandle::connect(&db.database_url).await?;
-    let suffix = Uuid::new_v4().simple().to_string();
-    let path = format!("/test/work-thread-knowledge-{suffix}");
-    let other_path = format!("/test/work-thread-other-{suffix}");
-    let project = seed_project(handle.pool(), &path).await?;
-    let other = seed_project(handle.pool(), &other_path).await?;
-    let slug = format!("harbour-{suffix}");
-    let checkpoint = CheckpointInput {
-        slug: &slug,
+fn harbour_checkpoint(slug: &str) -> CheckpointInput<'_> {
+    CheckpointInput {
+        slug,
         tldr: "Quokka migration summary",
         state: StateFields {
             where_we_are: "Pelican ledger is half built",
@@ -348,9 +323,26 @@ async fn project_knowledge_work_thread_search_and_read_are_project_scoped() -> a
             acceptance_criteria: Some("1. The lighthouse is gone"),
             ..MetaUpdate::default()
         },
+    }
+}
+
+#[tokio::test]
+async fn project_knowledge_work_thread_search_and_read_are_project_scoped() -> anyhow::Result<()> {
+    let Some(test_db) = TestDb::bootstrap().await? else {
+        return Ok(());
     };
-    handle
-        .launch()
+    let db = test_db.acquire().await?;
+    let handle = PersistHandle::connect(&db.database_url).await?;
+    let knowledge_db = handle.knowledge();
+    let launch_db = handle.launch();
+    let suffix = Uuid::new_v4().simple().to_string();
+    let path = format!("/test/work-thread-knowledge-{suffix}");
+    let other_path = format!("/test/work-thread-other-{suffix}");
+    let project = seed_project(handle.pool(), &path).await?;
+    let other = seed_project(handle.pool(), &other_path).await?;
+    let slug = format!("harbour-{suffix}");
+    let checkpoint = harbour_checkpoint(&slug);
+    launch_db
         .checkpoint_work_thread(project, &checkpoint)
         .await?;
 
@@ -361,8 +353,7 @@ async fn project_knowledge_work_thread_search_and_read_are_project_scoped() -> a
         "Harbour rebuild",
         "narwhal",
     ] {
-        let found = handle
-            .knowledge()
+        let found = knowledge_db
             .search_project_knowledge(&KnowledgeQuery {
                 project: path.clone(),
                 query: term.into(),
@@ -376,8 +367,7 @@ async fn project_knowledge_work_thread_search_and_read_are_project_scoped() -> a
         assert_eq!(items[0]["source_kind"], "work_thread");
         assert_eq!(items[0]["title"], "Harbour rebuild");
     }
-    let elsewhere = handle
-        .knowledge()
+    let elsewhere = knowledge_db
         .search_project_knowledge(&KnowledgeQuery {
             project: other_path.clone(),
             query: "zeppelin".into(),
@@ -387,8 +377,7 @@ async fn project_knowledge_work_thread_search_and_read_are_project_scoped() -> a
         .await?;
     assert!(elsewhere["items"].as_array().is_some_and(Vec::is_empty));
 
-    let read = handle
-        .knowledge()
+    let read = knowledge_db
         .read_project_knowledge(Some(&path), &format!("work_thread:{slug}"))
         .await?;
     assert_eq!(read["slug"], slug);
@@ -405,15 +394,13 @@ async fn project_knowledge_work_thread_search_and_read_are_project_scoped() -> a
     assert_eq!(read["decisions"], "Use the narwhal queue");
     assert_eq!(read["acceptance_criteria"], "1. The lighthouse is gone");
     assert!(
-        handle
-            .knowledge()
+        knowledge_db
             .read_project_knowledge(Some(&other_path), &format!("work_thread:{slug}"))
             .await
             .is_err()
     );
     assert!(
-        handle
-            .knowledge()
+        knowledge_db
             .read_project_knowledge(Some(&path), "work_thread:no-such-thread")
             .await
             .is_err()

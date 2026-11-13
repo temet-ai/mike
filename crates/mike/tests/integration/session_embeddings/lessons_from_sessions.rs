@@ -84,11 +84,9 @@ async fn lessons_from_sessions_returns_full_text_active_only() -> anyhow::Result
     .bind(other_pk)
     .execute(&pool)
     .await?;
+    let knowledge_db = persist.knowledge();
 
-    let rows = persist
-        .knowledge()
-        .lessons_from_sessions(&[session_uuid])
-        .await?;
+    let rows = knowledge_db.lessons_from_sessions(&[session_uuid]).await?;
     assert_eq!(
         rows.len(),
         1,
@@ -104,18 +102,12 @@ async fn lessons_from_sessions_returns_full_text_active_only() -> anyhow::Result
         "text must be returned in full, never truncated"
     );
 
-    let other_only = persist
-        .knowledge()
-        .lessons_from_sessions(&[other_uuid])
-        .await?;
+    let other_only = knowledge_db.lessons_from_sessions(&[other_uuid]).await?;
     assert_eq!(other_only.len(), 1);
     assert_eq!(other_only[0].text, "other session lesson");
 
     let (_none_pk, none_uuid) = seed_session(&pool, project_id, None, now).await?;
-    let none = persist
-        .knowledge()
-        .lessons_from_sessions(&[none_uuid])
-        .await?;
+    let none = knowledge_db.lessons_from_sessions(&[none_uuid]).await?;
     assert!(
         none.is_empty(),
         "a session with no lessons must return an empty result, not an error"

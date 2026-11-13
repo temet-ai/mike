@@ -236,22 +236,20 @@ async fn review_phase(
     material: &Material,
     progress: &mut Progress,
 ) -> Result<(), EvalError> {
-    let lessons = persist
-        .lessons()
+    let lessons_db = persist.lessons();
+    let lessons = lessons_db
         .skill_draft_lessons_by_id(&material.lesson_ids)
         .await
         .map_err(|e| EvalError::Deferred(format!("lessons: {e}")))?;
     let agent = match material.agent_id {
-        Some(id) => persist
-            .lessons()
+        Some(id) => lessons_db
             .skill_draft_agent_scope(id)
             .await
             .map_err(|e| EvalError::Deferred(format!("agent: {e}")))?,
         None => None,
     };
     let own = overlap::own_folders(&material.name, agent.as_ref());
-    let replaced = persist
-        .lessons()
+    let replaced = lessons_db
         .skill_draft_replaced(draft.project_id, &own, draft.id)
         .await
         .map_err(|e| EvalError::Deferred(format!("replaced skill: {e}")))?;

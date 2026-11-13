@@ -46,6 +46,7 @@ pub async fn reconcile(
     persist: &PersistHandle,
     row: &FleetRow,
 ) -> Result<bool, PersistError> {
+    let fleet_db = persist.fleet();
     let fresh = current(persist, row).await?;
     if fresh.state != RUNNING {
         return Ok(fresh.state == DONE);
@@ -53,21 +54,16 @@ pub async fn reconcile(
     let Some(run) = &fresh.run_id else {
         return Ok(false);
     };
-    let seats = persist.fleet().unsettled_fleet_launches(run).await?;
+    let seats = fleet_db.unsettled_fleet_launches(run).await?;
     for seat in seats.iter().filter(|seat| seat.opened) {
         if matches!(seat_exit::observe(persist, run, seat).await, Ok(Some(true))) {
-            persist
-                .fleet()
+            fleet_db
                 .record_fleet_launch_verified_exit(seat.id, run, EXITED)
                 .await?;
             seat_exit::forget(run, seat);
         }
     }
-    if !persist
-        .fleet()
-        .unsettled_fleet_launches(run)
-        .await?
-        .is_empty()
+    if !fleet_db.unsettled_fleet_launches(run).await?.is_empty()
         || left_unchecked(state, persist, &fresh).await
     {
         return Ok(false);

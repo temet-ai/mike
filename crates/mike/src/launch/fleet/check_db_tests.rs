@@ -27,6 +27,16 @@ async fn inbox(persist: &PersistHandle, session: Uuid) -> anyhow::Result<Vec<Str
         .collect())
 }
 
+fn mail_run() -> NewRun {
+    NewRun {
+        run_id: "fleet-mail-1".to_owned(),
+        project_path: Some("/tmp/check-mail".to_owned()),
+        backend: "herdr".to_owned(),
+        workspace_ref: None,
+        tab_ref: None,
+    }
+}
+
 #[tokio::test]
 async fn a_failed_check_is_mailed_to_each_of_three_askers_sorted_into_their_own_and_others_files()
 -> anyhow::Result<()> {
@@ -35,14 +45,15 @@ async fn a_failed_check_is_mailed_to_each_of_three_askers_sorted_into_their_own_
         return Ok(());
     };
     let persist = PersistHandle::connect(&db.database_url).await?;
+    let fleet_db = persist.fleet();
+    let launch_db = persist.launch();
     let sessions = [
         Uuid::from_u128(11),
         Uuid::from_u128(12),
         Uuid::from_u128(13),
     ];
     for session in sessions {
-        persist
-            .launch()
+        launch_db
             .ensure_session_exists(&session.to_string())
             .await?;
     }
@@ -56,22 +67,11 @@ async fn a_failed_check_is_mailed_to_each_of_three_askers_sorted_into_their_own_
         value["tasks"][task]["session"] = json!(session.to_string());
     }
     let def = parsed(&value);
-    persist
-        .launch()
-        .upsert_run(&NewRun {
-            run_id: "fleet-mail-1".to_owned(),
-            project_path: Some("/tmp/check-mail".to_owned()),
-            backend: "herdr".to_owned(),
-            workspace_ref: None,
-            tab_ref: None,
-        })
-        .await?;
-    let id = persist
-        .fleet()
+    launch_db.upsert_run(&mail_run()).await?;
+    let id = fleet_db
         .begin_tree_check("fleet-mail-1", "state-a", "make check", "db-dev-P1")
         .await?;
-    persist
-        .fleet()
+    fleet_db
         .finish_tree_check(
             id,
             Some(1),
@@ -84,10 +84,9 @@ async fn a_failed_check_is_mailed_to_each_of_three_askers_sorted_into_their_own_
         "frontend-developer-P2",
         "frontend-developer-P10",
     ] {
-        persist.fleet().add_tree_check_asker(id, seat).await?;
+        fleet_db.add_tree_check_asker(id, seat).await?;
     }
-    let row = persist
-        .fleet()
+    let row = fleet_db
         .latest_tree_check("fleet-mail-1")
         .await?
         .ok_or_else(|| anyhow::anyhow!("the finished check should be recorded"))?;
@@ -98,8 +97,7 @@ async fn a_failed_check_is_mailed_to_each_of_three_askers_sorted_into_their_own_
         how: "finished".into(),
     };
     for (task, session) in ["P1", "P2", "P10"].into_iter().zip(sessions) {
-        persist
-            .fleet()
+        fleet_db
             .append_fleet_event(&NewFleetEvent {
                 run_id: "fleet-mail-1".to_owned(),
                 task: Some(task.to_owned()),
