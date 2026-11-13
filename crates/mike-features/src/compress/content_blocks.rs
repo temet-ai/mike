@@ -1,4 +1,4 @@
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 use bytes::Bytes;
 use serde_json::Value;
 

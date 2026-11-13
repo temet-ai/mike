@@ -1,6 +1,6 @@
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 use std::future::Future;
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -9,9 +9,9 @@ use std::time::Duration;
 use tokio_util::task::TaskTracker;
 use uuid::Uuid;
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 use super::definition::FleetDefinition;
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 use super::gate::Target;
 use super::managed_command::{self, Context};
 use super::owned_execution::{Registration, registry};

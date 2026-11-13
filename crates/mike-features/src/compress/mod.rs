@@ -7,7 +7,7 @@ pub mod shell_output;
 pub mod shell_stage;
 pub mod stage;
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 use bytes::Bytes;
 use serde::Serialize;
 use serde_json::Value;

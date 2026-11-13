@@ -17,6 +17,8 @@ use action_list::project_action_list;
 #[cfg(test)]
 #[path = "input_budget_tests.rs"]
 pub mod tests;
+#[cfg(test)]
+use action_list::tally_counts;
 
 pub const CAPPED_ASK_HEADING: &str = "Accumulated ask (the operator's first ask and the newest asks of this work-thread, oldest first; asks in between are counted):";
 

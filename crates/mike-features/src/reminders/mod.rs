@@ -55,6 +55,8 @@ pub use session_lessons::{SessionLessonsRequest, apply_session_lessons};
 
 use crate::store::RequestStore;
 use crate::store::models::{ReminderSource, RequestId, SystemReminder};
+#[cfg(test)]
+use session_lessons::{build_session_lesson_reminder_text, content_injected_lesson_ids};
 
 #[derive(Debug)]
 pub enum RemindersOutcome {

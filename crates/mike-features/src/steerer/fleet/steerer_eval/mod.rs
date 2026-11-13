@@ -41,6 +41,10 @@ use crate::steerer::note_policy::SessionNotes;
 use crate::steerer::registry::Steerer;
 use crate::steerer::verdict::SteererVerdict;
 use crate::store::models::SystemReminder;
+#[cfg(test)]
+use gates::{pattern_invocation_matches, pattern_matches};
+#[cfg(test)]
+use verdict_call::resolve_effective_client;
 
 #[derive(Debug, Default, Clone)]
 pub struct LlmCallOutcome {

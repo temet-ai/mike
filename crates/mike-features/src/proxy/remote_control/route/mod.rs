@@ -15,6 +15,8 @@ pub use payload::{ClassifiedPayload, PayloadSessionLink};
 pub use policy::describe_remote_control_metrics;
 pub use signals::ChannelSignals;
 pub use stored_body::stored_body;
+#[cfg(test)]
+use policy::endpoint_labels;
 
 const PATH_PREFIX: &str = "/v1/code/sessions/";
 
