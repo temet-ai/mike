@@ -7,6 +7,17 @@ export type ScheduledJobScope = 'this_machine' | 'one_machine';
 
 export type ScheduledJobTrigger = 'schedule' | 'manual';
 
+export type ScheduledJobGroup = 'learning_and_memory' | 'measurement' | 'builds_and_tests';
+
+export interface ScheduledJobWindow {
+	period: 'hour' | 'day' | 'week';
+	/** "Mon".."Sun" for a weekly job, else null. */
+	weekday: string | null;
+	/** Hours in window order (may wrap midnight, e.g. [20,21,22,23,0,1,2,3]). */
+	hours_utc: number[];
+	minute: number;
+}
+
 export interface ScheduledJob {
 	id: string;
 	label: string;
@@ -30,6 +41,12 @@ export interface ScheduledJob {
 	consecutive_failures: number;
 	detail: string;
 	fix: string;
+	/** Which block of the panel the job sits in; null from a proxy that does not say. */
+	group: ScheduledJobGroup | null;
+	/** When the job may start, in UTC; null from a proxy that does not say. */
+	window: ScheduledJobWindow | null;
+	/** The setting the on/off switch writes; null from a proxy that does not say. */
+	enabled_key: string | null;
 }
 
 export interface ScheduledJobsResponse {
@@ -52,7 +69,10 @@ export async function getScheduledJobs(): Promise<ScheduledJobsResponse> {
 			...job,
 			running_since: job.running_since ?? null,
 			run_requested_at: job.run_requested_at ?? null,
-			last_trigger: job.last_trigger ?? null
+			last_trigger: job.last_trigger ?? null,
+			group: job.group ?? null,
+			window: job.window ?? null,
+			enabled_key: job.enabled_key ?? null
 		}))
 	};
 }
