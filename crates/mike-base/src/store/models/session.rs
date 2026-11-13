@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 use super::intercepted_request::InterceptedRequest;
 
 #[derive(Debug, Clone)]
