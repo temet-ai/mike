@@ -9,7 +9,7 @@ pub fn prepare() -> Result<PathBuf, String> {
 
 #[cfg(unix)]
 pub fn prepare_in(state: &Path) -> Result<PathBuf, String> {
-    use std::os::fd::{AsRawFd, FromRawFd};
+    use rustix::fs::{Mode, OFlags};
     use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 
     let canonical = state.canonicalize().map_err(|error| {
@@ -24,32 +24,33 @@ pub fn prepare_in(state: &Path) -> Result<PathBuf, String> {
         .open(&canonical)
         .map_err(|error| error.to_string())?;
     let metadata = parent.metadata().map_err(|error| error.to_string())?;
-    if metadata.uid() != unsafe { libc::geteuid() } || metadata.mode() & 0o022 != 0 {
+    let user = rustix::process::geteuid().as_raw();
+    if metadata.uid() != user || metadata.mode() & 0o022 != 0 {
         return Err("Mike state directory must belong to this user and not be group/other writable; permissions were not changed".into());
     }
-    let result = unsafe { libc::mkdirat(parent.as_raw_fd(), c"managed-builds".as_ptr(), 0o700) };
-    if result != 0 && std::io::Error::last_os_error().kind() != std::io::ErrorKind::AlreadyExists {
-        return Err(format!(
-            "private managed build directory could not be created: {}",
-            std::io::Error::last_os_error()
-        ));
+    match rustix::fs::mkdirat(&parent, c"managed-builds", Mode::RWXU) {
+        Ok(()) | Err(rustix::io::Errno::EXIST) => {}
+        Err(errno) => {
+            return Err(format!(
+                "private managed build directory could not be created: {}",
+                std::io::Error::from(errno)
+            ));
+        }
     }
-    let descriptor = unsafe {
-        libc::openat(
-            parent.as_raw_fd(),
-            c"managed-builds".as_ptr(),
-            libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
-        )
-    };
-    if descriptor < 0 {
-        return Err(format!(
+    let opened = rustix::fs::openat(
+        &parent,
+        c"managed-builds",
+        OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+        Mode::empty(),
+    );
+    let directory = std::fs::File::from(opened.map_err(|errno| {
+        format!(
             "private managed build directory could not be opened without following symlinks: {}",
-            std::io::Error::last_os_error()
-        ));
-    }
-    let directory = unsafe { std::fs::File::from_raw_fd(descriptor) };
+            std::io::Error::from(errno)
+        )
+    })?);
     let private = directory.metadata().map_err(|error| error.to_string())?;
-    if private.uid() != unsafe { libc::geteuid() } || private.mode() & 0o077 != 0 {
+    if private.uid() != user || private.mode() & 0o077 != 0 {
         return Err("existing managed build directory is not private to this user; permissions were not changed".into());
     }
     let path = canonical.join(DIRECTORY);

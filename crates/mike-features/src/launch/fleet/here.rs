@@ -55,12 +55,12 @@ mod tests {
     }
 
     #[test]
-    fn a_folder_that_does_not_exist_here_is_not_present() {
+    fn a_folder_that_does_not_exist_here_is_not_present() -> std::io::Result<()> {
         assert!(!checkout_present(
             "/no-such-folder-on-any-machine/mike-fleet-here-test"
         ));
-        assert!(checkout_present(
-            std::env::temp_dir().to_string_lossy().as_ref()
-        ));
+        let present = tempfile::tempdir()?;
+        assert!(checkout_present(present.path().to_string_lossy().as_ref()));
+        Ok(())
     }
 }

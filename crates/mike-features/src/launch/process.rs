@@ -7,10 +7,13 @@ pub fn alive(pid: u32) -> bool {
     if pid <= 0 {
         return false;
     }
-    if unsafe { libc::kill(pid, 0) } == 0 {
-        return true;
-    }
-    std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
+    let Some(pid) = rustix::process::Pid::from_raw(pid) else {
+        return false;
+    };
+    matches!(
+        rustix::process::test_kill_process(pid),
+        Ok(()) | Err(rustix::io::Errno::PERM)
+    )
 }
 
 pub fn claude_child_of(parent: u32) -> Option<u32> {
