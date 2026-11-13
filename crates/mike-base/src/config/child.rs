@@ -151,7 +151,7 @@ fn validate_private_owner(metadata: &std::fs::Metadata) -> Result<()> {
         use std::os::unix::fs::{MetadataExt, PermissionsExt};
         anyhow::ensure!(
             metadata.permissions().mode() & 0o077 == 0
-                && metadata.uid() == unsafe { libc::geteuid() },
+                && metadata.uid() == rustix::process::geteuid().as_raw(),
             "child configuration must be owned by the current user and readable only by its owner"
         );
     }

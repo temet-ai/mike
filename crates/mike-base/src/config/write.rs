@@ -50,7 +50,7 @@ pub fn ensure_private_directory(path: &Path) -> Result<()> {
         );
         anyhow::ensure!(
             metadata.permissions().mode() & 0o077 == 0
-                && metadata.uid() == unsafe { libc::geteuid() },
+                && metadata.uid() == rustix::process::geteuid().as_raw(),
             "installation directory must be private (chmod 700 the selected directory)"
         );
     }

@@ -2,12 +2,10 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use super::UserConfigError;
-use super::bootstrap::{FileState, Origin, Provenance, apply_config_file, plan, render_provenance};
+use super::bootstrap::{FileState, Origin, Provenance, render_provenance};
 use super::file::{ConfigFile, Entry, Setting, SettingValue};
 use super::import::{import_env, parse_dotenv};
 use super::paths::{config_dir_from, config_file_from, state_dir_from};
-use crate::config::CliOverrides;
-use crate::environment::{Environment, MapEnvironment};
 
 fn temp_file(contents: &str) -> anyhow::Result<(tempfile::TempDir, PathBuf)> {
     let dir = tempfile::tempdir()?;

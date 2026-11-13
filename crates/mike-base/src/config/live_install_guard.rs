@@ -77,28 +77,11 @@ fn roots_in(home: &Path) -> Vec<std::path::PathBuf> {
 
 #[cfg(any(test, feature = "test-seams"))]
 fn account_home() -> Option<std::path::PathBuf> {
-    use std::ffi::CStr;
-    use std::os::unix::ffi::OsStrExt;
-
-    let mut entry = std::mem::MaybeUninit::<libc::passwd>::uninit();
-    let mut buffer = vec![0 as libc::c_char; 16 * 1024];
-    let mut found = std::ptr::null_mut();
-    let status = unsafe {
-        libc::getpwuid_r(
-            libc::getuid(),
-            entry.as_mut_ptr(),
-            buffer.as_mut_ptr(),
-            buffer.len(),
-            &mut found,
-        )
-    };
-    if status != 0 || found.is_null() {
-        return None;
-    }
-    let directory = unsafe { CStr::from_ptr(entry.assume_init().pw_dir) };
-    Some(std::path::PathBuf::from(std::ffi::OsStr::from_bytes(
-        directory.to_bytes(),
-    )))
+    use nix::unistd::{Uid, User};
+    User::from_uid(Uid::current())
+        .ok()
+        .flatten()
+        .map(|user| user.dir)
 }
 
 #[cfg(test)]

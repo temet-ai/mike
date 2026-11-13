@@ -214,7 +214,7 @@ fn validate_file(file: &File) -> Result<()> {
     {
         use std::os::unix::fs::MetadataExt;
         anyhow::ensure!(
-            metadata.uid() == unsafe { libc::geteuid() } && metadata.nlink() == 1,
+            metadata.uid() == rustix::process::geteuid().as_raw() && metadata.nlink() == 1,
             "Claude config and registration lock must be owned by this user with no hard links"
         );
     }
