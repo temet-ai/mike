@@ -122,7 +122,8 @@ async fn push_reminder(
     };
     if rule == ChannelRule::ChannelFirst
         && matches!(source, PushSource::Mailbox { .. })
-        && crate::mcp_channel::listeners().is_live(recipient)
+        && (crate::mcp_channel::listeners().is_live(recipient)
+            || crate::mailbox_served::mailbox_served(&recipient.to_string()))
     {
         return Ok(false);
     }
