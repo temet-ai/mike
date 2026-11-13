@@ -6,7 +6,7 @@ use sqlx::PgPool;
 use super::{NewRequest, insert_request, insert_session, stored_classification};
 
 const MIGRATION_SQL: &str = include_str!(
-    "../../../src/store/persistence/migrations/20260924100000_prompt_classification_unified.sql"
+    "../../../../mike-base/src/store/persistence/migrations/20260924100000_prompt_classification_unified.sql"
 );
 
 async fn migration_pool(test_db: &TestDb) -> anyhow::Result<(TestDbHandle, PgPool)> {

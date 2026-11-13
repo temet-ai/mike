@@ -7,7 +7,7 @@ pub mod timeline;
 
 pub use seen::{EditCall, NamedShellCall};
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub mod test_seed;
 #[cfg(test)]
 pub mod tests;

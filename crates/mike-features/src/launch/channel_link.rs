@@ -63,7 +63,7 @@ pub fn bridge_cse_id(line: &str) -> Option<String> {
     (!id.is_empty()).then(|| format!("cse_{id}"))
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,

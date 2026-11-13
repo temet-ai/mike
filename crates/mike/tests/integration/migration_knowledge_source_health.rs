@@ -7,7 +7,7 @@ use test_db::TestDb;
 use uuid::Uuid;
 
 const MIGRATION_SQL: &str = include_str!(
-    "../../src/store/persistence/migrations/20260922140000_knowledge_source_health.sql"
+    "../../../mike-base/src/store/persistence/migrations/20260922140000_knowledge_source_health.sql"
 );
 
 const HEALTH_COLUMNS: [&str; 4] = [

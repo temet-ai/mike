@@ -41,7 +41,7 @@ pub mod item_tests;
 pub mod observe_tests;
 #[cfg(test)]
 pub mod projection_tests;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub mod test_support;
 #[cfg(test)]
 pub mod usage_tests;

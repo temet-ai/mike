@@ -39,9 +39,9 @@ pub mod self_identity_stage_tests;
 pub mod session_lessons_stage_tests;
 #[cfg(test)]
 pub mod session_lessons_tests;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub mod stage_test_support;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub mod test_support;
 #[cfg(test)]
 pub mod tests;
@@ -52,7 +52,7 @@ pub use crate::config::reminders::RemindersConfig;
 pub use agent_lessons::{AgentLessonsRequest, apply_agent_lessons};
 pub use self_identity::{SelfIdentityRequest, apply_self_identity};
 pub use session_lessons::{SessionLessonsRequest, apply_session_lessons};
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 use session_lessons::{build_session_lesson_reminder_text, content_injected_lesson_ids};
 
 use crate::store::RequestStore;

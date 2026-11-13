@@ -224,7 +224,7 @@ pub async fn execute(
     open::execute(runner, synthetic, stdin).await
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,

@@ -22,7 +22,7 @@ use detect::{ShellContext, inspect_tool_result};
 use policy::{POLICY_ID, policy_value};
 
 pub use policy::{POLICY_VERSION, PRODUCER, ShellOutputLimits, ShellOutputPolicy};
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub use reduction::REDUCTION_MARKER_TAG;
 
 const STAGE_NAME: &str = "compression.shell_output";

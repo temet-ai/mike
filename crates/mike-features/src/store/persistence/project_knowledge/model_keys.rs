@@ -9,7 +9,7 @@ impl ModelKeys {
         Self { current, previous }
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn only(current: impl Into<String>) -> Self {
         Self::new(current.into(), None)
     }

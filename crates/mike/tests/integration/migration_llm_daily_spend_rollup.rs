@@ -6,7 +6,7 @@ use sqlx::postgres::PgPoolOptions;
 use test_db::TestDb;
 
 const MIGRATION_SQL: &str = include_str!(
-    "../../src/store/persistence/migrations/20260928110000_llm_daily_spend_rollup.sql"
+    "../../../mike-base/src/store/persistence/migrations/20260928110000_llm_daily_spend_rollup.sql"
 );
 
 async fn connect(url: &str) -> anyhow::Result<PgPool> {

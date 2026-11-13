@@ -312,7 +312,7 @@ pub fn backend_for(id: BackendId) -> Option<Box<dyn TerminalBackend>> {
 #[cfg(test)]
 pub mod names_tests;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,

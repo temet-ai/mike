@@ -15,7 +15,7 @@ async fn stopping_migration_preserves_existing_rows_and_accepts_new_state() -> a
     .execute(f.handle.pool())
     .await?;
     sqlx::raw_sql(include_str!(
-        "../../../../src/store/persistence/migrations/20261014070100_fleet_stopping.sql"
+        "../../../../../mike-base/src/store/persistence/migrations/20261014070100_fleet_stopping.sql"
     ))
     .execute(f.handle.pool())
     .await?;

@@ -19,9 +19,9 @@ use std::collections::HashMap;
 
 use gates::invocation_gate_passed;
 pub use gates::pattern_gate_admits;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 use gates::{pattern_invocation_matches, pattern_matches};
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 use verdict_call::resolve_effective_client;
 
 use delivery_gate::repeats_last_delivery;

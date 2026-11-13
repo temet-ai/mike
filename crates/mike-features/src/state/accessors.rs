@@ -198,7 +198,7 @@ impl AppState {
         self.request_count.fetch_add(1, Ordering::Relaxed) + 1
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn last_request_at(&self) -> Option<chrono::DateTime<chrono::Utc>> {
         stamp_to_time(self.last_request_at_unix.load(Ordering::Relaxed))
     }

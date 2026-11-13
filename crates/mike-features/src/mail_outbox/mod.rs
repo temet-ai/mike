@@ -21,7 +21,7 @@ pub enum Runtime {
 }
 
 impl Runtime {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Claude => "claude",

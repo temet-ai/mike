@@ -9,7 +9,7 @@ pub mod volatile;
 
 #[cfg(test)]
 pub mod template_splice_tests;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub mod test_support;
 #[cfg(test)]
 pub mod tests;

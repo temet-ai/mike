@@ -181,7 +181,7 @@ impl LocalQueue {
         self.named(CLOSE)
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn is_empty(&self) -> bool {
         self.runs().is_empty() && self.launches().is_empty() && self.closes().is_empty()
     }

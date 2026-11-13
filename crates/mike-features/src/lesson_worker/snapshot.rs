@@ -133,7 +133,7 @@ impl LessonSnapshot {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn from_topic_fixtures(
         project: &str,
         lessons: Vec<(&str, Option<&str>, bool)>,

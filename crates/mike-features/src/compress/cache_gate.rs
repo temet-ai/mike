@@ -55,7 +55,7 @@ impl CacheGate {
         self.warm_cuts.as_ref()
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     fn is_warm(&self) -> bool {
         self.warm_cuts.is_some()
     }
@@ -80,7 +80,7 @@ impl CacheGate {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub fn seed_cold_lane(reducer: &'static str, raw: &[u8]) {
     let body: Value = serde_json::from_slice(raw).unwrap_or(Value::Null);
     LANES.lock().unwrap_or_else(PoisonError::into_inner).insert(

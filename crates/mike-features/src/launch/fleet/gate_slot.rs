@@ -118,7 +118,7 @@ pub async fn prepare(repo: &str) -> Result<(), String> {
     super::managed_command::preparation_allowed()
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub async fn run_gate(slot: &Path, command: &str, run: &str) -> (Option<i32>, String) {
     let _held = queue::hold(slot).await;
     process::run(

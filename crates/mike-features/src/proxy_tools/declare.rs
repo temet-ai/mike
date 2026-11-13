@@ -71,7 +71,7 @@ pub fn declare_tools(raw: &[u8]) -> DeclareOutcome {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 #[allow(
     clippy::unwrap_used,
     clippy::expect_used,

@@ -15,7 +15,7 @@ pub mod content_blocks_edge_case_tests;
 pub mod content_blocks_slice_tests;
 #[cfg(test)]
 pub mod content_blocks_splice_tests;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub mod content_blocks_test_support;
 #[cfg(test)]
 pub mod content_blocks_tests;
@@ -25,7 +25,7 @@ pub mod rule_apply_and_codepoint_tests;
 pub mod rule_deserialize_tests;
 #[cfg(test)]
 pub mod rule_scope_tests;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub mod rule_test_support;
 #[cfg(test)]
 pub mod rule_validation_tests;

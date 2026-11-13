@@ -1,6 +1,6 @@
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 use std::future::Future;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -9,9 +9,9 @@ use std::time::Duration;
 use tokio_util::task::TaskTracker;
 use uuid::Uuid;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 use super::definition::FleetDefinition;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 use super::gate::Target;
 use super::managed_command::{self, Context};
 use super::owned_execution::{Registration, registry};
@@ -48,7 +48,7 @@ impl PrivateRoot {
         Ok(Self { guard, canonical })
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub async fn scope<T>(&self, work: impl Future<Output = T>) -> T {
         PRIVATE_ROOT.scope(self.clone(), work).await
     }
@@ -76,7 +76,7 @@ pub fn current_root_override() -> Option<PathBuf> {
         })
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub async fn with_private_root<T>(work: impl Future<Output = T>) -> anyhow::Result<T> {
     Ok(PrivateRoot::new()?.scope(work).await)
 }
@@ -88,7 +88,7 @@ pub struct Execution {
 }
 
 impl Execution {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub async fn new(ledger: &str) -> anyhow::Result<Self> {
         Self::with_root(ledger, PrivateRoot::new()?).await
     }
@@ -125,7 +125,7 @@ impl Execution {
         self.context.clone()
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub async fn scope<T>(&self, work: impl Future<Output = T>) -> T {
         managed_command::scope(self.context(), work).await
     }
@@ -175,7 +175,7 @@ impl Execution {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub async fn with_context<T>(
     ledger: &str,
     work: impl Future<Output = T>,
@@ -186,7 +186,7 @@ pub async fn with_context<T>(
     Ok(output)
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub async fn check(
     def: &FleetDefinition,
     at: &Target,
@@ -195,7 +195,7 @@ pub async fn check(
     with_context(run, super::check_run::execute(def, at, run)).await
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub async fn gate(
     def: &FleetDefinition,
     at: &Target,
@@ -204,7 +204,7 @@ pub async fn gate(
     with_context(run, super::gate::execute_verified(def, at, run)).await
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub async fn gate_command(
     slot: &Path,
     command: &str,

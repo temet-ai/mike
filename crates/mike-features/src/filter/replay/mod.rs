@@ -217,7 +217,7 @@ impl ReplayRegistry {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn len(&self) -> usize {
         self.entries.len()
     }

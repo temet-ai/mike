@@ -26,7 +26,7 @@ pub struct KnowledgeEmbeddingSource {
 }
 
 impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub async fn pending_knowledge_embeddings(
         self,
         model: &str,

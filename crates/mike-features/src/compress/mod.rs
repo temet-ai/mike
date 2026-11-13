@@ -7,7 +7,7 @@ pub mod shell_output;
 pub mod shell_stage;
 pub mod stage;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 use bytes::Bytes;
 use serde::Serialize;
 use serde_json::Value;
@@ -26,11 +26,11 @@ pub struct BlockStat {
 pub enum CompressOutcome {
     Unchanged,
     Compressed {
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-seams"))]
         new_body: Bytes,
         original_len: usize,
         compressed_len: usize,
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-seams"))]
         blocks: Vec<BlockStat>,
     },
 }

@@ -91,7 +91,7 @@ fn placement_note(placement: Placement) -> String {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,

@@ -181,7 +181,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
         .await
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub async fn record_work_item_attention(
         self,
         session_db_id: i64,

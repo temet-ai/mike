@@ -73,7 +73,7 @@ pub fn reap_plan(procs: Vec<ClaudeProcess>, self_pid: u32, ancestors: &[u32]) ->
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,

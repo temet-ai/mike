@@ -5,7 +5,7 @@ use sqlx::postgres::PgPoolOptions;
 use test_db::TestDb;
 
 const MIGRATION_SQL: &str = include_str!(
-    "../../src/store/persistence/migrations/20260721040000_heal_sentinel_session_projects.sql"
+    "../../../mike-base/src/store/persistence/migrations/20260721040000_heal_sentinel_session_projects.sql"
 );
 
 const SENTINEL_PROJECT_PATH: &str = "(no project)";

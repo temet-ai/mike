@@ -115,7 +115,7 @@ pub fn router(state: &AppState) -> Router<AppState> {
     routes_with(responses)
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub fn routes(state: ResponsesState) -> Router {
     routes_with(state)
 }

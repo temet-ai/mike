@@ -153,7 +153,7 @@ fn write_atomic(path: &Path, root: &Map<String, Value>) -> Result<(), LaunchErro
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,

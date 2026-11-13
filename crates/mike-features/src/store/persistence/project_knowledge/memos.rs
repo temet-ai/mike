@@ -66,7 +66,7 @@ impl<K: Eq + Hash, V: Clone> Remembered<K, V> {
         self.entries.clear();
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn fetched(&self) -> usize {
         self.fetched.load(Ordering::Relaxed)
     }
@@ -75,7 +75,7 @@ impl<K: Eq + Hash, V: Clone> Remembered<K, V> {
         self.fetched.fetch_add(1, Ordering::Relaxed);
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn advance(&self, by: Duration) {
         let by = u64::try_from(by.as_millis()).unwrap_or(u64::MAX);
         self.skew_ms.fetch_add(by, Ordering::Relaxed);
@@ -145,7 +145,7 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
 }
 
 impl KnowledgeMemos {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn counts_fetched(&self) -> (usize, usize, usize) {
         (
             self.nearest_first.fetched(),
@@ -154,7 +154,7 @@ impl KnowledgeMemos {
         )
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn advance_all(&self, by: Duration) {
         self.nearest_first.advance(by);
         self.coverage.advance(by);

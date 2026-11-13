@@ -13,7 +13,7 @@ use crate::store::persistence::session_action_list::{SessionActionCounts, Sessio
 pub mod action_list;
 
 use action_list::project_action_list;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 use action_list::tally_counts;
 
 #[cfg(test)]

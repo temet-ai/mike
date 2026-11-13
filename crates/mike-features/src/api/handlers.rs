@@ -21,11 +21,11 @@ use crate::store::{DiagnosticStatsView, FindingView, MemoryBreakdownView, Memory
 pub use crate::types::SortOrder;
 use crate::types::{RequestParams, TokenUsage, ToolCall};
 pub use crate::web_base::{persist_error_response, persist_unavailable_response};
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 use chrono::{DateTime, TimeZone, Utc};
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 use serde_json::Value;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 use std::collections::HashMap;
 pub use agent_composition_stats::*;
 pub use agents::*;

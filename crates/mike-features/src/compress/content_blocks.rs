@@ -1,4 +1,4 @@
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 use bytes::Bytes;
 use serde_json::Value;
 
@@ -44,9 +44,9 @@ pub fn measure_body(raw: &[u8], cfg: &CompressConfig) -> CompressOutcome {
     CompressOutcome::Compressed {
         original_len: raw.len(),
         compressed_len: new_bytes.len(),
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-seams"))]
         new_body: Bytes::from(new_bytes),
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-seams"))]
         blocks,
     }
 }

@@ -102,7 +102,7 @@ impl InjectedBlockRegistry {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn records_in(&self, lane: &str) -> usize {
         self.lanes.get(lane).map_or(0, |r| r.len())
     }
