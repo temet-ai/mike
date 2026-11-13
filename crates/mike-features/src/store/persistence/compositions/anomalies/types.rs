@@ -75,6 +75,14 @@ pub struct PromptClassObservationRow {
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
+pub struct PromptClassInstructionsRow {
+    pub instructions: Option<String>,
+    pub observation_count: i64,
+    pub last_seen: DateTime<Utc>,
+    pub latest_request_id: i64,
+}
+
+#[derive(Debug, Clone, sqlx::FromRow)]
 pub struct PromptClassVersionRow {
     pub release: Option<String>,
     pub builds: i64,

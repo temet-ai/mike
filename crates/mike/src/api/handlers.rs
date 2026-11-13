@@ -156,6 +156,8 @@ mod mailbox_post_fanout;
 mod mailbox_post_name;
 #[cfg(test)]
 mod mailbox_post_tests;
+mod prompt_class_instructions;
+mod prompt_name_suggest;
 mod recall_context;
 mod recall_turns;
 pub(crate) mod recall_turns_detail;
@@ -179,3 +181,5 @@ mod steering_views_02;
 mod tools_01;
 mod tools_03;
 mod usage_workflows_01;
+pub(crate) use prompt_class_instructions::*;
+pub(crate) use prompt_name_suggest::*;

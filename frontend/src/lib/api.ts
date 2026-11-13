@@ -27,6 +27,8 @@ import type {
 	PromptClassDetailDto,
 	PromptClassDto,
 	PromptClassVersionsDto,
+	PromptClassInstructionsListDto,
+	SuggestPromptNameDto,
 	PromptComposition,
 	PromptCompositionCreate,
 	PromptCompositionListItem,
@@ -956,6 +958,23 @@ export function getPromptClassVersions(
 	return getJson<PromptClassVersionsDto>(
 		`/api/prompts/classes/subagent/${encodeURIComponent(segment)}/versions`
 	);
+}
+
+/** The distinct agent instructions observed under one subagent class, most used first. */
+export function getPromptClassInstructions(
+	persona: string | null
+): Promise<PromptClassInstructionsListDto> {
+	const segment = persona !== null && persona.length > 0 ? persona : UNRESOLVED_PERSONA_SEGMENT;
+	return getJson<PromptClassInstructionsListDto>(
+		`/api/prompts/classes/subagent/${encodeURIComponent(segment)}/instructions`
+	);
+}
+
+/** Asks mike's configured LLM for a short agent name for these instructions. */
+export function suggestPromptName(instructions: string): Promise<SuggestPromptNameDto> {
+	return postJson<{ instructions: string }, SuggestPromptNameDto>('/api/prompts/suggest-name', {
+		instructions
+	});
 }
 
 export function getPromptCompositionBySha256(promptSha256: string): Promise<PromptComposition> {

@@ -5,12 +5,19 @@
 	import {
 		ApiError,
 		createPromptComposition,
+		getPromptClassInstructions,
 		getPromptClassMain,
-		getPromptClassSubagent,
 		getRequestDetail,
+		suggestPromptName,
 		UNRESOLVED_PERSONA_SEGMENT
 	} from '$lib/api';
-	import type { PromptClassDetailDto, PromptCompositionBlock, RequestDetail } from '$lib/types';
+	import type {
+		PromptClassInstructionsDto,
+		PromptCompositionBlock,
+		RequestDetail
+	} from '$lib/types';
+	import { formatRelative } from '$lib/time';
+	import { Button } from '$lib/components/ui/button';
 	import BlockCard from '$lib/components/prompts/BlockCard.svelte';
 	import ClassChip from '$lib/components/prompts/ClassChip.svelte';
 	import PageIntro from '$lib/components/shared/PageIntro.svelte';
@@ -171,12 +178,29 @@
 			label = 'Claude Code (main agent)';
 			return;
 		}
-		// No persona to name it by: suggest a name from the agent instructions once they load.
+		// No persona to name it by: name it from the agent instructions once they load,
+		// first by their opening sentence, then by asking mike's LLM for an agent name.
 		const instructions = draftBlocks.find((b) => b.index === 2)?.text;
 		if (instructions === undefined) return;
 		labelPrefilled = true;
-		label = suggestCompositionName(instructions) ?? boundIdentityLabel;
+		const quickName = suggestCompositionName(instructions) ?? boundIdentityLabel;
+		label = quickName;
+		void askForName(instructions, quickName);
 	});
+
+	let naming = $state<'asking' | 'unavailable' | null>(null);
+
+	async function askForName(instructions: string, quickName: string): Promise<void> {
+		naming = 'asking';
+		try {
+			const { name } = await suggestPromptName(instructions);
+			if (typeof name !== 'string' || name.trim().length === 0) throw new Error('empty name');
+			if (label === quickName) label = name.trim();
+			naming = null;
+		} catch {
+			naming = 'unavailable';
+		}
+	}
 
 	async function deriveBlocks(detail: RequestDetail): Promise<{
 		blocks: PromptCompositionBlock[];
@@ -223,45 +247,58 @@
 		};
 	}
 
+	function failClass(s: ClassSource, kind: 'not-found' | 'unresolvable', err?: unknown): null {
+		classResolutionError = {
+			kind,
+			label: classLabel(s),
+			classPath: classDetailPath(s),
+			detail: err === undefined ? null : err instanceof ApiError ? err.message : String(err)
+		};
+		return null;
+	}
+
+	function parseRequestId(raw: string | undefined): number | null {
+		if (raw === undefined) return null;
+		const id = Number.parseInt(raw, 10);
+		return Number.isFinite(id) && id >= 0 ? id : null;
+	}
+
+	function hasInstructions(p: PromptClassInstructionsDto): boolean {
+		return p.instructions !== null && p.instructions.trim().length > 0;
+	}
+
+	/** A class can hold several different prompts; with more than one, the operator picks which. */
 	async function resolveClassSource(s: ClassSource): Promise<number | null> {
-		const displayLabel = classLabel(s);
-		const classPath = classDetailPath(s);
-		let detail: PromptClassDetailDto;
+		if (s.lane === 'main') {
+			try {
+				const detail = await getPromptClassMain({ limit: 1 });
+				return (
+					parseRequestId(detail.recent_observations[0]?.request_id) ?? failClass(s, 'unresolvable')
+				);
+			} catch (err) {
+				return failClass(s, 'not-found', err);
+			}
+		}
+		let prompts: PromptClassInstructionsDto[];
 		try {
-			detail =
-				s.lane === 'main'
-					? await getPromptClassMain({ limit: 1 })
-					: await getPromptClassSubagent(s.personaSegment, { limit: 1 });
+			prompts = (await getPromptClassInstructions(s.personaSegment)).prompts;
 		} catch (err) {
-			classResolutionError = {
-				kind: 'not-found',
-				label: displayLabel,
-				classPath,
-				detail: err instanceof ApiError ? err.message : String(err)
-			};
+			return failClass(s, 'not-found', err);
+		}
+		const registerable = prompts.filter(hasInstructions);
+		if (registerable.length > 1) {
+			promptChoices = prompts;
 			return null;
 		}
-		const observation = detail.recent_observations[0];
-		if (observation === undefined) {
-			classResolutionError = {
-				kind: 'unresolvable',
-				label: displayLabel,
-				classPath,
-				detail: null
-			};
-			return null;
-		}
-		const id = Number.parseInt(observation.request_id, 10);
-		if (!Number.isFinite(id) || id < 0) {
-			classResolutionError = {
-				kind: 'unresolvable',
-				label: displayLabel,
-				classPath,
-				detail: null
-			};
-			return null;
-		}
-		return id;
+		return parseRequestId(registerable[0]?.latest_request_id) ?? failClass(s, 'unresolvable');
+	}
+
+	let promptChoices = $state<PromptClassInstructionsDto[] | null>(null);
+
+	function choiceHref(choice: PromptClassInstructionsDto): string {
+		const persona =
+			source?.kind === 'class' && source.lane === 'subagent' ? source.personaSegment : '';
+		return `/prompts/new?from=request:${choice.latest_request_id}&persona=${encodeURIComponent(persona)}`;
 	}
 
 	async function loadSource(s: PrefillSource | null): Promise<void> {
@@ -279,6 +316,7 @@
 		loading = true;
 		loadError = null;
 		classResolutionError = null;
+		promptChoices = null;
 		resolvedRequestId = null;
 		resolvedSessionId = null;
 		try {
@@ -349,9 +387,11 @@
 	const showLoadError = $derived(
 		initialized && source !== null && classResolutionError === null && loadError !== null
 	);
+	const showChooser = $derived(initialized && source !== null && promptChoices !== null);
 	const showNoBlocks = $derived(
 		initialized &&
 			source !== null &&
+			promptChoices === null &&
 			classResolutionError === null &&
 			loadError === null &&
 			!hasBlocks
@@ -359,6 +399,7 @@
 	const showForm = $derived(
 		initialized &&
 			source !== null &&
+			promptChoices === null &&
 			classResolutionError === null &&
 			loadError === null &&
 			hasBlocks
@@ -503,6 +544,59 @@
 				/>
 			</div>
 		</div>
+	{:else if showChooser && promptChoices !== null}
+		<div class="flex min-h-0 flex-1 flex-col overflow-y-auto p-6" data-slot="prompt-new-chooser">
+			<div class="mx-auto flex w-full max-w-3xl flex-col gap-3">
+				<h2 class="pr-new-heading">Choose which prompt to register</h2>
+				<p class="text-label text-[var(--text-3)]">
+					{source?.kind === 'class' ? classLabel(source) : 'This row'} covers
+					{promptChoices.filter(hasInstructions).length} different prompts; each registers as its own
+					composition.
+				</p>
+				<ul class="flex flex-col gap-2">
+					{#each promptChoices as choice (choice.latest_request_id)}
+						<li
+							class="flex flex-col gap-2 rounded border border-[var(--border-default)] bg-[var(--surface-card)] p-3"
+							data-slot="prompt-new-choice"
+						>
+							<div class="flex flex-wrap items-center gap-3">
+								<span class="font-mono text-sm text-[var(--text-1)]">
+									{hasInstructions(choice)
+										? (suggestCompositionName(choice.instructions ?? '') ?? 'Unnamed prompt')
+										: 'No instructions'}
+								</span>
+								<span class="font-mono text-label text-[var(--text-3)]">
+									{choice.observation_count} calls · last {formatRelative(choice.last_seen)}
+								</span>
+								{#if hasInstructions(choice)}
+									<Button
+										class="ml-auto"
+										size="sm"
+										variant="outline"
+										href={resolve(choiceHref(choice) as `/prompts/new?${string}`)}
+									>
+										register this
+									</Button>
+								{/if}
+							</div>
+							{#if hasInstructions(choice)}
+								<details>
+									<summary class="cursor-pointer text-label text-[var(--text-2)]">
+										instructions
+									</summary>
+									<pre
+										class="mt-2 font-mono text-xs whitespace-pre-wrap text-[var(--text-2)]">{choice.instructions}</pre>
+								</details>
+							{:else}
+								<p class="text-label text-[var(--text-3)]">
+									These calls carry no agent instructions, so there is nothing to register.
+								</p>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			</div>
+		</div>
 	{:else if showNoBlocks}
 		<div
 			class="flex min-h-0 flex-1 flex-col items-center justify-center p-6"
@@ -598,6 +692,13 @@
 						bind:value={label}
 					/>
 				</label>
+				{#if naming !== null}
+					<span class="text-label text-[var(--text-3)]" data-slot="prompt-new-naming">
+						{naming === 'asking'
+							? 'asking the LLM for a name…'
+							: 'no LLM configured for naming; name taken from the instructions'}
+					</span>
+				{/if}
 				<span
 					class="inline-flex items-center gap-1 font-mono text-label text-[var(--text-3)]"
 					title={promptSha256}
