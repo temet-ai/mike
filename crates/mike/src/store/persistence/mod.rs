@@ -5,6 +5,7 @@ pub use mike_fleet::store::persistence::{change_record, mailbox, questions, sess
 pub use mike_lessons::store::persistence::workspace;
 pub use mike_lessons::store::persistence::*;
 pub mod file_write_summaries;
+pub mod learning_loop;
 pub mod llm_role_health;
 pub mod project_merge;
 pub mod scheduled_job_runs;

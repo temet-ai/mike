@@ -1,3 +1,4 @@
+use mike::lesson_proposer::ProposerPrompts;
 use mike::lesson_proposer::skill_eval::run_pass;
 use mike::llm::{OpenRouterClient, reset_global_for_tests};
 use mike::store::persistence::lessons::skill_drafts::DraftTarget;
@@ -97,7 +98,7 @@ async fn a_failing_model_is_recorded_and_the_draft_waits() -> anyhow::Result<()>
     )?;
     reset_global_for_tests();
 
-    let report = run_pass(&fx.handle, &client).await;
+    let report = run_pass(&fx.handle, &client, &ProposerPrompts::default()).await;
     assert!(report.error.is_some(), "{report:?}");
     let attempts: i32 = sqlx::query_scalar(
         "SELECT attempts FROM memory.skill_draft_eval_failures WHERE draft_id = $1",
@@ -109,7 +110,7 @@ async fn a_failing_model_is_recorded_and_the_draft_waits() -> anyhow::Result<()>
     assert_eq!(stored(&fx, id).await?.0, "evaluating");
 
     reset_global_for_tests();
-    let waiting = run_pass(&fx.handle, &client).await;
+    let waiting = run_pass(&fx.handle, &client, &ProposerPrompts::default()).await;
     assert!(
         waiting.draft_id.is_none(),
         "a failed draft must wait: {waiting:?}"
@@ -140,7 +141,7 @@ async fn a_draft_without_trigger_queries_is_rejected_at_once() -> anyhow::Result
     let (_server, client) = serve(Scripted::approving()).await?;
     reset_global_for_tests();
 
-    let report = run_pass(&fx.handle, &client).await;
+    let report = run_pass(&fx.handle, &client, &ProposerPrompts::default()).await;
     assert_eq!(report.accepted, Some(false));
     let (status, eval, _) = stored(&fx, id).await?;
     assert_eq!(status, "rejected");

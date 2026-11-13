@@ -1,3 +1,4 @@
+use mike::lesson_proposer::ProposerPrompts;
 use mike::lesson_proposer::skill_eval::{EVALUATOR_VERSION, run_pass};
 use mike::llm::{OpenRouterClient, reset_global_for_tests};
 use mike::store::persistence::lessons::skill_drafts::DraftTarget;
@@ -196,7 +197,7 @@ pub(super) async fn passes_until_decided(
 ) -> anyhow::Result<usize> {
     for pass in 1..=40 {
         reset_global_for_tests();
-        let report = run_pass(&fx.handle, client).await;
+        let report = run_pass(&fx.handle, client, &ProposerPrompts::default()).await;
         if report.accepted.is_some() {
             return Ok(pass);
         }

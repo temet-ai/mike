@@ -49,6 +49,16 @@ pub struct NeedsJudgmentQuery<'a> {
     pub max_attempts_per_day: i64,
 }
 
+pub async fn newest_supply_verdict_at(
+    pool: &PgPool,
+) -> Result<Option<DateTime<Utc>>, PersistError> {
+    Ok(
+        sqlx::query_file_scalar!("src/store/persistence/judge/newest_supply_verdict.sql")
+            .fetch_one(pool)
+            .await?,
+    )
+}
+
 pub async fn fetch_sessions_needing_judgment(
     pool: &PgPool,
     query: &NeedsJudgmentQuery<'_>,

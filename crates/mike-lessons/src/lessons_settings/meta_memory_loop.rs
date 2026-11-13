@@ -1,8 +1,146 @@
+pub use crate::settings::memory_prompts::RERANK_GRADING_PROMPT_KEY;
+use crate::settings::memory_prompts::{
+    LESSON_PLACEMENT_PROMPT, LESSON_PROPOSER_PROMPT, LESSON_RELATE_PROMPT,
+    LESSON_RELATIONS_ADJUDICATOR_PROMPT, LESSON_RELATIONS_PROPOSER_PROMPT, LESSON_SHAPE_PROMPT,
+    LESSON_TOPIC_PROMPT, RERANK_GRADING_PROMPT, SKILL_AUTHOR_PROMPT, SKILL_REVIEW_PROMPT,
+    SKILL_TRIGGER_PROMPT,
+};
 use crate::settings::{SettingApplies, SettingKind, SettingMeta, SettingScope};
 
 pub const SUPPLY_VERDICT_PROMPT_KEY: &str = "supply_verdict.system_prompt";
 pub const MEMORY_REVIEW_BRIEF_KEY: &str = "memory_review.brief";
 pub const MEMORY_REVIEW_ENABLED_KEY: &str = "memory_review.enabled";
+pub const LESSON_PROPOSER_PROMPT_KEY: &str = "lesson_proposer.proposer_prompt";
+pub const LESSON_RELATE_PROMPT_KEY: &str = "lesson_proposer.relate_prompt";
+pub const LESSON_PLACEMENT_PROMPT_KEY: &str = "lesson_proposer.placement_prompt";
+pub const LESSON_SHAPE_PROMPT_KEY: &str = "lesson_proposer.shape_prompt";
+pub const LESSON_TOPIC_PROMPT_KEY: &str = "lesson_proposer.topic_prompt";
+pub const SKILL_AUTHOR_PROMPT_KEY: &str = "lesson_proposer.skill_author_prompt";
+pub const SKILL_REVIEW_PROMPT_KEY: &str = "lesson_proposer.skill_review_prompt";
+pub const SKILL_TRIGGER_PROMPT_KEY: &str = "lesson_proposer.skill_trigger_prompt";
+pub const LESSON_RELATIONS_PROPOSER_PROMPT_KEY: &str = "lesson_relations.proposer_prompt";
+pub const LESSON_RELATIONS_ADJUDICATOR_PROMPT_KEY: &str = "lesson_relations.adjudicator_prompt";
+
+type PromptRow = (
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static str,
+);
+
+const WORKER_PROMPTS: [PromptRow; 11] = [
+    (
+        RERANK_GRADING_PROMPT_KEY,
+        "Overnight reranking",
+        "Search grading query",
+        RERANK_GRADING_PROMPT,
+        "The text the reranker scores each of a search's first ten results against when the \
+        overnight pass grades it. {query} becomes the search query and {turn} the operator \
+        prompt of the turn that searched. The reranker is a cross-encoder, not a chat model, \
+        so this is a query, not instructions. Read at the start of every grading pass, \
+        overnight, as a catch-up or from Run now. A blank text falls back to the built-in one.",
+    ),
+    (
+        LESSON_PROPOSER_PROMPT_KEY,
+        "Lesson proposer",
+        "Proposer prompt",
+        LESSON_PROPOSER_PROMPT,
+        "The instructions that turn one judged correction into a proposed lesson. The answer \
+        schema is fixed, so the prompt must keep asking for its fields. Read at the start of \
+        every proposer pass, from the quiescence worker or Run now; a blank prompt falls back \
+        to the built-in text.",
+    ),
+    (
+        LESSON_RELATE_PROMPT_KEY,
+        "Lesson proposer",
+        "Relate prompt",
+        LESSON_RELATE_PROMPT,
+        "The instructions that decide whether a new lesson is stored, skipped, updates, merges \
+        with or contradicts the closest existing lessons, and where it belongs. Read at the \
+        start of every proposer pass; a blank prompt falls back to the built-in text.",
+    ),
+    (
+        LESSON_PLACEMENT_PROMPT_KEY,
+        "Lesson proposer",
+        "Placement prompt",
+        LESSON_PLACEMENT_PROMPT,
+        "The instructions that choose a lesson's home: rule, skill, agent, memory or nowhere. \
+        Read at the start of every proposer pass; a blank prompt falls back to the built-in \
+        text.",
+    ),
+    (
+        LESSON_SHAPE_PROMPT_KEY,
+        "Lesson proposer",
+        "Shape rewrite prompt",
+        LESSON_SHAPE_PROMPT,
+        "The instructions that rewrite a lesson flagged as too long or badly shaped into one \
+        or more short rules. Read at the start of every proposer pass; a blank prompt falls \
+        back to the built-in text.",
+    ),
+    (
+        LESSON_TOPIC_PROMPT_KEY,
+        "Lesson proposer",
+        "Topic prompt",
+        LESSON_TOPIC_PROMPT,
+        "The instructions that give each lesson without a topic a short kebab-case topic. Read \
+        at the start of every proposer pass; a blank prompt falls back to the built-in text.",
+    ),
+    (
+        SKILL_AUTHOR_PROMPT_KEY,
+        "Lesson proposer",
+        "Skill author prompt",
+        SKILL_AUTHOR_PROMPT,
+        "The instructions that write a Claude Code skill draft from a topic's accepted lessons. \
+        Read at the start of every proposer pass; a blank prompt falls back to the built-in \
+        text.",
+    ),
+    (
+        SKILL_REVIEW_PROMPT_KEY,
+        "Lesson proposer",
+        "Skill review prompt",
+        SKILL_REVIEW_PROMPT,
+        "The instructions of the reviewer that approves, patches or rejects a skill draft. It \
+        must keep the four decisions approve, patch, nothing_to_save and wrong_place. Read at \
+        the start of every proposer pass; a blank prompt falls back to the built-in text.",
+    ),
+    (
+        SKILL_TRIGGER_PROMPT_KEY,
+        "Lesson proposer",
+        "Skill trigger test prompt",
+        SKILL_TRIGGER_PROMPT,
+        "The instructions of the trigger test that asks which listed skills a model would load \
+        for each test message. Read at the start of every proposer pass; a blank prompt falls \
+        back to the built-in text.",
+    ),
+    (
+        LESSON_RELATIONS_PROPOSER_PROMPT_KEY,
+        "Lesson relations",
+        "Relation proposer prompt",
+        LESSON_RELATIONS_PROPOSER_PROMPT,
+        "The instructions of the model that proposes a relation between two lessons. Read at \
+        the start of every lesson_relations job run, scheduled or from Run now. A blank prompt \
+        falls back to the built-in text.",
+    ),
+    (
+        LESSON_RELATIONS_ADJUDICATOR_PROMPT_KEY,
+        "Lesson relations",
+        "Relation adjudicator prompt",
+        LESSON_RELATIONS_ADJUDICATOR_PROMPT,
+        "The instructions of the second model that checks each proposed relation. Read at the \
+        start of every lesson_relations job run, scheduled or from Run now. A blank prompt \
+        falls back to the built-in text.",
+    ),
+];
+
+fn worker_prompt_entries() -> Vec<SettingMeta> {
+    WORKER_PROMPTS
+        .iter()
+        .map(|&(key, group, label, default, description)| {
+            prompt_entry(key, group, label, default, description)
+        })
+        .collect()
+}
 
 pub const SUPPLY_VERDICT_PROMPT: &str = "You judge whether one piece of memory that mike supplied to a \
 Claude Code session helped. The memory is a lesson (a rule recorded from earlier sessions) or a \
@@ -76,7 +214,7 @@ fn prompt_entry(
 }
 
 pub fn entries() -> Vec<SettingMeta> {
-    vec![
+    let mut entries = vec![
         crate::settings::meta_scheduled_jobs::enabled_entry(
             MEMORY_REVIEW_ENABLED_KEY,
             "Daily memory review",
@@ -111,5 +249,7 @@ pub fn entries() -> Vec<SettingMeta> {
             puts today's date before it. A blank brief falls back to the built-in text; Reset \
             to default restores it.",
         ),
-    ]
+    ];
+    entries.extend(worker_prompt_entries());
+    entries
 }

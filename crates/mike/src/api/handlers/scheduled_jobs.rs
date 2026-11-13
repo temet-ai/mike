@@ -63,6 +63,22 @@ pub(crate) async fn scheduled_jobs(State(state): State<AppState>) -> Json<Schedu
     Json(gather(&state).await)
 }
 
+pub(crate) struct LoopJob {
+    pub(crate) enabled_key: &'static str,
+    pub(crate) failing: bool,
+    pub(crate) view: JobView,
+}
+
+pub(crate) fn loop_job(name: &str, now: chrono::DateTime<chrono::Utc>) -> Option<LoopJob> {
+    let job = JOBS.iter().find(|job| job.name == name)?;
+    let view = build_view(job, &snapshot(job.name), None, now);
+    Some(LoopJob {
+        enabled_key: job.enabled_key,
+        failing: view.state == JobState::Failing,
+        view,
+    })
+}
+
 fn job_state(view: &JobView) -> CapabilityState {
     match view.state {
         JobState::Failing if view.consecutive_failures >= INERT_AFTER_FAILURES => {

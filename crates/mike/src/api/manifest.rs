@@ -27,6 +27,7 @@ mod filters;
 mod improvement;
 mod knowledge;
 mod launches;
+mod learning_loop;
 mod lesson_delivery;
 mod memory;
 mod projects;
@@ -74,6 +75,7 @@ pub fn inspect_route_manifest() -> Vec<RouteEntry> {
         steering::ROUTES,
         workspace::ROUTES,
         launches::ROUTES,
+        learning_loop::ROUTES,
         fleets::ROUTES,
         changes::ROUTES,
         lesson_delivery::ROUTES,
@@ -128,6 +130,7 @@ pub(crate) fn local_router(state: AppState, policy: host_guard::LocalAccessPolic
     let router = steering::register(router);
     let router = workspace::register(router);
     let router = launches::register(router);
+    let router = learning_loop::register(router);
     let router = fleets::register(router);
     let router = changes::register(router);
     let router = lesson_delivery::register(router);

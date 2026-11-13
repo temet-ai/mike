@@ -217,6 +217,7 @@ pub async fn post_verdict_pass(State(state): State<AppState>) -> Response {
             "judged": pass.judged,
             "failed": pass.failed,
             "database_failed": pass.database_failed,
+            "rate_limited": pass.rate_limited,
         }))
         .into_response(),
         Tick::Off => refuse(

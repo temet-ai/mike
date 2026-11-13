@@ -16,10 +16,11 @@ pub use reranked::run_detection_on_reranked;
 
 use crate::llm::{LlmError, OpenRouterClient};
 use crate::store::persistence::PersistError;
-use schema::{
-    ADJUDICATOR_SYSTEM_PROMPT, AdjudicatorVerdict, PROPOSER_SYSTEM_PROMPT, ProposerVerdict,
-    adjudicator_schema, proposer_schema,
-};
+pub use schema::RelationPrompts;
+use schema::{AdjudicatorVerdict, ProposerVerdict, adjudicator_schema, proposer_schema};
+
+#[cfg(test)]
+mod prompt_tests;
 
 pub const DETECTOR_VERSION: &str = "lesson-relations-v1";
 
@@ -78,20 +79,23 @@ pub trait RelationJudge {
 pub struct ModelPairJudge<'a> {
     pub proposer: &'a ModelParticipant<'a>,
     pub adjudicator: &'a ModelParticipant<'a>,
+    pub prompts: &'a RelationPrompts,
 }
 
 impl RelationJudge for ModelPairJudge<'_> {
     async fn propose(&self, prompt: &str) -> Result<ProposerVerdict, LlmError> {
+        let system = &self.prompts.proposer;
         self.proposer
             .client
-            .verdict::<ProposerVerdict>(PROPOSER_SYSTEM_PROMPT, prompt, proposer_schema())
+            .verdict::<ProposerVerdict>(system, prompt, proposer_schema())
             .await
     }
 
     async fn adjudicate(&self, prompt: &str) -> Result<AdjudicatorVerdict, LlmError> {
+        let system = &self.prompts.adjudicator;
         self.adjudicator
             .client
-            .verdict::<AdjudicatorVerdict>(ADJUDICATOR_SYSTEM_PROMPT, prompt, adjudicator_schema())
+            .verdict::<AdjudicatorVerdict>(system, prompt, adjudicator_schema())
             .await
     }
 

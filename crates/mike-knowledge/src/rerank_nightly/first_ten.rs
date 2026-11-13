@@ -4,6 +4,13 @@ use serde_json::Value;
 use super::grade::rerank_all;
 use crate::search_ranking::tuning::GradeCandidate;
 use crate::semantic::KnowledgeState;
+use crate::settings::memory_prompts::{
+    RERANK_GRADING_PROMPT, RERANK_GRADING_PROMPT_KEY, text_from_rows,
+};
+
+#[cfg(test)]
+#[path = "first_ten_prompt_tests.rs"]
+mod prompt_tests;
 
 pub const FIRST_TEN: usize = 10;
 
@@ -40,8 +47,37 @@ pub fn first_ten_references(returned: &Value) -> Vec<String> {
 }
 
 pub fn turn_query(query: &str, turn_prompt: Option<&str>) -> Option<String> {
+    turn_query_with(RERANK_GRADING_PROMPT, query, turn_prompt)
+}
+
+pub fn turn_query_with(template: &str, query: &str, turn_prompt: Option<&str>) -> Option<String> {
     let prompt = turn_prompt.map(str::trim).filter(|p| !p.is_empty())?;
-    Some(format!("{query}\n\nAsked in the turn: {prompt}"))
+    Some(fill(template, query, prompt))
+}
+
+pub fn grading_template_from_rows(rows: &[(String, Value)]) -> String {
+    text_from_rows(rows, RERANK_GRADING_PROMPT_KEY, RERANK_GRADING_PROMPT)
+}
+
+fn fill(template: &str, query: &str, turn: &str) -> String {
+    let mut out = String::with_capacity(template.len() + query.len() + turn.len());
+    let mut rest = template;
+    while let Some(at) = rest.find('{') {
+        out.push_str(&rest[..at]);
+        let tail = &rest[at..];
+        rest = if let Some(after) = tail.strip_prefix("{query}") {
+            out.push_str(query);
+            after
+        } else if let Some(after) = tail.strip_prefix("{turn}") {
+            out.push_str(turn);
+            after
+        } else {
+            out.push('{');
+            &tail[1..]
+        };
+    }
+    out.push_str(rest);
+    out
 }
 
 pub async fn grade_first_ten(

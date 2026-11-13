@@ -1,11 +1,13 @@
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
 pub mod dedupe;
 pub mod file_guidance;
+pub mod full_pass;
 pub mod guidance;
 pub mod maintenance;
 pub mod placement;
 pub mod placement_pass;
 pub mod prompt;
+pub mod prompts;
 pub mod purpose;
 pub mod quiet_budget;
 pub mod relate;
@@ -38,6 +40,7 @@ use crate::store::persistence::PersistHandle;
 use crate::store::persistence::lessons::proposals::CorrectionCandidate;
 
 pub use prompt::{ProposedLesson, SimilarCorrection};
+pub use prompts::ProposerPrompts;
 pub use quiet_budget::QuietBudget;
 pub use write::WriteOutcome;
 
@@ -53,6 +56,7 @@ pub struct ProposerSettings {
     pub quiet: QuietBudget,
     pub auto_promote_min_evidence: i64,
     pub max_chars: usize,
+    pub prompts: ProposerPrompts,
 }
 
 impl Default for ProposerSettings {
@@ -65,6 +69,7 @@ impl Default for ProposerSettings {
             quiet: QuietBudget::default(),
             auto_promote_min_evidence: 2,
             max_chars: crate::lesson_shape::DEFAULT_MAX_CHARS,
+            prompts: ProposerPrompts::default(),
         }
     }
 }
@@ -113,6 +118,7 @@ impl ProposerSettings {
             .or(session_judge_model)
             .unwrap_or_else(|| DEFAULT_MODEL.to_owned());
         settings.max_chars = crate::lesson_shape::max_chars_from_rows(rows);
+        settings.prompts = ProposerPrompts::from_rows(rows);
         settings
     }
 
@@ -324,7 +330,9 @@ async fn process_one(
     let similar = similar_corrections(deps, candidate).await;
     let similar_json = similar_to_json(&similar);
     let shown = guidance::closest(deps, candidate).await;
-    let (proposed, usage) = prompt::call_proposer(deps.llm, candidate, &similar, &shown).await?;
+    let system = &deps.settings.prompts.proposer;
+    let (proposed, usage) =
+        prompt::call_proposer(deps.llm, system, candidate, &similar, &shown).await?;
 
     let saved = crate::store::persistence::lessons::proposals::queue::SavedProposal {
         candidate: candidate.clone(),

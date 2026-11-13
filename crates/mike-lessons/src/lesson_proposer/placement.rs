@@ -7,11 +7,7 @@ use super::prompt::write_guidance;
 use crate::llm::{CallUsage, LlmError, OpenRouterClient};
 use crate::store::persistence::project_knowledge::GuidanceRow;
 
-pub const PLACE_PROMPT: &str = concat!(
-    include_str!("prompt/place.md"),
-    "\n\n",
-    include_str!("prompt/homes.md")
-);
+pub use crate::settings::memory_prompts::LESSON_PLACEMENT_PROMPT as PLACE_PROMPT;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -163,15 +159,12 @@ pub fn build_input(lesson: &LessonToPlace<'_>, guidance: &[GuidanceRow]) -> Stri
 
 pub async fn call(
     llm: &OpenRouterClient,
+    system: &str,
     lesson: &LessonToPlace<'_>,
     guidance: &[GuidanceRow],
 ) -> Result<(PlacementAnswer, CallUsage), LlmError> {
-    llm.verdict_with_usage::<PlacementAnswer>(
-        PLACE_PROMPT,
-        &build_input(lesson, guidance),
-        schema(),
-    )
-    .await
+    llm.verdict_with_usage::<PlacementAnswer>(system, &build_input(lesson, guidance), schema())
+        .await
 }
 
 #[cfg(test)]

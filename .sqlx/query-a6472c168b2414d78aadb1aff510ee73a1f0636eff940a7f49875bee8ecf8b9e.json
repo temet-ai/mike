@@ -1,0 +1,171 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT rq.n AS \"requests!\", rq.at AS requests_at,\n       ot.n AS \"operator_turns!\", ot.at AS operator_turns_at,\n       tv.n AS \"turn_verdicts!\", tv.at AS turn_verdicts_at,\n       sv.n AS \"session_verdicts!\", sv.at AS session_verdicts_at,\n       ls.n AS \"lessons!\", ls.at AS lessons_at,\n       lr.n AS \"lesson_relations!\", lr.at AS lesson_relations_at,\n       cr.n AS \"consolidation_runs!\", cr.at AS consolidation_runs_at,\n       si.n AS \"supplied_items!\", si.at AS supplied_items_at,\n       vd.n AS \"supply_verdicts!\", vd.at AS supply_verdicts_at,\n       sg.n AS \"search_grades!\", sg.at AS search_grades_at,\n       mr.n AS \"memory_reviews!\", mr.at AS memory_reviews_at\n  FROM (SELECT count(*) AS n, max(r.created_at) AS at\n          FROM requests.requests r WHERE r.created_at >= $1) rq,\n       (SELECT count(*) AS n, max(t.created_at) AS at\n          FROM memory.operator_turns t WHERE t.created_at >= $1) ot,\n       (SELECT count(*) AS n, max(v.created_at) AS at\n          FROM memory.turn_verdicts v WHERE v.created_at >= $1) tv,\n       (SELECT count(*) AS n, max(s.judged_at) AS at\n          FROM session_judges.verdicts s WHERE s.judged_at >= $1) sv,\n       (SELECT count(*) AS n, max(l.created_at) AS at\n          FROM memory.lessons l WHERE l.created_at >= $1) ls,\n       (SELECT count(*) AS n, max(x.created_at) AS at\n          FROM (SELECT x.created_at FROM memory.lesson_relations x ORDER BY x.id DESC LIMIT $2) x\n         WHERE x.created_at >= $1) lr,\n       (SELECT count(*) AS n, max(c.started_at) AS at\n          FROM memory.consolidation_runs c WHERE c.started_at >= $1) cr,\n       (SELECT count(*) AS n, max(i.supplied_at) AS at\n          FROM memory.supplied_items i WHERE i.supplied_at >= $1) si,\n       (SELECT count(*) AS n, max(d.judged_at) AS at\n          FROM memory.supplied_item_verdicts d WHERE d.judged_at >= $1) vd,\n       (SELECT count(*) AS n, max(g.graded_at) AS at\n          FROM memory.search_grades g WHERE g.graded_at >= $1) sg,\n       (SELECT count(*) AS n, max(n.created_at) AS at\n          FROM workspace.session_notes n\n         WHERE n.tags @> ARRAY['memory-review'] AND n.kind = 'reading' AND n.created_at >= $1) mr\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "requests!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "requests_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "operator_turns!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "operator_turns_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "turn_verdicts!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "turn_verdicts_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "session_verdicts!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "session_verdicts_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "lessons!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "lessons_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "lesson_relations!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "lesson_relations_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 12,
+        "name": "consolidation_runs!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 13,
+        "name": "consolidation_runs_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 14,
+        "name": "supplied_items!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 15,
+        "name": "supplied_items_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 16,
+        "name": "supply_verdicts!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 17,
+        "name": "supply_verdicts_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 18,
+        "name": "search_grades!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 19,
+        "name": "search_grades_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 20,
+        "name": "memory_reviews!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 21,
+        "name": "memory_reviews_at",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "a6472c168b2414d78aadb1aff510ee73a1f0636eff940a7f49875bee8ecf8b9e"
+}

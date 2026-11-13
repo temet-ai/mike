@@ -11,16 +11,7 @@ use crate::store::persistence::lessons::skill_draft_eval::SiblingSkill;
 
 pub const BATCH_SIZE: usize = 10;
 
-pub const PROMPT: &str = "You are Claude Code. Below are the skills available in this \
-project, each with a name and a description, followed by numbered messages from the user; when a \
-description of the project comes first, the messages are requests made in that project. Each \
-message is a separate request in a separate session. For each message decide which skills, if \
-any, you would load before starting work on it. Load a skill only when its description clearly \
-matches the work and it would help you do that work better than you could from general \
-knowledge; a skill that only shares words with the message is not a match. Most messages need \
-no skill or one. Judge every message on its own. Return JSON with `answers`: one entry for \
-every message, numbered as listed, each with `load`: the names of the skills you would load, \
-exactly as listed, or an empty list.";
+pub use crate::settings::memory_prompts::SKILL_TRIGGER_PROMPT as PROMPT;
 
 #[derive(Debug, Deserialize)]
 struct Answers {
@@ -187,13 +178,14 @@ pub fn matched(
 
 async fn ask_batch(
     llm: &OpenRouterClient,
+    prompt: &str,
     offer: &Offer<'_>,
     batch: usize,
     queries: &[&TriggerQuery],
 ) -> Result<Vec<QueryResult>, EvalError> {
     let messages: Vec<&str> = queries.iter().map(|q| q.query.as_str()).collect();
     let input = offer_input(offer, batch, &messages);
-    let reply: Answers = llm.verdict(PROMPT, &input, schema()).await?;
+    let reply: Answers = llm.verdict(prompt, &input, schema()).await?;
     matched(queries, reply.answers, offer.name)
 }
 
@@ -216,6 +208,7 @@ pub fn entries(
 
 pub async fn run_batches(
     llm: &OpenRouterClient,
+    prompt: &str,
     offer: &Offer<'_>,
     queries: &[TriggerQuery],
     batches: &[usize],
@@ -227,7 +220,7 @@ pub async fn run_batches(
                 .into_iter()
                 .filter_map(|index| queries.get(index))
                 .collect();
-            async move { ask_batch(llm, offer, batch, &picked).await }
+            async move { ask_batch(llm, prompt, offer, batch, &picked).await }
         })
         .collect();
     in_chunks(tasks).await

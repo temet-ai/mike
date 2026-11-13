@@ -17,13 +17,7 @@ pub const BATCH: i64 = 30;
 const MAX_TOPIC_CHARS: usize = 40;
 const KIND_WORDS: [&str; 4] = ["warning", "correction", "convention", "preference"];
 
-pub const TOPIC_PROMPT: &str = "You assign each lesson a topic. A topic is a short kebab-case \
-name, two to four words, for the area of work the lesson concerns, so that lessons about the \
-same work share one topic and a session working on that area can load them together.\n\n\
-Prefer a topic from the project's existing list whenever it fits; coin a new one only when \
-none does. A topic names the work (deploying-the-proxy, database-migrations, fleet-seat-briefs), \
-never the kind of lesson and never the project's name.\n\n\
-Return JSON matching the schema: exactly one assignment per lesson id given, no other ids.";
+pub use crate::settings::memory_prompts::LESSON_TOPIC_PROMPT as TOPIC_PROMPT;
 
 #[derive(Debug, Deserialize)]
 pub struct Assignment {
@@ -123,6 +117,7 @@ pub fn accepted(batch: &[UntopicedLesson], answer: Assignments) -> (Vec<i64>, Ve
 pub async fn run_pass(
     persist: &PersistHandle,
     llm: &OpenRouterClient,
+    system: &str,
     limit: i64,
 ) -> TopicPassReport {
     let mut report = TopicPassReport::default();
@@ -140,7 +135,7 @@ pub async fn run_pass(
         Err(e) => return failed(report, format!("topics: {e}")),
     };
     let answer = match llm
-        .verdict::<Assignments>(TOPIC_PROMPT, &build_input(&existing, &batch), schema())
+        .verdict::<Assignments>(system, &build_input(&existing, &batch), schema())
         .await
     {
         Ok(answer) => answer,
