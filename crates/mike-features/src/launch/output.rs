@@ -68,7 +68,7 @@ pub fn exit_code_for(result: &Result<LaunchOutput, LaunchError>) -> i32 {
     }
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,

@@ -221,7 +221,7 @@ fn render_file_list(files: &[PathBuf]) -> String {
     out
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 #[allow(
     clippy::unwrap_used,
     clippy::expect_used,

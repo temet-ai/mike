@@ -10,7 +10,7 @@ pub mod diagnostic_stats;
 pub mod entry_ops;
 #[cfg(test)]
 pub mod findings;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub mod helpers;
 #[cfg(test)]
 pub mod memory_breakdown;
@@ -25,9 +25,7 @@ pub mod session_lookup;
 #[cfg(any(test, feature = "test-seams"))]
 pub use helpers::*;
 
-use super::models::{InterceptedRequest, RequestId, RequestStatus, SystemPromptObservation};
 use crate::types::RequestParams;
-use chrono::{DateTime, Utc};
 
 pub fn make_test_request(id_override: Option<RequestId>, session_id: &str) -> InterceptedRequest {
     make_test_request_with_timestamp(id_override, session_id, Utc::now())

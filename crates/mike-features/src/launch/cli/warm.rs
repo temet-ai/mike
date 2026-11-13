@@ -122,7 +122,7 @@ fn read_flag(args: &[String], flag: &str) -> Option<String> {
     None
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,

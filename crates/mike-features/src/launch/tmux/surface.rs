@@ -128,7 +128,7 @@ pub async fn wait_for_exit(pid: u32, wait: Duration) -> bool {
     }
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,

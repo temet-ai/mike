@@ -72,7 +72,7 @@ impl TerminalBackend for NoneBackend {
     }
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,

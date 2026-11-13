@@ -91,7 +91,7 @@ pub async fn classify_host(runner: &dyn ProcRunner, pid: u32) -> (String, Orphan
     }
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,

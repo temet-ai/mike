@@ -40,7 +40,7 @@ pub fn locate_executable(bin: &str, path: Option<&OsStr>) -> Option<PathBuf> {
         .find(|p| executable(p))
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,

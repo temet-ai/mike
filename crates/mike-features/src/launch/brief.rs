@@ -234,7 +234,7 @@ fn write_private(dir: &Path, path: &Path, text: &str) -> Result<(), LaunchError>
         .map_err(|e| LaunchError::io(format!("securing {}", path.display()), e))
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,

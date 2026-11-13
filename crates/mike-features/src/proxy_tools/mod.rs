@@ -26,7 +26,7 @@ pub fn is_proxy_tool(name: &str) -> bool {
     catalogue().iter().any(|t| t.name == name)
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 #[allow(
     clippy::unwrap_used,
     clippy::expect_used,

@@ -134,7 +134,7 @@ fn pid_cwd(pid: u32) -> String {
         .unwrap_or_default()
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,

@@ -55,7 +55,7 @@ pub fn named_file(cli: &CliOverrides) -> Option<toml::Table> {
     crate::config::load::file::read(path).ok()
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 #[allow(
     clippy::unwrap_used,
     reason = "tests assert on fixtures they built themselves; a broken fixture must fail loudly"

@@ -223,7 +223,7 @@ async fn wait_ready(cli: &TmuxCli, pane: &str) {
     }
 }
 
-#[cfg(any(test, feature = "test-seams"))]
+#[cfg(test)]
 #[allow(
     clippy::expect_used,
     clippy::unwrap_used,
