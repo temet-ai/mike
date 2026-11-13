@@ -17,6 +17,7 @@
 	import HelpHint from '$lib/components/shared/HelpHint.svelte';
 	import Tooltip from '$lib/components/shared/Tooltip.svelte';
 	import LoadErrorBanner from '$lib/components/shared/LoadErrorBanner.svelte';
+	import { suggestCompositionName } from '$lib/prompts/suggestName';
 
 	type PrefillSource =
 		| { kind: 'request'; id: number }
@@ -156,13 +157,25 @@
 					: null
 	);
 
+	/** The label is prefilled once; clearing it afterwards leaves it empty for the operator to type. */
+	let labelPrefilled = false;
 	$effect(() => {
-		if (label.length > 0) return;
-		if (boundIdentity?.kind === 'subagent') label = boundIdentity.persona;
-		else if (boundIdentity?.kind === 'main') label = 'Claude Code (main agent)';
-		else if (boundIdentity?.kind === 'subagent-unresolved') {
-			label = 'Subagent (persona unresolved)';
+		if (labelPrefilled) return;
+		if (boundIdentity?.kind === 'subagent') {
+			labelPrefilled = true;
+			label = boundIdentity.persona;
+			return;
 		}
+		if (boundIdentity?.kind === 'main') {
+			labelPrefilled = true;
+			label = 'Claude Code (main agent)';
+			return;
+		}
+		// No persona to name it by: suggest a name from the agent instructions once they load.
+		const instructions = draftBlocks.find((b) => b.index === 2)?.text;
+		if (instructions === undefined) return;
+		labelPrefilled = true;
+		label = suggestCompositionName(instructions) ?? boundIdentityLabel;
 	});
 
 	async function deriveBlocks(detail: RequestDetail): Promise<{

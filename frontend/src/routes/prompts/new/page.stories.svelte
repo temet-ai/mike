@@ -222,6 +222,22 @@
 			}
 		}
 	}}
+	play={async ({ canvasElement }) => {
+		const input = await waitFor(
+			() => {
+				const el = canvasElement.querySelector<HTMLInputElement>('#prompt-new-label');
+				if (el === null) throw new Error('label field not yet rendered');
+				return el;
+			},
+			{ timeout: 3000 }
+		);
+		await waitFor(() => expect(input.value).toBe('Frontend Development Expert'));
+		await userEvent.clear(input);
+		await new Promise((r) => setTimeout(r, 50));
+		await expect(input.value).toBe('');
+		await userEvent.type(input, 'my-name');
+		await expect(input.value).toBe('my-name');
+	}}
 >
 	{#snippet template()}
 		<div class="h-[900px] w-[1000px] overflow-y-auto bg-[var(--surface-bg)]">
