@@ -11,11 +11,12 @@ fn client_on(
     server: &MockServer,
     sink: Arc<TestSink>,
 ) -> anyhow::Result<OpenRouterClient> {
-    Ok(OpenRouterClient::new(
+    Ok(OpenRouterClient::new_with_limiter(
         api_key.to_owned(),
         model.to_owned(),
         Some(server.uri()),
         None,
+        std::sync::Arc::new(super::test_support::fresh_limiter()),
     )?
     .with_usage_sink(sink)
     .with_role(LlmRole::Unattributed))

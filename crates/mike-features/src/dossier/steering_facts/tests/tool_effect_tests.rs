@@ -207,8 +207,8 @@ fn everything_else_is_neutral() {
 const CONSTRAINT: &str = "turn_facts_observation_kind_check";
 
 fn newest_definition_of_the_constraint() -> anyhow::Result<String> {
-    let dir =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/store/persistence/migrations");
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../mike-base/src/store/persistence/migrations");
     let mut definers = Vec::new();
     for entry in std::fs::read_dir(&dir)? {
         let path = entry?.path();

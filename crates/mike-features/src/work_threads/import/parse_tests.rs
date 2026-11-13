@@ -23,7 +23,7 @@ const NO_TITLE: &str = include_str!(
 );
 
 fn fixture_repo() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/threads/repo")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../mike/tests/fixtures/threads/repo")
 }
 
 fn roots() -> Vec<String> {
@@ -336,8 +336,8 @@ fn worklogs_are_found_in_slug_order_and_the_registry_reports_its_bad_lines() -> 
             "no-title"
         ]
     );
-    let path =
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/threads/registry.jsonl");
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../mike/tests/fixtures/threads/registry.jsonl");
     let read = registry::read(&path)?;
     assert_eq!(read.entries.len(), 2);
     assert_eq!(

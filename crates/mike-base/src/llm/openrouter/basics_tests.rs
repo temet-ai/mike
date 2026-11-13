@@ -8,22 +8,24 @@ use super::*;
 
 #[test]
 fn client_construction_succeeds() {
-    let client = OpenRouterClient::new(
+    let client = OpenRouterClient::new_with_limiter(
         "sk-test".to_string(),
         "google/gemini-3.5-flash-lite".to_string(),
         None,
         None,
+        std::sync::Arc::new(super::test_support::fresh_limiter()),
     );
     assert!(client.is_ok());
 }
 
 #[test]
 fn client_clone_is_cheap() -> anyhow::Result<()> {
-    let client = OpenRouterClient::new(
+    let client = OpenRouterClient::new_with_limiter(
         "sk-test".to_string(),
         "google/gemini-3.5-flash-lite".to_string(),
         None,
         None,
+        std::sync::Arc::new(super::test_support::fresh_limiter()),
     )?;
     let _clone = client.clone();
     assert!(Arc::ptr_eq(&client.inner, &_clone.inner));
@@ -44,11 +46,12 @@ async fn with_api_key_swaps_key_sends_new_bearer_token() -> anyhow::Result<()> {
         .mount(&server)
         .await;
 
-    let base = OpenRouterClient::new(
+    let base = OpenRouterClient::new_with_limiter(
         "old-key".to_string(),
         "google/gemini-3.5-flash-lite".to_string(),
         Some(server.uri()),
         None,
+        std::sync::Arc::new(super::test_support::fresh_limiter()),
     )?;
     let rekeyed = base.with_api_key("new-key".to_string())?;
 

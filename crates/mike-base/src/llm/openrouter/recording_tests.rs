@@ -213,11 +213,12 @@ async fn with_attribution_without_sink_keeps_role_but_records_nothing() -> anyho
 #[tokio::test]
 async fn transport_error_is_recorded_with_transport_error_outcome() -> anyhow::Result<()> {
     let sink = Arc::new(TestSink::default());
-    let client = OpenRouterClient::new(
+    let client = OpenRouterClient::new_with_limiter(
         "sk-test".to_string(),
         "google/gemini-3.5-flash-lite".to_string(),
         Some("http://127.0.0.1:1".to_string()),
         None,
+        std::sync::Arc::new(super::test_support::fresh_limiter()),
     )?
     .with_usage_sink(sink.clone());
 

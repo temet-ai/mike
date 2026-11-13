@@ -90,7 +90,7 @@ mod tests {
     const COMMITTED_PATH: &str = "tests/fixtures/analysis-corpus.json";
 
     fn crate_root() -> std::path::PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).to_path_buf()
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../mike")
     }
 
     #[test]

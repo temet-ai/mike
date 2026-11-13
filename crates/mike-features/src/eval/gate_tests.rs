@@ -252,7 +252,7 @@ fn e_run(id: i64, variant: &str, fixture: &EFixture) -> GateRun {
 #[test]
 fn e_slice_rule_reproduces_e_score_on_the_p0_fixture() -> anyhow::Result<()> {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/eval/e_score_fixture.json");
+        .join("../mike/tests/fixtures/eval/e_score_fixture.json");
     let fixture: EFixture = serde_json::from_str(&std::fs::read_to_string(path)?)?;
     let base = e_run(1, "V0_haiku", &fixture);
     let mut noise = e_run(2, "V0r_haiku", &fixture);

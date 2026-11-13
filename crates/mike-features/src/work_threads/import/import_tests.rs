@@ -14,7 +14,7 @@ use crate::store::persistence::work_threads::{HistoryPage, ListFilter};
 
 fn fixture_repo() -> String {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/threads/repo")
+        .join("../mike/tests/fixtures/threads/repo")
         .to_string_lossy()
         .into_owned()
 }

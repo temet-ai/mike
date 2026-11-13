@@ -213,7 +213,7 @@ mod tests {
     fn jc03_migration_version_constant_matches_migration_file() {
         let name = format!("{JC03_MIGRATION_VERSION}_ask_ledger_dossier_entries.sql");
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("src/store/persistence/migrations")
+            .join("../mike-base/src/store/persistence/migrations")
             .join(&name);
         assert!(path.exists(), "missing migration file {name}");
     }

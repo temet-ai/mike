@@ -19,7 +19,7 @@ struct Fixture {
 
 fn fixture() -> anyhow::Result<Fixture> {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/eval/fleet_mirror_w4_d1.json");
+        .join("../mike/tests/fixtures/eval/fleet_mirror_w4_d1.json");
     Ok(serde_json::from_str(&std::fs::read_to_string(path)?)?)
 }
 

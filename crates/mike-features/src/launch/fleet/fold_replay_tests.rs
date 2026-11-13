@@ -10,7 +10,7 @@ use super::fold::{Folded, fold};
 
 fn fixture(run: &str, file: &str) -> Result<Vec<Value>> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/fleet-runs")
+        .join("../mike/tests/fixtures/fleet-runs")
         .join(run)
         .join(file);
     let text = std::fs::read_to_string(&path).with_context(|| path.display().to_string())?;
