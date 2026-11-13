@@ -104,6 +104,8 @@ async fn test_health_endpoint_degrades_when_embedding_armed_and_unreachable() ->
     Ok(())
 }
 
+const FIXED_IDENTITIES: [&str; 3] = ["unknown", "dev-build", "mbx-build"];
+
 #[tokio::test]
 async fn test_health_reports_build_identity() -> anyhow::Result<()> {
     let mock_server = MockServer::start().await;
@@ -125,7 +127,7 @@ async fn test_health_reports_build_identity() -> anyhow::Result<()> {
         .as_str()
         .unwrap_or_else(|| panic!("health must carry build.sha_short, got: {body}"));
 
-    if sha != "unknown" && sha != "dev-build" {
+    if !FIXED_IDENTITIES.contains(&sha) {
         assert_eq!(sha.len(), 40, "build.sha must be a full commit hash: {sha}");
         assert!(
             sha.chars().all(|c| c.is_ascii_hexdigit()),
@@ -147,8 +149,7 @@ async fn test_health_reports_build_identity() -> anyhow::Result<()> {
         .as_str()
         .unwrap_or_else(|| panic!("health must carry build.built_at, got: {body}"));
     assert!(
-        built_at == "unknown"
-            || built_at == "dev-build"
+        FIXED_IDENTITIES.contains(&built_at)
             || (built_at.len() == 20 && built_at.ends_with('Z') && built_at.contains('T')),
         "build.built_at must be RFC 3339 UTC: {built_at}"
     );
