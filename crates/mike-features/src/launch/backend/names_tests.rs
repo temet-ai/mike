@@ -1,5 +1,3 @@
-//! The launch settings offer exactly the backends launch knows, in order.
-
 use super::BackendId;
 
 #[test]

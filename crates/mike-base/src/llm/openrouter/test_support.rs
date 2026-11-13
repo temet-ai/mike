@@ -71,9 +71,6 @@ pub fn response_with_usage(label: bool, finish_reason: Option<&str>) -> Value {
     })
 }
 
-/// A client with its own limiter: the process-wide one is shared by every test
-/// in the binary, so tests that each make a few calls would exhaust its
-/// per-minute budget for one another.
 pub fn client_for(server: &MockServer) -> anyhow::Result<OpenRouterClient> {
     client_with_limiter(server, fresh_limiter())
 }

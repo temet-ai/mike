@@ -1,6 +1,3 @@
-//! Moved from crates/mike/src/api/handlers/project_identity_tests.rs by the crate split: it reaches the serve
-//! crate, so it is tested from there.
-
 use chrono::{DateTime, TimeZone, Utc};
 use reqwest::StatusCode;
 use serde_json::{Value, json};

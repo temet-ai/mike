@@ -154,8 +154,6 @@ pub fn endpoint_labels() -> impl Iterator<Item = &'static str> {
     KNOWN_ENDPOINTS.iter().map(|e| e.suffix).chain(["other"])
 }
 
-/// Register the remote-control call series at zero for every endpoint label, so
-/// they exist before the first call (called right after the recorder installs).
 pub fn describe_remote_control_metrics() {
     metrics::describe_counter!(
         crate::metrics::COUNTER_REMOTE_CONTROL_CALLS_TOTAL,

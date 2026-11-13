@@ -1,5 +1,3 @@
-//! Conditional-request helpers shared by inspect routes.
-
 pub fn if_none_match_contains(if_none_match: &str, etag: &str) -> bool {
     fn strip_weak(s: &str) -> &str {
         let s = s.trim();

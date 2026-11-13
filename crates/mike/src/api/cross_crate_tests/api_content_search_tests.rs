@@ -1,6 +1,3 @@
-//! Moved from crates/mike/src/api/content_search_tests.rs by the crate split: it reaches the web
-//! crate, so it is tested from there.
-
 use reqwest::StatusCode;
 use serde_json::Value;
 use uuid::Uuid;

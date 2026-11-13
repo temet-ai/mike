@@ -1,6 +1,3 @@
-//! Lines a captured prompt block drops before it is hashed or compared:
-//! operator-defined volatile patterns (compose_prompt::volatile loads them).
-
 use regex::Regex;
 
 #[derive(Debug, Clone)]

@@ -1,5 +1,3 @@
-//! Configuration of the recall injector (`recall_injector`).
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

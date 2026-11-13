@@ -146,5 +146,4 @@ pub fn entries() -> Vec<SettingMeta> {
     ]
 }
 
-/// Default daily cap on session-judge attempts (store::persistence::judge).
 pub const DEFAULT_MAX_ATTEMPTS_PER_DAY: i64 = 3;

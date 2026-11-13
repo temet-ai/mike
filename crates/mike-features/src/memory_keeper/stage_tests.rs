@@ -23,8 +23,6 @@ fn session_in(arm: KeeperArm) -> Result<Uuid> {
     nth_session_in(arm, 0)
 }
 
-/// The `skip`-th session id in an arm. The served-by-client registry is
-/// process-wide, so a test that marks a session served needs one no other test uses.
 fn nth_session_in(arm: KeeperArm, skip: usize) -> Result<Uuid> {
     (1..2000_u128)
         .map(|n| Uuid::from_u128(n * 7919))

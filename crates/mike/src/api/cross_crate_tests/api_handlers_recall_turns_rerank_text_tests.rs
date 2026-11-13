@@ -1,6 +1,3 @@
-//! Moved from crates/mike/src/api/handlers/recall_turns_rerank_text_tests.rs by the crate split: it reaches the web
-//! crate, so it is tested from there.
-
 use crate::analysis::rerank::MAX_DOCUMENT_CHARS;
 use crate::api::handlers::recall_turns_rerank::{PROMPT_HEAD_CHARS, turn_text};
 

@@ -1,6 +1,3 @@
-//! Moved from crates/mike/src/api/project_knowledge/registration_tests.rs by the crate split: it reaches the serve
-//! crate, so it is tested from there.
-
 use crate::config::ProxyConfig;
 use crate::state::AppState;
 use crate::store::persistence::PersistHandle;

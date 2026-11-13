@@ -1,6 +1,3 @@
-//! Moved from crates/mike/src/api/launches/ledger.rs by the crate split: these
-//! drive the launch ledger through the inspect router.
-
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use tower::ServiceExt;

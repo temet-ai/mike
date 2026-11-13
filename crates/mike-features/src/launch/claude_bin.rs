@@ -1,5 +1,3 @@
-//! Which Claude Code executable mike starts: MIKE_CLAUDE_BIN, else `claude`.
-
 pub fn resolve_claude_binary(env_override: Option<String>) -> String {
     env_override
         .filter(|s| !s.is_empty())

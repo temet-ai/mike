@@ -290,7 +290,6 @@ fn positions(
     positions
 }
 
-/// A semantic search cut: the similarity floor and window a ranking applies.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct SemanticCut {
     pub floor: Option<f64>,

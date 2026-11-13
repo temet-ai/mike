@@ -1,6 +1,3 @@
-//! A live verdict and its projection onto the turn, in one transaction: the
-//! verdict is eval's, the projection step is the base's (operator_turns).
-
 use super::TurnVerdictInsert;
 use crate::store::persistence::PersistError;
 use crate::store::persistence::operator_turns::projection::{

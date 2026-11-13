@@ -201,12 +201,10 @@ impl std::fmt::Debug for ProxyConfig {
 }
 
 impl ProxyConfig {
-    /// The request store's entry cap (state builds the retention policy from it).
     pub fn max_requests(&self) -> usize {
         self.max_requests
     }
 
-    /// The request store's age cap, as configured text (parsed by RetentionPolicy).
     pub fn max_age(&self) -> &str {
         &self.max_age
     }

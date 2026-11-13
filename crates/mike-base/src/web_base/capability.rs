@@ -1,5 +1,3 @@
-//! A row of the /api/capabilities report, which feature health checks return.
-
 use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]

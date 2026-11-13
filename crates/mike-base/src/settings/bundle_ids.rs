@@ -1,6 +1,3 @@
-//! The evaluation bundle each judge and steerer runs with, as the settings
-//! overlay carries it (eval::bundles publishes and resolves them).
-
 use std::collections::BTreeMap;
 
 use serde::Serialize;

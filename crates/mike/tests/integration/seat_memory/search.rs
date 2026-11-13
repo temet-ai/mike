@@ -201,18 +201,21 @@ fn rust_and_sql_files(
 
 #[test]
 fn seat_tier_is_read_only_by_knowledge_search() -> anyhow::Result<()> {
-    let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-    let mut files = Vec::new();
-    rust_and_sql_files(&src, &mut files)?;
+    let crates = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     let mut readers = Vec::new();
-    for file in files {
-        let text = std::fs::read_to_string(&file)?;
-        if text.contains("memory.seat_memory(") || text.contains("memory.seat_memory_items") {
-            let relative = file
-                .strip_prefix(&src)?
-                .to_string_lossy()
-                .replace('\\', "/");
-            readers.push(relative);
+    for crate_name in ["mike", "mike-base", "mike-features"] {
+        let src = crates.join(crate_name).join("src");
+        let mut files = Vec::new();
+        rust_and_sql_files(&src, &mut files)?;
+        for file in files {
+            let text = std::fs::read_to_string(&file)?;
+            if text.contains("memory.seat_memory(") || text.contains("memory.seat_memory_items") {
+                let relative = file
+                    .strip_prefix(&src)?
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                readers.push(relative);
+            }
         }
     }
     readers.sort();

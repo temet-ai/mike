@@ -1,5 +1,3 @@
-//! Facade: `store::persistence` as mike sees it (crate split, ADR 0002).
-
 pub use mike_features::store::persistence::*;
 pub mod file_write_summaries;
 pub mod llm_role_health;

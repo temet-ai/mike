@@ -1,5 +1,3 @@
-//! Moved from crates/mike/src/rerank_nightly/lesson_pairs_tests.rs by the crate split: it reaches the web
-//! crate, so it is tested from there.
 use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use serde_json::json;

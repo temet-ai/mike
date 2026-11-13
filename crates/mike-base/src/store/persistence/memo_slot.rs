@@ -1,8 +1,3 @@
-//! Per-handle memos whose types the features own. The handle cannot name a
-//! feature's memo type (it sits below every feature in the crate split), so it
-//! keeps them in a slot keyed by type, created on first use and shared by
-//! every clone of the handle.
-
 use std::any::{Any, TypeId};
 use std::sync::Arc;
 

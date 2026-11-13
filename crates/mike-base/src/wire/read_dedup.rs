@@ -1,6 +1,3 @@
-//! Which file reads in a session repeat an earlier read: the index the request
-//! store keeps per session and the observe/rewrite logic over tool uses.
-
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};

@@ -52,5 +52,4 @@ pub fn entries() -> Vec<SettingMeta> {
     ]
 }
 
-/// Default share of labelled sessions held out of tuning (eval::labels::split).
 pub const DEFAULT_HOLDOUT_PERCENT: i64 = 30;

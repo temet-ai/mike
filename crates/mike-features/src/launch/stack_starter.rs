@@ -1,7 +1,3 @@
-//! How `mike spawn` makes sure the proxy stack is serving before it opens a
-//! session. Starting the stack is the CLI's job (crate::stack); the binary
-//! installs it here at start, so launch does not depend on the CLI layer.
-
 use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
@@ -29,7 +25,6 @@ pub trait StackStarter: Send + Sync {
 
 static STARTER: OnceLock<Box<dyn StackStarter>> = OnceLock::new();
 
-/// Install the stack starter; the binary calls this once before `mike spawn`.
 pub fn install(starter: Box<dyn StackStarter>) {
     if STARTER.set(starter).is_err() {
         tracing::debug!("a stack starter was already installed");

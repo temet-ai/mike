@@ -1,5 +1,3 @@
-//! Facade: `api::handlers` as mike_features sees it (crate split, ADR 0002).
-
 use crate::analysis::EmbeddingService;
 use crate::state::AppState;
 use crate::store::persistence::meta::pg_interval_to_humantime;

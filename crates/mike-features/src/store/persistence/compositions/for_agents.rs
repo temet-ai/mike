@@ -1,5 +1,3 @@
-//! The compositions each agent has, newest first (agents' evidence reads them).
-
 use crate::store::persistence::PersistError;
 
 impl crate::store::persistence::proxy_repo::ProxyDb<'_> {

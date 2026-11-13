@@ -1,5 +1,3 @@
-//! The rest of placement's tests.
-
 use super::*;
 
 #[tokio::test]

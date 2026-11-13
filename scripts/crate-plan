@@ -119,8 +119,10 @@ def is_test(rel, text):
 
 
 def read_sources():
+    """Module path -> source. A module present in several crates (its owner plus
+    re-export facades above it) is read as one text, so the glob index still sees
+    every `pub use child::*`."""
     files = {}
-    facades = {}
     for root in SRCS:
         for directory, _, names in os.walk(root):
             for name in names:
@@ -129,13 +131,7 @@ def read_sources():
                     with open(path, encoding="utf-8") as handle:
                         text = handle.read()
                     rel = os.path.relpath(path, root)
-                    if text.startswith("//! Facade:"):
-                        facades.setdefault(rel, []).append(text)
-                    else:
-                        files[rel] = text
-    # a facade's `pub use child::*` lines still tell the glob index where items live
-    for rel, texts in facades.items():
-        files[rel] = files.get(rel, "") + "\n" + "\n".join(texts)
+                    files[rel] = files[rel] + "\n" + text if rel in files else text
     return files
 
 

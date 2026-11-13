@@ -1,5 +1,3 @@
-//! The text shape mike gives a delivered mail message, and its recognition.
-
 pub const MAIL_LEAD: &str = "Mail from ";
 pub const UNKNOWN_SENDER: &str = "an unknown sender";
 pub const MIKE_SENDER: &str = "mike";

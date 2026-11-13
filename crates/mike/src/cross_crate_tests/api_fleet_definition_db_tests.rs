@@ -1,5 +1,3 @@
-//! Moved from crates/mike/src/api/fleet/definition_db_tests.rs by the crate split: it reaches the serve
-//! crate, so it is tested from there.
 use crate::store::persistence::fleet_repo::FleetPersist as _;
 
 use crate::store::persistence::test_support::seed_fleet_starting;

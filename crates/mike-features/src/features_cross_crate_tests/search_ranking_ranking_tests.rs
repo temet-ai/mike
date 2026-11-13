@@ -1,6 +1,3 @@
-//! Moved from crates/mike/src/search_ranking/ranking_tests.rs by the crate split: it reaches the knowledge
-//! crate, so it is tested from there.
-
 use serde_json::json;
 
 use crate::search_ranking::{

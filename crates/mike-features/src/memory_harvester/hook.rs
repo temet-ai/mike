@@ -1,5 +1,3 @@
-//! The memory harvester as a response hook: after a response completes, it
-//! reads the response's mem:update tags and writes them as lessons.
 use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
 

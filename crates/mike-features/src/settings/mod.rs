@@ -1,5 +1,3 @@
-//! Facade: `settings` as mike_features sees it (crate split, ADR 0002).
-
 pub use mike_base::settings::*;
 pub mod live_bundle_follow;
 pub mod running_services;

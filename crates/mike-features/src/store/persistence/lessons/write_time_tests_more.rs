@@ -1,5 +1,3 @@
-//! The rest of write_time_tests's tests.
-
 use super::*;
 
 #[tokio::test]

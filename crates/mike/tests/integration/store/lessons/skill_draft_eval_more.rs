@@ -1,5 +1,3 @@
-//! The rest of skill_draft_eval's tests.
-
 use super::*;
 
 #[tokio::test]

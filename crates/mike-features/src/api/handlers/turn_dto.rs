@@ -1,5 +1,3 @@
-//! The operator-turn DTOs the recall handlers answer with and search events record.
-
 use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]

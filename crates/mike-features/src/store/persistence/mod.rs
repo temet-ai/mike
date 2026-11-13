@@ -1,5 +1,3 @@
-//! Facade: `store::persistence` as mike_features sees it (crate split, ADR 0002).
-
 pub use mike_base::store::persistence::*;
 pub mod acceptance_criteria;
 pub mod ask_ledger_backfill;
@@ -88,7 +86,6 @@ pub mod work_threads;
 pub mod workflow_judge_reads;
 pub mod workspace;
 
-// Re-exports of this crate's persistence groups, at the paths callers use.
 pub use fleet::{FleetNoteRow, FleetRow, FleetSeatRow, NewFleet};
 pub use judge::{NeedsJudgmentQuery, SessionForJudgment, fetch_sessions_needing_judgment};
 pub use lesson_relations::{LessonRelationDraft, RelationDecisionOutcome};

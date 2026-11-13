@@ -1,6 +1,3 @@
-//! Moved from crates/mike/src/memory_keeper/health_tests.rs by the crate split: it reaches the web
-//! crate, so it is tested from there.
-
 use chrono::Utc;
 
 use crate::api::handlers::CapabilityState;

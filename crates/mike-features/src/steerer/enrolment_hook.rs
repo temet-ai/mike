@@ -1,5 +1,3 @@
-//! Enrols the auto-enrolled steerers on every new session, as the persistence
-//! handle's new-session hook (registered in state::construction_services).
 use crate::store::persistence::steerer_repo::SteererPersist as _;
 
 use std::future::Future;

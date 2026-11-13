@@ -1,7 +1,3 @@
-//! Work a feature runs when capture writes a session's first request (the
-//! steerer enrols its auto-enrolled steerers). Registered once on the handle the
-//! app builds; capture calls it without knowing which feature it is.
-
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, OnceLock};

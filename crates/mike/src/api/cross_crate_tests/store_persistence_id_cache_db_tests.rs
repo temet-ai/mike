@@ -1,5 +1,3 @@
-//! Moved from crates/mike/src/store/persistence/id_cache_db_tests.rs by the crate split: it reaches the web
-//! crate, so it is tested from there.
 use crate::store::persistence::web_repo::WebPersist as _;
 
 use uuid::Uuid;

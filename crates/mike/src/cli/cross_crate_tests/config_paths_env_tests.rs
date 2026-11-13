@@ -1,6 +1,3 @@
-//! Moved from crates/mike/src/config/paths_env_tests.rs by the crate split: it reaches the cli
-//! crate, so it is tested from there.
-
 use anyhow::Result;
 
 use crate::config::paths::{CONFIG_HOME_ENV, InstallationPaths};

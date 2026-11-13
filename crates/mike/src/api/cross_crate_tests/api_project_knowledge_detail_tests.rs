@@ -1,6 +1,3 @@
-//! Moved from crates/mike/src/api/project_knowledge/detail_tests.rs by the crate split: it reaches the web
-//! crate, so it is tested from there.
-
 use serde_json::Value;
 
 use crate::api::cross_crate_tests::api_project_knowledge_rerank_cache_tests::{

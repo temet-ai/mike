@@ -1,5 +1,3 @@
-//! Facade: `crate` as mike_base sees it (crate split, ADR 0002).
-
 pub mod agents;
 pub mod analysis;
 pub mod anthropic_cli;

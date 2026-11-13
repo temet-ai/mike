@@ -1,5 +1,3 @@
-//! The <system-reminder> envelope every steering note and diagnostic is sent in.
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReplyDemand {
     Required,

@@ -1,4 +1,3 @@
-//! Composition usage stats, over compositions this crate creates.
 use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 use crate::store::persistence::PersistHandle;

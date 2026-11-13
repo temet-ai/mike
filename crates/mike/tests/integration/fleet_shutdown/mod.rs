@@ -390,5 +390,4 @@ async fn stop_abandons_a_blocked_receipt_that_owns_no_process_and_finishes() -> 
     f.cleanup().await
 }
 
-#[path = "fleet_shutdown_more.rs"]
 mod more;

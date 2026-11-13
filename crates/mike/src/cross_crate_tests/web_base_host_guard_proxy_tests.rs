@@ -1,6 +1,3 @@
-//! Moved from crates/mike/src/web_base/host_guard/proxy_tests.rs by the crate split: it reaches the serve
-//! crate, so it is tested from there.
-
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 

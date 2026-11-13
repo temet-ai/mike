@@ -1,6 +1,3 @@
-//! The entry type of the inspect-route manifest: every route a crate serves
-//! declares one, with the MCP coverage it has (crates/mike-mcp/tests/manifest_coverage.rs).
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Coverage {
     Tool(&'static str),

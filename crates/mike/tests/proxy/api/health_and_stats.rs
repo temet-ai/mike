@@ -125,7 +125,7 @@ async fn test_health_reports_build_identity() -> anyhow::Result<()> {
         .as_str()
         .unwrap_or_else(|| panic!("health must carry build.sha_short, got: {body}"));
 
-    if sha != "unknown" {
+    if sha != "unknown" && sha != "dev-build" {
         assert_eq!(sha.len(), 40, "build.sha must be a full commit hash: {sha}");
         assert!(
             sha.chars().all(|c| c.is_ascii_hexdigit()),
@@ -136,7 +136,7 @@ async fn test_health_reports_build_identity() -> anyhow::Result<()> {
             "build.sha_short ({short}) must abbreviate build.sha ({sha})"
         );
     } else {
-        assert_eq!(short, "unknown", "both sha fields fall back together");
+        assert_eq!(short, sha, "both sha fields fall back together");
     }
 
     assert!(
@@ -148,6 +148,7 @@ async fn test_health_reports_build_identity() -> anyhow::Result<()> {
         .unwrap_or_else(|| panic!("health must carry build.built_at, got: {body}"));
     assert!(
         built_at == "unknown"
+            || built_at == "dev-build"
             || (built_at.len() == 20 && built_at.ends_with('Z') && built_at.contains('T')),
         "build.built_at must be RFC 3339 UTC: {built_at}"
     );

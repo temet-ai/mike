@@ -1,6 +1,3 @@
-//! Moved from crates/mike/src/api/handlers/search_unified_log_tests.rs by the crate split: it reaches the web
-//! crate, so it is tested from there.
-
 use serde_json::{Value, json};
 
 use crate::api::handlers::search_session::search_session_test_support::*;

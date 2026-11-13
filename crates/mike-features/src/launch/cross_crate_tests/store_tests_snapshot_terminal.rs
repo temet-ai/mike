@@ -1,5 +1,3 @@
-//! Moved from crates/mike/src/store/tests/snapshot_terminal.rs by the crate split: it reaches the launch
-//! crate, so it is tested from there.
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 use crate::store::models::{RequestId, RequestStatus};

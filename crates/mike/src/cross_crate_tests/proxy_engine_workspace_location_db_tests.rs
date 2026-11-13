@@ -1,5 +1,3 @@
-//! Moved from crates/mike/src/proxy/engine/workspace_location_db_tests.rs by the crate split: it reaches the serve
-//! crate, so it is tested from there.
 use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use std::time::{Duration, Instant};

@@ -41,7 +41,6 @@ impl PersistHandle {
     }
 }
 
-/// A session's identity as the change record names it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SessionIdentity {
     pub id: i64,

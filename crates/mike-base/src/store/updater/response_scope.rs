@@ -1,5 +1,3 @@
-//! The project and session a completed response belongs to, read from the store.
-
 use super::spawn::UpdaterLoopCtx;
 
 pub struct ResponseScope {

@@ -1,6 +1,3 @@
-//! The judges' default system prompts: settings defaults (meta_workers) that the
-//! turn judge (analysis::judge) and the session judge (judge_worker) run with.
-
 pub const R3_PROMPT: &str = "You are a turn-outcome judge. Your job is to classify a completed AI assistant \
      turn based on the operator's request (user prompt), the assistant's text from \
      that turn, and the tool-use counts.\n\

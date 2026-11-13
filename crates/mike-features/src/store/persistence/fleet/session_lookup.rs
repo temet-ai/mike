@@ -5,8 +5,6 @@ use crate::store::models::RowChangedTable;
 use crate::store::persistence::PersistError;
 use crate::store::persistence::feed_memo::{Memo, Scope};
 
-/// The fleet each session belongs to, memoised until the change feed reports a
-/// change to fleets, launches or the session (held in the handle's memo slot).
 struct FleetSessionMemo(Memo<Option<FleetRow>>);
 
 impl Default for FleetSessionMemo {

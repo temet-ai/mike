@@ -1,6 +1,3 @@
-//! Moved from crates/mike/src/api/project_knowledge/rerank_identifier_tests.rs by the crate split: it reaches the web
-//! crate, so it is tested from there.
-
 use serde_json::Value;
 use sqlx::PgPool;
 use uuid::Uuid;

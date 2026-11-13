@@ -1,5 +1,3 @@
-//! The rest of tests_generation's tests.
-
 use super::*;
 
 #[tokio::test]

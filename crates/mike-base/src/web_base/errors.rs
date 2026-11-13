@@ -1,5 +1,3 @@
-//! Responses every inspect handler returns when persistence is off or fails.
-
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 

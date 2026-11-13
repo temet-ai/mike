@@ -1,6 +1,3 @@
-//! Entry points integration tests use to put the state into a shape a request
-//! would; compiled only for tests and the `test-seams` feature.
-
 use std::time::Instant;
 
 pub fn register_in_flight_for_tests(state: &crate::state::AppState, session_id: String) -> u64 {

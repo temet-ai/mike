@@ -1,5 +1,3 @@
-//! The rest of proposals_tests's tests.
-
 use super::*;
 
 #[tokio::test]

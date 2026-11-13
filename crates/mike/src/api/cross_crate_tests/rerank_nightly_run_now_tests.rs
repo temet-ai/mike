@@ -1,6 +1,3 @@
-//! Moved from crates/mike/src/rerank_nightly/run_now_tests.rs by the crate split: it reaches the web
-//! crate, so it is tested from there.
-
 use crate::api::cross_crate_tests::rerank_nightly_worker_tests::{
     graded_count, seed_events, seeded_documents, tuning_on,
 };

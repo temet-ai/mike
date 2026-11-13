@@ -1,5 +1,3 @@
-//! Moved from crates/mike/src/store/persistence/thread_card_generations_tests.rs by the crate split: it reaches the knowledge
-//! crate, so it is tested from there.
 use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 

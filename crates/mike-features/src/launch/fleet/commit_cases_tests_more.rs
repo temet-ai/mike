@@ -1,5 +1,3 @@
-//! The rest of commit_cases_tests's tests.
-
 use super::*;
 
 #[tokio::test]

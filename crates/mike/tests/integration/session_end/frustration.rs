@@ -181,7 +181,7 @@ async fn list_corrected_turns_and_summary_count_a_frustration_close() -> anyhow:
 #[test]
 fn projection_writes_abandoned_only_in_the_frustration_branch() -> anyhow::Result<()> {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/store/persistence/operator_turns/projection.sql");
+        .join("../mike-base/src/store/persistence/operator_turns/projection.sql");
     let sql = std::fs::read_to_string(path)?;
     let abandoned: Vec<&str> = sql.lines().filter(|l| l.contains("'abandoned'")).collect();
     assert_eq!(abandoned.len(), 1, "{abandoned:?}");

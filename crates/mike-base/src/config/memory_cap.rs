@@ -1,5 +1,3 @@
-//! Configuration of the RSS cap manager (`memory_cap::manager`).
-
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};

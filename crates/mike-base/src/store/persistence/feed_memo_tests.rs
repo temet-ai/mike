@@ -4,7 +4,6 @@ use super::{FeedMemos, Memo, Scope};
 use crate::change_feed::ChangeFeed;
 use crate::store::models::RowChangedTable;
 
-/// The scope persistence/fleet/session_lookup.rs gives its fleet memo.
 fn fleet_memo() -> Memo<Option<u8>> {
     Memo::new(Scope {
         tables: &[RowChangedTable::LaunchFleets],

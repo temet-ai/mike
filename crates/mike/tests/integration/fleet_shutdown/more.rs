@@ -1,5 +1,3 @@
-//! The rest of fleet_shutdown's tests.
-
 use super::*;
 
 #[tokio::test]

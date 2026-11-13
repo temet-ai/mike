@@ -1,5 +1,3 @@
-//! Configuration of the per-request compression stage (`compress`).
-
 use serde::{Deserialize, Serialize};
 
 const DEFAULT_MIN_BLOCK_BYTES: usize = 256;

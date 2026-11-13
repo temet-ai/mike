@@ -1,4 +1,3 @@
-//! Request writes record which filter rules fired, in the junction table.
 use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 use crate::store::persistence::PersistHandle;

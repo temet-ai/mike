@@ -19,7 +19,6 @@ pub use summary::render_stack_summary;
 
 pub use crate::launch::stack_starter::EnsureOutcome;
 
-/// The stack as `mike spawn` starts it (installed by the binary).
 pub struct ProxyStack;
 
 impl crate::launch::stack_starter::StackStarter for ProxyStack {

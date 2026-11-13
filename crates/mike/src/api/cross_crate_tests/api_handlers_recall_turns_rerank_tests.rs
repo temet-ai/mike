@@ -1,6 +1,3 @@
-//! Moved from crates/mike/src/api/handlers/recall_turns_rerank_tests.rs by the crate split: it reaches the web
-//! crate, so it is tested from there.
-
 use serde_json::{Value, json};
 use uuid::Uuid;
 

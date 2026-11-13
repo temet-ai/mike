@@ -1,5 +1,3 @@
-//! Facade: `api` as mike_features sees it (crate split, ADR 0002).
-
 pub mod changes;
 pub mod client_serves;
 pub mod codex_observe;

@@ -1,6 +1,3 @@
-//! Whether the connected client serves a capability itself (a client_serves_*
-//! toggle), read from the state's toggle overlay.
-
 pub fn client_serves(state: &crate::state::AppState, key: &str) -> bool {
     crate::feature_toggles::get_toggle_enabled(&state.feature_toggle_overlay.load(), key)
         .unwrap_or(false)
