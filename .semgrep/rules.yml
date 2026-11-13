@@ -10,9 +10,8 @@ rules:
       New unsafe code. Use a safe wrapper instead (rustix for libc calls, std's
       File::try_lock for flock); if none exists, say why in the commit message.
     pattern-either:
-      - pattern: unsafe { ... }
-      - pattern: unsafe fn $F(...) { ... }
-      - pattern: unsafe impl $T for $X {}
+      - pattern-regex: '\bunsafe\s*\{[^{}\n]*\}?'
+      - pattern-regex: '\bunsafe\s+(fn|impl|extern|trait)\b[^{;\n]*'
 
   - id: mike.rust.temp-dir
     languages: [rust]
