@@ -1,6 +1,5 @@
 use super::{LaunchOutcome, LaunchSurfaceRefs, NewLaunch};
 use crate::store::persistence::PersistError;
-use crate::store::persistence::fleet_repo::FleetPersist as _;
 
 fn missing_launch(id: i64, step: &str) -> PersistError {
     PersistError::DataInvariant(format!(
@@ -110,7 +109,6 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
             let run_id = run_id.ok_or_else(|| missing_launch(id, "close"))?;
             if let Some(run_id) = run_id.filter(|run| run.starts_with("fleet-")) {
                 return self
-                    .fleet()
                     .record_fleet_launch_closure(id, &run_id, reason, process_exited)
                     .await;
             }

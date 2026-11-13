@@ -15,23 +15,8 @@ pub mod receipt_hook;
 const SHIMS: &str = "bin";
 const ACTIVATE: &str = "activate";
 const TIMINGS: &str = "timings";
-pub const PROFILE_ENV: &str = "MIKE_MCP_PROFILE";
 const DELETED_SUFFIX: &str = " (deleted)";
-const KINDS_WITH_OWN_PROFILE: [&str; 4] = ["coordinator", "acceptance", "observer", "reference"];
-
-pub fn profile_for(seat: &str) -> &'static str {
-    KINDS_WITH_OWN_PROFILE
-        .into_iter()
-        .find(|kind| {
-            *kind == seat
-                || seat.strip_prefix(*kind).is_some_and(|rest| {
-                    rest.strip_prefix('-').is_some_and(|suffix| {
-                        !suffix.is_empty() && suffix.chars().all(|c| c.is_ascii_digit())
-                    })
-                })
-        })
-        .unwrap_or("worker")
-}
+pub use crate::launch::seat::{PROFILE_ENV, profile_for};
 
 pub fn scratch_dir(state: &Path, repo: &str) -> PathBuf {
     let base = state.parent().unwrap_or(state);

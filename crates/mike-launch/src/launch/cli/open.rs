@@ -226,18 +226,9 @@ pub async fn start(runner: &Runner<'_>, p: Prepared) -> Result<Started, OpenFail
         .await
         .map_err(|error| fail(p.output.clone(), error, "fleet_admission"))?;
     let mut split = with_operator_args(p.split.clone(), &runner.config.claude_args);
-    if let Some(def) = super::fleet_settings::inherit(&runner.ledger, &mut split)
+    crate::launch::seat::before_open(&runner.ledger, &mut split)
         .await
-        .map_err(|e| fail(p.output.clone(), e, "fleet_settings"))?
-    {
-        crate::launch::fleet::seat_settings::prepare(&def).map_err(|error| {
-            fail(
-                p.output.clone(),
-                LaunchError::Failed(error),
-                "fleet_settings",
-            )
-        })?;
-    }
+        .map_err(|e| fail(p.output.clone(), e, "fleet_settings"))?;
     let opts = AssembleOptions {
         program: "claude".to_string(),
         proxy: runner.proxy.as_ref(),

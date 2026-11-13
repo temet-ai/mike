@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 use dashmap::DashMap;
 use uuid::Uuid;
 
-use super::fleet::plan::TEMPLATE_SEAT_PREFIX;
+use super::seat::TEMPLATE_SEAT_PREFIX;
 use crate::base_state::BaseState;
 use crate::store::persistence::PersistHandle;
 

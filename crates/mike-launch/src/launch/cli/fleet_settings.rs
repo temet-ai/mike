@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use serde::Deserialize;
-use serde_json::Value;
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use std::sync::Arc;
 
 use super::ledger::Ledger;
 use crate::launch::fleet::{FleetDefinition, seat_settings};
@@ -9,11 +9,7 @@ use crate::launch::{LaunchError, SplitLaunchArgs};
 
 const LOOKUP_TIMEOUT: Duration = Duration::from_secs(5);
 
-#[derive(Debug, Deserialize)]
-pub struct RecordedSettings {
-    pub run_id: Option<String>,
-    pub definition: Value,
-}
+pub use crate::launch::seat::RecordedSettings;
 
 fn requested(split: &SplitLaunchArgs) -> Option<(&str, &str)> {
     let run = split
@@ -77,7 +73,7 @@ pub async fn inherit(
         return Ok(None);
     };
     let slug = slug_for_run(run)?;
-    let recorded = tokio::time::timeout(LOOKUP_TIMEOUT, ledger.fleet_settings(slug))
+    let recorded = tokio::time::timeout(LOOKUP_TIMEOUT, recorded_settings(ledger, slug))
         .await
         .map_err(|_| LaunchError::Timeout {
             command: format!("reading fleet seat settings for `{run}`"),
@@ -95,4 +91,45 @@ pub async fn inherit(
         .claude_args
         .splice(0..0, ["--settings".to_string(), settings.to_string()]);
     Ok(Some(def))
+}
+
+async fn recorded_settings(ledger: &Ledger, key: &str) -> Result<Option<RecordedSettings>, String> {
+    if let Some(handle) = ledger.database() {
+        return handle
+            .fleet()
+            .find_fleet(key)
+            .await
+            .map(|row| {
+                row.map(|row| RecordedSettings {
+                    run_id: row.run_id,
+                    definition: row.definition,
+                })
+            })
+            .map_err(|e| e.to_string());
+    }
+    match ledger.proxy_ledger() {
+        Some(proxy) => proxy.fleet_settings(key).await,
+        None => Err("no database and no proxy to record through".to_string()),
+    }
+}
+
+pub struct FleetSeatHook;
+
+impl crate::launch::seat::SeatLaunchHook for FleetSeatHook {
+    fn before_open<'a>(
+        &'a self,
+        ledger: &'a Ledger,
+        split: &'a mut SplitLaunchArgs,
+    ) -> crate::launch::seat::SeatFuture<'a> {
+        Box::pin(async move {
+            if let Some(def) = inherit(ledger, split).await? {
+                seat_settings::prepare(&def).map_err(LaunchError::Failed)?;
+            }
+            Ok(())
+        })
+    }
+}
+
+pub fn install() {
+    crate::launch::seat::install_hook(Arc::new(FleetSeatHook));
 }

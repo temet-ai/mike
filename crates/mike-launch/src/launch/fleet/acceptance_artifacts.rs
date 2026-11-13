@@ -2,7 +2,7 @@ use std::io::ErrorKind;
 use std::os::unix::fs::DirBuilderExt;
 use std::path::{Component, Path, PathBuf};
 
-use super::profile_for;
+use crate::launch::seat::profile_for;
 use crate::launch::{LaunchError, SplitLaunchArgs};
 
 pub const EVIDENCE_ENV: &str = "MIKE_ACCEPTANCE_EVIDENCE";
