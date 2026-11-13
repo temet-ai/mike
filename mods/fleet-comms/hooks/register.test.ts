@@ -344,9 +344,14 @@ function plain(node: unknown): string {
   return (el.children ?? []).map(plain).join("");
 }
 
+async function bandRoot(band: Awaited<ReturnType<typeof mountBand>>): Promise<Drawn> {
+  const drawn = (await band.drawn()) as Drawn & { part?: unknown };
+  const wrapped = drawn.children?.[0] as (Drawn & { part?: unknown }) | undefined;
+  return drawn.part === undefined && wrapped?.part !== undefined ? wrapped : drawn;
+}
+
 async function bandLine(band: Awaited<ReturnType<typeof mountBand>>) {
-  const drawn = (await band.drawn()) as Drawn;
-  const first = drawn.children?.[0];
+  const first = (await bandRoot(band)).children?.[0];
   const isStacked =
     typeof first === "object" && first !== null && (first as Drawn).type === "Box";
   return plain(isStacked ? (first as Drawn).children?.[0] : first);
@@ -960,7 +965,7 @@ test("the band reads as the spec at full width and drops the count, then the rec
 
   const wide = await mountBand($, 200);
   expect(await bandLine(wide)).toBe(BAND_FULL);
-  expect(((await wide.drawn()) as Drawn).children?.[0]).toMatchObject({
+  expect((await bandRoot(wide)).children?.[0]).toMatchObject({
     type: "Box",
     props: { columnGap: 2 },
   });

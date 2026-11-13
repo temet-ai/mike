@@ -58,9 +58,14 @@ fi
 
 sha="$(git -C "$wt" rev-parse --short HEAD)"
 echo "nightly-tests: make test-all at $sha in $wt"
-if MIKE_BUILD_CACHE=cargo nice -n 10 make -C "$wt" test-all; then
+log="$(mktemp "${TMPDIR:-/tmp}/nightly-tests.XXXXXX")"
+trap 'rm -f "$log"' EXIT
+if MIKE_BUILD_CACHE=cargo nice -n 10 make -C "$wt" test-all 2>&1 | tee "$log"; [[ ${PIPESTATUS[0]} -eq 0 ]]; then
   echo "NIGHTLY-TESTS: PASS $sha"
   exit 0
 fi
+# The scheduled-jobs panel shows only the last lines, so the failures go last.
+echo "nightly-tests: what failed:"
+grep -E '^\(fail\) |^ +FAIL \[|test-mods: .* FAIL|^error(\[|:)|^make: \*\*\*' "$log" | head -40
 echo "NIGHTLY-TESTS: FAIL $sha"
 exit 1
