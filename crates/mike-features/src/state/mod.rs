@@ -19,6 +19,7 @@ pub mod construction;
 pub mod construction_llm;
 pub mod construction_pipeline;
 pub mod construction_services;
+pub mod launch_state;
 pub mod mail_push;
 #[cfg(test)]
 mod tests;
@@ -107,11 +108,5 @@ impl std::ops::Deref for AppState {
 impl std::ops::DerefMut for AppState {
     fn deref_mut(&mut self) -> &mut BaseState {
         &mut self.base
-    }
-}
-
-impl axum::extract::FromRef<AppState> for BaseState {
-    fn from_ref(state: &AppState) -> BaseState {
-        state.base.clone()
     }
 }

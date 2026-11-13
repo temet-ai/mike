@@ -9,15 +9,15 @@ use super::definition::FleetDefinition;
 use super::here;
 use super::shutdown::{self, RUNNING, STOPPING};
 use super::status::{FleetStatus, SeatStatus, assemble};
+use crate::base_state::BaseState;
 use crate::launch::{BackendId, Notice, TerminalBackend, backend_for};
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 
 const INTERVAL: Duration = Duration::from_secs(20);
 const REPLACE_AT: i64 = 600_000;
 
-pub fn spawn_fleet_display(state: &AppState) {
+pub fn spawn_fleet_display(state: &BaseState) {
     super::retrospective_worker::spawn(state);
     let Some(persist) = state.persist().cloned() else {
         return;
@@ -46,7 +46,7 @@ struct Seen {
     quota: BTreeMap<String, Vec<String>>,
 }
 
-async fn tick(state: &AppState, persist: &PersistHandle, seen: &mut Seen) {
+async fn tick(state: &BaseState, persist: &PersistHandle, seen: &mut Seen) {
     let Ok(fleets) = persist
         .fleet()
         .list_fleets_in_states(&[RUNNING, STOPPING])
@@ -82,7 +82,7 @@ async fn tick(state: &AppState, persist: &PersistHandle, seen: &mut Seen) {
 }
 
 async fn run_registered_steps(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     row: &FleetRow,
     status: &FleetStatus,
@@ -102,7 +102,7 @@ async fn run_registered_steps(
     super::tick::run_steps(&ctx).await;
 }
 
-fn watch_running(state: &AppState, running: &[FleetRow]) {
+fn watch_running(state: &BaseState, running: &[FleetRow]) {
     let live: std::collections::BTreeSet<&str> =
         running.iter().filter_map(|r| r.run_id.as_deref()).collect();
     for run in super::watch::watched() {
@@ -121,7 +121,7 @@ fn watch_running(state: &AppState, running: &[FleetRow]) {
 }
 
 async fn drain_stopping(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     backend: Option<&dyn TerminalBackend>,
     fleets: &[FleetRow],
@@ -138,7 +138,7 @@ async fn drain_stopping(
 }
 
 async fn still_running(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     backend: Option<&dyn TerminalBackend>,
     fleets: &[FleetRow],

@@ -12,8 +12,8 @@ use tokio::time::Instant;
 use uuid::Uuid;
 
 use crate::api::client_serves::by_deadline;
+use crate::base_state::BaseState;
 use crate::reminders::launch_brief::brief_reminder;
-use crate::state::AppState;
 use crate::steerer::stage::client_served::mark_mailbox_served;
 use crate::store::models::{ReminderSource, SystemReminder};
 use crate::store::persistence::PersistHandle;
@@ -35,14 +35,14 @@ pub struct MailClaimResponse {
 
 #[derive(Clone)]
 struct ClaimJob {
-    state: AppState,
+    state: BaseState,
     persist: PersistHandle,
     session: Uuid,
     source: &'static str,
 }
 
 pub async fn post_mail_claim(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(id): Path<String>,
 ) -> Result<Json<MailClaimResponse>, StatusCode> {
     let Ok(session) = Uuid::parse_str(&id) else {
@@ -111,7 +111,7 @@ async fn pending_briefs(persist: PersistHandle, session: Uuid) -> HashMap<Uuid, 
     }
 }
 
-async fn split_queue(state: &AppState, id: &str) -> Vec<(Uuid, SystemReminder)> {
+async fn split_queue(state: &BaseState, id: &str) -> Vec<(Uuid, SystemReminder)> {
     let mut store = state.store.write().await;
     let claimed = store.claim_reminders(id);
     let mut mailbox = Vec::new();

@@ -9,9 +9,9 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 
+use crate::base_state::BaseState;
 use crate::change_record::watch::FileDelta;
 use crate::feature_toggles::FeatureToggles;
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::NewTreeChange;
 use follow::{FleetTree, follow_feed};
@@ -27,7 +27,7 @@ fn watchers() -> &'static DashMap<String, CancellationToken> {
     WATCHERS.get_or_init(DashMap::new)
 }
 
-pub fn ensure(state: &AppState, run_id: &str, repo: &str) {
+pub fn ensure(state: &BaseState, run_id: &str, repo: &str) {
     if watchers().contains_key(run_id) {
         return;
     }

@@ -369,6 +369,7 @@
   "api/work_threads": "launch",
   "api/workspace": "launch",
   "app": "serve",
+  "base_state": "llm",
   "cache_scope": "core",
   "capture": "proxy",
   "change_feed": "db",
@@ -697,7 +698,7 @@
  },
  "ratchet": {
   "comment": "Upper bounds checked by scripts/crate-plan --check and scripts/schema-plan --check in the pre-push hook. Lower them when a change reduces the count; never raise them.",
-  "crate_seams": 613,
+  "crate_seams": 545,
   "foreign_writes": 110
  }
 }

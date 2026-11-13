@@ -6,11 +6,11 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 use uuid::Uuid;
 
+use crate::base_state::BaseState;
 use crate::launch::cli::ledger_wire::{
     ChannelPresent, ClosedBody, LaunchId, LedgerHello, LinkBody, LinkReply, RunQuery, TurnQuery,
     TurnSeen, launch_settings,
 };
-use crate::state::AppState;
 use crate::store::persistence::PersistError;
 use crate::store::persistence::launch::{LaunchOutcome, LaunchSurfaceRefs, NewLaunch, NewRun};
 
@@ -41,7 +41,7 @@ fn done(result: Result<(), PersistError>) -> Response {
     }
 }
 
-pub async fn hello(State(state): State<AppState>) -> Json<LedgerHello> {
+pub async fn hello(State(state): State<BaseState>) -> Json<LedgerHello> {
     let launch_brief = state.feature_toggle_overlay.load().launch_brief;
     let (database, settings) = match state.persist() {
         Some(handle) => (
@@ -61,14 +61,14 @@ pub async fn hello(State(state): State<AppState>) -> Json<LedgerHello> {
     })
 }
 
-pub async fn upsert_run(State(state): State<AppState>, Json(run): Json<NewRun>) -> Response {
+pub async fn upsert_run(State(state): State<BaseState>, Json(run): Json<NewRun>) -> Response {
     match state.persist() {
         Some(h) => done(h.launch().upsert_run(&run).await),
         None => unavailable(),
     }
 }
 
-pub async fn find_run(State(state): State<AppState>, Query(query): Query<RunQuery>) -> Response {
+pub async fn find_run(State(state): State<BaseState>, Query(query): Query<RunQuery>) -> Response {
     let Some(h) = state.persist() else {
         return unavailable();
     };
@@ -79,7 +79,7 @@ pub async fn find_run(State(state): State<AppState>, Query(query): Query<RunQuer
     }
 }
 
-pub async fn insert_launch(State(state): State<AppState>, Json(new): Json<NewLaunch>) -> Response {
+pub async fn insert_launch(State(state): State<BaseState>, Json(new): Json<NewLaunch>) -> Response {
     let Some(h) = state.persist() else {
         return unavailable();
     };
@@ -90,7 +90,7 @@ pub async fn insert_launch(State(state): State<AppState>, Json(new): Json<NewLau
 }
 
 pub async fn record_opened(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(id): Path<i64>,
     Json(refs): Json<LaunchSurfaceRefs>,
 ) -> Response {
@@ -101,7 +101,7 @@ pub async fn record_opened(
 }
 
 pub async fn record_outcome(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(id): Path<i64>,
     Json(outcome): Json<LaunchOutcome>,
 ) -> Response {
@@ -112,7 +112,7 @@ pub async fn record_outcome(
 }
 
 pub async fn record_closed(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(id): Path<i64>,
     Json(body): Json<ClosedBody>,
 ) -> Response {
@@ -126,7 +126,10 @@ pub async fn record_closed(
     }
 }
 
-pub async fn channel_present(State(state): State<AppState>, Path(session): Path<Uuid>) -> Response {
+pub async fn channel_present(
+    State(state): State<BaseState>,
+    Path(session): Path<Uuid>,
+) -> Response {
     let Some(h) = state.persist() else {
         return unavailable();
     };
@@ -137,7 +140,7 @@ pub async fn channel_present(State(state): State<AppState>, Path(session): Path<
 }
 
 pub async fn link_channel(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(session): Path<Uuid>,
     Json(body): Json<LinkBody>,
 ) -> Response {
@@ -155,7 +158,7 @@ pub async fn link_channel(
 }
 
 pub async fn prompt_turn_seen(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(session): Path<Uuid>,
     Query(query): Query<TurnQuery>,
 ) -> Response {

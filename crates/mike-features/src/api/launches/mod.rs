@@ -12,12 +12,12 @@ use axum::response::{IntoResponse, Response};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::base_state::BaseState;
 use crate::launch::backend_choice::CallerTerminal;
 use crate::launch::{
     BackendId, DoctorReport, KillReport, LaunchError, ServerOpenRequest, ServerOpenStart,
     doctor_for_server, kill_for_server, open_for_server,
 };
-use crate::state::AppState;
 use crate::store::persistence::launch::{LaunchListFilter, LaunchRow};
 use crate::web_base::{persist_error_response, persist_unavailable_response};
 
@@ -160,7 +160,7 @@ fn launch_not_found(session: Uuid) -> Response {
 }
 
 pub async fn create_launch(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Json(body): Json<CreateLaunchRequest>,
 ) -> Response {
     if body.folder.trim().is_empty() {
@@ -183,7 +183,7 @@ pub struct ListLaunchesQuery {
 }
 
 pub async fn list_launches(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Query(query): Query<ListLaunchesQuery>,
 ) -> Result<Json<Vec<LaunchRow>>, Response> {
     let Some(handle) = state.persist() else {
@@ -204,7 +204,7 @@ pub async fn list_launches(
 }
 
 pub async fn get_launch(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(session): Path<Uuid>,
 ) -> Result<Json<LaunchRow>, Response> {
     let Some(handle) = state.persist() else {
@@ -218,7 +218,7 @@ pub async fn get_launch(
 }
 
 pub async fn kill_launch(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(session): Path<Uuid>,
 ) -> Result<Json<KillReport>, Response> {
     kill_for_server(&state, session)
@@ -228,7 +228,7 @@ pub async fn kill_launch(
 }
 
 pub async fn get_launch_doctor(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
 ) -> Result<Json<DoctorReport>, Response> {
     doctor_for_server(&state)
         .await

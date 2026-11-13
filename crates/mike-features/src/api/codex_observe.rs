@@ -8,9 +8,9 @@ use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
 
+use crate::base_state::BaseState;
 use crate::runtime::codex_observe::SUPPORTED_CODEX_VERSIONS;
 use crate::runtime::codex_observe::ingest::{self, IngestError, ObserveSource};
-use crate::state::AppState;
 use mike_codex::observe::COVERAGE_GAPS;
 
 pub const SOURCE_HEADER: &str = "x-mike-codex-source";
@@ -59,7 +59,11 @@ fn answer(result: Result<ingest::IngestReport, IngestError>) -> Response {
     }
 }
 
-pub async fn post_hook(State(state): State<AppState>, headers: HeaderMap, body: Bytes) -> Response {
+pub async fn post_hook(
+    State(state): State<BaseState>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
     let Some(persist) = state.persist() else {
         return (StatusCode::SERVICE_UNAVAILABLE, "persistence is disabled").into_response();
     };
@@ -71,7 +75,7 @@ pub async fn post_hook(State(state): State<AppState>, headers: HeaderMap, body: 
 }
 
 pub async fn post_otel(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(signal): Path<String>,
     headers: HeaderMap,
     body: Bytes,
@@ -102,7 +106,7 @@ pub struct ListQuery {
 }
 
 pub async fn list_observed(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Query(query): Query<ListQuery>,
 ) -> Response {
     let Some(persist) = state.persist() else {

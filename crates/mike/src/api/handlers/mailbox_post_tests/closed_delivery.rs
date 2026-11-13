@@ -76,7 +76,7 @@ async fn closed_thread_notify_reports_failure_and_retains_post_body() -> anyhow:
         tags: Vec::new(),
         notify: vec![f.t2.session.to_string()],
     };
-    let result = post_thread(State(f.env.state.clone()), Json(body)).await;
+    let result = post_thread(State(f.env.state.base.clone()), Json(body)).await;
     let (status, body) = read(result.map(IntoResponse::into_response)).await;
     assert_eq!(status, StatusCode::CREATED, "{body}");
     assert_eq!(body["deliveries"], json!([]));
@@ -126,7 +126,7 @@ async fn threaded_reply_counts_only_open_recipients_with_context() -> anyhow::Re
         context: context(),
     };
     let result = post_thread_message(
-        State(f.env.state.clone()),
+        State(f.env.state.base.clone()),
         Path(thread.thread_uuid),
         Json(body),
     )

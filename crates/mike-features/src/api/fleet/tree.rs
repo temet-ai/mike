@@ -9,6 +9,7 @@ use serde_json::Value;
 
 use super::definition_view::DefinitionError;
 use crate::api::changes::{WithTail, since_you_last_looked};
+use crate::base_state::BaseState;
 use crate::launch::fleet::commit::{
     CommitReport, CommitRequest, IntegrateReport, commit, covers, integrate,
 };
@@ -17,7 +18,6 @@ use crate::launch::fleet::commit_verify::Verifier;
 use crate::launch::fleet::reuse::waiting_uses;
 use crate::launch::fleet::seated::Seated;
 use crate::launch::fleet::{FleetDefinition, checks::normal};
-use crate::state::AppState;
 use crate::store::persistence::fleet::{FleetRow, TreeResultRow};
 use crate::store::persistence::{PersistError, PersistHandle};
 
@@ -28,7 +28,7 @@ const CHANGED_SHOWN: usize = 20;
 const RESULT_VALIDITY_PROVENANCE: &str = "Raw Bash capture has no commit binding, dependency closure or complete change-coverage proof. still_valid null means unproven; false means observed invalidation or update mode. Any checkout change since command start invalidates, even outside paths; paths only filters changed_since. Tool success is not a test pass.";
 
 pub async fn historical_run(
-    state: &AppState,
+    state: &BaseState,
     key: &str,
 ) -> Result<(FleetRow, FleetDefinition, String), DefinitionError> {
     let persist = state.persist().ok_or(DefinitionError::Unavailable)?;
@@ -50,7 +50,7 @@ pub async fn historical_run(
 }
 
 pub async fn running(
-    state: &AppState,
+    state: &BaseState,
     key: &str,
 ) -> Result<(FleetRow, FleetDefinition, String), DefinitionError> {
     let (row, def, run) = historical_run(state, key).await?;
@@ -115,7 +115,7 @@ pub struct ResultsView {
 }
 
 pub async fn get_fleet_results(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
     Query(query): Query<ResultsQuery>,
 ) -> Result<Json<ResultsView>, DefinitionError> {
@@ -254,7 +254,7 @@ pub fn tail(content: Option<&Value>) -> String {
 }
 
 pub async fn commit_fleet(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
     Json(request): Json<CommitRequest>,
 ) -> Result<Json<WithTail<CommitReport>>, DefinitionError> {
@@ -282,7 +282,7 @@ pub async fn commit_fleet(
 }
 
 pub async fn integrate_fleet(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
 ) -> Result<Json<IntegrateReport>, DefinitionError> {
     let (_, def, _) = running(&state, &key).await?;

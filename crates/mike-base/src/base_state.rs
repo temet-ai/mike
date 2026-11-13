@@ -33,6 +33,8 @@ pub trait MailPush: Send + Sync {
     ) -> PushFuture<'a>;
 
     fn deliver_or_enqueue(&self, recipient: Uuid, reminder: SystemReminder) -> PushFuture<'_>;
+
+    fn push_or_queue(&self, recipient: Uuid, reminder: SystemReminder) -> PushFuture<'_>;
 }
 
 pub struct NoMailPush;
@@ -47,6 +49,10 @@ impl MailPush for NoMailPush {
     }
 
     fn deliver_or_enqueue(&self, _recipient: Uuid, _reminder: SystemReminder) -> PushFuture<'_> {
+        Box::pin(async { false })
+    }
+
+    fn push_or_queue(&self, _recipient: Uuid, _reminder: SystemReminder) -> PushFuture<'_> {
         Box::pin(async { false })
     }
 }

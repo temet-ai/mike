@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use super::definition_view::DefinitionError;
 use super::tree::running;
+use crate::base_state::BaseState;
 use crate::change_record::ChangeKind;
 use crate::change_record::answers::check_after_last_change;
 use crate::change_record::writers::{NoteFacts, change_record_enabled, record_note};
@@ -23,7 +24,6 @@ use crate::launch::fleet::report::{
     report_body, report_data, report_title,
 };
 use crate::launch::fleet::seated::Seated;
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::session_notes::{
     NewSessionNote, NoteOrder, SessionNoteFilter, SessionNoteRow,
@@ -293,7 +293,7 @@ async fn dispatch(
 }
 
 pub async fn report_slice(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
     Json(req): Json<ReportRequest>,
 ) -> Result<Json<ReportAnswer>, DefinitionError> {

@@ -1,8 +1,10 @@
+use crate::launch::state::LaunchState;
 use axum::Router;
+use axum::extract::FromRef;
 use axum::routing::{get, post};
 
 use crate::api::fleet;
-use crate::state::AppState;
+use crate::base_state::BaseState;
 use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
 pub const ROUTES: &[RouteEntry] = &[
@@ -130,7 +132,12 @@ pub const ROUTES: &[RouteEntry] = &[
     ),
 ];
 
-pub fn register(router: Router<AppState>) -> Router<AppState> {
+pub fn register<S>(router: Router<S>) -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+    BaseState: FromRef<S>,
+    LaunchState: FromRef<S>,
+{
     router
         .route(
             "/api/fleets/by-session/{session}/status",
@@ -163,7 +170,12 @@ pub fn register(router: Router<AppState>) -> Router<AppState> {
         .route("/api/fleets/{fleet}/verdict", post(fleet::record_verdict))
 }
 
-pub fn register_waited(router: Router<AppState>) -> Router<AppState> {
+pub fn register_waited<S>(router: Router<S>) -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+    BaseState: FromRef<S>,
+    LaunchState: FromRef<S>,
+{
     router
         .route("/api/fleets/{fleet}/commit", post(fleet::commit_fleet))
         .route("/api/fleets/{fleet}/check", post(fleet::check_fleet))

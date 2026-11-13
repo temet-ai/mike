@@ -7,7 +7,7 @@ use axum::response::Response;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::state::AppState;
+use crate::base_state::BaseState;
 use crate::store::persistence::PersistError;
 use crate::web_base::{persist_error_response, persist_unavailable_response};
 
@@ -30,7 +30,7 @@ pub struct HeartbeatResponseDto {
 }
 
 pub async fn heartbeat(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Json(body): Json<HeartbeatRequestBody>,
 ) -> Result<Json<HeartbeatResponseDto>, Response> {
     let Some(handle) = state.persist() else {
@@ -82,7 +82,7 @@ pub struct WakePendingResponseDto {
 }
 
 pub async fn get_wake_pending(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Query(query): Query<WakePendingQuery>,
 ) -> Result<Json<WakePendingResponseDto>, Response> {
     let Some(handle) = state.persist() else {

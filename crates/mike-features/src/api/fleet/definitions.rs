@@ -12,12 +12,12 @@ use super::definition_patch::{
     save_definition,
 };
 use super::definition_view::{DefinitionError, FleetView, digest_view, seat_view};
+use crate::base_state::BaseState;
 use crate::launch::fleet::shutdown::{self, DONE, RUNNING, STOPPING, StopReport};
 use crate::launch::fleet::tell_digest::{SlotQueue, slot_queue};
 use crate::launch::fleet::{
     FleetDefinition, check_definition, definition::task_sessions, start::begin, status::assemble,
 };
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::{FleetRow, NewFleet};
 
@@ -64,7 +64,7 @@ pub fn slug_problem(slug: &str) -> Option<String> {
     None
 }
 
-pub fn persistence(state: &AppState) -> Result<&PersistHandle, DefinitionError> {
+pub fn persistence(state: &BaseState) -> Result<&PersistHandle, DefinitionError> {
     state.persist().ok_or(DefinitionError::Unavailable)
 }
 
@@ -77,7 +77,7 @@ pub async fn load(persist: &PersistHandle, key: &str) -> Result<FleetRow, Defini
 }
 
 async fn launch(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     row: &FleetRow,
 ) -> Result<(), DefinitionError> {
@@ -99,7 +99,7 @@ async fn launch(
 }
 
 pub async fn create_fleet(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Json(body): Json<CreateFleetRequest>,
 ) -> Result<(StatusCode, Json<FleetView>), DefinitionError> {
     if let Some(problem) = slug_problem(&body.slug) {
@@ -154,7 +154,7 @@ fn header(row: &FleetRow, body: Value) -> Value {
 }
 
 pub async fn get_fleet(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
     Query(query): Query<GetFleetQuery>,
 ) -> Result<Json<Value>, DefinitionError> {
@@ -201,7 +201,7 @@ pub async fn get_fleet(
 }
 
 pub async fn patch_fleet(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
     Json(body): Json<PatchFleetRequest>,
 ) -> Result<Json<FleetView>, DefinitionError> {
@@ -237,7 +237,7 @@ pub async fn patch_fleet(
 }
 
 pub async fn start_fleet(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
 ) -> Result<Json<FleetView>, DefinitionError> {
     let persist = persistence(&state)?;
@@ -254,7 +254,7 @@ pub async fn start_fleet(
 }
 
 pub async fn stop_fleet(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
 ) -> Result<Json<StopReport>, DefinitionError> {
     let persist = persistence(&state)?;

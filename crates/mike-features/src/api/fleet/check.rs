@@ -5,14 +5,14 @@ use serde::Deserialize;
 use super::definition_view::DefinitionError;
 use super::tree::{historical_run, running};
 use crate::api::changes::{WithTail, since_you_last_looked};
+use crate::base_state::BaseState;
 use crate::launch::fleet::check::{CheckReport, CheckRequest, Runner, check};
 use crate::launch::fleet::discovery::{Discovery, DiscoveryArgs, discover};
 use crate::launch::fleet::gate::{GateReport, GateRequest, gate};
 use crate::launch::fleet::seated::Seated;
-use crate::state::AppState;
 
 pub async fn check_fleet(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
     Json(request): Json<CheckRequest>,
 ) -> Result<Json<WithTail<CheckReport>>, DefinitionError> {
@@ -59,7 +59,7 @@ pub async fn check_fleet(
 }
 
 pub async fn gate_fleet(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
     Json(request): Json<GateRequest>,
 ) -> Result<Json<GateReport>, DefinitionError> {
@@ -88,7 +88,7 @@ pub struct WhereQuery {
 }
 
 pub async fn where_in_fleet(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
     Query(query): Query<WhereQuery>,
 ) -> Result<Json<Discovery>, DefinitionError> {

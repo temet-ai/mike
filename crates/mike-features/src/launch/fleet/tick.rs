@@ -3,14 +3,14 @@ use std::pin::Pin;
 
 use super::definition::FleetDefinition;
 use super::status::FleetStatus;
-use crate::state::AppState;
+use crate::base_state::BaseState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 
 pub type StepFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
 pub struct TickCtx<'a> {
-    pub state: &'a AppState,
+    pub state: &'a BaseState,
     pub persist: &'a PersistHandle,
     pub row: &'a FleetRow,
     pub status: &'a FleetStatus,

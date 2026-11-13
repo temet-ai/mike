@@ -7,8 +7,8 @@ use uuid::Uuid;
 use super::definition::FleetDefinition;
 use super::plan::{FleetFacts, SeatPlan, reference, template, template_name, warm_disciplines};
 use super::seat::{self, Begun};
+use crate::base_state::BaseState;
 use crate::launch::{BackendId, TerminalBackend, backend_for, kill_for_server};
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::launch::{LaunchRow, NewTemplate};
 
@@ -27,7 +27,7 @@ pub struct Warming {
 }
 
 pub async fn begin_all(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     def: &FleetDefinition,
     facts: &FleetFacts,
@@ -65,7 +65,7 @@ async fn carried_prompt(
 }
 
 pub async fn finish_all(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     def: &FleetDefinition,
     facts: &FleetFacts,
@@ -78,7 +78,7 @@ pub async fn finish_all(
 }
 
 async fn finish_one(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     def: &FleetDefinition,
     facts: &FleetFacts,
@@ -104,7 +104,7 @@ async fn finish_one(
     report
 }
 
-async fn loaded(state: &AppState, persist: &PersistHandle, session: Uuid) -> Result<(), String> {
+async fn loaded(state: &BaseState, persist: &PersistHandle, session: Uuid) -> Result<(), String> {
     let backend = state
         .config
         .launch
@@ -216,7 +216,7 @@ impl Progress {
 }
 
 async fn record(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     def: &FleetDefinition,
     (run_id, discipline): (&str, &str),
@@ -239,7 +239,7 @@ async fn record(
         .map_err(|e| format!("the template loaded but could not be recorded: {e}"))
 }
 
-async fn close(state: &AppState, session: Uuid) {
+async fn close(state: &BaseState, session: Uuid) {
     if let Err(err) = kill_for_server(state, session).await {
         tracing::warn!(session_id = %session, error = %err, "mike could not close a template's pane after it loaded");
     }
@@ -266,7 +266,7 @@ pub fn reference_discipline(def: &FleetDefinition, loaded: &[String]) -> Option<
 }
 
 pub async fn start_reference(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     def: &FleetDefinition,
     facts: &FleetFacts,
@@ -286,7 +286,7 @@ pub async fn start_reference(
 }
 
 pub async fn succeed_reference(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     def: &FleetDefinition,
     facts: &FleetFacts,

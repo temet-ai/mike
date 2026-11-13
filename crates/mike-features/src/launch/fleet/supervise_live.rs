@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use super::facts::{Observed, STOP_KILL, seat_facts};
 use super::{Action, Effects, SeatFacts, SystemClock, finished_tasks, payload, run};
+use crate::base_state::BaseState;
 use crate::launch::fleet::definition::FleetDefinition;
 use crate::launch::fleet::events::{
     EventPayload, FleetEvent, NewFleetEvent, SeatClosed, SeatFirstRequest, SeatLaunchConfirmed,
@@ -14,14 +15,13 @@ use crate::launch::fleet::plan::ControlSeats;
 use crate::launch::fleet::shutdown::STOPPING;
 use crate::launch::fleet::status::FleetStatus;
 use crate::launch::kill_for_server;
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::{FleetRow, UnsettledFleetLaunch};
 use crate::store::persistence::session_notes::NewSessionNote;
 use crate::types::SortOrder;
 
 struct Live<'a> {
-    state: &'a AppState,
+    state: &'a BaseState,
     persist: &'a PersistHandle,
     run: &'a str,
     fleet: Uuid,
@@ -248,7 +248,7 @@ async fn confirm(live: &Live<'_>, seat: &SeatFacts, events: &[FleetEvent]) {
 }
 
 pub async fn pass(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     row: &FleetRow,
     def: &FleetDefinition,

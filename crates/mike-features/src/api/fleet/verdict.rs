@@ -7,13 +7,13 @@ use uuid::Uuid;
 use super::definition_view::DefinitionError;
 use super::report::{append_all, record, verdict_events};
 use super::tree::running;
+use crate::base_state::BaseState;
 use crate::launch::fleet::brief_notes::{fleet_tag, task_tag, task_tags};
 use crate::launch::fleet::brief_notes_sync::latest_part;
 use crate::launch::fleet::report::{
     DECISION_KIND, REPORT_KIND, VERDICT_TAG, VerdictRequest, check_verdict, decision_data,
     decision_title, seat_mail, task_session,
 };
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::session_notes::{
     NewSessionNote, NoteOrder, SessionNoteFilter, SessionNoteRow,
@@ -76,7 +76,7 @@ async fn brief_version(
 }
 
 pub async fn record_verdict(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
     Json(req): Json<VerdictRequest>,
 ) -> Result<Json<VerdictAnswer>, DefinitionError> {

@@ -6,8 +6,8 @@ use uuid::Uuid;
 
 use super::events::{EventPayload, NewFleetEvent, StopRequested};
 use super::owned_execution;
+use crate::base_state::BaseState;
 use crate::launch::kill_for_server;
-use crate::state::AppState;
 use crate::store::persistence::fleet::{FleetRow, UnsettledFleetLaunch};
 use crate::store::persistence::{PersistError, PersistHandle};
 #[path = "seat_exit.rs"]
@@ -42,7 +42,7 @@ pub fn sweep(seats: &[(i64, Option<i32>)], alive: impl Fn(i32) -> bool) -> Sweep
 }
 
 pub async fn reconcile(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     row: &FleetRow,
 ) -> Result<bool, PersistError> {
@@ -71,7 +71,7 @@ pub async fn reconcile(
     Ok(stop(state, persist, &fresh).await?.state == DONE)
 }
 
-async fn left_unchecked(state: &AppState, persist: &PersistHandle, row: &FleetRow) -> bool {
+async fn left_unchecked(state: &BaseState, persist: &PersistHandle, row: &FleetRow) -> bool {
     let Some(commit) = super::gate::full::unchecked_at_close(&state.tracker, persist, row).await
     else {
         return false;
@@ -139,7 +139,7 @@ pub struct SeatStop {
 }
 
 pub async fn stop(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     row: &FleetRow,
 ) -> Result<StopReport, PersistError> {
@@ -174,7 +174,7 @@ pub async fn stop(
     Ok(report)
 }
 
-async fn record_close(state: &AppState, persist: &PersistHandle, row: &FleetRow) {
+async fn record_close(state: &BaseState, persist: &PersistHandle, row: &FleetRow) {
     let status = super::status::assemble(state, row).await.ok();
     super::close_note::record(persist, row, status.as_ref()).await;
 }
@@ -182,7 +182,7 @@ async fn record_close(state: &AppState, persist: &PersistHandle, row: &FleetRow)
 pub const ABANDON_AFTER_SECONDS: f64 = 7200.0 + 600.0;
 
 async fn stop_run(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     run: &str,
 ) -> Result<Vec<SeatStop>, PersistError> {
@@ -312,7 +312,7 @@ async fn current(persist: &PersistHandle, row: &FleetRow) -> Result<FleetRow, Pe
 }
 
 async fn stop_seat(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     run: &str,
     seat: &UnsettledFleetLaunch,

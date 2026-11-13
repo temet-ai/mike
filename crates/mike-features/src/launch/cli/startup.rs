@@ -1,9 +1,9 @@
 use super::ledger::Ledger;
 use super::queue::LocalQueue;
 use super::queue_replay;
-use crate::state::AppState;
+use crate::base_state::BaseState;
 
-pub fn spawn_queue_replay(state: &AppState) {
+pub fn spawn_queue_replay(state: &BaseState) {
     let Some(persist) = state.persist().cloned() else {
         return;
     };

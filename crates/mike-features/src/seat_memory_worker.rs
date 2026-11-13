@@ -6,8 +6,8 @@ use arc_swap::ArcSwap;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
+use crate::base_state::BaseState;
 use crate::feature_toggles::FeatureToggles;
-use crate::state::AppState;
 use crate::store::persistence::seat_memory::SeatMemoryRefresh;
 use crate::store::persistence::{PersistError, PersistHandle};
 
@@ -18,7 +18,7 @@ const LEASE_ROLE: &str = "seat_memory_index";
 const TICK: Duration = Duration::from_secs(30);
 const BACKSTOP: Duration = Duration::from_secs(30 * 60);
 
-pub fn spawn_seat_memory_worker(state: &AppState) {
+pub fn spawn_seat_memory_worker(state: &BaseState) {
     if !state.feature_toggle_overlay.load().seat_memory_index {
         log_not_spawned("disabled by feature toggle");
         return;

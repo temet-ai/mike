@@ -79,7 +79,7 @@ async fn ask(state: &AppState, probe: &Probe, etag: Option<&str>) -> anyhow::Res
         scope: vec![OWN.to_owned()],
         headers: &headers,
     };
-    Ok(answer_json(state, poll, || probe.load()).await)
+    Ok(answer_json(&state.launch_state(), poll, || probe.load()).await)
 }
 
 fn etag_of(response: &Response) -> anyhow::Result<String> {
@@ -253,7 +253,7 @@ async fn poll_change_during_load_answers_without_etag_and_is_not_kept() -> anyho
         headers: &headers,
     };
     let (feed, prober) = (&state.change_feed, &probe);
-    let racing = answer_json(&state, poll, || async move {
+    let racing = answer_json(&state.launch_state(), poll, || async move {
         feed.record(RowChangedTable::MailboxMessages, Some(OWN));
         prober.load().await
     })
@@ -274,7 +274,7 @@ async fn poll_failed_load_is_passed_through_and_not_kept() -> anyhow::Result<()>
         scope: Vec::new(),
         headers: &headers,
     };
-    let failed = answer_json(&state, poll, || async {
+    let failed = answer_json(&state.launch_state(), poll, || async {
         Err::<Loaded<Bytes>, Response>(StatusCode::NOT_FOUND.into_response())
     })
     .await;
@@ -306,7 +306,7 @@ async fn poll_live_part_change_answers_200_from_memory() -> anyhow::Result<()> {
     };
     let headers = conditional(None)?;
     let first = answer(
-        &state,
+        &state.launch_state(),
         &cache,
         live_poll(&headers),
         || probe.load(),
@@ -316,11 +316,25 @@ async fn poll_live_part_change_answers_200_from_memory() -> anyhow::Result<()> {
     let etag = etag_of(&first)?;
 
     let same = conditional(Some(&etag))?;
-    let unchanged = answer(&state, &cache, live_poll(&same), || probe.load(), present).await;
+    let unchanged = answer(
+        &state.launch_state(),
+        &cache,
+        live_poll(&same),
+        || probe.load(),
+        present,
+    )
+    .await;
     assert_eq!(unchanged.status(), StatusCode::NOT_MODIFIED);
 
     busy.store(true, Ordering::SeqCst);
-    let changed = answer(&state, &cache, live_poll(&same), || probe.load(), present).await;
+    let changed = answer(
+        &state.launch_state(),
+        &cache,
+        live_poll(&same),
+        || probe.load(),
+        present,
+    )
+    .await;
     assert_eq!(changed.status(), StatusCode::OK);
     assert_ne!(etag_of(&changed)?, etag);
     assert_eq!(

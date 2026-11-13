@@ -3,11 +3,11 @@ use std::time::Duration;
 
 use tokio::time::{MissedTickBehavior, interval};
 
-use crate::state::AppState;
+use crate::base_state::BaseState;
 
 const REAP_INTERVAL: Duration = Duration::from_secs(300);
 
-pub fn spawn_mailbox_reaper(state: &AppState) {
+pub fn spawn_mailbox_reaper(state: &BaseState) {
     let Some(persist) = state.persist().cloned() else {
         tracing::debug!("mailbox_reaper: no persistence — not spawning");
         return;

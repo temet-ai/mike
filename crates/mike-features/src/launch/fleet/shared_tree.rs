@@ -11,7 +11,7 @@ use super::definition::FleetDefinition;
 use super::diagnostics::{self, Diagnostic};
 use super::events::{EventKind, EventPayload, FleetEvent, NewFleetEvent, TreeBrokenBy};
 use super::tell::Notice;
-use crate::state::AppState;
+use crate::base_state::BaseState;
 use crate::store::persistence::PersistHandle;
 
 const HELD_FOR_MINUTES: i64 = 10;
@@ -421,7 +421,7 @@ async fn check_and_attribute(
     record(persist, evaluate(def, &roster, &prior, &broken, &at), run).await;
 }
 
-pub async fn pass(state: &AppState, persist: &PersistHandle, def: &FleetDefinition, run: &str) {
+pub async fn pass(state: &BaseState, persist: &PersistHandle, def: &FleetDefinition, run: &str) {
     if !def.check.declared() {
         return;
     }

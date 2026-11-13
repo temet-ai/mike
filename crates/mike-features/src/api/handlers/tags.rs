@@ -1,7 +1,8 @@
 use super::*;
+use crate::base_state::BaseState;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 
-pub async fn get_tags(State(state): State<AppState>) -> Result<Json<TagListResponse>, Response> {
+pub async fn get_tags(State(state): State<BaseState>) -> Result<Json<TagListResponse>, Response> {
     let Some(handle) = state.persist() else {
         return Err(mailbox_error(
             StatusCode::SERVICE_UNAVAILABLE,

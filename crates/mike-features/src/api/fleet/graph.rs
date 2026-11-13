@@ -9,10 +9,10 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::base_state::BaseState;
 use crate::fleet::derive::{
     derive_error_kind, derive_quality, derive_role, derive_state, derive_state_detail,
 };
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::web_base::persist_error_response;
 use crate::workspace::Liveness;
@@ -171,7 +171,7 @@ fn build_fleet_graph_node(
 }
 
 pub async fn get_fleet_graph(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Query(params): Query<FleetGraphQuery>,
 ) -> Result<Json<FleetGraphDto>, Response> {
     let Some(handle) = state.persist() else {

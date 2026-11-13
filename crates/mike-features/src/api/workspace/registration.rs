@@ -12,7 +12,8 @@ use uuid::Uuid;
 
 use super::briefing::{BriefingBuildRequest, build_workspace_briefing, extract_worktree_name};
 use super::roster::RosterEntryDto;
-use crate::state::AppState;
+use crate::base_state::BaseState;
+use crate::launch::state::LaunchState;
 use crate::store::persistence::workspace::{
     EndRegistrationOutcome, RegisterWorkspaceSession, RegisteredWorkspaceSession,
 };
@@ -62,7 +63,7 @@ pub struct RegisterResponseDto {
 }
 
 pub async fn register_session(
-    State(state): State<AppState>,
+    State(state): State<LaunchState>,
     Json(body): Json<RegisterRequestBody>,
 ) -> Result<Json<RegisterResponseDto>, Response> {
     let Some(handle) = state.persist() else {
@@ -182,7 +183,7 @@ async fn resolve_location(
 }
 
 async fn bind_location(
-    state: &AppState,
+    state: &LaunchState,
     handle: &PersistHandle,
     registered: &mut RegisteredWorkspaceSession,
     session: Uuid,
@@ -196,11 +197,9 @@ async fn bind_location(
             .await
             .map_err(crate::api::project_knowledge::knowledge_error)?;
         if let Some(project) = location_project {
-            state.lesson_cache.rcu(|current| {
-                std::sync::Arc::new(
-                    current.with_session_project(session.to_string(), project.project_path.clone()),
-                )
-            });
+            state
+                .session_projects
+                .note(session.to_string(), project.project_path.clone());
             registered.project_id = project.id;
             registered.project_path = Some(project.project_path);
             registered.project_resolution = "operator".to_string();
@@ -224,7 +223,7 @@ pub struct AssignSessionProjectResponse {
 }
 
 pub async fn assign_session_project(
-    State(state): State<AppState>,
+    State(state): State<LaunchState>,
     Path(session_id): Path<Uuid>,
     Json(body): Json<AssignSessionProjectRequest>,
 ) -> Response {
@@ -248,14 +247,9 @@ pub async fn assign_session_project(
         .await
     {
         Ok(assignment) => {
-            state.lesson_cache.rcu(|current| {
-                std::sync::Arc::new(
-                    current.with_session_project(
-                        session_id.to_string(),
-                        assignment.project_path.clone(),
-                    ),
-                )
-            });
+            state
+                .session_projects
+                .note(session_id.to_string(), assignment.project_path.clone());
             Json(AssignSessionProjectResponse {
                 session_id,
                 project_id: assignment.project_id,
@@ -281,7 +275,7 @@ pub struct EndRegistrationQuery {
 }
 
 pub async fn end_registration(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(session_id): Path<Uuid>,
     Query(query): Query<EndRegistrationQuery>,
 ) -> Result<StatusCode, Response> {

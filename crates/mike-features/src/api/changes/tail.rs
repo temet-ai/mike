@@ -3,11 +3,11 @@ use uuid::Uuid;
 
 use super::ChangesQuery;
 use super::resolve::resolve;
+use crate::base_state::BaseState;
 use crate::change_record::answers::{self, Caller};
 use crate::launch::fleet::FleetDefinition;
 use crate::launch::fleet::commit::ownership;
 use crate::launch::fleet::seated::Seated;
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 #[derive(Serialize)]
@@ -19,7 +19,7 @@ pub struct WithTail<T: Serialize> {
 }
 
 pub async fn since_you_last_looked(
-    state: &AppState,
+    state: &BaseState,
     definition: &FleetDefinition,
     run: &str,
     session: Uuid,
@@ -65,7 +65,7 @@ async fn read_tail(persist: &PersistHandle, caller: &Caller) -> Option<Vec<Strin
     (!lines.is_empty()).then_some(lines)
 }
 
-pub async fn note_answer_tail(state: &AppState, session: Uuid) -> Option<Vec<String>> {
+pub async fn note_answer_tail(state: &BaseState, session: Uuid) -> Option<Vec<String>> {
     if !state.feature_toggle_overlay.load().change_record_tail {
         return None;
     }

@@ -3,8 +3,8 @@ use serde_json::json;
 
 use super::definition::FleetDefinition;
 use super::retrospective::Job;
+use crate::base_state::BaseState;
 use crate::launch::{LaunchError, ServerOpenRequest};
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 use crate::store::persistence::launch::NewRun;
@@ -71,7 +71,7 @@ pub fn prompt(row: &FleetRow, def: &FleetDefinition, job: &Job) -> String {
 }
 
 pub async fn launch(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     row: &FleetRow,
     job: &Job,

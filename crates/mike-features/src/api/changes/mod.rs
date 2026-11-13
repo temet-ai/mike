@@ -17,8 +17,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use crate::base_state::BaseState;
 use crate::change_record::answers::{self, AnswerError, Scope, Since};
-use crate::state::AppState;
 use crate::store::persistence::PersistError;
 use resolve::{Resolved, resolve};
 
@@ -155,7 +155,7 @@ fn parse_scope(scope: Option<&str>, paths: Option<&str>) -> Result<Scope, Change
 }
 
 pub async fn get_changes(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Query(query): Query<ChangesQuery>,
 ) -> Result<Json<Value>, ChangesError> {
     if !state.feature_toggle_overlay.load().change_record {

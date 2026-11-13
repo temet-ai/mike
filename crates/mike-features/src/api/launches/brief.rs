@@ -8,7 +8,7 @@ use axum::response::Response;
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::state::AppState;
+use crate::base_state::BaseState;
 use crate::web_base::{persist_error_response, persist_unavailable_response};
 
 #[derive(Debug, Serialize)]
@@ -21,7 +21,7 @@ pub struct LaunchBriefDelivery {
 }
 
 pub async fn push_launch_brief(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(session): Path<Uuid>,
 ) -> Result<Json<LaunchBriefDelivery>, Response> {
     let Some(handle) = state.persist() else {

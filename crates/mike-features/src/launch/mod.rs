@@ -17,6 +17,7 @@ pub mod reap;
 pub mod request;
 pub mod seat_fact;
 pub mod stack_starter;
+pub mod state;
 pub mod terminal;
 pub mod tmux;
 pub mod trust;

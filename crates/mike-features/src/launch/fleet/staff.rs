@@ -11,8 +11,8 @@ use super::plan::{
 };
 use super::seat;
 use super::status::FleetStatus;
+use crate::base_state::BaseState;
 use crate::launch::{BackendId, backend_for};
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::{FleetRow, FleetSeatRow};
 
@@ -177,7 +177,7 @@ pub fn unstarted_tasks(status: &FleetStatus) -> BTreeSet<String> {
 }
 
 pub async fn staff(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     row: &FleetRow,
     status: &FleetStatus,
@@ -243,7 +243,7 @@ fn claim_all(
     claimed
 }
 
-async fn room(state: &AppState) -> (usize, String) {
+async fn room(state: &BaseState) -> (usize, String) {
     let limit = usize::try_from(state.config.launch.max_surfaces).unwrap_or(usize::MAX);
     if limit == 0 {
         return (usize::MAX, String::new());
@@ -278,7 +278,7 @@ fn tell_no_room(fleet: Uuid, tasks: &[String], surfaces: &str) {
 }
 
 fn start(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     def: &FleetDefinition,
     facts: &FleetFacts,

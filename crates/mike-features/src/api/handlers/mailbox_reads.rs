@@ -1,9 +1,11 @@
 use super::*;
+use crate::base_state::BaseState;
+use crate::launch::state::LaunchState;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 pub async fn fetch_mailbox_delivery_fields(
     handle: &crate::store::persistence::PersistHandle,
-    state: &AppState,
+    state: &BaseState,
     to_session_uuid: uuid::Uuid,
 ) -> (Option<String>, Option<String>, Option<&'static str>) {
     let activity = match handle
@@ -42,7 +44,7 @@ pub async fn fetch_mailbox_delivery_fields(
 }
 
 pub async fn get_session_messages(
-    State(state): State<AppState>,
+    State(state): State<LaunchState>,
     Path(session_uuid): Path<uuid::Uuid>,
     headers: HeaderMap,
 ) -> Response {
@@ -67,7 +69,7 @@ pub async fn get_session_messages(
 
 async fn load_session_messages(
     handle: &crate::store::persistence::PersistHandle,
-    state: &AppState,
+    state: &BaseState,
     session_uuid: uuid::Uuid,
 ) -> Result<crate::api::poll_answers::Loaded<Bytes>, Response> {
     let rows = handle
@@ -110,7 +112,7 @@ async fn load_session_messages(
 }
 
 pub async fn get_session_message(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path((session_uuid, message_uuid)): Path<(uuid::Uuid, uuid::Uuid)>,
 ) -> Result<Json<MailboxMessageDto>, Response> {
     let Some(handle) = state.persist() else {
@@ -152,7 +154,7 @@ pub async fn get_session_message(
 }
 
 pub async fn get_session_message_receipt(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path((session_uuid, message_uuid)): Path<(uuid::Uuid, uuid::Uuid)>,
 ) -> Result<Json<MailboxMessageDto>, Response> {
     let Some(handle) = state.persist() else {
@@ -200,7 +202,7 @@ pub struct AckMailboxMessageResponse {
 }
 
 pub async fn ack_session_message(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path((session_uuid, message_uuid)): Path<(uuid::Uuid, uuid::Uuid)>,
 ) -> Result<Json<AckMailboxMessageResponse>, Response> {
     let Some(handle) = state.persist() else {

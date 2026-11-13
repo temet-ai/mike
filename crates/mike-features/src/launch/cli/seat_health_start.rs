@@ -5,8 +5,8 @@ use std::path::Path;
 use uuid::Uuid;
 
 use super::Relaunch;
+use crate::base_state::BaseState;
 use crate::launch::channel_link;
-use crate::state::AppState;
 use crate::store::persistence::launch::{LaunchListFilter, LaunchRow};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,7 +42,7 @@ pub fn fresh_args(args: &[String], session: Uuid, mcp_config: &str) -> Vec<Strin
     out
 }
 
-pub async fn start_for(state: &AppState, relaunch: &Relaunch, session: Uuid) -> Start {
+pub async fn start_for(state: &BaseState, relaunch: &Relaunch, session: Uuid) -> Start {
     if transcript_written(Path::new(&relaunch.folder), session)
         || made_requests(state, relaunch, session).await
     {
@@ -60,7 +60,7 @@ fn transcript_written(folder: &Path, session: Uuid) -> bool {
         })
 }
 
-async fn made_requests(state: &AppState, relaunch: &Relaunch, session: Uuid) -> bool {
+async fn made_requests(state: &BaseState, relaunch: &Relaunch, session: Uuid) -> bool {
     let (Some(persist), Some(run)) = (state.persist(), relaunch.run.as_deref()) else {
         return false;
     };
@@ -74,7 +74,7 @@ async fn made_requests(state: &AppState, relaunch: &Relaunch, session: Uuid) -> 
         })
 }
 
-pub async fn replaced(state: &AppState, relaunch: &Relaunch, session: Uuid) -> bool {
+pub async fn replaced(state: &BaseState, relaunch: &Relaunch, session: Uuid) -> bool {
     let (Some(persist), Some(run), Some(seat)) = (
         state.persist(),
         relaunch.run.as_deref(),

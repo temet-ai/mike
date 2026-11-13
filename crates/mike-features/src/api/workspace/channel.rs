@@ -5,7 +5,7 @@ use axum::response::Response;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::state::AppState;
+use crate::base_state::BaseState;
 use crate::web_base::{persist_error_response, persist_unavailable_response};
 
 const CHANNEL_CLAIM_LIMIT: i64 = 20;
@@ -70,7 +70,7 @@ impl ClaimPlan {
 }
 
 pub async fn claim_channel_messages(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(session_uuid): Path<Uuid>,
     body: Option<Json<ChannelClaimRequest>>,
 ) -> Result<Json<ChannelClaimResponseDto>, Response> {
@@ -152,7 +152,7 @@ pub struct ChannelReleaseResponseDto {
 }
 
 pub async fn release_channel_messages(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(session_uuid): Path<Uuid>,
     Json(body): Json<ChannelReleaseRequest>,
 ) -> Result<Json<ChannelReleaseResponseDto>, Response> {

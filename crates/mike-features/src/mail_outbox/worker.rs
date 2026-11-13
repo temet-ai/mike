@@ -10,14 +10,14 @@ use super::deliver::{Outcome, deliver};
 use super::mailbox_link::{mailbox_state, mirror_codex_mail};
 use super::store::{self, Mail};
 use super::{Recipient, Runtime, Stage};
-use crate::state::AppState;
+use crate::base_state::BaseState;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 const SWEEP_INTERVAL: Duration = Duration::from_secs(5);
 const MIRROR_BATCH: i64 = 200;
 const DELIVER_BATCH: i64 = 100;
 
-pub fn spawn_mail_outbox(state: &AppState) {
+pub fn spawn_mail_outbox(state: &BaseState) {
     let Some(persist) = state.persist().cloned() else {
         tracing::debug!("mail_outbox: no persistence, not spawning");
         return;

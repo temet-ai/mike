@@ -1,3 +1,4 @@
+use crate::launch::state::LaunchState;
 use crate::store::persistence::fleet_repo::FleetPersist as _;
 use axum::extract::{Path, Query, State};
 use axum::http::HeaderMap;
@@ -9,9 +10,9 @@ use uuid::Uuid;
 use super::definition_view::{DefinitionError, FleetView};
 use super::definitions::{DEFAULT_LIST_LIMIT, ListFleetsQuery, MAX_LIST_LIMIT, load, persistence};
 use crate::api::poll_answers::{FLEET, Loaded, Poll, answer_json, json_bytes};
+use crate::base_state::BaseState;
 use crate::launch::fleet::status::assemble;
 use crate::launch::seat_fact::is_fleet_seat;
-use crate::state::AppState;
 
 fn fleet_poll(key: String, headers: &HeaderMap) -> Poll<'_> {
     Poll {
@@ -29,7 +30,7 @@ fn loaded(value: Bytes) -> Loaded<Bytes> {
     }
 }
 
-async fn status_by_key(state: &AppState, key: &str) -> Result<Loaded<Bytes>, Response> {
+async fn status_by_key(state: &BaseState, key: &str) -> Result<Loaded<Bytes>, Response> {
     let persist = persistence(state).map_err(IntoResponse::into_response)?;
     let row = load(persist, key)
         .await
@@ -43,7 +44,7 @@ async fn status_by_key(state: &AppState, key: &str) -> Result<Loaded<Bytes>, Res
     Ok(loaded(json_bytes(&status)?))
 }
 
-async fn status_by_session(state: &AppState, session: Uuid) -> Result<Loaded<Bytes>, Response> {
+async fn status_by_session(state: &BaseState, session: Uuid) -> Result<Loaded<Bytes>, Response> {
     let persist = persistence(state).map_err(IntoResponse::into_response)?;
     if !is_fleet_seat(persist, session).await {
         return Err(DefinitionError::NotFound(session.to_string()).into_response());
@@ -64,7 +65,7 @@ async fn status_by_session(state: &AppState, session: Uuid) -> Result<Loaded<Byt
 }
 
 async fn listed(
-    state: &AppState,
+    state: &BaseState,
     project_path: Option<&str>,
     limit: i64,
 ) -> Result<Loaded<Bytes>, Response> {
@@ -79,7 +80,7 @@ async fn listed(
 }
 
 pub async fn get_fleet_status(
-    State(state): State<AppState>,
+    State(state): State<LaunchState>,
     Path(key): Path<String>,
     headers: HeaderMap,
 ) -> Response {
@@ -88,7 +89,7 @@ pub async fn get_fleet_status(
 }
 
 pub async fn get_fleet_status_for_session(
-    State(state): State<AppState>,
+    State(state): State<LaunchState>,
     Path(session): Path<Uuid>,
     headers: HeaderMap,
 ) -> Response {
@@ -97,7 +98,7 @@ pub async fn get_fleet_status_for_session(
 }
 
 pub async fn list_fleets(
-    State(state): State<AppState>,
+    State(state): State<LaunchState>,
     Query(query): Query<ListFleetsQuery>,
     headers: HeaderMap,
 ) -> Response {

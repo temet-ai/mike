@@ -58,7 +58,6 @@ impl AppState {
         services::fold_db_settings(persist.as_ref(), &mut config).await;
         services::attach_persist_to_store(&mut store, persist.as_ref());
         let steerer_openrouter_key = llm_wiring::seed_openrouter_key_slot(&config);
-        let anthropic_api_key = llm_wiring::seed_anthropic_key_slot();
         let embedding_service = pipeline::wire_embedding_service(&mut store, &config.embedding);
         let rerank_service = crate::analysis::RerankService::new(&config.rerank);
         let settings_overlay = Arc::new(ArcSwap::from_pointee(SettingsOverlay::default()));
@@ -78,40 +77,23 @@ impl AppState {
         let store_arc = Arc::new(RwLock::new(store));
         let shed_registry = pipeline::build_shed_registry(&store_arc);
         let model_catalogue = pipeline::build_model_catalogue(&client, &config.steerer);
-        let openrouter_usage_cache = Arc::new(crate::api::usage::OpenRouterUsageCache::new());
-        let remote_control_streams = crate::proxy::remote_control::ReplyStreams::default();
-        let injection_gate = Arc::new(crate::injection::InjectionGate::default());
-        let mail_push = Arc::new(super::mail_push::ProxyMailPush::new(
-            crate::proxy::remote_control::inject::PushDeps {
-                persist: persist.clone(),
-                remote_control_streams: remote_control_streams.clone(),
-                gate: injection_gate.clone(),
-                store: store_arc.clone(),
-            },
-        ));
-        let base = BaseState {
+        let (base, remote_control_streams, injection_gate) = Wired {
             store: store_arc,
             client,
             event_tx,
-            config: Arc::new(config),
+            config,
             shutdown,
             tracker,
             retention,
-            request_count: Arc::new(AtomicU64::new(0)),
-            last_request_at_unix: Arc::new(AtomicI64::new(0)),
-            last_capturable_request_at_unix: Arc::new(AtomicI64::new(0)),
-            started_at: std::time::Instant::now(),
             metrics_handle,
             persist,
             in_flight,
-            change_feed: crate::change_feed::ChangeFeed::new(),
             feature_toggle_overlay,
             settings_overlay,
-            host_machine_uuid: Arc::new(tokio::sync::OnceCell::new()),
             llm_usage_sink,
             steerer_openrouter_key,
-            mail_push,
-        };
+        }
+        .into_base();
         let state = Self {
             base,
             remote_control_streams,
@@ -148,14 +130,76 @@ impl AppState {
             self_identity_served: Arc::new(dashmap::DashSet::new()),
             change_record_tail_served: Arc::new(dashmap::DashSet::new()),
             model_catalogue,
-            openrouter_usage_cache,
+            openrouter_usage_cache: Arc::new(crate::api::usage::OpenRouterUsageCache::new()),
             resync_status: Arc::new(ArcSwap::from_pointee(crate::resync::ResyncStatus::default())),
             judge_llm,
-            anthropic_api_key,
+            anthropic_api_key: llm_wiring::seed_anthropic_key_slot(),
             service_token: crate::service_token::ServiceToken::generate(),
             anthropic_cli: crate::anthropic_cli::AnthropicCliState::new(),
         };
         Ok(finish(state).await)
+    }
+}
+
+struct Wired {
+    store: Arc<RwLock<RequestStore>>,
+    client: reqwest::Client,
+    event_tx: tokio::sync::broadcast::Sender<crate::store::models::ProxyEvent>,
+    config: ProxyConfig,
+    shutdown: CancellationToken,
+    tracker: TaskTracker,
+    retention: crate::store::retention::RetentionPolicy,
+    metrics_handle: metrics_exporter_prometheus::PrometheusHandle,
+    persist: Option<crate::store::persistence::PersistHandle>,
+    in_flight: Arc<crate::in_flight::InFlightRegistry>,
+    feature_toggle_overlay: Arc<ArcSwap<crate::feature_toggles::FeatureToggles>>,
+    settings_overlay: Arc<ArcSwap<SettingsOverlay>>,
+    llm_usage_sink: Option<Arc<dyn crate::llm::LlmUsageSink>>,
+    steerer_openrouter_key: crate::llm::key::OpenRouterKeySlot,
+}
+
+impl Wired {
+    fn into_base(
+        self,
+    ) -> (
+        BaseState,
+        crate::proxy::remote_control::ReplyStreams,
+        Arc<crate::injection::InjectionGate>,
+    ) {
+        let remote_control_streams = crate::proxy::remote_control::ReplyStreams::default();
+        let injection_gate = Arc::new(crate::injection::InjectionGate::default());
+        let mail_push = Arc::new(super::mail_push::ProxyMailPush::new(
+            crate::proxy::remote_control::inject::PushDeps {
+                persist: self.persist.clone(),
+                remote_control_streams: remote_control_streams.clone(),
+                gate: injection_gate.clone(),
+                store: self.store.clone(),
+            },
+        ));
+        let base = BaseState {
+            store: self.store,
+            client: self.client,
+            event_tx: self.event_tx,
+            config: Arc::new(self.config),
+            shutdown: self.shutdown,
+            tracker: self.tracker,
+            retention: self.retention,
+            request_count: Arc::new(AtomicU64::new(0)),
+            last_request_at_unix: Arc::new(AtomicI64::new(0)),
+            last_capturable_request_at_unix: Arc::new(AtomicI64::new(0)),
+            started_at: std::time::Instant::now(),
+            metrics_handle: self.metrics_handle,
+            persist: self.persist,
+            in_flight: self.in_flight,
+            change_feed: crate::change_feed::ChangeFeed::new(),
+            feature_toggle_overlay: self.feature_toggle_overlay,
+            settings_overlay: self.settings_overlay,
+            host_machine_uuid: Arc::new(tokio::sync::OnceCell::new()),
+            llm_usage_sink: self.llm_usage_sink,
+            steerer_openrouter_key: self.steerer_openrouter_key,
+            mail_push,
+        };
+        (base, remote_control_streams, injection_gate)
     }
 }
 

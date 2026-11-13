@@ -12,7 +12,7 @@ use serde::Serialize;
 
 use crate::api::workspace::RosterAnswer;
 use crate::change_feed::{ChangeFeed, Generation};
-use crate::state::AppState;
+use crate::launch::state::LaunchState;
 use crate::store::models::RowChangedTable;
 
 #[cfg(test)]
@@ -310,7 +310,7 @@ fn respond<V>(
 }
 
 pub async fn answer<V, Fut>(
-    state: &AppState,
+    state: &LaunchState,
     cache: &AnswerCache<V>,
     poll: Poll<'_>,
     load: impl FnOnce() -> Fut,
@@ -353,7 +353,7 @@ where
 }
 
 pub async fn answer_json<Fut>(
-    state: &AppState,
+    state: &LaunchState,
     poll: Poll<'_>,
     load: impl FnOnce() -> Fut,
 ) -> Response
