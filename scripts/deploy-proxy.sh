@@ -501,7 +501,8 @@ else
         (
             prepare_mbx_build_cache "${PROJECT_ROOT}" "${TARGET_DIR}/mbx-deploy"
             CARGO_BUILD_JOBS="${BUILD_JOBS}" SQLX_OFFLINE="${SQLX_OFFLINE:-true}" \
-                "${LOW_PRIORITY[@]}" "${MBX_BIN}" build ${RELEASE_FLAG} -p mike --bin mike --quiet 8>&- 9>&-
+                "${LOW_PRIORITY[@]}" "${MBX_BIN}" build ${RELEASE_FLAG} -p mike --bin mike 8>&- 9>&- \
+                2> >(grep -vE '^[[:space:]]*(Compiling|Fresh|Checking) |^mbx\[progress\]' >&2)
         )
     else
         ensure_build_toolchain
