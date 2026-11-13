@@ -144,7 +144,7 @@ async fn close_verdict(runner: &Runner<'_>, full: &FleetDefinition, commit: &str
 
 #[cfg(test)]
 #[path = "gate_full_tests.rs"]
-pub mod tests;
+mod tests;
 
 async fn start_once(runner: &Runner<'_>, full: &FleetDefinition, target: &super::Target) {
     let _held = super::admission::hold(&target.slot).await;

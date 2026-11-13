@@ -37,7 +37,7 @@ pub async fn tools_listed_by(Path(session): Path<Uuid>) -> StatusCode {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

@@ -71,7 +71,7 @@ pub fn data(req: &VerdictRequest, regression: &Regression) -> Value {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn request() -> VerdictRequest {

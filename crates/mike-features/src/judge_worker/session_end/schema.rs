@@ -77,7 +77,7 @@ pub fn session_verdict_v3_schema() -> Value {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::session_verdict_v3_schema;
 
     #[test]

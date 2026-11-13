@@ -43,7 +43,7 @@ pub fn close_later(state: &AppState, session: Uuid) {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::is_open_run_seat;
 
     #[test]

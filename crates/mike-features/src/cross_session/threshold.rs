@@ -113,7 +113,7 @@ pub fn decide_threshold(i: &DecisionInputs<'_>) -> Decision {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn bins() -> Vec<Bin> {

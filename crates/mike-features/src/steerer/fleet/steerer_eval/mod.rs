@@ -10,7 +10,7 @@ pub mod record;
 pub mod rollout;
 pub mod steps;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 pub mod verdict_call;
 
 pub use gate_probe::steerer_gate_probe;

@@ -339,4 +339,4 @@ fn derive_project_signals(json_body: Option<&Value>, system_prompt: Option<&str>
 pub mod agent_id_tests;
 #[cfg(test)]
 #[path = "signals_tests.rs"]
-pub mod tests;
+mod tests;

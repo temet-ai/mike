@@ -232,7 +232,7 @@ impl ModelCatalogue {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use serde_json::json;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};

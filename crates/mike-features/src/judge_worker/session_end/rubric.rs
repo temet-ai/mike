@@ -15,7 +15,7 @@ pub fn system_prompt(rubric_id: &str) -> Option<&'static str> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{RUBRIC_ID, system_prompt};
 
     #[test]

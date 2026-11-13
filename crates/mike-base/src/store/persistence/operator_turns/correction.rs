@@ -6,7 +6,7 @@ pub fn counts_as_correction(outcome: &str, outcome_source: Option<&str>) -> bool
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

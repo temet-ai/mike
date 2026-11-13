@@ -26,7 +26,7 @@ pub fn scan_recall_tags(text: &str) -> Vec<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

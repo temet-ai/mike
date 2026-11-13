@@ -17,7 +17,7 @@ use super::{ProposerDeps, dedupe, shape_rewrite};
 
 #[cfg(test)]
 #[path = "shape_pass_tests.rs"]
-pub mod tests;
+mod tests;
 
 const SCAN_BATCH: i64 = 500;
 pub const REWRITES_PER_TICK: i64 = 3;

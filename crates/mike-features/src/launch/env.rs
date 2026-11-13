@@ -29,7 +29,7 @@ pub fn surface_env(proxy: Option<&ProxyEnv>, proxy_env_enabled: bool) -> BTreeMa
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn proxy() -> ProxyEnv {

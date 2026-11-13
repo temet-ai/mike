@@ -77,7 +77,7 @@ pub fn declare_tools(raw: &[u8]) -> DeclareOutcome {
     clippy::expect_used,
     reason = "test fixtures; hand-built JSON and fixture rows are expected to parse"
 )]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::proxy_tools::roster;
 

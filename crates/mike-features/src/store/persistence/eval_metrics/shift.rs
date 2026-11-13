@@ -123,7 +123,7 @@ pub fn shift_detail(current: &MixWindowRow, baseline: &MixWindowRow, stats: &Shi
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{AlarmThresholds, shift_stats};
     use crate::store::persistence::eval_metrics::sql_label_mix::MixWindowRow;
     use serde_json::json;

@@ -102,7 +102,7 @@ fn log_no_key() {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use arc_swap::ArcSwap;
     use serde_json::json;
 

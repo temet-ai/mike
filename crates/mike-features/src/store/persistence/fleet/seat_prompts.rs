@@ -25,4 +25,4 @@ fn names_seat(text: &str, seat: &str) -> bool {
 
 #[cfg(test)]
 #[path = "seat_prompts_tests.rs"]
-pub mod tests;
+mod tests;

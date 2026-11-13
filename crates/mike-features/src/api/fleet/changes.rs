@@ -265,4 +265,4 @@ pub fn change_view(
 
 #[cfg(test)]
 #[path = "changes_tests.rs"]
-pub mod tests;
+mod tests;

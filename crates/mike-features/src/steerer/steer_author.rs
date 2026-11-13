@@ -81,7 +81,7 @@ pub fn build_steer_author_system_prompt_default() -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

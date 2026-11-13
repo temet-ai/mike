@@ -47,4 +47,4 @@ pub fn removal_too_wide(task: &TaskDefinition) -> Option<String> {
 
 #[cfg(test)]
 #[path = "checks_scope_tests.rs"]
-pub mod tests;
+mod tests;

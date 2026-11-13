@@ -3,7 +3,7 @@ pub fn is_well_formed_session_id(s: &str) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

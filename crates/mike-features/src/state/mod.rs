@@ -31,7 +31,7 @@ pub mod construction_llm;
 pub mod construction_pipeline;
 pub mod construction_services;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub use construction_services::fold_db_settings;
 

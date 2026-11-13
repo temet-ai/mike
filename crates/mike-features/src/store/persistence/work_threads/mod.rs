@@ -18,7 +18,7 @@ pub mod reads;
 pub mod validate;
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub use candidates::{CandidateThread, NewThreadCandidate};
 pub use checkpoint::{CheckpointInput, CheckpointOutcome, StateFields};

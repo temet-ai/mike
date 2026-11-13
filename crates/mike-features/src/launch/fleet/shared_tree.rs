@@ -474,4 +474,4 @@ async fn clear(persist: &PersistHandle, def: &FleetDefinition, run: &str) {
 
 #[cfg(test)]
 #[path = "shared_tree_tests.rs"]
-pub mod tests;
+mod tests;

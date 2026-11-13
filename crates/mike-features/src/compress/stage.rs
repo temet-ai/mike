@@ -224,4 +224,4 @@ impl RequestStage for FileReadCompressionStage {
 
 #[cfg(test)]
 #[path = "stage_tests.rs"]
-pub mod tests;
+mod tests;

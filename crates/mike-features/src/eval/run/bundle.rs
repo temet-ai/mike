@@ -52,7 +52,7 @@ pub async fn load_bundle_judge(persist: &PersistHandle, bundle_id: i64) -> Resul
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::bundle_judge;
     use crate::analysis::judge::input_v2::INPUT_BUILDER_V2;
     use crate::analysis::judge::rubric::{RubricFamily, V2_2026_09_23, effective_rubric, latest};

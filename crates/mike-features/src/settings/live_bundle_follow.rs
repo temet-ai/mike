@@ -9,7 +9,7 @@ use crate::store::persistence::eval_bundles::{BuildOrigin, LiveModelSwap, SwapRe
 #[cfg(test)]
 pub mod provider_tests;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub const TURN_JUDGE_MODEL_KEY: &str = "judge_worker.model";
 pub const SESSION_JUDGE_MODEL_KEY: &str = "session_judge.model";

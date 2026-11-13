@@ -8,7 +8,7 @@ use crate::settings::SettingsOverlay;
 
 pub mod models;
 #[cfg(test)]
-mod tests;
+pub mod tests;
 
 use models::TierModels;
 pub use models::{SLOTS, slot_for_key};

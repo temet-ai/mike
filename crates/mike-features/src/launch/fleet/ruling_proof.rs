@@ -242,4 +242,4 @@ pub async fn hydrate(
 
 #[cfg(test)]
 #[path = "ruling_proof_tests.rs"]
-pub mod tests;
+mod tests;

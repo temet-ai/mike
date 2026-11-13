@@ -90,7 +90,7 @@ fn wake_reminder(unread: i64) -> SystemReminder {
 
 #[cfg(test)]
 #[path = "wake_tests.rs"]
-pub mod tests;
+mod tests;
 
 async fn record(
     persist: &PersistHandle,

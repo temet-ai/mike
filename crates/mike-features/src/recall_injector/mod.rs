@@ -5,7 +5,7 @@ pub mod parser;
 pub mod push_delivery_tests;
 pub mod stage;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 use bytes::Bytes;
 use serde_json::Value;

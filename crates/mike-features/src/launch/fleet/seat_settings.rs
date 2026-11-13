@@ -266,4 +266,4 @@ fn executable(_: &Path) -> std::io::Result<()> {
 pub mod env_tests;
 #[cfg(test)]
 #[path = "seat_settings_tests.rs"]
-pub mod tests;
+mod tests;

@@ -191,7 +191,7 @@ fn real_resolve(payload: Payload) -> Option<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use serde_json::json;
 

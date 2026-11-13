@@ -110,7 +110,7 @@ pub fn normalise_tags(tags: &[String]) -> Vec<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{SessionEndLabel, normalise_tags};
 
     #[test]

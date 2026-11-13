@@ -45,7 +45,7 @@ fn follows_an_mcp_server_name(before: &[u8]) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     const LOADED: &[u8] =

@@ -87,7 +87,7 @@ impl crate::store::persistence::eval_repo::EvalDb<'_> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::RejudgeProgress;
 
     fn progress(calls_today: i64, remaining: i64) -> RejudgeProgress {

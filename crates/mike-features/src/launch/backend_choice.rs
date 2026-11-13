@@ -217,7 +217,7 @@ async fn answers(socket: &std::path::Path) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn caller(pairs: &[(&str, &str)]) -> CallerTerminal {

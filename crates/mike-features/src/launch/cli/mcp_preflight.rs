@@ -259,4 +259,4 @@ pub fn apply(
 
 #[cfg(test)]
 #[path = "mcp_preflight_tests.rs"]
-pub mod tests;
+mod tests;

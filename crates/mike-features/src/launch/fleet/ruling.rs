@@ -156,4 +156,4 @@ pub fn current_rules<'a>(
 
 #[cfg(test)]
 #[path = "ruling_tests.rs"]
-pub mod tests;
+mod tests;

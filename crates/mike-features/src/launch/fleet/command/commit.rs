@@ -185,7 +185,7 @@ pub fn render(report: &CommitReport) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

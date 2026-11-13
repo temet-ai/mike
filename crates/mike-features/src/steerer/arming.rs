@@ -51,7 +51,7 @@ pub fn has_explicit_done_claim(text: &str) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

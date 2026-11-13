@@ -29,7 +29,7 @@ impl SystemPromptSource {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::SystemPromptSource;
 
     #[test]

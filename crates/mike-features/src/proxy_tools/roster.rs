@@ -117,7 +117,7 @@ fn render(
     clippy::expect_used,
     reason = "test fixtures; hand-built JSON and fixture rows are expected to parse"
 )]
-pub mod tests {
+mod tests {
     use chrono::{TimeZone, Utc};
 
     use super::*;

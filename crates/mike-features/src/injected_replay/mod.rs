@@ -1,6 +1,6 @@
 pub mod splice;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 use std::collections::VecDeque;
 use std::sync::Mutex;

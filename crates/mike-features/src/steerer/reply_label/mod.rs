@@ -234,4 +234,4 @@ pub async fn run_reply_label_pass(
 
 #[cfg(test)]
 #[path = "tests.rs"]
-pub mod tests;
+mod tests;

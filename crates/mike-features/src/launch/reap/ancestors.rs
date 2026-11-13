@@ -79,7 +79,7 @@ pub fn reap_plan(procs: Vec<ClaudeProcess>, self_pid: u32, ancestors: &[u32]) ->
     clippy::unwrap_used,
     reason = "tests assert on fixtures they built themselves; a broken fixture must fail loudly"
 )]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::launch::reap::classify::OrphanKind;
     use crate::launch::reap::runner::{ProcRunOutput, ProcRunner};

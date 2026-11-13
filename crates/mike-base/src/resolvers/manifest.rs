@@ -227,7 +227,7 @@ fn render_file_list(files: &[PathBuf]) -> String {
     clippy::expect_used,
     reason = "test fixtures; tmp-dir I/O and freshly-written files are expected to succeed"
 )]
-pub mod tests {
+mod tests {
     use super::*;
     use anyhow::Context as _;
     use std::fs;

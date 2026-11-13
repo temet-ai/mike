@@ -84,7 +84,7 @@ async fn git_line(repo: &str, args: &[&str]) -> Option<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::ahead_behind;
 
     #[test]

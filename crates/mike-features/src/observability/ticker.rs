@@ -239,7 +239,7 @@ fn record_tick_metrics(snapshot: &TickSnapshot, elapsed: Duration) {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::config::ProxyConfig;
 

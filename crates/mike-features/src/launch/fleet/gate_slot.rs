@@ -164,7 +164,7 @@ pub async fn run_gate_logged(
 pub mod process;
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::launch::fleet::managed_test_support as managed;
 

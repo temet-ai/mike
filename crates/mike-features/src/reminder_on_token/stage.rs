@@ -65,7 +65,7 @@ impl RequestStage for ReminderOnTokenStage {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use bytes::Bytes;
 
     use super::*;

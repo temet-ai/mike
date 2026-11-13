@@ -64,7 +64,7 @@ fn user_text(content: &RawValue) -> Option<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

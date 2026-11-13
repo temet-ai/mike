@@ -30,7 +30,7 @@ pub fn scored_outcome(row: &ArmRow, end_label: Option<&str>) -> Outcome {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn row(scored: Option<i64>, reaction: Option<&str>, last: bool) -> ArmRow {

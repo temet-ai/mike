@@ -48,7 +48,7 @@ impl From<SessionQualityRow> for SessionQualityDto {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

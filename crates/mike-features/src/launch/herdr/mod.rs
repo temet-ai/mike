@@ -10,7 +10,7 @@ pub mod prompt;
 pub mod run_layout;
 pub mod surface;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 pub mod validate;
 
 use std::path::PathBuf;

@@ -291,4 +291,4 @@ pub async fn integrate_fleet(
 
 #[cfg(test)]
 #[path = "tree_result_tests.rs"]
-pub mod tests;
+mod tests;

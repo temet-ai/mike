@@ -209,7 +209,7 @@ fn log_shed_report(sheddable: &Arc<dyn Sheddable>, r: &ShedReport) {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

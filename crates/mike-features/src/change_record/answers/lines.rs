@@ -120,7 +120,7 @@ pub fn short(line: &ChangeLine) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn line(paths: &[&str]) -> ChangeLine {

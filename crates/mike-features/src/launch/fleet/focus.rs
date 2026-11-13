@@ -122,7 +122,7 @@ async fn run_tool(program: &str, args: &[&str]) -> Result<(), FleetError> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use chrono::Utc;
 
     use super::seat_to_show;

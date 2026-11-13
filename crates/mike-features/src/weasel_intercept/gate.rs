@@ -200,4 +200,4 @@ fn index_of(json: &Value) -> Option<u64> {
 
 #[cfg(test)]
 #[path = "gate_tests.rs"]
-pub mod tests;
+mod tests;

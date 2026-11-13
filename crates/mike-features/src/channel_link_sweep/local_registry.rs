@@ -88,7 +88,7 @@ pub async fn link_running_sessions(persist: &PersistHandle) -> usize {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     const SESSION: &str = "48200218-5859-41ea-bba3-fe525738d51b";

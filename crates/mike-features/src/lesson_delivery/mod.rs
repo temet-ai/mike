@@ -60,4 +60,4 @@ pub fn client_holds_lessons(
 #[cfg(test)]
 pub mod origin_tests;
 #[cfg(test)]
-pub mod tests;
+mod tests;

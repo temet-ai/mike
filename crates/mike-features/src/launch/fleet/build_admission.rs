@@ -331,4 +331,4 @@ pub mod test_seams;
 
 #[cfg(all(test, unix))]
 #[path = "build_admission_tests.rs"]
-pub mod tests;
+mod tests;

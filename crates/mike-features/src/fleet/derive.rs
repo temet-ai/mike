@@ -87,7 +87,7 @@ pub fn derive_role(declared_role: Option<&str>) -> Option<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use chrono::Duration;
 

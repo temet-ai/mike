@@ -120,4 +120,4 @@ pub fn cwd(_pid: u32) -> Option<PathBuf> {
 
 #[cfg(test)]
 #[path = "process_tests.rs"]
-pub mod tests;
+mod tests;

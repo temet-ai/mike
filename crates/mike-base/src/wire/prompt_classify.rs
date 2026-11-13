@@ -8,7 +8,7 @@ pub fn prompt_sha256_from_block_text(text: &str) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

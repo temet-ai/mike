@@ -68,7 +68,7 @@ pub async fn deliver_launch_briefs(
 
 #[cfg(test)]
 #[path = "launch_brief_tests.rs"]
-pub mod tests;
+mod tests;
 
 #[cfg(test)]
 #[path = "launch_brief_db_tests.rs"]

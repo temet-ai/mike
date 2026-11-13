@@ -267,4 +267,4 @@ pub async fn measure(persist: &PersistHandle, command: &str) -> Option<Duration>
 
 #[cfg(test)]
 #[path = "managed_queue_tests.rs"]
-pub mod tests;
+mod tests;

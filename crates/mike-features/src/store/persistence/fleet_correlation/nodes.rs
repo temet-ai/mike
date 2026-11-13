@@ -214,7 +214,7 @@ impl crate::store::persistence::fleet_repo::FleetDb<'_> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

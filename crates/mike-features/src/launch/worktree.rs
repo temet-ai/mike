@@ -178,7 +178,7 @@ async fn git_dirs(folder: &Path) -> Result<Option<(PathBuf, PathBuf)>, LaunchErr
     clippy::unwrap_used,
     reason = "tests assert on fixtures they built themselves; a broken fixture must fail loudly"
 )]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn git(dir: &Path, args: &[&str]) {

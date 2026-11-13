@@ -94,7 +94,7 @@ pub async fn close_workspace(cli: &HerdrCli, workspace: &str) -> Result<(), Laun
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[tokio::test]

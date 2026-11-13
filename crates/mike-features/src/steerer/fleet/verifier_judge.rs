@@ -309,7 +309,7 @@ pub fn render_intake_criteria(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

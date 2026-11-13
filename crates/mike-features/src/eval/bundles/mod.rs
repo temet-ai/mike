@@ -5,7 +5,7 @@ pub mod resolver;
 #[cfg(test)]
 pub mod resolver_tests;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 use serde::Serialize;
 use serde_json::{Map, Value, json};

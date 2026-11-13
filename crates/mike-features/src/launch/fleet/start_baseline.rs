@@ -298,4 +298,4 @@ async fn current_pass(persist: &PersistHandle, row: &FleetRow, def: &FleetDefini
 
 #[cfg(test)]
 #[path = "start_baseline_tests.rs"]
-pub mod tests;
+mod tests;

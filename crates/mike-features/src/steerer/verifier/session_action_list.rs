@@ -32,7 +32,7 @@ pub fn build_session_action_list(rows: &[SessionActionRow]) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn make_action_row(

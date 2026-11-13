@@ -6,7 +6,7 @@ pub mod paths;
 pub mod words;
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub use author::{Author, author_of};
 pub use enabled::change_record_enabled;

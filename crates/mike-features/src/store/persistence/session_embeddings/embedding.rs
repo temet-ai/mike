@@ -173,7 +173,7 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

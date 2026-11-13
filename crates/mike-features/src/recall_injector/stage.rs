@@ -79,7 +79,7 @@ impl RequestStage for RecallInjectorStage {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use bytes::Bytes;
 
     use super::*;

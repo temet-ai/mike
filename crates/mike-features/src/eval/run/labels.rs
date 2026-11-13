@@ -50,7 +50,7 @@ pub async fn load(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::label_ids_hash;
     use crate::store::persistence::eval_runs::LabelSetItem;
 

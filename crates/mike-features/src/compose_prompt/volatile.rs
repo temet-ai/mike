@@ -52,7 +52,7 @@ pub fn compile_row(row: &VolatilePatternRow) -> Result<VolatilePattern, PersistE
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn pat(name: &str, regex: &str, block_index: u8, enabled: bool) -> Option<VolatilePattern> {

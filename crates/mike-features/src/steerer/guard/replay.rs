@@ -352,7 +352,7 @@ pub async fn replay_full(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{GatesReport, tally_phrase};
 
     #[test]

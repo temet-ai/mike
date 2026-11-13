@@ -199,4 +199,4 @@ fn spliced(whole: &str, edits: &[Edit]) -> Vec<u8> {
 
 #[cfg(test)]
 #[path = "body_tests.rs"]
-pub mod tests;
+mod tests;

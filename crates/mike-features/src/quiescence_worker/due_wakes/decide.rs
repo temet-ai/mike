@@ -79,7 +79,7 @@ pub fn decide_due_wake(f: &WakeFacts<'_>) -> WakeAction {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn facts() -> WakeFacts<'static> {

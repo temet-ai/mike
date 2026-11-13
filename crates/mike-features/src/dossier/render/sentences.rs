@@ -49,7 +49,7 @@ pub fn sentence_containing(text: &str, char_offset: usize) -> Option<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn texts(text: &str) -> Vec<String> {

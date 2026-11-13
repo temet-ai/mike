@@ -69,4 +69,4 @@ pub async fn post_session_recall(
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

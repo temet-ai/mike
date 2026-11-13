@@ -298,7 +298,7 @@ pub async fn doctor_for_server(state: &AppState) -> Result<DoctorReport, LaunchE
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

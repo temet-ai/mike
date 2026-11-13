@@ -9,7 +9,7 @@ pub mod templates;
 pub mod types;
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub use stderr_cap::{STDERR_CAP_BYTES, StderrCapture};
 pub use types::{

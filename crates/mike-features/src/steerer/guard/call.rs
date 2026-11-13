@@ -142,7 +142,7 @@ pub async fn ask_with_quorum(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use serde_json::json;
 

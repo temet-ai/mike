@@ -2,7 +2,7 @@ use crate::store::persistence::proxy_repo::ProxyPersist as _;
 #[cfg(test)]
 pub mod decline_tests;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 use bytes::Bytes;
 

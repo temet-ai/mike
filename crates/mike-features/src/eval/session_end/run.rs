@@ -280,7 +280,7 @@ pub fn end_items_from_rows(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn label(id: i64, value: &str) -> SessionEndLabelItem {

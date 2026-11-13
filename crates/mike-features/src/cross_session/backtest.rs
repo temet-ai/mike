@@ -86,7 +86,7 @@ pub fn summarise(q: &BTreeMap<(String, String), DateTime<Utc>>) -> BacktestSumma
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn ev(day: i64, session: &str, major: bool) -> TagEvent {

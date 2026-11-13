@@ -64,7 +64,7 @@ pub fn full_view(projects: Vec<Value>) -> Value {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn project(path: &str, roots: &[&str]) -> Value {

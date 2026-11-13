@@ -157,7 +157,7 @@ pub fn compress_body(raw: &[u8], cfg: &CompressConfig) -> CompressOutcome {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use serde_json::json;
 

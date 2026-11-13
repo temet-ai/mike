@@ -4,7 +4,7 @@ pub mod commit;
 pub mod gate;
 pub mod record;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 use std::io::IsTerminal;
 use std::time::Duration;

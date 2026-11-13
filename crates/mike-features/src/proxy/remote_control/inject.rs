@@ -286,7 +286,7 @@ fn received_event_ids(body: Option<&[u8]>) -> Vec<Uuid> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

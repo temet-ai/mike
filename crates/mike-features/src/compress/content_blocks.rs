@@ -122,7 +122,7 @@ fn compressible_payload_len(block: &Value) -> usize {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::super::{CompressConfig, CompressOutcome};
     use super::measure_body;
     use serde_json::{Value, json};

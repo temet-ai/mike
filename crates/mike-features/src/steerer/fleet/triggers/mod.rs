@@ -1,7 +1,7 @@
 use crate::store::persistence::steerer_repo::SteererPersist as _;
 pub mod response_trigger;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 pub mod user_prompt_trigger;
 #[cfg(test)]
 pub mod user_prompt_trigger_tests;

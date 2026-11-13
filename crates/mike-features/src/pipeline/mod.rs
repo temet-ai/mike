@@ -1,10 +1,3 @@
-#![cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "StageBody's read accessors, registry(), and RequestStage::name are exercised only by this crate's own tests (this module's + every stage.rs's), not by proxy_handler's production call sites"
-    )
-)]
 
 use bytes::Bytes;
 

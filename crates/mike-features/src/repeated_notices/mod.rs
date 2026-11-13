@@ -252,4 +252,4 @@ pub mod samples {
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

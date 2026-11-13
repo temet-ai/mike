@@ -92,7 +92,7 @@ pub async fn plan_fire_rows(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn bin(steerer_id: i64, edge: &str, source: &str, k: i32, n: i32) -> FireBinRow {

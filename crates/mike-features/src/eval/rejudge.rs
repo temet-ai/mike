@@ -235,7 +235,7 @@ pub async fn start_session_rejudge(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{daily_cap, judge_budget};
     use crate::settings::SettingsOverlay;
 

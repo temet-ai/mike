@@ -34,7 +34,7 @@ pub async fn inherited_request_turn(
 #[cfg(test)]
 pub mod call_count_tests;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 #[cfg(test)]
 thread_local! {

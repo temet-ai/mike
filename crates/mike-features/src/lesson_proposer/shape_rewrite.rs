@@ -77,7 +77,7 @@ pub fn accepted_rules(rules: &[String], max_chars: usize) -> Result<Vec<String>,
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn work() -> ShapeWork {

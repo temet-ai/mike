@@ -230,7 +230,7 @@ pub async fn execute(
     clippy::unwrap_used,
     reason = "tests assert on fixtures they built themselves; a broken fixture must fail loudly"
 )]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

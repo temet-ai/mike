@@ -94,7 +94,7 @@ impl RolloutParams {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{EFFICIENCY_MIN_INTERVAL_SECS, Requirement, Rollout, RolloutParams, SteererClass};
     use serde_json::json;
 

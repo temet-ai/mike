@@ -50,7 +50,7 @@ pub fn service_unavailable_capacity(max: usize) -> Response {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use http_body_util::BodyExt;
 

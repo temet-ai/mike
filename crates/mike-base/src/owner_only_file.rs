@@ -64,7 +64,7 @@ fn write_new(path: &Path, contents: &str) -> std::io::Result<()> {
 }
 
 #[cfg(all(test, unix))]
-pub mod tests {
+mod tests {
     use std::os::unix::fs::PermissionsExt;
 
     use super::*;

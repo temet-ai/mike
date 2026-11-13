@@ -267,7 +267,7 @@ impl crate::store::persistence::eval_repo::EvalDb<'_> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{ReactionPair, cohens_kappa};
 
     fn pair(live: &str, shadow: &str, n: i64) -> ReactionPair {

@@ -82,7 +82,7 @@ fn version_check(major: u32, minor: u32) -> Check {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

@@ -47,4 +47,4 @@ pub fn add_to_record(document: &mut serde_json::Value, waits: BuildWaits) {
 
 #[cfg(test)]
 #[path = "build_waits_tests.rs"]
-pub mod tests;
+mod tests;

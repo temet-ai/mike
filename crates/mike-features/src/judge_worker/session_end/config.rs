@@ -107,7 +107,7 @@ impl SessionJudgeV3Config {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{BundleComponentError, SessionJudgeV3Config};
     use crate::judge_worker::session_end::EndRule;
     use crate::judge_worker::session_end::rubric::RUBRIC_ID;

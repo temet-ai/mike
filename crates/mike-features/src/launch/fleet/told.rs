@@ -48,7 +48,7 @@ pub async fn mark(persist: &PersistHandle, run: &str, what: &[String]) {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

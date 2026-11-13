@@ -101,7 +101,7 @@ async fn files_named(repo: &str, name: &str) -> Vec<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

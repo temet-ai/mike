@@ -36,7 +36,7 @@ pub fn render_nudge(question: Question, i: &NudgeInputs<'_>) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

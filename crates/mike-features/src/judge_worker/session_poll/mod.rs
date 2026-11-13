@@ -7,7 +7,7 @@ pub mod verdict_write;
 #[cfg(test)]
 pub mod digest_tests;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 use std::sync::Arc;
 use std::time::Duration;

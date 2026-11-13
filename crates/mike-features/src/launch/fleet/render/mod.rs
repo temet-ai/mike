@@ -6,7 +6,7 @@ pub mod listing;
 pub mod seats;
 pub mod tasks;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 #[cfg(test)]
 pub mod tests_fixture;
 pub mod verdicts;

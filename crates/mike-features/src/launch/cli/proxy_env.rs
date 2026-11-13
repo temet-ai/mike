@@ -29,7 +29,7 @@ pub fn resolve_proxy_env(config: &LaunchConfig, cwd: Option<&Path>) -> Option<Pr
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

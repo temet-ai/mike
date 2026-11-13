@@ -118,4 +118,4 @@ existing context safety limit.",
 
 #[cfg(test)]
 #[path = "acceptance_artifacts_tests.rs"]
-pub mod tests;
+mod tests;

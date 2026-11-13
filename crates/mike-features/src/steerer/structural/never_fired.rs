@@ -63,7 +63,7 @@ pub async fn check_never_fired_context_kind(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

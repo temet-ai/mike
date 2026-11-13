@@ -61,7 +61,7 @@ fn relative(path: &str, repo: &str) -> Option<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

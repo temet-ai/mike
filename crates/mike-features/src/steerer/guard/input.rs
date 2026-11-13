@@ -166,7 +166,7 @@ pub fn build_input(parts: &InputParts<'_>) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

@@ -199,7 +199,7 @@ pub async fn fetch_session_quality(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

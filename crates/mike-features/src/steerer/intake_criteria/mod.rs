@@ -135,7 +135,7 @@ pub async fn author(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use chrono::Utc;
     use serde_json::Value;
 

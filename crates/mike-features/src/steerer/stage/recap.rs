@@ -31,7 +31,7 @@ pub fn is_away_recap_call(body_bytes: &[u8]) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use serde_json::json;
 

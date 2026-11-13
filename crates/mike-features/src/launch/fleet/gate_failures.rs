@@ -140,7 +140,7 @@ pub fn summary(failures: &[String], log: &str) -> String {
 
 #[cfg(test)]
 #[path = "gate_failures_tests.rs"]
-pub mod tests;
+mod tests;
 
 #[cfg(feature = "test-seams")]
 #[path = "gate_failure_test_seams.rs"]

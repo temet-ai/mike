@@ -18,7 +18,7 @@ pub fn strip_harness_scaffold(raw: &str) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

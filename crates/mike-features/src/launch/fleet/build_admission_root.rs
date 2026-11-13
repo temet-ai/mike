@@ -73,4 +73,4 @@ pub fn prepare_in(_state: &Path) -> Result<PathBuf, String> {
 
 #[cfg(all(test, unix))]
 #[path = "build_admission_root_tests.rs"]
-pub mod tests;
+mod tests;

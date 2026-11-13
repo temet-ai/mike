@@ -143,4 +143,4 @@ fn request_authority(
 
 #[cfg(test)]
 #[path = "policy_tests.rs"]
-pub mod tests;
+mod tests;

@@ -121,7 +121,7 @@ fn first_word_lowercase(text: &str) -> Option<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn rejected(text: &str) -> bool {

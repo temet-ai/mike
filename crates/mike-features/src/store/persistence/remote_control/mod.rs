@@ -253,4 +253,4 @@ pub use link_sweep::ChannelLinkSweepCandidate;
 pub use injections::PushSource;
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

@@ -169,7 +169,7 @@ pub async fn committed_seats(repo: &str, since: Option<DateTime<Utc>>) -> BTreeS
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use serde_json::json;
 
     use super::*;

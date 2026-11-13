@@ -418,7 +418,7 @@ pub fn normalize_cancellation(
 
 #[cfg(test)]
 #[path = "managed_command_tests.rs"]
-pub mod tests;
+mod tests;
 
 pub fn preparation_allowed() -> Result<(), String> {
     if let Ok(context) = current()

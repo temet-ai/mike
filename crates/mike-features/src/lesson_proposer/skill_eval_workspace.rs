@@ -253,4 +253,4 @@ pub fn context(workspace: &Workspace) -> String {
 
 #[cfg(test)]
 #[path = "skill_eval_workspace_tests.rs"]
-pub mod tests;
+mod tests;

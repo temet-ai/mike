@@ -39,4 +39,4 @@ pub fn weigh_outside_project(
 
 #[cfg(test)]
 #[path = "outside_project_tests.rs"]
-pub mod tests;
+mod tests;

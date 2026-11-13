@@ -276,4 +276,4 @@ pub async fn build_workspace_briefing(
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

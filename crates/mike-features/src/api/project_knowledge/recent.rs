@@ -62,7 +62,7 @@ fn reference(row: &Value) -> &str {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use serde_json::json;
 
     use super::*;

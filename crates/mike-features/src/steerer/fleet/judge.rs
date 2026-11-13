@@ -1,6 +1,6 @@
 use crate::store::persistence::steerer_repo::SteererPersist as _;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -110,7 +110,7 @@ fn base64url_decode(input: &str) -> Option<Vec<u8>> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     const HOOK_R1_B64: &str = "eyJ2IjogMSwgImludGVudCI6ICJyMSIsICJwYXR0ZXJuIjogIlR1cm5PcmlnaW58T3BlcmF0b3JUdXJufFNlc3Npb25IZWFkIiwgInBhdGhzIjogWyJjcmF0ZXMvIl0sICJmbGFncyI6IFsiLXJsIl19";

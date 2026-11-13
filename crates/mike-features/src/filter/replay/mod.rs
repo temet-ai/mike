@@ -1,5 +1,5 @@
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 use std::collections::{HashMap, VecDeque};
 use std::hash::{Hash, Hasher};

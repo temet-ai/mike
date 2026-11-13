@@ -83,7 +83,7 @@ pub async fn emit_startup_banner(state: &AppState) {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::config::ProxyConfig;
 

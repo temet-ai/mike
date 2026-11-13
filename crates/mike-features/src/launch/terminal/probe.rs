@@ -86,7 +86,7 @@ fn wayland_display_check_for(value: Option<String>) -> Check {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

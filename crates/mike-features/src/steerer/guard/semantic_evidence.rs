@@ -106,7 +106,7 @@ pub async fn record(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::store::persistence::semantic::CandidateRow;
 

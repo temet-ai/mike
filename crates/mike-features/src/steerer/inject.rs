@@ -10,7 +10,7 @@ pub fn reply_demand_for_steerer(authority: &str, class: SteererClass) -> ReplyDe
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::wire::steering_block::{REPLY_LINE, build_steering_block};
 

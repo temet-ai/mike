@@ -32,7 +32,7 @@ impl CompositionCache {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::wire::composition::CompositionMode;
     use chrono::Utc;

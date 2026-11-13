@@ -69,7 +69,7 @@ pub fn bridge_cse_id(line: &str) -> Option<String> {
     clippy::unwrap_used,
     reason = "tests assert on fixtures they built themselves; a broken fixture must fail loudly"
 )]
-pub mod tests {
+mod tests {
     use super::*;
 
     const BRIDGE: &str = concat!(

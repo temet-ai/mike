@@ -191,7 +191,7 @@ impl PersistHandle {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{DELIVERIES, REACTIONS, map_legacy_outcome};
 
     #[test]

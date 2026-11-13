@@ -135,7 +135,7 @@ fn judge(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::store::persistence::change_record::test_seed::{self, CHECKOUT};
     use crate::store::persistence::test_support;

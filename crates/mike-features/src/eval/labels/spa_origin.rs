@@ -28,7 +28,7 @@ impl SpaOrigin {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::SpaOrigin;
 
     #[test]

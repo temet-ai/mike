@@ -33,7 +33,7 @@ pub mod review;
 pub mod review_tests;
 #[cfg(test)]
 #[path = "skill_eval_tests.rs"]
-pub mod tests;
+mod tests;
 #[path = "skill_eval_trigger.rs"]
 pub mod trigger;
 #[cfg(test)]

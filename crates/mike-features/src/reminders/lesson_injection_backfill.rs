@@ -60,7 +60,7 @@ pub fn matching_lesson_ids(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn real_shape_block() -> String {

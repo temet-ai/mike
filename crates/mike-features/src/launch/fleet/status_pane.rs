@@ -96,4 +96,4 @@ async fn close_created_workspace(backend: &dyn TerminalBackend, slug: &str, open
 
 #[cfg(test)]
 #[path = "status_pane_tests.rs"]
-pub mod tests;
+mod tests;

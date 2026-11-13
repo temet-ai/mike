@@ -39,4 +39,4 @@ pub async fn post_session_agent_context(
 
 #[cfg(test)]
 #[path = "session_agent_context_tests.rs"]
-pub mod tests;
+mod tests;

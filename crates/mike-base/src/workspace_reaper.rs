@@ -138,7 +138,7 @@ pub fn is_process_alive(_pid: i32) -> bool {
 }
 
 #[cfg(all(test, unix))]
-pub mod tests {
+mod tests {
     use super::is_process_alive;
 
     #[test]

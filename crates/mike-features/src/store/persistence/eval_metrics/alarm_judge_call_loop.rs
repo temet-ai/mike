@@ -88,7 +88,7 @@ impl crate::store::persistence::eval_repo::EvalDb<'_> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{CallLoopRow, loop_fires};
 
     fn row(ok: i64, rows: i64) -> CallLoopRow {

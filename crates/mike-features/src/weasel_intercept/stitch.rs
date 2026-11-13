@@ -61,7 +61,7 @@ fn sse_frame(event: &str, data: &str) -> Bytes {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn frame(event: &str, data: &str) -> Frame {

@@ -31,7 +31,7 @@ pub fn with_block(input: &str, block: Option<&CalibrationBlock>) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

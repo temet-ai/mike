@@ -2,7 +2,7 @@ pub mod anomalies;
 pub mod crud;
 pub mod for_agents;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub use anomalies::PromptClassScope;
 pub use anomalies::{AnomalyClassification, PromptClassModelCount, PromptClassVersionRow};

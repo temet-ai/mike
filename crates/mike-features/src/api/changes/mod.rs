@@ -7,7 +7,7 @@ pub mod tail;
 #[cfg(test)]
 pub mod seat_tests;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 use axum::Json;
 use axum::extract::{Query, State};

@@ -76,7 +76,7 @@ pub async fn confirm(cli: &HerdrCli, pane: &str) -> ChannelsDialogOutcome {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

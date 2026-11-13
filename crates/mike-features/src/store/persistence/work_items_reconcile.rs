@@ -61,4 +61,4 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
 
 #[cfg(test)]
 #[path = "work_items_reconcile_tests.rs"]
-pub mod tests;
+mod tests;

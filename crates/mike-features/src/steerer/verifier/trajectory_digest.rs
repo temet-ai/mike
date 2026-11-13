@@ -75,7 +75,7 @@ pub fn build_trajectory_digest(rows: &[TurnToolCallMetaRow]) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn make_paired_row(

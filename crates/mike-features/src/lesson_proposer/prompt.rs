@@ -137,7 +137,7 @@ pub async fn call_proposer(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn candidate() -> CorrectionCandidate {

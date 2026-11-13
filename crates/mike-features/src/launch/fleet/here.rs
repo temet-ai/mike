@@ -14,7 +14,7 @@ pub fn on_this_machine(fleets: Vec<FleetRow>, present: impl Fn(&str) -> bool) ->
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use chrono::Utc;
     use serde_json::json;
     use uuid::Uuid;

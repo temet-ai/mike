@@ -155,7 +155,7 @@ pub fn highest_live(firing_live: &[Question]) -> Option<Question> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

@@ -9,7 +9,7 @@ pub mod supervisor;
 pub mod tree;
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::{Arc, OnceLock};

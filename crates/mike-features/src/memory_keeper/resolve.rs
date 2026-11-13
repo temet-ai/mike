@@ -397,7 +397,7 @@ fn recency(thread: &ThreadFacts, now: DateTime<Utc>) -> f64 {
 
 #[cfg(test)]
 #[path = "resolve_tests.rs"]
-pub mod tests;
+mod tests;
 
 #[cfg(test)]
 #[path = "resolve_eval_tests.rs"]

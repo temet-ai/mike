@@ -114,7 +114,7 @@ pub async fn view(state: &AppState, row: &FleetRow) -> FleetView {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::launch::fleet::definition::{TaskDefinition, WorkerDefinition};
 

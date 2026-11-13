@@ -134,4 +134,4 @@ fn exit_code(status: std::process::ExitStatus) -> i32 {
 
 #[cfg(test)]
 #[path = "timed_command_tests.rs"]
-pub mod tests;
+mod tests;

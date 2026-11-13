@@ -56,7 +56,7 @@ fn matches_xml_tag(text: &str, tag: &str) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::super::{FilterAction, FilterKind, FilterRule, RuleSource};
     use super::block_matches;
     use chrono::Utc;

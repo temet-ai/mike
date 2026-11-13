@@ -147,7 +147,7 @@ pub const VERDICT_FROM: &str = "FROM memory.turn_verdicts v \
      LEFT JOIN memory.turn_outcomes o ON o.id = t.outcome_id";
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     const SOURCES: [&str; 4] = [
         include_str!("mod.rs"),
         include_str!("insert.rs"),

@@ -180,7 +180,7 @@ pub fn plan(dir: &Path, batch: &str) -> Result<HoldoutPlan, String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{plan, sha256_hex};
     use serde_json::json;
 

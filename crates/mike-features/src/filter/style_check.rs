@@ -98,7 +98,7 @@ pub fn find_banned_term(text: &str, banned: &[String]) -> Option<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     const RULES_FIXTURE: &str = r#"Do not invent terms or reuse the model's own house jargon. The following words and

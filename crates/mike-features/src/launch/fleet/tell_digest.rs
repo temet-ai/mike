@@ -325,4 +325,4 @@ pub fn digests(
 
 #[cfg(test)]
 #[path = "tell_digest_tests.rs"]
-pub mod tests;
+mod tests;

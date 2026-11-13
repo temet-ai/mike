@@ -284,7 +284,7 @@ async fn quarantine<T>(owner: Option<&Owner>, why: String) -> T {
 
 #[cfg(all(test, any(target_os = "linux", target_os = "macos")))]
 #[path = "owned_git_tests.rs"]
-pub mod tests;
+mod tests;
 
 #[cfg(feature = "test-seams")]
 pub async fn run_fixture(

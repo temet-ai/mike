@@ -461,4 +461,4 @@ impl Drop for Registration {
 
 #[cfg(test)]
 #[path = "owned_execution_tests.rs"]
-pub mod tests;
+mod tests;

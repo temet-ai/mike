@@ -146,7 +146,7 @@ pub async fn repeats_last_delivery(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{binary_on_path, fold_whitespace};
 
     #[test]

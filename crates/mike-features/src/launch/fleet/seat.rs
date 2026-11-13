@@ -337,7 +337,7 @@ async fn save_once(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn plan() -> SeatPlan {

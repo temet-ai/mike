@@ -143,4 +143,4 @@ async fn finish(
 
 #[cfg(test)]
 #[path = "sources_tests.rs"]
-pub mod tests;
+mod tests;

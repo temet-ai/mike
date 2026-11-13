@@ -352,7 +352,7 @@ pub fn should_sample(end_turn_id: i64, sample_rate: f64) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{sample_point, should_sample};
 
     #[test]

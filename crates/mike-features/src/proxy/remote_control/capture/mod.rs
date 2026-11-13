@@ -339,4 +339,4 @@ fn build_response(
 
 #[cfg(test)]
 #[path = "tests.rs"]
-pub mod tests;
+mod tests;

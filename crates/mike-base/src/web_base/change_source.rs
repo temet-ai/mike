@@ -33,7 +33,7 @@ pub fn change_source_from_headers(headers: &HeaderMap) -> ChangeSource {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use axum::http::HeaderValue;
 
     use super::*;

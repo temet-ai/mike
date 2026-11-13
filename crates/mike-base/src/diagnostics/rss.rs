@@ -25,7 +25,7 @@ pub fn read_max_rss() -> Option<u64> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::read_max_rss;
 
     #[cfg(unix)]

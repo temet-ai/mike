@@ -168,7 +168,7 @@ pub async fn release_channel_messages(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     const ADDRESS: &str = "uds:/run/user/1000/cc-socks/7.sock";

@@ -40,4 +40,4 @@ fn report(fleet: &str, session: Uuid, task_id: &str) -> serde_json::Value {
 
 #[cfg(test)]
 #[path = "tool_examples_tests.rs"]
-pub mod tests;
+mod tests;

@@ -6,7 +6,7 @@ pub mod sent_capture;
 pub mod sent_patch;
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub const RELIABLE_SIDECAR_ORIGINS: &[&str] = &[
     "title_sidecar",

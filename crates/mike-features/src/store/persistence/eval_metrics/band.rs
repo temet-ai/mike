@@ -55,7 +55,7 @@ pub fn band_detail(stats: &BandStats) -> Value {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{AlarmThresholds, band_stats};
     use crate::store::persistence::eval_metrics::sql_label_mix::MixWindowRow;
     use serde_json::json;

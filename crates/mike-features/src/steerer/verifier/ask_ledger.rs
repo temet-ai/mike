@@ -80,7 +80,7 @@ pub fn build_prior_fires_digest(fires: &[PriorFireRow]) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

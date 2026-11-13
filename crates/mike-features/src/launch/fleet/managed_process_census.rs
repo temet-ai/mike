@@ -97,7 +97,7 @@ pub fn ps_quiet(text: &str, group: libc::pid_t) -> Result<bool, String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

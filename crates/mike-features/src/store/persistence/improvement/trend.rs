@@ -46,7 +46,7 @@ impl crate::store::persistence::eval_repo::EvalDb<'_> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use chrono::TimeZone;
     use serde_json::json;

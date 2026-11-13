@@ -118,4 +118,4 @@ pub async fn done_when_filters(def: &FleetDefinition) -> Vec<Missing> {
 
 #[cfg(test)]
 #[path = "nextest_filter_tests.rs"]
-pub mod tests;
+mod tests;

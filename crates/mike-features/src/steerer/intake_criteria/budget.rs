@@ -77,7 +77,7 @@ pub fn fit_asks(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use chrono::Utc;
 
     use super::*;

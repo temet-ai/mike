@@ -64,7 +64,7 @@ pub fn sanitize_for_inline(s: &str) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::store::models::DiagnosticCategory;
     use chrono::Utc;

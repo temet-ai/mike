@@ -73,7 +73,7 @@ pub fn decide_replacement(i: &ReplacementInputs<'_>) -> VerifierDecision {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn pairs(guard_corrected: i64, verifier_corrected: i64) -> VerifierPairs {

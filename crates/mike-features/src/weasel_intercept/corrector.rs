@@ -152,7 +152,7 @@ fn match_length(haystack: &str, needle_lower: &[char]) -> Option<usize> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn make_original_body(messages: serde_json::Value) -> anyhow::Result<Bytes> {

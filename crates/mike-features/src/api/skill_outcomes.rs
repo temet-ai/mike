@@ -53,7 +53,7 @@ pub async fn post_skill_outcomes(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn request(value: serde_json::Value) -> anyhow::Result<OutcomesRequest> {

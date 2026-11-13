@@ -86,7 +86,7 @@ fn parse_input(input_json: &str) -> Value {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn call() -> ProxyToolCall {

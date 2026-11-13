@@ -90,7 +90,7 @@ pub fn fact_lines(facts: Option<&SteeringFacts>) -> Vec<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use chrono::Utc;
 
     use super::*;

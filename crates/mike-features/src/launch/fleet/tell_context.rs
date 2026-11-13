@@ -46,4 +46,4 @@ pub fn past_the_line(
 
 #[cfg(test)]
 #[path = "tell_context_tests.rs"]
-pub mod tests;
+mod tests;

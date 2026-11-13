@@ -64,4 +64,4 @@ pub fn forget(run: &str, seat: &UnsettledFleetLaunch) {
 
 #[cfg(test)]
 #[path = "seat_exit_tests.rs"]
-pub mod tests;
+mod tests;

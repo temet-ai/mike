@@ -68,7 +68,7 @@ impl RequestStage for LazySectionsStage {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use bytes::Bytes;
     use serde_json::json;
 

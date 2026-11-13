@@ -478,4 +478,4 @@ pub fn brief(def: &FleetDefinition, task: &TaskDefinition) -> String {
 
 #[cfg(test)]
 #[path = "checks_paths_tests.rs"]
-pub mod tests;
+mod tests;

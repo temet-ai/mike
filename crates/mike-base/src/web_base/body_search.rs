@@ -113,7 +113,7 @@ fn line_column_for_offset(haystack: &str, target: usize) -> (u32, u32) {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

@@ -68,7 +68,7 @@ pub fn text(report: &GateReport) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn report(how: &str) -> GateReport {

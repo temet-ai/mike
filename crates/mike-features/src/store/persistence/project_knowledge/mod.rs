@@ -58,4 +58,4 @@ pub mod search_filters_tests;
 #[cfg(test)]
 pub mod session_binding_tests;
 #[cfg(test)]
-pub mod tests;
+mod tests;

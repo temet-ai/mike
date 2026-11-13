@@ -62,4 +62,4 @@ fn under_root(path: &str, root: &str) -> bool {
 
 #[cfg(test)]
 #[path = "snapshot_tests.rs"]
-pub mod tests;
+mod tests;

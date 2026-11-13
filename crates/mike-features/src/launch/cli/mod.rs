@@ -36,7 +36,7 @@ pub mod templates;
 #[cfg(any(test, feature = "test-seams"))]
 pub mod test_support;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 pub mod warm;
 
 pub use args::{

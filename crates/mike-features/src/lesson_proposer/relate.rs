@@ -341,4 +341,4 @@ pub fn resolve(
 
 #[cfg(test)]
 #[path = "relate_tests.rs"]
-pub mod tests;
+mod tests;

@@ -24,4 +24,4 @@ pub async fn guard(
 
 #[cfg(test)]
 #[path = "tests.rs"]
-pub mod tests;
+mod tests;

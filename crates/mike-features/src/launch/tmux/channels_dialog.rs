@@ -40,7 +40,7 @@ pub async fn confirm(cli: &TmuxCli, pane: &str) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

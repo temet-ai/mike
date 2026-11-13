@@ -5,7 +5,7 @@ pub mod stored_body;
 
 #[cfg(test)]
 #[path = "tests.rs"]
-pub mod tests;
+mod tests;
 
 #[cfg(test)]
 #[path = "link_tests.rs"]

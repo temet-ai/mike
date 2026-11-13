@@ -44,7 +44,7 @@ pub mod stage_test_support;
 #[cfg(test)]
 pub mod test_support;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 #[cfg(test)]
 pub mod workspace_briefing_stage_tests;
 

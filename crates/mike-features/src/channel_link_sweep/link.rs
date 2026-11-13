@@ -108,7 +108,7 @@ pub async fn write_links(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{ChannelLinkProgress, UNTHROTTLED_SCANS, claim_scan, unseen_channels};
     use serde_json::json;
     use std::time::{Duration, Instant};

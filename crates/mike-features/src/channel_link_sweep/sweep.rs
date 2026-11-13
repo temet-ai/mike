@@ -97,7 +97,7 @@ async fn link_candidate(persist: &PersistHandle, candidate: &ChannelLinkSweepCan
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

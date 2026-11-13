@@ -211,7 +211,7 @@ pub async fn store(persist: &PersistHandle, session: Uuid, note: &Draft) {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn landed() -> CommitReport {

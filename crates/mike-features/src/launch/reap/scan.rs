@@ -140,7 +140,7 @@ fn pid_cwd(pid: u32) -> String {
     clippy::unwrap_used,
     reason = "tests assert on fixtures they built themselves; a broken fixture must fail loudly"
 )]
-pub mod tests {
+mod tests {
     use std::collections::VecDeque;
     use std::sync::Mutex;
 

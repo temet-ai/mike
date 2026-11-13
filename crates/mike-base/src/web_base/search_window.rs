@@ -98,7 +98,7 @@ fn parse_optional(s: Option<&str>) -> Result<Option<DateTime<Utc>>, DateParseErr
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

@@ -102,7 +102,7 @@ pub async fn get_delivery_comparison(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn row(arm: &str) -> ArmComparisonRow {

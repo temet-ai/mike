@@ -52,7 +52,7 @@ pub fn check_current_primitives(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use std::path::{Path, PathBuf};
 
     use super::super::source_tree::read_source_tree;

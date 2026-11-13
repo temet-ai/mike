@@ -62,7 +62,7 @@ pub fn age(template: &TemplateRow) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use uuid::Uuid;
 
     use super::*;

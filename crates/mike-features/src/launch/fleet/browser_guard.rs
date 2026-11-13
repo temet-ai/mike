@@ -182,4 +182,4 @@ pub mod cases;
 
 #[cfg(test)]
 #[path = "browser_guard_tests.rs"]
-pub mod tests;
+mod tests;

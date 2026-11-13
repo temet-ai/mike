@@ -109,4 +109,4 @@ pub fn directory(root: &Path, name: &str) -> Result<PathBuf, String> {
 
 #[cfg(all(test, unix))]
 #[path = "operation_admission_tests.rs"]
-pub mod tests;
+mod tests;

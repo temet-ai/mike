@@ -38,7 +38,7 @@ pub fn steerer_client(state: &AppState, timeout: Duration) -> Result<SteererClie
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     #[test]
     fn missing_key_message_names_the_model_and_the_provider() {
         let message = crate::llm::openrouter::missing_key_error(

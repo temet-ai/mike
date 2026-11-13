@@ -154,4 +154,4 @@ pub fn vector_to_text_literal(v: &[f32]) -> String {
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

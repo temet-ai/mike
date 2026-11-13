@@ -126,4 +126,4 @@ async fn post_location(inspect_addr: &str, body: &Value) -> LocationOutcome {
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

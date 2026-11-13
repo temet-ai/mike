@@ -129,7 +129,7 @@ pub fn target_allowed(question: Question, target: &str) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn counts(right: i64, wrong: i64, quorum: bool) -> GateCounts {

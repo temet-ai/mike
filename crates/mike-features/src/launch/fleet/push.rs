@@ -214,7 +214,7 @@ pub fn behind_origin(git_said: &str) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

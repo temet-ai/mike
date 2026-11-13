@@ -47,7 +47,7 @@ pub fn question_exemption(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::steerer::guard::Trigger;
     use crate::steerer::guard::gates::phrase_gates;

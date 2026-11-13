@@ -3,7 +3,7 @@ pub mod labels;
 pub mod reads;
 pub mod resolve;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;

@@ -115,4 +115,4 @@ fn notice(execution: &Execution, def: &FleetDefinition, coordinator: Uuid) -> No
 
 #[cfg(test)]
 #[path = "process_tripwire_tests.rs"]
-pub mod tests;
+mod tests;

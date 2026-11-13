@@ -182,7 +182,7 @@ pub async fn prompt_turn_seen(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

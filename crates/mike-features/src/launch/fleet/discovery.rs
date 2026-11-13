@@ -144,7 +144,7 @@ pub async fn run(args: DiscoveryArgs) -> anyhow::Result<()> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[tokio::test]

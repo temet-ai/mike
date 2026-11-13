@@ -323,7 +323,7 @@ pub async fn retire(persist: &PersistHandle, def: &FleetDefinition, run_id: &str
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{Launch, Progress, Step};
 
     fn launch(result: &'static str, confirmed: bool) -> Option<Launch<'static>> {

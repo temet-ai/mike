@@ -75,7 +75,7 @@ same document over time.\n\
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::reminders::test_support::noop_push_deps;
     use crate::store::models::RequestId;

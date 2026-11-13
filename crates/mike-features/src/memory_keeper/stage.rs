@@ -96,4 +96,4 @@ fn card(ctx: &StageContext<'_>, session: Uuid, body: &[u8]) -> Option<Block> {
 
 #[cfg(test)]
 #[path = "stage_tests.rs"]
-pub mod tests;
+mod tests;

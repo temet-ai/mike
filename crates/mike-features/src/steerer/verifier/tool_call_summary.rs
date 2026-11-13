@@ -68,7 +68,7 @@ fn truncate_str(s: &str, max_chars: usize) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn make_tool_call(name: &str, input_json: &str) -> ToolCall {

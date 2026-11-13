@@ -180,4 +180,4 @@ impl RequestStage for ShellOutputCompressionStage {
 
 #[cfg(test)]
 #[path = "shell_stage_tests.rs"]
-pub mod tests;
+mod tests;

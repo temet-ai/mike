@@ -34,7 +34,7 @@ pub fn ephemeral_project_path(project_path: &str) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::ephemeral_project_path;
 
     #[test]

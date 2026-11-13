@@ -22,7 +22,7 @@ pub mod write;
 #[cfg(test)]
 pub mod maintenance_tests;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 use chrono::Utc;
 use serde::Serialize;

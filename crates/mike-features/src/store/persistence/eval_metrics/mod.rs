@@ -25,7 +25,7 @@ pub use types::{
 };
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     const SOURCES: [&str; 8] = [
         include_str!("sql_accuracy.rs"),
         include_str!("sql_guard_calibration.rs"),

@@ -142,7 +142,7 @@ pub fn estimate_effect(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn row(id: i64, session: i64, arm: &str, reaction: &str) -> ArmRow {

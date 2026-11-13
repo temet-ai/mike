@@ -54,7 +54,7 @@ fn assistant_text_contains(msg: &Value, token: &str) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use serde_json::json;
 

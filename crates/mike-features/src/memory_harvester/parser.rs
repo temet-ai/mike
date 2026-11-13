@@ -74,7 +74,7 @@ fn extract_attr(tag: &str, name: &str) -> Option<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

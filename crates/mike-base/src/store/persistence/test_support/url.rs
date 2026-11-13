@@ -49,7 +49,7 @@ fn split_on_host_separator(url: &str) -> anyhow::Result<(&str, &str)> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

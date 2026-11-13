@@ -128,7 +128,7 @@ fn read_flag(args: &[String], flag: &str) -> Option<String> {
     clippy::unwrap_used,
     reason = "tests assert on fixtures they built themselves; a broken fixture must fail loudly"
 )]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::launch::{BackendId, ChannelCheck};
 

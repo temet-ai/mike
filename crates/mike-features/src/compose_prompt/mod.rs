@@ -12,7 +12,7 @@ pub mod template_splice_tests;
 #[cfg(test)]
 pub mod test_support;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 use std::sync::Arc;
 

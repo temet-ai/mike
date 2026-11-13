@@ -54,7 +54,7 @@ pub fn extract_host(url: &str) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

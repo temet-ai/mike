@@ -222,4 +222,4 @@ async fn unclaim(job: &ClaimJob, message_uuid: Uuid) {
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

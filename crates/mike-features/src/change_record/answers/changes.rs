@@ -196,7 +196,7 @@ async fn read_paths(persist: &PersistHandle, caller: &Caller) -> Result<Vec<Stri
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::change_record::NewChangeEvent;
 

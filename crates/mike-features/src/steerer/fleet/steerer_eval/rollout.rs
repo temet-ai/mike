@@ -16,7 +16,7 @@ pub fn is_shadow(steerer: &Steerer) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::live_before_shadow;
     use crate::steerer::registry::{Steerer, SteererParams};
     use crate::steerer::rollout_params::Rollout;

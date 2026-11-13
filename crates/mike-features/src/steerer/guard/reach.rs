@@ -54,7 +54,7 @@ pub async fn reach_at(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn row(opened: i64, closed: Option<i64>, seen: i64) -> ChannelReachRow {

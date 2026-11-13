@@ -40,7 +40,7 @@ pub fn assign_arm(salt: uuid::Uuid, anchor: &ArmAnchor, pct: u8) -> Arm {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn anchor(turn: i64) -> ArmAnchor {

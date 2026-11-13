@@ -49,7 +49,7 @@ pub async fn forward_without_capture(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use axum::http::HeaderValue;
     use wiremock::matchers::{header, method, path, query_param};
     use wiremock::{Mock, MockServer, ResponseTemplate};

@@ -16,7 +16,7 @@ pub mod tail;
 pub mod whose;
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub use caller::{AnswerError, Caller};
 pub use changes::{ChangesAnswer, Scope, Since, changes};

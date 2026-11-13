@@ -150,4 +150,4 @@ pub fn commit_warning_for(word: &str, previous: &str, command: &str) -> Option<S
 
 #[cfg(test)]
 #[path = "release_tests.rs"]
-pub mod tests;
+mod tests;

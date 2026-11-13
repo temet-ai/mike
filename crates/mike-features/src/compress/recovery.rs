@@ -66,7 +66,7 @@ impl CapturedResults {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

@@ -68,7 +68,7 @@ fn problem_line(problem: &crate::launch::fleet::status::ProblemStatus) -> String
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use chrono::{DateTime, Utc};
 
     use super::attention;

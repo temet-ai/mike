@@ -4,7 +4,7 @@ pub mod reason;
 pub mod reduction;
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 #[cfg(test)]
 pub mod tests_detect;
 

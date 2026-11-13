@@ -54,4 +54,4 @@ fn bounded_worker_goal(text: &str, id: &str, seat: &str) -> String {
 
 #[cfg(test)]
 #[path = "goals_tests.rs"]
-pub mod tests;
+mod tests;

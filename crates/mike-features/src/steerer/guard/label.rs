@@ -395,7 +395,7 @@ pub async fn run_pass(pass: &LabelPass<'_>) -> LabelReport {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

@@ -132,7 +132,7 @@ impl SteererRegistry {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn make_row(id: i64, enabled: bool, config: serde_json::Value) -> SteererRow {

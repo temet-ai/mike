@@ -95,7 +95,7 @@ fn sanitise(key: &str) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[tokio::test]

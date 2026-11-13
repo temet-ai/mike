@@ -337,7 +337,7 @@ async fn fetch_from_openrouter(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

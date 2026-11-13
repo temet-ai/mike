@@ -18,7 +18,7 @@ pub fn locate(value: &Value) -> Option<(usize, usize)> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use serde_json::json;
 

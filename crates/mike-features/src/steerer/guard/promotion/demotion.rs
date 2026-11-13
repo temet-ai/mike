@@ -256,7 +256,7 @@ pub async fn run_demotion_check(persist: &PersistHandle, now: DateTime<Utc>) -> 
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::steerer::guard::promotion::effect::{ArmSummary, Estimate};
 

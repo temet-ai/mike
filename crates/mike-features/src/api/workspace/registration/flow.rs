@@ -43,7 +43,7 @@ impl From<FlowAdmissionResult> for FlowAdmissionDto {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

@@ -40,7 +40,7 @@ impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::count_column;
 
     #[test]

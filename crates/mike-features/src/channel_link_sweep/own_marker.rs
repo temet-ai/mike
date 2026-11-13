@@ -156,7 +156,7 @@ fn own_lines(reminder: &str) -> impl Iterator<Item = &str> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{own_channel_ids, raw_marker_ids};
     use serde_json::json;
 

@@ -72,7 +72,7 @@ impl ToolCallScanner {
     clippy::expect_used,
     reason = "test fixtures; hand-built JSON and fixture rows are expected to parse"
 )]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::proxy_tools::roster::TOOL_NAME;
 

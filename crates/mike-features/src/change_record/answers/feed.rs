@@ -49,4 +49,4 @@ fn commit_sha(event: &ChangeEvent) -> Option<String> {
 
 #[cfg(test)]
 #[path = "feed_tests.rs"]
-pub mod tests;
+mod tests;

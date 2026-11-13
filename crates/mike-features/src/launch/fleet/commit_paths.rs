@@ -222,7 +222,7 @@ fn left_out(folder: &str, theirs: &[&String]) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn owner() -> Ownership {

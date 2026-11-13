@@ -84,4 +84,4 @@ fn parameters(removed: &Removed, removed_bytes: usize) -> serde_json::Value {
 
 #[cfg(test)]
 #[path = "stage_tests.rs"]
-pub mod tests;
+mod tests;

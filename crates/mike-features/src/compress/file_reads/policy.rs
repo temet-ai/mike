@@ -93,7 +93,7 @@ pub fn policy_value(policy: &FileReadPolicy<'_>) -> Value {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use crate::compress::file_reads::tests_support::TestPolicy;
 
     #[test]

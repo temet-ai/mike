@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 pub mod syntax;
 #[cfg(test)]
 #[path = "background_hook_tests.rs"]
-pub mod tests;
+mod tests;
 
 pub const COMMANDS_ENV: &str = "MIKE_FLEET_BACKGROUND_COMMANDS";
 const BACKGROUND_DISABLED: &str = "CLAUDE_CODE_DISABLE_BACKGROUND_TASKS";

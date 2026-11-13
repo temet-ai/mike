@@ -102,7 +102,7 @@ pub async fn get_session_verdicts(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

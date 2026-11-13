@@ -255,4 +255,4 @@ impl ReportProof {
 
 #[cfg(test)]
 #[path = "report_proof_tests.rs"]
-pub mod tests;
+mod tests;

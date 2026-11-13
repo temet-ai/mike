@@ -28,7 +28,7 @@ pub fn remember(session_id: &str, seen: Seen) {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

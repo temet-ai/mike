@@ -68,7 +68,7 @@ fn log_not_published(e: &std::io::Error) {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

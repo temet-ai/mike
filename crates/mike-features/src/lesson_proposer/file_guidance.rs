@@ -135,4 +135,4 @@ pub async fn closest(
 
 #[cfg(test)]
 #[path = "file_guidance_tests.rs"]
-pub mod tests;
+mod tests;

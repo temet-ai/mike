@@ -35,7 +35,7 @@ pub fn inject_system_reminder(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::store::models::{ReminderSource, SystemReminder};
     use serde_json::{Value, json};

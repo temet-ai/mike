@@ -235,7 +235,7 @@ fn inline_script(program: &str, next: Option<&str>) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{edits_files, through_wrapper, work_of, work_through};
 
     #[test]

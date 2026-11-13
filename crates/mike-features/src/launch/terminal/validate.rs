@@ -231,7 +231,7 @@ fn shell_quote(arg: &str) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

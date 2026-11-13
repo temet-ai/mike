@@ -90,4 +90,4 @@ pub async fn owner_among(
 
 #[cfg(test)]
 #[path = "author_named_tests.rs"]
-pub mod tests;
+mod tests;

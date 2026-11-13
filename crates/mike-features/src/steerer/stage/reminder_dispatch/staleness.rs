@@ -190,7 +190,7 @@ fn log_steerer_reminder_push_in_flight(session_id: &str, intervention_uuid: &str
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use chrono::{Duration, Utc};
 
     use super::{guard_push_delivered, push_still_in_flight, steerer_expiry_reason};

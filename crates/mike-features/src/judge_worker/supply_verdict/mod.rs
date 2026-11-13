@@ -1,7 +1,7 @@
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
 pub mod prompt;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 use std::time::Duration;
 

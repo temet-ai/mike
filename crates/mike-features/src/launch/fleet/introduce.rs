@@ -235,7 +235,7 @@ pub mod delivery_tests;
 
 #[cfg(test)]
 #[path = "introduce_tests.rs"]
-pub mod tests;
+mod tests;
 
 #[cfg(test)]
 #[path = "introduce_timing_tests.rs"]

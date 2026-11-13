@@ -229,7 +229,7 @@ async fn wait_ready(cli: &TmuxCli, pane: &str) {
     clippy::unwrap_used,
     reason = "tests assert on fixtures they built themselves; a broken fixture must fail loudly"
 )]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

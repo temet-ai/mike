@@ -495,4 +495,4 @@ async fn retire_checkout(persist: &PersistHandle, row: &FleetRow, run: &str, ret
 
 #[cfg(test)]
 #[path = "shutdown_tests.rs"]
-pub mod tests;
+mod tests;

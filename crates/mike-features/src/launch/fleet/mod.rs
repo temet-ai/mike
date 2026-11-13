@@ -173,7 +173,7 @@ pub mod run_record_tests;
 #[cfg(test)]
 pub mod seated_tests;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub use seat_settings::background_hook::run as background_hook;
 pub use seat_settings::receipt_hook::run as receipt_hook;

@@ -262,4 +262,4 @@ fn transient_code(code: &str) -> bool {
 
 #[cfg(test)]
 #[path = "check_completion_tests.rs"]
-pub mod tests;
+mod tests;

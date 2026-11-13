@@ -146,7 +146,7 @@ pub fn calibration_block(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn rate(

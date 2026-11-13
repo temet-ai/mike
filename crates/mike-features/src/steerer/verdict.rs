@@ -95,7 +95,7 @@ pub fn steerer_verdict_schema() -> Value {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

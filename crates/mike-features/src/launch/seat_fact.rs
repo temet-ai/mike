@@ -115,7 +115,7 @@ pub fn remember_fact_for_test(session: Uuid, fact: SeatFact) {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

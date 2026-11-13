@@ -66,7 +66,7 @@ pub fn queue_notice(to: Uuid, now: DateTime<Utc>, waiting: &[Waiting]) -> Option
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use serde_json::json;
 
     use super::*;

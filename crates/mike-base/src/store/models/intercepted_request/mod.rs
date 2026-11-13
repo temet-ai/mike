@@ -107,4 +107,4 @@ pub struct InterceptedRequest {
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

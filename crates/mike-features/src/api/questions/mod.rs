@@ -5,7 +5,7 @@ pub mod resolve;
 pub mod text;
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub use answer::{post_question_answer, post_question_decline};
 pub use ask::post_question;

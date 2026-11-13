@@ -76,7 +76,7 @@ impl RequestStage for ProxyToolsStage {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use bytes::Bytes;
     use serde_json::Value;
 

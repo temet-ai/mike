@@ -46,4 +46,4 @@ pub fn apply_judge_alarm(status: &'static str, alarm: bool) -> &'static str {
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

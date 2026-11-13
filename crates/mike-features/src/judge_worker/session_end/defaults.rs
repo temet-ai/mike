@@ -88,4 +88,4 @@ pub fn apply_rules(
 
 #[cfg(test)]
 #[path = "defaults_tests.rs"]
-pub mod tests;
+mod tests;

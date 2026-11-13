@@ -62,4 +62,4 @@ fn short_hash(body: &str) -> String {
 
 #[cfg(test)]
 #[path = "block_tests.rs"]
-pub mod tests;
+mod tests;

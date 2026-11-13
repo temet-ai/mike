@@ -5,7 +5,7 @@ pub mod settle;
 pub mod types;
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub use types::{
     AskedQuestion, NoteRef, QuestionRow, STATE_ANSWERED, STATE_DECLINED, STATE_OPEN, SettleKind,

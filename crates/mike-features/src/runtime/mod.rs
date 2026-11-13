@@ -14,4 +14,4 @@ pub use session::{
 pub use identity::{RuntimeContractError, validate_extensions, validate_text, validate_uuid};
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

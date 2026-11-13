@@ -168,4 +168,4 @@ pub fn matched(
 
 #[cfg(test)]
 #[path = "build_timing_tests.rs"]
-pub mod tests;
+mod tests;

@@ -54,4 +54,4 @@ pub async fn proxy_handler(
 
 #[cfg(test)]
 #[path = "handler_tests.rs"]
-pub mod tests;
+mod tests;

@@ -9,7 +9,7 @@ pub mod report_judge;
 pub mod report_judge_tests;
 pub mod solver;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;

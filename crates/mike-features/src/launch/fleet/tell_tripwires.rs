@@ -66,4 +66,4 @@ pub async fn read(
 
 #[cfg(test)]
 #[path = "tell_tripwires_tests.rs"]
-pub mod tests;
+mod tests;

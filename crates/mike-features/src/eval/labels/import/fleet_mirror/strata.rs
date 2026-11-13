@@ -139,7 +139,7 @@ pub fn real_gt_by_stratum(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn turn(id: i64, session: &str, created: &str, path: &str, head: &str) -> TurnLine {

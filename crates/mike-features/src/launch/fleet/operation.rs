@@ -201,4 +201,4 @@ pub use validation::validate;
 
 #[cfg(test)]
 #[path = "operation_tests.rs"]
-pub mod tests;
+mod tests;

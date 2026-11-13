@@ -181,4 +181,4 @@ fn route_path(
 
 #[cfg(test)]
 #[path = "gate_failure_routes_tests.rs"]
-pub mod tests;
+mod tests;

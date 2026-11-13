@@ -154,4 +154,4 @@ pub fn project_action_list(
 
 #[cfg(test)]
 #[path = "action_list_tests.rs"]
-pub mod tests;
+mod tests;

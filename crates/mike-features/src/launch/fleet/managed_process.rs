@@ -319,4 +319,4 @@ async fn quarantine(owner: &Owner, why: &str) -> (Option<i32>, String) {
 
 #[cfg(all(test, any(target_os = "linux", target_os = "macos")))]
 #[path = "managed_process_tests.rs"]
-pub mod tests;
+mod tests;

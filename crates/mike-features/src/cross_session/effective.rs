@@ -70,7 +70,7 @@ pub fn effective_fire_threshold(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::store::persistence::cross_session::ThresholdRow;
 

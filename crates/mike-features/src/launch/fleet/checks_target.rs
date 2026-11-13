@@ -67,7 +67,7 @@ pub fn per_task_targets(def: &FleetDefinition) -> Vec<Missing> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::launch::fleet::definition::TaskDefinition;
 

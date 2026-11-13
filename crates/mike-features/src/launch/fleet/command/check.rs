@@ -134,7 +134,7 @@ pub fn render_where(located: &Located) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::launch::fleet::check::Blocking;
     use crate::launch::fleet::diagnostics::Diagnostic;

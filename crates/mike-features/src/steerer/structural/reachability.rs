@@ -55,7 +55,7 @@ fn is_test_or_story_artifact(path: &str) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use std::path::{Path, PathBuf};
 
     use super::super::import_graph::build_import_graph;

@@ -474,4 +474,4 @@ pub async fn run(persist: &PersistHandle, input: &FloorInput<'_>) -> Option<Outc
 
 #[cfg(test)]
 #[path = "floor_tests.rs"]
-pub mod tests;
+mod tests;

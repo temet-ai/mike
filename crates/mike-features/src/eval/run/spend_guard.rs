@@ -101,7 +101,7 @@ impl EvalSpendGuard {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{BudgetPause, EvalSpendGuard, SharePcts, SpendLimits, eval_allowance_usd};
     use crate::llm::CallUsage;
 

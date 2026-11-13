@@ -240,7 +240,7 @@ async fn validate_anchors(repo: &str, anchors: &[&str]) -> Option<()> {
 
 #[cfg(test)]
 #[path = "tell_commits_tests.rs"]
-pub mod tests;
+mod tests;
 
 pub fn brief(task: &TaskDefinition) -> String {
     let mut lines = Vec::new();

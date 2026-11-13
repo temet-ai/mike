@@ -195,7 +195,7 @@ pub async fn drift(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{TaggerBacktestCase, leave_one_session_out};
 
     fn case(id: i64, session: &str, patterns: &[&str], vector: &str) -> TaggerBacktestCase {

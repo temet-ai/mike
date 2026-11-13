@@ -72,4 +72,4 @@ fn entry(row: OpenCardRow) -> ThreadEntry {
 
 #[cfg(test)]
 #[path = "refresh_tests.rs"]
-pub mod tests;
+mod tests;

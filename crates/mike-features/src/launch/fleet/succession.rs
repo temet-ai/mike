@@ -99,7 +99,7 @@ fn log_successor_missing(run_id: &str, old: &Due) {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use std::collections::BTreeSet;
 
     use chrono::{DateTime, Utc};

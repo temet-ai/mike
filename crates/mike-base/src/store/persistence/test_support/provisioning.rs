@@ -266,4 +266,4 @@ async fn connect_single(url: &str) -> anyhow::Result<PgPool> {
 
 #[cfg(test)]
 #[path = "provisioning_tests.rs"]
-pub mod tests;
+mod tests;

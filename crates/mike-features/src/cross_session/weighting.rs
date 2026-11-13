@@ -119,7 +119,7 @@ pub fn by_source_json(totals: &SourceCounts, settings: &CrossSessionSettings) ->
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn input(edge: f64, sources: &[(&str, f64, f64)]) -> BinInput {

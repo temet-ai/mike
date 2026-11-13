@@ -89,7 +89,7 @@ pub async fn rekey_url_keyed_rows(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn service(url: &str, model: &str, chunk: usize) -> EmbeddingService {

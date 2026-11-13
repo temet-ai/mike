@@ -69,7 +69,7 @@ pub fn memory_note_for(session: &str, topics: &[String]) -> Option<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use chrono::Utc;
 

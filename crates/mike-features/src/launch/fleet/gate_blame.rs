@@ -238,4 +238,4 @@ async fn fleet_seat(def: &FleetDefinition, commit: &str) -> Option<String> {
 
 #[cfg(test)]
 #[path = "gate_blame_tests.rs"]
-pub mod tests;
+mod tests;

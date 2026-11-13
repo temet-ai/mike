@@ -191,7 +191,7 @@ pub fn plan(dir: &Path, controls: &[i64]) -> anyhow::Result<ImportPlan> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn assets_dir() -> std::path::PathBuf {

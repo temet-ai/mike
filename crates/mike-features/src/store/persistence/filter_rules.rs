@@ -432,7 +432,7 @@ fn str_to_source(raw: &str) -> Option<RuleSource> {
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 #[cfg(test)]
 #[path = "filter_rules/junction_tests.rs"]

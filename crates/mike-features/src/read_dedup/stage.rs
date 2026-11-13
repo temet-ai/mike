@@ -97,7 +97,7 @@ fn declined_reason(armed: bool, hit_count: usize) -> &'static str {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use bytes::Bytes;
     use serde_json::json;
 

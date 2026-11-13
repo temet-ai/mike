@@ -19,7 +19,7 @@ pub fn quiescence_targets(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::quiescence_targets;
     use crate::steerer::registry::SteererRegistry;
     use crate::store::persistence::steering::SteererRow;

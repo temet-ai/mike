@@ -75,4 +75,4 @@ async fn git(repo: &str, args: &[&str]) -> Option<String> {
 
 #[cfg(test)]
 #[path = "report_commit_tests.rs"]
-pub mod tests;
+mod tests;

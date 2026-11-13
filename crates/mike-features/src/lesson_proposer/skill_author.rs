@@ -20,7 +20,7 @@ pub mod retired;
 pub mod shape;
 #[cfg(test)]
 #[path = "skill_author_tests.rs"]
-pub mod tests;
+mod tests;
 
 pub use shape::{
     MAX_DESCRIPTION_CHARS, MAX_OVERVIEW_CHARS, MAX_REFERENCE_CHARS, MAX_REFERENCES, acceptable,

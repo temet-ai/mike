@@ -146,7 +146,7 @@ pub fn labels_for(axis: Axis) -> &'static [&'static str] {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

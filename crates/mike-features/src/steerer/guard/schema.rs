@@ -93,7 +93,7 @@ pub fn guard_verdict_schema(open: &[Question]) -> Value {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn verdict(raw: Value) -> GuardVerdict {

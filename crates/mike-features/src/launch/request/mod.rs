@@ -7,7 +7,7 @@ pub mod claude_args;
 pub mod profile_tests;
 pub mod split;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 use std::collections::BTreeMap;
 use std::path::Path;

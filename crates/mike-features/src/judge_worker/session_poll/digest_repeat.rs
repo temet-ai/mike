@@ -77,7 +77,7 @@ fn log_remember_failed(session_id: &str, e: &crate::store::persistence::PersistE
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::digest_sha256;
 
     #[test]

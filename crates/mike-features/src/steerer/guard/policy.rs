@@ -363,7 +363,7 @@ pub fn writable_mode(raw: &str) -> Result<QuestionMode, String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

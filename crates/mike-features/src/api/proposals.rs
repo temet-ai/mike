@@ -134,7 +134,7 @@ pub async fn decide(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

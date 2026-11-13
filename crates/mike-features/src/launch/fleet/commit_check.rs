@@ -74,7 +74,7 @@ pub fn describe_passed(passed: &[String]) -> Option<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::super::definition::CommitChecks;
     use super::*;
 

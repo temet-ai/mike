@@ -72,7 +72,7 @@ pub fn effect_readiness(k1: i64, n1: i64, k2: i64, n2: i64) -> EffectReadiness {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

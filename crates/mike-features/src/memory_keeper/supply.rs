@@ -162,4 +162,4 @@ fn signals_json(resolution: &Resolution) -> Value {
 
 #[cfg(test)]
 #[path = "supply_tests.rs"]
-pub mod tests;
+mod tests;

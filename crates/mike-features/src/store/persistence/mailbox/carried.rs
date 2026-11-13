@@ -62,7 +62,7 @@ impl crate::store::persistence::launch_repo::LaunchDb<'_> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::request_carries;
 
     #[test]

@@ -112,7 +112,7 @@ pub fn build_dry_run_user_message(constraint: &str, last_user_message: &str) -> 
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

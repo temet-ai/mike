@@ -41,4 +41,4 @@ pub fn show_reranker_passages(items: &mut [Value], passages: &Passages) {
 
 #[cfg(test)]
 #[path = "passage_excerpt_tests.rs"]
-pub mod tests;
+mod tests;

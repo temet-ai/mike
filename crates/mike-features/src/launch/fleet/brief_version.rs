@@ -313,7 +313,7 @@ pub fn spawn_brief_refresh(state: &AppState) {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use serde_json::{Value, json};
 
     use super::*;

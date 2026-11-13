@@ -148,7 +148,7 @@ async fn drain_owned_run(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::claim_size;
     use crate::store::persistence::eval_repo::EvalPersist as _;
 

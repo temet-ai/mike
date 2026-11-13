@@ -200,7 +200,7 @@ pub async fn get_evaluation_stats(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::wilson;
 
     #[test]

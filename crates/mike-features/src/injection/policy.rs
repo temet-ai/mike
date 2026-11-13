@@ -56,7 +56,7 @@ fn proxy_authored_context(source_kind: &'static str) -> InjectionPolicy {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use uuid::Uuid;
 

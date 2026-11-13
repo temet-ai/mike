@@ -18,7 +18,7 @@ pub fn classify_envelope(last_user_message: &str) -> Option<PromptKind> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

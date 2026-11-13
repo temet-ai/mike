@@ -4,7 +4,7 @@ pub mod open;
 pub mod probe;
 pub mod surface;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 pub mod validate;
 
 use std::path::PathBuf;

@@ -84,7 +84,7 @@ pub fn write_to_path(path: &Path) -> anyhow::Result<()> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     const COMMITTED_PATH: &str = "tests/fixtures/analysis-corpus.json";

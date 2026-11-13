@@ -186,7 +186,7 @@ async fn newest_commits(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use chrono::Utc;
 

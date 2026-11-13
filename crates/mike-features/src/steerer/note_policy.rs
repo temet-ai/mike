@@ -153,7 +153,7 @@ pub fn stop_before_quorum(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn limits() -> NoteLimits {

@@ -444,4 +444,4 @@ pub async fn decide(
 
 #[cfg(test)]
 #[path = "problems_tests.rs"]
-pub mod tests;
+mod tests;

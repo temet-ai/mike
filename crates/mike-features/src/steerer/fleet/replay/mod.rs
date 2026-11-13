@@ -3,7 +3,7 @@ pub mod parity;
 pub mod run;
 pub mod sink;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 #[cfg(test)]
 pub mod tests_db;
 #[cfg(test)]

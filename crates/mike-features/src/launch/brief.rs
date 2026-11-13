@@ -240,7 +240,7 @@ fn write_private(dir: &Path, path: &Path, text: &str) -> Result<(), LaunchError>
     clippy::unwrap_used,
     reason = "tests assert on fixtures they built themselves; a broken fixture must fail loudly"
 )]
-pub mod tests {
+mod tests {
     use std::io::Cursor;
     use std::os::unix::fs::PermissionsExt;
 

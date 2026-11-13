@@ -145,4 +145,4 @@ pub async fn run_pass(deps: &ProposerDeps<'_>) -> PurposeReport {
 
 #[cfg(test)]
 #[path = "purpose_tests.rs"]
-pub mod tests;
+mod tests;

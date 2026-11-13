@@ -209,7 +209,7 @@ impl ImmediateJudge {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::immediate_target;
     use crate::settings::SettingsOverlay;
 

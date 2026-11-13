@@ -294,7 +294,7 @@ pub fn system_block_text(body: &Value, block_index: usize) -> Option<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

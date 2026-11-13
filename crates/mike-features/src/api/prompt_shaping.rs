@@ -140,4 +140,4 @@ pub async fn get_prompt_shaping(
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

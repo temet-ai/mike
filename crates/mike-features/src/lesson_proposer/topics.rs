@@ -11,7 +11,7 @@ use crate::store::persistence::lessons::topics::UntopicedLesson;
 
 #[cfg(test)]
 #[path = "topics_tests.rs"]
-pub mod tests;
+mod tests;
 
 pub const BATCH: i64 = 30;
 const MAX_TOPIC_CHARS: usize = 40;

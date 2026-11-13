@@ -1,5 +1,5 @@
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use chrono::Utc;
     use serde::Deserialize;
     use serde_json::{Value, json};

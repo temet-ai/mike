@@ -148,7 +148,7 @@ pub fn exit_code(verdict: &str) -> i32 {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn item(gold: &str, llm: &str, rule: Option<&str>) -> EndItem {

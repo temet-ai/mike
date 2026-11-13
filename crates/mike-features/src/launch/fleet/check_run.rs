@@ -329,7 +329,7 @@ pub async fn queue(runner: &Runner<'_>, def: &FleetDefinition) {
 
 #[cfg(test)]
 #[path = "check_run_tests.rs"]
-pub mod tests;
+mod tests;
 
 #[cfg(test)]
 #[path = "check_run_slot_tests.rs"]

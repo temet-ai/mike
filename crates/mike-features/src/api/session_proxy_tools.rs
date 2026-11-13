@@ -85,4 +85,4 @@ pub async fn post_weasel_guard(
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

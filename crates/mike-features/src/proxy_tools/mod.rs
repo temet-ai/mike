@@ -32,7 +32,7 @@ pub fn is_proxy_tool(name: &str) -> bool {
     clippy::expect_used,
     reason = "test fixtures; hand-built JSON and fixture rows are expected to parse"
 )]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

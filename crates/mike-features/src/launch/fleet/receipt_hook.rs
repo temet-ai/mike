@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 
 #[cfg(test)]
 #[path = "receipt_hook_tests.rs"]
-pub mod tests;
+mod tests;
 
 pub const ENABLED_ENV: &str = "MIKE_FLEET_RECEIPTS";
 pub const INSPECT_ADDR_ENV: &str = "MIKE_INSPECT_ADDR";

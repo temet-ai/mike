@@ -123,4 +123,4 @@ fn request_ttl(raw: &[u8]) -> Duration {
 
 #[cfg(test)]
 #[path = "cache_gate_tests.rs"]
-pub mod tests;
+mod tests;

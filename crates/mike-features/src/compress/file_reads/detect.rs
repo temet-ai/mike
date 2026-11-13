@@ -479,7 +479,7 @@ pub fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::find_subsequence;
 
     #[test]

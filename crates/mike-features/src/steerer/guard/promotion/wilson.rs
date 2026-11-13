@@ -34,7 +34,7 @@ pub fn wilson_bounds(k: i64, n: i64) -> Bounds {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::wilson_bounds;
 
     #[test]

@@ -120,4 +120,4 @@ pub fn fit(text: &str, room: usize) -> String {
 
 #[cfg(test)]
 #[path = "best_shape_tests.rs"]
-pub mod tests;
+mod tests;

@@ -12,7 +12,7 @@ use crate::store::persistence::seat_memory::SeatMemoryRefresh;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 const LEASE_ROLE: &str = "seat_memory_index";
 const TICK: Duration = Duration::from_secs(30);

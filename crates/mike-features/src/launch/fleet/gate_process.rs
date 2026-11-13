@@ -22,4 +22,4 @@ pub async fn run(
 
 #[cfg(test)]
 #[path = "gate_process_tests.rs"]
-pub mod tests;
+mod tests;

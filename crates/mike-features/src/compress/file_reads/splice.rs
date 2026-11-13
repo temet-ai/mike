@@ -170,7 +170,7 @@ pub fn build_candidate(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use serde_json::json;
 
     use crate::compress::file_reads::detect::find_subsequence;

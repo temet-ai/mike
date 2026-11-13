@@ -162,7 +162,7 @@ fn criteria(criteria: &[CriterionStatus]) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::missing_means;
 
     #[test]

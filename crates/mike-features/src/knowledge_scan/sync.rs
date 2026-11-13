@@ -268,7 +268,7 @@ async fn sync_source(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::encode_project_dir;
 
     #[test]

@@ -42,7 +42,7 @@ pub struct SemanticWindow {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{parse_vector, vector_literal};
 
     #[test]

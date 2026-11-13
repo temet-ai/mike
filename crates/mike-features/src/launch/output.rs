@@ -74,7 +74,7 @@ pub fn exit_code_for(result: &Result<LaunchOutput, LaunchError>) -> i32 {
     clippy::unwrap_used,
     reason = "tests assert on fixtures they built themselves; a broken fixture must fail loudly"
 )]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn success() -> LaunchOutput {

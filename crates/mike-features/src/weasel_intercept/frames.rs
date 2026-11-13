@@ -67,7 +67,7 @@ fn field<'a>(line: &'a str, name: &str) -> Option<&'a str> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn events(frames: &[Frame]) -> Vec<(&str, &str)> {

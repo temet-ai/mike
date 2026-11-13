@@ -25,7 +25,7 @@ pub fn find_heading_span(text: &str, heading: &str) -> Option<(usize, usize)> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::find_heading_span;
 
     const HEADING: &str = "# Claude in Chrome browser automation";

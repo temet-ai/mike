@@ -182,7 +182,7 @@ fn own_session(session: Uuid) -> Vec<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn row(args: &[&str]) -> TemplateRow {

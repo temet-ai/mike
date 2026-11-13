@@ -100,4 +100,4 @@ async fn post_registration(inspect_addr: &str, session: Uuid, body: &serde_json:
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

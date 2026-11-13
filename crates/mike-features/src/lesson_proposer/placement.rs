@@ -176,4 +176,4 @@ pub async fn call(
 
 #[cfg(test)]
 #[path = "placement_tests.rs"]
-pub mod tests;
+mod tests;

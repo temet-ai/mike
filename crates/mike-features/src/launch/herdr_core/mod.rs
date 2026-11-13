@@ -6,7 +6,7 @@ pub mod probe;
 pub mod prompt;
 pub mod terminal;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 use std::path::PathBuf;
 use std::time::Duration;

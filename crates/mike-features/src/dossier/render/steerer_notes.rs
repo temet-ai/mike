@@ -167,7 +167,7 @@ pub fn turn_opening_section(inputs: &DossierInputs, turn_id: Option<i64>) -> All
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::dossier::render::allocate::allocate;
     use crate::dossier::view::full_tests::{base_time, fixture};

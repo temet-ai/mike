@@ -154,7 +154,7 @@ fn usage(value: &Value) -> UsageSnapshot {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::model_call_state;
     use crate::proxy::responses_capture::record::ExchangeStatus;
     use mike_codex::responses::ResponsesSummary;

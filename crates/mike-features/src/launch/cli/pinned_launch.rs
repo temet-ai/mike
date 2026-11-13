@@ -60,7 +60,7 @@ pub fn named_file(cli: &CliOverrides) -> Option<toml::Table> {
     clippy::unwrap_used,
     reason = "tests assert on fixtures they built themselves; a broken fixture must fail loudly"
 )]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn stored_settings() -> LaunchConfig {

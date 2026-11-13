@@ -227,4 +227,4 @@ fn warn_unresolved_delivery(problem: &str, unresolved: &BTreeSet<String>) {
 
 #[cfg(test)]
 #[path = "gate_failure_delivery_tests.rs"]
-pub mod tests;
+mod tests;

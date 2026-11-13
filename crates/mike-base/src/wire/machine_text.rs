@@ -72,7 +72,7 @@ pub fn classify(prompt: &str) -> Option<MachineTextKind> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

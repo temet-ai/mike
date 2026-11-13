@@ -95,7 +95,7 @@ pub fn skill_state(row: &SkillFolderRow, mode: Mode) -> SkillState {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use serde_json::json;
 
     use super::*;

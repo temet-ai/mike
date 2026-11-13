@@ -292,4 +292,4 @@ impl PersistHandle {
 
 #[cfg(test)]
 #[path = "live_claim_tests.rs"]
-pub mod tests;
+mod tests;

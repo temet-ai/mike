@@ -6,7 +6,7 @@ use crate::store::persistence::PersistError;
 
 #[cfg(test)]
 #[path = "run_record_tests.rs"]
-pub mod tests;
+mod tests;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SeatMeasure {

@@ -150,4 +150,4 @@ pub fn contains_bounded(haystack: &str, needle: &str) -> bool {
 
 #[cfg(test)]
 #[path = "resolve_text_tests.rs"]
-pub mod tests;
+mod tests;

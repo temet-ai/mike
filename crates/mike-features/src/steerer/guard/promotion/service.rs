@@ -248,7 +248,7 @@ pub async fn demote(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::demotion_allowed;
 
     #[test]

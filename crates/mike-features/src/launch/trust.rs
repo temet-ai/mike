@@ -159,7 +159,7 @@ fn write_atomic(path: &Path, root: &Map<String, Value>) -> Result<(), LaunchErro
     clippy::unwrap_used,
     reason = "tests assert on fixtures they built themselves; a broken fixture must fail loudly"
 )]
-pub mod tests {
+mod tests {
     use std::os::unix::fs::PermissionsExt;
 
     use super::*;

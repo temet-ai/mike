@@ -99,7 +99,7 @@ impl crate::store::persistence::eval_repo::EvalDb<'_> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     #[test]
     fn source_filter_reads_the_label_source() {
         let sql = include_str!("labels_by_source.sql");

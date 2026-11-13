@@ -77,7 +77,7 @@ pub fn with_session_block(message: String, block: &str) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

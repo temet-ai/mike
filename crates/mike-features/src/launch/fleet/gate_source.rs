@@ -23,7 +23,7 @@ pub async fn verify(target: &Target) -> Result<(), String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     async fn project() -> anyhow::Result<(tempfile::TempDir, Target)> {

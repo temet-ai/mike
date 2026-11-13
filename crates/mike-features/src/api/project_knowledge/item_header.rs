@@ -87,4 +87,4 @@ fn assemble(label: String, date: Option<&str>, name: Option<String>) -> String {
 
 #[cfg(test)]
 #[path = "item_header_tests.rs"]
-pub mod tests;
+mod tests;

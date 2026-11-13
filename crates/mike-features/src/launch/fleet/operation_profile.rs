@@ -76,7 +76,7 @@ pub async fn apply(project: &str, definition: &mut Value) -> Result<(), String> 
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn profile() -> Vec<u8> {

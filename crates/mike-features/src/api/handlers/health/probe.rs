@@ -94,4 +94,4 @@ pub async fn probe_latest_capture(
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

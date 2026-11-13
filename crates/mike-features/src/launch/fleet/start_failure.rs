@@ -104,4 +104,4 @@ async fn raise(persist: &PersistHandle, slug: &str, notice: &Notice) {
 
 #[cfg(test)]
 #[path = "start_failure_tests.rs"]
-pub mod tests;
+mod tests;

@@ -298,4 +298,4 @@ fn log_undecided(relaunch: &Relaunch, session: Uuid, tried: &[String]) {
 
 #[cfg(test)]
 #[path = "seat_health_tests.rs"]
-pub mod tests;
+mod tests;

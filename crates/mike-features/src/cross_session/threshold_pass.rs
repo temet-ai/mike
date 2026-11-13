@@ -288,7 +288,7 @@ pub async fn run_threshold_pass(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::cross_session::weighting::Tally;
 

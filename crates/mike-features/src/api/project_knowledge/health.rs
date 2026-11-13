@@ -84,4 +84,4 @@ pub fn apply_coverage(
 
 #[cfg(test)]
 #[path = "health_tests.rs"]
-pub mod tests;
+mod tests;

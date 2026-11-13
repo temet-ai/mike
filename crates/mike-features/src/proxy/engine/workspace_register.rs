@@ -113,7 +113,7 @@ async fn register_via_cell(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::maybe_register_workspace_session;
     use crate::config::ProxyConfig;
     use crate::state::AppState;

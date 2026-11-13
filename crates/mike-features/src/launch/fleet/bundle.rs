@@ -251,7 +251,7 @@ fn note_agent(name: &str) {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

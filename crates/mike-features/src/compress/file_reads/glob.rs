@@ -45,7 +45,7 @@ fn segment_match(pattern: &str, text: &str) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::glob_match;
 
     #[test]

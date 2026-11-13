@@ -114,4 +114,4 @@ pub async fn settle_interrupted(persist: &PersistHandle, run: &str) {
 
 #[cfg(test)]
 #[path = "check_events_tests.rs"]
-pub mod tests;
+mod tests;

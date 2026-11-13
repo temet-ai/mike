@@ -62,7 +62,7 @@ impl std::fmt::Debug for ShedRegistry {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[derive(Debug)]
