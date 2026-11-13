@@ -76,7 +76,7 @@ impl Answer {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WireUsage {
     #[serde(default)]
     pub input_tokens: Option<i64>,
@@ -90,6 +90,8 @@ pub struct WireUsage {
 pub struct WireResponse {
     #[serde(default)]
     pub id: Option<String>,
+    #[serde(default)]
+    pub provider: Option<String>,
     pub model: String,
     pub answers: BTreeMap<String, Answer>,
     pub usage: WireUsage,
@@ -100,6 +102,12 @@ pub struct DecisionResponse {
     pub model: String,
     pub answers: BTreeMap<String, Answer>,
     pub usage: CallUsage,
+}
+
+#[derive(Debug)]
+pub struct DecisionOutcome {
+    pub record_id: Option<i64>,
+    pub result: Result<DecisionResponse, LlmError>,
 }
 
 impl DecisionResponse {
@@ -157,6 +165,9 @@ pub fn decisions_url(base_url: &str) -> String {
     }
 }
 
+pub mod record;
+
 #[cfg(test)]
-#[path = "decisions_tests.rs"]
+mod retention_tests;
+#[cfg(test)]
 mod tests;

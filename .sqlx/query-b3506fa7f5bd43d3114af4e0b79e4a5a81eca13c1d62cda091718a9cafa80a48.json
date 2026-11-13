@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE decisions.records\n                    SET composed = $2, applied = $3, fail_open = $4,\n                        evaluation_uuid = COALESCE($5, evaluation_uuid)\n                  WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Jsonb",
+        "Text",
+        "Bool",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b3506fa7f5bd43d3114af4e0b79e4a5a81eca13c1d62cda091718a9cafa80a48"
+}

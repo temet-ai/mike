@@ -69,6 +69,7 @@ struct Inner {
     tier: Option<ModelTier>,
     call_context: LlmCallContext,
     reservation: Option<Reservation>,
+    decision_store: Option<crate::store::persistence::PersistHandle>,
 }
 
 #[derive(Clone)]
@@ -112,6 +113,7 @@ impl OpenRouterClient {
                 tier: None,
                 call_context: LlmCallContext::default(),
                 reservation: None,
+                decision_store: None,
             }),
         })
     }

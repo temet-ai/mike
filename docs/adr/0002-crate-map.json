@@ -630,6 +630,7 @@
    "agents": "db",
    "claude_proxy": "db",
    "config": "db",
+   "decisions": "llm",
    "eval": "eval",
    "jobs": "serve",
    "launch": "launch",

@@ -30,6 +30,10 @@ fn request() -> DecisionRequest {
     }
 }
 
+fn context() -> record::DecisionContext {
+    record::DecisionContext::new("unit_test", record::DecisionMode::Cli, "unit_test_v1")
+}
+
 fn answered(disclosed: serde_json::Value) -> serde_json::Value {
     json!({
         "id": "gen-dec-1",
@@ -114,7 +118,7 @@ async fn decide_success_records_answers_cost_and_served_model() -> anyhow::Resul
     let client = client_for(&server)?
         .with_usage_sink(sink.clone())
         .with_role(LlmRole::Decision);
-    let answer = client.decide(&request()).await?;
+    let answer = client.decide(&request(), &context()).await.result?;
     assert_eq!(answer.noul("disclosed"), Some(0.9));
     assert_eq!(answer.refusals(), 0);
     let calls = sink.recorded();
@@ -141,7 +145,7 @@ async fn decide_malformed_reply_is_recorded_as_schema_error_and_returned() -> an
     let client = client_for(&server)?
         .with_usage_sink(sink.clone())
         .with_role(LlmRole::Decision);
-    let result = client.decide(&request()).await;
+    let result = client.decide(&request(), &context()).await.result;
     assert!(matches!(result, Err(LlmError::Schema(_))));
     let calls = sink.recorded();
     assert_eq!(calls.len(), 1);
@@ -160,7 +164,7 @@ async fn decide_http_error_is_recorded_once_and_not_retried() -> anyhow::Result<
     let client = client_for(&server)?
         .with_usage_sink(sink.clone())
         .with_role(LlmRole::Decision);
-    let result = client.decide(&request()).await;
+    let result = client.decide(&request(), &context()).await.result;
     assert!(matches!(result, Err(LlmError::Http { status: 500 })));
     let calls = sink.recorded();
     assert_eq!(calls.len(), 1);
@@ -178,7 +182,7 @@ async fn decide_with_no_key_fails_without_a_call() -> anyhow::Result<()> {
         .with_api_key(String::new())?
         .with_usage_sink(sink.clone())
         .with_role(LlmRole::Decision);
-    assert!(client.decide(&request()).await.is_err());
+    assert!(client.decide(&request(), &context()).await.result.is_err());
     assert!(sink.recorded().is_empty());
     assert_eq!(server.received_requests().await.map_or(0, |r| r.len()), 0);
     Ok(())
@@ -197,7 +201,7 @@ async fn decide_refused_by_the_limiter_is_recorded_as_a_refusal() -> anyhow::Res
     let client = client_with_limiter(&server, limiter)?
         .with_usage_sink(sink.clone())
         .with_role(LlmRole::Decision);
-    let result = client.decide(&request()).await;
+    let result = client.decide(&request(), &context()).await.result;
     assert!(matches!(result, Err(LlmError::SpendCeilingExceeded { .. })));
     let calls = sink.recorded();
     assert_eq!(calls.len(), 1);
