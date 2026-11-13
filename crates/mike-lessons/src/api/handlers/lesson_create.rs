@@ -348,6 +348,9 @@ async fn insert_supersedes_relation(
             );
             persist_error_response(e)
         })?;
+    if let Err(e) = handle.lessons().supersede_contradicted_lessons().await {
+        tracing::warn!(error = %e, lesson_id, supersedes_id, "create_lesson: retiring the superseded lesson failed");
+    }
     Ok(())
 }
 

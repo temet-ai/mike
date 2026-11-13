@@ -225,8 +225,7 @@ pub async fn run_rule_based_pair(
         }
     };
 
-    let adjudicator_agrees =
-        verdict.from_lesson_id == from_lesson_id && verdict.to_lesson_id == to_lesson_id;
+    let adjudicator_agrees = super::claim_stands(&verdict, from_lesson_id, to_lesson_id);
     let status = if adjudicator_agrees {
         STATUS_PROPOSED
     } else {
