@@ -138,7 +138,7 @@ fires AS (
       FROM steering.evaluations e
       JOIN steering.steerers s ON s.id = e.steerer_id
      WHERE s.name = 'turn-guard' AND e.dispatched_at >= now() - interval '1 day'
-       AND e.mode = 'live' AND e.status = 'resolved_correction'
+       AND e.status = 'resolved_correction'
 )
 SELECT 'decisions'::text AS scope,
        t.point AS resource,

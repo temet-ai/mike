@@ -52,12 +52,12 @@ pub fn entries() -> Vec<SettingMeta> {
         },
         SettingMeta {
             kind: SettingKind::Enum,
-            default: serde_json::Value::String("shadow".to_owned()),
+            default: serde_json::Value::String("on".to_owned()),
             enum_variants: Some(MODES),
             ..base(
                 TURN_GUARD_MODE_KEY,
                 "Turn-guard pre-check",
-                "Shadow records Jev's send-or-hold answer beside each live turn-guard fire; on holds the fires it would not send.",
+                "On holds the turn-guard fires Jev's answers say not to send; shadow only records the answer, for debugging.",
             )
         },
         SettingMeta {
@@ -83,7 +83,7 @@ mod tests {
         let default = crate::settings::SettingsOverlay::default();
         assert_eq!(default.decisions_model, DEFAULT_MODEL);
         assert_eq!(default.decisions_timeout_ms, DEFAULT_TIMEOUT_MS);
-        assert_eq!(default.decisions_turn_guard_mode, "shadow");
+        assert_eq!(default.decisions_turn_guard_mode, "on");
         assert_eq!(default.llm_budget_decision_share_pct, 5);
         let overlay = crate::settings::apply_db_rows_to_overlay(vec![
             (
@@ -91,7 +91,7 @@ mod tests {
                 serde_json::json!("~typesafe/jev-latest"),
             ),
             (TIMEOUT_MS_KEY.to_owned(), serde_json::json!(900)),
-            (TURN_GUARD_MODE_KEY.to_owned(), serde_json::json!("on")),
+            (TURN_GUARD_MODE_KEY.to_owned(), serde_json::json!("shadow")),
             (
                 TURN_GUARD_HOLD_BELOW_KEY.to_owned(),
                 serde_json::json!(0.25),
@@ -103,7 +103,7 @@ mod tests {
         ]);
         assert_eq!(overlay.decisions_model, "~typesafe/jev-latest");
         assert_eq!(overlay.decisions_timeout_ms, 900);
-        assert_eq!(overlay.decisions_turn_guard_mode, "on");
+        assert_eq!(overlay.decisions_turn_guard_mode, "shadow");
         assert!((overlay.decisions_turn_guard_hold_below - 0.25).abs() < 1e-9);
         assert_eq!(overlay.llm_budget_decision_share_pct, 8);
     }
@@ -114,7 +114,7 @@ mod tests {
             TURN_GUARD_MODE_KEY.to_owned(),
             serde_json::json!("sometimes"),
         )]);
-        assert_eq!(overlay.decisions_turn_guard_mode, "shadow");
+        assert_eq!(overlay.decisions_turn_guard_mode, "on");
     }
 
     #[test]

@@ -7,7 +7,7 @@ pub struct NudgeInputs<'a> {
     pub ending_quote: &'a str,
     pub open_items: usize,
     pub awaited_replies: usize,
-    pub last_change_tool: &'a str,
+    pub last_change: &'a str,
     pub last_change_at: &'a str,
     pub authorisation_class: &'a str,
     pub authorisation_text: &'a str,
@@ -26,7 +26,7 @@ pub fn render_nudge(question: Question, i: &NudgeInputs<'_>) -> String {
         ),
         Question::UnobservedDone => format!(
             "You reported this as done, and I do not see anything after the last change ({} at {}) that observed the result. If you did check it, say how. Otherwise run it, render it or test it, or say it is unverified.",
-            i.last_change_tool, i.last_change_at
+            i.last_change, i.last_change_at
         ),
         Question::AuthorisedHandback => format!(
             "You were already authorised to {}: \"{}\" ({}). Go ahead without asking.",
@@ -72,12 +72,14 @@ mod tests {
         let done = render_nudge(
             Question::UnobservedDone,
             &NudgeInputs {
-                last_change_tool: "tool 806624",
+                last_change: "crates/x/src/lib.rs (code, +4 \u{2212}1, uncommitted)",
                 last_change_at: "22:10:00",
                 ..NudgeInputs::default()
             },
         );
-        assert!(done.contains("(tool 806624 at 22:10:00)"));
+        assert!(
+            done.contains("(crates/x/src/lib.rs (code, +4 \u{2212}1, uncommitted) at 22:10:00)")
+        );
         assert!(done.contains("If you did check it, say how."));
         let wait = render_nudge(Question::UnbackedWait, &NudgeInputs::default());
         assert!(wait.contains("If something is, say what."));

@@ -8,6 +8,7 @@ use tokio_util::task::TaskTracker;
 
 use crate::config::CliOverrides;
 use crate::config::persist_bootstrap::PersistLlmUsageSink;
+use crate::llm::decisions::record::{DecisionContext, DecisionMode};
 use crate::llm::decisions::{DecisionRequest, Question, decision_client};
 use crate::llm::{LlmUsageSink, OpenRouterClient};
 use crate::settings::SettingsOverlay;
@@ -57,7 +58,8 @@ impl RecordingClient {
             Some(config.steerer.openrouter_base_url.clone()),
             None,
         )?
-        .with_usage_sink(sink);
+        .with_usage_sink(sink)
+        .with_decision_store(persist.clone());
         Ok(Self {
             client: decision_client(&base, &overlay)?,
             overlay,
@@ -81,12 +83,14 @@ async fn ask(args: DecisionsAskArgs, cli: CliOverrides) -> Result<()> {
         state,
         questions,
     };
-    let result = recording.client.decide(&request).await;
+    let context = DecisionContext::new("cli_ask", DecisionMode::Cli, "cli_ask");
+    let outcome = recording.client.decide(&request, &context).await;
     recording.flush().await;
-    let answer = result?;
+    let answer = outcome.result?;
     println!(
         "{}",
         serde_json::to_string_pretty(&serde_json::json!({
+            "record_id": outcome.record_id,
             "model": answer.model,
             "answers": answer.answers,
             "cost_usd": answer.usage.cost_usd,

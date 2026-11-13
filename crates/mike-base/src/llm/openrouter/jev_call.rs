@@ -11,6 +11,8 @@ use crate::llm::decisions::{
 };
 use crate::store::persistence::PersistHandle;
 
+const RECORD_TIMEOUT: Duration = Duration::from_secs(2);
+
 struct Sent {
     status: u16,
     body: String,
@@ -118,7 +120,7 @@ impl OpenRouterClient {
             return (failed("transport_error", &e, started), Err(e));
         }
         let sent = match self.post_decision(request).await {
-            Err(LlmError::Timeout | LlmError::Transport(_)) => self.post_decision(request).await,
+            Err(LlmError::Transport(_)) => self.post_decision(request).await,
             other => other,
         };
         let sent = match sent {
@@ -223,10 +225,17 @@ impl OpenRouterClient {
             result: call,
             created_at: None,
         };
-        match store.insert_decision_record(row).await {
-            Ok(id) => Some(id),
-            Err(error) => {
+        match tokio::time::timeout(RECORD_TIMEOUT, store.insert_decision_record(row)).await {
+            Ok(Ok(id)) => Some(id),
+            Ok(Err(error)) => {
                 tracing::warn!(%error, point = ctx.point, "decisions: failed to record a decision");
+                None
+            }
+            Err(_) => {
+                tracing::warn!(
+                    point = ctx.point,
+                    "decisions: recording a decision timed out"
+                );
                 None
             }
         }

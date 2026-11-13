@@ -426,10 +426,18 @@ async fn judge(
         live_request_id: turn.trigger_request_id,
         verifier_pattern: turn.verifier_pattern.as_deref().unwrap_or(""),
     };
-    let Some(ctx) = ok_or_warn(load_context(&request).await, "turn_guard.context") else {
+    let Some(mut ctx) = ok_or_warn(load_context(&request).await, "turn_guard.context") else {
         abstain_all(record, questions, "context_unavailable");
         return GuardStep::Continue;
     };
+    if let Some(facts) = ctx.facts.as_mut() {
+        crate::dossier::steering_facts::committed::mark_session_changes(
+            turn.persist,
+            turn.session_uuid,
+            &mut facts.observation,
+        )
+        .await;
+    }
     record.facts = ctx.facts.clone();
     record.reach = Some(
         reach_at(

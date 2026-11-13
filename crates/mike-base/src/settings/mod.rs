@@ -371,7 +371,7 @@ impl Default for SettingsOverlay {
             llm_budget_decision_share_pct: 5,
             decisions_model: meta_decisions::DEFAULT_MODEL.to_owned(),
             decisions_timeout_ms: meta_decisions::DEFAULT_TIMEOUT_MS,
-            decisions_turn_guard_mode: "shadow".to_owned(),
+            decisions_turn_guard_mode: "on".to_owned(),
             decisions_turn_guard_hold_below: meta_decisions::DEFAULT_TURN_GUARD_HOLD_BELOW,
             llm_provider: std::sync::Arc::new(crate::llm::provider::ProviderPolicy::default()),
             steerer_model: None,
