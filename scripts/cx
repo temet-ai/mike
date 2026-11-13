@@ -22,7 +22,12 @@ if [[ ! -e "$repo_root/artifacts" ]]; then
 fi
 
 source "$script_dir/lib/source-env.sh"
-mike_source_env_preserving_exported "$repo_root/.env"
+# A worktree has no .env of its own; it uses the main checkout's (test DB URL).
+cx_env="$repo_root/.env"
+if [[ ! -f "$cx_env" ]]; then
+  cx_env="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.env"
+fi
+mike_source_env_preserving_exported "$cx_env"
 
 # Tests build ProxyConfig through the same loader as the binary, which reads
 # every MIKE_* variable. The developer's local-fallback database from .env is
