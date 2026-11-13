@@ -393,6 +393,7 @@
   "launch/cli/tests/fleet_settings_tests": "fleet",
   "launch/fleet": "fleet",
   "lazy_sections": "proxy",
+  "mailbox_served": "core",
   "lesson_delivery": "lessons",
   "lesson_proposer": "lessons",
   "lesson_relations": "lessons",
