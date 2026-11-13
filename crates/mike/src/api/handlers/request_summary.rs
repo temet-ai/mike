@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 use crate::store::persistence::keyset::{KeysetCursor, split_page};
 
@@ -138,7 +139,7 @@ pub(crate) async fn list_requests(
             .into_response());
     }
 
-    let window = crate::api::search_window::resolve_window(
+    let window = crate::web_base::search_window::resolve_window(
         params.date_from.as_deref(),
         params.date_to.as_deref(),
         false,
@@ -156,6 +157,7 @@ pub(crate) async fn list_requests(
 
     if let Some(handle) = state.persist() {
         match handle
+            .launch()
             .list_requests_paginated(
                 offset,
                 limit,

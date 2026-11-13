@@ -22,7 +22,7 @@ is refused.
 
 The notice fires once per outage, however long it lasts, and once more when captures are
 saved again. It is produced by the health refresher
-(`crates/mike/src/api/handlers/health/capture_outage.rs`), which reads the same
+(`crates/mike-features/src/api/handlers/health/capture_outage.rs`), which reads the same
 reachability and `capture_stalled` signals `/api/health` reports, so the page and the
 notice agree. Delivery is the desktop notification the worker-failure notice uses
 (`omarchy-notification-send`, then `notify-send`); with neither installed the error log is
@@ -44,7 +44,7 @@ the notice.
 
 The first write of a request (`insert_request_initial`, before it is forwarded) can fail
 while the database still answers other statements. `capture_retry`
-(`crates/mike/src/store/persistence/capture_retry/`) sorts the error:
+(`crates/mike-base/src/store/persistence/capture_retry/`) sorts the error:
 
 - **Temporary** (pool, statement or lock timeout, lost connection, serialization conflict):
   the request is kept in memory and written, row, raw body, messages, tool calls and

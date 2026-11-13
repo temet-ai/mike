@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 mod group;
 
 use std::collections::{HashMap, HashSet};
@@ -13,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::improvement::repeats::PushbackPrompt;
 
 const DEFAULT_WEEKS: i64 = 12;
@@ -228,7 +229,11 @@ pub(crate) async fn get_repeats(
     }
     let now = Utc::now();
     let since = now - Duration::weeks(weeks);
-    let prompts = match persist.list_pushback_prompts_with_vectors(since).await {
+    let prompts = match persist
+        .eval()
+        .list_pushback_prompts_with_vectors(since)
+        .await
+    {
         Ok(rows) => rows,
         Err(e) => {
             return error(

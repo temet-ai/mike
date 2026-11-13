@@ -1,4 +1,5 @@
 use chrono::{Duration, Utc};
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use mike::store::persistence::operator_turns::LiveClaim;
 use mike::store::persistence::operator_turns::projection::ProjectionMode;
 use mike::store::persistence::turn_verdicts::VerdictMode;
@@ -35,6 +36,7 @@ async fn live_claim_selects_genuine_resolved_turns_without_a_live_verdict() -> a
     let machine = closed_turn(&f, 22_004).await?;
     facts(&f, machine, "background-event", "resolved").await?;
     f.handle
+        .eval()
         .insert_turn_verdict(verdict(
             judged,
             VerdictMode::Live,
@@ -96,6 +98,7 @@ async fn mark_live_judge_failed_backs_off_and_skips_judged_turns() -> anyhow::Re
     let ids = f.handle.claim_live_candidates(claim(b)).await?;
     assert!(ids.is_empty(), "a backed-off turn waits");
     f.handle
+        .eval()
         .insert_turn_verdict(verdict(
             turn,
             VerdictMode::Live,

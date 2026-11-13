@@ -28,7 +28,7 @@ def git_root() -> Path:
     return Path(r.stdout.strip()) if r.returncode == 0 else Path(".")
 
 ROOT = git_root()
-MIGRATIONS_DIR = ROOT / "crates/mike/src/store/persistence/migrations"
+MIGRATIONS_DIR = ROOT / "crates/mike-base/src/store/persistence/migrations"
 
 def find_notnull_additions(migration_path: Path) -> list[tuple[str, str]]:
     """Return list of (table, column) pairs that become NOT NULL in this migration,

@@ -1,7 +1,8 @@
 #![allow(dead_code)]
 
 use mike::app::{inspect_router_on, proxy_router};
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use mike::store::test_support::{TestDb, TestDbHandle};
 use serde_json::{Value, json};
 use tokio::net::TcpListener;

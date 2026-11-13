@@ -1,4 +1,5 @@
 use chrono::{Duration, Utc};
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 use mike::store::persistence::prompt_classification::ClassificationWrite;
 use mike::store::persistence::turn_facts::CandidateWindow;
 
@@ -20,7 +21,7 @@ async fn seed_turn_with_facts(f: &Fixture) -> anyhow::Result<i64> {
     attach(f, turn, &[9100]).await?;
     let mut row = sample_row(turn, f.session_id, f.base + Duration::seconds(60));
     row.max_request_id = 9100;
-    f.handle.upsert_turn_facts(&[row]).await?;
+    f.handle.dossier().upsert_turn_facts(&[row]).await?;
     Ok(turn)
 }
 
@@ -34,6 +35,7 @@ async fn backstop_finds_idle_reaped_turn_without_facts() -> anyhow::Result<()> {
     attach(&f, turn, &[9100]).await?;
     let found = f
         .handle
+        .dossier()
         .find_turn_facts_candidates(VERSION, window(&f))
         .await?;
     assert_eq!(found, vec![f.session_id]);
@@ -49,6 +51,7 @@ async fn backstop_ignores_a_fully_built_session() -> anyhow::Result<()> {
     seed_turn_with_facts(&f).await?;
     let found = f
         .handle
+        .dossier()
         .find_turn_facts_candidates(VERSION, window(&f))
         .await?;
     assert!(found.is_empty(), "unexpected candidates: {found:?}");
@@ -75,6 +78,7 @@ async fn backstop_finds_pending_facts_after_new_message() -> anyhow::Result<()> 
         .await?;
     let found = f
         .handle
+        .dossier()
         .find_turn_facts_candidates(VERSION, window(&f))
         .await?;
     assert_eq!(found, vec![f.session_id]);
@@ -95,6 +99,7 @@ async fn backstop_finds_pending_facts_once_the_session_has_settled() -> anyhow::
         .await?;
     let found = f
         .handle
+        .dossier()
         .find_turn_facts_candidates(VERSION, window(&f))
         .await?;
     assert_eq!(found, vec![f.session_id]);
@@ -110,6 +115,7 @@ async fn backstop_finds_builder_version_change() -> anyhow::Result<()> {
     seed_turn_with_facts(&f).await?;
     let found = f
         .handle
+        .dossier()
         .find_turn_facts_candidates("turn-facts-next", window(&f))
         .await?;
     assert_eq!(found, vec![f.session_id]);
@@ -127,6 +133,7 @@ async fn backstop_finds_request_attached_after_build() -> anyhow::Result<()> {
     attach(&f, turn, &[9105]).await?;
     let found = f
         .handle
+        .dossier()
         .find_turn_facts_candidates(VERSION, window(&f))
         .await?;
     assert_eq!(found, vec![f.session_id]);
@@ -146,7 +153,11 @@ async fn backstop_ignores_turns_older_than_lookback() -> anyhow::Result<()> {
         lookback_from: Utc::now(),
         ..window(&f)
     };
-    let found = f.handle.find_turn_facts_candidates(VERSION, narrow).await?;
+    let found = f
+        .handle
+        .dossier()
+        .find_turn_facts_candidates(VERSION, narrow)
+        .await?;
     assert!(found.is_empty());
     f.db.cleanup().await?;
     Ok(())
@@ -165,6 +176,7 @@ async fn backstop_ignores_open_turns() -> anyhow::Result<()> {
     insert_turn(&f, &open).await?;
     let found = f
         .handle
+        .dossier()
         .find_turn_facts_candidates(VERSION, window(&f))
         .await?;
     assert!(found.is_empty());

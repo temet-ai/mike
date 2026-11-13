@@ -1,10 +1,10 @@
 use axum::Router;
 use axum::routing::{get, post};
 
-use super::{Coverage, RouteEntry, route};
+use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
 use crate::api::eval::{bundles, labels, rejudge_runs, relay, review, runs, session_end_items};
-use crate::config::AppState;
+use crate::state::AppState;
 
 pub(super) const ROUTES: &[RouteEntry] = &[
     route(

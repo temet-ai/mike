@@ -78,7 +78,7 @@ fn input_contains(input: Option<&Value>, needle: &str, case_sensitive: bool) -> 
         return false;
     };
     let text = input.to_string();
-    !crate::api::body_search::match_offsets(&text, needle, case_sensitive).is_empty()
+    !crate::web_base::body_search::match_offsets(&text, needle, case_sensitive).is_empty()
 }
 
 pub(super) async fn own_search_request_ids(

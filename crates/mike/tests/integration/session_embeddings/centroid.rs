@@ -1,4 +1,5 @@
 use crate::test_db;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use super::fixtures::{
     make_pool_and_persist, planar_unit, seed_chunk, seed_project, seed_session, seed_turn,
@@ -30,6 +31,7 @@ async fn session_chunk_centroid_is_normalised_mean_of_two_chunks() -> anyhow::Re
     seed_chunk(&pool, turn_id, 1, &v2, t2).await?;
 
     let (centroid, chunk_count, max_embedded_at) = persist
+        .knowledge()
         .session_chunk_centroid(session_uuid)
         .await?
         .context("session has two embedded chunks; centroid must be Some")?;
@@ -57,7 +59,13 @@ async fn session_chunk_centroid_is_normalised_mean_of_two_chunks() -> anyhow::Re
     }
 
     let (_, empty_uuid) = seed_session(&pool, project_id, None, now).await?;
-    assert!(persist.session_chunk_centroid(empty_uuid).await?.is_none());
+    assert!(
+        persist
+            .knowledge()
+            .session_chunk_centroid(empty_uuid)
+            .await?
+            .is_none()
+    );
 
     pool.close().await;
     test_db.cleanup().await?;

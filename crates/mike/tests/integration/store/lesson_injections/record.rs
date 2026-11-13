@@ -1,3 +1,4 @@
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use sqlx::postgres::PgPoolOptions;
 use uuid::Uuid;
 
@@ -39,6 +40,7 @@ async fn record_lesson_injections_lands_rows_with_lane_and_persona() -> anyhow::
     .await?;
 
     let lesson_a = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "correction",
@@ -51,6 +53,7 @@ async fn record_lesson_injections_lands_rows_with_lane_and_persona() -> anyhow::
         })
         .await?;
     let lesson_b = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "warning",
@@ -64,6 +67,7 @@ async fn record_lesson_injections_lands_rows_with_lane_and_persona() -> anyhow::
         .await?;
 
     handle
+        .lessons()
         .record_lesson_injections(
             request_id,
             &session_a,
@@ -112,6 +116,7 @@ async fn record_lesson_injections_empty_ids_is_a_no_op() -> anyhow::Result<()> {
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
 
     handle
+        .lessons()
         .record_lesson_injections(1, &Uuid::new_v4().to_string(), "primary", None, &[])
         .await?;
 
@@ -150,6 +155,7 @@ async fn record_lesson_injections_unknown_lesson_id_returns_err() -> anyhow::Res
     .await?;
 
     let result = handle
+        .lessons()
         .record_lesson_injections(request_id, &session, "primary", None, &[999_999_999])
         .await;
     assert!(

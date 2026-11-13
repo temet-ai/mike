@@ -1,9 +1,9 @@
 use axum::Router;
 use axum::routing::{get, post};
 
-use super::{Coverage, RouteEntry, route};
 use crate::api::handlers;
-use crate::config::AppState;
+use crate::state::AppState;
+use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
 const OPERATOR_PROMPTS: Coverage = Coverage::Exempt {
     reason: "operator-only prompt-class catalogue; SPA-driven, no MCP tool per issue temet-ai/mike-private#133 demand-driven policy",

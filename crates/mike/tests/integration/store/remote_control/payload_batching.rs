@@ -1,3 +1,4 @@
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 use mike::store::persistence::remote_control::{
     PATH_HEARTBEAT, RemoteControlCall, RemoteControlPayload, RemoteControlSignals,
 };
@@ -115,6 +116,7 @@ async fn a_batch_writes_rows_only_for_the_payloads_it_kept() -> anyhow::Result<(
 
     let payloads = realistic_worker_events_batch()?;
     let call_id = handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             request_body: None,
             request_body_sha256: Some(digest(b"the whole batch")),
@@ -139,6 +141,7 @@ async fn a_call_with_no_batch_records_no_payload_accounting() -> anyhow::Result<
     let cse_id = unique("cse_nobatch");
 
     let call_id = handle
+        .proxy()
         .record_remote_control_call(call_at(&cse_id, "POST", PATH_HEARTBEAT))
         .await?;
 
@@ -176,6 +179,7 @@ async fn internal_event_compaction_fields_are_queryable_columns() -> anyhow::Res
     let preserved = ["evt-1", "evt-2", "evt-3"];
     let body = br#"{"payload":{"type":"compaction"},"is_compaction":true}"#;
     let call_id = handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             request_body: Some(body),
             request_body_sha256: Some(digest(body)),

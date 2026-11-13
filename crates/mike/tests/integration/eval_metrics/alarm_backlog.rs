@@ -1,4 +1,5 @@
 use mike::store::persistence::eval_metrics::{AlarmKind, AlarmThresholds, Firing};
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use mike::store::persistence::turn_verdicts::VerdictMode;
 
 use super::set_setting;
@@ -75,6 +76,7 @@ async fn unjudged_backlog_counts_only_what_the_live_judge_owes() -> anyhow::Resu
     turn_closed_hours_ago(&f, 23_103, "genuine", 24 * 30).await?;
     let judged = turn_closed_hours_ago(&f, 23_104, "genuine", 10).await?;
     f.handle
+        .eval()
         .insert_turn_verdict(verdict(
             judged,
             VerdictMode::Live,
@@ -85,6 +87,7 @@ async fn unjudged_backlog_counts_only_what_the_live_judge_owes() -> anyhow::Resu
         .await?;
     let firings = f
         .handle
+        .eval()
         .evaluate_operational_alarms(&thresholds(), &roles())
         .await?;
     let fired =
@@ -108,6 +111,7 @@ async fn unjudged_backlog_is_quiet_when_the_live_judge_owes_nothing() -> anyhow:
     turn_closed_hours_ago(&f, 23_202, "genuine", 24 * 30).await?;
     let firings = f
         .handle
+        .eval()
         .evaluate_operational_alarms(&thresholds(), &roles())
         .await?;
     assert!(backlog(&firings).is_none(), "{firings:?}");
@@ -123,6 +127,7 @@ async fn unjudged_backlog_uses_the_older_count_without_a_live_configuration() ->
     turn_closed_hours_ago(&f, 23_301, "loop-wakeup", 10).await?;
     let firings = f
         .handle
+        .eval()
         .evaluate_operational_alarms(&thresholds(), &roles())
         .await?;
     let fired =

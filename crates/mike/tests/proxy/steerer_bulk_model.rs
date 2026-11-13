@@ -2,7 +2,8 @@ use crate::db_helpers;
 
 use db_helpers::{TestDb, TestDbHandle};
 use mike::app::{inspect_router_on, proxy_router};
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use serde_json::Value;
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;

@@ -1,4 +1,5 @@
 use mike::store::persistence::eval_metrics::{AlarmKind, AlarmThresholds, Firing};
+use mike::store::persistence::eval_repo::EvalPersist as _;
 
 use crate::turn_facts::{Fixture, fixture};
 
@@ -50,6 +51,7 @@ async fn change_without_gate_fires_after_grace() -> anyhow::Result<()> {
     let id = ungated_bundle(&f, None).await?;
     let firings = f
         .handle
+        .eval()
         .evaluate_operational_alarms(&thresholds(0), &roles())
         .await?;
     let subject = format!("bundle:{id}");
@@ -61,6 +63,7 @@ async fn change_without_gate_fires_after_grace() -> anyhow::Result<()> {
     );
     let changes = f
         .handle
+        .eval()
         .apply_alarm_pass(&AlarmKind::OPERATIONAL, &firings, 3)
         .await?;
     assert!(changes.iter().any(|c| c.subject == subject && c.opened));
@@ -75,6 +78,7 @@ async fn change_without_gate_quiet_with_override_reason() -> anyhow::Result<()> 
     ungated_bundle(&f, Some("operator accepted the change")).await?;
     let firings = f
         .handle
+        .eval()
         .evaluate_operational_alarms(&thresholds(0), &roles())
         .await?;
     assert!(
@@ -93,6 +97,7 @@ async fn change_without_gate_quiet_when_role_not_expected() -> anyhow::Result<()
     ungated_bundle(&f, None).await?;
     let firings = f
         .handle
+        .eval()
         .evaluate_operational_alarms(&thresholds(0), &[])
         .await?;
     assert!(
@@ -117,6 +122,7 @@ async fn change_without_gate_quiet_while_another_configuration_is_in_use() -> an
     .await?;
     let firings = f
         .handle
+        .eval()
         .evaluate_operational_alarms(&thresholds(0), &roles())
         .await?;
     assert!(
@@ -143,9 +149,11 @@ async fn alarm_episode_clears_after_three_quiet_passes_and_refires_as_new() -> a
     };
     let kinds = AlarmKind::OPERATIONAL;
     f.handle
+        .eval()
         .apply_alarm_pass(&kinds, &[firing("turn_judge")], 3)
         .await?;
     f.handle
+        .eval()
         .apply_alarm_pass(&kinds, &[firing("turn_judge")], 3)
         .await?;
     let evaluations: i32 =
@@ -154,13 +162,14 @@ async fn alarm_episode_clears_after_three_quiet_passes_and_refires_as_new() -> a
             .await?;
     assert_eq!(evaluations, 2);
     for _ in 0..3 {
-        f.handle.apply_alarm_pass(&kinds, &[], 3).await?;
+        f.handle.eval().apply_alarm_pass(&kinds, &[], 3).await?;
     }
     let open: i64 = sqlx::query_scalar("SELECT count(*) FROM eval.alarms WHERE cleared_at IS NULL")
         .fetch_one(f.handle.pool())
         .await?;
     assert_eq!(open, 0);
     f.handle
+        .eval()
         .apply_alarm_pass(&kinds, &[firing("turn_judge")], 3)
         .await?;
     let episodes: i64 = sqlx::query_scalar("SELECT count(*) FROM eval.alarms")
@@ -181,10 +190,12 @@ async fn daily_kind_not_counted_quiet_by_operational_pass() -> anyhow::Result<()
         detail: serde_json::json!({}),
     };
     f.handle
+        .eval()
         .apply_alarm_pass(&AlarmKind::DAILY, &[daily], 3)
         .await?;
     for _ in 0..4 {
         f.handle
+            .eval()
             .apply_alarm_pass(&AlarmKind::OPERATIONAL, &[], 3)
             .await?;
     }
@@ -209,6 +220,7 @@ async fn budget_detail_reads_no_secret_keys() -> anyhow::Result<()> {
     );
     let rows = f
         .handle
+        .eval()
         .eval_refusals_at(chrono::Utc::now(), 50, 0.5)
         .await?;
     assert!(rows.is_empty());

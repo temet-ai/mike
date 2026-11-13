@@ -1,3 +1,5 @@
+use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::test_support::seed_fleet_running;
 use std::sync::Arc;
 
@@ -10,7 +12,8 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 use super::{PostSessionMessageBody, post_session_message};
-use crate::config::{AppState, ProxyConfig};
+use crate::config::ProxyConfig;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::change_record::test_seed;
 use crate::store::persistence::fleet::NewFleet;
@@ -62,6 +65,7 @@ impl Env {
         let project = test_seed::project(persist.pool()).await?;
         let run = format!("fleet-run-{}", Uuid::new_v4());
         persist
+            .launch()
             .upsert_run(&NewRun {
                 run_id: run.clone(),
                 project_path: Some(CHECKOUT.to_owned()),
@@ -98,8 +102,9 @@ impl Env {
         launch.run_id = Some(self.run.clone());
         launch.seat = Some(name.to_owned());
         launch.session_uuid = Some(session);
-        let launch = self.persist.insert_launch(&launch).await?;
+        let launch = self.persist.launch().insert_launch(&launch).await?;
         self.persist
+            .launch()
             .record_launch_opened(launch, &LaunchSurfaceRefs::default())
             .await?;
         Ok(Seat { session, launch })
@@ -107,6 +112,7 @@ impl Env {
 
     async fn close(&self, seat: &Seat) -> anyhow::Result<()> {
         self.persist
+            .launch()
             .record_launch_closed(seat.launch, "complete", Some(true))
             .await?;
         Ok(())
@@ -115,6 +121,7 @@ impl Env {
     async fn define(&self, definition: Value) -> anyhow::Result<()> {
         let fleet = self
             .persist
+            .fleet()
             .insert_fleet(&NewFleet {
                 slug: format!("mail-{}", Uuid::new_v4()),
                 project_path: CHECKOUT.to_owned(),
@@ -149,6 +156,7 @@ impl Env {
     async fn inbox_len(&self, session: Uuid) -> anyhow::Result<usize> {
         Ok(self
             .persist
+            .launch()
             .fetch_for_session_with_activity(session)
             .await?
             .inbox

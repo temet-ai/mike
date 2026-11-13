@@ -1,11 +1,12 @@
 use crate::test_db;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use super::fixtures::{
     make_pool_and_persist, one_hot, seed_chunk, seed_project, seed_session, seed_turn,
 };
 use anyhow::Context;
 use chrono::{Duration as ChronoDuration, SubsecRound, Utc};
-use mike::store::persistence::SessionEmbeddingWrite;
+use mike::store::persistence::session_embeddings::SessionEmbeddingWrite;
 use test_db::TestDb;
 
 #[tokio::test]
@@ -74,7 +75,10 @@ async fn deleted_newest_chunk_does_not_make_the_session_a_candidate_again() -> a
         .execute(&pool)
         .await?;
 
-    let candidates = persist.list_sessions_needing_embedding(10).await?;
+    let candidates = persist
+        .knowledge()
+        .list_sessions_needing_embedding(10)
+        .await?;
     assert_eq!(
         candidates.iter().map(|c| c.session_id).collect::<Vec<_>>(),
         vec![session_uuid],
@@ -82,6 +86,7 @@ async fn deleted_newest_chunk_does_not_make_the_session_a_candidate_again() -> a
     );
 
     let (embedding, chunk_count, max_embedded_at) = persist
+        .knowledge()
         .session_chunk_centroid(session_uuid)
         .await?
         .context("one chunk remains")?;
@@ -91,6 +96,7 @@ async fn deleted_newest_chunk_does_not_make_the_session_a_candidate_again() -> a
         "the centroid reports the session mark, so the sweep records what it compares against"
     );
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: session_uuid,
             embedding: &embedding,
@@ -103,6 +109,7 @@ async fn deleted_newest_chunk_does_not_make_the_session_a_candidate_again() -> a
 
     assert!(
         persist
+            .knowledge()
             .list_sessions_needing_embedding(10)
             .await?
             .is_empty(),
@@ -135,6 +142,7 @@ async fn session_with_mark_but_no_chunks_is_not_a_candidate() -> anyhow::Result<
 
     assert!(
         persist
+            .knowledge()
             .list_sessions_needing_embedding(10)
             .await?
             .is_empty()

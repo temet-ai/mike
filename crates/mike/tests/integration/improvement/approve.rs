@@ -1,4 +1,6 @@
 use mike::store::persistence::cross_session::ApproveDirectiveProposal;
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 
 use super::{fixture, lesson_stage_and_source, open_directive_proposal, proposal_status};
 
@@ -16,7 +18,11 @@ async fn approving_a_directive_proposal_writes_a_daily_lesson_and_links_it() -> 
         target_project_ids: &[f.project_id],
         expires_at: None,
     };
-    let lessons = f.handle.approve_directive_proposal(&params).await?;
+    let lessons = f
+        .handle
+        .steerer()
+        .approve_directive_proposal(&params)
+        .await?;
     assert_eq!(lessons.len(), 1);
     assert_eq!(lessons[0].project_id, f.project_id);
 
@@ -38,7 +44,11 @@ async fn approving_a_directive_proposal_writes_a_daily_lesson_and_links_it() -> 
         "approved"
     );
 
-    let injectable = f.handle.list_injectable_lessons(&f.project_path).await?;
+    let injectable = f
+        .handle
+        .lessons()
+        .list_injectable_lessons(&f.project_path)
+        .await?;
     assert!(
         injectable
             .iter()
@@ -61,10 +71,18 @@ async fn approving_an_already_decided_proposal_writes_nothing() -> anyhow::Resul
         target_project_ids: &[f.project_id],
         expires_at: None,
     };
-    let first = f.handle.approve_directive_proposal(&params).await?;
+    let first = f
+        .handle
+        .steerer()
+        .approve_directive_proposal(&params)
+        .await?;
     assert_eq!(first.len(), 1);
 
-    let second = f.handle.approve_directive_proposal(&params).await?;
+    let second = f
+        .handle
+        .steerer()
+        .approve_directive_proposal(&params)
+        .await?;
     assert!(
         second.is_empty(),
         "a decided proposal cannot be approved again"
@@ -89,7 +107,11 @@ async fn approving_into_every_target_project_writes_one_lesson_each() -> anyhow:
         target_project_ids: &[f.project_id, second_project],
         expires_at: None,
     };
-    let lessons = f.handle.approve_directive_proposal(&params).await?;
+    let lessons = f
+        .handle
+        .steerer()
+        .approve_directive_proposal(&params)
+        .await?;
     assert_eq!(lessons.len(), 2);
     let mut project_ids: Vec<i64> = lessons.iter().map(|l| l.project_id).collect();
     project_ids.sort_unstable();
@@ -113,7 +135,7 @@ async fn approving_into_a_missing_project_fails_and_leaves_the_proposal_open() -
         target_project_ids: &[999_999_999],
         expires_at: None,
     };
-    let result = f.handle.approve_directive_proposal(&params).await;
+    let result = f.handle.steerer().approve_directive_proposal(&params).await;
     assert!(
         result.is_err(),
         "a nonexistent project must fail the whole write"

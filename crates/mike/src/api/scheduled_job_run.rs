@@ -5,8 +5,8 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 use crate::api::eval::labels::spa_origin;
-use crate::config::AppState;
 use crate::scheduled_jobs::{RefusalReason, RunRefusal, request_run};
+use crate::state::AppState;
 
 #[cfg(test)]
 #[path = "scheduled_job_run_tests.rs"]

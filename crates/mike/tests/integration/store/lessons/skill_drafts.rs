@@ -1,6 +1,7 @@
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::lessons::NewLessonWrite;
 use mike::store::persistence::lessons::skill_drafts::{DraftTarget, NewSkillDraft};
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use mike::store::test_support::{self, TestDb, TestDbHandle};
 use serde_json::json;
 
@@ -31,6 +32,7 @@ impl Fixture {
     pub(super) async fn daily_lesson(&self, text: &str) -> anyhow::Result<i64> {
         let row = self
             .handle
+            .lessons()
             .create_lesson_with_topic(NewLessonWrite {
                 project_id: self.project_id,
                 kind: "convention",
@@ -102,23 +104,29 @@ async fn next_target_with_two_daily_lessons_is_offered_until_drafted() -> anyhow
 
     let target = fx
         .handle
+        .lessons()
         .next_skill_draft_target()
         .await?
         .ok_or_else(|| anyhow::anyhow!("a topic with two daily lessons must be a target"))?;
     assert_eq!(target.folder, TOPIC);
     assert_eq!(target.lesson_watermark, second);
 
-    let lessons = fx.handle.skill_draft_lessons(&target).await?;
+    let lessons = fx.handle.lessons().skill_draft_lessons(&target).await?;
     let ids: Vec<i64> = lessons.iter().map(|l| l.id).collect();
     assert_eq!(ids, vec![first, second]);
     assert!(lessons.iter().all(|l| l.kind == "convention"));
 
     let empty = json!([]);
     fx.handle
+        .lessons()
         .insert_skill_draft(draft(&target, &ids, &empty))
         .await?;
     assert!(
-        fx.handle.next_skill_draft_target().await?.is_none(),
+        fx.handle
+            .lessons()
+            .next_skill_draft_target()
+            .await?
+            .is_none(),
         "a drafted topic must not be offered again at the same watermark"
     );
 
@@ -127,6 +135,7 @@ async fn next_target_with_two_daily_lessons_is_offered_until_drafted() -> anyhow
         .await?;
     let again = fx
         .handle
+        .lessons()
         .next_skill_draft_target()
         .await?
         .ok_or_else(|| anyhow::anyhow!("a new lesson must reopen the topic"))?;
@@ -144,46 +153,66 @@ async fn failed_target_backs_off_and_stops_after_three_attempts() -> anyhow::Res
         .await?;
     let target = fx
         .handle
+        .lessons()
         .next_skill_draft_target()
         .await?
         .ok_or_else(|| anyhow::anyhow!("target before any failure"))?;
 
     assert_eq!(
         fx.handle
+            .lessons()
             .record_skill_draft_failure(&target, "model: 502")
             .await?,
         1
     );
     assert!(
-        fx.handle.next_skill_draft_target().await?.is_none(),
+        fx.handle
+            .lessons()
+            .next_skill_draft_target()
+            .await?
+            .is_none(),
         "a topic that just failed must wait"
     );
 
     fx.age_failures(3).await?;
     assert!(
-        fx.handle.next_skill_draft_target().await?.is_some(),
+        fx.handle
+            .lessons()
+            .next_skill_draft_target()
+            .await?
+            .is_some(),
         "after two hours the first failure must allow a retry"
     );
 
     fx.handle
+        .lessons()
         .record_skill_draft_failure(&target, "rejected draft")
         .await?;
     assert_eq!(
         fx.handle
+            .lessons()
             .record_skill_draft_failure(&target, "rejected draft")
             .await?,
         3
     );
     fx.age_failures(1000).await?;
     assert!(
-        fx.handle.next_skill_draft_target().await?.is_none(),
+        fx.handle
+            .lessons()
+            .next_skill_draft_target()
+            .await?
+            .is_none(),
         "three failures at one watermark must stop the topic"
     );
 
     fx.daily_lesson("Number a migration above the applied one.")
         .await?;
     assert!(
-        fx.handle.next_skill_draft_target().await?.is_some(),
+        fx.handle
+            .lessons()
+            .next_skill_draft_target()
+            .await?
+            .is_some(),
         "a new lesson must reopen a stopped topic"
     );
     fx.finish().await
@@ -200,6 +229,7 @@ async fn insert_skill_draft_a_fourth_time_at_one_watermark_is_err() -> anyhow::R
         .await?;
     let target = fx
         .handle
+        .lessons()
         .next_skill_draft_target()
         .await?
         .ok_or_else(|| anyhow::anyhow!("target"))?;
@@ -207,11 +237,13 @@ async fn insert_skill_draft_a_fourth_time_at_one_watermark_is_err() -> anyhow::R
     let ids = [a, b];
     for _ in 0..3 {
         fx.handle
+            .lessons()
             .insert_skill_draft(draft(&target, &ids, &empty))
             .await?;
     }
     assert!(
         fx.handle
+            .lessons()
             .insert_skill_draft(draft(&target, &ids, &empty))
             .await
             .is_err()
@@ -242,6 +274,7 @@ async fn record_failure_for_unknown_project_is_err() -> anyhow::Result<()> {
     };
     assert!(
         fx.handle
+            .lessons()
             .record_skill_draft_failure(&target, "x")
             .await
             .is_err()
@@ -264,7 +297,13 @@ async fn reads_on_a_closed_pool_are_err() -> anyhow::Result<()> {
         lesson_watermark: 1,
     };
     fx.handle.pool().close().await;
-    assert!(fx.handle.next_skill_draft_target().await.is_err());
-    assert!(fx.handle.skill_draft_lessons(&target).await.is_err());
+    assert!(fx.handle.lessons().next_skill_draft_target().await.is_err());
+    assert!(
+        fx.handle
+            .lessons()
+            .skill_draft_lessons(&target)
+            .await
+            .is_err()
+    );
     fx.db.cleanup().await
 }

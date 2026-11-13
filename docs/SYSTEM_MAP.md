@@ -35,10 +35,10 @@ Three invariants hold everywhere:
 
 - **Capture is the original bytes.** Every mutation stage changes the
   forwarded body; the stored copy is what the client sent
-  (`crates/mike/src/proxy/engine/capture_register.rs`).
+  (`crates/mike-features/src/proxy/engine/capture_register.rs`).
 - **A fresh install only forwards.** Every stage that rewrites traffic or sends
   captured text to another service is off by default; what is on by default is
-  local maintenance (`crates/mike/src/feature_toggles/mod.rs`,
+  local maintenance (`crates/mike-base/src/feature_toggles/mod.rs`,
   [`FEATURES.md`](FEATURES.md)).
 - **No authentication, loopback only.** Any process on the machine can read
   everything and change settings; remote binds are refused unless an
@@ -49,7 +49,7 @@ Three invariants hold everywhere:
 
 | Process | Bind | Binary / source | Role |
 |---|---|---|---|
-| Proxy | `127.0.0.1:9988` | `mike serve` (`crates/mike/src/proxy/`) | Accepts `/v1/*` and `/v2/*`, runs the pipeline, forwards to `upstream_url`, captures. |
+| Proxy | `127.0.0.1:9988` | `mike serve` (`crates/mike-features/src/proxy/`) | Accepts `/v1/*` and `/v2/*`, runs the pipeline, forwards to `upstream_url`, captures. |
 | Inspect API | `127.0.0.1:9989` | same binary (`crates/mike/src/api/`) | `/api/*` REST and `/api/ws`. Read by the SPA and `mike-mcp`. |
 | Web UI | `127.0.0.1:9990` | same binary serves the built SPA; `vite dev` in a checkout (`frontend/`) | SvelteKit single-page app, SSR off. |
 | Forward sidecar | `127.0.0.1:9987` | `proxy-forward` (`crates/proxy-forward/`), also `mike forward` | HTTPS MITM forward proxy so Claude Code keeps Remote Control while mike captures; fails over to Anthropic while mike restarts. |
@@ -74,15 +74,15 @@ disagree.
 | CLI command tree | `mike --help`, `mike <cmd> --help`; `crates/mike/src/cli.rs` and `crates/mike/src/config/subcommands/mod.rs` |
 | MCP tools and profiles | `mike-mcp list-tools --core --json`, `--full --json`; `crates/mike-mcp/src/tools/catalogue.rs`, `crates/mike-mcp/src/profiles.rs` |
 | REST routes | `crates/mike/src/api/manifest/*.rs` (one file per area, each route with its MCP coverage) |
-| Pipeline stage order | `pipeline::STAGE_ORDER` in `crates/mike/src/pipeline/mod.rs` |
-| Feature toggles and defaults | `crates/mike/src/feature_toggles/mod.rs`; live: `GET /api/settings/features` |
+| Pipeline stage order | `pipeline::STAGE_ORDER` in `crates/mike-features/src/pipeline/mod.rs` |
+| Feature toggles and defaults | `crates/mike-base/src/feature_toggles/mod.rs`; live: `GET /api/settings/features` |
 | Presets | `crates/mike/src/feature_presets/plan.rs` |
 | Background workers | `crates/mike/src/serve/workers.rs` (one `spawn_*` per worker) |
 | Scheduled jobs | `crates/mike/src/scheduled_jobs/jobs.rs`; live: `GET /api/scheduled-jobs` |
 | Web UI routes | `frontend/src/routes/` (file routing); nav in `frontend/src/lib/components/shell/DestinationNav.svelte` |
-| Boot config and env | `mike print-config`; `crates/mike/src/config/schema.rs`, `config/proxy_config_defaults.rs` |
+| Boot config and env | `mike print-config`; `crates/mike-base/src/config/schema.rs`, `config/proxy_config_defaults.rs` |
 | Runtime settings | `GET /api/settings`; `crates/mike/src/settings/meta_*.rs` |
-| Schema | `crates/mike/src/store/persistence/migrations/` (312 files); [`SCHEMA.md`](SCHEMA.md) has a section per table |
+| Schema | `crates/mike-base/src/store/persistence/migrations/` (312 files); [`SCHEMA.md`](SCHEMA.md) has a section per table |
 | Doc drift gate | `scripts/rule-checks/judgement-context-docs.sh` (ledgers in `judgement-context-docs.d/`) |
 | User guide vs CLI | `crates/mike/tests/cli/user_guide.rs`, `scripts/check-user-guide --complete` |
 
@@ -213,7 +213,7 @@ recorded in `llm.calls`.
 
 ## Feature toggles at a glance
 
-Defined in `crates/mike/src/feature_toggles/mod.rs`; changed with
+Defined in `crates/mike-base/src/feature_toggles/mod.rs`; changed with
 `PATCH /api/settings/features/{key}` or on `/settings`. A stored value always
 wins over a code default, so an upgrade never changes what an install does.
 
@@ -296,7 +296,7 @@ route, the handler and its MCP coverage. Areas: `requests`, `sessions`,
 `work_threads`, `changes`, `config_history`, `anthropic`, `setup`,
 `websocket`. The inspect router has a 30 s timeout; a host guard refuses
 non-loopback `Host` headers unless `inspect_allowed_hosts` names them
-(`api/host_guard.rs`).
+(`web_base/host_guard.rs`).
 
 ## Web UI
 

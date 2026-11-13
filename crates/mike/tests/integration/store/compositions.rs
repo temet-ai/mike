@@ -1,4 +1,5 @@
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 
 use crate::test_db::TestDb;
 
@@ -146,7 +147,10 @@ async fn list_anomalies_reassembles_firing_rules_from_junction() -> anyhow::Resu
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
     let fixture = seed_structural_mismatch_anomaly_fixture(handle.pool()).await?;
 
-    let groups = handle.list_anomalies_windowed(None, None, 100, 0).await?;
+    let groups = handle
+        .proxy()
+        .list_anomalies_windowed(None, None, 100, 0)
+        .await?;
     let group = groups
         .iter()
         .find(|g| {

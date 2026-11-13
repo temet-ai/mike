@@ -1,4 +1,5 @@
 use chrono::Duration;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 use mike::store::persistence::prompt_stream::{StreamSource, StreamWindow};
 
 use super::{Fixture, NewRequest, fixture, insert_request, insert_turn, plain_request, write_of};
@@ -32,6 +33,7 @@ async fn load_prompt_streams_stored_excludes_empty_prompt_and_orders_by_request_
     let turn_id = insert_turn(&f, f.session_id, 9005, Some("operator"), turn_at).await?;
     let rows = f
         .handle
+        .dossier()
         .load_prompt_streams(&[f.session_id], window(&f, 0, 100), StreamSource::Stored)
         .await?;
     let ids: Vec<i64> = rows.iter().map(|r| r.request_id).collect();
@@ -73,6 +75,7 @@ async fn load_prompt_streams_j2_text_includes_orphan_requests_with_text() -> any
         .await?;
     let rows = f
         .handle
+        .dossier()
         .load_prompt_streams(&[f.session_id], window(&f, 0, 100), StreamSource::J2Text)
         .await?;
     let ids: Vec<i64> = rows.iter().map(|r| r.request_id).collect();
@@ -100,12 +103,14 @@ async fn load_prompt_streams_respects_created_at_window() -> anyhow::Result<()> 
     }
     let rows = f
         .handle
+        .dossier()
         .load_prompt_streams(&[f.session_id], window(&f, 30, 90), StreamSource::Stored)
         .await?;
     let ids: Vec<i64> = rows.iter().map(|r| r.request_id).collect();
     assert_eq!(ids, vec![9002]);
     let empty = f
         .handle
+        .dossier()
         .load_prompt_streams(&[], window(&f, 0, 200), StreamSource::Stored)
         .await?;
     assert!(empty.is_empty());

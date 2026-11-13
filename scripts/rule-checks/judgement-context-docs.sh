@@ -38,10 +38,10 @@ if [ -z "$ROOT" ]; then
 fi
 cd "$ROOT"
 
-MIG=crates/mike/src/store/persistence/migrations
-TOGGLES=crates/mike/src/feature_toggles/mod.rs
+MIG=crates/mike-base/src/store/persistence/migrations
+TOGGLES=crates/mike-base/src/feature_toggles/mod.rs
 # TOGGLE_META moved to meta.rs; older trees (and the fixtures) keep it in mod.rs.
-TOGGLE_META_SRC=crates/mike/src/feature_toggles/meta.rs
+TOGGLE_META_SRC=crates/mike-base/src/feature_toggles/meta.rs
 CATALOGUE=crates/mike-mcp/src/tools/catalogue.rs
 RC=scripts/rule-checks
 BASELINE=$RC/judgement-context-docs.baseline

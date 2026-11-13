@@ -1,7 +1,9 @@
 use mike::store::persistence::PersistError;
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use mike::store::persistence::mailbox::SessionIdResolution;
 use mike::store::persistence::session_goals::SetSessionIdentity;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use mike::store::persistence::workspace::RegisterWorkspaceSession;
 use uuid::Uuid;
 
@@ -51,6 +53,7 @@ async fn set_session_goal_partial_update_keeps_every_other_identity_field() -> a
     let (session, _) = registered(&handle, &unique("identity-partial")).await?;
 
     handle
+        .steerer()
         .set_session_goal(SetSessionIdentity {
             role: Some("rust-developer"),
             goal: Some("ship the schema"),
@@ -60,6 +63,7 @@ async fn set_session_goal_partial_update_keeps_every_other_identity_field() -> a
         })
         .await?;
     handle
+        .steerer()
         .set_session_goal(SetSessionIdentity {
             display_name: Some("rust-dev-alpha"),
             ..identity(session)
@@ -67,6 +71,7 @@ async fn set_session_goal_partial_update_keeps_every_other_identity_field() -> a
         .await?;
 
     let goal = handle
+        .steerer()
         .get_session_goal(session)
         .await?
         .ok_or_else(|| anyhow::anyhow!("session_goal missing after set"))?;
@@ -87,6 +92,7 @@ async fn set_session_goal_for_an_unknown_session_is_refused() -> anyhow::Result<
         return Ok(());
     };
     let outcome = handle
+        .steerer()
         .set_session_goal(SetSessionIdentity {
             display_name: Some("ghost"),
             ..identity(Uuid::new_v4())
@@ -115,6 +121,7 @@ async fn launch_seed_applies_at_registration_and_never_overrides_a_declared_role
         .register_workspace_session(register_input(session, &project_path))
         .await?;
     let seeded = handle
+        .steerer()
         .get_session_goal(session)
         .await?
         .ok_or_else(|| anyhow::anyhow!("seeded identity missing"))?;
@@ -123,6 +130,7 @@ async fn launch_seed_applies_at_registration_and_never_overrides_a_declared_role
     assert_eq!(seeded.instructions.as_deref(), Some("watch"));
 
     handle
+        .steerer()
         .set_session_goal(SetSessionIdentity {
             role: Some("reviewer"),
             ..identity(session)
@@ -132,6 +140,7 @@ async fn launch_seed_applies_at_registration_and_never_overrides_a_declared_role
         .register_workspace_session(register_input(session, &project_path))
         .await?;
     let after = handle
+        .steerer()
         .get_session_goal(session)
         .await?
         .ok_or_else(|| anyhow::anyhow!("identity missing after re-registration"))?;
@@ -146,6 +155,7 @@ async fn launch_seed_applies_at_registration_and_never_overrides_a_declared_role
         })
         .await?;
     let explicit_goal = handle
+        .steerer()
         .get_session_goal(explicit)
         .await?
         .ok_or_else(|| anyhow::anyhow!("explicit identity missing"))?;
@@ -166,6 +176,7 @@ async fn resolve_name_recipient_is_case_insensitive_and_reports_ambiguity() -> a
     let names = [(named, "Observer-1"), (dup_a, "worker"), (dup_b, "worker")];
     for (session, name) in names {
         handle
+            .steerer()
             .set_session_goal(SetSessionIdentity {
                 display_name: Some(name),
                 ..identity(session)
@@ -174,15 +185,18 @@ async fn resolve_name_recipient_is_case_insensitive_and_reports_ambiguity() -> a
     }
 
     let resolved = handle
+        .launch()
         .resolve_name_recipient(project_id, "observer-1", sender)
         .await?;
     assert!(matches!(resolved, SessionIdResolution::Resolved(uuid) if uuid == named));
     let self_lookup = handle
+        .launch()
         .resolve_name_recipient(project_id, "observer-1", named)
         .await?;
     assert!(matches!(self_lookup, SessionIdResolution::NotFound));
 
     let SessionIdResolution::Ambiguous(mut uuids) = handle
+        .launch()
         .resolve_name_recipient(project_id, "worker", sender)
         .await?
     else {
@@ -193,6 +207,7 @@ async fn resolve_name_recipient_is_case_insensitive_and_reports_ambiguity() -> a
     expected.sort();
     assert_eq!(uuids, expected);
     let missing = handle
+        .launch()
         .resolve_name_recipient(project_id, "nobody-here", sender)
         .await?;
     assert!(matches!(missing, SessionIdResolution::NotFound));

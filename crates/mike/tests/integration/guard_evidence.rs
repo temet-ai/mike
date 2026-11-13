@@ -1,3 +1,5 @@
+use mike::store::persistence::eval_repo::EvalPersist as _;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use mike::store::persistence::turn_verdicts::{
     TurnVerdictInsert, VerdictJudgement, VerdictMode, VerdictShape,
 };
@@ -51,6 +53,7 @@ async fn relapse_evaluation_carries_semantic_key_only_in_record_mode() -> anyhow
 
 async fn guard_id(f: &Fixture) -> anyhow::Result<i64> {
     Ok(f.handle
+        .steerer()
         .guard_steerer()
         .await?
         .ok_or_else(|| anyhow::anyhow!("turn-guard row not seeded"))?
@@ -59,7 +62,7 @@ async fn guard_id(f: &Fixture) -> anyhow::Result<i64> {
 
 async fn spun_up_router(f: &Fixture) -> anyhow::Result<String> {
     let mut state =
-        mike::config::AppState::new(mike::config::ProxyConfig::for_tests_in_memory()).await?;
+        mike::state::AppState::new(mike::config::ProxyConfig::for_tests_in_memory()).await?;
     state.persist = Some(f.handle.clone());
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let router = mike::app::inspect_router_on(state, listener.local_addr()?);
@@ -145,6 +148,7 @@ async fn seed_arm_row(
 
 async fn seed_scored_reaction(f: &Fixture, turn: i64, reaction: &str) -> anyhow::Result<()> {
     f.handle
+        .eval()
         .insert_turn_verdict(TurnVerdictInsert {
             turn_id: turn,
             mode: VerdictMode::Live,

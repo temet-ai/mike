@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::web_repo::WebPersist as _;
 
 pub(crate) const FILE_WRITES_DEFAULT_LIMIT: i64 = 100;
 pub(crate) const FILE_WRITES_MAX_LIMIT: i64 = 500;
@@ -109,16 +110,19 @@ pub(crate) async fn list_file_writes(
     };
 
     let total_count = handle
+        .web()
         .count_file_writes(&filter)
         .await
         .map_err(|e| query_failed(&e))?;
     let summaries = handle
+        .web()
         .summarise_file_writes(&filter, offset, limit)
         .await
         .map_err(|e| query_failed(&e))?;
 
     let paths: Vec<String> = summaries.iter().map(|s| s.file_path.clone()).collect();
     let writes = handle
+        .web()
         .fetch_writes_for_paths(&paths, &filter)
         .await
         .map_err(|e| query_failed(&e))?;

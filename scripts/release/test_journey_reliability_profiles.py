@@ -81,7 +81,7 @@ class ProfileTests(OfflineTests):
 
     def test_normal_feature_contract_matches_current_source_without_becoming_runtime_evidence(self):
         root = Path(__file__).resolve().parents[2]
-        source = (root / "crates/mike/src/feature_toggles/mod.rs").read_text()
+        source = (root / "crates/mike-base/src/feature_toggles/mod.rs").read_text()
         block = source.split("impl Default for FeatureToggles", 1)[1].split("#[derive", 1)[0]
         actual = {name: value == "true" for name, value in re.findall(r"(\w+): (true|false),", block)}
         contract = profiles.normal_default_contract()

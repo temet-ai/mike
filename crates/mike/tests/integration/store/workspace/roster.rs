@@ -1,4 +1,6 @@
 use chrono::{DateTime, SubsecRound, Utc};
+use mike::store::persistence::fleet_repo::FleetPersist as _;
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 
 use mike::workspace::{Liveness, RosterScope};
 
@@ -51,14 +53,17 @@ async fn fetch_session_liveness_reflects_registration_state() -> anyhow::Result<
     let project_path = unique("liveness-test");
 
     let never_seen = uuid::Uuid::new_v4();
-    assert_eq!(handle.fetch_session_liveness(never_seen).await?, None);
+    assert_eq!(
+        handle.proxy().fetch_session_liveness(never_seen).await?,
+        None
+    );
 
     let session = uuid::Uuid::new_v4();
     handle
         .register_workspace_session(register_input(session, &project_path))
         .await?;
     assert_eq!(
-        handle.fetch_session_liveness(session).await?,
+        handle.proxy().fetch_session_liveness(session).await?,
         Some(Liveness::Live)
     );
 
@@ -70,13 +75,13 @@ async fn fetch_session_liveness_reflects_registration_state() -> anyhow::Result<
     .execute(&pool)
     .await?;
     assert_eq!(
-        handle.fetch_session_liveness(session).await?,
+        handle.proxy().fetch_session_liveness(session).await?,
         Some(Liveness::Stale)
     );
 
     handle.end_workspace_registration(session, None).await?;
     assert_eq!(
-        handle.fetch_session_liveness(session).await?,
+        handle.proxy().fetch_session_liveness(session).await?,
         Some(Liveness::Ended)
     );
 
@@ -122,6 +127,7 @@ async fn fetch_workspace_roster_filters_by_scope() -> anyhow::Result<()> {
         .await?;
 
     let live_roster = handle
+        .proxy()
         .fetch_workspace_roster(project_id, RosterScope::Live)
         .await?;
     assert_eq!(
@@ -134,6 +140,7 @@ async fn fetch_workspace_roster_filters_by_scope() -> anyhow::Result<()> {
     );
 
     let active_roster = handle
+        .proxy()
         .fetch_workspace_roster(project_id, RosterScope::Active)
         .await?;
     let mut active_uuids: Vec<_> = active_roster.iter().map(|r| r.session_uuid).collect();
@@ -146,6 +153,7 @@ async fn fetch_workspace_roster_filters_by_scope() -> anyhow::Result<()> {
     );
 
     let all_roster = handle
+        .proxy()
         .fetch_workspace_roster(project_id, RosterScope::All)
         .await?;
     let mut all_uuids: Vec<_> = all_roster.iter().map(|r| r.session_uuid).collect();
@@ -176,6 +184,7 @@ async fn fetch_workspace_roster_reports_activity_for_idle_and_busy_sessions() ->
         .await?;
 
     let idle_roster = handle
+        .proxy()
         .fetch_workspace_roster(idle_registered.project_id, RosterScope::Live)
         .await?;
     let idle_row = idle_roster
@@ -217,6 +226,7 @@ async fn fetch_workspace_roster_reports_activity_for_idle_and_busy_sessions() ->
     .await?;
 
     let busy_roster = handle
+        .proxy()
         .fetch_workspace_roster(busy_registered.project_id, RosterScope::Live)
         .await?;
     let busy_row = busy_roster
@@ -293,6 +303,7 @@ async fn fetch_workspace_roster_live_scope_keeps_lapsed_lease_row_with_recent_ac
     .await?;
 
     let live_roster = handle
+        .proxy()
         .fetch_workspace_roster(project_id, RosterScope::Live)
         .await?;
     let live_uuids: std::collections::HashSet<_> =
@@ -319,16 +330,23 @@ async fn fetch_workspace_roster_live_scope_keeps_lapsed_lease_row_with_recent_ac
     );
     assert_eq!(busy_row.liveness_source, "activity", "{busy_row:?}");
     assert_eq!(
-        handle.fetch_session_liveness(busy_but_stale).await?,
+        handle
+            .proxy()
+            .fetch_session_liveness(busy_but_stale)
+            .await?,
         Some(Liveness::Live),
         "the mailbox and fleet graph liveness lookup must agree with the roster"
     );
     assert_eq!(
-        handle.fetch_session_liveness(quiet_old_activity).await?,
+        handle
+            .proxy()
+            .fetch_session_liveness(quiet_old_activity)
+            .await?,
         Some(Liveness::Stale)
     );
 
     let active_roster = handle
+        .proxy()
         .fetch_workspace_roster(project_id, RosterScope::Active)
         .await?;
     let active_uuids: std::collections::HashSet<_> =
@@ -385,20 +403,21 @@ async fn registered_session_without_captured_traffic_is_uncaptured_not_live() ->
     .await?;
 
     assert_eq!(
-        handle.fetch_session_liveness(uncaptured).await?,
+        handle.proxy().fetch_session_liveness(uncaptured).await?,
         Some(Liveness::Uncaptured)
     );
     assert_eq!(
-        handle.fetch_session_liveness(fresh).await?,
+        handle.proxy().fetch_session_liveness(fresh).await?,
         Some(Liveness::Live),
         "a session registered moments ago has not had time to send a request"
     );
     assert_eq!(
-        handle.fetch_session_liveness(captured).await?,
+        handle.proxy().fetch_session_liveness(captured).await?,
         Some(Liveness::Live)
     );
 
     let live = handle
+        .proxy()
         .fetch_workspace_roster(project_id, RosterScope::Live)
         .await?;
     let live_uuids: std::collections::HashSet<_> = live.iter().map(|r| r.session_uuid).collect();
@@ -406,6 +425,7 @@ async fn registered_session_without_captured_traffic_is_uncaptured_not_live() ->
     assert!(live_uuids.contains(&fresh) && live_uuids.contains(&captured));
 
     let active = handle
+        .proxy()
         .fetch_workspace_roster(project_id, RosterScope::Active)
         .await?;
     let row = active
@@ -414,7 +434,7 @@ async fn registered_session_without_captured_traffic_is_uncaptured_not_live() ->
         .ok_or_else(|| anyhow::anyhow!("uncaptured session missing from Active roster"))?;
     assert_eq!(row.liveness, Liveness::Uncaptured, "{row:?}");
 
-    let nodes = handle.fetch_fleet_nodes(project_id, 24).await?;
+    let nodes = handle.fleet().fetch_fleet_nodes(project_id, 24).await?;
     let node = nodes
         .iter()
         .find(|n| n.session_uuid == uncaptured)

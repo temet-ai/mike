@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 async fn resolve_session_scan_ids(
     handle: &crate::store::persistence::PersistHandle,
@@ -29,7 +30,7 @@ async fn resolve_session_scan_ids(
     };
 
     let request_ids = handle
-        .list_session_request_ids_asc(session_db_id)
+        .launch().list_session_request_ids_asc(session_db_id)
         .await
         .map_err(|e| {
             tracing::warn!(error = %e, session_id = %session_id, caller, "find_text: request id list failed");
@@ -123,19 +124,11 @@ pub(crate) async fn find_text_scoped_session(
 
 #[cfg(test)]
 #[path = "search_session_support_tests.rs"]
-mod search_session_test_support;
+pub(crate) mod search_session_test_support;
 
 #[cfg(test)]
 #[path = "search_session_tests.rs"]
 mod search_session_tests;
-
-#[cfg(test)]
-#[path = "search_unified_log_tests.rs"]
-mod search_unified_log_tests;
-
-#[cfg(test)]
-#[path = "search_session_filters_tests.rs"]
-mod search_session_filters_tests;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct SessionTextMatch {
@@ -187,7 +180,7 @@ async fn scan_session_for_matches(
             None => continue,
         };
         let remaining = (remaining_cap.saturating_sub(all_matches.len())) as u32;
-        let (count_this, new_matches) = crate::api::body_search::find_in_str(
+        let (count_this, new_matches) = crate::web_base::body_search::find_in_str(
             &text,
             &params.needle,
             params.case_sensitive,

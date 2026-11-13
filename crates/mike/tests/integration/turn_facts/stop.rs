@@ -2,6 +2,7 @@ use super::{
     Fixture, NewTurn, Req, attach, fixture, insert_request, insert_response, insert_text_block,
     insert_turn,
 };
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 
 async fn text_request(
     f: &Fixture,
@@ -35,7 +36,7 @@ async fn stop_facts_take_last_primary_text_request_and_its_stop_reason() -> anyh
     )
     .await?;
     attach(&f, turn, &[9100, 9101, 9102]).await?;
-    let facts = f.handle.load_stop_facts(&[turn]).await?;
+    let facts = f.handle.dossier().load_stop_facts(&[turn]).await?;
     assert_eq!(facts.len(), 1);
     assert_eq!(facts[0].stop_request_id, Some(9101));
     assert_eq!(facts[0].stop_reason.as_deref(), Some("max_tokens"));
@@ -54,7 +55,7 @@ async fn stop_request_without_response_is_aborted() -> anyhow::Result<()> {
     text_request(&f, 9101, "primary", 5, None).await?;
     let turn = insert_turn(&f, &NewTurn::closed(9100, 9101, 0, 50)).await?;
     attach(&f, turn, &[9100, 9101]).await?;
-    let facts = f.handle.load_stop_facts(&[turn]).await?;
+    let facts = f.handle.dossier().load_stop_facts(&[turn]).await?;
     assert_eq!(facts[0].stop_reason.as_deref(), Some("aborted"));
     f.db.cleanup().await?;
     Ok(())
@@ -68,7 +69,7 @@ async fn turn_with_no_text_request_has_no_stop_request() -> anyhow::Result<()> {
     insert_request(&f, &Req::primary(9100, 0, "ask")).await?;
     let turn = insert_turn(&f, &NewTurn::closed(9100, 9100, 0, 50)).await?;
     attach(&f, turn, &[9100]).await?;
-    let facts = f.handle.load_stop_facts(&[turn]).await?;
+    let facts = f.handle.dossier().load_stop_facts(&[turn]).await?;
     assert_eq!(facts[0].stop_request_id, None);
     assert_eq!(facts[0].stop_reason, None);
     f.db.cleanup().await?;
@@ -92,7 +93,7 @@ async fn interrupted_marker_on_a_primary_request_sets_interrupted() -> anyhow::R
     )
     .await?;
     attach(&f, turn, &[9100, 9101]).await?;
-    let facts = f.handle.load_stop_facts(&[turn]).await?;
+    let facts = f.handle.dossier().load_stop_facts(&[turn]).await?;
     assert!(facts[0].interrupted);
     f.db.cleanup().await?;
     Ok(())
@@ -116,7 +117,7 @@ async fn close_cause_is_abort_when_stream_aborted_error_matches_closed_at() -> a
     .await?;
     let turn = insert_turn(&f, &NewTurn::closed(9100, 9101, 0, 50)).await?;
     attach(&f, turn, &[9100, 9101]).await?;
-    let facts = f.handle.load_stop_facts(&[turn]).await?;
+    let facts = f.handle.dossier().load_stop_facts(&[turn]).await?;
     assert_eq!(facts[0].close_cause, "abort");
     f.db.cleanup().await?;
     Ok(())
@@ -130,7 +131,7 @@ async fn close_cause_is_idle_reap_without_evidence_or_abort() -> anyhow::Result<
     insert_request(&f, &Req::primary(9100, 0, "ask")).await?;
     let turn = insert_turn(&f, &NewTurn::closed(9100, 9100, 0, 50)).await?;
     attach(&f, turn, &[9100]).await?;
-    let facts = f.handle.load_stop_facts(&[turn]).await?;
+    let facts = f.handle.dossier().load_stop_facts(&[turn]).await?;
     assert_eq!(facts[0].close_cause, "idle_reap");
     f.db.cleanup().await?;
     Ok(())

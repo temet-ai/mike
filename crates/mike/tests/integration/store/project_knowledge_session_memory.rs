@@ -1,5 +1,8 @@
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use mike::store::persistence::lessons::NewLessonWrite;
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use mike::store::persistence::project_knowledge::{
     DocumentInput, KnowledgeQuery, LocationInput, ScanInput, SourceInput,
 };
@@ -38,6 +41,7 @@ async fn seed_thread_entry(
 ) -> anyhow::Result<i64> {
     let slug = format!("memory-{}", Uuid::new_v4().simple());
     handle
+        .launch()
         .checkpoint_work_thread(
             project,
             &CheckpointInput {
@@ -193,6 +197,7 @@ async fn search(
 ) -> anyhow::Result<Vec<Value>> {
     let found = memory
         .handle
+        .knowledge()
         .search_project_knowledge(&KnowledgeQuery {
             project: project.to_owned(),
             query: query.into(),
@@ -235,6 +240,7 @@ async fn assert_full_read(
 ) -> anyhow::Result<()> {
     let read = memory
         .handle
+        .knowledge()
         .read_project_knowledge(None, reference)
         .await?;
     assert_eq!(read["reference"], reference);
@@ -248,6 +254,7 @@ async fn assert_full_read(
     assert!(
         memory
             .handle
+            .knowledge()
             .read_project_knowledge(Some(&memory.other_path), reference)
             .await
             .is_err()
@@ -323,6 +330,7 @@ async fn correction_search_finds_corrected_turn_verdict() -> anyhow::Result<()> 
     assert_eq!(item["status"], "corrected");
     let read = memory
         .handle
+        .knowledge()
         .read_project_knowledge(Some(&memory.path), &reference)
         .await?;
     assert_eq!(read["current"], true);
@@ -372,6 +380,7 @@ async fn read_without_project_rejects_unknown_reference() -> anyhow::Result<()> 
     assert!(
         memory
             .handle
+            .knowledge()
             .read_project_knowledge(None, &missing)
             .await
             .is_err()
@@ -379,6 +388,7 @@ async fn read_without_project_rejects_unknown_reference() -> anyhow::Result<()> 
     assert!(
         memory
             .handle
+            .knowledge()
             .read_project_knowledge(None, "promise:1")
             .await
             .is_err()
@@ -404,6 +414,7 @@ fn memory_file() -> DocumentInput {
 
 async fn index_on_machine(handle: &PersistHandle, path: &str) -> anyhow::Result<()> {
     let location = handle
+        .knowledge()
         .register_project_location(&LocationInput {
             project: path.into(),
             machine_uuid: Uuid::new_v4(),
@@ -412,6 +423,7 @@ async fn index_on_machine(handle: &PersistHandle, path: &str) -> anyhow::Result<
         })
         .await?;
     let source = handle
+        .knowledge()
         .register_knowledge_source(&SourceInput {
             location_uuid: serde_json::from_value(location["location_uuid"].clone())?,
             name: "claude-memory".into(),
@@ -419,6 +431,7 @@ async fn index_on_machine(handle: &PersistHandle, path: &str) -> anyhow::Result<
         })
         .await?;
     handle
+        .knowledge()
         .ingest_knowledge_scan(
             serde_json::from_value(source["source_uuid"].clone())?,
             &ScanInput {
@@ -451,11 +464,13 @@ async fn lesson_title_is_its_first_line() -> anyhow::Result<()> {
     };
     let project = memory
         .handle
+        .knowledge()
         .resolve_knowledge_project(&memory.path)
         .await?
         .id;
     memory
         .handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id: project,
             kind: "warning",

@@ -1,4 +1,5 @@
 use mike::launch::fleet::test_seams::{control::Phase, durable};
+use mike::store::persistence::fleet_repo::FleetPersist as _;
 
 use super::support::Harness;
 
@@ -13,7 +14,13 @@ async fn wrong_exact_run_and_absent_fleet_cannot_insert_a_receipt() -> anyhow::R
     let mut absent = h.request("touch must-not-run");
     absent.fleet = uuid::Uuid::new_v4();
     assert!(h.domain.begin(h.persist.clone(), absent).await.is_err());
-    assert!(h.persist.pending_fleet_commands(&h.run).await?.is_empty());
+    assert!(
+        h.persist
+            .fleet()
+            .pending_fleet_commands(&h.run)
+            .await?
+            .is_empty()
+    );
     assert!(!h.repo.path().join("must-not-run").exists());
     h.finish().await
 }
@@ -54,9 +61,16 @@ async fn deferred_commit_rejection_retains_unknown_outcome_entry_without_inventi
     );
     assert_eq!(snapshot.pending[0].owned_processes, 0);
     assert!(!snapshot.locally_settled());
-    assert!(h.other.pending_fleet_commands(&h.run).await?.is_empty());
     assert!(
         h.other
+            .fleet()
+            .pending_fleet_commands(&h.run)
+            .await?
+            .is_empty()
+    );
+    assert!(
+        h.other
+            .fleet()
             .latest_tree_check(&h.request("").ledger)
             .await?
             .is_none()

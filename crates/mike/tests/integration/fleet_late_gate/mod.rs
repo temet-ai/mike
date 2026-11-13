@@ -1,3 +1,5 @@
+use mike::store::persistence::fleet_repo::FleetPersist as _;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 mod ownership;
 mod support;
 
@@ -27,7 +29,7 @@ async fn late_cross_cutting_failure_carries_closed_owners_report_to_coordinator(
     ] {
         assert!(body.contains(&expected), "{body}");
     }
-    let notes = f.persist.fleet_note_rows(&f.run).await?;
+    let notes = f.persist.fleet().fleet_note_rows(&f.run).await?;
     let retained = notes
         .iter()
         .find(|note| note.note_uuid == report.note_uuid)
@@ -37,6 +39,7 @@ async fn late_cross_cutting_failure_carries_closed_owners_report_to_coordinator(
     let ledger = mike::launch::fleet::gate::ledger(&f.run);
     let receipt = f
         .persist
+        .fleet()
         .find_tree_check(&ledger, &f.checked)
         .await?
         .ok_or_else(|| anyhow::anyhow!("late gate receipt missing"))?;
@@ -127,7 +130,7 @@ async fn long_report_history_keeps_three_latest_references_and_exact_omission_co
         assert!(!body.contains(&report.note_uuid.to_string()));
     }
     assert!(body.len() < 10 * 1024);
-    assert_eq!(f.persist.fleet_note_rows(&f.run).await?.len(), 5);
+    assert_eq!(f.persist.fleet().fleet_note_rows(&f.run).await?.len(), 5);
     f.still_closed().await?;
     f.db.cleanup().await
 }
@@ -149,6 +152,7 @@ async fn report_with_unusable_commit_preserves_lookup_without_repeating_unbounde
     let oversized = "unverified payload".repeat(10_000);
     let note = f
         .persist
+        .launch()
         .create_session_note(
             f.old,
             NewSessionNote {
@@ -169,7 +173,10 @@ async fn report_with_unusable_commit_preserves_lookup_without_repeating_unbounde
     assert!(body.contains("reported commit unknown"));
     assert!(!body.contains("unverified payload"));
     assert!(body.len() < 10 * 1024);
-    assert_eq!(f.persist.fleet_note_rows(&f.run).await?[0].body, oversized);
+    assert_eq!(
+        f.persist.fleet().fleet_note_rows(&f.run).await?[0].body,
+        oversized
+    );
     f.still_closed().await?;
     f.db.cleanup().await
 }

@@ -1,3 +1,4 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 use std::path::Path;
@@ -13,13 +14,13 @@ use super::dossier_parity_compare::{
     mike_row, summarise,
 };
 use crate::config::{CliOverrides, load};
-use crate::dossier::genuine::disposition::{LaneFacts, TurnDisposition, turn_disposition};
-use crate::dossier::genuine::repeat::repeat_key;
-use crate::dossier::genuine::stream::{StreamMessage, resolve_turns};
-use crate::dossier::genuine::{CaptureRule, PromptClass, PromptInput, PromptKind, classify_prompt};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::dossier_parity_reads::DispositionRequestRow as DispositionRow;
 use crate::store::persistence::prompt_stream::{StreamRow, StreamSource, StreamWindow};
+use crate::wire::genuine::disposition::{LaneFacts, TurnDisposition, turn_disposition};
+use crate::wire::genuine::repeat::repeat_key;
+use crate::wire::genuine::stream::{StreamMessage, resolve_turns};
+use crate::wire::genuine::{CaptureRule, PromptClass, PromptInput, PromptKind, classify_prompt};
 
 const SESSION_CHUNK: usize = 200;
 const SAMPLE_SIZE: usize = 50;
@@ -86,6 +87,7 @@ async fn session_db_ids(ph: &PersistHandle, uuids: &[String]) -> Result<HashMap<
         })
         .collect::<Result<Vec<_>>>()?;
     let ids = ph
+        .dossier()
         .session_db_ids_by_uuid(&parsed)
         .await
         .context("could not resolve session ids")?;
@@ -162,7 +164,10 @@ pub(super) async fn load_sessions(
     for chunk in uuids.chunks(SESSION_CHUNK) {
         let ids = session_db_ids(ph, chunk).await?;
         let db_ids: Vec<i64> = ids.values().copied().collect();
-        let rows = ph.load_prompt_streams(&db_ids, window, source).await?;
+        let rows = ph
+            .dossier()
+            .load_prompt_streams(&db_ids, window, source)
+            .await?;
         let mut streams: HashMap<i64, Vec<StreamMessage>> = HashMap::new();
         for row in &rows {
             if let Some(message) = to_message(row, source) {
@@ -345,6 +350,7 @@ async fn run_dispositions(ph: &PersistHandle, args: &DossierParityArgs) -> Resul
     while day < args.cutoff {
         let next = (day + Duration::days(1)).min(args.cutoff);
         let rows = ph
+            .dossier()
             .list_disposition_requests(day, next)
             .await
             .with_context(|| format!("dispositions: query failed for {day}"))?;

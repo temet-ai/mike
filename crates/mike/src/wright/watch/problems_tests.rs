@@ -1,3 +1,4 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 use chrono::Utc;
 use serde_json::json;
 
@@ -18,6 +19,7 @@ fn finding(resource: &str, n: i64) -> Finding {
 
 async fn record(handle: &PersistHandle, outcome: &CheckOutcome) -> anyhow::Result<RecordedRun> {
     Ok(handle
+        .web()
         .record_wright_run(&CheckRun {
             check: CHECK,
             source: "capture_db",
@@ -65,7 +67,7 @@ async fn repeated_scans_keep_one_problem_and_one_open_episode() -> anyhow::Resul
         assert_eq!((again.opened, again.still_open), (0, 1));
     }
     assert_eq!(counts(&db).await?, (1, 1, 1));
-    let page = db.handle.list_wright_problems(&all(10, 0)).await?;
+    let page = db.handle.web().list_wright_problems(&all(10, 0)).await?;
     assert_eq!(
         page.problems[0].latest_evidence,
         Some(json!({"failed_requests": 8}))
@@ -102,7 +104,7 @@ async fn a_recurrence_after_a_clean_run_is_a_new_episode_of_the_same_problem() -
     .await?;
     let clean = record(&db.handle, &CheckOutcome::Complete(Vec::new())).await?;
     assert_eq!(clean.healthy, 1);
-    let page = db.handle.list_wright_problems(&all(10, 0)).await?;
+    let page = db.handle.web().list_wright_problems(&all(10, 0)).await?;
     assert_eq!(page.problems[0].state, "healthy");
 
     let again = record(
@@ -112,11 +114,12 @@ async fn a_recurrence_after_a_clean_run_is_a_new_episode_of_the_same_problem() -
     .await?;
     assert_eq!((again.opened, again.recurred), (0, 1));
     assert_eq!(counts(&db).await?, (1, 2, 1));
-    let page = db.handle.list_wright_problems(&all(10, 0)).await?;
+    let page = db.handle.web().list_wright_problems(&all(10, 0)).await?;
     assert_eq!(page.problems[0].state, "open");
     assert_eq!(page.problems[0].episodes, 2);
     let episodes = db
         .handle
+        .web()
         .wright_episodes(page.problems[0].id, 10, 0)
         .await?;
     assert!(episodes[0].closed_at.is_none());
@@ -141,10 +144,10 @@ async fn an_unknown_run_never_marks_a_problem_healthy() -> anyhow::Result<()> {
     )
     .await?;
     assert_eq!(unknown.healthy, 0);
-    let page = db.handle.list_wright_problems(&all(10, 0)).await?;
+    let page = db.handle.web().list_wright_problems(&all(10, 0)).await?;
     assert_eq!(page.problems[0].state, "open");
     assert_eq!(counts(&db).await?, (1, 1, 1));
-    let runs = db.handle.latest_wright_runs().await?;
+    let runs = db.handle.web().latest_wright_runs().await?;
     assert_eq!(runs[0].outcome, "unknown");
     assert!(
         runs[0]
@@ -163,7 +166,11 @@ async fn problems_page_through_every_row_with_a_stable_order() -> anyhow::Result
     let mut seen = Vec::new();
     let mut offset = 0;
     loop {
-        let page = db.handle.list_wright_problems(&all(3, offset)).await?;
+        let page = db
+            .handle
+            .web()
+            .list_wright_problems(&all(3, offset))
+            .await?;
         assert_eq!(page.total, 7);
         if page.problems.is_empty() {
             break;
@@ -178,6 +185,6 @@ async fn problems_page_through_every_row_with_a_stable_order() -> anyhow::Result
         state: Some("healthy".to_owned()),
         ..all(10, 0)
     };
-    assert_eq!(db.handle.list_wright_problems(&open).await?.total, 0);
+    assert_eq!(db.handle.web().list_wright_problems(&open).await?.total, 0);
     db.cleanup().await
 }

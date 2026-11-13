@@ -1,4 +1,6 @@
 use chrono::Utc;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use mike::store::persistence::eval_runs::{
     Disagreement, ItemLabelFilter, NewEvalRun, RunItemWrite, RunItemsFilter, RunItemsPage,
     RunsFilter,
@@ -31,6 +33,7 @@ async fn bundle(f: &Fixture) -> anyhow::Result<i64> {
 async fn run(f: &Fixture, bundle_id: i64) -> anyhow::Result<i64> {
     let tiers = vec!["seed".to_owned(), "gold".to_owned()];
     Ok(f.handle
+        .eval()
         .create_eval_run(&NewEvalRun {
             purpose: "measure",
             bundle_id,
@@ -123,6 +126,7 @@ async fn judged(f: &Fixture, run_id: i64, bundle_id: i64, j: &Judged<'_>) -> any
     let d = seed_label(f, j.turn, "delivery", j.gold.1, j.severity).await?;
     let v = verdict(f, j.turn, bundle_id, j.judged.0, j.judged.1).await?;
     f.handle
+        .eval()
         .upsert_eval_run_item(&RunItemWrite {
             run_id,
             operator_turn_id: j.turn,
@@ -150,7 +154,10 @@ async fn facts(f: &Fixture, a: i64, b: i64) -> anyhow::Result<()> {
     settled.next_state = "none_session_settled".to_owned();
     settled.next_state_at_close = "none_session_settled".to_owned();
     settled.text_chars = 50;
-    f.handle.upsert_turn_facts(&[resolved, settled]).await?;
+    f.handle
+        .dossier()
+        .upsert_turn_facts(&[resolved, settled])
+        .await?;
     Ok(())
 }
 
@@ -185,6 +192,7 @@ async fn seed(f: &Fixture) -> anyhow::Result<Seeded> {
     )
     .await?;
     f.handle
+        .eval()
         .upsert_eval_run_item(&RunItemWrite {
             run_id,
             operator_turn_id: c,
@@ -213,7 +221,7 @@ async fn page(f: &Fixture, run_id: i64, filter: RunItemsFilter) -> anyhow::Resul
         limit: if filter.limit == 0 { 50 } else { filter.limit },
         ..filter
     };
-    Ok(f.handle.eval_run_items_page(run_id, &filter).await?)
+    Ok(f.handle.eval().eval_run_items_page(run_id, &filter).await?)
 }
 
 fn turns(p: &RunItemsPage) -> Vec<i64> {
@@ -469,12 +477,20 @@ async fn runs_list_filters_on_the_bundle_role() -> anyhow::Result<()> {
         limit: 10,
         ..RunsFilter::default()
     };
-    let (turn_runs, _) = f.handle.list_eval_runs(&by_role("turn_judge")).await?;
+    let (turn_runs, _) = f
+        .handle
+        .eval()
+        .list_eval_runs(&by_role("turn_judge"))
+        .await?;
     assert_eq!(
         turn_runs.iter().map(|r| r.id).collect::<Vec<_>>(),
         vec![s.run_id]
     );
-    let (session_runs, total) = f.handle.list_eval_runs(&by_role("session_judge")).await?;
+    let (session_runs, total) = f
+        .handle
+        .eval()
+        .list_eval_runs(&by_role("session_judge"))
+        .await?;
     assert!(session_runs.is_empty());
     assert_eq!(total, 0);
     f.db.cleanup().await?;

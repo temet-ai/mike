@@ -1,6 +1,7 @@
 use chrono::{DateTime, Duration, Utc};
 use mike::dossier::steering_facts::wait_backing::WaitBacking;
 use mike::dossier::steering_facts::{STEERING_FACTS_VERSION, SteeringFacts, fill};
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 use mike::store::persistence::steering_facts::StaleFilter;
 
 use crate::turn_facts::resolution::build;
@@ -137,7 +138,7 @@ async fn fill_writes_closed_turns_once_and_a_rerun_writes_nothing() -> anyhow::R
     assert_eq!(dry.written, 0);
     let rerun = fill(&f.handle, filter, true).await?;
     assert_eq!(rerun.written, 0, "the build already filled the closed turn");
-    let persisted = f.handle.persisted_steering_facts(turn).await?;
+    let persisted = f.handle.dossier().persisted_steering_facts(turn).await?;
     let Some(row) = persisted else {
         anyhow::bail!("turn {turn} has no turn_facts row");
     };
@@ -158,7 +159,7 @@ async fn serve(f: &Fixture) -> anyhow::Result<String> {
         f.db.database_url.clone(),
     ];
     let state =
-        mike::config::AppState::new(mike::config::ProxyConfig::try_parse_from(args)?).await?;
+        mike::state::AppState::new(mike::config::ProxyConfig::try_parse_from(args)?).await?;
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let base = format!("http://{}", listener.local_addr()?);
     let router = mike::app::inspect_router_on(state, listener.local_addr()?);

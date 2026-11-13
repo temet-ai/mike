@@ -114,7 +114,7 @@ async fn wake_pending_busy_session_reflects_in_flight() -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("register_with_pid: {e}"))?;
     assert_eq!(status, reqwest::StatusCode::OK, "{body}");
 
-    let _synthetic_id = mike::in_flight::register_for_tests(&state, session.to_string());
+    let _synthetic_id = mike::state::register_in_flight_for_tests(&state, session.to_string());
 
     let resp = client
         .get(format!(

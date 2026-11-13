@@ -1,5 +1,6 @@
 use super::*;
 use crate::store::persistence::project_merge::ProjectMergeError;
+use crate::store::persistence::web_repo::WebPersist as _;
 use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
@@ -16,6 +17,7 @@ pub(crate) async fn post_project_merge(
         return persist_unavailable_response();
     };
     match persist
+        .web()
         .merge_project_into(&project_path, body.into_project_uuid)
         .await
     {

@@ -1,9 +1,12 @@
+use mike::store::persistence::dossier_repo::DossierPersist as _;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use serde_json::json;
 
 use crate::turn_facts::{Fixture, NewTurn, Req, fixture, insert_request, insert_turn};
 
 async fn guard_id(f: &Fixture) -> anyhow::Result<i64> {
     Ok(f.handle
+        .steerer()
         .guard_steerer()
         .await?
         .ok_or_else(|| anyhow::anyhow!("turn-guard row not seeded"))?
@@ -32,9 +35,13 @@ async fn reach_read_uses_session_or_local_uuid() -> anyhow::Result<()> {
     .bind(uuid)
     .execute(f.handle.pool())
     .await?;
-    let by_uuid = f.handle.channel_reach_rows(-1, Some(uuid)).await?;
+    let by_uuid = f
+        .handle
+        .steerer()
+        .channel_reach_rows(-1, Some(uuid))
+        .await?;
     assert_eq!(by_uuid.len(), 1);
-    let none = f.handle.channel_reach_rows(-1, None).await?;
+    let none = f.handle.steerer().channel_reach_rows(-1, None).await?;
     assert!(none.is_empty());
     Ok(())
 }
@@ -56,8 +63,14 @@ async fn daily_cap_counts_guard_calls_today_only() -> anyhow::Result<()> {
     .bind(id)
     .execute(f.handle.pool())
     .await?;
-    assert_eq!(f.handle.steerer_calls_today(id, "steerer").await?, 2);
-    assert_eq!(f.handle.steerer_calls_today(id, "eval").await?, 1);
+    assert_eq!(
+        f.handle
+            .steerer()
+            .steerer_calls_today(id, "steerer")
+            .await?,
+        2
+    );
+    assert_eq!(f.handle.steerer().steerer_calls_today(id, "eval").await?, 1);
     Ok(())
 }
 
@@ -95,7 +108,7 @@ async fn resolved_turn(f: &Fixture, start: i64) -> anyhow::Result<i64> {
     let turn = insert_turn(f, &NewTurn::closed(start, start, 0, 30)).await?;
     let mut row = crate::turn_facts::sample_row(turn, f.session_id, chrono::Utc::now());
     crate::turn_facts::resolve(&mut row);
-    f.handle.upsert_turn_facts(&[row]).await?;
+    f.handle.dossier().upsert_turn_facts(&[row]).await?;
     Ok(turn)
 }
 
@@ -110,7 +123,11 @@ async fn label_candidates_exclude_live_rows_and_pick_last_row_per_turn_question(
     let older = evaluation(&f, id, turn, "shadow", "relapse", 10).await?;
     let newer = evaluation(&f, id, turn, "shadow", "relapse", 1).await?;
     let live = evaluation(&f, id, turn, "live", "unobserved_done", 1).await?;
-    let candidates = f.handle.guard_label_candidates(id, 200, false).await?;
+    let candidates = f
+        .handle
+        .steerer()
+        .guard_label_candidates(id, 200, false)
+        .await?;
     let ids: Vec<uuid::Uuid> = candidates.iter().map(|c| c.uuid).collect();
     assert!(
         !ids.contains(&live),
@@ -137,6 +154,7 @@ async fn audit_set_includes_launch_seats_and_role_matches_excludes_coordinators(
     .await?;
     let audit = f
         .handle
+        .steerer()
         .guard_audit_sessions(chrono::Utc::now() - chrono::Duration::days(14))
         .await?;
     assert!(audit.contains(&f.session_id));
@@ -153,6 +171,7 @@ async fn audit_set_includes_launch_seats_and_role_matches_excludes_coordinators(
     .await?;
     let audit = f
         .handle
+        .steerer()
         .guard_audit_sessions(chrono::Utc::now() - chrono::Duration::days(14))
         .await?;
     assert!(

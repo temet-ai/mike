@@ -9,7 +9,7 @@ use serde::Serialize;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::RecvError;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::models::ProxyEvent;
 
 #[derive(Serialize)]

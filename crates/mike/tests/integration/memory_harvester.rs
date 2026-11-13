@@ -1,4 +1,5 @@
 use crate::test_db;
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
@@ -380,6 +381,7 @@ async fn assert_harvest_run_is_recorded(
     let project_id = ensure_project(pool).await?;
     let request_id = seed_request(pool, project_id).await?;
     persist
+        .lessons()
         .record_harvest_run(NewHarvestRun {
             project_id,
             session_id: None,

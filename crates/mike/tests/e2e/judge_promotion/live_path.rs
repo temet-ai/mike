@@ -1,4 +1,5 @@
 use super::support::{judge_calls, promoted, serve};
+use mike::store::persistence::eval_repo::EvalPersist as _;
 
 async fn outcome(
     pool: &sqlx::PgPool,
@@ -156,7 +157,7 @@ async fn rejudge_run_rejudges_the_window_and_finishes() -> anyhow::Result<()> {
     let Some(persist) = p.state.persist() else {
         anyhow::bail!("persistence is off");
     };
-    persist.create_rejudge_run(&run).await?;
+    persist.eval().create_rejudge_run(&run).await?;
     let (_, rejudged) = mike::judge_worker::run_live_judge_once(&p.state).await?;
     assert_eq!(rejudged, 2);
     mike::judge_worker::run_live_judge_once(&p.state).await?;

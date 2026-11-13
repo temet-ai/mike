@@ -1,3 +1,4 @@
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 use std::sync::Arc;
 
 use arc_swap::ArcSwap;
@@ -156,7 +157,7 @@ async fn delete_removes_the_rule_and_it_never_reappears_on_reload() -> anyhow::R
         "a deleted rule must leave the live ArcSwap immediately"
     );
 
-    let reloaded = handle.list_filter_rules().await?;
+    let reloaded = handle.proxy().list_filter_rules().await?;
     assert!(
         reloaded.is_empty(),
         "a deleted rule must not reappear on a fresh DB read (round-trip of the actual bug: \

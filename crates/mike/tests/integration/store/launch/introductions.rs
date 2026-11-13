@@ -1,4 +1,6 @@
 use chrono::{DateTime, Duration, Utc};
+use mike::store::persistence::fleet_repo::FleetPersist as _;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -28,8 +30,9 @@ async fn seat_ran(handle: &PersistHandle, pool: &PgPool, ran: Ran<'_>) -> anyhow
     launch.session_uuid = Some(session);
     launch.run_id = Some(RUN.to_owned());
     launch.seat = Some(ran.seat.to_owned());
-    let launch_id = handle.insert_launch(&launch).await?;
+    let launch_id = handle.launch().insert_launch(&launch).await?;
     handle
+        .launch()
         .record_launch_opened(launch_id, &LaunchSurfaceRefs::default())
         .await?;
     SeedRequest::new(ran.request_id, project)
@@ -107,6 +110,7 @@ async fn slow_commands_of_working_seats_are_read_and_a_repeat_is_recorded_once()
     let handle = PersistHandle::connect(&db.database_url).await?;
     let pool = handle.pool();
     handle
+        .launch()
         .upsert_run(&NewRun {
             run_id: RUN.to_owned(),
             project_path: Some("/tmp/introductions".to_owned()),
@@ -119,7 +123,7 @@ async fn slow_commands_of_working_seats_are_read_and_a_repeat_is_recorded_once()
     let (first, again) = seed_five_commands(&handle, pool, start).await?;
 
     let since = start - Duration::minutes(1);
-    let slow = handle.slow_commands(RUN, since, 20.0).await?;
+    let slow = handle.fleet().slow_commands(RUN, since, 20.0).await?;
     let seats: Vec<(&str, &str)> = slow
         .iter()
         .map(|r| (r.seat.as_str(), r.command.as_str()))
@@ -143,7 +147,10 @@ async fn slow_commands_of_working_seats_are_read_and_a_repeat_is_recorded_once()
         introduce::repeats(&slow, &[]).is_empty(),
         "capture latency is not authoritative command timing"
     );
-    let results = handle.tree_results(RUN, Some("make"), since, 20).await?;
+    let results = handle
+        .fleet()
+        .tree_results(RUN, Some("make"), since, 20)
+        .await?;
     let first_result = results
         .iter()
         .find(|row| row.use_id == slow[0].use_id)
@@ -159,6 +166,7 @@ async fn slow_commands_of_working_seats_are_read_and_a_repeat_is_recorded_once()
     assert_eq!(first_result.is_error, Some(false));
     assert!(
         handle
+            .fleet()
             .recorded_introductions(&[slow[1].use_id])
             .await?
             .is_empty()
@@ -166,14 +174,24 @@ async fn slow_commands_of_working_seats_are_read_and_a_repeat_is_recorded_once()
 
     let pair = [(slow[1].use_id, slow[0].use_id)];
     assert_eq!(
-        handle.record_introductions(RUN, &pair).await?,
+        handle.fleet().record_introductions(RUN, &pair).await?,
         vec![slow[1].use_id]
     );
     assert!(
-        handle.record_introductions(RUN, &pair).await?.is_empty(),
+        handle
+            .fleet()
+            .record_introductions(RUN, &pair)
+            .await?
+            .is_empty(),
         "a repeat is recorded once"
     );
-    assert!(handle.record_introductions(RUN, &[]).await?.is_empty());
+    assert!(
+        handle
+            .fleet()
+            .record_introductions(RUN, &[])
+            .await?
+            .is_empty()
+    );
     db.cleanup().await?;
     Ok(())
 }
@@ -188,6 +206,7 @@ async fn a_closed_first_seats_captured_result_is_readable_without_contacting_it(
     let db = factory.acquire_isolated().await?;
     let handle = PersistHandle::connect(&db.database_url).await?;
     handle
+        .launch()
         .upsert_run(&NewRun {
             run_id: RUN.to_owned(),
             project_path: Some("/tmp/introductions".to_owned()),
@@ -225,16 +244,19 @@ async fn a_closed_first_seats_captured_result_is_readable_without_contacting_it(
     )
     .await?;
     let launch = handle
+        .launch()
         .find_launch_by_session(first)
         .await?
         .ok_or_else(|| anyhow::anyhow!("first launch missing"))?;
     handle
+        .launch()
         .record_launch_closed(launch.id, "complete", Some(true))
         .await?;
     let since = start - Duration::minutes(1);
-    let slow = handle.slow_commands(RUN, since, 5.0).await?;
+    let slow = handle.fleet().slow_commands(RUN, since, 5.0).await?;
     assert!(introduce::repeats(&slow, &[]).is_empty());
     let results = handle
+        .fleet()
         .tree_results(RUN, Some("cargo clippy"), since, 20)
         .await?;
     let captured = results
@@ -271,6 +293,7 @@ async fn results_endpoint(
     handle: &PersistHandle,
 ) -> anyhow::Result<(String, Uuid, tokio::task::JoinHandle<std::io::Result<()>>)> {
     let fleet = handle
+        .fleet()
         .insert_fleet(&mike::store::persistence::fleet::NewFleet {
             slug: format!("raw-results-{}", Uuid::new_v4()),
             project_path: "/tmp/introductions".into(),
@@ -282,13 +305,14 @@ async fn results_endpoint(
     for state in ["ready", "starting", "running"] {
         let run = (state == "starting").then_some(RUN);
         handle
+            .fleet()
             .set_fleet_state(fleet.fleet_uuid, state, run, None)
             .await?;
     }
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let mut config = mike::config::ProxyConfig::for_tests_in_memory();
     config.inspect_listen_addr = listener.local_addr()?.to_string();
-    let mut state = mike::config::AppState::new(config).await?;
+    let mut state = mike::state::AppState::new(config).await?;
     state.persist = Some(handle.clone());
     let router = mike::api::manifest::inspect_router(state);
     let url = format!(
@@ -310,6 +334,7 @@ async fn results_route_raw_capture_is_unknown_and_cross_crate_changes_during_exe
     let db = factory.acquire_isolated().await?;
     let handle = PersistHandle::connect(&db.database_url).await?;
     handle
+        .launch()
         .upsert_run(&NewRun {
             run_id: RUN.into(),
             project_path: Some("/tmp/introductions".into()),
@@ -349,6 +374,7 @@ async fn results_route_raw_capture_is_unknown_and_cross_crate_changes_during_exe
             .is_some_and(|p| p.contains("no commit binding"))
     );
     handle
+        .fleet()
         .insert_tree_changes(
             RUN,
             &[mike::store::persistence::fleet::NewTreeChange {
@@ -405,14 +431,17 @@ async fn request_results(client: &reqwest::Client, url: &str) -> anyhow::Result<
 
 async fn finish_fixture_fleet(handle: &PersistHandle, fleet: Uuid) -> anyhow::Result<()> {
     let stopping = handle
+        .fleet()
         .set_fleet_state(fleet, "stopping", None, None)
         .await?;
-    for launch in handle.unsettled_fleet_launches(RUN).await? {
+    for launch in handle.fleet().unsettled_fleet_launches(RUN).await? {
         handle
+            .fleet()
             .record_fleet_launch_verified_exit(launch.id, RUN, "fixture complete")
             .await?;
     }
     let done = handle
+        .fleet()
         .complete_fleet_run(&stopping, None)
         .await?
         .ok_or_else(|| anyhow::anyhow!("fixture fleet did not complete"))?;

@@ -5,6 +5,7 @@ use mike::lesson_proposer::relate::{WriteAction, WriteTimeVerdict};
 use mike::lesson_proposer::write::{Decision, WriteOutcome, decide_and_write};
 use mike::lesson_proposer::{ProposerSettings, run_tick};
 use mike::store::persistence::lessons::NewLessonWrite;
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use serde_json::json;
 
 use crate::turn_facts::{Fixture, fixture};
@@ -54,6 +55,7 @@ fn verdict(action: WriteAction, home: Home, covered_by: Option<&str>) -> WriteTi
 async fn unplaced_lesson(f: &Fixture, text: &str, topic: &str) -> anyhow::Result<i64> {
     let row = f
         .handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id: f.project_id,
             kind: "convention",

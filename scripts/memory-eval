@@ -16,7 +16,7 @@
 # Prints one line per set (exact answers, items from the answer's session, mean reciprocal
 # rank) and the rows where neither appears.
 # continue-prompts.jsonl is replayed by the resolver's own test
-# (crates/mike/src/memory_keeper/resolve_eval_tests.rs), not here.
+# (crates/mike-features/src/memory_keeper/resolve_eval_tests.rs), not here.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

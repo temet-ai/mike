@@ -77,6 +77,11 @@ if printf '%s\n' "$changed" | grep -qE '\.(rs|sql)$|(^|/)Cargo\.toml$|^Cargo\.lo
     echo "pre-push: cargo fmt --check failed; run make fmt" >&2
     status=1
   }
+  # The crate split (ADR 0002, 0003) only moves forward: no push adds references
+  # from a lower target crate to a higher one, or writes to a table another crate
+  # owns. A second each; they read the source, not the build.
+  "$root/scripts/crate-plan" --check || status=1
+  "$root/scripts/schema-plan" --check || status=1
   # The push already fails; skip the long lint and tests so the fix is pushed sooner.
   if [ "$status" -ne 0 ]; then
     echo "pre-push: fix the failures above; lint-rust and the tests did not run" >&2

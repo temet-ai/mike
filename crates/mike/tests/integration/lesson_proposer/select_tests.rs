@@ -1,5 +1,6 @@
 use mike::lesson_proposer::ProposerSettings;
 use mike::lesson_proposer::select::select_candidates;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 use serde_json::json;
 
 use crate::turn_facts::{
@@ -24,6 +25,7 @@ async fn seed_verdict(
         facts.next_genuine_request_id = Some(base_id + 1);
     }
     f.handle
+        .dossier()
         .upsert_turn_facts(std::slice::from_ref(&facts))
         .await?;
 

@@ -1,3 +1,4 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -6,10 +7,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use super::{bad_request, refuse};
-use crate::api::handlers::{persist_error_response, persist_unavailable_response};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::wright::{CheckRow, CheckRunRow, NewCheck};
+use crate::web_base::{persist_error_response, persist_unavailable_response};
 use crate::wright::Probe;
 use crate::wright::definition::{
     merge_params, parse_cadence, parse_probe, parse_source, validate_expects, validate_name,
@@ -51,10 +52,12 @@ pub(crate) struct PatchCheckBody {
 pub(crate) async fn list_checks(State(state): State<AppState>) -> Result<Json<Value>, Response> {
     let handle = state.persist().ok_or_else(persist_unavailable_response)?;
     let checks = handle
+        .web()
         .list_wright_checks()
         .await
         .map_err(persist_error_response)?;
     let runs = handle
+        .web()
         .latest_wright_runs()
         .await
         .map_err(persist_error_response)?;
@@ -150,6 +153,7 @@ pub(crate) async fn add_check(
     let check = new_check(body).map_err(bad_request)?;
     refuse_failing_query(handle, &check).await?;
     let stored = handle
+        .web()
         .insert_wright_check(&check)
         .await
         .map_err(persist_error_response)?;
@@ -179,6 +183,7 @@ pub(crate) async fn patch_check(
 ) -> Result<Json<Value>, Response> {
     let handle = state.persist().ok_or_else(persist_unavailable_response)?;
     let current = handle
+        .web()
         .wright_check(&name)
         .await
         .map_err(persist_error_response)?
@@ -189,6 +194,7 @@ pub(crate) async fn patch_check(
         refuse_failing_query(handle, &check).await?;
     }
     let row = handle
+        .web()
         .replace_wright_check(&check)
         .await
         .map_err(persist_error_response)?
@@ -202,6 +208,7 @@ pub(crate) async fn delete_check(
 ) -> Result<Json<Value>, Response> {
     let handle = state.persist().ok_or_else(persist_unavailable_response)?;
     let deleted = handle
+        .web()
         .delete_wright_check(&name)
         .await
         .map_err(persist_error_response)?;

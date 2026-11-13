@@ -85,6 +85,7 @@ async fn run(cli: Cli) -> anyhow::Result<()> {
             std::process::exit(code)
         }
         Some(Command::Spawn(args)) => {
+            mike::launch::stack_starter::install(Box::new(mike::stack::ProxyStack));
             let code = mike::launch::cli::run(args, cli.overrides).await;
             std::process::exit(code)
         }
@@ -367,7 +368,8 @@ mod tests {
         use axum::body::Body;
         use axum::http::{Request, StatusCode};
         use mike::app::{inspect_router, proxy_router};
-        use mike::config::{AppState, ProxyConfig};
+        use mike::config::ProxyConfig;
+        use mike::state::AppState;
         use serde_json::Value;
         use tower::ServiceExt;
 

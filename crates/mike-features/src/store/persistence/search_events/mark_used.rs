@@ -1,0 +1,46 @@
+use super::open_shown::quoted_pairs;
+use crate::store::persistence::PersistError;
+
+pub const USED_BATCH: i64 = 250;
+pub const WINDOW_TURNS: i64 = 6;
+pub const MAX_OPEN_SECS: f64 = 86_400.0;
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct UsedPass {
+    pub updated: u64,
+    pub with_used: u64,
+    pub finalised: u64,
+}
+
+impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
+    pub async fn mark_used_search_references(self, batch: i64) -> Result<UsedPass, PersistError> {
+        self.mark_used_within(batch, WINDOW_TURNS, MAX_OPEN_SECS)
+            .await
+    }
+
+    pub async fn mark_used_within(
+        self,
+        batch: i64,
+        window_turns: i64,
+        max_open_secs: f64,
+    ) -> Result<UsedPass, PersistError> {
+        let quoted = quoted_pairs(self.open_shown_rows(batch, window_turns).await?);
+        let rows = sqlx::query_file!(
+            "src/store/persistence/search_events/mark_used.sql",
+            batch,
+            window_turns,
+            max_open_secs,
+            &quoted.event_ids,
+            &quoted.references,
+        )
+        .fetch_all(self.pool())
+        .await?;
+        Ok(rows
+            .into_iter()
+            .fold(UsedPass::default(), |pass, row| UsedPass {
+                updated: pass.updated + 1,
+                with_used: pass.with_used + u64::from(row.used > 0),
+                finalised: pass.finalised + u64::from(row.finalised),
+            }))
+    }
+}

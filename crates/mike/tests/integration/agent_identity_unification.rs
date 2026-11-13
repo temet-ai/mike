@@ -7,7 +7,7 @@ use sqlx::postgres::PgPoolOptions;
 use test_db::TestDb;
 
 const CONSOLIDATION_SQL: &str = include_str!(
-    "../../src/store/persistence/migrations/20260722010000_consolidate_agent_aliases.sql"
+    "../../../mike-base/src/store/persistence/migrations/20260722010000_consolidate_agent_aliases.sql"
 );
 
 async fn assert_builtin_source_row_present(pool: &PgPool) -> anyhow::Result<()> {

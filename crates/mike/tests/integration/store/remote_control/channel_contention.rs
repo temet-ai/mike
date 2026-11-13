@@ -1,3 +1,4 @@
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 use std::time::Duration as StdDuration;
 
 use chrono::{DateTime, Duration, SubsecRound, Utc};
@@ -44,6 +45,7 @@ async fn a_call_that_changes_nothing_records_while_the_channel_row_is_locked() -
     let cse_id = unique("cse_locked");
     let base = Utc::now().trunc_subsecs(6);
     handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             created_at: base,
             ..call_at(&cse_id, "POST", EVENTS)
@@ -58,10 +60,12 @@ async fn a_call_that_changes_nothing_records_while_the_channel_row_is_locked() -
 
     let recorded = tokio::time::timeout(
         StdDuration::from_secs(3),
-        handle.record_remote_control_call(RemoteControlCall {
-            created_at: at(base, 1),
-            ..call_at(&cse_id, "POST", EVENTS)
-        }),
+        handle
+            .proxy()
+            .record_remote_control_call(RemoteControlCall {
+                created_at: at(base, 1),
+                ..call_at(&cse_id, "POST", EVENTS)
+            }),
     )
     .await;
     holder.rollback().await?;
@@ -87,6 +91,7 @@ async fn last_seen_moves_only_past_the_debounce_and_heartbeats_always_move() -> 
     let base = Utc::now().trunc_subsecs(6);
     for (seconds, path) in [(0, EVENTS), (5, EVENTS)] {
         handle
+            .proxy()
             .record_remote_control_call(RemoteControlCall {
                 created_at: at(base, seconds),
                 ..call_at(&cse_id, "POST", path)
@@ -96,6 +101,7 @@ async fn last_seen_moves_only_past_the_debounce_and_heartbeats_always_move() -> 
     assert_eq!(last_seen(&handle, &cse_id).await?, base);
 
     handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             created_at: at(base, 11),
             ..call_at(&cse_id, "POST", EVENTS)
@@ -105,6 +111,7 @@ async fn last_seen_moves_only_past_the_debounce_and_heartbeats_always_move() -> 
 
     for seconds in [12, 13] {
         handle
+            .proxy()
             .record_remote_control_call(RemoteControlCall {
                 created_at: at(base, seconds),
                 signals: RemoteControlSignals {
@@ -138,6 +145,7 @@ async fn a_status_change_is_written_and_logged_once_even_inside_the_debounce() -
     let base = Utc::now().trunc_subsecs(6);
     for (seconds, status) in [(0, "idle"), (1, "requires_action"), (2, "requires_action")] {
         handle
+            .proxy()
             .record_remote_control_call(RemoteControlCall {
                 created_at: at(base, seconds),
                 signals: RemoteControlSignals {
@@ -187,6 +195,7 @@ async fn simultaneous_first_calls_on_a_new_channel_all_record_on_one_row() -> an
         let cse_id = cse_id.clone();
         tasks.push(tokio::spawn(async move {
             handle
+                .proxy()
                 .record_remote_control_call(RemoteControlCall {
                     created_at: at(base, n),
                     ..call_at(&cse_id, "POST", EVENTS)

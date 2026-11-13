@@ -1,4 +1,5 @@
 use super::{NewTurn, Req, attach, fixture, insert_request, insert_text_block, insert_turn};
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 
 async fn seed_closed_turn(f: &super::Fixture, final_text: Option<&str>) -> anyhow::Result<i64> {
     insert_request(f, &Req::primary(9100, 0, "ask")).await?;
@@ -20,7 +21,7 @@ async fn seed_closed_turn(f: &super::Fixture, final_text: Option<&str>) -> anyho
 }
 
 async fn is_consistent(f: &super::Fixture, turn: i64) -> anyhow::Result<bool> {
-    let facts = f.handle.load_text_facts(&[turn]).await?;
+    let facts = f.handle.dossier().load_text_facts(&[turn]).await?;
     Ok(facts.first().is_some_and(|t| t.consistent))
 }
 
@@ -31,9 +32,21 @@ async fn refresh_final_assistant_text_missing_snapshot_rebuilt_once() -> anyhow:
     };
     let turn = seed_closed_turn(&f, None).await?;
     assert!(!is_consistent(&f, turn).await?);
-    assert_eq!(f.handle.refresh_final_assistant_text(&[turn]).await?, 1);
+    assert_eq!(
+        f.handle
+            .dossier()
+            .refresh_final_assistant_text(&[turn])
+            .await?,
+        1
+    );
     assert!(is_consistent(&f, turn).await?);
-    assert_eq!(f.handle.refresh_final_assistant_text(&[turn]).await?, 0);
+    assert_eq!(
+        f.handle
+            .dossier()
+            .refresh_final_assistant_text(&[turn])
+            .await?,
+        0
+    );
     f.db.cleanup().await?;
     Ok(())
 }
@@ -45,7 +58,13 @@ async fn refresh_final_assistant_text_partial_snapshot_rebuilt() -> anyhow::Resu
     };
     let turn = seed_closed_turn(&f, Some("agent")).await?;
     assert!(!is_consistent(&f, turn).await?);
-    assert_eq!(f.handle.refresh_final_assistant_text(&[turn]).await?, 1);
+    assert_eq!(
+        f.handle
+            .dossier()
+            .refresh_final_assistant_text(&[turn])
+            .await?,
+        1
+    );
     assert!(is_consistent(&f, turn).await?);
     f.db.cleanup().await?;
     Ok(())
@@ -56,7 +75,10 @@ async fn refresh_final_assistant_text_no_turns_changes_nothing() -> anyhow::Resu
     let Some(f) = fixture().await? else {
         return Ok(());
     };
-    assert_eq!(f.handle.refresh_final_assistant_text(&[]).await?, 0);
+    assert_eq!(
+        f.handle.dossier().refresh_final_assistant_text(&[]).await?,
+        0
+    );
     f.db.cleanup().await?;
     Ok(())
 }

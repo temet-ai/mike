@@ -12,7 +12,7 @@ summary: Design rationale, key decisions, and domain layout for mike.
 
 `mike` is a Rust reverse proxy that sits between Claude Code (or any other Anthropic-API client) and `api.anthropic.com`. It exists because two prior tools — `proxyclawd` (a forward MITM proxy with a TUI) and a mitmproxy-based weasel-detector — solved part of the problem but couldn't be operated together and couldn't scale past prototype. The proxy replaces both with a single design: capture every byte of Claude API traffic, store it in Postgres, surface it through a browser UI and an MCP bridge, and never break the client.
 
-**mike captures and forwards**, with optional request and response mutation (§3–4). Feature defaults come from `FeatureToggles::default` in `crates/mike/src/feature_toggles/mod.rs`; `TOGGLE_META` declares whether changes are session-frozen, immediate, live-disable or restart-bound. Autonomous steering, model judges, dossier building, turn guard, directive proposals and the request-mutating feature toggles default off. Capture/maintenance helpers, harvesting, lesson refresh, semantic context and the operator-invoked prompt assistant default on. These are not a promise that all background activity is local: embeddings use their configured endpoint, and model-backed actions have additional settings and credentials. The semantic embedding path requires loopback unless `semantic.allow_remote_embedding` is enabled.
+**mike captures and forwards**, with optional request and response mutation (§3–4). Feature defaults come from `FeatureToggles::default` in `crates/mike-base/src/feature_toggles/mod.rs`; `TOGGLE_META` declares whether changes are session-frozen, immediate, live-disable or restart-bound. Autonomous steering, model judges, dossier building, turn guard, directive proposals and the request-mutating feature toggles default off. Capture/maintenance helpers, harvesting, lesson refresh, semantic context and the operator-invoked prompt assistant default on. These are not a promise that all background activity is local: embeddings use their configured endpoint, and model-backed actions have additional settings and credentials. The semantic embedding path requires loopback unless `semantic.allow_remote_embedding` is enabled.
 
 With no configured rewrites, queued reminders or recognized hook tokens, the forwarded request body is unchanged. Recognized hook resolver tokens are stripped even with `reminder_on_token` off; the toggle enables resolution, not stripping. Explicit mailbox messages can be delivered by the shared drain without the steerer toggle, while filter/lazy-section rules and compositions have their own gates. On the response side, `weasel_intercept` can withhold the first model answer and send a correction request whose upstream answer reaches the client (§4.5); `proxy_tools` can answer a proxy-declared tool call in-process and request the follow-up answer.
 
@@ -22,7 +22,7 @@ What's running at full deployment:
 
 - **`mike` binary** — one Rust process that opens **three** TCP listeners (`crates/mike/src/serve/listeners.rs`).
   - `:9988` — proxy bind. Routes `/v1/{*rest}` and `/v2/{*rest}` to the proxy handler (`crates/mike/src/app.rs`). Claude Code points `ANTHROPIC_BASE_URL` here. Forwards to `api.anthropic.com` over HTTPS.
-  - `:9989` — inspect bind. `/api/*` REST + `/api/ws` WebSocket. **There is no authentication on it.** A Host/Origin allow-list middleware (`crates/mike/src/api/host_guard.rs`) wraps the whole router and blocks DNS rebinding, cross-origin requests and cross-site WebSocket upgrades; it does not stop any local process, and it is not a login. See [`SECURITY.md`](SECURITY.md).
+  - `:9989` — inspect bind. `/api/*` REST + `/api/ws` WebSocket. **There is no authentication on it.** A Host/Origin allow-list middleware (`crates/mike-base/src/web_base/host_guard.rs`) wraps the whole router and blocks DNS rebinding, cross-origin requests and cross-site WebSocket upgrades; it does not stop any local process, and it is not a login. See [`SECURITY.md`](SECURITY.md).
   - `:9990` — SPA bind. `spa_enabled` defaults to `true`. It serves the **whole `/api/*` router merged with the embedded SPA** (`spa_router` in `crates/mike/src/app.rs`), so the browser never has to cross ports.
   - Run with no subcommand on a TTY, `mike` starts its terminal UI instead of the server (`main.rs` → `bare_dispatch_target`); `mike serve` always serves.
 - **`proxy-forward` binary** — the third workspace binary, on `:9987`. An HTTPS_PROXY MITM failover sidecar for traffic that can't go through the reverse-proxy path; auto-started by `scripts/start-proxy.sh` and runs alongside the other two for the lifetime of the stack. Ordinary `/v1/*` and `/v2/*` HTTP traffic can be routed through mike; WebSocket upgrades bypass capture and go directly upstream. See [`crates/proxy-forward/`](../crates/proxy-forward/).
@@ -93,9 +93,9 @@ engine::forward_to_upstream  → reqwest send
 engine::finalize_and_respond → tee/buffer the response, snapshot, respond
 ```
 
-The body-path work lives under `crates/mike/src/proxy/engine/` and `crates/mike/src/pipeline/`. The proxy router itself (`crates/mike/src/app.rs`, `proxy_router`) carries **no Tower layers at all** — it is two routes and `with_state`. The inspect and SPA routers are where the middleware is (§6).
+The body-path work lives under `crates/mike-features/src/proxy/engine/` and `crates/mike-features/src/pipeline/`. The proxy router itself (`crates/mike/src/app.rs`, `proxy_router`) carries **no Tower layers at all** — it is two routes and `with_state`. The inspect and SPA routers are where the middleware is (§6).
 
-`crates/mike/src/pipeline/mod.rs`'s `STAGE_ORDER` is the declared order of the mutating stages, and `proxy/engine/mutation_stages.rs` executes it in three phases, with the composer running afterwards from `proxy/engine/request_pipeline.rs` by way of `guards.rs`:
+`crates/mike-features/src/pipeline/mod.rs`'s `STAGE_ORDER` is the declared order of the mutating stages, and `proxy/engine/mutation_stages.rs` executes it in three phases, with the composer running afterwards from `proxy/engine/request_pipeline.rs` by way of `guards.rs`:
 
 ```
 accept: extract parts + RequestSignals, resolve session toggles, keep the ORIGINAL bytes
@@ -164,7 +164,7 @@ Weasel intercept (§4.5) and `proxy_tools` are the response-side pair: weasel in
 
 ### 4.1 Filter pipeline
 
-Operator-authored rewrites of arbitrary text blocks in `system[]` and `messages[*].content[]`. Lives in [`crates/mike/src/filter/`](../crates/mike/src/filter/).
+Operator-authored rewrites of arbitrary text blocks in `system[]` and `messages[*].content[]`. Lives in [`crates/mike-features/src/filter/`](../crates/mike-features/src/filter/).
 
 A rule has a matcher (`kind ∈ {text_substring, xml_tag}` against a block's `.text`) and an action (`action ∈ {drop, replace, append}`). First-match-wins per block. `drop` removes the block; `replace` overwrites `.text` in place (preserving `cache_control` and other sibling keys); `append` inserts a new text block immediately after the matched one. The bytes upstream sees are the post-filter bytes — there is no separate "pre-filter" path that runs alongside.
 
@@ -176,7 +176,7 @@ The filter's failure posture is fail-closed: any non-fatal failure — bad JSON,
 
 ### 4.2 Lazy prompt sections
 
-Two trigger-conditional injection kinds sharing one once-per-context-window injector. Lives in [`crates/mike/src/lazy_sections/`](../crates/mike/src/lazy_sections/). Runs against the post-`reminder_on_token` body, after the filter pipeline (§4.1) and before the recall injector (§4.3).
+Two trigger-conditional injection kinds sharing one once-per-context-window injector. Lives in [`crates/mike-features/src/lazy_sections/`](../crates/mike-features/src/lazy_sections/). Runs against the post-`reminder_on_token` body, after the filter pipeline (§4.1) and before the recall injector (§4.3).
 
 Like the filter, `lazy_sections` has **no feature toggle** — it is gated only by whether an operator-authored rule row of the relevant `FilterKind` matches. With no such rows it never fires.
 
@@ -187,17 +187,17 @@ Every request re-strips the configured sections from that request's own current 
 
 ### 4.3 Recall injector
 
-Same-turn recall injector. Lives in [`crates/mike/src/recall_injector/`](../crates/mike/src/recall_injector/). Runs after `lazy_sections` (§4.2), against the post-lazy-sections body.
+Same-turn recall injector. Lives in [`crates/mike-features/src/recall_injector/`](../crates/mike-features/src/recall_injector/). Runs after `lazy_sections` (§4.2), against the post-lazy-sections body.
 
 When the agent emits `<mem:recall topic="X"/>` in assistant text, the proxy detects the tag on the *following* request (when the assistant text is replayed in conversation history), queries `memory.lessons` for matching topic rows in the session's project, and appends a `<system-reminder>` block to the next user message. The one-turn latency is structural and intentional.
 
 Gated by the `recall_injector` feature toggle (session-scoped, **default `false`**, settable via `/settings`). The fast path (no `<mem:recall>` tags present, or the feature disabled) is a synchronous scan only — zero DB calls; a hit while enabled performs one DB lookup to resolve `project_id` plus one lookup per distinct topic, capped at `max_lessons_per_topic` (default 5) lessons per tag.
 
-A session learns the tag grammar from the topic catalog that the session-start lesson reminder carries when `recall_injector` is on and at least one selected lesson is withheld from the reminder's content because a topic skill that carries it is installed in its project (the withheld set is `list_topic_lessons_withheld_from_content`, refreshed with the lesson snapshot; a topic lesson with no installed skill is delivered in full like any other lesson) (`format_topic_catalog` in [`crates/mike/src/recall_injector/formatter.rs`](../crates/mike/src/recall_injector/formatter.rs)). The catalog names `<mem:recall topic="X"/>` and `<mem:update topic="X" kind="...">the rule</mem:update>`; a test feeds the catalog's own `<mem:update>` example through the harvester so the taught form and the parsed form cannot drift apart. The weekly learning audit counts both tags per project ([`docs/LEARNING_OPERATIONS.md`](LEARNING_OPERATIONS.md)).
+A session learns the tag grammar from the topic catalog that the session-start lesson reminder carries when `recall_injector` is on and at least one selected lesson is withheld from the reminder's content because a topic skill that carries it is installed in its project (the withheld set is `list_topic_lessons_withheld_from_content`, refreshed with the lesson snapshot; a topic lesson with no installed skill is delivered in full like any other lesson) (`format_topic_catalog` in [`crates/mike-features/src/recall_injector/formatter.rs`](../crates/mike-features/src/recall_injector/formatter.rs)). The catalog names `<mem:recall topic="X"/>` and `<mem:update topic="X" kind="...">the rule</mem:update>`; a test feeds the catalog's own `<mem:update>` example through the harvester so the taught form and the parsed form cannot drift apart. The weekly learning audit counts both tags per project ([`docs/LEARNING_OPERATIONS.md`](LEARNING_OPERATIONS.md)).
 
 ### 4.4 Prompt composition
 
-System-authored, class-keyed rewrites of `system[2].text` (the agent identity prompt — typically a 10–80 KB body shared across thousands of requests). Lives in [`crates/mike/src/compose_prompt/`](../crates/mike/src/compose_prompt/).
+System-authored, class-keyed rewrites of `system[2].text` (the agent identity prompt — typically a 10–80 KB body shared across thousands of requests). Lives in [`crates/mike-features/src/compose_prompt/`](../crates/mike-features/src/compose_prompt/).
 
 Every request gets a `prompt_sha256 = sha256_hex(system[2].text)` computed after the volatile-line registry strips operator-authored regex patterns (e.g. the billing header carrying `cc_version=...`) — these strips affect only the classifier hash, never the bytes sent upstream. Matching compositions are looked up in an `Arc<ArcSwap<HashMap<String, Composition>>>` cache.
 
@@ -217,7 +217,7 @@ The full composition schema (`system_prompts`, `prompt_compositions`, `request_s
 
 ### 4.5 Weasel intercept
 
-A buffer-then-decide SSE intercept that can suppress an upstream response entirely and replace it with a correction request. Lives in [`crates/mike/src/weasel_intercept/`](../crates/mike/src/weasel_intercept/).
+A buffer-then-decide SSE intercept that can suppress an upstream response entirely and replace it with a correction request. Lives in [`crates/mike-features/src/weasel_intercept/`](../crates/mike-features/src/weasel_intercept/).
 
 The `weasel_intercept` toggle **defaults off**, and even when on it arms only if `forbidden_words` is non-empty (`proxy/response/streaming.rs`: `weasel_armed = session_toggles.weasel_intercept && !forbidden_words.is_empty()`). With an empty word list the request takes the normal zero-latency streaming path.
 
@@ -236,12 +236,12 @@ The same gated forwarder carries `proxy_tools` (also default off), and only for 
 
 ### 4.6 Steerer fleet
 
-An evaluation fleet that reacts to response/diagnostic completion, turn-close and quiescence events and can produce a structured session nudge. Lives in [`crates/mike/src/steerer/`](../crates/mike/src/steerer/). Most evaluations run in background tasks. The request-time drain also invokes a bounded same-request turn-close judge on an eligible human prompt (`steerer/stage/judge.rs`), so steering is not exclusively off the forwarding path.
+An evaluation fleet that reacts to response/diagnostic completion, turn-close and quiescence events and can produce a structured session nudge. Lives in [`crates/mike-features/src/steerer/`](../crates/mike-features/src/steerer/). Most evaluations run in background tasks. The request-time drain also invokes a bounded same-request turn-close judge on an eligible human prompt (`steerer/stage/judge.rs`), so steering is not exclusively off the forwarding path.
 
 The fleet is managed as a background task. Each member steerer follows the same two-stage pattern:
 
 1. **Cheap gate** — a pure, synchronous predicate. If the gate misses, no LLM call is made.
-2. **LLM verdict** — an OpenRouter `response_format: json_schema` structured-output call using the fleet's configured model (`openai/gpt-5.6-luna` default). The verdict is a typed struct; a `confidence` field must clear the steerer's `confidence_threshold` (per-row `params`, default 0.7) before the candidate fire is trusted, and a 2-of-3 quorum of independent verdict samples must then agree (temet-ai/mike-private#116). Deterministic overrides and `force_fire` bypass both. Verdict calls retry up to 3 attempts on transient failures (empty content, schema parse errors, transport errors, timeouts); HTTP 4xx responses are definitive and are not retried. The retry logic lives in `crates/mike/src/llm/openrouter/` and is shared by the Verifier and the LLM judge.
+2. **LLM verdict** — an OpenRouter `response_format: json_schema` structured-output call using the fleet's configured model (`openai/gpt-5.6-luna` default). The verdict is a typed struct; a `confidence` field must clear the steerer's `confidence_threshold` (per-row `params`, default 0.7) before the candidate fire is trusted, and a 2-of-3 quorum of independent verdict samples must then agree (temet-ai/mike-private#116). Deterministic overrides and `force_fire` bypass both. Verdict calls retry up to 3 attempts on transient failures (empty content, schema parse errors, transport errors, timeouts); HTTP 4xx responses are definitive and are not retried. The retry logic lives in `crates/mike-base/src/llm/openrouter/` and is shared by the Verifier and the LLM judge.
 
 When a steerer fires, its intervention and delivery state are recorded, and the delivery path can push through an available Remote Control channel or queue a `SystemReminder` for request-time fallback. Mailbox messages prefer an active MCP channel listener before the Remote Control path; other reminder sources have their own delivery policies. The Primary/PrimaryFirst drain claims pending reminders, checks mailbox/staleness/dedup policies, and appends admitted content using `reminders::inject::inject_system_reminder`. A pushed reminder may reach an idle session without waiting for a human follow-up; an acknowledgement prevents duplicate fallback. Per-steerer debounce and one-fire-per-turn gates suppress repeat interventions.
 
@@ -249,7 +249,7 @@ When a steerer fires, its intervention and delivery state are recorded, and the 
 
 **RefocusSteerer** (`refocus.rs`) — the original fleet member. Re-grounds a drifting session toward the thread worklog anchor. Requires session enrolment; `debounce_turns = 3` default.
 
-**Verification-discipline filter rules** — the "Done means done — verification discipline" block (rules R1–R8) is spliced into a session's `system[]` by the runtime filter engine. The filter rewrites afresh only on a session's first main-lane request (`PrimaryFirst`); every later request in that session replays the stored rewrite (`FilterStage::apply_replay`), and the replay is skipped when the request's `system[]` is not the captured one (`crates/mike/src/filter/stage/mod.rs`). Filter rule 55 is anchored on the main Claude Code system-prompt preamble, so it reaches main sessions. Filter rule 57 is anchored on `"running within the Claude Agent SDK."`, which only a subagent's own `system[]` carries; a subagent request never takes the fresh path and never matches a main session's replay, so rule 57 does not rewrite subagent traffic. The rules are live rows in `rules.rules`, hot-swappable via the filter CRUD API, but a change reaches only sessions whose first request comes after it, because a running session keeps replaying the rewrite it captured.
+**Verification-discipline filter rules** — the "Done means done — verification discipline" block (rules R1–R8) is spliced into a session's `system[]` by the runtime filter engine. The filter rewrites afresh only on a session's first main-lane request (`PrimaryFirst`); every later request in that session replays the stored rewrite (`FilterStage::apply_replay`), and the replay is skipped when the request's `system[]` is not the captured one (`crates/mike-features/src/filter/stage/mod.rs`). Filter rule 55 is anchored on the main Claude Code system-prompt preamble, so it reaches main sessions. Filter rule 57 is anchored on `"running within the Claude Agent SDK."`, which only a subagent's own `system[]` carries; a subagent request never takes the fresh path and never matches a main session's replay, so rule 57 does not rewrite subagent traffic. The rules are live rows in `rules.rules`, hot-swappable via the filter CRUD API, but a change reaches only sessions whose first request comes after it, because a running session keeps replaying the rewrite it captured.
 
 **VerifierSteerer** (`steerer/verifier/`, evaluation in `steerer/fleet/steerer_eval/`) — detects an assistant claiming completion without backing evidence. It evaluates a turn only when the session has an active `steering.enrolments` row for it, and only on main-lane turns (`primary` and `primary_first`): subagent, sidecar and probe turns are skipped in `steerer/fleet/triggers/`. The verifier row carries `auto_enrol = true`, so a session is enrolled when its first request creates it; a session that started before the row existed, or a row with `auto_enrol = false`, is never evaluated.
 
@@ -325,7 +325,7 @@ The ER diagram and full column listing are in [`SCHEMA.md`](SCHEMA.md).
 
 The inspect bind (`:9989`) is the operator's entire interface to captured traffic; the SPA bind (`:9990`) serves the identical `/api/*` router merged with the embedded SPA, so anything said here about `:9989` is equally true of `:9990`. Three transport layers share the same `AppState`.
 
-**There is no authentication on either bind.** The only gate is `crates/mike/src/api/host_guard.rs`, a Host/Origin allow-list middleware applied to the whole router alongside the CORS layer. It rejects a request whose `Host` is not a bind address or a configured host, and a request or WebSocket upgrade whose `Origin` is not in the CORS allow-list — which stops DNS rebinding and cross-site requests from a browser, and stops nothing at all from a local process. Configure extra hosts with `inspect_allowed_hosts` / `MIKE_INSPECT_ALLOWED_HOSTS` (default empty) and extra origins with `spa_origins` / `MIKE_SPA_ORIGINS` (default `http://127.0.0.1:9990` + `http://localhost:9990`). [`SECURITY.md`](SECURITY.md) is the reference for the trust boundary; it is not repeated here.
+**There is no authentication on either bind.** The only gate is `crates/mike-base/src/web_base/host_guard.rs`, a Host/Origin allow-list middleware applied to the whole router alongside the CORS layer. It rejects a request whose `Host` is not a bind address or a configured host, and a request or WebSocket upgrade whose `Origin` is not in the CORS allow-list — which stops DNS rebinding and cross-site requests from a browser, and stops nothing at all from a local process. Configure extra hosts with `inspect_allowed_hosts` / `MIKE_INSPECT_ALLOWED_HOSTS` (default empty) and extra origins with `spa_origins` / `MIKE_SPA_ORIGINS` (default `http://127.0.0.1:9990` + `http://localhost:9990`). [`SECURITY.md`](SECURITY.md) is the reference for the trust boundary; it is not repeated here.
 
 **REST.** Every route is declared in [`crates/mike/src/api/manifest.rs`](../crates/mike/src/api/manifest.rs) as the single source of truth. Each route declares a `Coverage::Tool(...)`, `Coverage::Resource(...)`, `Coverage::AggregatedInto(...)`, or `Coverage::Exempt { reason }`. MCP tools are demand-driven, not parity-driven (decision 2026-06-12, issue temet-ai/mike-private#133): `Exempt` is the default for new routes, and a tool is added only when a real agent workflow needs one. `crates/mike-mcp/tests/manifest_coverage.rs` enforces integrity only — every declared tool/resource must exist, and every MCP tool must be backed by a manifest entry (no orphan tools). Adding a route requires a manifest entry (usually `Exempt { reason }`); it does not require an MCP tool. Inspect traffic reads use the helpers in `store/persistence/rehydrate/`; raw versus reconstructed body provenance is exposed by body APIs (§10). Writes are CRUD on `/api/filter/rules`, `/api/prompts/compositions`, `/api/volatile-lines`, `/api/agents`, plus pin/TTL mutations on `/api/sessions/{id}/pin` and `/api/projects/{path}/pin`.
 
@@ -358,7 +358,7 @@ Precedence is named and documented by the library, not by manual `if-let` chains
 
 So there are exactly three things to know about configuring mike:
 
-- **Boot-time shape** — `MIKE_*` environment variables (or the per-user config file) and CLI flags, over the defaults in `crates/mike/src/config/proxy_config_defaults.rs`. These cover the things that cannot change while the process runs: bind addresses (`MIKE_LISTEN_ADDR`, `MIKE_INSPECT_ADDR`, `MIKE_SPA_BIND`, `MIKE_SPA_ENABLED`), the upstream URL, the timeout matrix, body caps, `MIKE_DATABASE_URL`, and the two security allow-lists `MIKE_SPA_ORIGINS` and `MIKE_INSPECT_ALLOWED_HOSTS` (§6).
+- **Boot-time shape** — `MIKE_*` environment variables (or the per-user config file) and CLI flags, over the defaults in `crates/mike-base/src/config/proxy_config_defaults.rs`. These cover the things that cannot change while the process runs: bind addresses (`MIKE_LISTEN_ADDR`, `MIKE_INSPECT_ADDR`, `MIKE_SPA_BIND`, `MIKE_SPA_ENABLED`), the upstream URL, the timeout matrix, body caps, `MIKE_DATABASE_URL`, and the two security allow-lists `MIKE_SPA_ORIGINS` and `MIKE_INSPECT_ALLOWED_HOSTS` (§6).
 - **Secrets** — `MIKE_STEERER_OPENROUTER_API_KEY` for every OpenRouter caller (steerer fleet and the judges). Env only; never persisted through `/settings`, which reports only whether it is present.
 - **Everything else** — `/settings`, backed by Postgres. That is the runtime source of truth, described below.
 
@@ -370,9 +370,9 @@ So there are exactly three things to know about configuring mike:
 
 `MIKE_*` env vars are the boot-time defaults. Once the proxy is running, the operator's canonical surface is `http://localhost:9990/settings` — one page, two disjoint sections:
 
-**Master feature toggles** (`GET /api/settings/features`, `PATCH /api/settings/features/{key}`) — the feature enables declared by `FeatureToggles` in `crates/mike/src/feature_toggles/mod.rs`. They map to `config.feature_toggles` and the in-memory ArcSwap; `TOGGLE_META` carries scope and reactivity. Use the endpoint or source registry for current membership and defaults.
+**Master feature toggles** (`GET /api/settings/features`, `PATCH /api/settings/features/{key}`) — the feature enables declared by `FeatureToggles` in `crates/mike-base/src/feature_toggles/mod.rs`. They map to `config.feature_toggles` and the in-memory ArcSwap; `TOGGLE_META` carries scope and reactivity. Use the endpoint or source registry for current membership and defaults.
 
-**Settings catalogue** (`GET /api/settings`, `PATCH /api/settings/{key}`) — the tunable, non-boolean parameters, validated at runtime against the compile-time `SETTINGS_META` registry. The registry is assembled in `crates/mike/src/settings/meta.rs` from per-area files — `meta_global.rs`, `meta_pipeline.rs`, `meta_session_scoped.rs`, `meta_workers.rs`, `meta_operations.rs`, `meta_launch.rs` — which are the catalogue's source of truth; read the count from them or from the endpoint, never from a number written here. Values are persisted in the open-keyspace `config.settings` Postgres table. The GET response shape is `{ settings: SettingMeta[], steerer_openrouter_configured_via_env: bool }` — the OpenRouter API key value is never exposed, only its presence.
+**Settings catalogue** (`GET /api/settings`, `PATCH /api/settings/{key}`) — the tunable, non-boolean parameters, validated at runtime against the compile-time `SETTINGS_META` registry. The registry is assembled in `crates/mike-base/src/settings/meta.rs` from per-area files — `meta_global.rs`, `meta_pipeline.rs`, `meta_session_scoped.rs`, `meta_workers.rs`, `meta_operations.rs`, `meta_launch.rs` — which are the catalogue's source of truth; read the count from them or from the endpoint, never from a number written here. Values are persisted in the open-keyspace `config.settings` Postgres table. The GET response shape is `{ settings: SettingMeta[], steerer_openrouter_configured_via_env: bool }` — the OpenRouter API key value is never exposed, only its presence.
 
 Reactivity is encoded in each entry's `scope` and `applies` fields:
 
@@ -522,7 +522,7 @@ Each rule pairs the matcher with `drop`, `replace`, or `append`. First-match-win
 
 **Problem**: Claude Code's `system[2].text` is the agent identity prompt — a 10–80 KB body that is supposed to be stable per agent class but in practice fragments across sessions because of harness-injected volatile lines (billing headers carrying `cc_version`, `cch=...`, etc.). Operators want to (a) classify each request by agent class regardless of those harmless variations and (b) optionally rewrite the body for that class without breaking Anthropic's prompt-cache key.
 
-**Design**: A second request-body pipeline that runs **after** the filter pipeline on every `/v1/messages` POST. Composer logic lives in [`crates/mike/src/compose_prompt/`](../crates/mike/src/compose_prompt/).
+**Design**: A second request-body pipeline that runs **after** the filter pipeline on every `/v1/messages` POST. Composer logic lives in [`crates/mike-features/src/compose_prompt/`](../crates/mike-features/src/compose_prompt/).
 
 **Class identity**: every captured request gets a `prompt_sha256 = sha256_hex(system[2].text)` after the volatile-line registry strips harness-injected lines from block 2. Stored canonically in `system_prompts.system_prompts` (`id bigint` PK; `prompt_sha256 TEXT UNIQUE`).
 
@@ -595,7 +595,7 @@ All of Steps 1–5 are implemented: `record_lesson` / `list_lessons` / `delete_l
 
 The turn judge, the session judge and the steerers share the dossier view/render pipeline.
 `dossier::render::render(persist, session_db_id, as_of, audience, budget)` loads inputs, then
-`render_inputs` performs pure rendering (`crates/mike/src/dossier/{view,render}/`).
+`render_inputs` performs pure rendering (`crates/mike-features/src/dossier/{view,render}/`).
 The loader reads only what the audience may see (`Needs`), as of a moment T, and the renderers are
 pure: no clock, no IO, every list ordered by (time, id). `inputs_digest` hashes the canonical
 inputs, so the same session, moment and mode give the same bytes; `renderer_version`
@@ -736,7 +736,7 @@ Rust doesn't have classes, services, or dependency injection. The pattern is **d
 
 ### AppState: The Dependency Root
 
-One `AppState` struct holds everything. Handlers extract it via axum's `State<AppState>`. The definitive field list is `crates/mike/src/config/app_state/mod.rs`; what follows is the **shape**, grouped by role, not a transcript — the struct has grown well past what is worth mirroring here, and a mirrored copy is the thing that goes stale first.
+One `AppState` struct holds everything. Handlers extract it via axum's `State<AppState>`. The definitive field list is `crates/mike-features/src/state/mod.rs`; what follows is the **shape**, grouped by role, not a transcript — the struct has grown well past what is worth mirroring here, and a mirrored copy is the thing that goes stale first.
 
 | Group | Fields |
 |---|---|
@@ -1003,7 +1003,7 @@ Configuration:
 
 Two request spans, both at `INFO`, so every log line inside them carries their fields and OTel exports one trace per request:
 
-- `proxy_request` ([`proxy/handler.rs`](../crates/mike/src/proxy/handler.rs)): `method`, `path`, then `session_id` once the request is accepted and `request_id` once the pipeline has stored it.
+- `proxy_request` ([`proxy/handler.rs`](../crates/mike-features/src/proxy/handler.rs)): `method`, `path`, then `session_id` once the request is accepted and `request_id` once the pipeline has stored it.
 - `inspect_request` ([`api/request_span.rs`](../crates/mike/src/api/request_span.rs)), made by the inspect router's `TraceLayer`: `method`, `path`, `request_id` from `x-request-id`.
 
 Tasks a request starts (SSE tee and parser, store updater, attribution and push stamps, Remote Control capture, weasel follow-ups) spawn through `spawn_tracked` / `spawn_detached` in `observability/spans.rs`, which carry the request span into the task. Long-running workers have no span: OTel exports a span only when it closes, and the module path already names the worker. API keys logged as `sk-***{last4}` only.
@@ -1173,7 +1173,7 @@ All non-2xx responses surface as `ApiError(message, status, url)` so callers can
 
 ## 14. Diagnostic Analysis Subsystem
 
-The diagnostic analysis subsystem detects weasel-language patterns in Claude's responses and surfaces findings as operator-visible diagnostics. It lives in `crates/mike/src/analysis/` with a thin process-level diagnostics wrapper in `crates/mike/src/diagnostics/`.
+The diagnostic analysis subsystem detects weasel-language patterns in Claude's responses and surfaces findings as operator-visible diagnostics. It lives in `crates/mike-base/src/analysis/` with a thin process-level diagnostics wrapper in `crates/mike-base/src/diagnostics/`.
 
 ### Module layout
 
@@ -1235,7 +1235,7 @@ The registry is hot-swapped on `AppState` via `Arc<ArcSwap<AnalyzerRegistry>>` �
 
 ### RerankService
 
-`RerankService` (`crates/mike/src/analysis/rerank/`, held on `AppState` beside the embedding service) is the HTTP client for a reranker served by llama.cpp's `llama-server --reranking`. A reranker reads the query and one candidate passage together and scores how well the passage answers the query; it reorders candidates the first search already found. The service posts `{"model", "query", "documents"}` to `{rerank.url}/v1/rerank`, reads `{"results":[{"index","relevance_score"}]}` and returns the scores best first. Each document is cut to 600 characters (`MAX_DOCUMENT_CHARS`) and the query to 600 (`MAX_QUERY_CHARS`) before sending.
+`RerankService` (`crates/mike-base/src/analysis/rerank/`, held on `AppState` beside the embedding service) is the HTTP client for a reranker served by llama.cpp's `llama-server --reranking`. A reranker reads the query and one candidate passage together and scores how well the passage answers the query; it reorders candidates the first search already found. The service posts `{"model", "query", "documents"}` to `{rerank.url}/v1/rerank`, reads `{"results":[{"index","relevance_score"}]}` and returns the scores best first. Each document is cut to 600 characters (`MAX_DOCUMENT_CHARS`) and the query to 600 (`MAX_QUERY_CHARS`) before sending.
 
 `RerankService` remembers scores (`analysis/rerank/service/score_cache.rs`). A score is kept per (model, query as sent, document as sent), stored as a 128-bit SHA-256 prefix of each text rather than the text, for 30 minutes and for at most 50,000 pairs; when the map is full it drops expired entries first and then the oldest tenth. `rerank_counted()` looks up every document after the disabled and egress checks and before the circuit breaker and the turn lock, sends the reranker only the documents without a score, stores what comes back (a failed call stores nothing) and returns scores for all documents in the same order as a single request would, plus the number answered from memory. When every document has a score it makes no request, does not wait for the turn and does not touch the breaker or the cold-start record, so a repeated search is served while the breaker is open. `rerank()` is the same call without the count. The overnight and run-now grading passes use the same service, so they read and write the same scores. The request itself is timed as `search_phase_duration_ms{phase="rerank_request"}`.
 
@@ -1390,7 +1390,7 @@ tells the distance pass to skip them. The worker never writes `memory.lesson_rel
 
 ## 15. Operator-Turn Lifecycle
 
-An **operator turn** represents one complete human-prompt / assistant-response exchange across potentially multiple internal requests. The lifecycle is managed in `crates/mike/src/store/persistence/` (`snapshot_request`) and in the embed worker under `crates/mike/src/store/operator_turns/`.
+An **operator turn** represents one complete human-prompt / assistant-response exchange across potentially multiple internal requests. The lifecycle is managed in `crates/mike/src/store/persistence/` (`snapshot_request`) and in the embed worker under `crates/mike-base/src/store/operator_turns/`.
 
 ### Two-state model
 
@@ -1518,11 +1518,11 @@ The lessons system (`store/persistence/lessons/`) provides project-scoped operat
 
 | Area | Where | Hook point |
 |------|-------|------------|
-| A new request-mutating stage | `crates/mike/src/pipeline/` | Implement `RequestStage` in your domain module's `stage.rs`, add it to `stages_before_steerer()` or `stages_after_steerer()`, and add its name to `STAGE_ORDER`. Add a feature toggle in the same change, defaulting off (§1). |
-| Response modification (streaming) | `crates/mike/src/proxy/response/streaming.rs` | The gated forwarder already exists for `weasel_intercept` and `proxy_tools`; a new scanner joins it rather than replacing the tee again. |
-| Response modification (non-streaming) | `crates/mike/src/proxy/response/buffered.rs` | Body is `Bytes` and can be rewritten before storage. |
-| Post-analysis actions | `crates/mike/src/store/updater/` | After the analysis run, on the `DiagnosticReady` path — quarantine, alert, suppress. |
-| A new analyzer | `crates/mike/src/analysis/` | `AnalyzerRegistry` is data-driven for *patterns and advice*; a genuinely new analyzer is a new `Analyzer` impl, which is code. |
+| A new request-mutating stage | `crates/mike-features/src/pipeline/` | Implement `RequestStage` in your domain module's `stage.rs`, add it to `stages_before_steerer()` or `stages_after_steerer()`, and add its name to `STAGE_ORDER`. Add a feature toggle in the same change, defaulting off (§1). |
+| Response modification (streaming) | `crates/mike-features/src/proxy/response/streaming.rs` | The gated forwarder already exists for `weasel_intercept` and `proxy_tools`; a new scanner joins it rather than replacing the tee again. |
+| Response modification (non-streaming) | `crates/mike-features/src/proxy/response/buffered.rs` | Body is `Bytes` and can be rewritten before storage. |
+| Post-analysis actions | `crates/mike-base/src/store/updater/` | After the analysis run, on the `DiagnosticReady` path — quarantine, alert, suppress. |
+| A new analyzer | `crates/mike-base/src/analysis/` | `AnalyzerRegistry` is data-driven for *patterns and advice*; a genuinely new analyzer is a new `Analyzer` impl, which is code. |
 | A new background worker | `crates/mike/src/serve/workers.rs` | One `spawn_*` call per worker, all behind their own toggles. |
 | A new inspect route | `crates/mike/src/api/manifest/` | The route table entry is mandatory and defaults to `Coverage::Exempt { reason }`; an MCP tool is added only when a real workflow needs one (§6). |
 
@@ -1536,7 +1536,7 @@ Contributor-harness material rather than runtime architecture: the Claude Code h
 
 ## 18. Launch Domain
 
-`crates/mike/src/launch/` is mike's own terminal launcher: it opens a terminal surface in a folder and starts a fresh Claude Code session in it, wired to the proxy, with a preassigned session id. Reached three ways — the `mike spawn` CLI verbs, the `POST/GET/DELETE /api/launches` inspect routes, and the `spawn_session`/`list_launches`/`kill_session` MCP tools, which are HTTP clients of those routes. They do not share an `AppState`: `mike spawn` runs the launch in its own process with its own `ProxyConfig` and `Runner` and never calls the inspect API, while the API path runs the same launch code inside the running server. What they share is the Postgres-backed `launch.*` ledger, which is why a launch made through any one of them is visible through the others. The CLI also carries verbs the API does not — `warm`, `fork`, `templates` and `reap` are CLI-only. Full reference: [`LAUNCH_DOMAIN.md`](LAUNCH_DOMAIN.md).
+`crates/mike-features/src/launch/` is mike's own terminal launcher: it opens a terminal surface in a folder and starts a fresh Claude Code session in it, wired to the proxy, with a preassigned session id. Reached three ways — the `mike spawn` CLI verbs, the `POST/GET/DELETE /api/launches` inspect routes, and the `spawn_session`/`list_launches`/`kill_session` MCP tools, which are HTTP clients of those routes. They do not share an `AppState`: `mike spawn` runs the launch in its own process with its own `ProxyConfig` and `Runner` and never calls the inspect API, while the API path runs the same launch code inside the running server. What they share is the Postgres-backed `launch.*` ledger, which is why a launch made through any one of them is visible through the others. The CLI also carries verbs the API does not — `warm`, `fork`, `templates` and `reap` are CLI-only. Full reference: [`LAUNCH_DOMAIN.md`](LAUNCH_DOMAIN.md).
 
 Every backend implements the `TerminalBackend` trait (`launch/backend/mod.rs`) and declares its own `Capabilities` (placement modes, `agent_state`, whether the prompt travels in the argv, whether the backend can close by session). `herdr` (`launch/herdr/`) drives a persistent server and is the only backend that reports `agent_state`; `tmux` (`launch/tmux/`) and `terminal` (`launch/terminal/`, `xdg-terminal-exec` + `hyprctl`) have no agent-state channel, so a session launched into either reads its liveness from the workspace roster's channel fields alone; `none` (`launch/backend/none.rs`) is a real hand-launch-only implementation so the domain never special-cases "no backend configured". `ghostty` is a recognized `BackendId` with no adapter yet. The operator picks one backend for the whole host (`launch_backend`/`MIKE_LAUNCH_BACKEND`); there is no per-call backend selector.
 
@@ -1552,11 +1552,11 @@ mike keeps one record of what happened in each checkout a session works in, with
 
 Full reference: [`IMPROVEMENT_LOOP.md`](IMPROVEMENT_LOOP.md). This section is the domain-layout summary; that doc is the plain-words explanation for a future session or the operator.
 
-The turn judge already labels every turn's `reaction` (`memory.turn_verdicts`). Before 2026-09-29 a `corrected` verdict was display-only. The **lesson proposer** (`crates/mike/src/lesson_proposer/`) closes that loop: run from the quiescence worker's tick, it selects resolved `corrected` verdicts above a confidence floor it hasn't examined yet (`crates/mike/src/store/persistence/lessons/proposals.rs`, anti-joined against `memory.lesson_proposal_evidence`), asks a model whether the correction generalises into a rule, compares it with the project's nearest active lessons by embedding distance and lets one model call decide store, skip, update, merge or contradicts for each (recorded as a `write_time` `memory.lesson_relations` row and applied by nightly consolidation; see `docs/IMPROVEMENT_LOOP.md`), and writes a `raw`-stage `memory.lessons` row plus an evidence row. A candidate promotes itself to stage `daily` once enough corrections back it (`judge_lessons.auto_promote_min_evidence`, `crates/mike/src/settings/meta_improvement.rs`); otherwise it waits on the operator's approve/reject (`crates/mike/src/api/improvement/lessons.rs`). Feature-gated by `judge_lessons` (default off, `crates/mike/src/feature_toggles/mod.rs` — the default-off-mutation-and-egress rule applies, since the proposer sends turn text to a model).
+The turn judge already labels every turn's `reaction` (`memory.turn_verdicts`). Before 2026-09-29 a `corrected` verdict was display-only. The **lesson proposer** (`crates/mike-features/src/lesson_proposer/`) closes that loop: run from the quiescence worker's tick, it selects resolved `corrected` verdicts above a confidence floor it hasn't examined yet (`crates/mike-features/src/store/persistence/lessons/proposals.rs`, anti-joined against `memory.lesson_proposal_evidence`), asks a model whether the correction generalises into a rule, compares it with the project's nearest active lessons by embedding distance and lets one model call decide store, skip, update, merge or contradicts for each (recorded as a `write_time` `memory.lesson_relations` row and applied by nightly consolidation; see `docs/IMPROVEMENT_LOOP.md`), and writes a `raw`-stage `memory.lessons` row plus an evidence row. A candidate promotes itself to stage `daily` once enough corrections back it (`judge_lessons.auto_promote_min_evidence`, `crates/mike-base/src/settings/meta_improvement.rs`); otherwise it waits on the operator's approve/reject (`crates/mike/src/api/improvement/lessons.rs`). Feature-gated by `judge_lessons` (default off, `crates/mike-base/src/feature_toggles/mod.rs` — the default-off-mutation-and-egress rule applies, since the proposer sends turn text to a model).
 
 An approved **directive proposal** (`memory.directive_proposals`, a repeated instruction or a confirmed handback — unrelated to the judge) reaches a lesson the same way, one per target project, linked back via `memory.directive_lessons`.
 
-The turn guard's evidence gained three pieces without changing when a question fires: an outcome label on ordinary live-pass rows, not just holdback rows (`steerer.turn_guard.label_live_passes`, `crates/mike/src/store/persistence/steering/guard/labels.rs`); relapse-question evaluations carrying up to three similar earlier corrections as recorded evidence (`crates/mike/src/steerer/guard/semantic_evidence.rs`, `record` mode only); and an operator "was this right?" label on any delivered wake (`PATCH /api/steering/evaluations/{id}/label`).
+The turn guard's evidence gained three pieces without changing when a question fires: an outcome label on ordinary live-pass rows, not just holdback rows (`steerer.turn_guard.label_live_passes`, `crates/mike-features/src/store/persistence/steering/guard/labels.rs`); relapse-question evaluations carrying up to three similar earlier corrections as recorded evidence (`crates/mike-features/src/steerer/guard/semantic_evidence.rs`, `record` mode only); and an operator "was this right?" label on any delivered wake (`PATCH /api/steering/evaluations/{id}/label`).
 
 Every lesson, directive and guard question gets an `eval.rates` `action_effect` row (family added by migration `20260929000001_improvement_schema.sql`): a before/after corrected-share comparison for a lesson or directive, or the question's own holdback-vs-treated arm comparison for a guard question — never a number borrowed from the other action kind's convention. Below its read point the actions feed reports `not_enough_data` with the sample size, never a bare percentage.
 

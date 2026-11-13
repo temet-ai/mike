@@ -2,6 +2,8 @@ use chrono::{Duration, Utc};
 use mike::eval_metrics::EVAL_ROLLUP_SQL_VERSION;
 use mike::store::persistence::cross_session::{ThresholdPassRunWrite, ThresholdWrite};
 use mike::store::persistence::eval_metrics::RollupRequest;
+use mike::store::persistence::eval_repo::EvalPersist as _;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use serde_json::json;
 
 use crate::turn_facts::{Fixture, NewTurn, Req, fixture, insert_request, insert_turn};
@@ -141,6 +143,7 @@ async fn guard_rollup_counts_session_reply_labels_and_splits_each_bin_by_source(
     }
     let report = f
         .handle
+        .eval()
         .run_eval_rollup(RollupRequest {
             for_day: tomorrow(),
             mode: "manual",
@@ -214,7 +217,7 @@ async fn rollup_as_of_skips_a_newer_rollup_with_no_calibration_rows() -> anyhow:
     .bind(action_effect_only)
     .execute(f.handle.pool())
     .await?;
-    let seen = f.handle.rollup_as_of(Utc::now()).await?;
+    let seen = f.handle.steerer().rollup_as_of(Utc::now()).await?;
     assert_eq!(seen.map(|r| r.id), Some(calibrated));
     Ok(())
 }
@@ -250,6 +253,7 @@ async fn fire_bins_group_verifier_labels_by_confidence_edge_and_source() -> anyh
     }
     let bins = f
         .handle
+        .steerer()
         .fetch_fire_bins(Utc::now() + Duration::minutes(1))
         .await?;
     let find = |edge: &str, source: &str| {
@@ -259,7 +263,7 @@ async fn fire_bins_group_verifier_labels_by_confidence_edge_and_source() -> anyh
     };
     assert_eq!(find("0.95", "session_reply"), Some((2, 3)));
     assert_eq!(find("0.90", "next_message"), Some((1, 1)));
-    let steerers = f.handle.fire_steerers().await?;
+    let steerers = f.handle.steerer().fire_steerers().await?;
     assert!(
         steerers
             .iter()
@@ -276,13 +280,16 @@ async fn fire_thresholds_in_force_follow_the_latest_applied_row_per_steerer() ->
     };
     let verifier = steerer_id(&f, "verifier").await?;
     f.handle
+        .steerer()
         .insert_threshold_rows(&[write(verifier, "applied", 0.85, Some(0.85))])
         .await?;
     f.handle
+        .steerer()
         .insert_threshold_rows(&[write(verifier, "below_bar", 0.85, None)])
         .await?;
     let in_force = f
         .handle
+        .steerer()
         .fire_thresholds_in_force(Utc::now() + Duration::minutes(1))
         .await?;
     let mine: Vec<_> = in_force
@@ -295,6 +302,7 @@ async fn fire_thresholds_in_force_follow_the_latest_applied_row_per_steerer() ->
     let guard = steerer_id(&f, "turn-guard").await?;
     let guard_rows = f
         .handle
+        .steerer()
         .thresholds_in_force(guard, Utc::now() + Duration::minutes(1))
         .await?;
     assert!(guard_rows.iter().all(|t| t.question != "fire"));
@@ -316,11 +324,15 @@ async fn threshold_pass_run_is_recorded_once_per_rollup_and_counts_attempts() ->
         n_by_source: json!({"relapse": {"session_reply": 2}}),
         detail: json!({}),
     };
-    f.handle.record_threshold_pass_run(&run("error", 0)).await?;
     f.handle
+        .steerer()
+        .record_threshold_pass_run(&run("error", 0))
+        .await?;
+    f.handle
+        .steerer()
         .record_threshold_pass_run(&run("wrote", 276))
         .await?;
-    let runs = f.handle.recent_threshold_pass_runs(500).await?;
+    let runs = f.handle.steerer().recent_threshold_pass_runs(500).await?;
     let mine: Vec<_> = runs.iter().filter(|r| r.rollup_id == 9_001).collect();
     assert_eq!(mine.len(), 1);
     assert_eq!(
@@ -349,6 +361,12 @@ async fn threshold_pass_run_rejects_an_unknown_outcome() -> anyhow::Result<()> {
         n_by_source: json!({}),
         detail: json!({}),
     };
-    assert!(f.handle.record_threshold_pass_run(&bad).await.is_err());
+    assert!(
+        f.handle
+            .steerer()
+            .record_threshold_pass_run(&bad)
+            .await
+            .is_err()
+    );
     Ok(())
 }

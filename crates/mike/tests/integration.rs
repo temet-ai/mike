@@ -190,7 +190,7 @@ mod fleet_managed_control;
 #[path = "integration/fleet_admission.rs"]
 mod fleet_admission;
 
-#[path = "integration/fleet_shutdown.rs"]
+#[path = "integration/fleet_shutdown/mod.rs"]
 mod fleet_shutdown;
 
 #[cfg(all(feature = "test-seams", unix))]

@@ -1,3 +1,4 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 use chrono::{Duration, Utc};
 
 use super::daily_pass_due;
@@ -12,6 +13,7 @@ fn codes(cadences: &[&str]) -> Vec<String> {
 async fn due_names(db: &Db, cadences: &[&str]) -> anyhow::Result<Vec<String>> {
     Ok(db
         .handle
+        .web()
         .enabled_wright_checks(&codes(cadences))
         .await?
         .into_iter()
@@ -22,7 +24,7 @@ async fn due_names(db: &Db, cadences: &[&str]) -> anyhow::Result<Vec<String>> {
 #[tokio::test]
 async fn every_source_has_at_least_one_seeded_check() -> anyhow::Result<()> {
     let db = Db::boot().await?;
-    let checks = db.handle.list_wright_checks().await?;
+    let checks = db.handle.web().list_wright_checks().await?;
     for source in Source::ALL {
         assert!(
             checks.iter().any(|c| c.source == source.code()),
@@ -36,7 +38,7 @@ async fn every_source_has_at_least_one_seeded_check() -> anyhow::Result<()> {
 #[tokio::test]
 async fn every_seeded_query_is_a_bounded_read_with_its_window_in_params() -> anyhow::Result<()> {
     let db = Db::boot().await?;
-    for check in db.handle.list_wright_checks().await? {
+    for check in db.handle.web().list_wright_checks().await? {
         if Probe::from_code(&check.probe) != Some(Probe::Sql) {
             assert!(check.query.is_none(), "{} must hold no query", check.name);
             continue;
@@ -76,18 +78,18 @@ async fn due_runs_event_checks_on_the_regular_pass_and_slow_checks_daily() -> an
 #[tokio::test]
 async fn a_disabled_check_is_not_due_and_a_new_check_is() -> anyhow::Result<()> {
     let db = Db::boot().await?;
-    let Some(row) = db.handle.wright_check("request_failures").await? else {
+    let Some(row) = db.handle.web().wright_check("request_failures").await? else {
         anyhow::bail!("the seed must hold request_failures");
     };
     let mut off = NewCheck::from(row);
     off.enabled = false;
-    db.handle.replace_wright_check(&off).await?;
+    db.handle.web().replace_wright_check(&off).await?;
     assert!(due_names(&db, &["event"]).await?.is_empty());
 
     let mut added = off.clone();
     added.name = "extra_failures".to_owned();
     added.enabled = true;
-    db.handle.insert_wright_check(&added).await?;
+    db.handle.web().insert_wright_check(&added).await?;
     assert_eq!(due_names(&db, &["event"]).await?, ["extra_failures"]);
     db.cleanup().await
 }

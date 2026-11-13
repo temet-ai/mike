@@ -1,3 +1,4 @@
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 use mike::store::persistence::PersistHandle;
@@ -18,7 +19,12 @@ async fn channel_check_false_until_a_channel_links_the_session() -> anyhow::Resu
     let cse_unlinked = format!("cse_unlinked_{}", Uuid::new_v4());
     let cse_mine = format!("cse_mine_{}", Uuid::new_v4());
 
-    assert!(!handle.session_has_remote_control_channel(session).await?);
+    assert!(
+        !handle
+            .launch()
+            .session_has_remote_control_channel(session)
+            .await?
+    );
 
     sqlx::query("INSERT INTO remote_control.channels (cse_id, local_session_uuid) VALUES ($1, $3), ($2, NULL)")
         .bind(&cse_other)
@@ -26,14 +32,24 @@ async fn channel_check_false_until_a_channel_links_the_session() -> anyhow::Resu
         .bind(other)
         .execute(handle.pool())
         .await?;
-    assert!(!handle.session_has_remote_control_channel(session).await?);
+    assert!(
+        !handle
+            .launch()
+            .session_has_remote_control_channel(session)
+            .await?
+    );
 
     sqlx::query("INSERT INTO remote_control.channels (cse_id, local_session_uuid) VALUES ($1, $2)")
         .bind(&cse_mine)
         .bind(session)
         .execute(handle.pool())
         .await?;
-    assert!(handle.session_has_remote_control_channel(session).await?);
+    assert!(
+        handle
+            .launch()
+            .session_has_remote_control_channel(session)
+            .await?
+    );
 
     Ok(())
 }

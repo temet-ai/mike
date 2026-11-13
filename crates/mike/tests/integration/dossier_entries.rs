@@ -1,3 +1,4 @@
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 #[path = "dossier_entries/as_of.rs"]
 mod as_of;
 #[path = "dossier_entries/directives.rs"]
@@ -12,6 +13,7 @@ use crate::turn_facts::Fixture;
 
 pub(crate) async fn entries(f: &Fixture) -> anyhow::Result<Vec<DossierEntryRow>> {
     Ok(f.handle
+        .dossier()
         .list_entries_as_of(f.session_id, far_future())
         .await?)
 }

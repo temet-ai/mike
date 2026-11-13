@@ -1,3 +1,4 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -8,7 +9,7 @@ use super::dto::SessionFlowComponent;
 use super::export_trace::{PerfettoTrace, build_trace};
 use super::handler::map_read_error;
 use super::map;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::session_flow::{self as persist, FlowReadError};
 
@@ -100,6 +101,7 @@ async fn collect_component(
     let mut capped = false;
     loop {
         let Some(page) = handle
+            .web()
             .fetch_session_flow(
                 session,
                 component.clone(),

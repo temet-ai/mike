@@ -2,6 +2,7 @@ use mike::extract::request::{compute_project_root, project_display_name};
 use mike::store::persistence::PersistError;
 use mike::store::persistence::SENTINEL_PROJECT_PATH;
 use mike::store::persistence::id_resolvers::resolve_session_id;
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 use mike::store::persistence::workspace::{EndRegistrationOutcome, RegisterWorkspaceSession};
 use mike::workspace::{Liveness, RosterScope};
 
@@ -39,6 +40,7 @@ async fn register_end_roster_lifecycle() -> anyhow::Result<()> {
     );
 
     let roster = handle
+        .proxy()
         .fetch_workspace_roster(registered_a.project_id, RosterScope::All)
         .await?;
     let row_a = roster
@@ -57,6 +59,7 @@ async fn register_end_roster_lifecycle() -> anyhow::Result<()> {
 
     handle.end_workspace_registration(session_a, None).await?;
     let roster = handle
+        .proxy()
         .fetch_workspace_roster(registered_a.project_id, RosterScope::All)
         .await?;
     let row_a = roster
@@ -152,7 +155,7 @@ async fn end_and_renew_lifecycle_covers_unknown_pid_mismatch_and_post_end_404s()
         .await?;
     assert_eq!(rejected, EndRegistrationOutcome::Rejected);
     assert_eq!(
-        handle.fetch_session_liveness(session).await?,
+        handle.proxy().fetch_session_liveness(session).await?,
         Some(Liveness::Live),
         "a pid-mismatched end must leave the registration live"
     );
@@ -162,7 +165,7 @@ async fn end_and_renew_lifecycle_covers_unknown_pid_mismatch_and_post_end_404s()
         .await?;
     assert_eq!(ended, EndRegistrationOutcome::Ended);
     assert_eq!(
-        handle.fetch_session_liveness(session).await?,
+        handle.proxy().fetch_session_liveness(session).await?,
         Some(Liveness::Ended)
     );
 

@@ -14,14 +14,18 @@ fn selected_inspect_address_is_used_including_ipv6_and_wildcards() -> Result<()>
         ("[::]:14589", "http://[::1]:14589"),
         ("[::1]:14589", "http://[::1]:14589"),
     ] {
-        let mut config = crate::config::ProxyConfig::default();
-        config.inspect_listen_addr = address.into();
-        config.unsupported_allow_remote_listeners =
-            address.starts_with("0.0.0.0:") || address.starts_with("[::]:");
+        let config = crate::config::ProxyConfig {
+            inspect_listen_addr: address.into(),
+            unsupported_allow_remote_listeners: address.starts_with("0.0.0.0:")
+                || address.starts_with("[::]:"),
+            ..crate::config::ProxyConfig::default()
+        };
         assert_eq!(inspect_url(&config)?, expected);
     }
-    let mut config = crate::config::ProxyConfig::default();
-    config.inspect_listen_addr = "broken".into();
+    let config = crate::config::ProxyConfig {
+        inspect_listen_addr: "broken".into(),
+        ..crate::config::ProxyConfig::default()
+    };
     assert!(inspect_url(&config).is_err());
     Ok(())
 }

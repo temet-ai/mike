@@ -1,3 +1,5 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -8,8 +10,8 @@ use serde_json::json;
 use crate::api::eval::labels::spa_origin;
 use crate::api::eval::projection::project_after_gold;
 use crate::api::improvement::actions::{EffectView, lesson_effect};
-use crate::config::AppState;
 use crate::eval::labels;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::eval_labels::{GoldEntry, GoldWrite, Subject};
 use crate::store::persistence::lessons::proposals::ProposalError;
@@ -56,7 +58,7 @@ pub(crate) async fn list_candidates(
         return unavailable();
     };
     let limit = params.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, 500);
-    match persist.list_lesson_candidates(limit).await {
+    match persist.lessons().list_lesson_candidates(limit).await {
         Ok(rows) => Json(json!({ "candidates": rows })).into_response(),
         Err(e) => error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     }
@@ -76,20 +78,28 @@ pub(crate) struct LessonDetail {
 }
 
 async fn lesson_retirement(persist: &PersistHandle, id: i64) -> LessonRetirement {
-    persist.lesson_retirement(id).await.unwrap_or_else(|e| {
-        log_detail_read_failed("retirement", id, &e);
-        LessonRetirement::default()
-    })
+    persist
+        .lessons()
+        .lesson_retirement(id)
+        .await
+        .unwrap_or_else(|e| {
+            log_detail_read_failed("retirement", id, &e);
+            LessonRetirement::default()
+        })
 }
 
 async fn lesson_outcomes(persist: &PersistHandle, id: i64) -> LessonOutcome {
-    persist.lesson_outcome(id).await.unwrap_or_else(|e| {
-        log_detail_read_failed("outcomes", id, &e);
-        LessonOutcome {
-            lesson_id: id,
-            ..LessonOutcome::default()
-        }
-    })
+    persist
+        .lessons()
+        .lesson_outcome(id)
+        .await
+        .unwrap_or_else(|e| {
+            log_detail_read_failed("outcomes", id, &e);
+            LessonOutcome {
+                lesson_id: id,
+                ..LessonOutcome::default()
+            }
+        })
 }
 
 fn log_detail_read_failed(
@@ -101,14 +111,19 @@ fn log_detail_read_failed(
 }
 
 async fn lesson_reinforcements(persist: &PersistHandle, id: i64) -> Vec<LessonEvidenceRow> {
-    persist.list_lesson_evidence(id).await.unwrap_or_else(|e| {
-        log_detail_read_failed("reinforcements", id, &e);
-        Vec::new()
-    })
+    persist
+        .lessons()
+        .list_lesson_evidence(id)
+        .await
+        .unwrap_or_else(|e| {
+            log_detail_read_failed("reinforcements", id, &e);
+            Vec::new()
+        })
 }
 
 async fn lesson_injections(persist: &PersistHandle, id: i64) -> LessonInjectionSummary {
     persist
+        .lessons()
         .lesson_injection_stats(id)
         .await
         .unwrap_or_else(|e| {
@@ -125,14 +140,18 @@ async fn lesson_went_live(
     persist: &PersistHandle,
     id: i64,
 ) -> Option<chrono::DateTime<chrono::Utc>> {
-    persist.lesson_went_live_at(id).await.unwrap_or_else(|e| {
-        log_detail_read_failed("went_live_at", id, &e);
-        None
-    })
+    persist
+        .lessons()
+        .lesson_went_live_at(id)
+        .await
+        .unwrap_or_else(|e| {
+            log_detail_read_failed("went_live_at", id, &e);
+            None
+        })
 }
 
 async fn lesson_effect_view(persist: &PersistHandle, id: i64) -> Option<EffectView> {
-    match persist.get_lesson_action(id).await {
+    match persist.eval().get_lesson_action(id).await {
         Ok(Some(row)) => Some(lesson_effect(&row)),
         Ok(None) => None,
         Err(e) => {
@@ -146,7 +165,7 @@ pub(crate) async fn get_candidate(State(state): State<AppState>, Path(id): Path<
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    let candidate = match persist.get_lesson_candidate(id).await {
+    let candidate = match persist.lessons().get_lesson_candidate(id).await {
         Ok(Some(row)) => row,
         Ok(None) => return error(StatusCode::NOT_FOUND, "no such lesson candidate"),
         Err(e) => return error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
@@ -178,6 +197,7 @@ pub(crate) async fn approve_candidate(
     };
     let text = body.and_then(|Json(b)| b.text);
     match persist
+        .lessons()
         .approve_lesson_candidate(id, text.as_deref(), "operator")
         .await
     {
@@ -226,7 +246,7 @@ async fn write_not_a_correction_label(
         context: "improvement",
         eval_run_id: None,
     };
-    match persist.write_gold_labels(&write).await {
+    match persist.eval().write_gold_labels(&write).await {
         Ok(written) => {
             project_after_gold(state, persist, &written).await;
             Ok(())
@@ -248,7 +268,12 @@ pub(crate) async fn reject_candidate(
         return resp;
     }
     if body.reason == "not_a_correction" {
-        let Some(candidate) = persist.get_lesson_candidate(id).await.unwrap_or_default() else {
+        let Some(candidate) = persist
+            .lessons()
+            .get_lesson_candidate(id)
+            .await
+            .unwrap_or_default()
+        else {
             return error(StatusCode::NOT_FOUND, "no such lesson candidate");
         };
         let Some(turn_id) = candidate.source_turn_id else {
@@ -265,6 +290,7 @@ pub(crate) async fn reject_candidate(
         }
     }
     match persist
+        .lessons()
         .reject_lesson_candidate(id, &body.reason, body.note.as_deref())
         .await
     {

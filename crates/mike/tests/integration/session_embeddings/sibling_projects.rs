@@ -1,8 +1,9 @@
 use crate::test_db;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use super::fixtures::{make_pool_and_persist, planar_unit, seed_project, seed_session};
 use chrono::{SubsecRound, Utc};
-use mike::store::persistence::SessionEmbeddingWrite;
+use mike::store::persistence::session_embeddings::SessionEmbeddingWrite;
 use test_db::TestDb;
 
 #[tokio::test]
@@ -29,6 +30,7 @@ async fn sibling_projects_orders_by_similarity_excludes_self_and_caps() -> anyho
     ] {
         let (_pk, uuid) = seed_session(&pool, project_id, None, now).await?;
         persist
+            .knowledge()
             .upsert_session_embedding(SessionEmbeddingWrite {
                 session_id: uuid,
                 embedding: &planar_unit(angle),
@@ -39,13 +41,16 @@ async fn sibling_projects_orders_by_similarity_excludes_self_and_caps() -> anyho
             })
             .await?;
     }
-    let written = persist.refresh_project_centroids().await?;
+    let written = persist.knowledge().refresh_project_centroids().await?;
     assert_eq!(
         written, 3,
         "all three projects qualify for a first centroid"
     );
 
-    let all = persist.sibling_projects(anchor_project, 10).await?;
+    let all = persist
+        .knowledge()
+        .sibling_projects(anchor_project, 10)
+        .await?;
     let ids: Vec<i64> = all.iter().map(|s| s.project_id).collect();
     assert_eq!(
         ids,
@@ -67,7 +72,10 @@ async fn sibling_projects_orders_by_similarity_excludes_self_and_caps() -> anyho
         "project_path must be carried through the join"
     );
 
-    let capped = persist.sibling_projects(anchor_project, 1).await?;
+    let capped = persist
+        .knowledge()
+        .sibling_projects(anchor_project, 1)
+        .await?;
     assert_eq!(capped.len(), 1);
     assert_eq!(capped[0].project_id, near_project);
 

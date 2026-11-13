@@ -1,4 +1,5 @@
 use chrono::{DateTime, Duration, TimeZone, Utc};
+use mike::store::persistence::eval_repo::EvalPersist as _;
 
 use mike::store::persistence::eval_metrics::alarm_judge_call_loop::loop_fires;
 
@@ -53,6 +54,7 @@ async fn judge_call_loop_fires_on_a_storm_day_and_not_on_a_normal_one() -> anyho
     verdict_rows(&f, normal, 60).await?;
     let storm_row = f
         .handle
+        .eval()
         .eval_session_judge_call_loop(storm + Duration::days(1), 3)
         .await?;
     assert_eq!(storm_row.ok_calls, 240);
@@ -60,6 +62,7 @@ async fn judge_call_loop_fires_on_a_storm_day_and_not_on_a_normal_one() -> anyho
     assert_eq!(storm_row.top_sessions[0]["calls"], 240);
     let normal_row = f
         .handle
+        .eval()
         .eval_session_judge_call_loop(normal + Duration::days(1), 3)
         .await?;
     assert!(!loop_fires(&normal_row, 50, 3.0), "{normal_row:?}");

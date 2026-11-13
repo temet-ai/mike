@@ -1,5 +1,7 @@
 use chrono::{Duration, Utc};
 use mike::store::persistence::PersistError;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use mike::store::persistence::turn_verdicts::{
     LegacyStamp, TurnVerdictFilter, TurnVerdictInsert, VerdictCallUsage, VerdictJudgement,
     VerdictMode, VerdictShape,
@@ -70,6 +72,7 @@ async fn insert_turn_verdict_fills_session_id_from_the_turn() -> anyhow::Result<
     let turn = closed_turn(&f, 101).await?;
     let id = f
         .handle
+        .eval()
         .insert_turn_verdict(legacy(turn, "accepted"))
         .await?;
     let session_id: i64 =
@@ -88,6 +91,7 @@ async fn insert_turn_verdict_for_missing_turn_returns_not_found() -> anyhow::Res
     };
     let result = f
         .handle
+        .eval()
         .insert_turn_verdict(legacy(987_654_321, "accepted"))
         .await;
     assert!(matches!(
@@ -105,10 +109,12 @@ async fn a_two_axis_verdict_with_tags_and_major_severity_inserts_and_huge_is_rej
     };
     let turn = closed_turn(&f, 111).await?;
     f.handle
+        .eval()
         .insert_turn_verdict(two_axis(turn, Some("major")))
         .await?;
     let rejected = f
         .handle
+        .eval()
         .insert_turn_verdict(two_axis(turn, Some("huge")))
         .await;
     let message = rejected.err().map(|e| e.to_string()).unwrap_or_default();
@@ -132,6 +138,7 @@ async fn insert_turn_verdict_rejects_projected_shadow_and_bundleless_shadow() ->
     };
     let message = f
         .handle
+        .eval()
         .insert_turn_verdict(shadow)
         .await
         .err()
@@ -149,6 +156,7 @@ async fn live_legacy_insert_and_stamp_projects_when_turn_is_unknown() -> anyhow:
     let turn = closed_turn(&f, 131).await?;
     let (_, projected) = f
         .handle
+        .eval()
         .insert_live_legacy_verdict_and_stamp(
             legacy(turn, "shipped"),
             LegacyStamp {
@@ -176,6 +184,7 @@ async fn live_legacy_insert_and_stamp_keeps_verdict_when_turn_already_labelled()
     };
     let turn = closed_turn(&f, 141).await?;
     f.handle
+        .eval()
         .insert_live_legacy_verdict_and_stamp(
             legacy(turn, "shipped"),
             LegacyStamp {
@@ -185,6 +194,7 @@ async fn live_legacy_insert_and_stamp_keeps_verdict_when_turn_already_labelled()
         .await?;
     let (_, projected) = f
         .handle
+        .eval()
         .insert_live_legacy_verdict_and_stamp(
             legacy(turn, "corrected"),
             LegacyStamp {
@@ -196,6 +206,7 @@ async fn live_legacy_insert_and_stamp_keeps_verdict_when_turn_already_labelled()
     assert_eq!(outcome_code(&f, turn).await?, "shipped");
     let (rows, total) = f
         .handle
+        .eval()
         .list_turn_verdicts_for_turn(turn, None, 50, 0)
         .await?;
     assert_eq!(total, 2);
@@ -216,10 +227,11 @@ async fn list_turn_verdicts_for_turn_pages_whole_rows_newest_first_with_total() 
             input_text: &long,
             ..legacy(turn, "accepted")
         };
-        f.handle.insert_turn_verdict(v).await?;
+        f.handle.eval().insert_turn_verdict(v).await?;
     }
     let (page, total) = f
         .handle
+        .eval()
         .list_turn_verdicts_for_turn(turn, Some(VerdictMode::Live), 2, 1)
         .await?;
     assert_eq!(total, 3);
@@ -228,6 +240,7 @@ async fn list_turn_verdicts_for_turn_pages_whole_rows_newest_first_with_total() 
     assert_eq!(page[0].input_text, long);
     let (none, zero) = f
         .handle
+        .eval()
         .list_turn_verdicts_for_turn(turn, Some(VerdictMode::Eval), 50, 0)
         .await?;
     assert!(none.is_empty());
@@ -243,9 +256,13 @@ async fn list_turn_verdicts_filters_by_mode_rubric_and_window_and_counts_total()
     };
     let turn = closed_turn(&f, 161).await?;
     f.handle
+        .eval()
         .insert_turn_verdict(legacy(turn, "accepted"))
         .await?;
-    f.handle.insert_turn_verdict(two_axis(turn, None)).await?;
+    f.handle
+        .eval()
+        .insert_turn_verdict(two_axis(turn, None))
+        .await?;
     let filter = TurnVerdictFilter {
         mode: Some(VerdictMode::Live),
         rubric_version: Some("v2-2026-09-23".to_owned()),
@@ -254,7 +271,7 @@ async fn list_turn_verdicts_filters_by_mode_rubric_and_window_and_counts_total()
         limit: 50,
         ..TurnVerdictFilter::default()
     };
-    let (rows, total) = f.handle.list_turn_verdicts(&filter).await?;
+    let (rows, total) = f.handle.eval().list_turn_verdicts(&filter).await?;
     assert_eq!(total, 1);
     assert_eq!(rows[0].reaction.as_deref(), Some("corrected"));
     let future = TurnVerdictFilter {
@@ -262,7 +279,7 @@ async fn list_turn_verdicts_filters_by_mode_rubric_and_window_and_counts_total()
         limit: 50,
         ..TurnVerdictFilter::default()
     };
-    assert_eq!(f.handle.list_turn_verdicts(&future).await?.1, 0);
+    assert_eq!(f.handle.eval().list_turn_verdicts(&future).await?.1, 0);
     Ok(())
 }
 
@@ -282,8 +299,15 @@ async fn fetch_judge_turn_contexts_reads_next_genuine_text_from_turn_or_orphan_r
     let mut to_orphan = sample_row(second, f.session_id, Utc::now());
     to_orphan.next_state = "resolved".to_owned();
     to_orphan.next_genuine_request_id = Some(173);
-    f.handle.upsert_turn_facts(&[to_turn, to_orphan]).await?;
-    let rows = f.handle.fetch_judge_turn_contexts(&[first, second]).await?;
+    f.handle
+        .dossier()
+        .upsert_turn_facts(&[to_turn, to_orphan])
+        .await?;
+    let rows = f
+        .handle
+        .eval()
+        .fetch_judge_turn_contexts(&[first, second])
+        .await?;
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[0].next_genuine_text.as_deref(), Some("prompt"));
     assert_eq!(rows[1].next_genuine_text.as_deref(), Some("orphan reply"));
@@ -295,7 +319,13 @@ async fn fetch_judge_turn_contexts_for_empty_ids_returns_empty() -> anyhow::Resu
     let Some(f) = fixture().await? else {
         return Ok(());
     };
-    assert!(f.handle.fetch_judge_turn_contexts(&[]).await?.is_empty());
+    assert!(
+        f.handle
+            .eval()
+            .fetch_judge_turn_contexts(&[])
+            .await?
+            .is_empty()
+    );
     Ok(())
 }
 
@@ -306,6 +336,7 @@ async fn turn_verdicts_cascade_when_turn_deleted() -> anyhow::Result<()> {
     };
     let turn = closed_turn(&f, 181).await?;
     f.handle
+        .eval()
         .insert_turn_verdict(legacy(turn, "accepted"))
         .await?;
     sqlx::query("DELETE FROM memory.operator_turns WHERE id = $1")

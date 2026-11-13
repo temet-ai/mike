@@ -6,7 +6,8 @@ use fixtures::{
     DEFINITELY_STALE_AGE, boot_state, fetch_session_last_status, fetch_status,
     insert_pending_request, insert_pending_request_aged, set_session_last_status,
 };
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use sqlx::postgres::PgPoolOptions;
 use test_db::TestDb;
 

@@ -1,8 +1,8 @@
 use super::{CheckRow, NewCheck};
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
-impl PersistHandle {
-    pub(crate) async fn list_wright_checks(&self) -> Result<Vec<CheckRow>, PersistError> {
+impl crate::store::persistence::web_repo::WebDb<'_> {
+    pub(crate) async fn list_wright_checks(self) -> Result<Vec<CheckRow>, PersistError> {
         Ok(sqlx::query_as!(
             CheckRow,
             r#"SELECT name AS "name!", source AS "source!", cadence AS "cadence!",
@@ -17,7 +17,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn enabled_wright_checks(
-        &self,
+        self,
         cadences: &[String],
     ) -> Result<Vec<CheckRow>, PersistError> {
         Ok(sqlx::query_as!(
@@ -35,7 +35,7 @@ impl PersistHandle {
         .await?)
     }
 
-    pub(crate) async fn wright_check(&self, name: &str) -> Result<Option<CheckRow>, PersistError> {
+    pub(crate) async fn wright_check(self, name: &str) -> Result<Option<CheckRow>, PersistError> {
         Ok(sqlx::query_as!(
             CheckRow,
             r#"SELECT name AS "name!", source AS "source!", cadence AS "cadence!",
@@ -51,7 +51,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn insert_wright_check(
-        &self,
+        self,
         check: &NewCheck,
     ) -> Result<Option<CheckRow>, PersistError> {
         Ok(sqlx::query_as!(
@@ -77,7 +77,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn replace_wright_check(
-        &self,
+        self,
         check: &NewCheck,
     ) -> Result<Option<CheckRow>, PersistError> {
         Ok(sqlx::query_as!(
@@ -102,7 +102,7 @@ impl PersistHandle {
         .await?)
     }
 
-    pub(crate) async fn delete_wright_check(&self, name: &str) -> Result<bool, PersistError> {
+    pub(crate) async fn delete_wright_check(self, name: &str) -> Result<bool, PersistError> {
         let deleted = sqlx::query_scalar!(
             r#"DELETE FROM wright.checks WHERE name = $1 RETURNING name AS "name!""#,
             name,

@@ -1,3 +1,4 @@
+use crate::store::persistence::dossier_repo::DossierPersist as _;
 use std::time::Instant;
 
 use chrono::{DateTime, Duration, Utc};
@@ -38,8 +39,8 @@ async fn builder_rows_planned(
     ids: &[i64],
 ) -> Result<EntriesReport, PersistError> {
     let mut report = EntriesReport::default();
-    if let Some(since) = persist.ledger_builder_since().await? {
-        let candidates = persist.load_ledger_candidates(ids, since).await?;
+    if let Some(since) = persist.dossier().ledger_builder_since().await? {
+        let candidates = persist.dossier().load_ledger_candidates(ids, since).await?;
         report.ledger_rows_inserted =
             u64::try_from(plan_builder_rows(&candidates).len()).unwrap_or(0);
     }
@@ -53,14 +54,18 @@ async fn ledger_batch(
     summary: &mut BackfillSummary,
 ) -> Result<BackfillLine, PersistError> {
     let started = Instant::now();
-    let history = persist.link_ask_ledger_history(ids, opts.execute).await?;
+    let history = persist
+        .dossier()
+        .link_ask_ledger_history(ids, opts.execute)
+        .await?;
     let builder = if opts.execute {
-        let since = persist.ledger_builder_since().await?;
+        let since = persist.dossier().ledger_builder_since().await?;
         link_ledger_step(persist, ids, since).await?
     } else {
         builder_rows_planned(persist, ids).await?
     };
     let recounts = persist
+        .dossier()
         .recount_intake_maps(ids, INTAKE_ASK_LEDGER_LIMIT, opts.execute)
         .await?;
     summary.intake_recounts.extend(recounts);
@@ -119,7 +124,10 @@ pub(super) async fn run_entries_stage(
         record(summary, &line, chunk.len());
         emit(&line);
     }
-    summary.entry_counts = persist.count_dossier_entries_since(opts.from).await?;
+    summary.entry_counts = persist
+        .dossier()
+        .count_dossier_entries_since(opts.from)
+        .await?;
     Ok(())
 }
 

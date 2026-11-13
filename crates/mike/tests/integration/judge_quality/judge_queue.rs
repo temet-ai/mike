@@ -1,5 +1,7 @@
 use chrono::{DateTime, Duration, Utc};
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 use mike::store::persistence::eval_rejudge::{NewRejudgeRun, RejudgeWindow};
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use mike::store::persistence::operator_turns::projection::ProjectionMode;
 use mike::store::persistence::operator_turns::{LiveClaim, LiveFailure};
 use mike::store::persistence::turn_verdicts::VerdictMode;
@@ -28,7 +30,7 @@ async fn facts_with_next(f: &Fixture, turn: i64, next_genuine: i64) -> anyhow::R
     let mut row = sample_row(turn, f.session_id, Utc::now());
     resolve(&mut row);
     row.next_genuine_request_id = Some(next_genuine);
-    f.handle.upsert_turn_facts(&[row]).await?;
+    f.handle.dossier().upsert_turn_facts(&[row]).await?;
     Ok(())
 }
 
@@ -67,6 +69,7 @@ async fn a_matching_live_verdict_dequeues_and_a_changed_followup_requeues() -> a
     let mut live = verdict(turn, VerdictMode::Live, b, ("accepted", "shipped"), 0.9);
     live.next_genuine_request_id = Some(2);
     f.handle
+        .eval()
         .insert_live_verdict_and_promote(live, &params(b, ProjectionMode::Apply))
         .await?;
     assert!(
@@ -85,7 +88,7 @@ async fn a_matching_live_verdict_dequeues_and_a_changed_followup_requeues() -> a
 
     let mut shadow = verdict(turn, VerdictMode::Shadow, b, ("accepted", "shipped"), 0.9);
     shadow.next_genuine_request_id = Some(3);
-    f.handle.insert_turn_verdict(shadow).await?;
+    f.handle.eval().insert_turn_verdict(shadow).await?;
     assert!(
         queued_at(&f, turn).await?.is_some(),
         "a shadow verdict does not settle the turn"
@@ -136,13 +139,16 @@ async fn a_permanent_failure_dequeues_and_a_rejudge_run_requeues() -> anyhow::Re
         created_by: "judge_queue_test",
         role: "turn_judge",
     };
-    f.handle.create_rejudge_run(&run).await?;
+    f.handle.eval().create_rejudge_run(&run).await?;
     assert!(
         queued_at(&f, turn).await?.is_some(),
         "a re-judge run requeues the turns it resets"
     );
     assert_eq!(
-        f.handle.claim_rejudge_candidates(&window, 10).await?,
+        f.handle
+            .eval()
+            .claim_rejudge_candidates(&window, 10)
+            .await?,
         vec![turn]
     );
     Ok(())

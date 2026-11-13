@@ -34,7 +34,7 @@
 	function buildRule(overrides: Partial<FilterRuleDto> = {}): FilterRuleDto {
 		return {
 			// A stringified numeric id, matching the real contract (`FilterRuleDto.id` is always
-			// `r.id.to_string()` server-side — see `crates/mike/src/api/handlers/filter_rule_dto.rs`)
+			// `r.id.to_string()` server-side — see `crates/mike-features/src/api/handlers/filter_rule_dto.rs`)
 			// so it lines up with `firing_rule_ids` below (numeric on the wire).
 			id: '101',
 			kind: 'text_substring',

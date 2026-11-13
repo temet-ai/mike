@@ -1,4 +1,6 @@
 use super::*;
+use crate::store::persistence::dossier_repo::DossierPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 
 #[derive(Debug, Default, Deserialize)]
 pub(crate) struct SessionOperatorTurnsParams {
@@ -107,7 +109,7 @@ pub(crate) async fn get_session_ask_ledger(
 
     let limit = params.limit.unwrap_or(50).clamp(1, 500);
     let entries = handle
-        .fetch_ask_ledger_inspection(session_uuid, limit)
+        .dossier().fetch_ask_ledger_inspection(session_uuid, limit)
         .await
         .map_err(|e| {
             tracing::warn!(session_id = %session_id, error = %e, "get_session_ask_ledger: query failed");
@@ -174,7 +176,7 @@ pub(crate) async fn get_session_acceptance_criteria(
     };
 
     let maps = handle
-        .fetch_acceptance_criteria_history(session_db_id)
+        .steerer().fetch_acceptance_criteria_history(session_db_id)
         .await
         .map_err(|e| {
             tracing::warn!(session_id = %session_id, error = %e, "get_session_acceptance_criteria: query failed");

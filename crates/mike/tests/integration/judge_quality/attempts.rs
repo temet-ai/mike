@@ -17,7 +17,7 @@ use uuid::Uuid;
 const MODEL: &str = "test-judge/attempts";
 const RUBRIC: i32 = 1;
 const MIGRATION_SQL: &str = include_str!(
-    "../../../src/store/persistence/migrations/20260921000002_session_judge_attempts.sql"
+    "../../../../mike-base/src/store/persistence/migrations/20260921000002_session_judge_attempts.sql"
 );
 
 async fn pool_for(url: &str) -> anyhow::Result<PgPool> {

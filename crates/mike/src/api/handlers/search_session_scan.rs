@@ -65,7 +65,7 @@ pub(super) fn unified_match(
     ctx: &ScanCtx<'_>,
     request_id: u64,
     message_ord: Option<i32>,
-    m: crate::api::body_search::TextMatch,
+    m: crate::web_base::body_search::TextMatch,
 ) -> UnifiedTextMatch {
     UnifiedTextMatch {
         request_id,
@@ -169,7 +169,7 @@ async fn scan_body_window(
             continue;
         };
         let room = params.max_matches.saturating_sub(acc.matches.len() as u32);
-        let (count, found) = crate::api::body_search::find_in_str(
+        let (count, found) = crate::web_base::body_search::find_in_str(
             text,
             params.needle,
             params.case_sensitive,

@@ -756,7 +756,7 @@ lives only in the in-memory staging pool and does not survive a restart.
 ### Running DB-backed integration tests
 
 Tests that touch the persistence layer use `TestDb::acquire` / `acquire_isolated` /
-`acquire_shared` from `crates/mike/src/store/persistence/test_support/`. Point
+`acquire_shared` from `crates/mike-base/src/store/persistence/test_support/`. Point
 `MIKE_TEST_ADMIN_URL` at an **admin** database:
 
 ```bash

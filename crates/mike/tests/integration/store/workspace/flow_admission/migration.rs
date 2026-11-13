@@ -5,10 +5,10 @@ use mike::store::persistence::PersistHandle;
 use mike::store::test_support::TestDb;
 
 const BASELINE_MIGRATION: &str = include_str!(
-    "../../../../../src/store/persistence/migrations/20260910000001_session_flow_capture.sql"
+    "../../../../../../mike-base/src/store/persistence/migrations/20260910000001_session_flow_capture.sql"
 );
 const CAPTURE_EVIDENCE_MIGRATION: &str = include_str!(
-    "../../../../../src/store/persistence/migrations/20260918000001_flow_admission_capture_derived_evidence.sql"
+    "../../../../../../mike-base/src/store/persistence/migrations/20260918000001_flow_admission_capture_derived_evidence.sql"
 );
 
 struct FlowColumnFixture<'a> {

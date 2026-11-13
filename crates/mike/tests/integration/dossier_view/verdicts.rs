@@ -2,6 +2,7 @@ use chrono::Utc;
 use mike::dossier::render::{TypedView, render};
 use mike::dossier::view::types::{AsOf, Audience, Budget, Reaction, SteererSection};
 use mike::dossier::view::{CorrectionSource, Needs, load};
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use mike::store::persistence::turn_verdicts::{
     TurnVerdictInsert, VerdictCallUsage, VerdictJudgement, VerdictMode, VerdictShape,
 };
@@ -81,10 +82,12 @@ async fn recent_reactions_read_latest_live_verdict_per_turn() -> anyhow::Result<
     };
     let (first, _, third) = seeded(&f).await?;
     f.handle
+        .eval()
         .insert_turn_verdict(verdict(first, VerdictMode::Live, None, "accepted"))
         .await?;
     let newest = f
         .handle
+        .eval()
         .insert_turn_verdict(verdict(first, VerdictMode::Live, None, "corrected"))
         .await?;
     let reactions = steerer_reactions(&f, third).await?;
@@ -117,6 +120,7 @@ async fn shadow_and_eval_verdicts_never_read() -> anyhow::Result<()> {
     let bundle = candidate_bundle(&f).await?;
     for turn in [first, second] {
         f.handle
+            .eval()
             .insert_turn_verdict(verdict(
                 turn,
                 VerdictMode::Shadow,
@@ -125,6 +129,7 @@ async fn shadow_and_eval_verdicts_never_read() -> anyhow::Result<()> {
             ))
             .await?;
         f.handle
+            .eval()
             .insert_turn_verdict(verdict(turn, VerdictMode::Eval, Some(bundle), "redirected"))
             .await?;
     }

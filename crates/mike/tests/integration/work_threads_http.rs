@@ -3,7 +3,8 @@ use uuid::Uuid;
 
 use crate::test_db::TestDb;
 
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use mike::store::persistence::PersistHandle;
 
 struct Served {

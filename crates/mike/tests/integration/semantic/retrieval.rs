@@ -3,6 +3,8 @@ use mike::dossier::view::types::AsOf;
 use mike::semantic::SemanticConfig;
 use mike::semantic::neighbours::Retriever;
 use mike::semantic::retrieve::{Audience, QuerySubject, RetrievedKind, Scope, SemanticQuery};
+use mike::store::persistence::dossier_repo::DossierPersist as _;
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use mike::store::persistence::turn_verdicts::{
     TurnVerdictInsert, VerdictCallUsage, VerdictJudgement, VerdictMode, VerdictShape,
 };
@@ -33,7 +35,7 @@ async fn subject_in_other_session(f: &Fixture) -> anyhow::Result<i64> {
         .await?;
     let mut row = crate::turn_facts::sample_row(turn, other, Utc::now());
     crate::turn_facts::resolve(&mut row);
-    f.handle.upsert_turn_facts(&[row]).await?;
+    f.handle.dossier().upsert_turn_facts(&[row]).await?;
     Ok(turn)
 }
 
@@ -86,6 +88,7 @@ async fn found(f: &Fixture, scene: &Scene, audience: Audience) -> anyhow::Result
 async fn live_verdict(f: &Fixture, turn: i64) -> anyhow::Result<()> {
     let id = f
         .handle
+        .eval()
         .insert_turn_verdict(TurnVerdictInsert {
             turn_id: turn,
             mode: VerdictMode::Live,

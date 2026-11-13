@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 async fn fetch_session_analyzer_overrides(
     handle: &crate::store::persistence::PersistHandle,
@@ -128,7 +129,11 @@ pub(crate) async fn get_session_filter_rules(
     let Some(handle) = state.persist() else {
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     };
-    match handle.fetch_session_filter_rules(session_uuid).await {
+    match handle
+        .proxy()
+        .fetch_session_filter_rules(session_uuid)
+        .await
+    {
         Ok(rows) => Ok(Json(
             rows.into_iter().map(SessionFilterRuleDto::from).collect(),
         )),

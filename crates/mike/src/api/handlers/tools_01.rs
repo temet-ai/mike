@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 
 pub(crate) const TOOL_USES_DEFAULT_LIMIT: usize = 200;
 
@@ -157,11 +158,13 @@ pub(crate) async fn list_session_tool_uses(
     };
 
     let total_count = handle
+        .steerer()
         .count_tool_uses_for_session(session_db_id, params.agent.as_deref())
         .await
         .map_err(|error| tool_uses_query_error(&id, "count", error))?;
 
     let rows = handle
+        .steerer()
         .fetch_tool_uses_for_session(
             session_db_id,
             offset as i64,
@@ -174,6 +177,7 @@ pub(crate) async fn list_session_tool_uses(
 
     let tu_ids: Vec<i64> = rows.iter().map(|r| r.tu_id).collect();
     let results_by_tu_id = handle
+        .steerer()
         .fetch_results_for_tool_use_ids(&tu_ids, session_db_id)
         .await
         .map_err(|error| tool_uses_query_error(&id, "results", error))?;

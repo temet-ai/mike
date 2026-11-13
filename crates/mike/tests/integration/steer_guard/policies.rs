@@ -1,13 +1,15 @@
-use mike::feature_toggles::TOGGLE_META;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use serde_json::Value;
 
 use crate::turn_facts::{Fixture, fixture};
 
-const MIGRATION: &str =
-    include_str!("../../../src/store/persistence/migrations/20260925000600_turn_guard.sql");
+const MIGRATION: &str = include_str!(
+    "../../../../mike-base/src/store/persistence/migrations/20260925000600_turn_guard.sql"
+);
 
 async fn guard_id(f: &Fixture) -> anyhow::Result<i64> {
     Ok(f.handle
+        .steerer()
         .guard_steerer()
         .await?
         .ok_or_else(|| anyhow::anyhow!("turn-guard row not seeded"))?
@@ -39,7 +41,11 @@ async fn migration_seeds_guard_row_disabled_with_shadow_rollout_and_four_shadow_
         config["questions"]["relapse"].get("bar").is_none(),
         "bars are code constants"
     );
-    let policies = f.handle.question_policies(guard_id(&f).await?).await?;
+    let policies = f
+        .handle
+        .steerer()
+        .question_policies(guard_id(&f).await?)
+        .await?;
     assert_eq!(policies.len(), 4);
     assert!(policies.iter().all(|p| p.mode == "shadow"));
     Ok(())
@@ -53,6 +59,7 @@ async fn handback_wake_rejected_by_check() -> anyhow::Result<()> {
     let id = guard_id(&f).await?;
     let err = f
         .handle
+        .steerer()
         .set_question_mode(id, "authorised_handback", "wake", "cli")
         .await;
     assert!(
@@ -61,37 +68,11 @@ async fn handback_wake_rejected_by_check() -> anyhow::Result<()> {
     );
     assert!(
         f.handle
+            .steerer()
             .set_question_mode(id, "relapse", "off", "cli")
             .await
             .is_ok()
     );
-    Ok(())
-}
-
-#[tokio::test]
-async fn every_toggle_meta_key_passes_feature_toggles_key_check() -> anyhow::Result<()> {
-    let Some(f) = fixture().await? else {
-        return Ok(());
-    };
-    for meta in TOGGLE_META {
-        let mut tx = f.handle.pool().begin().await?;
-        sqlx::query("DELETE FROM config.feature_toggles WHERE key = $1")
-            .bind(meta.key)
-            .execute(&mut *tx)
-            .await?;
-        let inserted = sqlx::query(
-            "INSERT INTO config.feature_toggles (key, enabled, operator_set) VALUES ($1, false, false)",
-        )
-        .bind(meta.key)
-        .execute(&mut *tx)
-        .await;
-        assert!(
-            inserted.is_ok(),
-            "{} fails feature_toggles_key_check: {inserted:?}",
-            meta.key
-        );
-        tx.rollback().await?;
-    }
     Ok(())
 }
 

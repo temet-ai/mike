@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 use crate::store::persistence::remote_control::ChannelLinkCounts;
 
 const MIN_CHANNELS: i64 = 5;
@@ -45,7 +46,7 @@ pub(crate) async fn remote_control_link_capability(state: &AppState) -> Capabili
             String::new(),
         );
     };
-    match persist.recent_channel_link_counts().await {
+    match persist.proxy().recent_channel_link_counts().await {
         Ok(counts) => remote_control_link_row(counts),
         Err(e) => row(
             CapabilityState::Degraded,

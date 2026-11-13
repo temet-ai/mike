@@ -12,7 +12,8 @@ use uuid::Uuid;
 use crate::test_db::TestDb;
 
 use mike::api::manifest::inspect_router;
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use seed::{insert_lesson, seed_delivery_story, seed_session};
 
 struct Env {

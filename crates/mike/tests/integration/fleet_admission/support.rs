@@ -1,8 +1,11 @@
+use mike::store::persistence::fleet_repo::FleetPersist as _;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use std::path::Path;
 
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
 use mike::launch::fleet::FleetDefinition;
 use mike::launch::fleet::events::{EventPayload, NewFleetEvent, SeatLaunchConfirmed};
+use mike::state::AppState;
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::fleet::{FleetRow, NewFleet};
 use mike::store::persistence::launch::{LaunchSurfaceRefs, NewLaunch, NewRun};
@@ -44,12 +47,16 @@ impl Harness {
         let repo = repository().await?;
         let sessions = [Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4()];
         for session in sessions {
-            persist.ensure_session_exists(&session.to_string()).await?;
+            persist
+                .launch()
+                .ensure_session_exists(&session.to_string())
+                .await?;
         }
         let [worker, other, acceptance] = sessions;
         let definition = definition(repo.path(), sessions);
         let run = format!("admission-{}", Uuid::new_v4());
         persist
+            .launch()
             .upsert_run(&NewRun {
                 run_id: run.clone(),
                 project_path: Some(repo.path().display().to_string()),
@@ -59,6 +66,7 @@ impl Harness {
             })
             .await?;
         let fleet = persist
+            .fleet()
             .insert_fleet(&NewFleet {
                 slug: run.clone(),
                 project_path: repo.path().display().to_string(),
@@ -73,8 +81,9 @@ impl Harness {
         launch.run_id = Some(run.clone());
         launch.session_uuid = Some(worker);
         launch.seat = Some("worker-T1".into());
-        let worker_launch = persist.insert_launch(&launch).await?;
+        let worker_launch = persist.launch().insert_launch(&launch).await?;
         persist
+            .launch()
             .record_launch_opened(worker_launch, &LaunchSurfaceRefs::default())
             .await?;
         for (task, session) in [
@@ -83,6 +92,7 @@ impl Harness {
             (None, acceptance),
         ] {
             persist
+                .fleet()
                 .append_fleet_event(&NewFleetEvent {
                     run_id: run.clone(),
                     task: task.map(str::to_string),
@@ -138,6 +148,7 @@ impl Harness {
     pub(super) async fn state(&self, state: &str) -> anyhow::Result<FleetRow> {
         if state == "done" {
             self.persist
+                .fleet()
                 .record_fleet_launch_verified_exit(
                     self.worker_launch,
                     &self.run,
@@ -147,6 +158,7 @@ impl Harness {
             return Ok(seed_fleet_done(&self.persist, self.fleet).await?);
         }
         self.persist
+            .fleet()
             .set_fleet_state(self.fleet, state, None, None)
             .await?;
         self.row().await
@@ -154,6 +166,7 @@ impl Harness {
 
     pub(super) async fn row(&self) -> anyhow::Result<FleetRow> {
         self.persist
+            .fleet()
             .find_fleet(&self.fleet.to_string())
             .await?
             .ok_or_else(|| anyhow::anyhow!("fixture fleet vanished"))
@@ -162,6 +175,7 @@ impl Harness {
     pub(super) async fn inbox_len(&self, session: Uuid) -> anyhow::Result<usize> {
         Ok(self
             .persist
+            .launch()
             .fetch_for_session_with_activity(session)
             .await?
             .inbox
@@ -199,12 +213,19 @@ async fn seed_failed_state(
     launch: i64,
     state: &str,
 ) -> anyhow::Result<()> {
-    persist.set_fleet_state(fleet, "failed", None, None).await?;
+    persist
+        .fleet()
+        .set_fleet_state(fleet, "failed", None, None)
+        .await?;
     if state != "failed" {
         persist
+            .fleet()
             .record_fleet_launch_verified_exit(launch, run, "synthetic failed-start seat completed")
             .await?;
-        persist.set_fleet_state(fleet, state, None, None).await?;
+        persist
+            .fleet()
+            .set_fleet_state(fleet, state, None, None)
+            .await?;
     }
     Ok(())
 }
@@ -217,15 +238,18 @@ async fn seed_active_state(
     state: &str,
 ) -> anyhow::Result<()> {
     persist
+        .fleet()
         .set_fleet_state(fleet, "running", None, None)
         .await?;
     if state != "running" {
         persist
+            .fleet()
             .set_fleet_state(fleet, "stopping", None, None)
             .await?;
     }
     if state == "done" {
         persist
+            .fleet()
             .record_fleet_launch_verified_exit(launch, run, "synthetic fixture seat completed")
             .await?;
         seed_fleet_done(persist, fleet).await?;

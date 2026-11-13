@@ -1,9 +1,9 @@
+use super::PersistError;
 use super::file_writes;
-use super::{PersistError, PersistHandle};
 
-impl PersistHandle {
+impl crate::store::persistence::web_repo::WebDb<'_> {
     pub(crate) async fn summarise_file_writes(
-        &self,
+        self,
         filter: &file_writes::FileWriteFilter<'_>,
         offset: i64,
         limit: i64,
@@ -15,7 +15,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn count_file_writes(
-        &self,
+        self,
         filter: &file_writes::FileWriteFilter<'_>,
     ) -> Result<i64, PersistError> {
         crate::metrics::time_db(
@@ -25,7 +25,7 @@ impl PersistHandle {
         .await
     }
     pub(crate) async fn fetch_writes_for_paths(
-        &self,
+        self,
         paths: &[String],
         filter: &file_writes::FileWriteFilter<'_>,
     ) -> Result<Vec<file_writes::FileWriteRow>, PersistError> {

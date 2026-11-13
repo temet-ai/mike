@@ -1,3 +1,4 @@
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -5,7 +6,7 @@ use axum::response::{IntoResponse, Response};
 use crate::api::handlers::{
     PostSessionMessageResponse, fetch_mailbox_delivery_fields, mailbox_error, tail_for_sender,
 };
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::mailbox::ThreadResolution;
 
@@ -47,7 +48,7 @@ pub(super) async fn send(
     .await?;
 
     if let Some(tags) = ctx.body.tags.as_deref().filter(|t| !t.is_empty())
-        && let Err(e) = handle.attach_tags_to_thread(thread_id, tags).await
+        && let Err(e) = handle.launch().attach_tags_to_thread(thread_id, tags).await
     {
         tracing::warn!(error = %e, %thread_uuid, "post_session_message: tag attach failed");
     }
@@ -64,6 +65,7 @@ async fn insert_threaded_message_or_fail(
     in_reply_to_id: Option<i64>,
 ) -> Result<chrono::DateTime<chrono::Utc>, Response> {
     match handle
+        .launch()
         .insert_threaded_message_with_context(
             crate::store::persistence::mailbox::ThreadedMessageInsert {
                 message_uuid: ctx.message_uuid,
@@ -108,7 +110,11 @@ async fn resolve_recipient_core(
     handle: &PersistHandle,
     ctx: &SendContext<'_>,
 ) -> Result<(i64, i64), Response> {
-    let Some(core) = (match handle.resolve_session_core(ctx.to_session_uuid).await {
+    let Some(core) = (match handle
+        .launch()
+        .resolve_session_core(ctx.to_session_uuid)
+        .await
+    {
         Ok(v) => v,
         Err(e) => {
             tracing::warn!(error = %e, to_session_uuid = %ctx.to_session_uuid, "post_session_message: recipient lookup failed");
@@ -146,7 +152,7 @@ async fn resolve_sender_id(
     let Some(u) = ctx.from_session_uuid else {
         return Ok(None);
     };
-    match handle.resolve_session_core(u).await {
+    match handle.launch().resolve_session_core(u).await {
         Ok(Some((id, _))) => Ok(Some(id)),
         Ok(None) => {
             record_failed_send(handle, None, ctx.to_session_uuid, "from_session_not_found").await;
@@ -175,6 +181,7 @@ async fn resolve_thread(
     created_by_session_id: Option<i64>,
 ) -> Result<(i64, uuid::Uuid, String, Option<i64>), Response> {
     match handle
+        .launch()
         .resolve_thread_for_send(
             threading.thread_id_param,
             threading.in_reply_to_param,
@@ -267,7 +274,7 @@ async fn queued_response(
 ) -> Response {
     let from = ctx.from_session_uuid.map(|u| u.to_string());
     let sender_label = match ctx.from_session_uuid {
-        Some(u) => handle.sender_label(u).await,
+        Some(u) => handle.launch().sender_label(u).await,
         None => None,
     };
     let reminder = crate::store::models::SystemReminder {

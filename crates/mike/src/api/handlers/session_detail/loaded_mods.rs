@@ -1,4 +1,5 @@
 use crate::store::persistence::PersistHandle;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::session_notes::{NoteOrder, SessionNoteFilter, SessionNoteRow};
 
 pub(super) const MODS_NOTE_KIND: &str = "mods";
@@ -24,7 +25,11 @@ pub(super) async fn fetch_loaded_mods(
         limit: 1,
         offset: 0,
     };
-    match handle.fetch_session_notes(session_uuid, filter).await {
+    match handle
+        .launch()
+        .fetch_session_notes(session_uuid, filter)
+        .await
+    {
         Ok(rows) => latest_mods_listing(rows),
         Err(e) => {
             tracing::warn!(

@@ -1,3 +1,4 @@
+use mike::store::persistence::runtime_repo::RuntimePersist as _;
 use std::collections::BTreeMap;
 
 use chrono::Utc;
@@ -113,7 +114,10 @@ pub(super) async fn database()
     };
     let handle = PersistHandle::connect(&db.database_url).await?;
     let namespace = namespace();
-    handle.register_runtime_namespace(&namespace).await?;
+    handle
+        .runtime()
+        .register_runtime_namespace(&namespace)
+        .await?;
     Ok(Some((db, handle, namespace)))
 }
 

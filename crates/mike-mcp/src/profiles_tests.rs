@@ -147,8 +147,8 @@ fn full_serves_every_tool() {
 }
 
 #[test]
-fn only_full_serves_the_five_tools_a_launched_seat_does_not_need() {
-    assert_eq!(FULL_ONLY_TOOLS.len(), 5);
+fn only_full_serves_the_four_tools_a_launched_seat_does_not_need() {
+    assert_eq!(FULL_ONLY_TOOLS.len(), 4);
     let full = names(Profile::Full);
     for tool in FULL_ONLY_TOOLS {
         assert!(full.contains(*tool), "full lacks {tool}");

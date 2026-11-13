@@ -1,3 +1,4 @@
+use mike::store::persistence::runtime_repo::RuntimePersist as _;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -14,6 +15,7 @@ async fn raw_receipt_pagination_returns_whole_trusted_and_legacy_receipts() -> a
     };
     let first = captured(
         handle
+            .runtime()
             .capture_codex_receipt(input(namespace.id, delta("first\0text"))?)
             .await?,
     )?;
@@ -22,13 +24,15 @@ async fn raw_receipt_pagination_returns_whole_trusted_and_legacy_receipts() -> a
         legacy_input.envelope.clone(),
         legacy_input.raw_payload.clone(),
     )?;
-    handle.append_runtime_observation(&legacy).await?;
+    handle.runtime().append_runtime_observation(&legacy).await?;
     let legacy = handle
+        .runtime()
         .runtime_receipt(receipt_id(&legacy_input))
         .await?
         .ok_or_else(|| anyhow::anyhow!("missing legacy receipt"))?;
     let last = captured(
         handle
+            .runtime()
             .capture_codex_receipt(input(namespace.id, delta("last\0text"))?)
             .await?,
     )?;
@@ -37,6 +41,7 @@ async fn raw_receipt_pagination_returns_whole_trusted_and_legacy_receipts() -> a
     let mut actual = Vec::new();
     for expected_row in &expected {
         let rows = handle
+            .runtime()
             .list_runtime_raw_events(RawEventPage {
                 namespace_id: namespace.id,
                 after_event_id: cursor,
@@ -50,6 +55,7 @@ async fn raw_receipt_pagination_returns_whole_trusted_and_legacy_receipts() -> a
     assert_eq!(actual, expected);
     assert!(
         handle
+            .runtime()
             .list_runtime_raw_events(RawEventPage {
                 namespace_id: namespace.id,
                 after_event_id: cursor,
@@ -60,6 +66,7 @@ async fn raw_receipt_pagination_returns_whole_trusted_and_legacy_receipts() -> a
     );
     assert_eq!(
         handle
+            .runtime()
             .list_codex_unclassified_receipts(RawEventPage {
                 namespace_id: namespace.id,
                 after_event_id: 0,
@@ -81,6 +88,7 @@ async fn terminal_command_state_survives_reload_and_keeps_late_output_as_evidenc
     };
     let generation_id = Uuid::new_v4();
     handle
+        .runtime()
         .begin_codex_projection_generation(namespace.id, generation_id)
         .await?;
     let frames = [
@@ -99,16 +107,22 @@ async fn terminal_command_state_survives_reload_and_keeps_late_output_as_evidenc
     ];
     for (index, frame) in frames.into_iter().enumerate() {
         handle
+            .runtime()
             .capture_codex_receipt(input(namespace.id, frame)?)
             .await?;
-        handle.apply_next_codex_projection(generation_id).await?;
+        handle
+            .runtime()
+            .apply_next_codex_projection(generation_id)
+            .await?;
         let restored = handle
+            .runtime()
             .codex_projected_item(generation_id, &key(namespace.id))
             .await?
             .ok_or_else(|| anyhow::anyhow!("missing command"))?;
         assert_eq!(restored.item.terminal, index >= 2);
     }
     let state = handle
+        .runtime()
         .codex_projected_item(generation_id, &key(namespace.id))
         .await?
         .ok_or_else(|| anyhow::anyhow!("missing terminal command"))?;
@@ -146,6 +160,7 @@ async fn terminal_command_state_survives_reload_and_keeps_late_output_as_evidenc
     assert_eq!(command.exit_code.value(), Some(&0));
     assert_eq!(
         handle
+            .runtime()
             .list_codex_projection_effects(super::test_support::page(generation_id))
             .await?
             .len(),

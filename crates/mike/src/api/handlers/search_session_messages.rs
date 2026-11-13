@@ -41,8 +41,11 @@ fn absorb_message(
     acc: &mut ScanAcc,
 ) {
     let params = ctx.params;
-    let offsets =
-        crate::api::body_search::match_offsets(&message.text, params.needle, params.case_sensitive);
+    let offsets = crate::web_base::body_search::match_offsets(
+        &message.text,
+        params.needle,
+        params.case_sensitive,
+    );
     if offsets.is_empty() {
         return;
     }
@@ -62,7 +65,7 @@ fn absorb_message(
         }
         acc.full_count += 1;
         if acc.has_room(params.max_matches) {
-            let found = crate::api::body_search::text_match_at(
+            let found = crate::web_base::body_search::text_match_at(
                 &message.text,
                 offset,
                 params.needle.len(),

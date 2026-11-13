@@ -1,4 +1,4 @@
-use crate::config::AppState;
+use crate::state::AppState;
 
 pub(super) async fn run_startup_sequence(state: &AppState) {
     warn_on_non_loopback_binds(state);
@@ -21,7 +21,7 @@ pub(super) async fn run_startup_sequence(state: &AppState) {
 
     crate::observability::banner::emit_startup_banner(state).await;
 
-    crate::change_feed::spawn_change_feed(state);
+    state.spawn_change_feed();
 
     crate::db_listener::spawn_listener(state);
 }

@@ -1,3 +1,4 @@
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use sqlx::postgres::PgPoolOptions;
 
 use mike::store::persistence::PersistHandle;
@@ -41,6 +42,7 @@ async fn lesson_outcomes_excludes_verdicts_judged_before_injection() -> anyhow::
             .await?;
 
     let lesson = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "correction",
@@ -87,7 +89,10 @@ async fn lesson_outcomes_excludes_verdicts_judged_before_injection() -> anyhow::
     .execute(&pool)
     .await?;
 
-    let rows = handle.lesson_outcomes_observed_after_injection().await?;
+    let rows = handle
+        .lessons()
+        .lesson_outcomes_observed_after_injection()
+        .await?;
     let mine: Vec<_> = rows.iter().filter(|r| r.lesson_id == lesson.id).collect();
     assert_eq!(
         mine.len(),
@@ -144,6 +149,7 @@ async fn lesson_outcomes_counts_verdicts_once_not_per_injection() -> anyhow::Res
     assert_eq!(request_ids.len(), 3, "seed_session_turns must land 3 rows");
 
     let lesson = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "convention",
@@ -182,7 +188,10 @@ async fn lesson_outcomes_counts_verdicts_once_not_per_injection() -> anyhow::Res
     .execute(&pool)
     .await?;
 
-    let rows = handle.lesson_outcomes_observed_after_injection().await?;
+    let rows = handle
+        .lessons()
+        .lesson_outcomes_observed_after_injection()
+        .await?;
     let mine: Vec<_> = rows.iter().filter(|r| r.lesson_id == lesson.id).collect();
     assert_eq!(
         mine.len(),

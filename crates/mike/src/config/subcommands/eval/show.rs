@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use anyhow::{Context, Result};
 
 use super::args_runs::EvalShowArgs;
@@ -18,7 +19,7 @@ async fn print_items(
             offset,
             ..RunItemsFilter::default()
         };
-        let (items, total) = persist.list_eval_run_items(run_id, &filter).await?;
+        let (items, total) = persist.eval().list_eval_run_items(run_id, &filter).await?;
         for item in &items {
             println!("{}", serde_json::to_string(item)?);
         }
@@ -33,6 +34,7 @@ pub(super) async fn show(args: EvalShowArgs, cli: CliOverrides) -> Result<i32> {
     let persist = super::connect(cli, false).await?;
     if args.gate {
         let gate = persist
+            .eval()
             .get_eval_gate(args.id)
             .await?
             .with_context(|| format!("no eval gate {}", args.id))?;
@@ -40,6 +42,7 @@ pub(super) async fn show(args: EvalShowArgs, cli: CliOverrides) -> Result<i32> {
         return Ok(0);
     }
     let run = persist
+        .eval()
         .get_eval_run(args.id)
         .await?
         .with_context(|| format!("no eval run {}", args.id))?;

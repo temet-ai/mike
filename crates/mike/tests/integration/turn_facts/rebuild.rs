@@ -1,6 +1,7 @@
 use chrono::{Duration, Utc};
 use mike::config::subcommands::dossier_backfill::{BackfillOptions, BackfillStage, guard_execute};
 use mike::dossier::build::build_sessions;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 
 use super::resolution::{build, cfg, facts, message};
 use super::{Fixture, fixture, sample_row};
@@ -76,11 +77,12 @@ async fn older_build_does_not_overwrite_a_newer_row() -> anyhow::Result<()> {
     let mut newer = sample_row(turn, f.session_id, f.base + Duration::minutes(10));
     newer.text_chars = 42;
     f.handle
+        .dossier()
         .upsert_turn_facts(std::slice::from_ref(&newer))
         .await?;
     let mut older = sample_row(turn, f.session_id, f.base + Duration::minutes(1));
     older.text_chars = 7;
-    let outcome = f.handle.upsert_turn_facts(&[older]).await?;
+    let outcome = f.handle.dossier().upsert_turn_facts(&[older]).await?;
     assert_eq!(
         (outcome.inserted, outcome.updated),
         (0, 0),

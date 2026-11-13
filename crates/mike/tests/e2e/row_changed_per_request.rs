@@ -6,7 +6,8 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use mike::app::proxy_router;
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use serde_json::{Value, json};
 use sqlx::postgres::{PgListener, PgPoolOptions};
 use tokio::net::TcpListener;

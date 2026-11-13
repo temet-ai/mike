@@ -64,7 +64,7 @@ Two pieces, both shipped.
 
 ### A. Boot-time failover (capture never goes blind)
 
-`build_persist_handle` (`crates/mike/src/config/persist_bootstrap.rs`) probes the configured
+`build_persist_handle` (`crates/mike-base/src/config/persist_bootstrap.rs`) probes the configured
 remote URL at startup. If `ProxyConfig::database_url` fails specifically with a connectivity error
 (`PersistError::Connect`), AND `db_fallback_enabled` is set, AND `local_database_url` is
 configured, the proxy connects to the local fallback DB instead — capture never goes blind. A
@@ -76,7 +76,7 @@ failover is connectivity-only; genuine misconfiguration still fails fast.
 
 ### B. Async resync worker (local-only rows → remote)
 
-`crates/mike/src/resync/` (`worker.rs` plus the `engine/` module) — a background tokio task that,
+`crates/mike-features/src/resync/` (`worker.rs` plus the `engine/` module) — a background tokio task that,
 when **both** DBs are reachable, incrementally streams rows that exist only in the local DB into
 the remote DB. Never a bulk copy — it walks new rows past a persisted cursor and upserts them one
 dependency level at a time.
@@ -94,7 +94,7 @@ Four mechanisms, all implemented:
    [`SCHEMA.md`](SCHEMA.md#domain-sync)). The worker only reads rows past the cursor —
    incremental and resumable across restarts.
 2. **One drain per boot, no poll loop at all.** `resync::worker::spawn_resync_worker`
-   (`crates/mike/src/resync/worker.rs`) runs the drain exactly once, at spawn, and the task then
+   (`crates/mike-features/src/resync/worker.rs`) runs the drain exactly once, at spawn, and the task then
    ends — there is no tick interval, no timer and no `TICK_INTERVAL` constant. **Merging
    local-only rows back into the remote DB therefore requires restarting the proxy** once the
    remote is reachable; a remote that comes back while mike is running does not trigger a drain.
@@ -104,7 +104,7 @@ Four mechanisms, all implemented:
    captured/synced tables either — a trigger firing per captured request would add write cost on
    the proxy hot path (the hot tier tolerates no added write cost).
 3. **Dependency-ordered, idempotent replay.** `ResyncEngine::replay_pending`
-   (`crates/mike/src/resync/engine/replay.rs`) walks tables in the baseline's topological order
+   (`crates/mike-features/src/resync/engine/replay.rs`) walks tables in the baseline's topological order
    (`projects → sessions → messages/system_prompts → requests → responses/tools → agents →
    overrides → memory`). Each row is upserted on its natural key where one exists, never on
    surrogate id.
@@ -135,9 +135,9 @@ once both endpoints are in the id_map — the same deferred-edge handling the ba
 ## Configuration
 
 Boot keys, layered `defaults < selected TOML config < MIKE_* env < CLI flags` per
-`crates/mike/src/config/load/mod.rs`. The fields are declared in `crates/mike/src/config/schema.rs`,
-their defaults in `crates/mike/src/config/proxy_config_defaults.rs`, and the flags in
-`crates/mike/src/config/load/cli_overrides.rs`:
+`crates/mike-base/src/config/load/mod.rs`. The fields are declared in `crates/mike-base/src/config/schema.rs`,
+their defaults in `crates/mike-base/src/config/proxy_config_defaults.rs`, and the flags in
+`crates/mike-base/src/config/load/cli_overrides.rs`:
 
 | Key | Env | CLI flag | Default |
 |---|---|---|---|
@@ -263,5 +263,5 @@ per-row correlated sha subqueries.
   guards against.
 - **`bytea` bodies** (`request_body`, `response_body`) round-trip fine but dominate row size. The
   replay reads a fixed `BATCH_SIZE` of 500 rows per table pass
-  (`crates/mike/src/resync/engine/mod.rs`); it is not sized by body bytes, so a table of large
+  (`crates/mike-features/src/resync/engine/mod.rs`); it is not sized by body bytes, so a table of large
   bodies moves more data per batch than a table of small ones.

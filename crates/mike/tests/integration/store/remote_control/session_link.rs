@@ -1,4 +1,5 @@
 use chrono::Utc;
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 
 use mike::store::persistence::remote_control::{
     PATH_HEARTBEAT, RemoteControlCall, RemoteControlSignals,
@@ -16,6 +17,7 @@ async fn the_first_attachment_payload_wins_the_session_link() -> anyhow::Result<
     let second_uuid = uuid::Uuid::new_v4().to_string();
 
     handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             signals: RemoteControlSignals {
                 local_session_uuid: Some(&first_uuid),
@@ -27,6 +29,7 @@ async fn the_first_attachment_payload_wins_the_session_link() -> anyhow::Result<
         })
         .await?;
     handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             signals: RemoteControlSignals {
                 local_session_uuid: Some(&second_uuid),
@@ -83,6 +86,7 @@ async fn a_matching_session_row_resolves_session_id() -> anyhow::Result<()> {
 
     let uuid_str = session_uuid.to_string();
     handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             signals: RemoteControlSignals {
                 local_session_uuid: Some(&uuid_str),
@@ -113,6 +117,7 @@ async fn an_unknown_session_uuid_leaves_session_id_null() -> anyhow::Result<()> 
     let uuid_str = uuid::Uuid::new_v4().to_string();
 
     handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             signals: RemoteControlSignals {
                 local_session_uuid: Some(&uuid_str),
@@ -145,6 +150,7 @@ async fn a_malformed_session_uuid_is_dropped_not_rejected() -> anyhow::Result<()
     let cse_id = unique("cse_malformed");
 
     handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             signals: RemoteControlSignals {
                 local_session_uuid: Some("not-a-uuid"),
@@ -180,6 +186,7 @@ async fn worker_status_transitions_are_appended_only_on_change() -> anyhow::Resu
 
     for (offset, status) in [(0, "idle"), (1, "idle"), (2, "requires_action")] {
         handle
+            .proxy()
             .record_remote_control_call(RemoteControlCall {
                 created_at: at + chrono::Duration::seconds(offset),
                 signals: RemoteControlSignals {
@@ -207,7 +214,10 @@ async fn worker_status_transitions_are_appended_only_on_change() -> anyhow::Resu
          the repeated idle must not append a second row"
     );
 
-    let history = handle.fetch_worker_status_history(session_uuid, 10).await?;
+    let history = handle
+        .proxy()
+        .fetch_worker_status_history(session_uuid, 10)
+        .await?;
     assert_eq!(history.len(), 2);
     assert_eq!(history[0].from_status.as_deref(), Some("idle"));
     assert_eq!(history[0].to_status, "requires_action");
@@ -228,6 +238,7 @@ async fn channel_snapshot_reports_stream_open_and_post_turn_summary() -> anyhow:
     let session_uuid: uuid::Uuid = uuid_str.parse()?;
 
     handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             signals: RemoteControlSignals {
                 local_session_uuid: Some(&uuid_str),
@@ -239,6 +250,7 @@ async fn channel_snapshot_reports_stream_open_and_post_turn_summary() -> anyhow:
         })
         .await?;
     handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             signals: RemoteControlSignals {
                 post_turn_summary: Some(&serde_json::json!({"status_category": "completed"})),
@@ -249,6 +261,7 @@ async fn channel_snapshot_reports_stream_open_and_post_turn_summary() -> anyhow:
         .await?;
 
     let stream_call_id = handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             completed_at: None,
             ..call_at(
@@ -259,7 +272,10 @@ async fn channel_snapshot_reports_stream_open_and_post_turn_summary() -> anyhow:
         })
         .await?;
 
-    let open = handle.fetch_channel_snapshots(&[session_uuid]).await?;
+    let open = handle
+        .proxy()
+        .fetch_channel_snapshots(&[session_uuid])
+        .await?;
     assert_eq!(open.len(), 1);
     assert!(open[0].stream_open, "the stream is open, never closed yet");
     assert_eq!(open[0].last_idle_seconds, Some(7));
@@ -269,10 +285,14 @@ async fn channel_snapshot_reports_stream_open_and_post_turn_summary() -> anyhow:
     );
 
     handle
+        .proxy()
         .close_remote_control_stream(stream_call_id, Utc::now())
         .await?;
 
-    let closed = handle.fetch_channel_snapshots(&[session_uuid]).await?;
+    let closed = handle
+        .proxy()
+        .fetch_channel_snapshots(&[session_uuid])
+        .await?;
     assert_eq!(closed.len(), 1);
     assert!(
         !closed[0].stream_open,
@@ -298,6 +318,7 @@ async fn channel_snapshots_are_scoped_to_the_requested_session_uuids() -> anyhow
         (unique("cse_other"), &other_str),
     ] {
         handle
+            .proxy()
             .record_remote_control_call(RemoteControlCall {
                 signals: RemoteControlSignals {
                     local_session_uuid: Some(uuid_str),
@@ -308,7 +329,7 @@ async fn channel_snapshots_are_scoped_to_the_requested_session_uuids() -> anyhow
             .await?;
     }
 
-    let rows = handle.fetch_channel_snapshots(&[wanted]).await?;
+    let rows = handle.proxy().fetch_channel_snapshots(&[wanted]).await?;
     assert_eq!(
         rows.len(),
         1,

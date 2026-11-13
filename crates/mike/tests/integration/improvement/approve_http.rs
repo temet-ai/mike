@@ -3,7 +3,8 @@ use axum::extract::{Path, State};
 use axum::http::HeaderMap;
 
 use mike::api::cross_session_approve::{ApproveBody, approve_proposal};
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use mike::store::test_support;
 
 use crate::test_db::TestDb;

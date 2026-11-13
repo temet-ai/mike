@@ -29,8 +29,21 @@ const NOT_LIVE_READS: [NotLiveRead; 3] = [
     },
 ];
 
-fn src_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("src")
+fn src_roots() -> Vec<PathBuf> {
+    let crates = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    ["mike", "mike-base", "mike-features"]
+        .iter()
+        .map(|name| crates.join(name).join("src"))
+        .collect()
+}
+
+fn locate(relative: &str) -> PathBuf {
+    let roots = src_roots();
+    roots
+        .iter()
+        .map(|root| root.join(relative))
+        .find(|path| path.exists())
+        .unwrap_or_else(|| roots[0].join(relative))
 }
 
 fn source_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
@@ -93,18 +106,19 @@ fn offending_reads(rel: &str, text: &str) -> Vec<usize> {
 
 #[test]
 fn session_verdict_readers_every_read_filters_live_mode() -> anyhow::Result<()> {
-    let root = src_root();
-    let mut files = Vec::new();
-    source_files(&root, &mut files)?;
     let mut offenders = Vec::new();
-    for file in files {
-        let text = std::fs::read_to_string(&file)?;
-        let rel = file
-            .strip_prefix(&root)?
-            .to_string_lossy()
-            .replace('\\', "/");
-        for line in offending_reads(&rel, &text) {
-            offenders.push(format!("{rel}:{line}"));
+    for root in src_roots() {
+        let mut files = Vec::new();
+        source_files(&root, &mut files)?;
+        for file in files {
+            let text = std::fs::read_to_string(&file)?;
+            let rel = file
+                .strip_prefix(&root)?
+                .to_string_lossy()
+                .replace('\\', "/");
+            for line in offending_reads(&rel, &text) {
+                offenders.push(format!("{rel}:{line}"));
+            }
         }
     }
     assert!(
@@ -117,7 +131,7 @@ fn session_verdict_readers_every_read_filters_live_mode() -> anyhow::Result<()> 
 #[test]
 fn session_verdict_readers_every_listed_read_is_still_that_read() -> anyhow::Result<()> {
     for read in &NOT_LIVE_READS {
-        let text = std::fs::read_to_string(src_root().join(read.file))?;
+        let text = std::fs::read_to_string(locate(read.file))?;
         assert_eq!(
             unfiltered_reads(&text).len(),
             1,

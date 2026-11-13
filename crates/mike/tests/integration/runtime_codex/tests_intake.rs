@@ -1,3 +1,4 @@
+use mike::store::persistence::runtime_repo::RuntimePersist as _;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -19,9 +20,17 @@ async fn trusted_capture_exact_retry_preserves_bytes_context_id_and_sequence() -
         .envelope
         .extra
         .insert("future".into(), json!({"value":"\0"}));
-    let first = captured(handle.capture_codex_receipt(request.clone()).await?)?;
+    let first = captured(
+        handle
+            .runtime()
+            .capture_codex_receipt(request.clone())
+            .await?,
+    )?;
     assert_eq!(first.capture_sequence, Some(1));
-    let retry = handle.capture_codex_receipt(request.clone()).await?;
+    let retry = handle
+        .runtime()
+        .capture_codex_receipt(request.clone())
+        .await?;
     assert!(matches!(
         &retry,
         CodexCaptureOutcome::Captured {
@@ -31,7 +40,10 @@ async fn trusted_capture_exact_retry_preserves_bytes_context_id_and_sequence() -
     ));
     assert_eq!(captured(retry)?, first);
     assert_eq!(
-        handle.runtime_receipt(receipt_id(&request)).await?,
+        handle
+            .runtime()
+            .runtime_receipt(receipt_id(&request))
+            .await?,
         Some(first)
     );
     assert_eq!(count(&handle, namespace.id, "events").await?, 1);
@@ -47,13 +59,30 @@ async fn trusted_receipt_changes_to_bytes_envelope_or_context_conflict() -> anyh
         return Ok(());
     };
     let request = input(namespace.id, delta("A"))?;
-    let original = captured(handle.capture_codex_receipt(request.clone()).await?)?;
+    let original = captured(
+        handle
+            .runtime()
+            .capture_codex_receipt(request.clone())
+            .await?,
+    )?;
     let mut changed = request.clone();
     changed.raw_payload.push(b' ');
-    assert!(handle.capture_codex_receipt(changed).await.is_err());
+    assert!(
+        handle
+            .runtime()
+            .capture_codex_receipt(changed)
+            .await
+            .is_err()
+    );
     changed = request.clone();
     changed.envelope.source_cursor = Some("another".into());
-    assert!(handle.capture_codex_receipt(changed).await.is_err());
+    assert!(
+        handle
+            .runtime()
+            .capture_codex_receipt(changed)
+            .await
+            .is_err()
+    );
     changed = request.clone();
     changed.context = CodexIntakeContext::new(
         IntakeContext::default(),
@@ -61,9 +90,18 @@ async fn trusted_receipt_changes_to_bytes_envelope_or_context_conflict() -> anyh
         1,
         ClassificationProvenance::ReviewedNotification,
     )?;
-    assert!(handle.capture_codex_receipt(changed).await.is_err());
+    assert!(
+        handle
+            .runtime()
+            .capture_codex_receipt(changed)
+            .await
+            .is_err()
+    );
     assert_eq!(
-        handle.runtime_receipt(receipt_id(&request)).await?,
+        handle
+            .runtime()
+            .runtime_receipt(receipt_id(&request))
+            .await?,
         Some(original)
     );
     handle.pool().close().await;
@@ -91,7 +129,12 @@ async fn rpc_context_changes_preserve_typed_ids_and_never_reclassify_retries() -
         0,
         IntakeContext::new(Some(&scope)),
     )?;
-    let original = captured(handle.capture_codex_receipt(request.clone()).await?)?;
+    let original = captured(
+        handle
+            .runtime()
+            .capture_codex_receipt(request.clone())
+            .await?,
+    )?;
     for changed_scope in [
         RpcScope {
             method: "thread/items/list".into(),
@@ -112,7 +155,13 @@ async fn rpc_context_changes_preserve_typed_ids_and_never_reclassify_retries() -
             0,
             ClassificationProvenance::ReviewedOrdinaryRoute,
         )?;
-        assert!(handle.capture_codex_receipt(request.clone()).await.is_err());
+        assert!(
+            handle
+                .runtime()
+                .capture_codex_receipt(request.clone())
+                .await
+                .is_err()
+        );
     }
     let wrong_id = RpcScope {
         request_id: RequestId::Integer(7),
@@ -125,11 +174,17 @@ async fn rpc_context_changes_preserve_typed_ids_and_never_reclassify_retries() -
         ClassificationProvenance::ReviewedRpcResponse,
     )?;
     assert!(matches!(
-        handle.capture_codex_receipt(request.clone()).await?,
+        handle
+            .runtime()
+            .capture_codex_receipt(request.clone())
+            .await?,
         CodexCaptureOutcome::Excluded(ExclusionReason::UncorrelatedResponse)
     ));
     assert_eq!(
-        handle.runtime_receipt(receipt_id(&request)).await?,
+        handle
+            .runtime()
+            .runtime_receipt(receipt_id(&request))
+            .await?,
         Some(original)
     );
     handle.pool().close().await;
@@ -156,7 +211,7 @@ async fn auth_ambiguous_and_unknown_unclassified_frames_never_enter_capture() ->
             IntakeContext::ordinary(),
         )?;
         assert!(matches!(
-            handle.capture_codex_receipt(request).await?,
+            handle.runtime().capture_codex_receipt(request).await?,
             CodexCaptureOutcome::Excluded(_)
         ));
     }
@@ -172,7 +227,7 @@ async fn auth_ambiguous_and_unknown_unclassified_frames_never_enter_capture() ->
             IntakeContext::default(),
         )?;
         assert!(matches!(
-            handle.capture_codex_receipt(request).await?,
+            handle.runtime().capture_codex_receipt(request).await?,
             CodexCaptureOutcome::Excluded(ExclusionReason::UnclassifiedTraffic)
         ));
     }
@@ -191,9 +246,16 @@ async fn legacy_raw_receipts_remain_unclassified_and_cannot_gain_context() -> an
     };
     let request = input(namespace.id, delta("legacy"))?;
     let raw = RuntimeObservation::new(request.envelope.clone(), request.raw_payload.clone())?;
-    handle.append_runtime_observation(&raw).await?;
-    assert!(handle.capture_codex_receipt(request.clone()).await.is_err());
+    handle.runtime().append_runtime_observation(&raw).await?;
+    assert!(
+        handle
+            .runtime()
+            .capture_codex_receipt(request.clone())
+            .await
+            .is_err()
+    );
     let rows = handle
+        .runtime()
         .list_codex_unclassified_receipts(RawEventPage {
             namespace_id: namespace.id,
             after_event_id: 0,
@@ -204,10 +266,12 @@ async fn legacy_raw_receipts_remain_unclassified_and_cannot_gain_context() -> an
     assert_eq!(rows[0].observation, raw);
     assert!(rows[0].context.is_none());
     let generation = handle
+        .runtime()
         .begin_codex_projection_generation(namespace.id, Uuid::new_v4())
         .await?;
     assert!(matches!(
         handle
+            .runtime()
             .apply_next_codex_projection(generation.generation_id)
             .await?,
         super::CodexProjectionApplyOutcome::CaughtUp(_)
@@ -225,8 +289,8 @@ async fn concurrent_identical_capture_writes_one_raw_receipt_and_context() -> an
     };
     let request = input(namespace.id, delta("A"))?;
     let (first, second) = tokio::join!(
-        handle.capture_codex_receipt(request.clone()),
-        handle.capture_codex_receipt(request)
+        handle.runtime().capture_codex_receipt(request.clone()),
+        handle.runtime().capture_codex_receipt(request)
     );
     assert_eq!(captured(first?)?, captured(second?)?);
     assert_eq!(count(&handle, namespace.id, "events").await?, 1);
@@ -250,7 +314,7 @@ async fn transport_duplicates_regressions_and_gaps_are_detected() -> anyhow::Res
         5,
         IntakeContext::ordinary(),
     )?;
-    handle.capture_codex_receipt(first).await?;
+    handle.runtime().capture_codex_receipt(first).await?;
     for ordinal in [5, 4] {
         let request = input_at(
             namespace.id,
@@ -259,7 +323,13 @@ async fn transport_duplicates_regressions_and_gaps_are_detected() -> anyhow::Res
             ordinal,
             IntakeContext::ordinary(),
         )?;
-        assert!(handle.capture_codex_receipt(request).await.is_err());
+        assert!(
+            handle
+                .runtime()
+                .capture_codex_receipt(request)
+                .await
+                .is_err()
+        );
     }
     let gap = input_at(
         namespace.id,
@@ -269,11 +339,11 @@ async fn transport_duplicates_regressions_and_gaps_are_detected() -> anyhow::Res
         IntakeContext::ordinary(),
     )?;
     assert_eq!(
-        captured(handle.capture_codex_receipt(gap).await?)?.transport_gap,
+        captured(handle.runtime().capture_codex_receipt(gap).await?)?.transport_gap,
         Some(true)
     );
     let next = input_at(namespace.id, bytes, epoch, 8, IntakeContext::ordinary())?;
-    let next = captured(handle.capture_codex_receipt(next).await?)?;
+    let next = captured(handle.runtime().capture_codex_receipt(next).await?)?;
     assert_eq!(next.transport_gap, Some(false));
     assert_eq!(next.capture_sequence, Some(3));
     handle.pool().close().await;

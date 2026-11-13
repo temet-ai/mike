@@ -1,3 +1,4 @@
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 use mike::store::persistence::PersistHandle;
@@ -21,11 +22,17 @@ async fn link_channel_to_session_linked_once_then_already_linked_or_no_channel()
 
     assert_eq!(
         handle
+            .launch()
             .link_channel_to_session(&cse_absent, session, "/tmp/p")
             .await?,
         LinkOutcome::NoChannel
     );
-    assert!(!handle.session_has_remote_control_channel(session).await?);
+    assert!(
+        !handle
+            .launch()
+            .session_has_remote_control_channel(session)
+            .await?
+    );
 
     sqlx::query("INSERT INTO remote_control.channels (cse_id) VALUES ($1)")
         .bind(&cse_fresh)
@@ -33,20 +40,37 @@ async fn link_channel_to_session_linked_once_then_already_linked_or_no_channel()
         .await?;
     assert_eq!(
         handle
+            .launch()
             .link_channel_to_session(&cse_fresh, session, "/tmp/p")
             .await?,
         LinkOutcome::Linked
     );
-    assert!(handle.session_has_remote_control_channel(session).await?);
+    assert!(
+        handle
+            .launch()
+            .session_has_remote_control_channel(session)
+            .await?
+    );
 
     assert_eq!(
         handle
+            .launch()
             .link_channel_to_session(&cse_fresh, other, "/tmp/other")
             .await?,
         LinkOutcome::AlreadyLinked
     );
-    assert!(handle.session_has_remote_control_channel(session).await?);
-    assert!(!handle.session_has_remote_control_channel(other).await?);
+    assert!(
+        handle
+            .launch()
+            .session_has_remote_control_channel(session)
+            .await?
+    );
+    assert!(
+        !handle
+            .launch()
+            .session_has_remote_control_channel(other)
+            .await?
+    );
     let (linked, cwd): (Option<Uuid>, Option<String>) = sqlx::query_as(
         "SELECT local_session_uuid, local_cwd FROM remote_control.channels WHERE cse_id = $1",
     )
@@ -75,6 +99,7 @@ async fn link_channel_to_session_existing_cwd_is_kept() -> anyhow::Result<()> {
         .await?;
     assert_eq!(
         handle
+            .launch()
             .link_channel_to_session(&cse_cwd, session, "/from-launcher")
             .await?,
         LinkOutcome::Linked

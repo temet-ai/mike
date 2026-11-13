@@ -1,4 +1,6 @@
 use chrono::{Duration, Utc};
+use mike::store::persistence::fleet_repo::FleetPersist as _;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -55,6 +57,7 @@ async fn a_seats_command_still_running_is_listed_with_no_result() -> anyhow::Res
     let session = Uuid::new_v4();
     let use_id = seed_bash_use_without_result(handle.pool(), session, 71_001).await?;
     handle
+        .launch()
         .upsert_run(&NewRun {
             run_id: "fleet-tree-results-1".to_owned(),
             project_path: Some("/tmp/tree-results".to_owned()),
@@ -67,9 +70,10 @@ async fn a_seats_command_still_running_is_listed_with_no_result() -> anyhow::Res
     launch.session_uuid = Some(session);
     launch.run_id = Some("fleet-tree-results-1".to_owned());
     launch.seat = Some("rust-developer-T1".to_owned());
-    handle.insert_launch(&launch).await?;
+    handle.launch().insert_launch(&launch).await?;
 
     let rows = handle
+        .fleet()
         .tree_results(
             "fleet-tree-results-1",
             Some("cargo test"),
@@ -87,6 +91,7 @@ async fn a_seats_command_still_running_is_listed_with_no_result() -> anyhow::Res
     assert!(rows[0].is_error.is_none());
     assert!(rows[0].content.is_none());
     let none = handle
+        .fleet()
         .tree_results(
             "fleet-tree-results-1",
             Some("pnpm"),

@@ -3,7 +3,7 @@ use serde::Serialize;
 use sqlx::{Postgres, QueryBuilder};
 use uuid::Uuid;
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct TimeSpentFilter<'a> {
@@ -206,9 +206,9 @@ fn with_kind_names(sql: &str) -> String {
     sql.replace("KIND_NAMES", KIND_NAMES)
 }
 
-impl PersistHandle {
+impl crate::store::persistence::web_repo::WebDb<'_> {
     pub(crate) async fn time_spent_by_kind(
-        &self,
+        self,
         filter: &TimeSpentFilter<'_>,
     ) -> Result<Vec<TimeSpentByKindRow>, PersistError> {
         crate::metrics::time_db("time_spent_by_kind", async move {
@@ -224,7 +224,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn time_spent_slow_commands(
-        &self,
+        self,
         filter: &TimeSpentFilter<'_>,
         limit: i64,
         offset: i64,
@@ -251,7 +251,7 @@ impl PersistHandle {
     }
 
     pub(crate) async fn time_spent_builds_running_at_once(
-        &self,
+        self,
         filter: &TimeSpentFilter<'_>,
     ) -> Result<Vec<BuildsRunningAtOnceRow>, PersistError> {
         crate::metrics::time_db("time_spent_builds_running_at_once", async move {

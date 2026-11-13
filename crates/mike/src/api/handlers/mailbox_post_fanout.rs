@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 #[path = "mailbox_fanout_delivery.rs"]
 mod delivery;
@@ -53,6 +54,7 @@ async fn fleet_recipients(
     from_session_uuid: uuid::Uuid,
 ) -> Result<Vec<uuid::Uuid>, Response> {
     match handle
+        .launch()
         .resolve_fleet_target(from_session_uuid, "fleet")
         .await
     {
@@ -78,7 +80,7 @@ async fn attach_requested_tags(
     let Some(tags) = body.tags.as_deref().filter(|t| !t.is_empty()) else {
         return;
     };
-    if let Err(e) = handle.attach_tags_to_thread(thread_id, tags).await {
+    if let Err(e) = handle.launch().attach_tags_to_thread(thread_id, tags).await {
         tracing::warn!(error = %e, %thread_uuid, "post_session_message_role_fanout: tag attach failed");
     }
 }
@@ -99,7 +101,7 @@ pub(crate) async fn post_session_message_fanout(
     let recipient_uuids = audience
         .recipients(handle, sender_project_id, from_session_uuid)
         .await?;
-    let sender_label = handle.sender_label(from_session_uuid).await;
+    let sender_label = handle.launch().sender_label(from_session_uuid).await;
 
     let (thread_id, thread_uuid, subject) = resolve_fanout_thread(
         handle,
@@ -198,7 +200,11 @@ async fn resolve_fanout_sender(
             format!("from_session_id is not a valid UUID: {from_raw}"),
         )
     })?;
-    match handle.resolve_session_core(from_session_uuid).await {
+    match handle
+        .launch()
+        .resolve_session_core(from_session_uuid)
+        .await
+    {
         Ok(Some((created_by_session_id, sender_project_id))) => {
             Ok((from_session_uuid, created_by_session_id, sender_project_id))
         }
@@ -295,6 +301,7 @@ async fn resolve_role_recipients_or_404(
     from_session_uuid: uuid::Uuid,
 ) -> Result<Vec<uuid::Uuid>, Response> {
     let recipient_uuids = match handle
+        .launch()
         .resolve_role_recipients(sender_project_id, role, from_session_uuid)
         .await
     {
@@ -327,6 +334,7 @@ async fn resolve_fanout_thread(
     role: &str,
 ) -> Result<(i64, uuid::Uuid, String), Box<Response>> {
     match handle
+        .launch()
         .resolve_thread_for_send(
             threading.thread_id_param,
             threading.in_reply_to_param,

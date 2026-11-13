@@ -100,7 +100,7 @@ answer never sends ordinary traffic Direct. The probe timeout is never below
 `MIN_PROBE_TIMEOUT` (5 s, applied over `MIKE_FORWARD_PROBE_TIMEOUT`): the health
 handler runs its embedding reachability check, database ping and newest-capture
 read together, each capped at 300 ms (`LIVE_PROBE_DEADLINE` in
-`crates/mike/src/api/handlers/health/probe.rs`), and serves its slow sections
+`crates/mike-features/src/api/handlers/health/probe.rs`), and serves its slow sections
 from values a background task refreshes every 60 s, so its worst case is about
 0.3 s, below `HANDLER_WORST_CASE` (4 s) and the probe timeout.
 
@@ -200,7 +200,7 @@ proxy-forward's direct TLS client. Neither should send its upstream request
 back through `:9987`.
 
 The current mike client is built by
-`crates/mike/src/config/app_state/construction_pipeline.rs::build_http_client`
+`crates/mike-features/src/state/construction_pipeline.rs::build_http_client`
 with `reqwest::ClientBuilder::no_proxy()`. It ignores inherited HTTP proxy
 environment variables. `scripts/deploy-proxy.sh` also unsets upper- and
 lower-case HTTP(S)/ALL proxy variables before launching processes.

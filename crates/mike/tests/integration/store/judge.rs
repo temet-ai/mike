@@ -1,5 +1,7 @@
 use chrono::{DateTime, Utc};
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::eval_repo::EvalPersist as _;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 
 use crate::test_db::TestDb;
 
@@ -13,7 +15,7 @@ async fn record_judge_attempt_counts_attempts_and_resets_failures_on_success() -
     let handle_db = factory.acquire_shared().await?;
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
     let session_uuid = uuid::Uuid::new_v4().to_string();
-    handle.pin_session(&session_uuid).await?;
+    handle.launch().pin_session(&session_uuid).await?;
     let session_db_id = handle
         .resolve_session_db_id(&session_uuid)
         .await?
@@ -23,9 +25,11 @@ async fn record_judge_attempt_counts_attempts_and_resets_failures_on_success() -
     let t0 = Utc::now();
     let step = chrono::Duration::seconds(1);
     handle
+        .eval()
         .record_judge_attempt(session_db_id, &judge_model, 1, t0, true)
         .await?;
     handle
+        .eval()
         .record_judge_attempt(session_db_id, &judge_model, 1, t0 + step, true)
         .await?;
     let read = || async {
@@ -44,6 +48,7 @@ async fn record_judge_attempt_counts_attempts_and_resets_failures_on_success() -
     assert_eq!((count, failures), (2, 2), "failures accumulate per attempt");
 
     handle
+        .eval()
         .record_judge_attempt(session_db_id, &judge_model, 1, t0 + step + step, false)
         .await?;
     let (count, failures, last) = read().await?;
@@ -58,6 +63,7 @@ async fn record_judge_attempt_counts_attempts_and_resets_failures_on_success() -
     );
 
     handle
+        .eval()
         .record_judge_attempt(session_db_id, &judge_model, 1, t0, false)
         .await?;
     let (count, _, last) = read().await?;
@@ -82,7 +88,7 @@ async fn repeated_digest_is_skipped_without_spending_an_attempt() -> anyhow::Res
     let handle_db = factory.acquire_shared().await?;
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
     let session_uuid = uuid::Uuid::new_v4().to_string();
-    handle.pin_session(&session_uuid).await?;
+    handle.launch().pin_session(&session_uuid).await?;
     let session_db_id = handle
         .resolve_session_db_id(&session_uuid)
         .await?
@@ -97,19 +103,30 @@ async fn repeated_digest_is_skipped_without_spending_an_attempt() -> anyhow::Res
     let later = t0 + chrono::Duration::minutes(10);
 
     assert!(
-        !handle.skip_repeated_digest(&key, b"d1", t0).await?,
+        !handle.eval().skip_repeated_digest(&key, b"d1", t0).await?,
         "no attempt row yet, so nothing to repeat"
     );
     handle
+        .eval()
         .record_judge_attempt(session_db_id, &judge_model, 1, t0, false)
         .await?;
     assert!(
-        !handle.skip_repeated_digest(&key, b"d1", t0).await?,
+        !handle.eval().skip_repeated_digest(&key, b"d1", t0).await?,
         "no digest recorded yet"
     );
-    handle.record_judged_digest(&key, b"d1").await?;
-    assert!(!handle.skip_repeated_digest(&key, b"d2", later).await?);
-    assert!(handle.skip_repeated_digest(&key, b"d1", later).await?);
+    handle.eval().record_judged_digest(&key, b"d1").await?;
+    assert!(
+        !handle
+            .eval()
+            .skip_repeated_digest(&key, b"d2", later)
+            .await?
+    );
+    assert!(
+        handle
+            .eval()
+            .skip_repeated_digest(&key, b"d1", later)
+            .await?
+    );
 
     let (count, window, last) = sqlx::query_as::<_, (i32, i32, DateTime<Utc>)>(
         "SELECT attempt_count, window_attempts, last_attempt_at

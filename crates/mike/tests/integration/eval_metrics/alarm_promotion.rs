@@ -1,5 +1,6 @@
 use chrono::Utc;
 use mike::store::persistence::eval_metrics::{AlarmKind, AlarmThresholds};
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use mike::store::persistence::turn_verdicts::{
     TurnVerdictInsert, VerdictCallUsage, VerdictJudgement, VerdictMode, VerdictShape,
 };
@@ -100,6 +101,7 @@ async fn seed_pairs(
     for _ in 0..agree {
         let turn_id = closed_turn(f, start).await?;
         f.handle
+            .eval()
             .insert_turn_verdict(verdict(
                 turn_id,
                 VerdictMode::Live,
@@ -108,6 +110,7 @@ async fn seed_pairs(
             ))
             .await?;
         f.handle
+            .eval()
             .insert_turn_verdict(verdict(
                 turn_id,
                 VerdictMode::Shadow,
@@ -120,6 +123,7 @@ async fn seed_pairs(
     for _ in 0..disagree {
         let turn_id = closed_turn(f, start).await?;
         f.handle
+            .eval()
             .insert_turn_verdict(verdict(
                 turn_id,
                 VerdictMode::Live,
@@ -128,6 +132,7 @@ async fn seed_pairs(
             ))
             .await?;
         f.handle
+            .eval()
             .insert_turn_verdict(verdict(
                 turn_id,
                 VerdictMode::Shadow,
@@ -191,6 +196,7 @@ async fn shadow_disagreement_fires_below_min_kappa_with_enough_pairs() -> anyhow
     let now = crate::seed::database_now(f.handle.pool()).await?;
     let firings = f
         .handle
+        .eval()
         .evaluate_promotion_alarms(&thresholds(50, 0.80, 20), now)
         .await?;
     let subject = format!("turn_judge:{live_id}");
@@ -226,6 +232,7 @@ async fn shadow_disagreement_silent_when_shadow_components_differ() -> anyhow::R
 
     let firings = f
         .handle
+        .eval()
         .evaluate_promotion_alarms(&thresholds(50, 0.80, 20), Utc::now())
         .await?;
     assert!(
@@ -250,6 +257,7 @@ async fn shadow_disagreement_silent_below_min_n() -> anyhow::Result<()> {
 
     let firings = f
         .handle
+        .eval()
         .evaluate_promotion_alarms(&thresholds(50, 0.80, 20), Utc::now())
         .await?;
     assert!(
@@ -274,7 +282,11 @@ async fn shadow_disagreement_silent_when_disabled() -> anyhow::Result<()> {
 
     let mut t = thresholds(50, 0.80, 20);
     t.shadow_disagreement_enabled = false;
-    let firings = f.handle.evaluate_promotion_alarms(&t, Utc::now()).await?;
+    let firings = f
+        .handle
+        .eval()
+        .evaluate_promotion_alarms(&t, Utc::now())
+        .await?;
     assert!(
         firings
             .iter()
@@ -296,6 +308,7 @@ async fn metric_drop_fires_when_precision_wilson_high_below_floor() -> anyhow::R
     let now = crate::seed::database_now(f.handle.pool()).await?;
     let firings = f
         .handle
+        .eval()
         .evaluate_promotion_alarms(&thresholds(50, 0.80, 20), now)
         .await?;
     let subject = format!("turn_judge:{live_id}:precision");
@@ -319,6 +332,7 @@ async fn metric_drop_silent_below_min_n() -> anyhow::Result<()> {
 
     let firings = f
         .handle
+        .eval()
         .evaluate_promotion_alarms(&thresholds(50, 0.80, 20), Utc::now())
         .await?;
     assert!(
@@ -339,7 +353,11 @@ async fn metric_drop_silent_when_disabled() -> anyhow::Result<()> {
 
     let mut t = thresholds(50, 0.80, 20);
     t.metric_drop_enabled = false;
-    let firings = f.handle.evaluate_promotion_alarms(&t, Utc::now()).await?;
+    let firings = f
+        .handle
+        .eval()
+        .evaluate_promotion_alarms(&t, Utc::now())
+        .await?;
     assert!(
         firings.iter().all(|x| x.kind != AlarmKind::MetricDrop),
         "{firings:?}"

@@ -1,3 +1,4 @@
+use mike::store::persistence::fleet_repo::FleetPersist as _;
 use std::time::Duration;
 
 use mike::launch::fleet::test_seams::{control, durable};
@@ -25,7 +26,13 @@ async fn another_persistence_owner_stops_an_admission_waiter_without_local_token
     phase(&h.run, "WaitingAdmission").await?;
     let stopped = h.stop_other().await?;
     assert!(!durable::snapshot(&h.run).stop_requested);
-    assert!(h.other.complete_fleet_run(&stopped, None).await?.is_none());
+    assert!(
+        h.other
+            .fleet()
+            .complete_fleet_run(&stopped, None)
+            .await?
+            .is_none()
+    );
     let receipt = tokio::time::timeout(Duration::from_secs(8), task)
         .await??
         .map_err(anyhow::Error::msg)?;
@@ -49,7 +56,13 @@ async fn another_persistence_owner_stops_an_admission_waiter_without_local_token
         .is_err()
     );
     drop(held);
-    assert!(h.other.complete_fleet_run(&stopped, None).await?.is_some());
+    assert!(
+        h.other
+            .fleet()
+            .complete_fleet_run(&stopped, None)
+            .await?
+            .is_some()
+    );
     h.finish().await
 }
 
@@ -81,8 +94,20 @@ async fn another_persistence_owner_stops_running_work_and_preserves_terminal_out
         receipt.output
     );
     assert!(receipt.finished_at.is_some());
-    assert!(h.persist.pending_fleet_commands(&h.run).await?.is_empty());
-    assert!(h.other.complete_fleet_run(&stopped, None).await?.is_some());
+    assert!(
+        h.persist
+            .fleet()
+            .pending_fleet_commands(&h.run)
+            .await?
+            .is_empty()
+    );
+    assert!(
+        h.other
+            .fleet()
+            .complete_fleet_run(&stopped, None)
+            .await?
+            .is_some()
+    );
     tokio::time::sleep(Duration::from_secs(6)).await;
     assert!(!h.repo.path().join("survived").exists());
     h.finish().await
@@ -111,7 +136,13 @@ async fn spawn_verification_failure_cancels_with_its_distinct_cause() -> anyhow:
         receipt.output
     );
     assert!(!h.repo.path().join("must-not-run").exists());
-    assert!(h.other.pending_fleet_commands(&h.run).await?.is_empty());
+    assert!(
+        h.other
+            .fleet()
+            .pending_fleet_commands(&h.run)
+            .await?
+            .is_empty()
+    );
     h.finish().await
 }
 
@@ -147,6 +178,12 @@ async fn auxiliary_spawn_verification_failure_cancels_with_its_distinct_cause() 
         receipt.output
     );
     assert!(!h.repo.path().join("must-not-run").exists());
-    assert!(h.other.pending_fleet_commands(&h.run).await?.is_empty());
+    assert!(
+        h.other
+            .fleet()
+            .pending_fleet_commands(&h.run)
+            .await?
+            .is_empty()
+    );
     h.finish().await
 }

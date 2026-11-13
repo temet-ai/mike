@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use std::collections::{BTreeSet, HashMap};
 
 use anyhow::{Context, Result, bail};
@@ -65,7 +66,7 @@ pub(super) async fn fleet_mirror(args: FleetMirrorImportArgs, cli: CliOverrides)
     let plan = plan(&args.dir, &args.control_turns)?;
     let persist = connect(cli, args.execute).await?;
     let turns: Vec<i64> = plan.turns.iter().copied().collect();
-    let resolved = persist.resolve_label_turns(&turns).await?;
+    let resolved = persist.eval().resolve_label_turns(&turns).await?;
     check_resolution(&plan, &resolved)?;
     println!(
         "{}",
@@ -81,6 +82,7 @@ pub(super) async fn fleet_mirror(args: FleetMirrorImportArgs, cli: CliOverrides)
     }
     let imported_by = std::env::var("USER").unwrap_or_else(|_| "mike".to_owned());
     match persist
+        .eval()
         .import_fleet_mirror(&plan, &resolved, &imported_by)
         .await?
     {

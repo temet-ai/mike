@@ -1,3 +1,4 @@
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use sqlx::postgres::PgPoolOptions;
 
 use mike::store::persistence::PersistHandle;
@@ -82,6 +83,7 @@ async fn list_lesson_injection_backfill_candidates_finds_marked_requests_and_res
     let _ = unmarked;
 
     let candidates = handle
+        .lessons()
         .list_lesson_injection_backfill_candidates(1, None)
         .await?;
     assert_eq!(
@@ -154,6 +156,7 @@ async fn list_lesson_injection_backfill_candidates_respects_from_to_bounds() -> 
     }
 
     let unbounded = handle
+        .lessons()
         .list_lesson_injection_backfill_candidates(1, None)
         .await?;
     assert_eq!(
@@ -163,6 +166,7 @@ async fn list_lesson_injection_backfill_candidates_respects_from_to_bounds() -> 
     );
 
     let middle_only = handle
+        .lessons()
         .list_lesson_injection_backfill_candidates(request_ids[1], Some(request_ids[1]))
         .await?;
     assert_eq!(
@@ -173,6 +177,7 @@ async fn list_lesson_injection_backfill_candidates_respects_from_to_bounds() -> 
     assert_eq!(middle_only[0].request_id, request_ids[1]);
 
     let from_middle = handle
+        .lessons()
         .list_lesson_injection_backfill_candidates(request_ids[1], None)
         .await?;
     assert_eq!(
@@ -196,6 +201,7 @@ async fn list_lesson_injection_backfill_candidates_does_not_leak_lifted_timeout_
     let handle = PersistHandle::connect(&handle_db.database_url).await?;
 
     let _ = handle
+        .lessons()
         .list_lesson_injection_backfill_candidates(1, None)
         .await?;
 
@@ -251,6 +257,7 @@ async fn insert_backfilled_lesson_injections_is_idempotent() -> anyhow::Result<(
             .await?;
 
     let lesson = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "correction",
@@ -273,11 +280,13 @@ async fn insert_backfilled_lesson_injections_is_idempotent() -> anyhow::Result<(
     };
 
     let first_run = handle
+        .lessons()
         .insert_backfilled_lesson_injections(std::slice::from_ref(&row))
         .await?;
     assert_eq!(first_run, 1, "the first run inserts the reconstructed link");
 
     let second_run = handle
+        .lessons()
         .insert_backfilled_lesson_injections(std::slice::from_ref(&row))
         .await?;
     assert_eq!(second_run, 0, "a re-run must conflict, not duplicate");

@@ -20,7 +20,7 @@ verbose=0
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(git -C "$script_dir" rev-parse --show-toplevel)"
-MIG_DIR="crates/mike/src/store/persistence/migrations"
+MIG_DIR="crates/mike-base/src/store/persistence/migrations"
 
 pass=0 fail=0 notrun=0
 ok()      { pass=$((pass+1)); printf '  PASS  %s\n' "$1"; }

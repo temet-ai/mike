@@ -1,7 +1,24 @@
 use std::path::{Path, PathBuf};
 
-fn src_root() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("src")
+fn src_roots() -> Vec<PathBuf> {
+    let crates = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    ["mike", "mike-base", "mike-features"]
+        .iter()
+        .map(|name| crates.join(name).join("src"))
+        .collect()
+}
+
+fn exists_anywhere(relative: &str) -> bool {
+    src_roots().iter().any(|root| root.join(relative).exists())
+}
+
+fn locate(relative: &str) -> PathBuf {
+    let roots = src_roots();
+    roots
+        .iter()
+        .map(|root| root.join(relative))
+        .find(|path| path.exists())
+        .unwrap_or_else(|| roots[0].join(relative))
 }
 
 fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
@@ -18,7 +35,9 @@ fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
 
 fn files_containing(needle: &str) -> anyhow::Result<Vec<PathBuf>> {
     let mut files = Vec::new();
-    rust_files(&src_root(), &mut files)?;
+    for root in src_roots() {
+        rust_files(&root, &mut files)?;
+    }
     let mut hits = Vec::new();
     for file in files {
         if std::fs::read_to_string(&file)?.contains(needle) {
@@ -31,9 +50,7 @@ fn files_containing(needle: &str) -> anyhow::Result<Vec<PathBuf>> {
 #[test]
 fn turn_closed_trigger_path_and_fast_path_are_deleted() -> anyhow::Result<()> {
     assert!(
-        !src_root()
-            .join("steerer/fleet/triggers/turn_close")
-            .exists(),
+        !exists_anywhere("steerer/fleet/triggers/turn_close"),
         "the turn_closed trigger module must stay deleted"
     );
     for needle in [
@@ -44,7 +61,7 @@ fn turn_closed_trigger_path_and_fast_path_are_deleted() -> anyhow::Result<()> {
         let hits = files_containing(needle)?;
         assert!(hits.is_empty(), "{needle} is back in {hits:?}");
     }
-    let run_loop = std::fs::read_to_string(src_root().join("steerer/fleet/run_loop.rs"))?;
+    let run_loop = std::fs::read_to_string(locate("steerer/fleet/run_loop.rs"))?;
     assert!(
         !run_loop.contains("ProxyEvent::OperatorTurnClosed"),
         "the steerer fleet loop must not handle OperatorTurnClosed"
@@ -63,6 +80,6 @@ fn the_llm_correction_classifier_is_deleted() -> anyhow::Result<()> {
         let hits = files_containing(needle)?;
         assert!(hits.is_empty(), "{needle} is back in {hits:?}");
     }
-    assert!(!src_root().join("analysis/correction.rs").exists());
+    assert!(!exists_anywhere("analysis/correction.rs"));
     Ok(())
 }

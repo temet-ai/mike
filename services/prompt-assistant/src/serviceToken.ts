@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-/** Header mike's credentials route checks; mirrors `HEADER` in crates/mike/src/service_token.rs. */
+/** Header mike's credentials route checks; mirrors `HEADER` in crates/mike-features/src/service_token.rs. */
 export const SERVICE_TOKEN_HEADER = 'x-mike-service-token';
 
 export type ServiceTokenReader = () => Promise<string | null>;

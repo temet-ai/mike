@@ -1,4 +1,5 @@
 use chrono::{Duration, Utc};
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use mike::store::persistence::steering::RegradeOlderVersions;
 use mike::store::persistence::steering_evaluations::{
     EvaluationLabel, EvaluationMode, EvaluationVerdict, NewEvaluation,
@@ -25,6 +26,7 @@ async fn fired_note(f: &OpenTurnFixture) -> anyhow::Result<Note> {
             .await?;
     let evaluation = f
         .handle
+        .steerer()
         .insert_evaluation_dispatched(&NewEvaluation {
             steerer_id,
             session_id: session_db_id,
@@ -62,6 +64,7 @@ async fn fired_note(f: &OpenTurnFixture) -> anyhow::Result<Note> {
         reason: Some("asked for an export".to_owned()),
     };
     f.handle
+        .steerer()
         .resolve_evaluation(evaluation, true, Some(intervention), Some(verdict))
         .await?;
     Ok(Note {
@@ -94,6 +97,7 @@ async fn candidates(
     settles_after_secs: f64,
 ) -> anyhow::Result<Vec<uuid::Uuid>> {
     Ok(f.handle
+        .steerer()
         .reply_label_candidates(
             20,
             Utc::now() - Duration::days(14),
@@ -127,6 +131,7 @@ async fn a_note_is_graded_only_after_the_reply_turn_has_ended() -> anyhow::Resul
         .await?;
     let ready = f
         .handle
+        .steerer()
         .reply_label_candidates(20, Utc::now() - Duration::days(14), regrade("v2", 600.0))
         .await?;
     assert_eq!(ready.len(), 1);
@@ -165,6 +170,7 @@ async fn a_label_from_an_older_labeller_is_graded_again_and_replaced() -> anyhow
         .await?;
     assert_eq!(
         f.handle
+            .steerer()
             .apply_evaluation_labels(&[reply_label(&note, "right", "v1")])
             .await?,
         1
@@ -174,6 +180,7 @@ async fn a_label_from_an_older_labeller_is_graded_again_and_replaced() -> anyhow
 
     assert_eq!(
         f.handle
+            .steerer()
             .apply_evaluation_labels(&[reply_label(&note, "wrong", "v2")])
             .await?,
         1
@@ -181,6 +188,7 @@ async fn a_label_from_an_older_labeller_is_graded_again_and_replaced() -> anyhow
     assert!(candidates(&f, "v2", 600.0).await?.is_empty());
     assert_eq!(
         f.handle
+            .steerer()
             .apply_evaluation_labels(&[reply_label(&note, "right", "v2")])
             .await?,
         0,
@@ -201,6 +209,7 @@ async fn notes_at(
     at: chrono::DateTime<Utc>,
 ) -> anyhow::Result<Vec<mike::store::persistence::steering::SessionNote>> {
     Ok(f.handle
+        .steerer()
         .session_notes_since(session_db_id, at - Duration::hours(1), at, 10)
         .await?)
 }
@@ -220,6 +229,7 @@ async fn a_sessions_recent_notes_carry_how_the_session_took_them() -> anyhow::Re
 
     let before_the_label = database_now(&f.pool).await?;
     f.handle
+        .steerer()
         .apply_evaluation_labels(&[reply_label(&note, "wrong", "v2")])
         .await?;
     let after = notes_at(&f, note.session_db_id, database_now(&f.pool).await?).await?;

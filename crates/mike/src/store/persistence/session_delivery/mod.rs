@@ -10,7 +10,7 @@ pub(crate) use profile::{
     DeliveryAgentRow, DeliveryModelRow, DeliverySessionRow, DeliveryToggleChangeRow,
 };
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 pub(crate) struct SessionDeliveryRows {
     pub(crate) session: DeliverySessionRow,
@@ -25,9 +25,9 @@ pub(crate) struct SessionDeliveryRows {
     pub(crate) tool_uses: Vec<DeliveryToolUseRow>,
 }
 
-impl PersistHandle {
+impl crate::store::persistence::web_repo::WebDb<'_> {
     pub(crate) async fn session_delivery(
-        &self,
+        self,
         session_uuid: Uuid,
         toggle_keys: &[String],
         recall_tools: &[String],

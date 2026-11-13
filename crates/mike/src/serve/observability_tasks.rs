@@ -1,4 +1,4 @@
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::retention::spawn_pruner;
 
 pub(super) struct ObservabilityHandles {

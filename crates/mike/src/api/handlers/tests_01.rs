@@ -21,15 +21,15 @@ pub(crate) fn mask_openrouter_key_short_key_shows_suffix_only() {
 }
 
 pub(crate) fn empty_composer_cache()
--> HashMap<crate::compose_prompt::PromptClassKey, crate::compose_prompt::decision::Composition> {
+-> HashMap<crate::compose_prompt::PromptClassKey, crate::wire::composition::Composition> {
     HashMap::new()
 }
 
 pub(crate) fn fixture_composition(
     prompt_sha256: &str,
     block_texts: &[&str],
-) -> crate::compose_prompt::decision::Composition {
-    use crate::compose_prompt::decision::{Composition, CompositionMode};
+) -> crate::wire::composition::Composition {
+    use crate::wire::composition::{Composition, CompositionMode};
     let ts = fixed_time(2026, 4, 11, 12, 0);
     Composition {
         id: 0,

@@ -1,6 +1,7 @@
 use axum::body::{Body, to_bytes};
 use axum::http::Request;
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use tower::ServiceExt;
 
 #[tokio::test]

@@ -17,7 +17,7 @@ WHERE id > :'cursor'::bigint AND operator_turn_id IS NULL
 ORDER BY id LIMIT 100;
 SQL
     sed 's/\$1::bigint\[\]/ARRAY(SELECT id FROM attribution_batch)/g' \
-      "$repo_root/crates/mike/src/store/persistence/turn_lifecycle/inheritance/attribute.sql"
+      "$repo_root/crates/mike-base/src/store/persistence/turn_lifecycle/inheritance/attribute.sql"
     cat <<'SQL'
 SELECT memory.refresh_inherited_turns(array_agg(DISTINCT r.operator_turn_id))
 FROM requests.requests r JOIN attribution_batch b ON b.id = r.id

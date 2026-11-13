@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use super::{PersistError, PersistHandle};
+use super::PersistError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LlmRoleOutcome {
@@ -20,8 +20,8 @@ pub struct WorkerToggleState {
     pub updated_at: DateTime<Utc>,
 }
 
-impl PersistHandle {
-    pub async fn llm_role_outcomes(&self) -> Result<Vec<LlmRoleOutcome>, PersistError> {
+impl crate::store::persistence::web_repo::WebDb<'_> {
+    pub async fn llm_role_outcomes(self) -> Result<Vec<LlmRoleOutcome>, PersistError> {
         crate::metrics::time_db("llm_role_outcomes", async move {
             Ok(sqlx::query_as!(
                 LlmRoleOutcome,
@@ -50,7 +50,7 @@ impl PersistHandle {
     }
 
     pub async fn worker_toggle_states(
-        &self,
+        self,
         keys: &[String],
     ) -> Result<Vec<WorkerToggleState>, PersistError> {
         crate::metrics::time_db("worker_toggle_states", async move {
@@ -68,7 +68,7 @@ impl PersistHandle {
         .await
     }
 
-    pub async fn corrected_turns_since(&self, since: DateTime<Utc>) -> Result<i64, PersistError> {
+    pub async fn corrected_turns_since(self, since: DateTime<Utc>) -> Result<i64, PersistError> {
         crate::metrics::time_db("corrected_turns_since", async move {
             let outcomes = sqlx::query!(
                 r#"SELECT id::bigint AS "id!", code AS "code!"

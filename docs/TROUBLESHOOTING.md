@@ -224,7 +224,7 @@ with `mike serve` or an older copy of the script runs into this.
 ### `403` from the inspect API with `{"error":"host not allowed"}` or `{"error":"origin not allowed"}`
 
 There is no authentication on the inspect API. The only thing guarding it is a Host/Origin
-allow-list middleware (`crates/mike/src/api/host_guard.rs`), and this 403 is that middleware
+allow-list middleware (`crates/mike-base/src/web_base/host_guard.rs`), and this 403 is that middleware
 rejecting the request before any handler runs. The response body is JSON and names which check
 failed.
 

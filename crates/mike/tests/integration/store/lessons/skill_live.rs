@@ -1,6 +1,7 @@
 use chrono::{Duration, NaiveDate, Utc};
 use mike::store::persistence::lessons::skill_drafts::DraftTarget;
 use mike::store::persistence::lessons::skill_live::{RetiredReason, SkillLiveOutcome};
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use serde_json::json;
 
 use super::skill_drafts::{Fixture, draft, fixture};
@@ -73,12 +74,14 @@ async fn outcomes_are_stored_updated_in_place_and_a_retirement_is_never_cleared(
     };
     let stored = fx
         .handle
+        .lessons()
         .upsert_skill_live_outcomes(&[outcome(project, 3, 1), stranger])
         .await?;
     assert_eq!(stored, 1, "a skill of an unknown project is skipped");
     assert_eq!(live_row(&fx).await?.0, 3);
 
     fx.handle
+        .lessons()
         .upsert_skill_live_outcomes(&[outcome(project, 12, 5)])
         .await?;
     let refreshed = live_row(&fx).await?;
@@ -89,15 +92,22 @@ async fn outcomes_are_stored_updated_in_place_and_a_retirement_is_never_cleared(
         retired_reason: Some(RetiredReason::CorrectedAboveBase),
         ..outcome(project, 13, 6)
     };
-    fx.handle.upsert_skill_live_outcomes(&[retired]).await?;
     fx.handle
+        .lessons()
+        .upsert_skill_live_outcomes(&[retired])
+        .await?;
+    fx.handle
+        .lessons()
         .upsert_skill_live_outcomes(&[outcome(project, 14, 6)])
         .await?;
     let kept = live_row(&fx).await?;
     assert_eq!(kept.0, 14);
     assert_eq!(kept.3.as_deref(), Some("corrected_above_base"));
     assert!(kept.4.is_some());
-    assert_eq!(fx.handle.upsert_skill_live_outcomes(&[]).await?, 0);
+    assert_eq!(
+        fx.handle.lessons().upsert_skill_live_outcomes(&[]).await?,
+        0
+    );
     fx.finish().await
 }
 
@@ -113,6 +123,7 @@ async fn numbers_the_table_cannot_hold_are_an_error_not_a_silent_fix() -> anyhow
     };
     assert!(
         fx.handle
+            .lessons()
             .upsert_skill_live_outcomes(&[impossible])
             .await
             .is_err()
@@ -128,10 +139,12 @@ async fn shipped_draft(fx: &Fixture, watermark: i64) -> anyhow::Result<i64> {
     let empty = json!([]);
     let id = fx
         .handle
+        .lessons()
         .insert_skill_draft(draft(&target(fx, watermark), &[1, 2], &empty))
         .await?;
-    fx.handle.claim_skill_draft_for_eval().await?;
+    fx.handle.lessons().claim_skill_draft_for_eval().await?;
     fx.handle
+        .lessons()
         .finish_skill_draft_eval(id, true, &json!({"verdict": {"accepted": true}}), None)
         .await?;
     sqlx::query(
@@ -150,7 +163,10 @@ async fn retire(fx: &Fixture, reason: RetiredReason) -> anyhow::Result<()> {
         retired_reason: Some(reason),
         ..outcome(project, 12, 5)
     };
-    fx.handle.upsert_skill_live_outcomes(&[retired]).await?;
+    fx.handle
+        .lessons()
+        .upsert_skill_live_outcomes(&[retired])
+        .await?;
     Ok(())
 }
 
@@ -161,13 +177,24 @@ async fn a_retired_skill_reaches_the_next_author_with_its_numbers_and_its_shippe
         return Ok(());
     };
     let wanted = target(&fx, 10);
-    assert!(fx.handle.retired_skill_evidence(&wanted).await?.is_none());
+    assert!(
+        fx.handle
+            .lessons()
+            .retired_skill_evidence(&wanted)
+            .await?
+            .is_none()
+    );
     let project = project_uuid(&fx).await?;
     fx.handle
+        .lessons()
         .upsert_skill_live_outcomes(&[outcome(project, 12, 5)])
         .await?;
     assert!(
-        fx.handle.retired_skill_evidence(&wanted).await?.is_none(),
+        fx.handle
+            .lessons()
+            .retired_skill_evidence(&wanted)
+            .await?
+            .is_none(),
         "a skill that is still shipped is not retired"
     );
 
@@ -175,6 +202,7 @@ async fn a_retired_skill_reaches_the_next_author_with_its_numbers_and_its_shippe
     retire(&fx, RetiredReason::CorrectedAboveBase).await?;
     let found = fx
         .handle
+        .lessons()
         .retired_skill_evidence(&target(&fx, 20))
         .await?
         .ok_or_else(|| anyhow::anyhow!("the retirement must be found"))?;
@@ -210,17 +238,20 @@ async fn the_retirement_stops_reaching_authors_once_a_draft_that_is_not_rejected
 
     let redraft = fx
         .handle
+        .lessons()
         .insert_skill_draft(draft(&target(&fx, 20), &[1, 2], &empty))
         .await?;
     assert!(
         fx.handle
+            .lessons()
             .retired_skill_evidence(&target(&fx, 20))
             .await?
             .is_none(),
         "a draft written after the retirement already carries it"
     );
-    fx.handle.claim_skill_draft_for_eval().await?;
+    fx.handle.lessons().claim_skill_draft_for_eval().await?;
     fx.handle
+        .lessons()
         .finish_skill_draft_eval(
             redraft,
             false,
@@ -230,6 +261,7 @@ async fn the_retirement_stops_reaching_authors_once_a_draft_that_is_not_rejected
         .await?;
     let again = fx
         .handle
+        .lessons()
         .retired_skill_evidence(&target(&fx, 20))
         .await?
         .ok_or_else(|| anyhow::anyhow!("a rejected redraft must not hide the retirement"))?;
@@ -245,9 +277,10 @@ async fn the_evidence_view_joins_the_newest_evaluation_to_the_live_numbers() -> 
     let empty = json!([]);
     let id = fx
         .handle
+        .lessons()
         .insert_skill_draft(draft(&target(&fx, 10), &[1, 2], &empty))
         .await?;
-    fx.handle.claim_skill_draft_for_eval().await?;
+    fx.handle.lessons().claim_skill_draft_for_eval().await?;
     let eval = json!({
         "evaluator_version": 3,
         "calls": 3,
@@ -256,10 +289,12 @@ async fn the_evidence_view_joins_the_newest_evaluation_to_the_live_numbers() -> 
         "review": {"decision": "approve", "reason": "Faithful."}
     });
     fx.handle
+        .lessons()
         .finish_skill_draft_eval(id, true, &eval, None)
         .await?;
     let project = project_uuid(&fx).await?;
     fx.handle
+        .lessons()
         .upsert_skill_live_outcomes(&[outcome(project, 12, 4)])
         .await?;
 
@@ -288,7 +323,19 @@ async fn live_queries_on_a_closed_pool_are_err() -> anyhow::Result<()> {
     };
     let wanted = target(&fx, 10);
     fx.handle.pool().close().await;
-    assert!(fx.handle.upsert_skill_live_outcomes(&[]).await.is_err());
-    assert!(fx.handle.retired_skill_evidence(&wanted).await.is_err());
+    assert!(
+        fx.handle
+            .lessons()
+            .upsert_skill_live_outcomes(&[])
+            .await
+            .is_err()
+    );
+    assert!(
+        fx.handle
+            .lessons()
+            .retired_skill_evidence(&wanted)
+            .await
+            .is_err()
+    );
     fx.db.cleanup().await
 }

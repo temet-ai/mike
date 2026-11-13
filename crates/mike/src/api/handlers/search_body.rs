@@ -59,7 +59,7 @@ pub(crate) struct FindTextResponse {
     pub(crate) context_bytes: u32,
     pub(crate) full_match_count: u64,
     pub(crate) matches_truncated: bool,
-    pub(crate) matches: Vec<crate::api::body_search::TextMatch>,
+    pub(crate) matches: Vec<crate::web_base::body_search::TextMatch>,
 }
 
 #[derive(Debug, Serialize)]
@@ -127,7 +127,7 @@ pub(crate) async fn find_text_in_body(
         }
     };
 
-    let (full_count, matches) = crate::api::body_search::find_in_str(
+    let (full_count, matches) = crate::web_base::body_search::find_in_str(
         &text,
         &params.needle,
         params.case_sensitive,

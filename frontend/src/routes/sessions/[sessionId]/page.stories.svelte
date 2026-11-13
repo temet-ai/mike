@@ -216,7 +216,7 @@
 		'frontend/src/lib/types.ts',
 		'docs/frontend/STYLE_GUIDE.md',
 		'docs/frontend/style/component-patterns.md',
-		'crates/mike/src/settings/mod.rs',
+		'crates/mike-base/src/settings/mod.rs',
 		'crates/mike/src/settings/workers.rs',
 		'crates/mike/src/settings/llm_model.rs',
 		'crates/mike/src/api/handlers.rs',

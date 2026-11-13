@@ -1,5 +1,5 @@
+pub use mike_features::api::handlers::*;
 use std::collections::BTreeMap;
-use std::sync::atomic::Ordering;
 
 use axum::Json;
 use axum::extract::{Path, Query, State};
@@ -10,15 +10,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::analysis::EmbeddingService;
 use crate::api::embedding_graph::EmbeddingStatusDto;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::models::{
     Diagnostic, DiagnosticCategory, InterceptedRequest, RequestId, RequestStatus, SessionView,
     SystemPromptSource,
 };
 use crate::store::persistence::SessionSummaryRow;
-use crate::store::persistence::meta::pg_interval_to_humantime;
 use crate::store::{DiagnosticStatsView, FindingView, MemoryBreakdownView, MemoryEntryRow};
-pub(crate) use crate::types::SortOrder;
 use crate::types::{RequestParams, TokenUsage, ToolCall};
 
 #[cfg(test)]
@@ -28,33 +26,19 @@ use serde_json::Value;
 #[cfg(test)]
 use std::collections::HashMap;
 
-mod agent_composition_stats;
-mod agents;
 mod anthropic_integration_01;
 mod anthropic_integration_02;
 mod anthropic_integration_03;
-mod capabilities;
 mod connection_info;
 pub(crate) use connection_info::connection_info;
-mod compression_01;
 mod diagnostic_dto;
 mod diagnostic_memory;
-mod diagnostics;
 mod spa_delta_fallback;
 pub(crate) use spa_delta_fallback::spa_delta_fallback_route;
 mod agent_dispatches;
 mod embedding_change;
 mod file_writes_01;
-mod filter_dry_run;
-mod filter_rule_dto;
-mod filters;
-mod health;
-#[cfg(test)]
-mod health_03;
-mod lesson_create;
 mod lesson_list_delete;
-mod lesson_project_guard;
-mod lesson_types;
 mod listing;
 mod llm_credit;
 mod llm_job_models;
@@ -62,87 +46,29 @@ mod llm_provider_health;
 mod llm_providers;
 mod llm_role_health;
 mod llm_worker_lease;
-mod mailbox_dto;
-mod mailbox_post;
-mod mailbox_post_fanout;
-mod mailbox_post_name;
-#[cfg(test)]
-mod mailbox_post_tests;
-mod mailbox_reads;
-mod mailbox_thread_create;
-mod mailbox_thread_detail;
-mod mailbox_thread_dto;
-mod mailbox_thread_list;
 mod models;
 mod operator_turns;
 mod operator_turns_ledger;
 mod operator_turns_outcomes;
-#[cfg(test)]
-mod project_identity_tests;
 mod project_merge;
-mod projects;
-mod prompt_anomalies;
-mod prompt_class_instructions;
-mod prompt_class_versions;
-mod prompt_classes;
-mod prompt_name_suggest;
-mod prompts_01;
-mod prompts_02;
-mod prompts_03;
-mod prompts_04;
-mod recall_context;
 #[cfg(test)]
 mod recall_own_turn_tests;
 #[cfg(test)]
 mod recall_recent_tests;
-mod recall_turns;
-#[cfg(test)]
-mod recall_turns_ambiguous_tests;
-mod recall_turns_detail;
-#[cfg(test)]
-mod recall_turns_detail_tests;
-mod recall_turns_rerank;
-#[cfg(test)]
-mod recall_turns_rerank_tests;
-pub mod receipts_01;
-mod remote_control_link;
 mod request_body;
 mod request_deltas;
-mod request_detail;
-#[cfg(test)]
-mod request_recovery_tests;
-mod request_summary;
 mod request_transform;
 mod scheduled_jobs;
 mod search_body;
 mod search_own;
 mod search_reminders;
-mod search_session;
-mod search_session_messages;
-mod search_session_scan;
-mod search_unified;
-mod session_admin;
 mod session_detail;
-mod session_list;
-mod session_notes;
-mod session_overview;
-mod session_quality;
 mod session_summary;
 mod settings_01;
 mod settings_01_launch_values;
 mod settings_02;
 pub mod spend_01;
-mod stats;
 mod steerer_assist;
-mod steerer_client;
-mod steerer_dry_run;
-mod steerer_model_check;
-mod steerers_01;
-mod steerers_02;
-mod steering_views_01;
-mod steering_views_02;
-mod tags;
-mod team_comms;
 #[cfg(test)]
 mod tests_01;
 #[cfg(test)]
@@ -152,17 +78,9 @@ mod tests_03;
 #[cfg(test)]
 mod tests_04;
 mod time_spent;
-mod tools_01;
-mod tools_02;
-mod tools_03;
-mod usage_workflows_01;
-mod verifier_01;
-mod work_items;
 mod worker_toggles;
 
-pub(crate) use agent_composition_stats::*;
 pub(crate) use agent_dispatches::*;
-pub(crate) use agents::*;
 pub(crate) use anthropic_integration_01::*;
 pub(crate) use anthropic_integration_02::*;
 pub(crate) use anthropic_integration_03::*;
@@ -173,14 +91,9 @@ pub(crate) use diagnostic_memory::*;
 pub(crate) use diagnostics::*;
 pub(crate) use file_writes_01::*;
 pub(crate) use filter_dry_run::*;
-pub(crate) use filter_rule_dto::*;
-pub(crate) use filters::*;
-pub(crate) use health::*;
 #[cfg(any(test, feature = "test-seams"))]
 pub use health::{capture_outage_notices, refresh_capture_outage_now, refresh_health_now};
-pub(crate) use lesson_create::*;
 pub(crate) use lesson_list_delete::*;
-pub(crate) use lesson_types::*;
 pub(crate) use listing::*;
 pub(crate) use llm_credit::*;
 pub(crate) use llm_job_models::*;
@@ -188,30 +101,14 @@ pub(crate) use llm_provider_health::*;
 pub(crate) use llm_providers::*;
 pub(crate) use llm_role_health::*;
 pub(crate) use llm_worker_lease::*;
-pub(crate) use mailbox_dto::*;
 pub(crate) use mailbox_post::*;
 pub(crate) use mailbox_post_fanout::*;
 pub(crate) use mailbox_post_name::*;
-pub(crate) use mailbox_reads::*;
-pub(crate) use mailbox_thread_create::*;
-pub(crate) use mailbox_thread_detail::*;
-pub(crate) use mailbox_thread_dto::*;
-pub(crate) use mailbox_thread_list::*;
 pub(crate) use models::*;
 pub(crate) use operator_turns::*;
 pub(crate) use operator_turns_ledger::*;
 pub(crate) use operator_turns_outcomes::*;
 pub(crate) use project_merge::*;
-pub(crate) use projects::*;
-pub(crate) use prompt_anomalies::*;
-pub(crate) use prompt_class_instructions::*;
-pub(crate) use prompt_class_versions::*;
-pub(crate) use prompt_classes::*;
-pub(crate) use prompt_name_suggest::*;
-pub(crate) use prompts_01::*;
-pub(crate) use prompts_02::*;
-pub(crate) use prompts_03::*;
-pub(crate) use prompts_04::*;
 pub(crate) use recall_context::*;
 pub(crate) use recall_turns::*;
 pub(crate) use receipts_01::*;
@@ -229,32 +126,60 @@ pub(crate) use search_session::*;
 use search_session_messages::*;
 pub(crate) use search_session_scan::*;
 pub(crate) use search_unified::*;
-pub(crate) use session_admin::*;
 pub(crate) use session_detail::*;
 pub(crate) use session_list::*;
-pub(crate) use session_notes::*;
 pub(crate) use session_overview::*;
-pub(crate) use session_quality::*;
 pub(crate) use session_summary::*;
 pub(crate) use settings_01::*;
 pub(crate) use settings_02::*;
 pub(crate) use spend_01::*;
-pub(crate) use stats::*;
 pub(crate) use steerer_assist::*;
-pub(crate) use steerer_client::*;
-pub(crate) use steerer_dry_run::*;
 pub(crate) use steerer_model_check::*;
 pub(crate) use steerers_01::*;
 pub(crate) use steerers_02::*;
 pub(crate) use steering_views_01::*;
 pub(crate) use steering_views_02::*;
-pub(crate) use tags::*;
-pub(crate) use team_comms::*;
 pub(crate) use time_spent::*;
 pub(crate) use tools_01::*;
-pub(crate) use tools_02::*;
 pub(crate) use tools_03::*;
 pub(crate) use usage_workflows_01::*;
-pub(crate) use verifier_01::*;
-pub(crate) use work_items::*;
 pub(crate) use worker_toggles::*;
+
+mod capabilities;
+mod compression_01;
+mod diagnostics;
+mod filter_dry_run;
+#[cfg(test)]
+mod health_03;
+mod mailbox_post;
+mod mailbox_post_fanout;
+mod mailbox_post_name;
+#[cfg(test)]
+mod mailbox_post_tests;
+mod prompt_class_instructions;
+mod prompt_name_suggest;
+mod recall_context;
+mod recall_turns;
+pub(crate) mod recall_turns_detail;
+pub mod receipts_01;
+mod remote_control_link;
+mod request_detail;
+#[cfg(test)]
+mod request_recovery_tests;
+mod request_summary;
+pub(super) mod search_session;
+mod search_session_messages;
+mod search_session_scan;
+mod search_unified;
+mod session_list;
+mod session_overview;
+mod steerer_model_check;
+mod steerers_01;
+mod steerers_02;
+mod steering_views_01;
+mod steering_views_02;
+mod tools_01;
+mod tools_03;
+mod usage_workflows_01;
+pub(crate) use prompt_class_instructions::*;
+pub(crate) use prompt_name_suggest::*;

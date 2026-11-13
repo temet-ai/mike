@@ -309,7 +309,7 @@ Unit tests live beside the code in `src/`. `.config/nextest.toml` partitions the
 
 **Test database.** DB-backed tests provision ephemeral databases (`claude_proxy_test_<uuid>`) on the Postgres that `MIKE_TEST_ADMIN_URL` names; `scripts/test-db/` starts a throwaway container for it (`mike-test-pg` on `127.0.0.1:6667`). Tests never touch the capture database.
 
-**Test DB isolation.** Use `TestDb` from `crates/mike/src/store/persistence/test_support/`. `TestDb::acquire` hands out a shared database: own your rows with unique ids, and do not assert global counts, truncate tables or issue unscoped deletes. Use `TestDb::acquire_isolated` when a test needs an empty private database, and call `handle.cleanup().await`.
+**Test DB isolation.** Use `TestDb` from `crates/mike-base/src/store/persistence/test_support/`. `TestDb::acquire` hands out a shared database: own your rows with unique ids, and do not assert global counts, truncate tables or issue unscoped deletes. Use `TestDb::acquire_isolated` when a test needs an empty private database, and call `handle.cleanup().await`.
 
 **Schema tests (`schema` target).** After a migration is merged, its checksum is fixed. `crates/mike/tests/schema/migration_checksums.rs` compares every file in `store/persistence/migrations/` with `migration-baseline.json`. This catches the "I edited a migration that's already applied" class of mistake early.
 
@@ -376,7 +376,7 @@ Where there is no systemd (`MIKE_STACK_SUPERVISOR=nohup`, macOS), `start-proxy.s
 
 The path from database to MCP tool, as pointers into the sections that own each step:
 
-1. **Migration** — a new file under `crates/mike/src/store/persistence/migrations/`; see §12 for naming, ordering and the walkthrough.
+1. **Migration** — a new file under `crates/mike-base/src/store/persistence/migrations/`; see §12 for naming, ordering and the walkthrough.
 2. **Query and sqlx cache** — `sqlx::query!`/`query_as!` in the owning `store/persistence/` module, then refresh `.sqlx/` with `scripts/sqlx-prepare` (never raw `cargo sqlx prepare`, which empties `.sqlx/` while it runs); see §9.
 3. **Inspect route** — a thin handler under `crates/mike/src/api/handlers/`, registered in the owning group's `crates/mike/src/api/manifest/<group>.rs`: one `RouteEntry` in its `ROUTES` table (with a `Coverage` choice; new routes default to `Exempt`) and the axum `.route("/api/.../{id}", …)` call in its `register` function; see §2.
 4. **MCP tool** (only when a real workflow needs it) — the tool in `crates/mike-mcp/src/tools/<domain>.rs`, listed in `catalogue.rs` `all_tools` (and `CORE_TOOL_NAMES` if it belongs in the core profile), dispatched in `dispatch.rs` `call_tool`; `crates/mike-mcp/tests/manifest_coverage.rs` ties the tool to its manifest entry and rejects orphans; see §3.
@@ -780,7 +780,7 @@ pnpm run lint        # eslint
 | `docs/SCHEMA.md` | Full DB schema reference |
 | `crates/mike/src/api/manifest.rs` | Inspect route + MCP coverage registry |
 | `crates/mike-mcp/tests/manifest_coverage.rs` | Parity test (both directions) |
-| `crates/mike/src/store/persistence/migrations/` | sqlx migration files |
+| `crates/mike-base/src/store/persistence/migrations/` | sqlx migration files |
 | `frontend/src/app.css` | All design tokens |
 | `docs/frontend/STYLE_GUIDE.html` | Design export FUNK started from (reference; the style guide is Storybook's Foundations stories) |
 | `/settings` | Live runtime configuration surface and source of truth |

@@ -1,3 +1,4 @@
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use sqlx::postgres::PgPoolOptions;
 
 use mike::store::persistence::PersistHandle;
@@ -51,6 +52,7 @@ async fn find_similar_lessons_agent_scope_filters() -> anyhow::Result<()> {
     let probe = unit_vec(0);
 
     let scoped_hits = handle
+        .lessons()
         .find_similar_lessons(project_id, &probe, Some(agent_db_id), 10, 0_i64)
         .await?;
     let scoped_ids: Vec<i64> = scoped_hits.iter().map(|n| n.id).collect();
@@ -68,6 +70,7 @@ async fn find_similar_lessons_agent_scope_filters() -> anyhow::Result<()> {
     );
 
     let all_hits = handle
+        .lessons()
         .find_similar_lessons(project_id, &probe, None, 10, 0_i64)
         .await?;
     let all_ids: Vec<i64> = all_hits.iter().map(|n| n.id).collect();
@@ -86,6 +89,7 @@ async fn seed_four_topic_lessons(
     project_id: i64,
 ) -> anyhow::Result<(LessonInsertRow, LessonInsertRow)> {
     let errors_a = handle
+        .lessons()
         .create_harvested_lesson(NewLessonWrite {
             project_id,
             kind: "convention",
@@ -99,6 +103,7 @@ async fn seed_four_topic_lessons(
         .await?
         .ok_or_else(|| anyhow::anyhow!("errors_a must insert (unique text)"))?;
     let errors_b = handle
+        .lessons()
         .create_harvested_lesson(NewLessonWrite {
             project_id,
             kind: "warning",
@@ -112,6 +117,7 @@ async fn seed_four_topic_lessons(
         .await?
         .ok_or_else(|| anyhow::anyhow!("errors_b must insert (unique text)"))?;
     handle
+        .lessons()
         .create_harvested_lesson(NewLessonWrite {
             project_id,
             kind: "preference",
@@ -124,6 +130,7 @@ async fn seed_four_topic_lessons(
         })
         .await?;
     handle
+        .lessons()
         .create_harvested_lesson(NewLessonWrite {
             project_id,
             kind: "correction",
@@ -158,7 +165,10 @@ async fn list_lessons_by_topic_matches_exact_and_excludes_archived() -> anyhow::
     .await?;
     let (errors_a, errors_b) = seed_four_topic_lessons(&handle, project_id).await?;
 
-    let rows = handle.list_lessons_by_topic(project_id, "errors").await?;
+    let rows = handle
+        .lessons()
+        .list_lessons_by_topic(project_id, "errors")
+        .await?;
     assert_eq!(
         rows.len(),
         2,
@@ -192,7 +202,10 @@ async fn list_lessons_by_topic_matches_exact_and_excludes_archived() -> anyhow::
     .execute(&pool)
     .await?;
 
-    let after_archive = handle.list_lessons_by_topic(project_id, "errors").await?;
+    let after_archive = handle
+        .lessons()
+        .list_lessons_by_topic(project_id, "errors")
+        .await?;
     assert_eq!(
         after_archive.len(),
         1,
@@ -225,6 +238,7 @@ async fn list_recall_lessons_limits_each_topic_newest_first() -> anyhow::Result<
     let topics = vec!["errors".to_owned(), "concurrency".to_owned()];
 
     let limited = handle
+        .lessons()
         .list_recall_lessons(&project_path, &topics, 1)
         .await?;
     let limited_topics: Vec<Option<&str>> = limited.iter().map(|r| r.topic.as_deref()).collect();
@@ -240,6 +254,7 @@ async fn list_recall_lessons_limits_each_topic_newest_first() -> anyhow::Result<
     );
 
     let all = handle
+        .lessons()
         .list_recall_lessons(&project_path, &topics, 5)
         .await?;
     let error_ids: Vec<i64> = all
@@ -250,6 +265,7 @@ async fn list_recall_lessons_limits_each_topic_newest_first() -> anyhow::Result<
     assert_eq!(error_ids, vec![errors_b.id, errors_a.id]);
 
     let unknown = handle
+        .lessons()
         .list_recall_lessons("recall-no-such-project", &topics, 5)
         .await?;
     assert!(unknown.is_empty(), "an unknown project path yields nothing");

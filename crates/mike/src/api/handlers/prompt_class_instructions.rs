@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 const INSTRUCTIONS_LIMIT: i64 = 50;
 
@@ -29,6 +30,7 @@ pub(crate) async fn get_prompt_class_instructions_subagent(
         ));
     };
     let rows = handle
+        .proxy()
         .list_prompt_class_instructions("subagent", persona_arg, INSTRUCTIONS_LIMIT)
         .await
         .map_err(map_composition_persist_error)?;

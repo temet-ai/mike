@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use anyhow::Result;
 use chrono::Duration;
 use serde_json::{Value, json};
@@ -77,6 +78,7 @@ async fn evaluate(persist: &PersistHandle, label: &SessionEndLabelItem) -> Resul
         .closed_at
         .map_or_else(chrono::Utc::now, |t| t + Duration::minutes(SETTLE_MINUTES));
     let facts = persist
+        .eval()
         .fetch_session_end_facts(&[label.session_id], at)
         .await?
         .into_iter()
@@ -115,6 +117,7 @@ pub(super) async fn session_end_defaults(
     let persist = super::connect(cli, false).await?;
     let source = Some(args.source.as_str()).filter(|s| !s.is_empty());
     let labels = persist
+        .eval()
         .load_session_end_labels_by_source(chrono::Utc::now(), &args.tiers, source)
         .await?;
     let mut items = Vec::with_capacity(labels.len());

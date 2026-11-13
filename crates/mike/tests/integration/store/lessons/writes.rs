@@ -1,3 +1,4 @@
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use sqlx::postgres::PgPoolOptions;
 
 use mike::store::persistence::PersistHandle;
@@ -41,6 +42,7 @@ async fn create_lesson_resolves_agent_and_session_fks() -> anyhow::Result<()> {
         seed_agent(&pool, &format!("w3-agent-{}", uuid::Uuid::new_v4())).await?;
 
     let inserted = handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id,
             kind: "correction",
@@ -107,6 +109,7 @@ async fn create_harvested_lesson_sets_source_and_topic() -> anyhow::Result<()> {
     .await?;
 
     let inserted = handle
+        .lessons()
         .create_harvested_lesson(NewLessonWrite {
             project_id,
             kind: "correction",
@@ -176,7 +179,7 @@ async fn delete_lesson_archives_and_never_destroys_the_row() -> anyhow::Result<(
     .fetch_one(&pool)
     .await?;
 
-    let deleted = handle.delete_lesson(lesson_id).await?;
+    let deleted = handle.lessons().delete_lesson(lesson_id).await?;
     assert!(deleted, "delete_lesson must report the live row as retired");
 
     let row_count: i64 = sqlx::query_scalar("SELECT count(*) FROM memory.lessons WHERE id = $1")

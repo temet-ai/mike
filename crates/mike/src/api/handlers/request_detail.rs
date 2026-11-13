@@ -91,7 +91,7 @@ pub(crate) fn build_system_blocks_projection(
     req: &InterceptedRequest,
     composer_cache: &std::collections::HashMap<
         crate::compose_prompt::PromptClassKey,
-        crate::compose_prompt::decision::Composition,
+        crate::wire::composition::Composition,
     >,
 ) -> Option<SystemBlocksProjection> {
     let arr = req.system_prompt.blocks.as_ref()?.as_array()?;
@@ -100,7 +100,7 @@ pub(crate) fn build_system_blocks_projection(
         &req.turn_origin,
         req.subagent_persona.as_deref(),
     );
-    let composition: Option<&crate::compose_prompt::decision::Composition> =
+    let composition: Option<&crate::wire::composition::Composition> =
         class_key.and_then(|key| composer_cache.get(&key));
 
     let composition_version: Option<u64> =
@@ -155,7 +155,7 @@ impl RequestDetail {
         req: &InterceptedRequest,
         composer_cache: &std::collections::HashMap<
             crate::compose_prompt::PromptClassKey,
-            crate::compose_prompt::decision::Composition,
+            crate::wire::composition::Composition,
         >,
         predecessor_request_id: Option<i64>,
     ) -> Self {

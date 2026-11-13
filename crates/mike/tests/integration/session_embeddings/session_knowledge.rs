@@ -1,4 +1,5 @@
 use crate::test_db;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use super::fixtures::{make_pool_and_persist, seed_project, seed_session, seed_verdict};
 use anyhow::Context;
@@ -29,6 +30,7 @@ async fn session_knowledge_round_trips_upsert_fetch_and_fetch_many() -> anyhow::
 
     assert!(
         persist
+            .knowledge()
             .fetch_session_knowledge(session1_uuid)
             .await?
             .is_none()
@@ -39,6 +41,7 @@ async fn session_knowledge_round_trips_upsert_fetch_and_fetch_many() -> anyhow::
     let learnings = vec!["backoff must be jittered".to_string()];
     let related = vec![session2_uuid];
     persist
+        .knowledge()
         .upsert_session_knowledge(
             session1_uuid,
             &topics,
@@ -49,6 +52,7 @@ async fn session_knowledge_round_trips_upsert_fetch_and_fetch_many() -> anyhow::
         .await?;
 
     let fetched = persist
+        .knowledge()
         .fetch_session_knowledge(session1_uuid)
         .await?
         .context("row must exist after upsert")?;
@@ -62,9 +66,11 @@ async fn session_knowledge_round_trips_upsert_fetch_and_fetch_many() -> anyhow::
     let learnings2: Vec<String> = vec![];
     let related2: Vec<Uuid> = vec![];
     persist
+        .knowledge()
         .upsert_session_knowledge(session1_uuid, &topics2, &learnings2, &related2, None)
         .await?;
     let fetched2 = persist
+        .knowledge()
         .fetch_session_knowledge(session1_uuid)
         .await?
         .context("row must still exist after second upsert")?;
@@ -81,6 +87,7 @@ async fn session_knowledge_round_trips_upsert_fetch_and_fetch_many() -> anyhow::
     assert_eq!(count, 1, "upsert must replace, never duplicate, the row");
 
     let many = persist
+        .knowledge()
         .fetch_session_knowledge_many(&[session1_uuid, session2_uuid])
         .await?;
     assert_eq!(many.len(), 1);
@@ -88,6 +95,7 @@ async fn session_knowledge_round_trips_upsert_fetch_and_fetch_many() -> anyhow::
     assert_eq!(many[0].topics, topics2);
 
     let none = persist
+        .knowledge()
         .fetch_session_knowledge_many(&[session2_uuid])
         .await?;
     assert!(none.is_empty());

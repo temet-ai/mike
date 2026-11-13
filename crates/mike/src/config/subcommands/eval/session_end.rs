@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
@@ -23,6 +24,7 @@ const SCORE_SEED: u64 = 13;
 
 async fn bundle_config(persist: &PersistHandle, bundle_id: i64) -> Result<SessionJudgeV3Config> {
     let bundle = persist
+        .eval()
         .get_bundle(bundle_id)
         .await?
         .with_context(|| format!("no bundle {bundle_id}"))?;
@@ -110,14 +112,15 @@ pub(super) async fn gate(args: EvalGateArgs, cli: CliOverrides) -> Result<i32> {
     let persist = super::connect(cli, true).await?;
     let candidate_id = args.candidate_run()?;
     let candidate_run = persist
+        .eval()
         .get_eval_run(candidate_id)
         .await?
         .with_context(|| format!("no eval run {candidate_id}"))?;
     let cfg = bundle_config(&persist, candidate_run.bundle_id).await?;
-    let candidate = end_items_from_rows(&persist.all_session_end_items(candidate_id).await?);
+    let candidate = end_items_from_rows(&persist.eval().all_session_end_items(candidate_id).await?);
     let noise = match args.noise {
         Some(id) => Some(end_items_from_rows(
-            &persist.all_session_end_items(id).await?,
+            &persist.eval().all_session_end_items(id).await?,
         )),
         None => None,
     };
@@ -136,6 +139,7 @@ pub(super) async fn gate(args: EvalGateArgs, cli: CliOverrides) -> Result<i32> {
         "split": candidate_run.split,
     });
     let gate_id = persist
+        .eval()
         .insert_eval_gate(&NewEvalGate {
             candidate_run_id: candidate_id,
             baseline_run_id: None,

@@ -1,5 +1,6 @@
 use chrono::{DateTime, Duration, Utc};
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::web_repo::WebPersist as _;
 
 use crate::test_db::TestDb;
 
@@ -76,7 +77,7 @@ async fn role_outcomes_report_the_trailing_failure_streak_and_last_success() -> 
     )
     .await?;
 
-    let outcomes = handle.llm_role_outcomes().await?;
+    let outcomes = handle.web().llm_role_outcomes().await?;
     let roles: Vec<&str> = outcomes.iter().map(|o| o.role.as_str()).collect();
     assert_eq!(
         roles,
@@ -128,7 +129,7 @@ async fn role_outcomes_ignore_calls_older_than_the_window() -> anyhow::Result<()
     )
     .await?;
 
-    assert!(handle.llm_role_outcomes().await?.is_empty());
+    assert!(handle.web().llm_role_outcomes().await?.is_empty());
 
     handle.pool().close().await;
     db.cleanup().await?;
@@ -198,7 +199,7 @@ async fn worker_toggle_states_return_only_the_requested_keys_with_their_age() ->
         .await?;
 
     let keys = vec!["judge_lessons".to_owned(), "steerer".to_owned()];
-    let states = handle.worker_toggle_states(&keys).await?;
+    let states = handle.web().worker_toggle_states(&keys).await?;
     let lessons = states
         .iter()
         .find(|s| s.key == "judge_lessons")
@@ -209,6 +210,7 @@ async fn worker_toggle_states_return_only_the_requested_keys_with_their_age() ->
 
     assert_eq!(
         handle
+            .web()
             .corrected_turns_since(Utc::now() - Duration::days(9))
             .await?,
         0

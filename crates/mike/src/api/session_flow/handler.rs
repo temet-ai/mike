@@ -1,3 +1,4 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -6,7 +7,7 @@ use uuid::Uuid;
 
 use super::dto::{SessionFlowComponent, SessionFlowCursor, SessionFlowPage};
 use super::map;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::session_flow::{FlowCursor, FlowReadError};
 
 const DEFAULT_LIMIT: u16 = 50;
@@ -64,6 +65,7 @@ pub(crate) async fn get_session_flow(
     let limit = query.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, 500);
 
     let page = handle
+        .web()
         .fetch_session_flow(session, component, limit, cursor.as_ref())
         .await
         .map_err(|e| map_read_error(&session_id, e))?

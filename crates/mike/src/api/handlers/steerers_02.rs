@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 
 mod enrolment;
 pub(crate) use enrolment::*;
@@ -101,7 +102,7 @@ pub(crate) async fn patch_steerer(
                 pattern,
                 project_id,
             },
-            &crate::api::change_source::change_source_from_headers(&headers),
+            &crate::web_base::change_source::change_source_from_headers(&headers),
         )
         .await
     {
@@ -127,7 +128,7 @@ pub(crate) async fn set_all_steerer_models(
 
     check_steerer_model_listed(&state, &body.model).await?;
 
-    let source = crate::api::change_source::change_source_from_headers(&headers);
+    let source = crate::web_base::change_source::change_source_from_headers(&headers);
     let registry = state.steerer_registry.load_full();
     let mut count: i64 = 0;
     for current in registry.steerers.iter() {
@@ -169,7 +170,7 @@ pub(crate) async fn delete_steerer(
             "session persistence is disabled; steerer deletion is not available",
         ));
     };
-    let source = crate::api::change_source::change_source_from_headers(&headers);
+    let source = crate::web_base::change_source::change_source_from_headers(&headers);
     match svc.delete(id, &source).await {
         Ok(()) => Ok(StatusCode::NO_CONTENT.into_response()),
         Err(e) => Err(map_steerer_service_error(e)),
@@ -214,6 +215,7 @@ pub(crate) async fn put_session_goal(
         return persist_unavailable_response();
     };
     match persist
+        .steerer()
         .set_session_goal(
             crate::store::persistence::session_goals::SetSessionIdentity {
                 session_uuid,
@@ -249,7 +251,7 @@ pub(crate) async fn get_session_goal(
     let Some(persist) = state.persist() else {
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     };
-    match persist.get_session_goal(session_uuid).await {
+    match persist.steerer().get_session_goal(session_uuid).await {
         Ok(sg) => Ok(Json(SessionGoalDto {
             goal: sg.as_ref().map(|g| g.goal.clone()),
             next_steps: sg.as_ref().map(|g| g.next_steps.clone()),
@@ -279,7 +281,11 @@ pub(crate) async fn revert_intervention(
             "session persistence is disabled; intervention revert is not available",
         ));
     };
-    match handle.revert_intervention(id, &body.revert_reason).await {
+    match handle
+        .steerer()
+        .revert_intervention(id, &body.revert_reason)
+        .await
+    {
         Ok(true) => Ok(StatusCode::OK.into_response()),
         Ok(false) => Err(steerer_error_response(
             StatusCode::NOT_FOUND,

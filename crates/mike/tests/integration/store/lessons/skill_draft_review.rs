@@ -1,5 +1,6 @@
 use mike::store::persistence::lessons::skill_draft_eval::ShippedPatch;
 use mike::store::persistence::lessons::skill_drafts::DraftTarget;
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use serde_json::json;
 
 use super::skill_draft_eval::insert;
@@ -24,9 +25,10 @@ async fn an_accepted_patch_replaces_the_description_and_skill_md_and_a_rejection
         (patched, true, Some(patch)),
         (rejected, false, None),
     ] {
-        fx.handle.claim_skill_draft_for_eval().await?;
+        fx.handle.lessons().claim_skill_draft_for_eval().await?;
         assert!(
             fx.handle
+                .lessons()
                 .finish_skill_draft_eval(id, accepted, &eval, shipped)
                 .await?
         );
@@ -65,14 +67,16 @@ async fn reject_with_review(
     let empty = json!([]);
     let id = fx
         .handle
+        .lessons()
         .insert_skill_draft(draft(target, ids, &empty))
         .await?;
-    fx.handle.claim_skill_draft_for_eval().await?;
+    fx.handle.lessons().claim_skill_draft_for_eval().await?;
     let eval = json!({
         "verdict": {"accepted": false, "reasons": ["the reviewer rejected it"]},
         "review": {"decision": decision, "reason": "x", "overlap": "deploy-and-restart"}
     });
     fx.handle
+        .lessons()
         .finish_skill_draft_eval(id, false, &eval, None)
         .await?;
     Ok(())
@@ -91,12 +95,17 @@ async fn content_the_reviewer_placed_elsewhere_is_not_redrafted_until_a_new_less
     for decision in ["wrong_place", "nothing_to_save"] {
         let target = fx
             .handle
+            .lessons()
             .next_skill_draft_target()
             .await?
             .ok_or_else(|| anyhow::anyhow!("{decision}: the topic must be offered first"))?;
         reject_with_review(&fx, &target, &[a, b], decision).await?;
         assert!(
-            fx.handle.next_skill_draft_target().await?.is_none(),
+            fx.handle
+                .lessons()
+                .next_skill_draft_target()
+                .await?
+                .is_none(),
             "{decision} must stop redrafting at this watermark"
         );
         sqlx::query("DELETE FROM memory.skill_drafts")
@@ -105,19 +114,28 @@ async fn content_the_reviewer_placed_elsewhere_is_not_redrafted_until_a_new_less
     }
     let target = fx
         .handle
+        .lessons()
         .next_skill_draft_target()
         .await?
         .ok_or_else(|| anyhow::anyhow!("the topic must be offered again"))?;
     reject_with_review(&fx, &target, &[a, b], "patch").await?;
     assert!(
-        fx.handle.next_skill_draft_target().await?.is_some(),
+        fx.handle
+            .lessons()
+            .next_skill_draft_target()
+            .await?
+            .is_some(),
         "an ordinary rejection is still redrafted"
     );
     reject_with_review(&fx, &target, &[a, b], "wrong_place").await?;
     fx.daily_lesson("Number a migration above the applied one.")
         .await?;
     assert!(
-        fx.handle.next_skill_draft_target().await?.is_some(),
+        fx.handle
+            .lessons()
+            .next_skill_draft_target()
+            .await?
+            .is_some(),
         "a new lesson reopens a topic the reviewer placed elsewhere"
     );
     fx.finish().await
@@ -138,6 +156,7 @@ async fn the_agent_a_draft_is_scoped_to_is_read_with_its_description_and_definit
     .await?;
     let found = fx
         .handle
+        .lessons()
         .skill_draft_agent_scope(agent)
         .await?
         .ok_or_else(|| anyhow::anyhow!("the agent must be found"))?;
@@ -149,6 +168,7 @@ async fn the_agent_a_draft_is_scoped_to_is_read_with_its_description_and_definit
     );
     assert!(
         fx.handle
+            .lessons()
             .skill_draft_agent_scope(agent + 1000)
             .await?
             .is_none()
@@ -163,13 +183,23 @@ async fn lessons_are_read_by_id_with_their_kind_and_source_prompt() -> anyhow::R
     };
     let a = fx.daily_lesson("Run migrate-check first.").await?;
     let b = fx.daily_lesson("Commit with the code.").await?;
-    let found = fx.handle.skill_draft_lessons_by_id(&[b, a]).await?;
+    let found = fx
+        .handle
+        .lessons()
+        .skill_draft_lessons_by_id(&[b, a])
+        .await?;
     let texts: Vec<&str> = found.iter().map(|l| l.text.as_str()).collect();
     assert_eq!(
         texts,
         vec!["Run migrate-check first.", "Commit with the code."]
     );
     assert_eq!(found[0].kind, "convention");
-    assert!(fx.handle.skill_draft_lessons_by_id(&[]).await?.is_empty());
+    assert!(
+        fx.handle
+            .lessons()
+            .skill_draft_lessons_by_id(&[])
+            .await?
+            .is_empty()
+    );
     fx.finish().await
 }

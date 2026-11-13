@@ -1,4 +1,6 @@
 use chrono::{DateTime, Utc};
+use mike::store::persistence::fleet_repo::FleetPersist as _;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 use super::{fixture, opened_launch, running, starting, stopping};
@@ -27,7 +29,7 @@ async fn unresolved_launches_include_all_251_rows_and_historical_unknown_exits()
     let other = format!("other-{}", Uuid::new_v4());
     running(&f.handle, &other).await?;
     opened_launch(&f.handle, &other).await?;
-    let unresolved = f.handle.unsettled_fleet_launches(&run).await?;
+    let unresolved = f.handle.fleet().unsettled_fleet_launches(&run).await?;
     assert_eq!(unresolved.len(), 251);
     assert_eq!(unresolved.iter().map(|row| row.id).collect::<Vec<_>>(), ids);
     assert!(
@@ -75,7 +77,7 @@ async fn pending_commands_use_literal_run_namespace_and_ignore_finished_receipts
     .bind(format!("{run}#finished"))
     .execute(f.handle.pool())
     .await?;
-    let pending = f.handle.pending_fleet_commands(&run).await?;
+    let pending = f.handle.fleet().pending_fleet_commands(&run).await?;
     assert_eq!(
         pending
             .iter()
@@ -85,6 +87,7 @@ async fn pending_commands_use_literal_run_namespace_and_ignore_finished_receipts
     );
     assert!(
         f.handle
+            .fleet()
             .pending_fleet_commands("missing-run")
             .await?
             .is_empty()
@@ -110,15 +113,21 @@ async fn verified_exit_upgrades_false_without_moving_first_close_or_another_run(
     .await?;
     assert!(
         f.handle
+            .fleet()
             .record_fleet_launch_verified_exit(id, "wrong-run", "observed exit")
             .await
             .is_err()
     );
-    assert_eq!(f.handle.unsettled_fleet_launches(&run).await?.len(), 1);
+    assert_eq!(
+        f.handle.fleet().unsettled_fleet_launches(&run).await?.len(),
+        1
+    );
     f.handle
+        .fleet()
         .record_fleet_launch_verified_exit(id, &run, "observed exit")
         .await?;
     f.handle
+        .fleet()
         .record_fleet_launch_verified_exit(id, &run, "repeat observation")
         .await?;
     let row: (DateTime<Utc>, bool, String) = sqlx::query_as(
@@ -128,9 +137,16 @@ async fn verified_exit_upgrades_false_without_moving_first_close_or_another_run(
     .fetch_one(f.handle.pool())
     .await?;
     assert_eq!(row, (closed_at, true, "legacy unverified closure".into()));
-    assert!(f.handle.unsettled_fleet_launches(&run).await?.is_empty());
     assert!(
         f.handle
+            .fleet()
+            .unsettled_fleet_launches(&run)
+            .await?
+            .is_empty()
+    );
+    assert!(
+        f.handle
+            .fleet()
             .record_fleet_launch_verified_exit(-1, &run, "absent")
             .await
             .is_err()
@@ -147,6 +163,7 @@ async fn admission_uses_exact_run_and_rejects_ambiguous_owner() -> anyhow::Resul
     let first = starting(&f.handle, Some(&run)).await?;
     let admitted = f
         .handle
+        .fleet()
         .fleet_run_admission(&run)
         .await?
         .ok_or_else(|| anyhow::anyhow!("no fleet owner"))?;
@@ -154,6 +171,7 @@ async fn admission_uses_exact_run_and_rejects_ambiguous_owner() -> anyhow::Resul
     assert_eq!(admitted.fleet_uuid, first.fleet_uuid);
     assert!(
         f.handle
+            .fleet()
             .fleet_run_admission(&format!("{run}#gate"))
             .await?
             .is_none()
@@ -161,12 +179,13 @@ async fn admission_uses_exact_run_and_rejects_ambiguous_owner() -> anyhow::Resul
     stopping(&f.handle, &first).await?;
     let stopped = f
         .handle
+        .fleet()
         .fleet_run_admission(&run)
         .await?
         .ok_or_else(|| anyhow::anyhow!("stopping fleet lost ownership"))?;
     assert!(!stopped.admits_work());
     starting(&f.handle, Some(&run)).await?;
-    assert!(f.handle.fleet_run_admission(&run).await.is_err());
+    assert!(f.handle.fleet().fleet_run_admission(&run).await.is_err());
     f.db.cleanup().await
 }
 
@@ -183,7 +202,10 @@ async fn only_verified_exit_releases_the_exact_launch_registration() -> anyhow::
             .bind(id)
             .fetch_one(f.handle.pool())
             .await?;
-    f.handle.ensure_session_exists(&session.to_string()).await?;
+    f.handle
+        .launch()
+        .ensure_session_exists(&session.to_string())
+        .await?;
     sqlx::query(
         "INSERT INTO workspace.session_registrations
              (session_id, project_id, cwd, registered_via, lease_expires_at)
@@ -195,6 +217,7 @@ async fn only_verified_exit_releases_the_exact_launch_registration() -> anyhow::
     .await?;
     assert!(
         f.handle
+            .fleet()
             .record_fleet_launch_verified_exit(id, "another-run", "wrong owner")
             .await
             .is_err()
@@ -208,6 +231,7 @@ async fn only_verified_exit_releases_the_exact_launch_registration() -> anyhow::
     .await?;
     assert!(!released);
     f.handle
+        .fleet()
         .record_fleet_launch_verified_exit(id, &run, "observed exit")
         .await?;
     let released: bool = sqlx::query_scalar(

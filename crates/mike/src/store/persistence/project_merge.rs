@@ -2,7 +2,7 @@ use serde::Serialize;
 use sqlx::{Postgres, Transaction};
 use uuid::Uuid;
 
-use super::{PersistError, PersistHandle, SENTINEL_PROJECT_PATH};
+use super::{PersistError, SENTINEL_PROJECT_PATH};
 
 #[derive(Debug, Serialize)]
 pub(crate) struct ProjectMerge {
@@ -26,9 +26,9 @@ impl From<sqlx::Error> for ProjectMergeError {
     }
 }
 
-impl PersistHandle {
+impl crate::store::persistence::web_repo::WebDb<'_> {
     pub(crate) async fn merge_project_into(
-        &self,
+        self,
         source_path: &str,
         target_uuid: Uuid,
     ) -> Result<ProjectMerge, ProjectMergeError> {

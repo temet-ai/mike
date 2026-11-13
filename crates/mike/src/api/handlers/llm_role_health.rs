@@ -2,7 +2,9 @@ use super::*;
 use crate::feature_toggles::FeatureToggles;
 use crate::llm::model_ref::{ModelRef, Provider};
 use crate::store::persistence::lessons::maintenance_budget::MaintenanceRefusal;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use crate::store::persistence::llm_role_health::LlmRoleOutcome;
+use crate::store::persistence::web_repo::WebPersist as _;
 use chrono::{DateTime, Duration, Utc};
 
 mod maintenance;
@@ -277,13 +279,14 @@ pub(crate) async fn llm_role_health_capability(
     };
     let provider = provider_status(state, toggles).await;
     let refusals = persist
+        .lessons()
         .recent_maintenance_refusals()
         .await
         .unwrap_or_else(|error| {
             tracing::warn!(%error, "capabilities: lesson maintenance refusals could not be read");
             Vec::new()
         });
-    match persist.llm_role_outcomes().await {
+    match persist.web().llm_role_outcomes().await {
         Ok(outcomes) => llm_role_health_row(Utc::now(), &outcomes, &refusals, toggles, &provider),
         Err(e) => row(
             CapabilityState::Degraded,

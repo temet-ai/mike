@@ -1,3 +1,4 @@
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -67,7 +68,7 @@ async fn concurrent_claims_across_all_three_paths_never_return_the_same_turn() -
                         .claim_live_candidates_for_session(session_id, b, 10)
                         .await
                 }
-                _ => handle.claim_rejudge_candidates(&window, 10).await,
+                _ => handle.eval().claim_rejudge_candidates(&window, 10).await,
             }
         }));
     }
@@ -123,6 +124,7 @@ async fn a_claimed_turn_stays_out_of_every_claim_until_released_or_expired() -> 
     );
     assert!(
         f.handle
+            .eval()
             .claim_rejudge_candidates(&window, 5)
             .await?
             .is_empty()
@@ -145,7 +147,7 @@ async fn a_claimed_turn_stays_out_of_every_claim_until_released_or_expired() -> 
     .execute(f.handle.pool())
     .await?;
     assert_eq!(
-        f.handle.claim_rejudge_candidates(&window, 5).await?,
+        f.handle.eval().claim_rejudge_candidates(&window, 5).await?,
         vec![turn],
         "a lease whose worker died expires on its own"
     );

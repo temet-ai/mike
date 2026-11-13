@@ -1,12 +1,12 @@
 use axum::Router;
 use axum::routing::{get, patch, post, put};
 
-use super::{Coverage, RouteEntry, route};
 use crate::api::{
     embedding_graph, fleet, handlers, session_context, session_delivery, session_flow,
     session_verdicts, steering_facts, workspace,
 };
-use crate::config::AppState;
+use crate::state::AppState;
+use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
 pub(super) const ROUTES: &[RouteEntry] = &[
     route("GET", "/api/sessions", Coverage::Tool("list_sessions")),

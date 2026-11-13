@@ -1,9 +1,10 @@
 use crate::test_db;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use super::fixtures::{make_pool_and_persist, one_hot, seed_project, seed_session};
 use anyhow::Context;
 use chrono::{Duration as ChronoDuration, SubsecRound, Utc};
-use mike::store::persistence::SessionEmbeddingWrite;
+use mike::store::persistence::session_embeddings::SessionEmbeddingWrite;
 use test_db::TestDb;
 
 #[tokio::test]
@@ -27,6 +28,7 @@ async fn upsert_session_embedding_then_status_round_trips() -> anyhow::Result<()
 
     assert!(
         persist
+            .knowledge()
             .session_embedding_status(session_uuid)
             .await?
             .is_none()
@@ -36,6 +38,7 @@ async fn upsert_session_embedding_then_status_round_trips() -> anyhow::Result<()
     let source_updated_at = now - ChronoDuration::seconds(30);
     let before = Utc::now();
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: session_uuid,
             embedding: &embedding,
@@ -47,6 +50,7 @@ async fn upsert_session_embedding_then_status_round_trips() -> anyhow::Result<()
         .await?;
 
     let status = persist
+        .knowledge()
         .session_embedding_status(session_uuid)
         .await?
         .context("row must exist after upsert")?;
@@ -63,6 +67,7 @@ async fn upsert_session_embedding_then_status_round_trips() -> anyhow::Result<()
 
     let overview_embedding = one_hot(6, 1.0);
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: session_uuid,
             embedding: &overview_embedding,
@@ -73,6 +78,7 @@ async fn upsert_session_embedding_then_status_round_trips() -> anyhow::Result<()
         })
         .await?;
     let status2 = persist
+        .knowledge()
         .session_embedding_status(session_uuid)
         .await?
         .context("row must still exist after second upsert")?;

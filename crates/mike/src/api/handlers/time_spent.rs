@@ -1,3 +1,4 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
@@ -6,11 +7,11 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::persist_unavailable_response;
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::time_spent::{
     BuildsRunningAtOnceRow, SlowCommandRow, TimeSpentByKindRow, TimeSpentFilter,
 };
+use crate::web_base::persist_unavailable_response;
 
 pub(crate) const TIME_SPENT_DEFAULT_DAYS: i64 = 14;
 pub(crate) const TIME_SPENT_MAX_DAYS: i64 = 90;
@@ -196,14 +197,14 @@ pub(crate) async fn get_time_spent(
         session: resolved.session,
     };
     let (by_kind, slow_commands, builds_running_at_once) = tokio::try_join!(
-        handle.time_spent_by_kind(&filter),
-        handle.time_spent_slow_commands(
+        handle.web().time_spent_by_kind(&filter),
+        handle.web().time_spent_slow_commands(
             &filter,
             resolved.limit,
             resolved.offset,
             resolved.kind.as_deref()
         ),
-        handle.time_spent_builds_running_at_once(&filter),
+        handle.web().time_spent_builds_running_at_once(&filter),
     )
     .map_err(|e| {
         tracing::warn!(error = %e, "get_time_spent: query failed");

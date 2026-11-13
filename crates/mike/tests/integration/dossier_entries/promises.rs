@@ -1,5 +1,6 @@
 use chrono::Duration;
 use mike::dossier::entries::run_entries_step;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 
 use super::entries;
 use crate::turn_facts::{
@@ -28,7 +29,7 @@ async fn promise_turn(f: &Fixture) -> anyhow::Result<i64> {
     let mut row = sample_row(turn, f.session_id, f.base);
     row.ended_on = "promise_or_wait".to_string();
     row.stop_request_id = Some(9100);
-    f.handle.upsert_turn_facts(&[row]).await?;
+    f.handle.dossier().upsert_turn_facts(&[row]).await?;
     Ok(turn)
 }
 

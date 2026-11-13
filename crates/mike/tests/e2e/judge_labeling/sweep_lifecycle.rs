@@ -1,6 +1,6 @@
 use crate::db_helpers;
 
-use mike::analysis::JUDGE_RUBRIC_VERSION;
+use mike::analysis::judge::JUDGE_RUBRIC_VERSION;
 use wiremock::MockServer;
 
 use super::support::{

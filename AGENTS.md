@@ -20,6 +20,11 @@ Docs: [`SYSTEM_MAP`](docs/SYSTEM_MAP.md) (read first: every capability, where it
 [`LOCAL_DB_FALLBACK`](docs/LOCAL_DB_FALLBACK.md). `docs/` holds more; list it.
 
 A Rust reverse proxy for Claude API traffic: two Rust binaries, one SPA process.
+Crate mike is being split ([ADR 0002](docs/adr/0002-split-crate-mike.md)): `crates/mike-base`
+(shared types, wire, config, `PersistHandle`, LLM clients), `crates/mike-features` (proxy
+features, runtime, launch, fleet, knowledge, steering, eval, lessons) and `crates/mike`
+(API, serve, CLI, binary). Modules keep their paths in every crate; `scripts/crate-plan`
+names the crate a new module belongs in.
 Design rationale lives in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); only
 the non-obvious parts are here.
 
@@ -27,7 +32,7 @@ the non-obvious parts are here.
 
 | Surface         | Bind    | What is non-obvious                                                                                                                                                                                                                                                                                                                            |
 |-----------------|---------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Proxy           | `:9988` | Mutates both directions of the wire (`crates/mike/src/proxy/handler.rs`): outbound filter-rule rewrites and recall/lesson/reminder/steerer injection; inbound weasel intercept and proxy-declared tools can cut the model's answer and continue it (`weasel_intercept/mod.rs`). Capture stores the original inbound bytes before any mutation. |
+| Proxy           | `:9988` | Mutates both directions of the wire (`crates/mike-features/src/proxy/handler.rs`): outbound filter-rule rewrites and recall/lesson/reminder/steerer injection; inbound weasel intercept and proxy-declared tools can cut the model's answer and continue it (`weasel_intercept/mod.rs`). Capture stores the original inbound bytes before any mutation. |
 | Inspect         | `:9989` | `/api/*` REST + `/api/ws` WebSocket. Same `mike` binary, shared `AppState`.                                                                                                                                                                                                                                                                    |
 | SPA             | `:9990` | Independent `vite dev` process, decoupled from the proxy binary.                                                                                                                                                                                                                                                                               |
 | Forward sidecar | `:9987` | `proxy-forward` HTTPS MITM sidecar; fails over to Anthropic during a cutover.                                                                                                                                                                                                                                                                  |
@@ -70,7 +75,7 @@ checkout only.
    the last edit. The structural limits below are not visible from the code.
 4. Commit, then push once, in the background. The pre-push hook
    (`scripts/pre-push-check`) is the only CI while Actions minutes are out: it runs
-   gitleaks, semgrep, fmt, `lint-rust` and `scripts/test-area` (the tests of the areas
+   gitleaks, semgrep, fmt, the crate-split ratchet (`scripts/crate-plan --check`, `scripts/schema-plan --check`), `lint-rust` and `scripts/test-area` (the tests of the areas
    the push changed, in every tier) for what the push changed, plus the crates' whole
    fast tier when a change belongs to no area (manifests, lockfile, build scripts,
    crate roots, `.sqlx/`). Everything else runs nightly (`scripts/nightly-tests`, the
@@ -186,7 +191,7 @@ Make small edits and subtle or cross-cutting changes yourself.
 - Capture DB `claude_proxy`: Docker container `armitage-pg` (`scripts/capture-db/`), port 5440. `up.sh` / `down.sh` start and stop it and keep the data.
 - Test DB: container `mike-test-pg` (`scripts/test-db/`) on `127.0.0.1:6667`, `fsync=off`, via `MIKE_TEST_ADMIN_URL`.
   Tests never touch the capture DB.
-- Migrations: `crates/mike/src/store/persistence/migrations/`. Only `mike serve` applies them; other subcommands refuse
+- Migrations: `crates/mike-base/src/store/persistence/migrations/`. Only `mike serve` applies them; other subcommands refuse
   while the ledger differs from the binary.
 - Use `scripts/sqlx-prepare`, never `cargo sqlx prepare` — the latter empties `.sqlx/` while it runs and breaks every
   session in the checkout.
@@ -210,6 +215,9 @@ All resolve the repo root themselves.
 | `scripts/motion-shot <word> [--do …]`                    | Film one state change in a story frame by frame; never alongside `sb-test`                                               |
 | `scripts/style-guide-render` · `scripts/html-doc-render` | Render HTML docs to text and pictures; `--check` flags stale renders                                                     |
 | `scripts/read-anchored <file> <regex>`                   | Print a region with real line numbers                                                                                    |
+| `scripts/module-graph [deps\|users <module>]`          | Crate mike's module dependency graph and its largest cycle |
+| `scripts/crate-plan [--seams N\|--stages\|--detail A B]` | Grades the split crates against the crate split's target map: seams left and recompile cost ([ADR 0002](docs/adr/0002-split-crate-mike.md)) |
+| `scripts/schema-plan [--writes N\|--reads N\|--table T]` | Grades the SQL against schema ownership: foreign writes, foreign reads, migrations per schema ([ADR 0003](docs/adr/0003-schema-per-crate.md)) |
 | `scripts/publish-user-guide [--status]`                  | The guide of the latest release onto temet.ai/docs/mike/; `--status` says whether the site is behind                     |
 | `scripts/gh-cat <owner/repo> <path>`                     | Read files from other GitHub repos                                                                                       |
 | `scripts/gh-run-digest` · `scripts/gh-security-posture`  | GH Actions run digest; Dependabot and security settings                                                                  |
@@ -220,7 +228,7 @@ All resolve the repo root themselves.
 | What changed       | What to do                                                      |
 |--------------------|-----------------------------------------------------------------|
 | `crates/mike-mcp/` | `make install` (`scripts/deploy-release-build` on a release-installed machine such as infra), then restart Claude Code |
-| `crates/mike/`     | `./scripts/start-proxy.sh` (also refreshes `~/.local/bin/mike`) |
+| `crates/mike*/`    | `./scripts/start-proxy.sh` (also refreshes `~/.local/bin/mike`) |
 | `frontend/` only   | Nothing; the SPA hot-reloads                                    |
 | migrations         | Restart the stack — migrations run on startup                   |
 

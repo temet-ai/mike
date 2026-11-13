@@ -1,6 +1,7 @@
 use super::fixtures::{
     bootstrap_project_session, seed_completed_request, seed_unjudged_operator_turn,
 };
+use mike::store::persistence::eval_repo::EvalPersist as _;
 
 use crate::test_db;
 
@@ -76,6 +77,7 @@ async fn window_counts_attempts_inside_24_hours() -> anyhow::Result<()> {
     for step in 0..3 {
         let at = t0 + Duration::minutes(step * 10);
         handle
+            .eval()
             .record_judge_attempt(session_pk, MODEL, RUBRIC, at, true)
             .await?;
     }
@@ -96,13 +98,16 @@ async fn window_restarts_after_24_hours() -> anyhow::Result<()> {
     let session_pk = session_with_turn(&handle).await?;
     let t0 = Utc::now() - Duration::hours(30);
     handle
+        .eval()
         .record_judge_attempt(session_pk, MODEL, RUBRIC, t0, true)
         .await?;
     handle
+        .eval()
         .record_judge_attempt(session_pk, MODEL, RUBRIC, t0 + Duration::minutes(5), true)
         .await?;
     let later = t0 + Duration::hours(25);
     let restarted = handle
+        .eval()
         .record_judge_attempt(session_pk, MODEL, RUBRIC, later, true)
         .await?;
     assert_eq!(restarted, 1, "an attempt 25 hours on restarts the window");
@@ -123,6 +128,7 @@ async fn legacy_selection_skips_session_at_daily_cap() -> anyhow::Result<()> {
     let t0 = Utc::now() - Duration::hours(2);
     for step in 0..3 {
         handle
+            .eval()
             .record_judge_attempt(
                 session_pk,
                 MODEL,
@@ -161,6 +167,7 @@ async fn legacy_selection_takes_session_again_when_window_rolls() -> anyhow::Res
     let t0 = Utc::now() - Duration::hours(26);
     for step in 0..3 {
         handle
+            .eval()
             .record_judge_attempt(
                 session_pk,
                 MODEL,

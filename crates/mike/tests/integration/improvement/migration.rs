@@ -1,7 +1,7 @@
 use super::fixture;
 
 const MIGRATION: &str = include_str!(
-    "../../../src/store/persistence/migrations/20261005000000_learning_proposal_queue.sql"
+    "../../../../mike-base/src/store/persistence/migrations/20261005000000_learning_proposal_queue.sql"
 );
 
 #[tokio::test]

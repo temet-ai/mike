@@ -20,7 +20,7 @@ pub(crate) struct CompressEstimateResponse {
     pub(crate) original_body: String,
     pub(crate) sent_body: String,
     pub(crate) report: crate::compress::measure::SavingsReport,
-    pub(crate) manifest: crate::compress::manifest::TransformationManifest,
+    pub(crate) manifest: crate::wire::manifest::TransformationManifest,
     pub(crate) diff: String,
 }
 
@@ -34,15 +34,15 @@ pub(crate) async fn compress_estimate(
 
     let Some(raw) = req.request_body.as_ref() else {
         let report = crate::compress::measure::SavingsReport::compute(0, 0, real_input_tokens);
-        let empty_sha = crate::compress::manifest::sha256_hex(b"");
+        let empty_sha = crate::wire::manifest::sha256_hex(b"");
         return Ok(Json(CompressEstimateResponse {
             request_id: id,
             compressed: false,
             original_body: String::new(),
             sent_body: String::new(),
             report,
-            manifest: crate::compress::manifest::TransformationManifest {
-                schema_version: crate::compress::manifest::MANIFEST_SCHEMA_VERSION,
+            manifest: crate::wire::manifest::TransformationManifest {
+                schema_version: crate::wire::manifest::MANIFEST_SCHEMA_VERSION,
                 original_sha256: empty_sha.clone(),
                 sent_sha256: empty_sha,
                 stages: Vec::new(),
@@ -69,12 +69,12 @@ pub(crate) async fn compress_estimate(
         reduction.candidate.len(),
         real_input_tokens,
     );
-    let compressed = reduction.stage.outcome == crate::compress::manifest::StageOutcome::Applied;
+    let compressed = reduction.stage.outcome == crate::wire::manifest::StageOutcome::Applied;
     let diff = unified_body_diff(raw.as_ref(), reduction.candidate.as_ref());
-    let manifest = crate::compress::manifest::TransformationManifest {
-        schema_version: crate::compress::manifest::MANIFEST_SCHEMA_VERSION,
-        original_sha256: crate::compress::manifest::sha256_hex(raw.as_ref()),
-        sent_sha256: crate::compress::manifest::sha256_hex(reduction.candidate.as_ref()),
+    let manifest = crate::wire::manifest::TransformationManifest {
+        schema_version: crate::wire::manifest::MANIFEST_SCHEMA_VERSION,
+        original_sha256: crate::wire::manifest::sha256_hex(raw.as_ref()),
+        sent_sha256: crate::wire::manifest::sha256_hex(reduction.candidate.as_ref()),
         stages: vec![reduction.stage],
     };
     if let Err(e) = manifest.verify_chain() {

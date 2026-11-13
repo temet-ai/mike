@@ -2,6 +2,7 @@ use chrono::NaiveDate;
 use mike::store::persistence::lessons::skill_review_writes::{
     InstallReport, ReportedInstall, SkillReview,
 };
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -13,11 +14,13 @@ async fn accepted_draft(fx: &Fixture) -> anyhow::Result<i64> {
         .await?;
     let target = fx
         .handle
+        .lessons()
         .next_skill_draft_target()
         .await?
         .ok_or_else(|| anyhow::anyhow!("a topic with two daily lessons must be a target"))?;
     let ids: Vec<i64> = fx
         .handle
+        .lessons()
         .skill_draft_lessons(&target)
         .await?
         .iter()
@@ -26,6 +29,7 @@ async fn accepted_draft(fx: &Fixture) -> anyhow::Result<i64> {
     let empty = json!([]);
     let id = fx
         .handle
+        .lessons()
         .insert_skill_draft(draft(&target, &ids, &empty))
         .await?;
     sqlx::query("UPDATE memory.skill_drafts SET status = 'accepted' WHERE id = $1")
@@ -45,7 +49,7 @@ async fn project_uuid(fx: &Fixture) -> anyhow::Result<Uuid> {
 }
 
 async fn waiting(fx: &Fixture, project: Uuid) -> anyhow::Result<i64> {
-    let projects = fx.handle.list_skill_projects().await?;
+    let projects = fx.handle.lessons().list_skill_projects().await?;
     let row = projects
         .iter()
         .find(|p| p.project_uuid == project)
@@ -62,30 +66,41 @@ async fn project_without_policy_asks_first_and_approval_clears_the_wait() -> any
     let project = project_uuid(&fx).await?;
 
     assert_eq!(
-        fx.handle.skill_project_mode(project).await?,
+        fx.handle.lessons().skill_project_mode(project).await?,
         Some(("ask".to_owned(), false))
     );
     assert_eq!(waiting(&fx, project).await?, 1);
 
     assert!(
         fx.handle
+            .lessons()
             .set_skill_draft_review(id, SkillReview::Approved)
             .await?
     );
     assert_eq!(waiting(&fx, project).await?, 0);
-    let folders = fx.handle.list_project_skill_folders(project).await?;
+    let folders = fx
+        .handle
+        .lessons()
+        .list_project_skill_folders(project)
+        .await?;
     assert_eq!(folders.len(), 1);
     assert_eq!(folders[0].approved_draft_id, Some(id));
     assert_eq!(folders[0].review.as_deref(), Some("approved"));
 
     assert!(
         fx.handle
+            .lessons()
             .set_skill_draft_review(id, SkillReview::Cleared)
             .await?
     );
-    assert!(fx.handle.set_skill_policy(project, "auto", "test").await?);
+    assert!(
+        fx.handle
+            .lessons()
+            .set_skill_policy(project, "auto", "test")
+            .await?
+    );
     assert_eq!(
-        fx.handle.skill_project_mode(project).await?,
+        fx.handle.lessons().skill_project_mode(project).await?,
         Some(("auto".to_owned(), true))
     );
     assert_eq!(
@@ -95,6 +110,7 @@ async fn project_without_policy_asks_first_and_approval_clears_the_wait() -> any
     );
     assert!(
         !fx.handle
+            .lessons()
             .set_skill_draft_review(i64::MAX, SkillReview::Approved)
             .await?
     );
@@ -109,10 +125,21 @@ async fn edit_keeps_the_authored_text_once_and_retire_restore_round_trips() -> a
     let id = accepted_draft(&fx).await?;
     let project = project_uuid(&fx).await?;
 
-    assert!(fx.handle.edit_skill_draft(id, "first edit").await?);
-    assert!(fx.handle.edit_skill_draft(id, "second edit").await?);
+    assert!(
+        fx.handle
+            .lessons()
+            .edit_skill_draft(id, "first edit")
+            .await?
+    );
+    assert!(
+        fx.handle
+            .lessons()
+            .edit_skill_draft(id, "second edit")
+            .await?
+    );
     let detail = fx
         .handle
+        .lessons()
         .skill_draft_detail(id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("draft must load"))?;
@@ -124,6 +151,7 @@ async fn edit_keeps_the_authored_text_once_and_retire_restore_round_trips() -> a
     assert!(detail.edited_at.is_some());
     assert_eq!(
         fx.handle
+            .lessons()
             .skill_draft_source_lessons(&detail.lesson_ids)
             .await?
             .len(),
@@ -132,25 +160,33 @@ async fn edit_keeps_the_authored_text_once_and_retire_restore_round_trips() -> a
 
     assert!(
         fx.handle
+            .lessons()
             .retire_skill_folder(project, &detail.folder)
             .await?
     );
     assert!(
         fx.handle
+            .lessons()
             .retire_skill_folder(project, &detail.folder)
             .await?,
         "retiring twice is not an error"
     );
     assert_eq!(waiting(&fx, project).await?, 0);
-    let folders = fx.handle.list_project_skill_folders(project).await?;
+    let folders = fx
+        .handle
+        .lessons()
+        .list_project_skill_folders(project)
+        .await?;
     assert!(folders[0].retired_by_user_at.is_some());
     assert!(
         fx.handle
+            .lessons()
             .restore_skill_folder(project, &detail.folder)
             .await?
     );
     assert!(
         !fx.handle
+            .lessons()
             .restore_skill_folder(project, &detail.folder)
             .await?
     );
@@ -188,9 +224,13 @@ async fn installs_report_replaces_a_machines_rows_and_feeds_the_folder_view() ->
         machine_name: "test-mac",
         installs: &first,
     };
-    assert_eq!(fx.handle.record_skill_installs(report).await?, 2);
+    assert_eq!(fx.handle.lessons().record_skill_installs(report).await?, 2);
 
-    let folders = fx.handle.list_project_skill_folders(project).await?;
+    let folders = fx
+        .handle
+        .lessons()
+        .list_project_skill_folders(project)
+        .await?;
     let names: Vec<&str> = folders.iter().map(|f| f.folder.as_str()).collect();
     assert_eq!(names, vec!["database-migrations", "old-topic"]);
     assert!(folders[0].live);
@@ -203,8 +243,12 @@ async fn installs_report_replaces_a_machines_rows_and_feeds_the_folder_view() ->
         machine_name: "test-mac",
         installs: &second,
     };
-    fx.handle.record_skill_installs(report).await?;
-    let folders = fx.handle.list_project_skill_folders(project).await?;
+    fx.handle.lessons().record_skill_installs(report).await?;
+    let folders = fx
+        .handle
+        .lessons()
+        .list_project_skill_folders(project)
+        .await?;
     assert_eq!(
         folders.len(),
         1,

@@ -1,3 +1,4 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
@@ -111,7 +112,11 @@ pub(super) async fn load(
     machine: Option<Uuid>,
 ) -> Option<LatestJobRuns> {
     let scope = if job.leased { None } else { machine };
-    match persist.latest_scheduled_job_runs(job.name, scope).await {
+    match persist
+        .web()
+        .latest_scheduled_job_runs(job.name, scope)
+        .await
+    {
         Ok(runs) => Some(runs),
         Err(e) => {
             tracing::warn!(job = job.name, error = %e, "scheduled_jobs: could not read the run history — starting with none");
@@ -121,7 +126,11 @@ pub(super) async fn load(
 }
 
 pub(super) async fn save(persist: &PersistHandle, job: &Job, outcome: &Outcome<'_>) {
-    if let Err(e) = persist.record_scheduled_job_run(&row(job, outcome)).await {
+    if let Err(e) = persist
+        .web()
+        .record_scheduled_job_run(&row(job, outcome))
+        .await
+    {
         tracing::warn!(job = job.name, error = %e, "scheduled_jobs: could not record the run in the database — it stays in memory only");
     }
 }

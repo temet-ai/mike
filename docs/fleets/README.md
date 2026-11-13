@@ -3,7 +3,7 @@
 A fleet is one goal split into tasks, each given to its own Claude Code session that mike
 opens, all committing to one branch of one checkout. mike starts the sessions, checks what
 they commit, judges their reports against the definition and closes the run. The code is
-`crates/mike/src/launch/fleet/`; the files a fleet's sessions read are under `.claude/fleet/`.
+`crates/mike-features/src/launch/fleet/`; the files a fleet's sessions read are under `.claude/fleet/`.
 
 ## For people using fleets
 

@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct RecallProjectContextDto {
@@ -74,6 +75,7 @@ pub(crate) async fn recall_project_context(
     };
 
     let project = handle
+        .knowledge()
         .resolve_knowledge_project(&project_path)
         .await
         .map_err(crate::api::project_knowledge::knowledge_error)?;
@@ -182,10 +184,12 @@ pub(crate) async fn recall_file_history(
         .clamp(1, RECALL_FILE_HISTORY_MAX_LIMIT);
 
     let project = handle
+        .knowledge()
         .resolve_knowledge_project(project_path)
         .await
         .map_err(crate::api::project_knowledge::knowledge_error)?;
     let rows = handle
+        .knowledge()
         .recall_turns_by_file(&project, file, limit)
         .await
         .map_err(|e| {

@@ -3,9 +3,9 @@ use axum::extract::State;
 use serde::Serialize;
 
 use crate::claude_code::{Locations, gather_status};
-use crate::config::AppState;
 use crate::doctor::{Report, build_report};
 use crate::feature_presets::{LESSONS_SETTING, Preset, plan};
+use crate::state::AppState;
 
 #[cfg(test)]
 mod tests;

@@ -1,9 +1,11 @@
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use mike::store::persistence::session_goals::SetSessionIdentity;
 use mike::store::persistence::session_notes::{
     NewSessionNote, NoteOrder, ProjectNoteFilter, SessionNoteFilter, SessionNoteRow,
     SessionNoteUpdate,
 };
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use uuid::Uuid;
 
 use super::workspace::support::{register_input, shared_handle, unique};
@@ -66,6 +68,7 @@ async fn session_note_lifecycle_defaults_partial_update_and_delete() -> anyhow::
     let (session, _) = registered(&handle, &unique("notes-lifecycle")).await?;
 
     let created = handle
+        .launch()
         .create_session_note(session, note("first finding"))
         .await?;
     assert_eq!(created.kind, "note");
@@ -75,6 +78,7 @@ async fn session_note_lifecycle_defaults_partial_update_and_delete() -> anyhow::
 
     let tags = ["schema".to_string()];
     let task = handle
+        .launch()
         .create_session_note(
             session,
             NewSessionNote {
@@ -87,6 +91,7 @@ async fn session_note_lifecycle_defaults_partial_update_and_delete() -> anyhow::
         )
         .await?;
     let done = handle
+        .launch()
         .update_session_note(
             task.note_uuid,
             SessionNoteUpdate {
@@ -103,6 +108,7 @@ async fn session_note_lifecycle_defaults_partial_update_and_delete() -> anyhow::
 
     let data = serde_json::json!({"loc": "migrations/"});
     let replaced = handle
+        .launch()
         .update_session_note(
             task.note_uuid,
             SessionNoteUpdate {
@@ -115,9 +121,20 @@ async fn session_note_lifecycle_defaults_partial_update_and_delete() -> anyhow::
     assert_eq!(replaced.data, data);
     assert_eq!(replaced.status.as_deref(), Some("done"));
 
-    assert!(handle.delete_session_note(created.note_uuid).await?);
-    assert!(!handle.delete_session_note(created.note_uuid).await?);
+    assert!(
+        handle
+            .launch()
+            .delete_session_note(created.note_uuid)
+            .await?
+    );
+    assert!(
+        !handle
+            .launch()
+            .delete_session_note(created.note_uuid)
+            .await?
+    );
     let remaining = handle
+        .launch()
         .fetch_session_notes(session, session_filter(NoteOrder::NewestFirst, None))
         .await?;
     assert_eq!(uuids(&remaining), vec![task.note_uuid]);
@@ -131,21 +148,26 @@ async fn session_notes_order_and_search() -> anyhow::Result<()> {
     };
     let (session, _) = registered(&handle, &unique("notes-order")).await?;
     let first = handle
+        .launch()
         .create_session_note(session, note("gate blocks on stale seeds"))
         .await?;
     let second = handle
+        .launch()
         .create_session_note(session, note("unrelated finding"))
         .await?;
 
     let newest = handle
+        .launch()
         .fetch_session_notes(session, session_filter(NoteOrder::NewestFirst, None))
         .await?;
     assert_eq!(uuids(&newest), vec![second.note_uuid, first.note_uuid]);
     let oldest = handle
+        .launch()
         .fetch_session_notes(session, session_filter(NoteOrder::OldestFirst, None))
         .await?;
     assert_eq!(uuids(&oldest), vec![first.note_uuid, second.note_uuid]);
     let searched = handle
+        .launch()
         .fetch_session_notes(
             session,
             session_filter(NoteOrder::NewestFirst, Some("stale seeds")),
@@ -179,6 +201,7 @@ async fn project_notes_filter_by_role_across_sessions() -> anyhow::Result<()> {
     ];
     for (session, name, role, finding) in seats {
         handle
+            .steerer()
             .set_session_goal(SetSessionIdentity {
                 session_uuid: session,
                 display_name: Some(name),
@@ -190,6 +213,7 @@ async fn project_notes_filter_by_role_across_sessions() -> anyhow::Result<()> {
             })
             .await?;
         handle
+            .launch()
             .create_session_note(
                 session,
                 NewSessionNote {
@@ -201,6 +225,7 @@ async fn project_notes_filter_by_role_across_sessions() -> anyhow::Result<()> {
     }
 
     let (total, rows) = handle
+        .launch()
         .fetch_project_notes(project_id, project_filter(Some("OBSERVER")))
         .await?;
     assert_eq!(total, 1);
@@ -211,6 +236,7 @@ async fn project_notes_filter_by_role_across_sessions() -> anyhow::Result<()> {
     assert_eq!(rows[0].title, "the gate blocks on stale seeds");
 
     let (all_total, all_rows) = handle
+        .launch()
         .fetch_project_notes(project_id, project_filter(None))
         .await?;
     assert_eq!(all_total, 2);

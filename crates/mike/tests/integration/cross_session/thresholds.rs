@@ -1,5 +1,6 @@
 use chrono::{Duration, Utc};
 use mike::store::persistence::cross_session::ThresholdWrite;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use serde_json::json;
 
 use crate::turn_facts::{Fixture, fixture};
@@ -59,10 +60,14 @@ async fn snapshot_as_of_t_ignores_rollups_after_t() -> anyhow::Result<()> {
     .execute(f.handle.pool())
     .await?;
     let at = Utc::now() - Duration::hours(24);
-    let seen = f.handle.rollup_as_of(at).await?;
+    let seen = f.handle.steerer().rollup_as_of(at).await?;
     assert_eq!(seen.map(|r| r.id), Some(older));
     assert_eq!(
-        f.handle.rollup_as_of(Utc::now()).await?.map(|r| r.id),
+        f.handle
+            .steerer()
+            .rollup_as_of(Utc::now())
+            .await?
+            .map(|r| r.id),
         Some(newer)
     );
     Ok(())
@@ -76,6 +81,7 @@ async fn threshold_pass_in_apply_mode_writes_one_row_and_one_calibration_change(
     };
     let steerer = f
         .handle
+        .steerer()
         .guard_steerer()
         .await?
         .map(|g| g.id)
@@ -83,6 +89,7 @@ async fn threshold_pass_in_apply_mode_writes_one_row_and_one_calibration_change(
     let r = rollup(&f, 1, 1).await?;
     let changes = f
         .handle
+        .steerer()
         .insert_threshold_rows(&[
             write(steerer, r, "applied", 0.85),
             write(steerer, r, "held_hysteresis", 0.75),
@@ -101,6 +108,7 @@ async fn threshold_pass_in_apply_mode_writes_one_row_and_one_calibration_change(
     assert!(detail["threshold_row_id"].as_i64().is_some());
     let in_force = f
         .handle
+        .steerer()
         .thresholds_in_force(steerer, Utc::now() + Duration::minutes(1))
         .await?;
     assert_eq!(in_force.len(), 1);

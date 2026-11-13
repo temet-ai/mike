@@ -1,6 +1,7 @@
 use crate::seed::{seed_project, seed_session};
 use crate::test_db::TestDb;
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use mike::store::persistence::mailbox::AckOutcome;
 use uuid::Uuid;
 
@@ -23,13 +24,18 @@ async fn claim_is_exactly_once_and_wins_over_in_band_delivery() -> anyhow::Resul
     let first = Uuid::new_v4();
     let second = Uuid::new_v4();
     handle
+        .launch()
         .insert_message(first, recipient, Some(sender), "first message")
         .await?;
     handle
+        .launch()
         .insert_message(second, recipient, Some(sender), "second message")
         .await?;
 
-    let claimed = handle.claim_channel_messages(recipient, 10).await?;
+    let claimed = handle
+        .launch()
+        .claim_channel_messages(recipient, 10)
+        .await?;
     assert_eq!(claimed.len(), 2, "both pending messages must be claimed");
     assert_eq!(claimed[0].message_uuid, first);
     assert_eq!(claimed[1].message_uuid, second);
@@ -45,25 +51,29 @@ async fn claim_is_exactly_once_and_wins_over_in_band_delivery() -> anyhow::Resul
         "the rendered envelope must carry the body: {envelope}"
     );
 
-    let reclaimed = handle.claim_channel_messages(recipient, 10).await?;
+    let reclaimed = handle
+        .launch()
+        .claim_channel_messages(recipient, 10)
+        .await?;
     assert!(
         reclaimed.is_empty(),
         "a second poll must not re-deliver messages the channel already claimed"
     );
 
     assert!(
-        !handle.claim_message(first).await?,
+        !handle.launch().claim_message(first).await?,
         "the in-band next-request injection path must not be able to claim a message the \
          channel already delivered — this is the delivery-preference guarantee"
     );
     assert!(
         !handle
+            .launch()
             .backfill_mailbox_sent_request_id(first, i64::MAX)
             .await?,
         "in-band attribution backfill must also be refused for a channel-delivered message"
     );
 
-    let ack = handle.ack_message(recipient, first).await?;
+    let ack = handle.launch().ack_message(recipient, first).await?;
     assert!(
         matches!(ack, AckOutcome::Consumed(_)),
         "ack must accept a channel-delivered message even though sent_request_id stayed NULL: {ack:?}"
@@ -93,12 +103,13 @@ async fn concurrent_claims_never_double_deliver_the_same_message() -> anyhow::Re
     seed_session(pool, project_id, &recipient.to_string()).await?;
     let message_uuid = Uuid::new_v4();
     handle
+        .launch()
         .insert_message(message_uuid, recipient, None, "racy message")
         .await?;
 
     let (a, b) = tokio::join!(
-        handle.claim_channel_messages(recipient, 10),
-        handle.claim_channel_messages(recipient, 10),
+        handle.launch().claim_channel_messages(recipient, 10),
+        handle.launch().claim_channel_messages(recipient, 10),
     );
     let total_claimed = a?.len() + b?.len();
     assert_eq!(
@@ -127,20 +138,30 @@ async fn released_mail_is_claimable_again() -> anyhow::Result<()> {
     seed_session(pool, project_id, &recipient.to_string()).await?;
     let message_uuid = Uuid::new_v4();
     handle
+        .launch()
         .insert_message(message_uuid, recipient, None, "unsent message")
         .await?;
 
-    assert_eq!(handle.claim_channel_messages(recipient, 10).await?.len(), 1);
+    assert_eq!(
+        handle
+            .launch()
+            .claim_channel_messages(recipient, 10)
+            .await?
+            .len(),
+        1
+    );
     let released = handle
+        .launch()
         .release_channel_messages(recipient, vec![message_uuid])
         .await?;
     assert_eq!(released, 1, "the claimed row must be released");
     assert!(
-        handle.claim_message(message_uuid).await?,
+        handle.launch().claim_message(message_uuid).await?,
         "a released message must be claimable by the in-band injection path again"
     );
     assert_eq!(
         handle
+            .launch()
             .release_channel_messages(Uuid::new_v4(), vec![message_uuid])
             .await?,
         0,

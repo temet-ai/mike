@@ -1,4 +1,5 @@
 use mike::store::persistence::PersistError;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use mike::store::persistence::session_notes::{
     NewSessionNote, NoteOrder, SessionNoteFilter, SessionNoteRow, SessionNoteUpdate,
 };
@@ -10,6 +11,7 @@ use super::support::{Fixture, assert_status, obligation};
 async fn ordinary(f: &Fixture, kind: &str) -> anyhow::Result<SessionNoteRow> {
     let tags = [format!("fleet:{}", f.row.fleet_uuid)];
     Ok(f.persist
+        .launch()
         .create_session_note(
             f.acceptance,
             NewSessionNote {
@@ -26,6 +28,7 @@ async fn ordinary(f: &Fixture, kind: &str) -> anyhow::Result<SessionNoteRow> {
 
 async fn stored(f: &Fixture, id: Uuid) -> anyhow::Result<SessionNoteRow> {
     f.persist
+        .launch()
         .fetch_session_notes(
             f.acceptance,
             SessionNoteFilter {
@@ -55,6 +58,7 @@ async fn old_ordinary_notes_cannot_be_promoted_by_tag_or_combined_kind_changes()
     for note in notes {
         let edited = f
             .persist
+            .launch()
             .update_session_note(
                 note.note_uuid,
                 SessionNoteUpdate {
@@ -68,6 +72,7 @@ async fn old_ordinary_notes_cannot_be_promoted_by_tag_or_combined_kind_changes()
         for kind in [None, Some("task")] {
             let result = f
                 .persist
+                .launch()
                 .update_session_note(
                     note.note_uuid,
                     SessionNoteUpdate {
@@ -89,6 +94,7 @@ async fn old_ordinary_notes_cannot_be_promoted_by_tag_or_combined_kind_changes()
         }
         let converted = f
             .persist
+            .launch()
             .update_session_note(
                 note.note_uuid,
                 SessionNoteUpdate {
@@ -122,6 +128,7 @@ async fn malformed_kind_cannot_promote_in_place_or_reenter_after_quarantine() ->
     let verdict = f.verdict().await?;
     let promoted = f
         .persist
+        .launch()
         .update_session_note(
             original.note_uuid,
             SessionNoteUpdate {
@@ -137,6 +144,7 @@ async fn malformed_kind_cannot_promote_in_place_or_reenter_after_quarantine() ->
     let tags = [format!("fleet:{}", f.row.fleet_uuid)];
     let retired = f
         .persist
+        .launch()
         .update_session_note(
             original.note_uuid,
             SessionNoteUpdate {
@@ -148,6 +156,7 @@ async fn malformed_kind_cannot_promote_in_place_or_reenter_after_quarantine() ->
         .ok_or_else(|| anyhow::anyhow!("legacy note disappeared"))?;
     let restored = f
         .persist
+        .launch()
         .update_session_note(
             original.note_uuid,
             SessionNoteUpdate {
@@ -169,6 +178,7 @@ async fn malformed_kind_cannot_promote_in_place_or_reenter_after_quarantine() ->
     assert_eq!(retained.created_at, original.created_at);
     assert!(
         f.persist
+            .launch()
             .session_note_belongs_to(f.acceptance, retained.note_uuid)
             .await?
     );
@@ -199,6 +209,7 @@ async fn optional_obligation_becomes_required_only_through_a_new_successor() -> 
     for data in [&required, &implicit] {
         let result = f
             .persist
+            .launch()
             .update_session_note(
                 original.note_uuid,
                 SessionNoteUpdate {
@@ -238,6 +249,7 @@ async fn implicit_and_explicit_required_true_are_equivalent_but_ruling_strengthe
     data["required"] = json!(true);
     let updated = f
         .persist
+        .launch()
         .update_session_note(
             note.note_uuid,
             SessionNoteUpdate {
@@ -257,6 +269,7 @@ async fn implicit_and_explicit_required_true_are_equivalent_but_ruling_strengthe
     data["required"] = json!(true);
     let strengthened = f
         .persist
+        .launch()
         .update_session_note(
             rule.note_uuid,
             SessionNoteUpdate {

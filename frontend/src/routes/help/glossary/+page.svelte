@@ -69,7 +69,7 @@
 						"Six systems can rewrite the outbound request body, in fixed order: the operator filter, `lazy_sections` re-injection, the recall injector, the lesson/finding reminders pipeline, the steerer-reminder queue drain, and prompt-composition splicing — and the filter and most of the others reach both the `system` block and every message's content, not `system` alone. Inbound, the weasel intercept can discard Anthropic's response entirely and substitute a synthetic correction. What IS invariant regardless: capture always stores the original, pre-mutation inbound bytes, so inspection fidelity holds no matter what the pipeline does to the forwarded copy."
 					],
 					seenAt: ['internal invariant — visible in capture vs. forwarded body diff'],
-					source: 'docs/ARCHITECTURE.md §4, docs/REQUEST_FLOW.md, crates/mike/src/proxy/handler.rs'
+					source: 'docs/ARCHITECTURE.md §4, docs/REQUEST_FLOW.md, crates/mike-features/src/proxy/handler.rs'
 				},
 				{
 					slug: 'sse-accumulator',
@@ -169,7 +169,7 @@
 						'2xx is success. 4xx is client error (400 bad request, 401 unauthorized, 429 rate-limited). 5xx is server error (502 bad gateway, 529 overloaded). The `retry-after` header travels alongside 429s and 529s.'
 					],
 					seenAt: ['request detail Parameters section', 'response headers'],
-					source: 'crates/mike/src/proxy/handler.rs'
+					source: 'crates/mike-features/src/proxy/handler.rs'
 				},
 				{
 					slug: 'streaming-vs-non-streaming',
@@ -274,7 +274,7 @@
 						}
 					],
 					seenAt: ['request detail metrics strip (Stop cell)', 'messages token bar (Stop cell)'],
-					source: 'crates/mike/src/extract/response.rs'
+					source: 'crates/mike-base/src/extract/response.rs'
 				},
 				{
 					slug: 'upstream-request-id',
@@ -288,7 +288,7 @@
 						'request detail Details tab → Identifiers section',
 						'response headers (request-id row)'
 					],
-					source: 'crates/mike/src/extract/response.rs'
+					source: 'crates/mike-base/src/extract/response.rs'
 				},
 				{
 					slug: 'upstream-message-id',
@@ -299,7 +299,7 @@
 						'Used for support correlation alongside `upstream_request_id`. It is stored here but not forwarded to Anthropic on subsequent requests.'
 					],
 					seenAt: ['request detail Details tab → Identifiers section'],
-					source: 'crates/mike/src/extract/response.rs'
+					source: 'crates/mike-base/src/extract/response.rs'
 				}
 			]
 		},
@@ -321,7 +321,7 @@
 						'/prompts/{prompt_sha256}',
 						'request detail header (system-prompt class chip)'
 					],
-					source: 'crates/mike/src/compose_prompt/'
+					source: 'crates/mike-features/src/compose_prompt/'
 				},
 				{
 					slug: 'prompt-sha256',
@@ -372,7 +372,7 @@
 						}
 					],
 					seenAt: ['/prompts/{prompt_sha256} (mode pill in header)'],
-					source: 'crates/mike/src/compose_prompt/store.rs'
+					source: 'crates/mike-features/src/compose_prompt/store.rs'
 				},
 				{
 					slug: 'anomaly',
@@ -393,7 +393,7 @@
 						"Used during prompt-engineering work: when a client's prompt drifts (an extra reminder, a new tool definition, a reordered block), the drift queue lets the operator decide whether to incorporate the change into the composition's template, fold it into a filter rule, or treat it as noise."
 					],
 					seenAt: ['/prompts/{prompt_sha256} (Drift tab)'],
-					source: 'crates/mike/src/compose_prompt/store.rs'
+					source: 'crates/mike-features/src/compose_prompt/store.rs'
 				},
 				{
 					slug: 'composition-match',
@@ -489,13 +489,13 @@
 						'See the next entry for the canonical category list.'
 					],
 					seenAt: ['/analysis', 'request detail "Findings" tab when present'],
-					source: 'crates/mike/src/analysis/'
+					source: 'crates/mike-base/src/analysis/'
 				},
 				{
 					slug: 'weasel-categories',
 					term: 'Weasel-pattern categories',
 					body: [
-						'There are five categories. Each is a separate analyzer with its own pattern set; a request can fire findings in multiple categories. The list below is the canonical set as defined in the analyzer source — adding a category is a code change in `crates/mike/src/analysis/categories.rs` and `store/models.rs::DiagnosticCategory`.'
+						'There are five categories. Each is a separate analyzer with its own pattern set; a request can fire findings in multiple categories. The list below is the canonical set as defined in the analyzer source — adding a category is a code change in `crates/mike-base/src/analysis/categories.rs` and `store/models.rs::DiagnosticCategory`.'
 					],
 					subAnchors: [
 						{
@@ -530,7 +530,7 @@
 						}
 					],
 					seenAt: ['/analysis (category cards)', 'config under `[analysis.categories.*]`'],
-					source: 'crates/mike/src/analysis/categories.rs, crates/mike/src/analysis/patterns.rs'
+					source: 'crates/mike-base/src/analysis/categories.rs, crates/mike-base/src/analysis/patterns.rs'
 				},
 				{
 					slug: 'grader',
@@ -544,7 +544,7 @@
 						'session detail (turn outcomes)'
 					],
 					source:
-						'crates/mike/src/analysis/judge/, crates/mike/src/store/persistence/turn_verdicts/'
+						'crates/mike-features/src/analysis/judge/, crates/mike-features/src/store/persistence/turn_verdicts/'
 				},
 				{
 					slug: 'end-label',
@@ -556,7 +556,7 @@
 						'session detail (session-end chip)',
 						'operator turn rows (counts as correction)'
 					],
-					source: 'crates/mike/src/session_end/, crates/mike/src/eval/session_end/'
+					source: 'crates/mike/src/session_end/, crates/mike-features/src/eval/session_end/'
 				},
 				{
 					slug: 'turn-guard',
@@ -568,7 +568,7 @@
 						'/settings/steering (guard questions panel)',
 						'session steering timeline (wake state and verdict controls)'
 					],
-					source: 'crates/mike/src/steerer/guard/'
+					source: 'crates/mike-features/src/steerer/guard/'
 				},
 				{
 					slug: 'analyzer',
@@ -578,7 +578,7 @@
 						'An analyzer can run after a turn finishes, against the stored response, or in-flight as the response streams through. It only records what it sees; it never blocks or rewrites the response.'
 					],
 					seenAt: ['/analysis', 'request detail "Findings" tab when present'],
-					source: 'crates/mike/src/analysis/'
+					source: 'crates/mike-base/src/analysis/'
 				},
 				{
 					slug: 'finding',
@@ -588,7 +588,7 @@
 						'Findings are diagnostic records, not blocks: each one links back to the request that produced it so the operator can read the surrounding context and decide whether the language was warranted. Nothing is truncated — the matched span is stored in full.'
 					],
 					seenAt: ['/analysis (finding rows)', 'request detail "Findings" tab when present'],
-					source: 'crates/mike/src/analysis/, crates/mike/src/store/models.rs (Finding)'
+					source: 'crates/mike-base/src/analysis/, crates/mike/src/store/models.rs (Finding)'
 				}
 			]
 		},
@@ -609,7 +609,7 @@
 						'filter workbench (toolbar "filters" button, /filter/workbench)',
 						'request detail — "Filter this" link on a system-prompt block'
 					],
-					source: 'crates/mike/src/filter/, crates/mike/src/store/persistence/filter_rules.rs'
+					source: 'crates/mike-features/src/filter/, crates/mike-features/src/store/persistence/filter_rules.rs'
 				},
 				{
 					slug: 'filter-rule-kind',
@@ -693,7 +693,7 @@
 						'The fleet roster lives on the /steering Fleet tab; live fires appear on the Monitor tab.'
 					],
 					seenAt: ['/steering (Fleet tab roster, Monitor tab feed)', 'session steering section'],
-					source: 'crates/mike/src/steerer/, crates/mike/src/steerer/fleet.rs'
+					source: 'crates/mike-features/src/steerer/, crates/mike/src/steerer/fleet.rs'
 				},
 				{
 					slug: 'intervention',
@@ -784,7 +784,7 @@
 						'/steering (Fleet roster — Refocus steerers)',
 						'BIGBRO ATTRIBUTION card (steerer name)'
 					],
-					source: 'crates/mike/src/steerer/refocus.rs'
+					source: 'crates/mike-features/src/steerer/refocus.rs'
 				},
 				{
 					slug: 'verifier-steerer',
@@ -811,7 +811,7 @@
 						'/steering (Fleet tab — enrol / disenrol)'
 					],
 					source:
-						'crates/mike/src/steerer/registry.rs, frontend/src/lib/components/shell/SessionSteeringSection.svelte'
+						'crates/mike-features/src/steerer/registry.rs, frontend/src/lib/components/shell/SessionSteeringSection.svelte'
 				}
 			]
 		},
@@ -828,7 +828,7 @@
 						'TTL is the memory-pressure release valve: capture is unbounded by default, eviction keeps the working set finite. A pinned session is exempt from TTL eviction entirely.'
 					],
 					seenAt: ['session row metadata', 'help drawer (per-session TTL controls)'],
-					source: 'crates/mike/src/store/retention.rs, /settings'
+					source: 'crates/mike-base/src/store/retention.rs, /settings'
 				},
 				{
 					slug: 'project-pin',
@@ -856,7 +856,7 @@
 						"Four canonical fields: `input_tokens` (uncached input billed at full rate), `output_tokens` (model output), `cache_read_input_tokens` (input served from prompt cache, 10× cheaper), and `cache_creation_input_tokens` (input written to cache, 1.25× input rate). Cache fields are SUBSETS of input — adding all four would double-count, which is why the messages token bar's Total cell renders `input + output` only."
 					],
 					seenAt: ['request detail metrics strip', 'request detail messages token bar'],
-					source: 'crates/mike/src/extract/response.rs (usage extraction)'
+					source: 'crates/mike-base/src/extract/response.rs (usage extraction)'
 				},
 				{
 					slug: 'prompt-cache',
@@ -949,7 +949,7 @@
 						'request detail "Messages" tab',
 						'request list (tool-name chips on assistant turns)'
 					],
-					source: 'crates/mike/src/extract/response.rs'
+					source: 'crates/mike-base/src/extract/response.rs'
 				},
 				{
 					slug: 'tool-result',
@@ -989,7 +989,7 @@
 						"The signature is what makes byte-identity forwarding load-bearing: Anthropic verifies the signature on the next turn to confirm the thinking content wasn't tampered with. Re-serialising the JSON breaks the signature even if the bytes are semantically equivalent — and the filter's rewrite action does exactly that reparse-and-reserialise round trip on any thinking block a rule matches. The original wire bytes are preserved verbatim only when nothing in the pipeline touches the block; a filter rule that matches a thinking block will break it."
 					],
 					seenAt: ['request detail Messages tab (thinking content blocks)'],
-					source: 'crates/mike/src/proxy/handler.rs'
+					source: 'crates/mike-features/src/proxy/handler.rs'
 				},
 				{
 					slug: 'thinking-block-signature',
@@ -999,7 +999,7 @@
 						"This is the canonical reason byte-identity forwarding matters: the signature covers the exact JSON encoding, so even whitespace differences break verification. It is not a guarantee against reserialisation, though — the filter and several of the other request-mutating stages round-trip the body through `serde_json`, and any of them touching a thinking block's content reserialises it and breaks the signature."
 					],
 					seenAt: ['request detail Messages tab (chip on thinking blocks)'],
-					source: 'crates/mike/src/proxy/handler.rs'
+					source: 'crates/mike-features/src/proxy/handler.rs'
 				}
 			]
 		},
@@ -1182,7 +1182,7 @@
 					],
 					seenAt: ['/diagnostics/memory', 'semantic-recall results'],
 					source:
-						'crates/mike/src/store/operator_turns.rs, crates/mike/src/store/persistence/operator_turns.rs'
+						'crates/mike-base/src/store/operator_turns.rs, crates/mike/src/store/persistence/operator_turns.rs'
 				},
 				{
 					slug: 'turn-outcome',
@@ -1244,7 +1244,7 @@
 						'The pipeline is enabled by default and settable from /settings (enable flag, Infinity base URL, model name). If Infinity is unreachable, recall falls back to Postgres FTS — embeddings are an accelerator, not a hard dependency.'
 					],
 					seenAt: ['/settings (embedding pipeline controls)', '/diagnostics/memory'],
-					source: 'crates/mike/src/embed_worker.rs, crates/mike/src/settings/mod.rs'
+					source: 'crates/mike/src/embed_worker.rs, crates/mike-base/src/settings/mod.rs'
 				}
 			]
 		},

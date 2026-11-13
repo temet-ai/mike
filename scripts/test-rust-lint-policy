@@ -113,11 +113,11 @@ rm "$TMP_REPO/crates/demo/src/domain.rs"
 mkdir -p \
   "$TMP_REPO/crates/demo/src/api" \
   "$TMP_REPO/crates/demo/src/proxy" \
-  "$TMP_REPO/crates/mike/src/extract/request"
+  "$TMP_REPO/crates/mike-base/src/extract/request"
 printf 'use axum::Router;\n' >"$TMP_REPO/crates/demo/src/api/routes.rs"
 printf 'use axum::body::Body;\n' >"$TMP_REPO/crates/demo/src/proxy/handler.rs"
 printf 'use axum::Router;\n' >"$TMP_REPO/crates/mike/src/app.rs"
-printf 'use axum::http::HeaderMap;\n' >"$TMP_REPO/crates/mike/src/extract/request/fields.rs"
+printf 'use axum::http::HeaderMap;\n' >"$TMP_REPO/crates/mike-base/src/extract/request/fields.rs"
 if "$TMP_REPO/scripts/lint-rust-architecture" >/dev/null 2>&1; then
   ok "explicit HTTP adapter locations may import Axum"
 else

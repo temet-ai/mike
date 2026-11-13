@@ -1,7 +1,8 @@
 use super::*;
-use crate::api::detail::Detail;
-use crate::api::result_order::ResultOrder;
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::project_knowledge::ProjectIdentity;
+use crate::web_base::detail::Detail;
+use crate::web_base::result_order::ResultOrder;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct RecallSimilarTurnsBody {
@@ -34,6 +35,7 @@ pub(crate) async fn own_turn_to_skip(
         return Ok(None);
     };
     handle
+        .knowledge()
         .newest_turn_of_session(session)
         .await
         .map_err(persist_error_response)
@@ -41,15 +43,6 @@ pub(crate) async fn own_turn_to_skip(
 
 pub(crate) const RECALL_SIMILAR_TURNS_DEFAULT_LIMIT: i64 = 5;
 pub(crate) const RECALL_SIMILAR_TURNS_MAX_LIMIT: i64 = 50;
-
-#[derive(Debug, Clone, Serialize)]
-pub(crate) struct SimilarTurnDto {
-    #[serde(flatten)]
-    pub(crate) turn: OperatorTurnDto,
-    pub(crate) rank: f32,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) rerank_score: Option<f64>,
-}
 
 #[derive(Debug, Serialize)]
 pub(crate) struct RecallSimilarTurnsResponse {
@@ -87,6 +80,7 @@ async fn answer_recall(
         .clamp(1, RECALL_SIMILAR_TURNS_MAX_LIMIT);
 
     let project = handle
+        .knowledge()
         .resolve_knowledge_project(&body.project)
         .await
         .map_err(crate::api::project_knowledge::knowledge_error)?;
@@ -188,7 +182,13 @@ async fn recall_rows_hybrid(
     state: &AppState,
     (project, query): (&ProjectIdentity, &str),
     window: RecallWindow,
-) -> Result<(Vec<crate::store::persistence::RankedTurnRow>, bool), Response> {
+) -> Result<
+    (
+        Vec<crate::store::persistence::recall_reads::RankedTurnRow>,
+        bool,
+    ),
+    Response,
+> {
     let embedding_service = state.embedding_service();
     let rows = if embedding_service.is_available() {
         try_embedding_recall(handle, &embedding_service, (project, query), window).await
@@ -199,6 +199,7 @@ async fn recall_rows_hybrid(
     let rows = match rows {
         Some(r) => r,
         None => handle
+            .knowledge()
             .recall_turns_by_fts(project, query, window.limit, window.exclude_turn)
             .await
             .map_err(|e| {
@@ -219,7 +220,7 @@ async fn try_embedding_recall(
     embedding_service: &EmbeddingService,
     (project, query): (&ProjectIdentity, &str),
     window: RecallWindow,
-) -> Option<Vec<crate::store::persistence::RankedTurnRow>> {
+) -> Option<Vec<crate::store::persistence::recall_reads::RankedTurnRow>> {
     let query_vec = embed_recall_query(embedding_service, &project.project_path, query).await?;
     let literal = crate::store::operator_turns::vector_to_text_literal(&query_vec);
     let model = embedding_service.model_name();
@@ -257,9 +258,10 @@ async fn recall_by_embedding(
     (project, query): (&ProjectIdentity, &str),
     (model, literal): (&str, &str),
     window: RecallWindow,
-) -> Option<Vec<crate::store::persistence::RankedTurnRow>> {
+) -> Option<Vec<crate::store::persistence::recall_reads::RankedTurnRow>> {
     let path = project.project_path.as_str();
     match handle
+        .knowledge()
         .recall_turns_by_embedding(project, model, literal, window.limit, window.exclude_turn)
         .await
     {
@@ -302,7 +304,9 @@ fn log_embedding_recall_query_failed(
     );
 }
 
-fn ranked_row_to_similar_turn(r: crate::store::persistence::RankedTurnRow) -> SimilarTurnDto {
+fn ranked_row_to_similar_turn(
+    r: crate::store::persistence::recall_reads::RankedTurnRow,
+) -> SimilarTurnDto {
     SimilarTurnDto {
         rank: r.rank,
         rerank_score: None,

@@ -1,7 +1,9 @@
 use chrono::Utc;
 use mike::app::inspect_router_on;
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 use mike::store::persistence::turn_facts::TurnFactsRow;
 use sqlx::PgPool;
 use tokio::net::TcpListener;
@@ -236,7 +238,7 @@ pub(super) async fn promoted(
         .iter()
         .map(|t| facts_row(*t, session_id, "genuine"))
         .collect();
-    handle.upsert_turn_facts(&rows).await?;
+    handle.dossier().upsert_turn_facts(&rows).await?;
     let bundle_id = insert_bundle(&pool).await?;
     configure_live_judge(&pool, bundle_id, live).await?;
     Mock::given(method("POST"))

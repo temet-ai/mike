@@ -1,3 +1,4 @@
+use mike::store::persistence::web_repo::WebPersist as _;
 use uuid::Uuid;
 
 use mike::store::persistence::PersistHandle;
@@ -82,6 +83,7 @@ impl Fixture {
         cursor: Option<&FlowCursor>,
     ) -> anyhow::Result<FlowPage> {
         self.handle
+            .web()
             .fetch_session_flow(self.session, component, limit, cursor)
             .await?
             .ok_or_else(|| anyhow::anyhow!("fixture session missing"))

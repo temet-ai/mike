@@ -1,5 +1,6 @@
 use super::*;
 use crate::store::persistence::llm_role_health::WorkerToggleState;
+use crate::store::persistence::web_repo::WebPersist as _;
 use chrono::{DateTime, Duration, Utc};
 
 const OFF_GRACE_HOURS: i64 = 48;
@@ -92,7 +93,7 @@ pub(crate) async fn worker_toggles_capability(state: &AppState) -> CapabilityRow
         .iter()
         .map(|(key, _)| (*key).to_owned())
         .collect();
-    let states = match persist.worker_toggle_states(&keys).await {
+    let states = match persist.web().worker_toggle_states(&keys).await {
         Ok(states) => states,
         Err(e) => {
             return row(
@@ -107,7 +108,7 @@ pub(crate) async fn worker_toggles_capability(state: &AppState) -> CapabilityRow
         .find(|s| s.key == LESSON_TOGGLE)
         .map(|s| s.updated_at);
     let corrections = match lessons_off_since {
-        Some(since) => persist.corrected_turns_since(since).await.ok(),
+        Some(since) => persist.web().corrected_turns_since(since).await.ok(),
         None => None,
     };
     worker_toggles_row(Utc::now(), &states, corrections)

@@ -1,3 +1,4 @@
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -169,12 +170,16 @@ async fn run_detection_with_clients(
     let project_ids = if let Some(path) = args.project.as_ref() {
         vec![
             handle
+                .lessons()
                 .lookup_project_id_by_path(path)
                 .await?
                 .ok_or_else(|| anyhow::anyhow!("no project registered at path {path:?}"))?,
         ]
     } else {
-        handle.list_project_ids_with_embedded_lessons().await?
+        handle
+            .lessons()
+            .list_project_ids_with_embedded_lessons()
+            .await?
     };
     let judge = crate::lesson_relations::ModelPairJudge {
         proposer: &proposer,

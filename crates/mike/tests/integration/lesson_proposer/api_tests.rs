@@ -1,6 +1,7 @@
 use axum::Router;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use serde_json::{Value, json};
 
 use tower::ServiceExt;
@@ -8,7 +9,8 @@ use tower::ServiceExt;
 use crate::turn_facts::{Fixture, NewTurn, Req, attach, fixture, insert_request, insert_turn};
 
 use mike::api::manifest::inspect_router;
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::lessons::proposals::{EvidenceWrite, NewCandidateLesson};
 
@@ -79,6 +81,7 @@ async fn seed_pending_lesson(f: &Fixture, base_id: i64) -> anyhow::Result<(i64, 
     let empty = json!([]);
     let lesson_id = f
         .handle
+        .lessons()
         .create_candidate_lesson(
             NewCandidateLesson {
                 project_id: f.project_id,

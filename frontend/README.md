@@ -136,7 +136,7 @@ endpoints return. A few DTOs (the session-flow page, request and session summari
 into `src/lib/api/generated/` by `cargo test -p mike --features ts-export export_bindings`
 (`scripts/check-generated-types.sh` checks they are current); do not hand-edit those files.
 When the Rust types in
-`crates/mike/src/api/`, `crates/mike/src/store/models/` or `crates/mike/src/types.rs`
+`crates/mike/src/api/`, `crates/mike-base/src/store/models/` or `crates/mike-base/src/types.rs`
 change, update this file to match.
 
 Key gotchas derived from the Rust code:
@@ -144,7 +144,7 @@ Key gotchas derived from the Rust code:
 - `RequestSummary.status` is a plain `string` (Rust `Display` impl), so an
   error looks like `"Error: <msg>"` — not a tagged object.
 - `RequestDetail.status` is the raw `RequestStatus` enum
-  (`crates/mike/src/store/models/request_status.rs`), which serializes as either
+  (`crates/mike-base/src/store/models/request_status.rs`), which serializes as either
   `"Pending" | "Streaming" | "Complete"` or `{ "Error": "<msg>" }`.
 - `RequestDetail.has_request_body` / `has_response_body` are booleans (not the
   raw bytes) via a custom serializer on the Rust side.

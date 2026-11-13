@@ -1,6 +1,7 @@
 use mike::lesson_proposer::{ProposerSettings, run_tick};
 use mike::lesson_shape::assess;
 use mike::store::persistence::lessons::NewLessonWrite;
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 
 use crate::turn_facts::{Fixture, fixture};
 
@@ -25,6 +26,7 @@ async fn flagged_lesson(
     let assessment = assess(text, topic, 500);
     let row = f
         .handle
+        .lessons()
         .create_lesson_with_shape(
             NewLessonWrite {
                 project_id: f.project_id,
@@ -187,7 +189,7 @@ async fn a_status_text_with_no_rule_in_it_is_retired_but_an_over_length_one_is_n
         Some("not_a_lesson")
     );
     assert_eq!(archived_reason(&f, long).await?, None);
-    let finding = f.handle.shape_finding(long).await?;
+    let finding = f.handle.lessons().shape_finding(long).await?;
     assert_eq!(finding.map(|r| r.attempts), Some(1));
     f.db.cleanup().await?;
     Ok(())
@@ -230,6 +232,7 @@ async fn the_operator_limit_setting_changes_what_is_flagged() -> anyhow::Result<
     let text = LONG.repeat(5);
     let lesson = f
         .handle
+        .lessons()
         .create_lesson_with_topic(NewLessonWrite {
             project_id: f.project_id,
             kind: "convention",
@@ -251,7 +254,11 @@ async fn the_operator_limit_setting_changes_what_is_flagged() -> anyhow::Result<
 
     assert!(report.shape.flagged >= 1, "{report:?}");
     assert_eq!(
-        f.handle.shape_finding(lesson.id).await?.map(|r| r.shape),
+        f.handle
+            .lessons()
+            .shape_finding(lesson.id)
+            .await?
+            .map(|r| r.shape),
         Some("over_length".to_owned())
     );
     f.db.cleanup().await?;

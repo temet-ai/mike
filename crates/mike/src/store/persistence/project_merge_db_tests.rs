@@ -1,3 +1,6 @@
+use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::web_repo::WebPersist as _;
 use uuid::Uuid;
 
 use super::ProjectMergeError;
@@ -40,6 +43,7 @@ async fn worktree_project_folds_into_its_real_project_and_new_captures_follow() 
             .await?;
 
     let merged = handle
+        .web()
         .merge_project_into("/src/app-wt-1", main_uuid)
         .await
         .map_err(|e| anyhow::anyhow!("{e:?}"))?;
@@ -55,6 +59,7 @@ async fn worktree_project_folds_into_its_real_project_and_new_captures_follow() 
         main
     );
     let listed: Vec<String> = handle
+        .launch()
         .list_projects()
         .await?
         .into_iter()
@@ -63,7 +68,7 @@ async fn worktree_project_folds_into_its_real_project_and_new_captures_follow() 
     assert!(listed.contains(&"/src/app".to_string()));
     assert!(!listed.contains(&"/src/app-wt-1".to_string()));
     assert!(matches!(
-        handle.merge_project_into("/src/app", main_uuid).await,
+        handle.web().merge_project_into("/src/app", main_uuid).await,
         Err(ProjectMergeError::SameProject)
     ));
 
@@ -82,8 +87,12 @@ async fn worktree_project_folds_into_its_real_project_and_new_captures_follow() 
     .bind(fresh)
     .execute(handle.pool())
     .await?;
-    assert_eq!(handle.project_id_for_path("/src/app/").await?, Some(main));
+    assert_eq!(
+        handle.knowledge().project_id_for_path("/src/app/").await?,
+        Some(main)
+    );
     let location = handle
+        .knowledge()
         .adopt_repo_location(&RepoLocationAdoption {
             session: fresh,
             machine: Uuid::new_v4(),
@@ -93,7 +102,10 @@ async fn worktree_project_folds_into_its_real_project_and_new_captures_follow() 
         })
         .await?
         .ok_or_else(|| anyhow::anyhow!("unbound session must adopt the worktree location"))?;
-    handle.bind_session_location(fresh, location).await?;
+    handle
+        .knowledge()
+        .bind_session_location(fresh, location)
+        .await?;
     assert_eq!(project_of(&handle, fresh).await?.0, main);
 
     db.cleanup().await

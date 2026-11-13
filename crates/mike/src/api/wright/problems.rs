@@ -1,3 +1,4 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -6,10 +7,10 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::{bad_request, page_limit, page_offset, refuse};
-use crate::api::handlers::{persist_error_response, persist_unavailable_response};
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::wright::{NewClientError, ProblemFilter};
+use crate::web_base::{persist_error_response, persist_unavailable_response};
 use crate::wright::Source;
 
 const PROBLEMS_DEFAULT_LIMIT: i64 = 50;
@@ -45,6 +46,7 @@ async fn check_filter(
         return Ok(None);
     };
     let known: Vec<String> = handle
+        .web()
         .list_wright_checks()
         .await
         .map_err(persist_error_response)?
@@ -95,6 +97,7 @@ pub(crate) async fn list_problems(
     let handle = state.persist().ok_or_else(persist_unavailable_response)?;
     let filter = problem_filter(handle, &query).await?;
     let page = handle
+        .web()
         .list_wright_problems(&filter)
         .await
         .map_err(persist_error_response)?;
@@ -126,6 +129,7 @@ pub(crate) async fn get_problem(
         .map_err(bad_request)?;
     let offset = page_offset(query.episode_offset, "episode_offset").map_err(bad_request)?;
     let problem = handle
+        .web()
         .wright_problem(id)
         .await
         .map_err(persist_error_response)?
@@ -136,6 +140,7 @@ pub(crate) async fn get_problem(
             )
         })?;
     let episodes = handle
+        .web()
         .wright_episodes(id, limit, offset)
         .await
         .map_err(persist_error_response)?;
@@ -205,6 +210,7 @@ pub(crate) async fn report_client_error(
     let error =
         validate_client_error(body).map_err(|(status, message)| refuse(status, &message))?;
     let id = handle
+        .web()
         .insert_wright_client_error(&error)
         .await
         .map_err(persist_error_response)?;

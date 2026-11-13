@@ -149,15 +149,12 @@ pub(crate) async fn compress_estimate_reduces_file_read_and_reports_full_bodies_
     assert_eq!(resp.manifest.stages.len(), 1);
     let stage = &resp.manifest.stages[0];
     assert_eq!(stage.stage, "compression.file_read");
-    assert_eq!(
-        stage.outcome,
-        crate::compress::manifest::StageOutcome::Applied
-    );
+    assert_eq!(stage.outcome, crate::wire::manifest::StageOutcome::Applied);
     assert_eq!(stage.reason_code, "applied");
     assert_eq!(stage.targets.len(), 1);
     assert_eq!(
         stage.targets[0].outcome,
-        crate::compress::manifest::StageOutcome::Applied
+        crate::wire::manifest::StageOutcome::Applied
     );
     assert_eq!(stage.targets[0].reason_code, "file_read_reduced");
     assert!(resp.manifest.verify_chain().is_ok());

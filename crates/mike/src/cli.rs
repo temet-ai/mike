@@ -202,3 +202,6 @@ mod tests {
         assert_eq!(bare_dispatch_target(false), BareDispatch::Serve);
     }
 }
+
+#[cfg(test)]
+mod cross_crate_tests;

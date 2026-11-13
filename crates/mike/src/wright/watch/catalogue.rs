@@ -1,3 +1,4 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 use std::path::PathBuf;
 
 use chrono::Utc;
@@ -46,6 +47,7 @@ pub(crate) async fn run_check(
     let outcome = probe(check, ctx).await;
     let recorded = ctx
         .persist
+        .web()
         .record_wright_run(&CheckRun {
             check: &check.name,
             source: &check.source,

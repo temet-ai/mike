@@ -1,3 +1,4 @@
+use crate::store::persistence::eval_repo::EvalPersist as _;
 use anyhow::{Result, anyhow};
 
 use super::args_metrics::{EvalAlarmsBacktestArgs, EvalAlarmsListArgs, parse_instant};
@@ -12,9 +13,10 @@ pub(super) async fn backtest(args: EvalAlarmsBacktestArgs, cli: CliOverrides) ->
     let from = parse_instant(&args.from).map_err(anyhow::Error::msg)?;
     let to = parse_instant(&args.to).map_err(anyhow::Error::msg)?;
     let persist = super::connect(cli, false).await?;
-    let settings = resolve_eval_settings(&persist.eval_setting_rows().await?);
+    let settings = resolve_eval_settings(&persist.eval().eval_setting_rows().await?);
     let steps = step_instants(from, to, &args.step);
     let rows = persist
+        .eval()
         .backtest_eval_alarms(kind, &steps, &thresholds(&settings))
         .await?;
     for row in rows {
@@ -36,7 +38,7 @@ pub(super) async fn list(args: EvalAlarmsListArgs, cli: CliOverrides) -> Result<
         limit: 1_000,
         ..AlarmsFilter::default()
     };
-    let (alarms, total) = persist.list_eval_alarms(&filter).await?;
+    let (alarms, total) = persist.eval().list_eval_alarms(&filter).await?;
     println!("{total} alarm episode(s)");
     for alarm in alarms {
         println!("{}", serde_json::to_string_pretty(&alarm)?);

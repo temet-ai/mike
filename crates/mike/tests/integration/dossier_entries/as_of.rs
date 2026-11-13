@@ -1,5 +1,6 @@
 use chrono::Duration;
 use mike::store::persistence::dossier_entries::EntryClose;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 
 use super::entries;
 use crate::turn_facts::fixture;
@@ -27,24 +28,27 @@ async fn as_of_shows_open_before_the_close_was_recorded_and_terminal_after() -> 
         closed_at: chrono::Utc::now(),
         closed_by: "requests.requests:9101".to_owned(),
     };
-    f.handle.close_dossier_entries(&[close]).await?;
+    f.handle.dossier().close_dossier_entries(&[close]).await?;
     let closed = entries(&f).await?;
     let close_recorded = closed[0]
         .close_recorded_at
         .ok_or_else(|| anyhow::anyhow!("close must be recorded"))?;
     let before = f
         .handle
+        .dossier()
         .list_entries_as_of(f.session_id, close_recorded - Duration::hours(1))
         .await?;
     assert_eq!(before[0].status, "open");
     assert!(before[0].closed_by.is_none());
     let after = f
         .handle
+        .dossier()
         .list_entries_as_of(f.session_id, close_recorded + Duration::seconds(1))
         .await?;
     assert_eq!(after[0].status, "withdrawn");
     let too_early = f
         .handle
+        .dossier()
         .list_entries_as_of(f.session_id, closed[0].recorded_at - Duration::seconds(1))
         .await?;
     assert!(too_early.is_empty(), "an entry recorded after T is absent");

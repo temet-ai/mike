@@ -1,9 +1,10 @@
+use crate::store::persistence::runtime_repo::RuntimePersist as _;
 use std::time::Duration;
 
 use tokio::time::{MissedTickBehavior, interval};
 use tokio_util::sync::CancellationToken;
 
-use crate::config::AppState;
+use crate::state::AppState;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -65,6 +66,7 @@ async fn sweep_runtime(
     orphan_batch_size: i64,
 ) {
     let result = persist
+        .runtime()
         .sweep_runtime_observations(now, orphan_batch_size)
         .await;
     log_runtime_sweep(&result);

@@ -1,3 +1,4 @@
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -71,7 +72,7 @@ async fn resumed_session_links_the_new_channel_and_the_push_lookup_finds_it() ->
     let linked = link_session_channels(&handle, &progress, session, &resumed).await;
     assert_eq!(linked, 2);
 
-    let snapshots = handle.fetch_channel_snapshots(&[session]).await?;
+    let snapshots = handle.proxy().fetch_channel_snapshots(&[session]).await?;
     let found: Vec<&str> = snapshots.iter().map(|s| s.cse_id.as_str()).collect();
     assert!(
         found.contains(&new_cse.as_str()),
@@ -179,7 +180,13 @@ async fn resumed_session_leaves_a_channel_linked_to_another_session_alone() -> a
     link_session_channels(&handle, &progress, session, &b).await;
 
     assert_eq!(owner_of(&handle, &taken_cse).await?, Some(other));
-    assert!(handle.fetch_channel_snapshots(&[session]).await?.is_empty());
+    assert!(
+        handle
+            .proxy()
+            .fetch_channel_snapshots(&[session])
+            .await?
+            .is_empty()
+    );
 
     handle.pool().close().await;
     db.cleanup().await?;

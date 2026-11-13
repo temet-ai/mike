@@ -459,6 +459,6 @@ its selection is not in the URL. Results state what mike retained, not what is t
 freshness signal, never proof that a decision is obsolete, and similarity is not confidence.
 
 On the launcher side, `mike spawn open` reads `<repo_root>/.mike/knowledge.json`
-(`crates/mike/src/launch/cli/knowledge_location.rs`: version `1`, `project_uuid`), registers
+(`crates/mike-features/src/launch/cli/knowledge_location.rs`: version `1`, `project_uuid`), registers
 the checkout as a location under this machine's `machine.json` identity, and sends the
 returned `location_uuid` with the workspace registration, as described above.

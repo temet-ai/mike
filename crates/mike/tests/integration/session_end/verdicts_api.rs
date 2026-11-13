@@ -1,4 +1,5 @@
 use chrono::Utc;
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use mike::store::persistence::session_end::SessionVerdictV3Row;
 use serde_json::Value;
 
@@ -60,11 +61,13 @@ async fn get_session_verdicts_returns_every_mode_whole() -> anyhow::Result<()> {
     let input = "SESSION DIGEST\n".repeat(2_000);
     let live = f
         .handle
+        .eval()
         .insert_session_verdict_v3(&row(&f, outcome_id, "live", ending, &input, None))
         .await?;
     let eval_bundle = bundle(&f).await?;
     let eval = f
         .handle
+        .eval()
         .insert_session_verdict_v3(&row(
             &f,
             outcome_id,

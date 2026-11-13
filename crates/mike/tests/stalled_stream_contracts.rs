@@ -1,2 +1,2 @@
-#[path = "../src/sse/tee.rs"]
+#[path = "../../mike-base/src/sse/tee.rs"]
 mod tee;

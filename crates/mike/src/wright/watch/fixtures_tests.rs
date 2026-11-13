@@ -1,3 +1,4 @@
+use crate::store::persistence::web_repo::WebPersist as _;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
@@ -134,6 +135,7 @@ impl Db {
     pub(super) async fn findings(&self, check: &str) -> anyhow::Result<Vec<Finding>> {
         let row = self
             .handle
+            .web()
             .wright_check(check)
             .await?
             .ok_or_else(|| anyhow::anyhow!("no check named {check}"))?;

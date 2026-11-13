@@ -1,5 +1,6 @@
 use chrono::Duration;
 use mike::dossier::entries::link_ledger_step;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 use mike::store::persistence::memory_ask_ledger::NewAskLedgerEntry;
 
 use crate::turn_facts::resolution::message;
@@ -48,12 +49,21 @@ async fn widened_append_stores_request_id_and_a_repeat_writes_nothing() -> anyho
     };
     insert_request(&f, &Req::primary(9100, 0, "build the importer")).await?;
     let owned = keyword_entry(&f, 9100, "build the importer");
-    let first = f.handle.append_ask_ledger_entry(&owned.as_entry()).await?;
+    let first = f
+        .handle
+        .dossier()
+        .append_ask_ledger_entry(&owned.as_entry())
+        .await?;
     assert!(first.is_some());
-    let repeat = f.handle.append_ask_ledger_entry(&owned.as_entry()).await?;
+    let repeat = f
+        .handle
+        .dossier()
+        .append_ask_ledger_entry(&owned.as_entry())
+        .await?;
     assert!(repeat.is_none(), "a repeat request_id writes nothing");
     let rows = f
         .handle
+        .dossier()
         .fetch_ask_ledger_inspection(session_uuid(&f).await?, 10)
         .await?;
     assert_eq!(rows.len(), 1);
@@ -80,20 +90,34 @@ async fn model_fetch_drops_a_machine_classified_row_that_inspection_keeps() -> a
     .await?;
     for (id, text) in [(9100, "build the importer"), (9101, "agent relay text")] {
         let owned = keyword_entry(&f, id, text);
-        f.handle.append_ask_ledger_entry(&owned.as_entry()).await?;
+        f.handle
+            .dossier()
+            .append_ask_ledger_entry(&owned.as_entry())
+            .await?;
     }
     let uuid = session_uuid(&f).await?;
-    let for_model = f.handle.fetch_ask_ledger_for_model(uuid, 10).await?;
+    let for_model = f
+        .handle
+        .dossier()
+        .fetch_ask_ledger_for_model(uuid, 10)
+        .await?;
     let contents: Vec<&str> = for_model.iter().map(|r| r.content.as_str()).collect();
     assert_eq!(contents, vec!["build the importer"]);
-    let inspection = f.handle.fetch_ask_ledger_inspection(uuid, 10).await?;
+    let inspection = f
+        .handle
+        .dossier()
+        .fetch_ask_ledger_inspection(uuid, 10)
+        .await?;
     assert_eq!(inspection.len(), 2);
     let machine = inspection
         .iter()
         .find(|r| r.request_id == Some(9101))
         .ok_or_else(|| anyhow::anyhow!("the machine row must stay visible"))?;
     assert!(!machine.genuine);
-    assert_eq!(f.handle.fetch_ask_ledger(uuid, 10).await?.len(), 2);
+    assert_eq!(
+        f.handle.dossier().fetch_ask_ledger(uuid, 10).await?.len(),
+        2
+    );
     f.db.cleanup().await?;
     Ok(())
 }
@@ -122,6 +146,7 @@ async fn builder_path_adds_one_linked_row_for_an_operator_turn_and_none_for_a_ma
     assert_eq!(again.ledger_rows_inserted, 0);
     let rows = f
         .handle
+        .dossier()
         .fetch_ask_ledger_inspection(session_uuid(&f).await?, 10)
         .await?;
     assert_eq!(rows.len(), 1);
@@ -136,7 +161,7 @@ async fn ledger_builder_since_reads_jc03_migration_install_time() -> anyhow::Res
     let Some(f) = fixture().await? else {
         return Ok(());
     };
-    assert!(f.handle.ledger_builder_since().await?.is_some());
+    assert!(f.handle.dossier().ledger_builder_since().await?.is_some());
     f.db.cleanup().await?;
     Ok(())
 }

@@ -1,4 +1,6 @@
 use chrono::Utc;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
@@ -71,6 +73,7 @@ pub async fn seed_message_with_channel(
     let session = seed_session(handle, project_path).await?;
     let message = Uuid::new_v4();
     handle
+        .launch()
         .insert_message(message, session, None, "test envelope")
         .await?;
     let cse_id = seed_channel(handle, session).await?;
@@ -101,6 +104,7 @@ pub async fn seed_steerer_intervention(
             .await?;
     let intervention_uuid = Uuid::new_v4();
     handle
+        .steerer()
         .insert_intervention(NewIntervention {
             steerer_id,
             enrolment_id: None,

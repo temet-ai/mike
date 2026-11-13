@@ -1,7 +1,8 @@
 use crate::test_db::TestDb;
 
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
 use mike::retention_worker::run_retention_sweep_once;
+use mike::state::AppState;
 
 async fn seed_session(
     pool: &sqlx::PgPool,

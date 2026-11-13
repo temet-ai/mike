@@ -63,7 +63,7 @@ async fn resolve_fanout_recipient_id(
     handle: &crate::store::persistence::PersistHandle,
     to_uuid: uuid::Uuid,
 ) -> Result<i64, FailedDeliveryDto> {
-    match handle.resolve_session_core(to_uuid).await {
+    match handle.launch().resolve_session_core(to_uuid).await {
         Ok(Some((id, _))) => Ok(id),
         Ok(None) => Err(failed_delivery(to_uuid, "session_not_found")),
         Err(e) => {
@@ -81,6 +81,7 @@ async fn insert_fanout_message(
 ) -> Result<(uuid::Uuid, chrono::DateTime<chrono::Utc>), FailedDeliveryDto> {
     let message_uuid = uuid::Uuid::new_v4();
     match handle
+        .launch()
         .insert_threaded_message_with_context(
             crate::store::persistence::mailbox::ThreadedMessageInsert {
                 message_uuid,

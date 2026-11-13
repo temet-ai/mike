@@ -1,4 +1,5 @@
 use crate::test_db::TestDb;
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 
 use mike::store::persistence::PersistHandle;
 use mike::store::persistence::workspace::RegisterWorkspaceSession;
@@ -79,17 +80,24 @@ async fn assert_sweep_outcomes(
     scenario: &ReaperScenario,
 ) -> anyhow::Result<()> {
     assert_eq!(
-        handle.fetch_session_liveness(scenario.live_session).await?,
+        handle
+            .proxy()
+            .fetch_session_liveness(scenario.live_session)
+            .await?,
         Some(Liveness::Live),
         "A1: a live pid must survive the sweep"
     );
     assert_eq!(
-        handle.fetch_session_liveness(scenario.dead_session).await?,
+        handle
+            .proxy()
+            .fetch_session_liveness(scenario.dead_session)
+            .await?,
         Some(Liveness::Ended),
         "A2: a dead pid must be reaped"
     );
     assert_eq!(
         handle
+            .proxy()
             .fetch_session_liveness(scenario.null_pid_session)
             .await?,
         Some(Liveness::Live),
@@ -97,6 +105,7 @@ async fn assert_sweep_outcomes(
     );
     assert_eq!(
         handle
+            .proxy()
             .fetch_session_liveness(scenario.stale_boot_session)
             .await?,
         Some(Liveness::Live),
@@ -177,19 +186,22 @@ async fn sweep_lapsed_lease_reaped_on_any_boot_and_recent_lapse_kept() -> anyhow
     sweep_once(&handle, "a-boot-that-matches-nothing").await;
 
     assert_eq!(
-        handle.fetch_session_liveness(long_lapsed).await?,
+        handle.proxy().fetch_session_liveness(long_lapsed).await?,
         Some(Liveness::Ended),
         "a lease lapsed for more than a day is reaped whatever its boot"
     );
     assert_ne!(
-        handle.fetch_session_liveness(recently_lapsed).await?,
+        handle
+            .proxy()
+            .fetch_session_liveness(recently_lapsed)
+            .await?,
         Some(Liveness::Ended),
         "a lease lapsed within the grace stays unreleased"
     );
 
     register_workspace_pid(&handle, long_lapsed, &project_path, None).await?;
     assert_eq!(
-        handle.fetch_session_liveness(long_lapsed).await?,
+        handle.proxy().fetch_session_liveness(long_lapsed).await?,
         Some(Liveness::Live),
         "a reaped lapsed row returns to live on re-register"
     );
@@ -226,7 +238,10 @@ async fn sweep_reaps_only_dead_current_boot_pids() -> anyhow::Result<()> {
     )
     .await?;
     assert_eq!(
-        handle.fetch_session_liveness(scenario.dead_session).await?,
+        handle
+            .proxy()
+            .fetch_session_liveness(scenario.dead_session)
+            .await?,
         Some(Liveness::Live),
         "A5: a reaped row returns to live on re-register"
     );

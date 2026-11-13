@@ -10,8 +10,8 @@ summary: The bounded C01 identity and raw-event persistence foundation, its Clau
 
 This contract covers the Codex work tracked in
 [issue #18](https://github.com/temet-ai/mike/issues/18) and the common observation
-layer in [#181](https://github.com/temet-ai/mike/issues/181). Common types live in `crates/mike/src/runtime/`; persistence lives in
-`crates/mike/src/store/persistence/runtime/`. The additive migration
+layer in [#181](https://github.com/temet-ai/mike/issues/181). Common types live in `crates/mike-base/src/runtime/`; persistence lives in
+`crates/mike-base/src/store/persistence/runtime/`. The additive migration
 `20261013130000_runtime_identity_events.sql` creates the `runtime` schema. See
 [the schema reference](SCHEMA.md#domain-runtime) for columns and indexes.
 
@@ -112,8 +112,8 @@ runtime-neutral reporting because raw storage is present.
 
 | Reader | Current assumption | Required normalized facts |
 |---|---|---|
-| `fleet/fleet_seat_rows.sql`, `crates/mike/src/launch/fleet/status.rs` | Captured requests/responses drive activity, context, HTTP status and cache; terminal-backend presence supplies liveness fallback | Runtime lifecycle, observed activity time, freshness and reconciliation state; optional scoped context/usage, provider health; terminal presence separate from execution |
-| `crates/mike/src/launch/fleet/staff.rs` | Warm siblings need recent captured HTTP traffic and a successful response | Adapter readiness and runtime-specific warm/resume capability with evidence |
+| `fleet/fleet_seat_rows.sql`, `crates/mike-features/src/launch/fleet/status.rs` | Captured requests/responses drive activity, context, HTTP status and cache; terminal-backend presence supplies liveness fallback | Runtime lifecycle, observed activity time, freshness and reconciliation state; optional scoped context/usage, provider health; terminal presence separate from execution |
+| `crates/mike-features/src/launch/fleet/staff.rs` | Warm siblings need recent captured HTTP traffic and a successful response | Adapter readiness and runtime-specific warm/resume capability with evidence |
 | `workspace/roster.rs` | Missing request can imply uncaptured and exclude a session | Explicit observation source, capture coverage and registration/liveness independent of wire traffic |
 | `fleet_correlation/nodes.rs`, `rehydrate/session_summary.rs`, `rehydrate/session_filtered.rs`, `rehydrate/session_head.rs` | Request-derived model, activity, counts, prompt, latency and lifecycle | Configured versus observed model; event/turn activity and optional time/usage; evidence source and freshness |
 | `fleet_correlation/actor.rs` | Claude tool projections identify files and dispatched agents; session existence acts as captured-session lookup | Tool kind plus original provider name, file evidence and attribution, native child identity and observed status |
@@ -126,7 +126,7 @@ runtime-neutral reporting because raw storage is present.
 | Session/mailbox projections using `sent_request_id` | Request correlation can stand in for delivery | Stable message identity and separate accepted/consumed/acted/reconciled stages, without an invented Claude request |
 
 The paths in this table are under `crates/mike/src/store/persistence/` unless noted; fleet
-control logic also consumes the same observations under `crates/mike/src/launch/fleet/`.
+control logic also consumes the same observations under `crates/mike-features/src/launch/fleet/`.
 Normalized facts must carry source, version, fidelity and completeness. Cumulative versus
 delta usage and parent-versus-child scope must be explicit before any aggregation.
 

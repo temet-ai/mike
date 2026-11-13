@@ -1,4 +1,4 @@
-use crate::config::AppState;
+use crate::state::AppState;
 
 pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
     if state.config().smoke_run {
@@ -48,7 +48,12 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::proxy::remote_control::spawn_repush_sweep(state);
 
-    crate::workspace_reaper::spawn_workspace_reaper(state);
+    crate::workspace_reaper::spawn_workspace_reaper(
+        state.persist().cloned(),
+        state.shutdown(),
+        state.config().workspace_reap_interval_secs,
+        &state.tracker,
+    );
 
     crate::launch::fleet::display::spawn_fleet_display(state);
 
@@ -72,7 +77,7 @@ pub(super) fn spawn_background_workers_unless_smoke_run(state: &AppState) {
 
     crate::search_events::spawn_search_events_worker(state);
 
-    crate::analysis::rerank::spawn_rerank_warmup(state);
+    crate::analysis::rerank::warmup::spawn_rerank_warmup(state);
 
     crate::rerank_nightly::spawn_rerank_nightly(state);
     crate::judge_worker::supply_verdict::spawn_supply_verdict(state);

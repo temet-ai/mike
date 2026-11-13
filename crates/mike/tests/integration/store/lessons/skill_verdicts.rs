@@ -1,6 +1,7 @@
 use mike::store::persistence::lessons::NewLessonWrite;
 use mike::store::persistence::lessons::skill_drafts::DraftTarget;
 use mike::store::persistence::lessons::skill_verdicts::VerdictFollowThrough;
+use mike::store::persistence::lessons_repo::LessonsPersist as _;
 use serde_json::json;
 
 use super::skill_drafts::{Fixture, draft, fixture};
@@ -9,6 +10,7 @@ impl Fixture {
     async fn skill_lesson(&self, topic: &str, text: &str) -> anyhow::Result<i64> {
         let row = self
             .handle
+            .lessons()
             .create_lesson_with_topic(NewLessonWrite {
                 project_id: self.project_id,
                 kind: "convention",
@@ -51,6 +53,7 @@ impl Fixture {
         let empty = json!([]);
         Ok(self
             .handle
+            .lessons()
             .insert_skill_draft(draft(&target, ids, &empty))
             .await?)
     }
@@ -102,7 +105,7 @@ async fn rule_verdict_places_only_the_drafted_lessons_as_rules_once() -> anyhow:
         .skill_lesson("release-tagging", "Sign release tags.")
         .await?;
 
-    let done = fx.handle.apply_skill_place_verdicts().await?;
+    let done = fx.handle.lessons().apply_skill_place_verdicts().await?;
     assert_eq!(done.placed_as_rule, 2);
     assert_eq!(fx.lesson_place(a).await?.1, "rule");
     assert_eq!(fx.lesson_place(b).await?.1, "rule");
@@ -112,7 +115,7 @@ async fn rule_verdict_places_only_the_drafted_lessons_as_rules_once() -> anyhow:
         "a lesson the reviewed draft never saw must keep its placement"
     );
     assert_eq!(
-        fx.handle.apply_skill_place_verdicts().await?,
+        fx.handle.lessons().apply_skill_place_verdicts().await?,
         VerdictFollowThrough::default(),
         "a verdict already applied must change nothing"
     );
@@ -142,22 +145,29 @@ async fn existing_skill_verdict_moves_older_lessons_and_reopens_the_named_skill(
     fx.reviewed(source, skill_verdict("fleet-coordination"))
         .await?;
     assert!(
-        fx.handle.next_skill_draft_target().await?.is_none(),
+        fx.handle
+            .lessons()
+            .next_skill_draft_target()
+            .await?
+            .is_none(),
         "both topics are drafted and held before the verdict is applied"
     );
 
-    let done = fx.handle.apply_skill_place_verdicts().await?;
+    let done = fx.handle.lessons().apply_skill_place_verdicts().await?;
     assert_eq!(done.moved_to_skill, 2);
     assert_eq!(fx.lesson_place(s1).await?.0, "fleet-coordination");
 
-    let reopened =
-        fx.handle.next_skill_draft_target().await?.ok_or_else(|| {
-            anyhow::anyhow!("the named skill gained lessons and must be redrafted")
-        })?;
+    let reopened = fx
+        .handle
+        .lessons()
+        .next_skill_draft_target()
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("the named skill gained lessons and must be redrafted"))?;
     assert_eq!(reopened.folder, "fleet-coordination");
     assert_eq!(reopened.lesson_watermark, t2);
     let ids: Vec<i64> = fx
         .handle
+        .lessons()
         .skill_draft_lessons(&reopened)
         .await?
         .iter()
@@ -166,9 +176,16 @@ async fn existing_skill_verdict_moves_older_lessons_and_reopens_the_named_skill(
     assert_eq!(ids, vec![s1, s2, t1, t2]);
     let empty = json!([]);
     fx.handle
+        .lessons()
         .insert_skill_draft(draft(&reopened, &ids, &empty))
         .await?;
-    assert!(fx.handle.next_skill_draft_target().await?.is_none());
+    assert!(
+        fx.handle
+            .lessons()
+            .next_skill_draft_target()
+            .await?
+            .is_none()
+    );
     fx.finish().await
 }
 
@@ -195,7 +212,7 @@ async fn verdict_with_an_operator_decision_is_left_alone() -> anyhow::Result<()>
         .await?;
 
     assert_eq!(
-        fx.handle.apply_skill_place_verdicts().await?,
+        fx.handle.lessons().apply_skill_place_verdicts().await?,
         VerdictFollowThrough::default()
     );
     assert_eq!(fx.lesson_place(a).await?.0, "settings-ui");
@@ -208,6 +225,12 @@ async fn apply_skill_place_verdicts_on_a_closed_pool_is_err() -> anyhow::Result<
         return Ok(());
     };
     fx.handle.pool().close().await;
-    assert!(fx.handle.apply_skill_place_verdicts().await.is_err());
+    assert!(
+        fx.handle
+            .lessons()
+            .apply_skill_place_verdicts()
+            .await
+            .is_err()
+    );
     fx.db.cleanup().await
 }

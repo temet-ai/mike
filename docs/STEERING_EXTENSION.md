@@ -19,7 +19,7 @@ is graded by the same labels as everything else that sends a session a note. Not
 
 | Job | The one place | What it gives |
 |---|---|---|
-| May this note be sent to this session now | `crates/mike/src/steerer/note_policy.rs` | `before_judging` (the per-session limit and the quiet period after a wrong note), `after_verdict` (is the note needed enough), `refusal` (both, for a producer that judges first), `stop_before_quorum` (the order of checks on a verdict). One set of reasons: `session_note_limit`, `quiet_after_wrong_note`, `need_below_level`. |
+| May this note be sent to this session now | `crates/mike-features/src/steerer/note_policy.rs` | `before_judging` (the per-session limit and the quiet period after a wrong note), `after_verdict` (is the note needed enough), `refusal` (both, for a producer that judges first), `stop_before_quorum` (the order of checks on a verdict). One set of reasons: `session_note_limit`, `quiet_after_wrong_note`, `need_below_level`. |
 | Which notes count | `session_notes_since` in `store/persistence/steering/recent_delivery.rs` | Notes from any steerer that were delivered, pushed or are still waiting, as of a moment, each with how the session took it. |
 | How much a note is needed | `Need` and `NEED_RUBRIC` in `steerer/verdict.rs` | Low, medium or high. A judge returns it; a producer with fixed questions declares it (`Question::need` in `steerer/guard/mod.rs`). |
 | What the judge knows about the session | The dossier's steerer sections: `SteererSection` in `dossier/view/types.rs`, rendered in `dossier/render/steerer.rs` and `steerer_notes.rs` | Named sections, loaded as of a moment, cut to a budget by one allocator. |

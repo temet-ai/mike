@@ -2,8 +2,8 @@ use std::path::Path;
 
 use super::apply::apply_via_services;
 use super::plan::{Preset, plan};
-use crate::config::AppState;
 use crate::finding::Finding;
+use crate::state::AppState;
 use crate::user_config::{ConfigFile, SettingValue, UserConfigError};
 
 pub(crate) const PENDING_KEY: &str = "setup_features";

@@ -144,9 +144,9 @@ class SourceDependencyTests(OfflineTests):
         self.assertTrue(defaults.default_dependency_contract()["background_worker_conditions"])
 
     def test_disabled_embedding_and_absent_secondary_database_are_compiled_defaults(self):
-        embedding = (ROOT / "crates/mike/src/analysis/embeddings/mod.rs").read_text()
+        embedding = (ROOT / "crates/mike-base/src/analysis/embeddings/mod.rs").read_text()
         self.assertRegex(embedding.split("impl Default for EmbeddingConfig", 1)[1], r"enabled:\s*false")
-        config = (ROOT / "crates/mike/src/config/proxy_config_defaults.rs").read_text()
+        config = (ROOT / "crates/mike-base/src/config/proxy_config_defaults.rs").read_text()
         block = config.split("impl Default for ProxyConfig", 1)[1]
         self.assertRegex(block, r"local_database_url:\s*None")
         self.assertRegex(block, r"db_resync_enabled:\s*true")

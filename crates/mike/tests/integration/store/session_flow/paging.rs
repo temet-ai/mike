@@ -1,3 +1,4 @@
+use mike::store::persistence::web_repo::WebPersist as _;
 use uuid::Uuid;
 
 use mike::store::persistence::session_flow::{
@@ -82,6 +83,7 @@ async fn unknown_unadmitted_future_and_empty_are_distinct() -> anyhow::Result<()
     let f = Fixture::new().await?;
     assert!(
         f.handle
+            .web()
             .fetch_session_flow(Uuid::new_v4(), FlowComponent::Requests, 10, None)
             .await?
             .is_none()
@@ -102,6 +104,7 @@ async fn unknown_unadmitted_future_and_empty_are_distinct() -> anyhow::Result<()
     .await?;
     let old = f
         .handle
+        .web()
         .fetch_session_flow(old, FlowComponent::Requests, 10, None)
         .await?
         .ok_or_else(|| anyhow::anyhow!("missing old row"))?;
@@ -152,6 +155,7 @@ async fn cursor_scope_limits_and_embedding_cursor_fail_closed() -> anyhow::Resul
     for cursor in invalid {
         assert!(matches!(
             f.handle
+                .web()
                 .fetch_session_flow(f.session, FlowComponent::Requests, 10, Some(&cursor))
                 .await,
             Err(FlowReadError::InvalidCursor)
@@ -160,6 +164,7 @@ async fn cursor_scope_limits_and_embedding_cursor_fail_closed() -> anyhow::Resul
     for limit in [0, 501] {
         assert!(matches!(
             f.handle
+                .web()
                 .fetch_session_flow(f.session, FlowComponent::Requests, limit, None)
                 .await,
             Err(FlowReadError::InvalidCursor)
@@ -167,6 +172,7 @@ async fn cursor_scope_limits_and_embedding_cursor_fail_closed() -> anyhow::Resul
     }
     assert!(matches!(
         f.handle
+            .web()
             .fetch_session_flow(
                 f.session,
                 FlowComponent::Embeddings,

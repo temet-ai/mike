@@ -1,4 +1,5 @@
 use chrono::{SubsecRound, Utc};
+use mike::store::persistence::proxy_repo::ProxyPersist as _;
 
 use mike::store::persistence::remote_control::{
     PATH_HEARTBEAT, RemoteControlCall, RemoteControlSignals,
@@ -14,9 +15,11 @@ async fn first_call_creates_the_channel_and_later_calls_reuse_it() -> anyhow::Re
     let cse_id = unique("cse_reuse");
 
     let first = handle
+        .proxy()
         .record_remote_control_call(call_at(&cse_id, "POST", PATH_HEARTBEAT))
         .await?;
     let second = handle
+        .proxy()
         .record_remote_control_call(call_at(&cse_id, "POST", "/worker/events"))
         .await?;
     assert_ne!(first, second, "each call gets its own row");
@@ -56,6 +59,7 @@ async fn heartbeat_signals_land_on_the_channel_row() -> anyhow::Result<()> {
     let cse_id = unique("cse_hb");
 
     handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             signals: RemoteControlSignals {
                 client_session_id: Some(&cse_id),
@@ -95,6 +99,7 @@ async fn an_idle_session_records_zero_rather_than_nothing() -> anyhow::Result<()
     let cse_id = unique("cse_busy");
 
     handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             signals: RemoteControlSignals {
                 idle_seconds: Some(0),
@@ -125,6 +130,7 @@ async fn a_later_call_never_rewinds_an_earlier_rollup_field() -> anyhow::Result<
 
     let at = Utc::now().trunc_subsecs(6);
     handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             created_at: at,
             signals: RemoteControlSignals {
@@ -136,6 +142,7 @@ async fn a_later_call_never_rewinds_an_earlier_rollup_field() -> anyhow::Result<
         })
         .await?;
     handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             created_at: at + chrono::Duration::seconds(1),
             signals: RemoteControlSignals {
@@ -147,6 +154,7 @@ async fn a_later_call_never_rewinds_an_earlier_rollup_field() -> anyhow::Result<
         })
         .await?;
     handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             created_at: at - chrono::Duration::seconds(30),
             signals: RemoteControlSignals {
@@ -206,6 +214,7 @@ async fn a_session_delete_keeps_the_channel_and_clears_the_link() -> anyhow::Res
     .await?;
 
     handle
+        .proxy()
         .record_remote_control_call(call_at(&cse_id, "POST", PATH_HEARTBEAT))
         .await?;
     sqlx::query!(
@@ -243,6 +252,7 @@ async fn an_unseen_worker_status_is_captured_rather_than_rejected() -> anyhow::R
     let cse_id = unique("cse_open_set");
 
     handle
+        .proxy()
         .record_remote_control_call(RemoteControlCall {
             signals: RemoteControlSignals {
                 worker_status: Some("awaiting_operator"),

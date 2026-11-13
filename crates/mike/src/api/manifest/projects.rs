@@ -1,9 +1,9 @@
 use axum::Router;
 use axum::routing::{get, patch, post};
 
-use super::{Coverage, RouteEntry, route};
 use crate::api::{content_search, embedding_graph, handlers};
-use crate::config::AppState;
+use crate::state::AppState;
+use crate::web_base::route_manifest::{Coverage, RouteEntry, route};
 
 pub(super) const ROUTES: &[RouteEntry] = &[
     route("GET", "/api/projects", Coverage::Tool("list_projects")),

@@ -1,7 +1,8 @@
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use mike::api::manifest::{Coverage, inspect_route_manifest, inspect_router};
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use tower::ServiceExt;
 
 const PATH: &str = "/api/diagnostics/spa_delta_fallback";

@@ -1,37 +1,6 @@
 use super::*;
-
-impl From<&crate::store::persistence::steering::SteererRow> for SteererDto {
-    fn from(r: &crate::store::persistence::steering::SteererRow) -> Self {
-        Self {
-            id: r.id,
-            uuid: r.uuid,
-            name: r.name.clone(),
-            display_name: r.display_name.clone(),
-            description: r.description.clone(),
-            agent_id: r.agent_id,
-            authority: r.authority.clone(),
-            mode: r.mode.clone(),
-            model: r.model.clone(),
-            effective_model: r.model.clone(),
-            model_inherited: r.model.is_empty(),
-            priority: r.priority,
-            enabled: r.enabled,
-            config: r.config.clone(),
-            prompt: r.prompt.clone(),
-            created_at: r.created_at.to_rfc3339(),
-            updated_at: r.updated_at.to_rfc3339(),
-            kind: r.kind.clone(),
-            trigger_point: r.trigger_point.clone(),
-            invocation: r.invocation.clone(),
-            pattern: r.pattern.clone(),
-            auto_enrol: r.auto_enrol,
-            enrolment_required: !r.auto_enrol,
-            project_id: r.project_id,
-            project_path: r.project_path.clone(),
-            active_enrolment_count: 0,
-        }
-    }
-}
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct SteererEnvelope {
@@ -169,7 +138,7 @@ pub(crate) async fn resolve_steerer_project_id(
     let Some(path) = project_path else {
         return Ok(None);
     };
-    match handle.get_project_ids_for_path(path).await {
+    match handle.lessons().get_project_ids_for_path(path).await {
         Ok(ids) if ids.is_empty() => Err(steerer_error_response(
             StatusCode::BAD_REQUEST,
             "unknown project_path",
@@ -200,6 +169,7 @@ pub(crate) async fn list_steerers(
     let project_filter_ids: Vec<i64> = match params.project.as_deref() {
         Some(path) => match state.persist() {
             Some(handle) => handle
+                .lessons()
                 .get_project_ids_for_path(path)
                 .await
                 .unwrap_or_default(),
@@ -210,6 +180,7 @@ pub(crate) async fn list_steerers(
 
     let active_enrolment_counts: std::collections::HashMap<i64, i64> = match state.persist() {
         Some(handle) => handle
+            .steerer()
             .count_active_enrolments_all()
             .await
             .unwrap_or_else(|e| {
@@ -277,7 +248,7 @@ pub(crate) async fn get_steerer(
             "session persistence is disabled; steerer lookup is not available",
         ));
     };
-    match handle.fetch_steerer_by_id(id).await {
+    match handle.steerer().fetch_steerer_by_id(id).await {
         Ok(Some(row)) => Ok(Json(SteererDto::from(&row))),
         Ok(None) => Err(steerer_error_response(
             StatusCode::NOT_FOUND,
@@ -332,7 +303,7 @@ pub(crate) async fn create_steerer(
                 pattern: body.pattern.as_deref(),
                 project_id,
             },
-            &crate::api::change_source::change_source_from_headers(&headers),
+            &crate::web_base::change_source::change_source_from_headers(&headers),
         )
         .await
     {

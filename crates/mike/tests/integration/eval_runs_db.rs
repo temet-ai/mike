@@ -1,4 +1,5 @@
 use chrono::Utc;
+use mike::store::persistence::eval_repo::EvalPersist as _;
 use mike::store::persistence::eval_runs::{LabelSetFilter, NewEvalGate, NewEvalRun, RunItemWrite};
 
 use crate::turn_facts::{Fixture, NewTurn, Req, fixture, insert_request, insert_turn};
@@ -38,6 +39,7 @@ async fn bundle(f: &Fixture) -> anyhow::Result<i64> {
 async fn run(f: &Fixture, bundle_id: i64, split: &str, batch: Option<&str>) -> anyhow::Result<i64> {
     let tiers = vec!["gold".to_owned()];
     Ok(f.handle
+        .eval()
         .create_eval_run(&NewEvalRun {
             purpose: "measure",
             bundle_id,
@@ -126,7 +128,11 @@ async fn load_label_set_prefers_gold_and_excludes_single_model_labels() -> anyho
     let gold = gold_label(&f, a, "corrected", "operator_click", "gold").await?;
     gold_label(&f, b, "corrected", "single_model", "seed").await?;
     let as_of = crate::seed::database_now(f.handle.pool()).await?;
-    let set = f.handle.load_eval_label_set(&default_filter(as_of)).await?;
+    let set = f
+        .handle
+        .eval()
+        .load_eval_label_set(&default_filter(as_of))
+        .await?;
     assert_eq!(set.len(), 1);
     assert_eq!(set[0].operator_turn_id, a);
     assert_eq!(set[0].reaction_label_id, gold);
@@ -155,13 +161,14 @@ async fn run_items_accept_null_inclusion_prob_and_judged_requires_a_verdict() ->
         reaction_correct: None,
         delivery_correct: None,
     };
-    f.handle.upsert_eval_run_item(&skipped).await?;
+    f.handle.eval().upsert_eval_run_item(&skipped).await?;
     let judged_without_verdict = RunItemWrite {
         outcome: "judged",
         ..skipped
     };
     let err = f
         .handle
+        .eval()
         .upsert_eval_run_item(&judged_without_verdict)
         .await
         .err()
@@ -180,6 +187,7 @@ async fn refresh_run_updates_counters_status_and_report() -> anyhow::Result<()> 
     let run_id = run(&f, bundle_id, "dev", None).await?;
     let t = turn(&f, 321).await?;
     f.handle
+        .eval()
         .upsert_eval_run_item(&RunItemWrite {
             run_id,
             operator_turn_id: t,
@@ -195,10 +203,12 @@ async fn refresh_run_updates_counters_status_and_report() -> anyhow::Result<()> 
         .await?;
     let report = serde_json::json!({"n": 0});
     f.handle
+        .eval()
         .refresh_eval_run(run_id, "complete", Some(&report))
         .await?;
     let row = f
         .handle
+        .eval()
         .get_eval_run(run_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("run gone"))?;
@@ -223,6 +233,7 @@ async fn gate_rows_count_per_holdout_batch() -> anyhow::Result<()> {
     let baseline = run(&f, bundle(&f).await?, "holdout", Some(batch)).await?;
     for candidate in &runs {
         f.handle
+            .eval()
             .insert_eval_gate(&NewEvalGate {
                 candidate_run_id: *candidate,
                 baseline_run_id: Some(baseline),
@@ -235,7 +246,7 @@ async fn gate_rows_count_per_holdout_batch() -> anyhow::Result<()> {
             })
             .await?;
     }
-    assert_eq!(f.handle.count_holdout_gates(batch).await?, 3);
-    assert_eq!(f.handle.count_holdout_gates("other").await?, 0);
+    assert_eq!(f.handle.eval().count_holdout_gates(batch).await?, 3);
+    assert_eq!(f.handle.eval().count_holdout_gates("other").await?, 0);
     Ok(())
 }

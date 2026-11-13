@@ -1,4 +1,5 @@
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::dossier_repo::DossierPersist as _;
 use mike::store::persistence::memory_ask_ledger::NewAskLedgerEntry;
 use mike::store::persistence::test_support;
 use uuid::Uuid;
@@ -53,10 +54,12 @@ async fn append_then_fetch_orders_oldest_first_and_caps_to_the_most_recent_withi
     let (_project_id, session_id, session_uuid) = seed_project_and_session(&pool).await?;
 
     handle
+        .dossier()
         .append_ask_ledger_entry(&entry(session_id, None, "initial", "build the ask ledger"))
         .await?;
     tokio::time::sleep(std::time::Duration::from_millis(2)).await;
     handle
+        .dossier()
         .append_ask_ledger_entry(&entry(
             session_id,
             None,
@@ -66,6 +69,7 @@ async fn append_then_fetch_orders_oldest_first_and_caps_to_the_most_recent_withi
         .await?;
     tokio::time::sleep(std::time::Duration::from_millis(2)).await;
     handle
+        .dossier()
         .append_ask_ledger_entry(&entry(
             session_id,
             None,
@@ -74,7 +78,7 @@ async fn append_then_fetch_orders_oldest_first_and_caps_to_the_most_recent_withi
         ))
         .await?;
 
-    let entries = handle.fetch_ask_ledger(session_uuid, 10).await?;
+    let entries = handle.dossier().fetch_ask_ledger(session_uuid, 10).await?;
     assert_eq!(entries.len(), 3, "all three entries must round-trip");
     assert_eq!(
         entries.iter().map(|e| e.kind.as_str()).collect::<Vec<_>>(),
@@ -87,6 +91,7 @@ async fn append_then_fetch_orders_oldest_first_and_caps_to_the_most_recent_withi
 
     for i in 0..5 {
         handle
+            .dossier()
             .append_ask_ledger_entry(&entry(
                 session_id,
                 None,
@@ -96,7 +101,7 @@ async fn append_then_fetch_orders_oldest_first_and_caps_to_the_most_recent_withi
             .await?;
         tokio::time::sleep(std::time::Duration::from_millis(2)).await;
     }
-    let capped = handle.fetch_ask_ledger(session_uuid, 3).await?;
+    let capped = handle.dossier().fetch_ask_ledger(session_uuid, 3).await?;
     assert_eq!(
         capped
             .iter()
@@ -126,6 +131,7 @@ async fn kind_check_violation_rejects_invalid_kind() -> anyhow::Result<()> {
     let (_project_id, session_id, _session_uuid) = seed_project_and_session(&pool).await?;
 
     let result = handle
+        .dossier()
         .append_ask_ledger_entry(&entry(session_id, None, "bogus_kind", "should not insert"))
         .await;
     assert!(
@@ -151,6 +157,7 @@ async fn fk_violations_reject_unknown_session_and_unknown_operator_turn() -> any
         .await?;
 
     let unknown_session = handle
+        .dossier()
         .append_ask_ledger_entry(&entry(i64::MAX, None, "initial", "orphan write"))
         .await;
     assert!(
@@ -160,6 +167,7 @@ async fn fk_violations_reject_unknown_session_and_unknown_operator_turn() -> any
 
     let (_project_id, session_id, _session_uuid) = seed_project_and_session(&pool).await?;
     let unknown_turn = handle
+        .dossier()
         .append_ask_ledger_entry(&entry(
             session_id,
             Some(i64::MAX),

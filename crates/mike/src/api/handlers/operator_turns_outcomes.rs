@@ -101,15 +101,18 @@ pub(crate) async fn list_operator_turns_by_outcome(
         .clamp(1, OPERATOR_TURNS_MAX_LIMIT) as i64;
     let offset = params.offset.unwrap_or(0) as i64;
     let date_from_str = params.date_from.as_deref().or(params.since.as_deref());
-    let window =
-        crate::api::search_window::resolve_window(date_from_str, params.date_to.as_deref(), false)
-            .map_err(|e| {
-                (
-                    StatusCode::BAD_REQUEST,
-                    axum::Json(serde_json::json!({"error": e.to_string()})),
-                )
-                    .into_response()
-            })?;
+    let window = crate::web_base::search_window::resolve_window(
+        date_from_str,
+        params.date_to.as_deref(),
+        false,
+    )
+    .map_err(|e| {
+        (
+            StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({"error": e.to_string()})),
+        )
+            .into_response()
+    })?;
     let session_db_id = if let Some(ref uuid) = params.session {
         handle.resolve_session_db_id(uuid).await.map_err(|e| {
             tracing::warn!(error = %e, "list_operator_turns_by_outcome: session_db_id resolution failed");

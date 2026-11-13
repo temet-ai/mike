@@ -1,5 +1,7 @@
 use super::*;
 
+pub(crate) use crate::web_base::http::if_none_match_contains;
+
 pub(crate) fn session_etag(
     last_seen: &str,
     request_count: usize,
@@ -13,18 +15,6 @@ pub(crate) fn session_etag(
         busy,
         session_judged_at.unwrap_or("unjudged")
     )
-}
-
-pub(crate) fn if_none_match_contains(if_none_match: &str, etag: &str) -> bool {
-    fn strip_weak(s: &str) -> &str {
-        let s = s.trim();
-        s.strip_prefix("W/").unwrap_or(s)
-    }
-    let want = strip_weak(etag);
-    if_none_match
-        .split(',')
-        .map(str::trim)
-        .any(|candidate| candidate == "*" || strip_weak(candidate) == want)
 }
 
 pub(crate) fn status_is_terminal(last_status: &str) -> bool {

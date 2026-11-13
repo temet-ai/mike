@@ -1,4 +1,5 @@
 use super::*;
+use crate::store::persistence::steerer_repo::SteererPersist as _;
 
 pub(crate) fn byte_size(bytes: Option<&Bytes>) -> u64 {
     bytes.map(|b| b.len() as u64).unwrap_or(0)
@@ -204,6 +205,7 @@ pub(crate) async fn get_tool_result_original(
         return Err(StatusCode::SERVICE_UNAVAILABLE);
     };
     let request_id = handle
+        .steerer()
         .first_request_carrying_result(&tool_use_id)
         .await
         .map_err(|e| {

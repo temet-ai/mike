@@ -1,10 +1,13 @@
 use mike::steerer::guard_test_seams::{SeamPromotion, promote_question, run_demotion};
+use mike::store::persistence::dossier_repo::DossierPersist as _;
+use mike::store::persistence::steerer_repo::SteererPersist as _;
 use serde_json::json;
 
 use crate::turn_facts::{Fixture, NewTurn, Req, fixture, insert_request, insert_turn};
 
 async fn guard_id(f: &Fixture) -> anyhow::Result<i64> {
     Ok(f.handle
+        .steerer()
         .guard_steerer()
         .await?
         .map(|g| g.id)
@@ -46,7 +49,7 @@ async fn labelled_fire(
 
 async fn operator_class(f: &Fixture, turn_id: i64) -> anyhow::Result<()> {
     let row = crate::turn_facts::sample_row(turn_id, f.session_id, chrono::Utc::now());
-    f.handle.upsert_turn_facts(&[row]).await?;
+    f.handle.dossier().upsert_turn_facts(&[row]).await?;
     sqlx::query(
         "UPDATE memory.turn_facts SET session_class = 'operator' WHERE operator_turn_id = $1",
     )

@@ -1,8 +1,10 @@
 use crate::db_helpers;
 use crate::seed;
+use mike::store::persistence::knowledge_repo::KnowledgePersist as _;
 
 use chrono::Utc;
-use mike::store::persistence::{PersistHandle, SessionEmbeddingWrite};
+use mike::store::persistence::PersistHandle;
+use mike::store::persistence::session_embeddings::SessionEmbeddingWrite;
 use uuid::Uuid;
 
 use super::support::{planar_unit, seed_project, seed_session};
@@ -25,6 +27,7 @@ async fn session_embedding_graph_populated_returns_centre_and_neighbour() -> any
 
     let now = Utc::now();
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: a_uuid,
             embedding: &planar_unit(0.0),
@@ -35,6 +38,7 @@ async fn session_embedding_graph_populated_returns_centre_and_neighbour() -> any
         })
         .await?;
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: b_uuid,
             embedding: &planar_unit(5.0),
@@ -119,6 +123,7 @@ async fn session_embedding_graph_last_status_prefers_live_request_over_stale_cac
         .await?;
 
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: a_uuid,
             embedding: &planar_unit(0.0),
@@ -129,6 +134,7 @@ async fn session_embedding_graph_last_status_prefers_live_request_over_stale_cac
         })
         .await?;
     persist
+        .knowledge()
         .upsert_session_embedding(SessionEmbeddingWrite {
             session_id: b_uuid,
             embedding: &planar_unit(5.0),

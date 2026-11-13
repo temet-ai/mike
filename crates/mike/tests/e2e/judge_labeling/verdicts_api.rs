@@ -1,4 +1,5 @@
 use crate::db_helpers;
+use mike::store::persistence::eval_repo::EvalPersist as _;
 
 use chrono::Utc;
 use mike::store::persistence::turn_verdicts::{
@@ -42,7 +43,7 @@ fn verdict<'a>(
     }
 }
 
-async fn serve_inspect(state: &mike::config::AppState) -> anyhow::Result<String> {
+async fn serve_inspect(state: &mike::state::AppState) -> anyhow::Result<String> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let base = format!("http://{}", listener.local_addr()?);
     let router = mike::app::inspect_router_on(state.clone(), listener.local_addr()?);
@@ -85,6 +86,7 @@ async fn get_turn_verdicts_returns_live_shadow_and_eval_rows_whole_and_filters_b
     let long = "y".repeat(20_000);
     for mode in [VerdictMode::Live, VerdictMode::Shadow, VerdictMode::Eval] {
         persist
+            .eval()
             .insert_turn_verdict(verdict(turn_id, mode, Some(bundle_id), &long))
             .await?;
     }

@@ -111,7 +111,7 @@ async fn composition_disabled_globally_is_passthrough() -> anyhow::Result<()> {
         "--composition-enabled",
         "0",
     ])?;
-    let state = mike::config::AppState::new(config).await?;
+    let state = mike::state::AppState::new(config).await?;
     let shutdown = state.shutdown();
     let proxy_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let proxy_addr = proxy_listener.local_addr()?;

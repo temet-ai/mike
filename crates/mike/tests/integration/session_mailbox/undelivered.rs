@@ -1,6 +1,7 @@
 use crate::seed::{seed_project, seed_session};
 use crate::test_db::TestDb;
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
 struct Pair {
@@ -52,12 +53,13 @@ async fn a_message_given_up_on_is_told_to_its_sender_once_naming_the_mail_and_th
     let (p, db) = pair(&factory, "undelivered-notice").await?;
     let mail = Uuid::new_v4();
     p.handle
+        .launch()
         .insert_message(mail, p.recipient, Some(p.sender), "please look")
         .await?;
 
-    assert!(p.handle.tell_sender_not_delivered(mail).await?);
+    assert!(p.handle.launch().tell_sender_not_delivered(mail).await?);
     assert!(
-        !p.handle.tell_sender_not_delivered(mail).await?,
+        !p.handle.launch().tell_sender_not_delivered(mail).await?,
         "the sender is told once"
     );
 
@@ -85,6 +87,7 @@ async fn the_reaper_tells_the_sender_and_the_receivers_next_request_revives_the_
     let (p, db) = pair(&factory, "undelivered-reaped").await?;
     let stranded = Uuid::new_v4();
     p.handle
+        .launch()
         .insert_message(stranded, p.recipient, Some(p.sender), "stranded")
         .await?;
     sqlx::query("UPDATE mailbox.messages SET queued_at = now() - interval '2 hours' WHERE message_uuid = $1")
@@ -94,6 +97,7 @@ async fn the_reaper_tells_the_sender_and_the_receivers_next_request_revives_the_
     let cutoff = chrono::Utc::now() - chrono::Duration::minutes(60);
     let reaped = p
         .handle
+        .launch()
         .dead_letter_expired_undelivered(cutoff, cutoff)
         .await?;
     assert_eq!(reaped.dead_lettered, 1);
@@ -102,10 +106,15 @@ async fn the_reaper_tells_the_sender_and_the_receivers_next_request_revives_the_
     assert_eq!(notices.len(), 1, "{notices:?}");
     assert!(notices[0].contains(&stranded.to_string()));
 
-    let revived = p.handle.revive_undelivered_mail(p.recipient).await?;
+    let revived = p
+        .handle
+        .launch()
+        .revive_undelivered_mail(p.recipient)
+        .await?;
     assert_eq!(revived, vec![stranded]);
     assert_eq!(
         p.handle
+            .launch()
             .claim_channel_messages(p.recipient, 10)
             .await?
             .len(),
@@ -126,10 +135,12 @@ async fn mail_the_receiver_saw_and_never_acknowledged_is_not_revived() -> anyhow
     let (p, db) = pair(&factory, "undelivered-seen").await?;
     let seen = Uuid::new_v4();
     p.handle
+        .launch()
         .insert_message(seen, p.recipient, Some(p.sender), "seen")
         .await?;
     assert_eq!(
         p.handle
+            .launch()
             .claim_channel_messages(p.recipient, 10)
             .await?
             .len(),
@@ -142,6 +153,7 @@ async fn mail_the_receiver_saw_and_never_acknowledged_is_not_revived() -> anyhow
 
     assert!(
         p.handle
+            .launch()
             .revive_undelivered_mail(p.recipient)
             .await?
             .is_empty()
@@ -164,25 +176,35 @@ async fn twelve_messages_to_a_busy_seat_end_with_one_notice_each_naming_what_hap
     for n in 0..12 {
         let mail = Uuid::new_v4();
         p.handle
+            .launch()
             .insert_message(mail, p.recipient, Some(p.sender), &format!("burst {n}"))
             .await?;
         mails.push(mail);
     }
     for mail in &mails {
-        assert!(p.handle.claim_message(*mail).await?);
-        assert!(p.handle.stamp_mailbox_sent_without_request(*mail).await?);
+        assert!(p.handle.launch().claim_message(*mail).await?);
+        assert!(
+            p.handle
+                .launch()
+                .stamp_mailbox_sent_without_request(*mail)
+                .await?
+        );
     }
     for mail in &mails {
         let mut gave_up = false;
         for _ in 0..4 {
-            let outcome = p.handle.bump_redelivery_attempt(*mail, 3, 0, 0).await?;
+            let outcome = p
+                .handle
+                .launch()
+                .bump_redelivery_attempt(*mail, 3, 0, 0)
+                .await?;
             gave_up = outcome.is_some_and(|o| o.dead_lettered);
             if gave_up {
                 break;
             }
         }
         assert!(gave_up, "the seat never acknowledged {mail}");
-        assert!(p.handle.tell_sender_not_delivered(*mail).await?);
+        assert!(p.handle.launch().tell_sender_not_delivered(*mail).await?);
     }
 
     let notices = notices_for(&p.handle, p.sender).await?;
@@ -201,6 +223,7 @@ async fn twelve_messages_to_a_busy_seat_end_with_one_notice_each_naming_what_hap
     }
     assert!(
         p.handle
+            .launch()
             .revive_undelivered_mail(p.recipient)
             .await?
             .is_empty(),

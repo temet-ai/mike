@@ -28,8 +28,8 @@ Read docs/SYSTEM_MAP.md first: it lists every capability with its code location,
 - CLI: `crates/mike/src/cli.rs`, `crates/mike/src/config/subcommands/mod.rs`, `mike --help`.
 - MCP tools: `crates/mike-mcp/src/tools/catalogue.rs`, `mike-mcp list-tools --full --json`.
 - REST routes: `crates/mike/src/api/manifest/*.rs`.
-- Pipeline order: `pipeline::STAGE_ORDER` in `crates/mike/src/pipeline/mod.rs`.
-- Feature toggles: `crates/mike/src/feature_toggles/mod.rs`.
+- Pipeline order: `pipeline::STAGE_ORDER` in `crates/mike-features/src/pipeline/mod.rs`.
+- Feature toggles: `crates/mike-base/src/feature_toggles/mod.rs`.
 - Workers: `crates/mike/src/serve/workers.rs`.
 - Web UI routes: `frontend/src/routes/`.
-- Migrations: `crates/mike/src/store/persistence/migrations/`.
+- Migrations: `crates/mike-base/src/store/persistence/migrations/`.

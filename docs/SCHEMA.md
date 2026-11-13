@@ -10,14 +10,14 @@ summary: Reference for mike's multi-schema Postgres database — tables, columns
 
 **Scope:** this is a maintained reference, not an exhaustive generated schema dump. It
 documents tables by domain. Where a definition here disagrees
-with `crates/mike/src/store/persistence/migrations/`, the ordered migrations are authoritative.
+with `crates/mike-base/src/store/persistence/migrations/`, the ordered migrations are authoritative.
 
 The proxy's Postgres database captures, persists, and exposes every Claude API request that flows through the
 proxy. It exists so operators and future Claude sessions can inspect full-fidelity request/response history,
 tool activity, system prompts, diagnostic findings, and agent lifecycles without ever touching the proxy's
 in-memory state.
 
-**Schema baseline:** one file — `crates/mike/src/store/persistence/migrations/20260604000001_baseline.sql`
+**Schema baseline:** one file — `crates/mike-base/src/store/persistence/migrations/20260604000001_baseline.sql`
 — replaced 104 incremental migration files in a clean-break squash (2026-06-04). The baseline defined the
 schema as of that date; dozens of incremental migrations have landed on top of it since (new schemas, tables,
 columns, and views). The current schema is the baseline plus every migration after it, not the baseline file alone.
@@ -392,9 +392,9 @@ Added by `20261014070000_codex_projection_receipts.sql` (C02b), together with th
 namespace. The seven tables store trusted Codex receipts and the item projection built from them,
 one projection generation at a time, so a new projector version can rebuild beside the active one
 and replace it. They are scaffolding with no production callers: written and read only through
-`crates/mike/src/store/persistence/runtime/codex/` (`intake.rs`, `generation.rs`, `apply.rs`,
+`crates/mike-features/src/store/persistence/runtime/codex/` (`intake.rs`, `generation.rs`, `apply.rs`,
 `effects.rs`, `state.rs`, `projection_reads.rs`), whose only callers are
-`crates/mike/src/runtime/codex/` and the tests under `tests/integration/runtime_codex/`; no proxy
+`crates/mike-features/src/runtime/codex/` and the tests under `tests/integration/runtime_codex/`; no proxy
 path, worker, REST route or MCP tool reaches them.
 
 This table holds one row per namespace: the last capture sequence handed out for that namespace's
@@ -791,7 +791,7 @@ request the listing exposes as `dispatch_request_id`. Historical rows were popul
 | `claude_code_agent_id` | `TEXT NULL` | Captured `x-claude-code-agent-id` header; present only on workflow sub-agent requests. Unindexed — low cardinality per session, not a join key |
 | `predecessor_request_id` | `BIGINT NULL` | FK → `requests.requests(id)` ON DELETE SET NULL; self-referential. Preceding request in the same session/agent-instance chain |
 | `request_number` | `BIGINT NULL` | 1-based session-chronological ordinal, ordered by `(created_at, id)` |
-| `transformation_manifest` | `JSONB NULL` | Opaque per-request `TransformationManifest` (`crates/mike/src/compress/manifest.rs`): ordered original→sent deltas keyed by SHA256 + byte ranges, never content bytes. Unindexed — read whole per request, never filtered on |
+| `transformation_manifest` | `JSONB NULL` | Opaque per-request `TransformationManifest` (`crates/mike-base/src/wire/manifest.rs`): ordered original→sent deltas keyed by SHA256 + byte ranges, never content bytes. Unindexed — read whole per request, never filtered on |
 
 **Indexes:**
 - `brin_requests_created_at`: `created_at` BRIN(32)
@@ -1358,7 +1358,7 @@ No canonicalisation is deliberate: measured (500 sampled requests, 37,029 tool d
 that hashing the raw wire bytes and hashing a sorted-keys/`cache_control`-stripped form produce the
 IDENTICAL 682 distinct definitions at the identical 1.84 MB — normalising bought zero extra dedup and would
 have cost byte-exact reconstruction of `request_body`'s `tools[]`. `cache_control` itself appeared on 0 of
-the sampled declarations. Full reasoning: `crates/mike/src/store/persistence/tools.rs`'s module doc
+the sampled declarations. Full reasoning: `crates/mike-base/src/store/persistence/tools.rs`'s module doc
 comment.
 
 `body` is `BYTEA`, not `JSONB` — `jsonb` normalises key order and whitespace on ingest (verified live:
@@ -1369,7 +1369,7 @@ column cannot hold a wire form regardless of what bytes are sent to it. Query wi
 `definition_sha256` carries NO index or UNIQUE constraint (`.claude/rules/rust-database-reliability.md`'s hard ban on
 indexing sha columns). Unlike `messages.messages` (millions of rows), this table stays small — 1,167
 distinct definitions measured across 87,904 declared-tool rows in a 1% sample — so the write path
-(`tools::write_request_tools`, `crates/mike/src/store/persistence/tools.rs`) dedups with a plain `WHERE
+(`tools::write_request_tools`, `crates/mike-base/src/store/persistence/tools.rs`) dedups with a plain `WHERE
 definition_sha256 = ANY($1)` scan of the whole table instead. Dedup is GLOBAL across every session (not
 scoped to one session lineage the way messages are), since the same builtin tool definitions repeat across
 unrelated sessions.
@@ -1978,7 +1978,7 @@ Added in `20260729020000_memory_lesson_relations.sql`. Directional "B updates A"
 contradicts). Never a deletion mechanism: a row only records that a relationship was proposed and how it
 was decided; archiving stays with `memory.consolidation_actions`. `candidate_distance` only nominated the
 pair for comparison; direction and kind come from `evidence_json`, the rationales and adjudication. Written
-by `crates/mike/src/lesson_relations/` (detection, rule-based and adjudicated pairs; the `lesson_relations`
+by `crates/mike-features/src/lesson_relations/` (detection, rule-based and adjudicated pairs; the `lesson_relations`
 `llm.calls` role) through `store/persistence/lesson_relations.rs`, and at lesson write time by
 `store/persistence/lessons/write_time.rs` (`POST /api/lessons`, methods `write_time` and `rewritten`).
 Operator decisions arrive through `POST /api/memory/relations/{id}/confirm` and `/reject`; reads are
@@ -2634,7 +2634,7 @@ reshaped by `20261102210000_knowledge_embedding_typed_sources.sql` to be keyed b
 and to detect change from a version the source keeps instead of hashing every source on every read:
 `artifact` by the revision id itself, `note` by `workspace.session_notes.updated_at`, `thread` by the
 thread's newest `mailbox.messages` id, `lesson` by `memory.lessons.text_md5`. One row per source the
-project-knowledge embedding sweep (`crates/mike/src/embed_worker/knowledge.rs`, lease role
+project-knowledge embedding sweep (`crates/mike-features/src/embed_worker/knowledge.rs`, lease role
 `knowledge_embedding`) has attempted. `pending_embeddings.sql` picks sources from
 `memory.knowledge_embedding_sources_v` that have no row, a different `model_key`, a drifted version, or a
 due retry (`next_attempt_at <= now()` with `attempts < 10` or a `[transient]` error);
@@ -2997,7 +2997,7 @@ Columns added by the judgement-context migrations (definition as migrated):
 ### `memory.turn_facts`
 
 Added in migration `20260924150000_turn_facts.sql`. One row per closed `memory.operator_turns` row (operator turns
-and machine segments), built from captured data by `crates/mike/src/dossier/build` with no LLM call. A row is a
+and machine segments), built from captured data by `crates/mike-features/src/dossier/build` with no LLM call. A row is a
 cache of facts as of `built_at`; the `*_at_close` columns are as of the turn's `closed_at` and are written once,
 on insert.
 
@@ -3106,7 +3106,7 @@ classified `operator` (`fetch_ask_ledger_for_model`); the inspection route retur
 
 Added in `20260820000002_acceptance_criteria_maps.sql` (GitHub issue temet-ai/mike-private#152). One authoring of a session's
 acceptance criteria from the operator's accumulated words only, by a worker that never sees the session's
-own restatement of the ask (`crates/mike/src/steerer/intake_criteria/`, called from
+own restatement of the ask (`crates/mike-features/src/steerer/intake_criteria/`, called from
 `steerer/fleet/ask_ledger.rs` after an ask-ledger entry when `should_reauthor` says the newest entry is
 beyond `last_ask_entry_id`). The map is re-authored per operator turn as a new `version` rather than
 overwritten, so the change between versions stays visible; the newest version is what a stop is graded
@@ -3232,7 +3232,7 @@ a direct per-project listing without a join back through `memory.lessons`.
 ### `memory.skill_drafts`
 
 Added in migration `20261014120000_skill_drafts.sql` (mike#613). One row per `SKILL.md` the skill
-author pass (`crates/mike/src/lesson_proposer/skill_author.rs`) drafted from one topic's accepted
+author pass (`crates/mike-features/src/lesson_proposer/skill_author.rs`) drafted from one topic's accepted
 lessons, following the skill-creator method, with the trigger queries its evaluation needs.
 Migration `20261015120000_skill_drafts_drop_unused_eval_columns.sql` dropped the `test_prompts` and
 `assertions` columns the table was created with, because no evaluation step graded them. The pass runs after the topic pass on the lesson proposer's tick, behind the
@@ -3248,7 +3248,7 @@ current; otherwise it writes the generated lesson list as before.
 | `project_id` | `BIGINT NOT NULL` | FK → `projects.projects(id)` ON DELETE CASCADE |
 | `folder` | `TEXT NOT NULL` | Skill folder: the topic, or `<topic>-<agent>` when every lesson in the topic belongs to that one agent |
 | `agent_id` | `BIGINT NULL` | FK → `agents.agents(id)` ON DELETE SET NULL |
-| `topic` | `TEXT NULL` | The lesson topic the draft was written for; used to find an existing skill with the same purpose (`crates/mike/src/lesson_proposer/purpose.rs`) |
+| `topic` | `TEXT NULL` | The lesson topic the draft was written for; used to find an existing skill with the same purpose (`crates/mike-features/src/lesson_proposer/purpose.rs`) |
 | `lesson_watermark` | `BIGINT NOT NULL` | Highest lesson id in the topic when drafted |
 | `lesson_ids` | `BIGINT[] NOT NULL` | The lessons the draft was written from |
 | `model` | `TEXT NOT NULL` | Author model id |
@@ -3268,7 +3268,7 @@ current; otherwise it writes the generated lesson list as before.
 **Constraints:** UNIQUE `(project_id, folder, lesson_watermark, revision)`; CHECK `revision BETWEEN 1 AND 3`.
 **Indexes:** `skill_drafts_status_idx` on `(status, created_at)`.
 
-The eval loop (`crates/mike/src/lesson_proposer/skill_eval.rs`, migration
+The eval loop (`crates/mike-features/src/lesson_proposer/skill_eval.rs`, migration
 `20261014160000_skill_draft_eval.sql`) runs after the author pass on the same tick and call
 budget, one draft per tick, `evaluating` drafts first. It is a gate of three to five model calls.
 The trigger test asks the model, in batches of ten messages (twenty trigger queries are two calls,
@@ -3364,7 +3364,7 @@ on every tick.
 ### `memory.harvest_runs`
 
 Added in migration `20261014140000_harvest_runs.sql` (mike#611). One row per finished model reply in
-which the memory harvester (`crates/mike/src/memory_harvester/`) found at least one
+which the memory harvester (`crates/mike-features/src/memory_harvester/`) found at least one
 `<mem:update>` tag; a reply with no tag writes no row. The weekly learning audit sums these rows
 to show whether sessions use the memory verb grammar. `request_id` has no foreign key because the
 retention sweep deletes old requests and this record is meant to outlive them.
@@ -3400,7 +3400,7 @@ after the third. A model refusal from the call limiter is not a failure.
 ### `memory.skill_policies`
 
 Added in `20261014210000_skill_review_controls.sql`, for the Skills page (`/skills`, routes under
-`/api/skills` in `crates/mike/src/api/skills/`). Whether mike may write learned skills into a project's
+`/api/skills` in `crates/mike-features/src/api/skills/`). Whether mike may write learned skills into a project's
 checkouts on its own: `auto` (the promoter, `scripts/learning_audit/promote.py`, ships drafts that passed
 evaluation, or a generated skill when there is none) or `ask` (it ships only drafts the user approved). A
 project with no row is `ask`, so a project first seen after this table was created never receives a skill
@@ -3470,7 +3470,7 @@ which `skill`-placed lessons a shipped skill already covers (lessons at or below
 ### The user's decisions on rule and agent proposals
 
 Added in migration `20261016100000_lesson_placement_reviews.sql`, for the Proposals page
-(`/proposals`, routes under `/api/proposals` in `crates/mike/src/api/proposals.rs`).
+(`/proposals`, routes under `/api/proposals` in `crates/mike-features/src/api/proposals.rs`).
 
 `memory.lesson_placement_reviews`: one row per lesson placed as `rule` or `agent` that the user has
 decided, keyed `lesson_id` (cascades with the lesson): `decision` (`accepted` or `declined`) and
@@ -3480,7 +3480,7 @@ an accepted proposal into a rule or agent file yet; the page shows the file and 
 ### The user's control over learned skills
 
 Added in migration `20261014210000_skill_review_controls.sql`, for the Skills page (`/skills`,
-routes under `/api/skills` in `crates/mike/src/api/skills/`). The learning promoter
+routes under `/api/skills` in `crates/mike-features/src/api/skills/`). The learning promoter
 (`scripts/learning_audit/promote.py`) reads the first three and writes the fourth through
 `POST /api/skills/installs`.
 
@@ -3511,7 +3511,7 @@ Index `skill_installs_project_idx` on `(project_id, folder)`.
 ### `memory.lesson_proposal_evidence`
 
 Added in migration `20260929000001_improvement_schema.sql` (JC21). One row per
-`memory.turn_verdicts` row the lesson proposer (`crates/mike/src/lesson_proposer/`) has examined,
+`memory.turn_verdicts` row the lesson proposer (`crates/mike-features/src/lesson_proposer/`) has examined,
 whether or not it produced or reinforced a lesson. `verdict_id` is `UNIQUE` — it is both the
 anti-join key the candidate-selection query in `store/persistence/lessons/proposals.rs` uses to
 skip an already-examined verdict (`rust-database-reliability.md` allows this: the uniqueness lives on a real
@@ -3544,7 +3544,7 @@ identifier, in `CREATE TABLE` or in an `INSERT` column list.
 ### `memory.lesson_proposal_jobs`
 
 Added in `20261005000000_learning_proposal_queue.sql`. One durable replay job per verdict for the lesson
-proposer (`crates/mike/src/lesson_proposer/`, queue code in
+proposer (`crates/mike-features/src/lesson_proposer/`, queue code in
 `store/persistence/lessons/proposals/queue.rs`): when a proposal has been produced but cannot be written
 because embedding is unavailable, the immutable proposer inputs and the wire response are saved here as
 `awaiting_embedding` and replayed once `next_attempt_at` is due (back-off `15 * 2^n` s capped at 1 h,
@@ -3623,11 +3623,11 @@ replacement is backed by the union of the corrections behind both.
 ### `memory.lesson_shape_findings`
 
 Added in migration `20261014190000_lesson_shape_findings.sql`. One row per lesson that has been
-checked for rule shape (`crates/mike/src/lesson_shape.rs`): a durable instruction in the
+checked for rule shape (`crates/mike-base/src/lesson_shape.rs`): a durable instruction in the
 imperative with its trigger and what to do, not a status report about a session. The check runs
 at write time in `POST /api/lessons` (the `record_lesson` tool), in the lesson proposer when it
 creates a lesson, and as a scan over lessons that have no row yet on the proposer tick
-(`crates/mike/src/lesson_proposer/shape_pass.rs`).
+(`crates/mike-features/src/lesson_proposer/shape_pass.rs`).
 
 A lesson with an unresolved non-rule row (`resolution IS NULL`) is excluded from session
 consolidation to daily (`claim_raw_lessons_for_consolidation`, `discover_idle_projects`), from
@@ -3679,7 +3679,7 @@ keeping).
 
 Added in migration `20261014200000_lesson_placement.sql`. Failed placement attempts for one lesson
 (the model call failed or its answer could not be stored). The placement pass
-(`crates/mike/src/lesson_proposer/placement_pass.rs`) waits 2^attempts hours after each failure and
+(`crates/mike-features/src/lesson_proposer/placement_pass.rs`) waits 2^attempts hours after each failure and
 stops trying the lesson after the third; the weekly learning audit counts it as stuck.
 
 | Column | Type | Purpose |
@@ -3692,7 +3692,7 @@ stops trying the lesson after the third; the weekly learning audit counts it as 
 ### `memory.lesson_placement_reviews`
 
 Added in `20261016100000_lesson_placement_reviews.sql`, for the Proposals page (`/proposals`, routes under
-`/api/proposals` in `crates/mike/src/api/proposals.rs`). The user's decision on a lesson placed as a rule or
+`/api/proposals` in `crates/mike-features/src/api/proposals.rs`). The user's decision on a lesson placed as a rule or
 an agent statement: `accepted` (the user wants it in the rule or agent file the page names) or `declined`.
 A lesson with no row has not been decided; clearing a decision deletes the row. Nothing writes an accepted
 proposal into a rule or agent file; the page shows the file and the text to add. Read and written by
@@ -4066,7 +4066,7 @@ allows.
 |---|---|---|
 | `id` | `BIGINT GENERATED ALWAYS AS IDENTITY` | Primary key |
 | `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | |
-| `role` | `TEXT NOT NULL` | CHECK `steerer \| session_judge \| judge_worker \| lesson_relations \| eval \| lesson_proposer`. `eval` added by `20260925000000_llm_calls_role_eval.sql`; `lesson_proposer` (the JC21 lesson proposer, `crates/mike/src/lesson_proposer/`) by `20260929000001_improvement_schema.sql`, alongside the matching widening of `llm.daily_spend.role` below (its `AFTER INSERT` trigger copies `NEW.role` verbatim, so a role `llm.calls` accepts but `llm.daily_spend` does not fails every insert of that role, not just a read) |
+| `role` | `TEXT NOT NULL` | CHECK `steerer \| session_judge \| judge_worker \| lesson_relations \| eval \| lesson_proposer`. `eval` added by `20260925000000_llm_calls_role_eval.sql`; `lesson_proposer` (the JC21 lesson proposer, `crates/mike-features/src/lesson_proposer/`) by `20260929000001_improvement_schema.sql`, alongside the matching widening of `llm.daily_spend.role` below (its `AFTER INSERT` trigger copies `NEW.role` verbatim, so a role `llm.calls` accepts but `llm.daily_spend` does not fails every insert of that role, not just a read) |
 | `model` | `TEXT NOT NULL` | OpenRouter model id |
 | `generation_id` | `TEXT NULL` | OpenRouter response `id`; a cross-reference fingerprint only, deliberately not indexed |
 | `prompt_tokens` | `INTEGER NULL` | |
@@ -4128,7 +4128,7 @@ proposer and duplicate or collide on their work.
 
 | Column | Type | Purpose |
 |---|---|---|
-| `role` | `TEXT PRIMARY KEY` | An `llm.calls.role` value: `steerer`, `session_judge`, `judge_worker`, `eval`, `lesson_proposer`, `lesson_relations`; or the name of a scheduled job that runs on one machine per database (`learning_audit`, `compressor_loop`, `usage_audit`; see `crates/mike/src/scheduled_jobs`); or `knowledge_embedding`, the project-knowledge embedding sweep (`crates/mike/src/embed_worker/knowledge.rs`). No CHECK, so a role needs no migration to be leased |
+| `role` | `TEXT PRIMARY KEY` | An `llm.calls.role` value: `steerer`, `session_judge`, `judge_worker`, `eval`, `lesson_proposer`, `lesson_relations`; or the name of a scheduled job that runs on one machine per database (`learning_audit`, `compressor_loop`, `usage_audit`; see `crates/mike/src/scheduled_jobs`); or `knowledge_embedding`, the project-knowledge embedding sweep (`crates/mike-features/src/embed_worker/knowledge.rs`). No CHECK, so a role needs no migration to be leased |
 | `machine_uuid` | `UUID NOT NULL` | The machine that owns the role, from its `machine.json` |
 | `heartbeat_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Database-clock time of the owner's last claim or renewal |
 
@@ -5860,9 +5860,11 @@ global, non-session-scoped operator configuration — the runtime source of trut
 
 ### `config.feature_toggles`
 
-One row per named feature toggle. Closed key space enforced by a CHECK constraint that every migration
-introducing a new toggle drops and re-adds (idempotent `DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT`).
-`crates/mike/src/feature_toggles/mod.rs` is the authoritative list of toggle keys, and each
+One row per named feature toggle. The key space is closed in code, not in the table: until migration
+`20261112160000_config_feature_toggles_open_keys.sql` a CHECK constraint listed every key and each new
+toggle needed a migration to widen it. Now `FeatureToggleService::set_with_source` refuses any key that is
+not in `TOGGLE_META`, and a row whose key the code does not know is skipped when the overlay loads, so a new
+toggle needs no migration. `crates/mike-base/src/feature_toggles/` (`TOGGLE_META`) is the authoritative list of toggle keys, and each
 toggle's code default is documented in [`FEATURES.md`](FEATURES.md). Every toggle that rewrites
 traffic or sends captured text off the machine defaults off. The column default is still `TRUE`, so a stored row is
 what actually decides, and migration `20260917000002_fresh_install_defaults_off.sql` turns the
@@ -5870,7 +5872,7 @@ mutation and egress toggles off on a database that has captured no requests yet.
 
 | Column | Type | Purpose |
 |---|---|---|
-| `key` | `TEXT PRIMARY KEY` | Toggle name; CHECK-constrained to the closed set |
+| `key` | `TEXT PRIMARY KEY` | Toggle name; validated against `TOGGLE_META` by the service |
 | `enabled` | `BOOLEAN NOT NULL DEFAULT TRUE` | Whether the feature is currently active |
 | `operator_set` | `BOOLEAN NOT NULL DEFAULT FALSE` | Whether an operator chose this value, as opposed to it being a migration seed |
 | `updated_at` | `TIMESTAMPTZ NOT NULL DEFAULT NOW()` | Last time the toggle was written; drives the settings UI's "last changed" display |
@@ -5878,7 +5880,7 @@ mutation and egress toggles off on a database that has captured no requests yet.
 **Indexes:** none beyond the PK — the table has ≤10 rows and is read at startup and on every settings-page load.
 
 Migration `20260929000001_improvement_schema.sql` (JC21) adds `judge_lessons` to the closed key
-set (the lesson proposer, `crates/mike/src/lesson_proposer/`). It sends captured turn text to an
+set (the lesson proposer, `crates/mike-features/src/lesson_proposer/`). It sends captured turn text to an
 LLM, so `agent-behavior-and-data.md` requires the code default off; the migration inserts
 `(judge_lessons, false, false)` rather than any "on for this install" value a deploy records —
 that flip is a deploy-time operator action through `/settings`, logged by the trigger below like

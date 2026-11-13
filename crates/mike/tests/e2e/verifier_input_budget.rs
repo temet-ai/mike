@@ -1,7 +1,8 @@
 use crate::db_helpers;
 
 use mike::app::inspect_router_on;
-use mike::config::{AppState, ProxyConfig};
+use mike::config::ProxyConfig;
+use mike::state::AppState;
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 use wiremock::MockServer;

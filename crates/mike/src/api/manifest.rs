@@ -1,3 +1,4 @@
+pub use mike_features::api::manifest::*;
 use std::time::Duration;
 
 use axum::Router;
@@ -9,8 +10,8 @@ use tower_http::request_id::{PropagateRequestIdLayer, SetRequestIdLayer};
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 
-use crate::api::host_guard;
-use crate::config::AppState;
+use crate::state::AppState;
+use crate::web_base::host_guard;
 
 mod anthropic;
 mod changes;
@@ -23,7 +24,6 @@ mod eval;
 mod eval_metrics;
 mod evaluations;
 mod filters;
-mod fleets;
 mod improvement;
 mod knowledge;
 mod launches;
@@ -58,28 +58,7 @@ const REQUEST_ID_HEADER: HeaderName = HeaderName::from_static("x-request-id");
 const INSPECT_TIMEOUT: Duration = Duration::from_secs(30);
 const WAITED_TIMEOUT: Duration = Duration::from_secs(7300);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Coverage {
-    Tool(&'static str),
-    AggregatedInto(&'static str),
-    Resource(&'static str),
-    Exempt { reason: &'static str },
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct RouteEntry {
-    pub method: &'static str,
-    pub path: &'static str,
-    pub coverage: Coverage,
-}
-
-const fn route(method: &'static str, path: &'static str, coverage: Coverage) -> RouteEntry {
-    RouteEntry {
-        method,
-        path,
-        coverage,
-    }
-}
+pub use crate::web_base::route_manifest::{Coverage, RouteEntry};
 
 pub fn inspect_route_manifest() -> Vec<RouteEntry> {
     [

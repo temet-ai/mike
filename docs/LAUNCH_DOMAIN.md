@@ -8,24 +8,24 @@ summary: mike's own terminal launcher — the TerminalBackend trait and its adap
 
 # Launch Domain
 
-`crates/mike/src/launch/` opens a terminal surface in a folder and starts a fresh Claude Code
+`crates/mike-features/src/launch/` opens a terminal surface in a folder and starts a fresh Claude Code
 session in it, wired to the proxy, with a preassigned session id — mike's own replacement for a
 standalone terminal-launcher process. It is reached three ways: the `mike spawn` CLI verbs, the
 `/api/launches` inspect routes, and the `spawn_session`/`list_launches`/`kill_session` MCP tools
 (documented in [`MCP_BRIDGE.md`](MCP_BRIDGE.md)), which are HTTP clients of those routes.
 
 These do not share one process or one `AppState`. `mike spawn` runs the launch in its own
-process: it loads its own `ProxyConfig` (`crates/mike/src/launch/cli/mod.rs`) and builds its own
+process: it loads its own `ProxyConfig` (`crates/mike-features/src/launch/cli/mod.rs`) and builds its own
 `Runner` over the backend, the ledger and the trust gate
-(`crates/mike/src/launch/cli/runner.rs`), never calling the inspect API. The API path runs the
+(`crates/mike-features/src/launch/cli/runner.rs`), never calling the inspect API. The API path runs the
 same launch code inside the running `mike` server, entered through
-`open_for_server`/`kill_for_server`/`doctor_for_server` (`crates/mike/src/launch/cli/server.rs`),
+`open_for_server`/`kill_for_server`/`doctor_for_server` (`crates/mike-features/src/launch/cli/server.rs`),
 with the server's own `AppState`. What all of them share is the `launch.*` ledger in Postgres —
 which is why a launch made through any entry point shows up in the others.
 
 ## 1. Terminal backends
 
-Every backend implements `TerminalBackend` (`crates/mike/src/launch/backend/mod.rs`):
+Every backend implements `TerminalBackend` (`crates/mike-features/src/launch/backend/mod.rs`):
 
 ```rust
 trait TerminalBackend: Send + Sync {
@@ -49,17 +49,17 @@ workspace-coordination tools in [`MCP_BRIDGE.md`](MCP_BRIDGE.md)), not from the 
 
 `backend_for(BackendId)` hands out a backend. Five ids have a real adapter today
 (asserted by `backend_for_herdr_tmux_terminal_and_none_exist_ghostty_absent` in
-`crates/mike/src/launch/backend/mod.rs`):
+`crates/mike-features/src/launch/backend/mod.rs`):
 
 | Backend | Module | What it is |
 |---|---|---|
-| `herdr` | `crates/mike/src/launch/herdr/` | Drives the `herdr` CLI (JSON on stdout, one process per call, bounded timeouts, never a shell) against its persistent server. The only backend with `agent_state` and a session-uuid join, so it gives the richest liveness reads. |
-| `herdr-core` | `crates/mike/src/launch/herdr_core/` | The Herdr desktop app. Starts claude with `hc run --bg --keep` labelled `herdr.space`/`herdr.tab`, which the app adopts as a tab: in the caller's space when it is in the folder, else a space already in the folder, else a new space (a fleet run gets one space). `mike.session`/`mike.name`/`mike.run`/`mike.seat` labels drive find, list and kill (`hc kill`); the first prompt goes by `hc send`, confirmed when the agent reports working or its turn advances. herdr-core carries Claude Code's working/idle/blocked/done, so it has `agent_state`. Fleet focus uses `herdr-app do agent.focus`. |
-| `tmux` | `crates/mike/src/launch/tmux/` | Drives the `tmux` CLI for headless hosts — SSH sessions, containers, anything with no display for herdr's server. No `agent_state`. |
-| `terminal` | `crates/mike/src/launch/terminal/` | **Hyprland only.** A plain window per launch via `xdg-terminal-exec`, found again through `hyprctl clients -j` and closed with a direct signal on the window's pid — no persistent server and no multiplexer pane, so every launch is its own OS process tagged by an `--app-id`. `Capabilities::prompt_in_argv` is `true`: there is no side channel to submit a prompt after the window opens, so the prompt travels in the claude argv. |
-| `none` | `crates/mike/src/launch/backend/none.rs` | **The default.** Hand-launch only, and it means "no backend chosen yet", not "launching is disabled". A real implementation so the domain never special-cases "no backend"; every launch verb refuses with the remedy ("`mike claude` in the current pane; `mike spawn open` is unavailable"), and every read answers "nothing". |
+| `herdr` | `crates/mike-features/src/launch/herdr/` | Drives the `herdr` CLI (JSON on stdout, one process per call, bounded timeouts, never a shell) against its persistent server. The only backend with `agent_state` and a session-uuid join, so it gives the richest liveness reads. |
+| `herdr-core` | `crates/mike-features/src/launch/herdr_core/` | The Herdr desktop app. Starts claude with `hc run --bg --keep` labelled `herdr.space`/`herdr.tab`, which the app adopts as a tab: in the caller's space when it is in the folder, else a space already in the folder, else a new space (a fleet run gets one space). `mike.session`/`mike.name`/`mike.run`/`mike.seat` labels drive find, list and kill (`hc kill`); the first prompt goes by `hc send`, confirmed when the agent reports working or its turn advances. herdr-core carries Claude Code's working/idle/blocked/done, so it has `agent_state`. Fleet focus uses `herdr-app do agent.focus`. |
+| `tmux` | `crates/mike-features/src/launch/tmux/` | Drives the `tmux` CLI for headless hosts — SSH sessions, containers, anything with no display for herdr's server. No `agent_state`. |
+| `terminal` | `crates/mike-features/src/launch/terminal/` | **Hyprland only.** A plain window per launch via `xdg-terminal-exec`, found again through `hyprctl clients -j` and closed with a direct signal on the window's pid — no persistent server and no multiplexer pane, so every launch is its own OS process tagged by an `--app-id`. `Capabilities::prompt_in_argv` is `true`: there is no side channel to submit a prompt after the window opens, so the prompt travels in the claude argv. |
+| `none` | `crates/mike-features/src/launch/backend/none.rs` | **The default.** Hand-launch only, and it means "no backend chosen yet", not "launching is disabled". A real implementation so the domain never special-cases "no backend"; every launch verb refuses with the remedy ("`mike claude` in the current pane; `mike spawn open` is unavailable"), and every read answers "nothing". |
 
-The `terminal` backend's probe (`crates/mike/src/launch/terminal/probe.rs`) requires all three of
+The `terminal` backend's probe (`crates/mike-features/src/launch/terminal/probe.rs`) requires all three of
 `xdg-terminal-exec` on `PATH`, a `hyprctl version -j` that answers, and a non-empty
 `$WAYLAND_DISPLAY` — it reports unavailable if any one fails, so it is not a generic
 Wayland or X11 backend. On a host without Hyprland, use `herdr` or `tmux`.
@@ -69,7 +69,7 @@ wizard's backend list) with no adapter yet — it parses, but `backend_for(Backe
 returns `None`, and configuring it makes every `mike spawn` verb fail with
 `BackendUnavailable`.
 
-A launch opens where its caller runs (`crates/mike/src/launch/backend_choice.rs`, temet-ai/mike-private#691). A caller
+A launch opens where its caller runs (`crates/mike-features/src/launch/backend_choice.rs`, temet-ai/mike-private#691). A caller
 in a Herdr app terminal (`HC_TERMINAL_ID`) gets `herdr-core`; one in an old herdr pane
 (`HERDR_PANE_ID`) gets `herdr`; one in tmux gets `tmux`. `spawn_session` forwards those variables
 as `caller_env`. With no caller to go by (a fleet seat, a phone over Remote Control), the first of
@@ -87,7 +87,7 @@ did this backend last actually work" history.
 
 ## 2. The `mike spawn` CLI
 
-Eight verbs, all in `crates/mike/src/launch/cli/`:
+Eight verbs, all in `crates/mike-features/src/launch/cli/`:
 
 | Verb | Does |
 |---|---|
@@ -103,7 +103,7 @@ Eight verbs, all in `crates/mike/src/launch/cli/`:
 `open`, `warm` and `fork` share one argument shape: the folder (or, for `fork`, the template)
 comes first, spawn's own flags may appear anywhere after it, and every other token is a claude
 argument kept in order; a literal `--` forwards the rest verbatim. The shared flags are parsed by
-`split_launch_args` (`crates/mike/src/launch/request/split.rs`); the rest are verb-specific.
+`split_launch_args` (`crates/mike-features/src/launch/request/split.rs`); the rest are verb-specific.
 
 | Flag | Verbs | What it does |
 |---|---|---|
@@ -111,7 +111,7 @@ argument kept in order; a literal `--` forwards the rest verbatim. The shared fl
 | `--split <l\|r\|u\|d>` | open, warm, fork | Split placement in that direction. A backend without split support ignores it and reports what it actually did in the launch's `actual_placement`. |
 | `--panel` | open, warm, fork | Panel placement. Unlike `--split`, it may be combined with `--tab`. |
 | `--anchor-terminal <surface ref>` | open, warm, fork | Targets a specific existing pane for a split placement. Refused (`Unsupported`) by a backend with no addressable-pane concept to anchor against. |
-| `--run <id>` | open, warm, fork | Groups the launch with its run's siblings. On herdr, when no placement flag is given, the first launch under a run id creates a workspace labelled with the run id and records it on `launch.runs`; every later launch under that id goes into that workspace. The seat's role picks its tab: coordinator, observer and acceptance go to `control`, a seat named `template…` to `templates`, everything else to `workers`. Inside a tab the largest pane is split, to the right when it is at least twice as wide as it is tall and down otherwise, and never below 100 columns by 30 rows; a tab with no room starts `workers 2`. The pane is named after the seat and the seat name is reported to herdr for its sidebar (`crates/mike/src/launch/herdr/run_layout.rs`). An explicit `--tab`, `--split` or `--panel` places the launch the old way, by folder. tmux and terminal do not group by run. |
+| `--run <id>` | open, warm, fork | Groups the launch with its run's siblings. On herdr, when no placement flag is given, the first launch under a run id creates a workspace labelled with the run id and records it on `launch.runs`; every later launch under that id goes into that workspace. The seat's role picks its tab: coordinator, observer and acceptance go to `control`, a seat named `template…` to `templates`, everything else to `workers`. Inside a tab the largest pane is split, to the right when it is at least twice as wide as it is tall and down otherwise, and never below 100 columns by 30 rows; a tab with no room starts `workers 2`. The pane is named after the seat and the seat name is reported to herdr for its sidebar (`crates/mike-features/src/launch/herdr/run_layout.rs`). An explicit `--tab`, `--split` or `--panel` places the launch the old way, by folder. tmux and terminal do not group by run. |
 | `--seat <name>` | open, warm, fork | Names this launch's seat within its run, recorded on the ledger row alongside the run id. Also becomes the session's roster **name** unless `--session-name` overrides it. |
 | `--role <role>` | open, warm, fork | The role the new session declares — free text, open set, and what `role:` mailbox fan-out resolves against. On `warm`, defaults to the template's `--name <discipline>`. |
 | `--instructions <text>` | open, warm, fork | The standing brief the new session works under, distinct from its goal and from the first-turn prompt. |
@@ -244,7 +244,7 @@ By default a launch also gets `--remote-control`, the MCP channel flag
 `HTTPS_PROXY`/`NO_PROXY`/`NODE_EXTRA_CA_CERTS` pointed at the forward sidecar. `remote_control`,
 `channels` and `proxy_env` are **per-launch** fields, not boot config: on the API they are fields of the
 `POST /api/launches` body defaulting to true (`CreateLaunchRequest`,
-`crates/mike/src/api/launches/mod.rs`), and on the CLI they are the same three booleans carried in
+`crates/mike-features/src/api/launches/mod.rs`), and on the CLI they are the same three booleans carried in
 `SplitLaunchArgs`, turned off per launch with `--no-remote-control`, `--no-channels` or
 `--no-proxy-env`. There is
 no `launch_remote_control` or `launch_proxy_env` in `LaunchConfig`. What *is* boot config is
@@ -264,7 +264,7 @@ A linked git worktree under the repository's `.claude/worktrees/` launches as us
 
 ### Exit codes
 
-`LaunchError::exit_code` (`crates/mike/src/launch/error.rs`) is the authoritative mapping:
+`LaunchError::exit_code` (`crates/mike-features/src/launch/error.rs`) is the authoritative mapping:
 
 | Code | Meaning |
 |---|---|
@@ -348,7 +348,7 @@ MCP tools and the inspect UI all read the same rows.
 
 ## 5. Fleets
 
-A fleet is one goal split into tasks, each given to its own launched session, all committing to one branch of one checkout. The definition lives in mike's database (`launch.fleets`); a session writes it with `define_fleet` (see [`MCP_BRIDGE.md`](MCP_BRIDGE.md)) and mike starts and supervises the run (`crates/mike/src/launch/fleet/`). The reader-facing description is [`user-guide/fleets/`](user-guide/fleets/README.md), with how a run proceeds in [`user-guide/fleets/how-a-fleet-runs.md`](user-guide/fleets/how-a-fleet-runs.md); this section is the mechanism.
+A fleet is one goal split into tasks, each given to its own launched session, all committing to one branch of one checkout. The definition lives in mike's database (`launch.fleets`); a session writes it with `define_fleet` (see [`MCP_BRIDGE.md`](MCP_BRIDGE.md)) and mike starts and supervises the run (`crates/mike-features/src/launch/fleet/`). The reader-facing description is [`user-guide/fleets/`](user-guide/fleets/README.md), with how a run proceeds in [`user-guide/fleets/how-a-fleet-runs.md`](user-guide/fleets/how-a-fleet-runs.md); this section is the mechanism.
 
 `mike fleet` is the operator's window onto a fleet. Its operator commands hold no database connection: they call the inspect API at the configured `inspect_listen_addr`, so they work from any shell that can reach that address. `<fleet>` is a fleet uuid or a slug, passed through unchanged.
 
@@ -482,7 +482,7 @@ When a template has loaded, mike forks one more seat from it (`reference`, role 
 
 ### Reports, the floor and verdicts
 
-A worker reports a slice with `fleet_report` and the judge decides; neither is mail. The report is a `report` note in the seat's notebook carrying the seat's newest commit, the check's verdict at that commit, whether the check ran after the seat's last change (the change record's `mine` view), the brief version the seat read and the evidence paths. The `mike-mcp` tool is typed: `sha` (or `commit`), `criteria`, `exercised` (`command`, `exit`, `output_ref`), `tests_changed` (paths, or `"none"`) and `unestablished` (`[]` when nothing) are required, and the bridge refuses a report missing one, naming the field (`crates/mike-mcp/src/tools/fleet_report.rs`). The server refuses the same incomplete report itself (`crates/mike/src/api/fleet/report.rs`): "fleet_report is incomplete: `<field>` is missing".
+A worker reports a slice with `fleet_report` and the judge decides; neither is mail. The report is a `report` note in the seat's notebook carrying the seat's newest commit, the check's verdict at that commit, whether the check ran after the seat's last change (the change record's `mine` view), the brief version the seat read and the evidence paths. The `mike-mcp` tool is typed: `sha` (or `commit`), `criteria`, `exercised` (`command`, `exit`, `output_ref`), `tests_changed` (paths, or `"none"`) and `unestablished` (`[]` when nothing) are required, and the bridge refuses a report missing one, naming the field (`crates/mike-mcp/src/tools/fleet_report.rs`). The server refuses the same incomplete report itself (`crates/mike-features/src/api/fleet/report.rs`): "fleet_report is incomplete: `<field>` is missing".
 
 A task that declares `done_when` (`checks` with an expected exit, `files_changed`, `tests_added_under`, an `exercise` with its command and expected output) has that floor run by mike at the reported commit before any model reads the report (`floor.rs`). A pass appends `floor_passed`. A failure appends `floor_failed` with the sha and a one-line reason, tells no judge, and mails the reporting seat a code: `check_failed`, `files_not_changed`, `no_test_added`, `exercise_failed` or `floor_unrunnable`. A task with no `done_when` goes to the judge at once. A verdict names the brief version it judged, and the seat is told once. A task's shown state is worked out from these notes and the seat (rework, passed, ready, awaiting acceptance while a report waits, working while the seat is open); a hand-set `tasks.<id>.state` is ignored where mike can derive it.
 
@@ -548,7 +548,7 @@ A reference fleet is a definition, a repository state and a known answer, run th
 
 The Rust reference, `fleet-ref-rust` (`scripts/fleet-refs/rust.json`), is mike itself at a pinned commit in a long-lived worktree slot, `.claude/worktrees/fleet-ref`, which keeps its `target/` between runs: `prepare` checks the slot out on a new branch at the pin and reverts the known answers in one commit. No deploy runs a reference fleet; run `scripts/fleet-ref run node` by hand when a change to the fleet path needs it.
 
-A reference run is scored as an eval run of kind `fleet` (`crates/mike/src/eval/fleet/`, `crates/mike/src/config/subcommands/eval/fleet_kind.rs`). Its items are run records and its metrics are the four numbers: `time_to_done_minutes`, `fault_minutes`, `tokens_per_accepted_task` and `manual_interventions`, each a plain value or an object with a `total`.
+A reference run is scored as an eval run of kind `fleet` (`crates/mike-features/src/eval/fleet/`, `crates/mike/src/config/subcommands/eval/fleet_kind.rs`). Its items are run records and its metrics are the four numbers: `time_to_done_minutes`, `fault_minutes`, `tokens_per_accepted_task` and `manual_interventions`, each a plain value or an object with a `total`.
 
 - `mike eval run --kind fleet --record-file <file>` (or `--fleet-run <fleet uuid>`, which reads the stored record) prints the four numbers as JSON. Exit `0` when all four are present, `2` when the record lacks one.
 - `mike eval gate --kind fleet --baseline-record <file> --candidate-record <file> [--history-record <file>…] [--json]` compares a before-record with an after-record. A metric worsened when it rose by more than its allowance: 10% of the before value, or with ten or more `--history-record` runs two standard deviations of that metric across them. Exit `0` when no metric worsened, `1` when any did, `2` when either record lacks a number.
