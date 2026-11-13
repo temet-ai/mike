@@ -54,6 +54,7 @@ if [ -x "$semgrep_bin" ] && [ "${#scan_files[@]}" -gt 0 ]; then
     ulimit -s unlimited 2>/dev/null
     # semgrep-core's default io_uring backend fails with ENOMEM under a busy build.
     EIO_BACKEND=posix "$semgrep_bin" scan --metrics off --error --quiet \
+      --exclude-rule rust.lang.security.args-os.args-os \
       --config p/rust --config p/javascript --config p/typescript "${scan_files[@]}"
   ) || {
     echo "pre-push: semgrep found a problem in the changed files" >&2

@@ -34,9 +34,7 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
     #[cfg(unix)]
-    unsafe {
-        libc::umask(0o077);
-    }
+    rustix::process::umask(rustix::fs::Mode::from_raw_mode(0o077));
     if fleet_invocation::background_hook(std::env::args_os().skip(1)) {
         std::process::exit(mike::launch::fleet::background_hook());
     }
