@@ -125,10 +125,16 @@ out="$(plain MBX_BIN="$fake" MIKE_BUILD_IDENTITY=git "$cx" build --release 2>&1)
   && chk pass "unset, mbx installed: build with MIKE_BUILD_IDENTITY=git stays on cargo (make install, release)" \
   || chk fail "unset, mbx installed: build with MIKE_BUILD_IDENTITY=git stays on cargo ($(first_of "$out"))"
 if command -v cargo-nextest >/dev/null 2>&1; then
-  out="$(plain MBX_BIN="$fake" "$cx" nextest run -p mike 2>&1)"
-  [[ "$(printf '%s\n' "$out" | tr '\n' ' ')" == "env CARGO=$fake $(command -v cargo-nextest) nextest run -p mike " ]] \
-    && chk pass "unset, mbx installed: nextest runs with CARGO=mbx, so its test binaries come from the store" \
-    || chk fail "unset, mbx installed: nextest runs with CARGO=mbx ($(printf '%s\n' "$out" | tr '\n' ' '))"
+  shim="$T/data/mbx/bin/cargo"
+  mkdir -p "$(dirname "$shim")" && cp "$fake" "$shim"
+  out="$(plain MBX_BIN="$fake" XDG_DATA_HOME="$T/data" "$cx" nextest run -p mike 2>&1)"
+  [[ "$(printf '%s\n' "$out" | tr '\n' ' ')" == "env CARGO=$shim $(command -v cargo-nextest) nextest run -p mike " ]] \
+    && chk pass "unset, mbx installed: nextest runs with CARGO=mbx's cargo shim, never mbx itself" \
+    || chk fail "unset, mbx installed: nextest runs with CARGO=mbx's cargo shim ($(printf '%s\n' "$out" | tr '\n' ' '))"
+  out="$(plain MBX_BIN="$fake" XDG_DATA_HOME="$T/no-shim" "$cx" nextest run -p mike 2>&1)"
+  [[ "$out" == *"cargo shim is missing"* ]] \
+    && chk pass "unset, mbx installed, no shim: nextest refuses instead of making mbx call itself" \
+    || chk fail "unset, mbx installed, no shim: nextest refuses ($(printf '%s\n' "$out" | tr '\n' ' '))"
 else
   chk pass "unset, mbx installed: nextest case skipped, cargo-nextest is not installed"
 fi

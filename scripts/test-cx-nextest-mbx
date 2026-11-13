@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# test-cx-nextest-mbx — runs `scripts/cx nextest list` for real, with real mbx and
+# real cargo-nextest, on the small crate mike-codex. It proves nextest builds through
+# mbx without mbx calling itself: on 2026-11-13, CARGO=<mbx binary> made `mbx metadata`
+# start itself about 20,000 times and fill 46 GB.
+#
+# The run is capped at 300 processes (a systemd user scope) and 10 minutes, so a loop
+# fails this test instead of the machine. It is a build, so it waits on scripts/cx's
+# heavy-build lock like any other.
+#
+# Usage: scripts/test-cx-nextest-mbx   Exit 0 on pass or skip; the last line says which.
+set -uo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+crate=mike-codex
+
+if ! command -v cargo-nextest >/dev/null 2>&1; then
+  echo "CX-NEXTEST-MBX: SKIP cargo-nextest is not installed"; exit 0
+fi
+if ! command -v systemd-run >/dev/null 2>&1; then
+  echo "CX-NEXTEST-MBX: SKIP systemd-run is not available to cap the run"; exit 0
+fi
+
+log="$(mktemp "${TMPDIR:-/tmp}/cx-nextest-mbx.XXXXXX")"
+trap 'rm -f "$log"' EXIT
+systemd-run --user --scope --quiet -p TasksMax=300 \
+  timeout 600 "$script_dir/cx" nextest list -p "$crate" >"$log" 2>&1
+rc=$?
+
+if (( rc == 124 )); then
+  tail -5 "$log"
+  echo "CX-NEXTEST-MBX: FAIL timed out after 10 minutes (a loop or a hang)"; exit 1
+fi
+if grep -q -E "fork failed|Resource temporarily unavailable|Cannot allocate memory" "$log"; then
+  tail -5 "$log"
+  echo "CX-NEXTEST-MBX: FAIL hit the 300-process cap (mbx calling itself)"; exit 1
+fi
+if (( rc != 0 )); then
+  tail -10 "$log"
+  echo "CX-NEXTEST-MBX: FAIL exit $rc"; exit 1
+fi
+echo "CX-NEXTEST-MBX: PASS cx nextest list -p $crate through mbx"

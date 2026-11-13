@@ -50,7 +50,7 @@ source "$script_dir/lib/preflight-toolchain.sh"
 # check, clippy, test, nextest and build run through mbx by default when mbx is
 # installed, into target/mbx-<session> (select_build_cache in preflight-toolchain.sh),
 # so a new worktree restores from the shared store instead of building cold. nextest
-# runs with CARGO pointing at mbx, so the test binaries it builds come from the store.
+# runs with CARGO pointing at mbx's cargo shim, so its test binaries come from the store.
 # build stays on plain cargo in target/ when MIKE_BUILD_IDENTITY=git (make install, the
 # release scripts), which embed the commit through build.rs. MIKE_BUILD_CACHE=mbx forces
 # mbx into a named directory; MIKE_BUILD_CACHE=cargo forces plain cargo. See
@@ -65,7 +65,15 @@ if [[ "$CX_CACHE_MODE" == mbx ]]; then
       echo "cx: cargo-nextest is not installed (cargo install cargo-nextest --locked)" >&2
       exit 1
     fi
-    cx_cmd=(env "CARGO=$MBX_BIN" "$cx_nextest" "$@")
+    # nextest reads CARGO for its builds, and mbx reads CARGO to find the real cargo,
+    # so CARGO=mbx makes mbx call itself without end. The cargo shim that `mbx setup`
+    # installs marks its calls, so mbx then runs the real cargo.
+    cx_shim="${XDG_DATA_HOME:-$HOME/.local/share}/mbx/bin/cargo"
+    if [[ ! -x "$cx_shim" ]]; then
+      echo "cx: mbx's cargo shim is missing ($cx_shim); run 'mbx setup' once, then 'mbx setup --uninstall' to keep only the shim" >&2
+      exit 1
+    fi
+    cx_cmd=(env "CARGO=$cx_shim" "$cx_nextest" "$@")
   else
     cx_cmd=("$MBX_BIN" "$@")
   fi
