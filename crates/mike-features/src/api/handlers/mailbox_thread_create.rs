@@ -1,4 +1,5 @@
 use super::*;
+use crate::base_state::BaseState;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 #[derive(Deserialize)]
@@ -27,7 +28,7 @@ pub struct PostThreadResponse {
 }
 
 pub async fn post_thread(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Json(body): Json<PostThreadBody>,
 ) -> Result<(StatusCode, Json<PostThreadResponse>), Response> {
     let Some(handle) = state.persist() else {
@@ -282,7 +283,7 @@ struct ThreadNotifyArgs<'a> {
 
 async fn deliver_thread_notifications(
     handle: &crate::store::persistence::PersistHandle,
-    state: &AppState,
+    state: &BaseState,
     args: &ThreadNotifyArgs<'_>,
 ) -> (Vec<ThreadDeliveryDto>, Vec<FailedDeliveryDto>) {
     let mut deliveries = Vec::new();
@@ -298,7 +299,7 @@ async fn deliver_thread_notifications(
 
 async fn deliver_one_thread_notification(
     handle: &crate::store::persistence::PersistHandle,
-    state: &AppState,
+    state: &BaseState,
     args: &ThreadNotifyArgs<'_>,
     to_uuid: uuid::Uuid,
 ) -> Result<ThreadDeliveryDto, FailedDeliveryDto> {
@@ -379,7 +380,7 @@ async fn insert_notify_message(
 
 async fn deliver_thread_first_message(
     handle: &crate::store::persistence::PersistHandle,
-    state: &AppState,
+    state: &BaseState,
     args: ThreadNotifyArgs<'_>,
 ) -> (Vec<ThreadDeliveryDto>, Vec<FailedDeliveryDto>) {
     let result = deliver_thread_notifications(handle, state, &args).await;

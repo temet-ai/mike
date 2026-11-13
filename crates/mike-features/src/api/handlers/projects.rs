@@ -1,4 +1,5 @@
 use super::*;
+use crate::base_state::BaseState;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::listings::{ProjectDetailRow, ProjectSelector};
 use crate::store::persistence::rehydrate::{ProjectCountsRow, ProjectListRow, ProjectLocationRow};
@@ -90,7 +91,7 @@ impl From<ProjectDetailRow> for ProjectDto {
 }
 
 pub async fn list_projects(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Query(query): Query<ListProjectsQuery>,
 ) -> Result<Json<Vec<ProjectListEntry>>, StatusCode> {
     let Some(handle) = state.persist() else {
@@ -118,7 +119,7 @@ pub async fn list_projects(
 }
 
 pub async fn get_project(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(project_uuid): Path<String>,
 ) -> Response {
     match Uuid::parse_str(&project_uuid) {
@@ -138,14 +139,14 @@ pub async fn get_project(
 }
 
 pub async fn get_project_by_path(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(project_path): Path<String>,
 ) -> Response {
     project_response(&state, ProjectSelector::Path(&project_path), &project_path).await
 }
 
 async fn project_response(
-    state: &AppState,
+    state: &BaseState,
     selector: ProjectSelector<'_>,
     requested: &str,
 ) -> Response {

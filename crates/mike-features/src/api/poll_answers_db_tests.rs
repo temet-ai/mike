@@ -49,7 +49,7 @@ async fn poll(state: &AppState, session: Uuid, etag: Option<&str>) -> anyhow::Re
     if let Some(etag) = etag {
         headers.insert(header::IF_NONE_MATCH, HeaderValue::from_str(etag)?);
     }
-    Ok(get_session_messages(State(state.clone()), Path(session), headers).await)
+    Ok(get_session_messages(State(state.launch_state()), Path(session), headers).await)
 }
 
 fn etag_of(response: &Response) -> anyhow::Result<String> {

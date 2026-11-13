@@ -12,8 +12,8 @@ use super::events::{EventPayload, NewFleetEvent, SeatLaunchFailed, SeatLaunchReq
 use super::fork_seat;
 use super::plan::SeatPlan;
 use super::seat_settings;
+use crate::base_state::BaseState;
 use crate::launch::{ServerOpenRequest, open_for_server};
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 const OPEN_WAIT: Duration = Duration::from_secs(150);
@@ -62,7 +62,7 @@ fn effort(seat: &SeatPlan) -> Option<String> {
 }
 
 pub async fn begin(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     def: &FleetDefinition,
     run_id: &str,
@@ -219,7 +219,7 @@ pub async fn finish(persist: &PersistHandle, seat: &SeatPlan, begun: Begun) -> V
 }
 
 pub async fn launch(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     def: &FleetDefinition,
     run_id: &str,

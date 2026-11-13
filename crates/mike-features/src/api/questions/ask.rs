@@ -10,8 +10,8 @@ use uuid::Uuid;
 
 use super::resolve::{Destination, destination, session};
 use super::{database, problem, unavailable};
+use crate::base_state::BaseState;
 use crate::launch::fleet::questions::ask_and_mail;
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::questions::{AskedQuestion, NoteRef};
 
@@ -90,7 +90,7 @@ async fn prepare(persist: &PersistHandle, body: &AskBody) -> Result<Prepared, Bo
     Ok(Prepared { asker, to, note })
 }
 
-pub async fn post_question(State(state): State<AppState>, Json(body): Json<AskBody>) -> Response {
+pub async fn post_question(State(state): State<BaseState>, Json(body): Json<AskBody>) -> Response {
     let Some(persist) = state.persist() else {
         return unavailable();
     };

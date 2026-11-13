@@ -1,4 +1,5 @@
 use super::*;
+use crate::base_state::BaseState;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 #[derive(Serialize)]
@@ -104,7 +105,7 @@ async fn fetch_team_comms_rows(
 }
 
 pub async fn get_session_team_comms(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(session_uuid): Path<uuid::Uuid>,
 ) -> Result<Json<TeamCommsResponse>, Response> {
     let Some(handle) = state.persist() else {

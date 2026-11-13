@@ -2,9 +2,9 @@ use serde::Serialize;
 
 use super::definition_patch::{STATE_DRAFT, STATE_FAILED, STATE_READY, environment_problems};
 use super::definition_view::FleetView;
+use crate::base_state::BaseState;
 use crate::launch::fleet::plan::ready_tasks;
 use crate::launch::fleet::{FleetDefinition, Missing, Starts, starts};
-use crate::state::AppState;
 use crate::store::persistence::fleet::FleetRow;
 
 const STATES_NOT_YET_STARTED: [&str; 3] = [STATE_DRAFT, STATE_READY, STATE_FAILED];
@@ -96,7 +96,7 @@ fn warnings(def: &FleetDefinition, starts: &Starts) -> Vec<ReadyWarning> {
     found
 }
 
-pub async fn view(state: &AppState, row: &FleetRow) -> FleetView {
+pub async fn view(state: &BaseState, row: &FleetRow) -> FleetView {
     let view = FleetView::full(row);
     if !STATES_NOT_YET_STARTED.contains(&row.state.as_str()) {
         return view;

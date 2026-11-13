@@ -3,8 +3,8 @@ use std::time::Duration;
 
 use uuid::Uuid;
 
+use crate::base_state::BaseState;
 use crate::launch::kill_for_server;
-use crate::state::AppState;
 
 const LAST_WORDS: Duration = Duration::from_secs(20);
 
@@ -12,7 +12,7 @@ pub fn is_open_run_seat(run: Option<&str>, seat: Option<&str>, closed: bool) -> 
     run.is_some() && seat.is_some() && !closed
 }
 
-pub fn close_later(state: &AppState, session: Uuid) {
+pub fn close_later(state: &BaseState, session: Uuid) {
     let state = state.clone();
     state.tracker.clone().spawn(async move {
         let Some(persist) = state.persist() else {

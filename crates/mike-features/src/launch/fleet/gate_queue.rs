@@ -15,7 +15,7 @@ use super::gate_rerun::{
 use super::gate_slot::slot_for;
 use super::plan::ControlSeats;
 use super::watch::git;
-use crate::state::AppState;
+use crate::base_state::BaseState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 
@@ -84,7 +84,7 @@ pub async fn commit_to_check(def: &FleetDefinition) -> Option<Target> {
     })
 }
 
-pub async fn queue(state: &AppState, persist: &PersistHandle, row: &FleetRow) {
+pub async fn queue(state: &BaseState, persist: &PersistHandle, row: &FleetRow) {
     let (Some(run), Ok(def)) = (
         row.run_id.as_deref(),
         FleetDefinition::from_value(&row.definition),

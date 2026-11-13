@@ -2,9 +2,9 @@ use std::time::Duration;
 
 use serde_json::{Value, json};
 
+use crate::base_state::BaseState;
 use crate::launch::backend::TerminalBackend;
 use crate::launch::{BackendId, Surface, backend_for};
-use crate::state::AppState;
 use crate::store::persistence::fleet::FleetRow;
 
 pub const SEAT: &str = "status";
@@ -49,7 +49,7 @@ pub fn opened(start_report: Option<&Value>) -> Option<Opened> {
     })
 }
 
-pub async fn close(state: &AppState, row: &FleetRow) {
+pub async fn close(state: &BaseState, row: &FleetRow) {
     let Some(opened) = opened(row.start_report.as_ref()) else {
         return;
     };

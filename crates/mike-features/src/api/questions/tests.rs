@@ -77,7 +77,7 @@ impl Env {
             blocked: true,
             about: about.map(|a| a.to_string()),
         };
-        read(post_question(State(self.state.clone()), Json(body)).await).await
+        read(post_question(State(self.state.base.clone()), Json(body)).await).await
     }
 
     async fn answer(&self, id: Uuid, text: &str, amend: bool) -> (StatusCode, Value) {
@@ -86,7 +86,8 @@ impl Env {
             answer: text.to_owned(),
             amend,
         };
-        let response = post_question_answer(State(self.state.clone()), Path(id), Json(body)).await;
+        let response =
+            post_question_answer(State(self.state.base.clone()), Path(id), Json(body)).await;
         read(response).await
     }
 
@@ -229,7 +230,7 @@ async fn a_decline_mails_the_asker_its_reason_and_an_empty_answer_is_refused() -
         from: env.recipient.to_string(),
         reason: Some("not mine".to_owned()),
     };
-    let response = post_question_decline(State(env.state.clone()), Path(id), Json(body)).await;
+    let response = post_question_decline(State(env.state.base.clone()), Path(id), Json(body)).await;
     let (status, declined) = read(response).await;
     assert_eq!(status, StatusCode::OK, "{declined}");
     assert_eq!(declined["state"], json!("declined"));

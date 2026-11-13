@@ -71,8 +71,11 @@ impl Env {
     }
 
     async fn claim(&self) -> anyhow::Result<MailClaimResponse> {
-        let Ok(Json(answer)) =
-            post_mail_claim(State(self.state.clone()), Path(self.session.to_string())).await
+        let Ok(Json(answer)) = post_mail_claim(
+            State(self.state.base.clone()),
+            Path(self.session.to_string()),
+        )
+        .await
         else {
             anyhow::bail!("a UUID session must be answered");
         };
@@ -83,7 +86,7 @@ impl Env {
 #[tokio::test]
 async fn mail_claim_non_uuid_session_is_400() -> anyhow::Result<()> {
     let state = AppState::new(ProxyConfig::for_tests_in_memory()).await?;
-    let answer = post_mail_claim(State(state), Path("not-a-uuid".to_owned())).await;
+    let answer = post_mail_claim(State(state.base), Path("not-a-uuid".to_owned())).await;
     assert_eq!(answer.err(), Some(StatusCode::BAD_REQUEST));
     Ok(())
 }

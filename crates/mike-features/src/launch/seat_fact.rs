@@ -5,7 +5,7 @@ use dashmap::DashMap;
 use uuid::Uuid;
 
 use super::fleet::plan::TEMPLATE_SEAT_PREFIX;
-use crate::state::AppState;
+use crate::base_state::BaseState;
 use crate::store::persistence::PersistHandle;
 
 const CACHED_SESSIONS_CAP: usize = 4096;
@@ -77,7 +77,7 @@ pub async fn is_fleet_seat(persist: &PersistHandle, session: Uuid) -> bool {
     seat_fact(persist, session).await.fleet_seat
 }
 
-pub async fn seat_role(state: &AppState, session_id: &str) -> SeatRole {
+pub async fn seat_role(state: &BaseState, session_id: &str) -> SeatRole {
     if let Some(known) = FACTS.get(session_id) {
         return known.role;
     }

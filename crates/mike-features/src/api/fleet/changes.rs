@@ -10,11 +10,11 @@ use serde::{Deserialize, Serialize};
 
 use super::definition_view::DefinitionError;
 use super::tree::historical_run;
+use crate::base_state::BaseState;
 use crate::change_record::writers::change_record_enabled;
 use crate::change_record::{ChangeEvent, ChangeKind, SessionIdentity};
 use crate::launch::fleet::FleetDefinition;
 use crate::launch::fleet::commit::owner_of;
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::TreeChangeRow;
 
@@ -59,7 +59,7 @@ pub struct ChangesView {
 }
 
 pub async fn get_fleet_changes(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
     Query(query): Query<ChangesQuery>,
 ) -> Result<Json<ChangesView>, DefinitionError> {

@@ -7,12 +7,12 @@ use uuid::Uuid;
 
 use super::definition_view::DefinitionError;
 use super::tree::running;
+use crate::base_state::BaseState;
 use crate::launch::fleet::FleetDefinition;
 use crate::launch::fleet::checks::normal;
 use crate::launch::fleet::propose::{
     Answer, Proposal, answer_or_refusal, brief_for, next_task_id, propose, save_with,
 };
-use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
 pub struct ProposeRequest {
@@ -61,7 +61,7 @@ fn not_a_seat(session: Uuid) -> DefinitionError {
 }
 
 pub async fn propose_task(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
     Json(body): Json<ProposeRequest>,
 ) -> Result<Json<Answer>, DefinitionError> {
@@ -214,7 +214,7 @@ pub fn split_patch(
 }
 
 pub async fn split_task(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
     Json(body): Json<SplitRequest>,
 ) -> Result<Json<SplitAnswer>, DefinitionError> {

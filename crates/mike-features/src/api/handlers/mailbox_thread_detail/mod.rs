@@ -1,4 +1,6 @@
 use super::*;
+use crate::base_state::BaseState;
+use crate::launch::state::LaunchState;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 pub mod reply_context;
@@ -9,7 +11,7 @@ use reply_context::build_reply_context;
 use reply_recipients::{RecipientPlan, resolve_recipients};
 
 pub async fn get_thread(
-    State(state): State<AppState>,
+    State(state): State<LaunchState>,
     Path(thread_uuid): Path<uuid::Uuid>,
     headers: HeaderMap,
 ) -> Response {
@@ -32,7 +34,7 @@ pub async fn get_thread(
 
 async fn load_thread(
     handle: &crate::store::persistence::PersistHandle,
-    state: &AppState,
+    state: &BaseState,
     thread_uuid: uuid::Uuid,
 ) -> Result<crate::api::poll_answers::Loaded<Bytes>, Response> {
     let now = chrono::Utc::now();
@@ -126,7 +128,7 @@ async fn fetch_thread_transcript(
 }
 
 pub async fn post_thread_message(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(thread_uuid): Path<uuid::Uuid>,
     Json(body): Json<PostThreadMessageBody>,
 ) -> Result<(StatusCode, Json<ThreadDeliveriesResponse>), Response> {
@@ -169,7 +171,7 @@ pub async fn post_thread_message(
 }
 
 pub async fn post_thread_resolve(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(thread_uuid): Path<uuid::Uuid>,
 ) -> Result<Json<ThreadResolvedResponse>, Response> {
     let Some(handle) = state.persist() else {

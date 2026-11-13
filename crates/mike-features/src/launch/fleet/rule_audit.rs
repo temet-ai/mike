@@ -3,8 +3,8 @@ use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
 use super::definition::FleetDefinition;
+use crate::base_state::BaseState;
 use crate::launch::ServerOpenRequest;
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 use crate::store::persistence::launch::{LaunchListFilter, LaunchRow, NewRun};
@@ -130,7 +130,7 @@ fn log_not_recorded(shot: &OneShot, err: &dyn std::fmt::Display) {
 }
 
 struct Live<'a> {
-    state: &'a AppState,
+    state: &'a BaseState,
     persist: &'a PersistHandle,
     run: &'a str,
 }
@@ -214,7 +214,7 @@ impl Ledger for Live<'_> {
 }
 
 pub async fn start(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     row: &FleetRow,
     def: &FleetDefinition,
@@ -245,7 +245,7 @@ fn shot_of(launch: &LaunchRow, status: Option<(Option<String>, DateTime<Utc>)>) 
     })
 }
 
-pub async fn close_finished(state: &AppState, persist: &PersistHandle) {
+pub async fn close_finished(state: &BaseState, persist: &PersistHandle) {
     let launches = match persist
         .launch()
         .list_launches(&LaunchListFilter {

@@ -15,8 +15,8 @@ use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
+use crate::base_state::BaseState;
 use crate::llm::OpenRouterClient;
-use crate::state::AppState;
 
 pub use checker::{Checked, CheckerAnswer, CheckerQuestion, check};
 pub use judge::{
@@ -32,7 +32,7 @@ pub use report_judge::{
 };
 pub use solver::{Dossier, SolverBrief, TaskTrail, brief, dossier};
 
-pub fn model(state: &AppState) -> Option<OpenRouterLeaf> {
+pub fn model(state: &BaseState) -> Option<OpenRouterLeaf> {
     let config = &state.config.steerer;
     let base = OpenRouterClient::new(
         String::new(),

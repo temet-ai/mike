@@ -1,3 +1,4 @@
+use crate::launch::state::LaunchState;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -5,7 +6,7 @@ use axum::response::Response;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::state::AppState;
+use crate::base_state::BaseState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::workspace::{
     CoordinationEventRow, PathMatch, ProjectPathResolution, WorkspaceRosterRow,
@@ -143,7 +144,7 @@ pub struct RosterQuery {
 }
 
 pub async fn get_project_roster(
-    State(state): State<AppState>,
+    State(state): State<LaunchState>,
     Path(project_path): Path<String>,
     Query(query): Query<RosterQuery>,
     headers: axum::http::HeaderMap,
@@ -217,7 +218,7 @@ fn coordination_event_dto(row: CoordinationEventRow) -> CoordinationEventDto {
 }
 
 pub async fn get_project_activity(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(project_path): Path<String>,
     Query(params): Query<ActivityParams>,
 ) -> Result<Json<ActivityResponseDto>, Response> {

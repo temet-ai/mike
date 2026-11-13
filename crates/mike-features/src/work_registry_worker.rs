@@ -3,8 +3,8 @@ use std::time::Duration;
 use chrono::Utc;
 use tokio_util::sync::CancellationToken;
 
+use crate::base_state::BaseState;
 use crate::change_feed::{ChangeFeed, DirtySessions};
-use crate::state::AppState;
 use crate::store::models::RowChangedTable;
 use crate::store::persistence::PersistHandle;
 
@@ -30,7 +30,7 @@ const MAX_DELIVERY_ATTEMPTS: i32 = 6;
 const BACKOFF_BASE_SECONDS: i64 = 60;
 const BACKOFF_CAP_SECONDS: i64 = 3600;
 
-pub fn spawn_work_registry_worker(state: &AppState) {
+pub fn spawn_work_registry_worker(state: &BaseState) {
     let Some(persist) = state.persist().cloned() else {
         tracing::debug!("work_registry: no persistence — not spawning");
         return;

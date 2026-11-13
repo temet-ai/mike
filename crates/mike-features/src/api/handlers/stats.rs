@@ -1,4 +1,5 @@
 use super::*;
+use crate::base_state::BaseState;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 #[derive(Serialize)]
@@ -9,7 +10,7 @@ pub struct StatsResponse {
     pub project_count: Option<i64>,
 }
 
-pub async fn stats(State(state): State<AppState>) -> Json<StatsResponse> {
+pub async fn stats(State(state): State<BaseState>) -> Json<StatsResponse> {
     let project_count: Option<i64> = if let Some(persist) = state.persist() {
         match persist.launch().count_projects().await {
             Ok(n) => Some(n),
@@ -29,7 +30,7 @@ pub async fn stats(State(state): State<AppState>) -> Json<StatsResponse> {
     })
 }
 
-pub async fn metrics(State(state): State<AppState>) -> Response {
+pub async fn metrics(State(state): State<BaseState>) -> Response {
     let body = state.metrics_handle.render();
     let mut headers = HeaderMap::new();
     headers.insert(

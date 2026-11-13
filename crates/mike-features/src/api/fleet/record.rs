@@ -5,8 +5,8 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::definition_view::DefinitionError;
+use crate::base_state::BaseState;
 use crate::launch::fleet::run_record;
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 
@@ -53,7 +53,7 @@ async fn record_of(
 }
 
 pub async fn get_fleet_record(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
     Query(query): Query<RecordQuery>,
 ) -> Result<Json<Value>, DefinitionError> {

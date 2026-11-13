@@ -4,8 +4,8 @@ use serde::Deserialize;
 
 use super::definition_view::DefinitionError;
 use super::tree::historical_run;
+use crate::base_state::BaseState;
 use crate::launch::fleet::reuse::{ReuseAnswer, ask};
-use crate::state::AppState;
 
 #[derive(Debug, Deserialize, Default)]
 pub struct ReuseQuery {
@@ -14,7 +14,7 @@ pub struct ReuseQuery {
 }
 
 pub async fn get_fleet_reuse(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
     Query(query): Query<ReuseQuery>,
 ) -> Result<Json<ReuseAnswer>, DefinitionError> {

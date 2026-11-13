@@ -28,6 +28,7 @@ pub mod session_recall;
 pub mod session_verdicts;
 pub mod skill_outcomes;
 pub mod skills;
+pub mod state_extract;
 pub mod steer_questions;
 pub mod steering_evaluations;
 pub mod steering_facts;

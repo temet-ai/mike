@@ -6,17 +6,16 @@ use uuid::Uuid;
 
 use super::definition::FleetDefinition;
 use super::told;
+use crate::base_state::BaseState;
 use crate::change_record::types::{ChangeKind, NewChangeEvent};
-use crate::state::AppState;
 use crate::store::models::{ReminderSource, SystemReminder};
 use crate::store::persistence::PersistHandle;
 
 const SILENT_SECONDS: i64 = 300;
 pub const SEAT_WOKEN: &str = "seat_woken";
 
-pub async fn pass(state: &AppState, persist: &PersistHandle, def: &FleetDefinition, run: &str) {
+pub async fn pass(state: &BaseState, persist: &PersistHandle, def: &FleetDefinition, run: &str) {
     let now = Utc::now();
-    let deps = state.push_deps();
     for (task, session) in seats(def) {
         let Ok(Some(db_id)) = persist.resolve_session_db_id(&session.to_string()).await else {
             continue;
@@ -41,10 +40,10 @@ pub async fn pass(state: &AppState, persist: &PersistHandle, def: &FleetDefiniti
             continue;
         }
         let reminder = wake_reminder(counts.unconsumed);
-        if crate::proxy::remote_control::inject::try_push_via_remote_control(
-            &deps, session, &reminder,
-        )
-        .await
+        if state
+            .mail_push()
+            .push_via_remote_control(session, &reminder)
+            .await
         {
             told::mark(persist, run, &[key]).await;
             record(persist, def, run, &task, session, counts.unconsumed).await;

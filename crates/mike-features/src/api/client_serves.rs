@@ -3,7 +3,7 @@ use std::future::Future;
 use axum::http::StatusCode;
 use tokio::time::Instant;
 
-use crate::state::AppState;
+use crate::base_state::BaseState;
 use crate::state::client_serves;
 
 pub async fn by_deadline<T: Send + 'static>(
@@ -13,7 +13,7 @@ pub async fn by_deadline<T: Send + 'static>(
     tokio::time::timeout_at(deadline, work).await.ok()
 }
 
-pub fn require_client_serves(state: &AppState, key: &str) -> Result<(), StatusCode> {
+pub fn require_client_serves(state: &BaseState, key: &str) -> Result<(), StatusCode> {
     if client_serves(state, key) {
         Ok(())
     } else {

@@ -3,10 +3,10 @@ use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 
-use crate::state::AppState;
+use crate::base_state::BaseState;
 use crate::work_items::ledger::Ledger;
 
-async fn session_db_id(state: &AppState, id: &str, op: &'static str) -> Result<i64, StatusCode> {
+async fn session_db_id(state: &BaseState, id: &str, op: &'static str) -> Result<i64, StatusCode> {
     if uuid::Uuid::parse_str(id).is_err() {
         return Err(StatusCode::NOT_FOUND);
     }
@@ -24,7 +24,7 @@ async fn session_db_id(state: &AppState, id: &str, op: &'static str) -> Result<i
 }
 
 pub async fn get_session_ledger(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(id): Path<String>,
 ) -> Result<Json<Ledger>, StatusCode> {
     let db_id = session_db_id(&state, &id, "get_session_ledger").await?;
@@ -43,7 +43,7 @@ pub async fn get_session_ledger(
 }
 
 pub async fn post_session_work_items_backfill(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<BackfillStarted>), StatusCode> {
     let db_id = session_db_id(&state, &id, "post_session_work_items_backfill").await?;

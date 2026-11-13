@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use super::definition::FleetDefinition;
 use super::plan::{self, ControlSeats, FleetFacts, REFERENCE_SEAT, TEMPLATE_SEAT_PREFIX};
-use crate::state::AppState;
+use crate::base_state::BaseState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 use crate::store::persistence::launch::{LaunchListFilter, LaunchRow};
@@ -294,7 +294,7 @@ async fn tick(persist: &PersistHandle) {
     }
 }
 
-pub fn spawn_brief_refresh(state: &AppState) {
+pub fn spawn_brief_refresh(state: &BaseState) {
     let Some(persist) = state.persist().cloned() else {
         return;
     };

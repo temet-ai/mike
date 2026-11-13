@@ -9,8 +9,8 @@ use super::plan::{ControlSeats, FleetFacts};
 use super::status::assemble;
 use super::status_pane::SEAT as STATUS_SEAT;
 use super::{seat, staff, warm};
+use crate::base_state::BaseState;
 use crate::launch::{LaunchError, PaneRequest, RunSeat, Surface, backend_for};
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 use crate::store::persistence::launch::NewRun;
@@ -30,7 +30,7 @@ pub fn run_id_for(row: &FleetRow) -> String {
     format!("fleet-{}-{short}", row.slug)
 }
 
-pub fn begin(state: AppState, fleet: Uuid) {
+pub fn begin(state: BaseState, fleet: Uuid) {
     let tracker = state.tracker.clone();
     tracker.spawn(async move {
         if let Err(problem) = start(&state, fleet).await {
@@ -40,7 +40,7 @@ pub fn begin(state: AppState, fleet: Uuid) {
     });
 }
 
-async fn fail(state: &AppState, fleet: Uuid, problem: &str) {
+async fn fail(state: &BaseState, fleet: Uuid, problem: &str) {
     let Some(persist) = state.persist() else {
         return;
     };
@@ -61,7 +61,7 @@ async fn fail(state: &AppState, fleet: Uuid, problem: &str) {
     super::start_failure::tell(persist, &row, problem).await;
 }
 
-async fn start(state: &AppState, fleet: Uuid) -> Result<(), String> {
+async fn start(state: &BaseState, fleet: Uuid) -> Result<(), String> {
     let persist = state
         .persist()
         .ok_or_else(|| "the database is not reachable".to_string())?;
@@ -118,7 +118,7 @@ async fn open_comms_thread(persist: &PersistHandle, fleet: Uuid) {
 }
 
 async fn prepare(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     fleet: Uuid,
 ) -> Result<(FleetDefinition, FleetFacts), String> {
@@ -158,7 +158,7 @@ async fn prepare(
 }
 
 async fn resolve_repo_on_this_machine(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     fleet: Uuid,
     def: &mut FleetDefinition,
@@ -202,7 +202,7 @@ pub fn repo_for_machine(
 }
 
 async fn open_rest(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     (def, facts): (&FleetDefinition, &FleetFacts),
 ) -> Vec<Value> {
@@ -243,7 +243,7 @@ async fn record(
         .ok_or_else(|| "fleet changed while recording startup; its newer state was kept".into())
 }
 
-async fn staff_now(state: &AppState, persist: &PersistHandle, running: &FleetRow) {
+async fn staff_now(state: &BaseState, persist: &PersistHandle, running: &FleetRow) {
     match assemble(state, running).await {
         Ok(status) => staff::staff(state, persist, running, &status).await,
         Err(problem) => {
@@ -260,7 +260,7 @@ pub fn control_patch(seats: &ControlSeats) -> Value {
 }
 
 fn run_record(
-    state: &AppState,
+    state: &BaseState,
     def: &FleetDefinition,
     run_id: &str,
     workspace: Option<String>,
@@ -275,7 +275,7 @@ fn run_record(
 }
 
 async fn status_pane(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     def: &FleetDefinition,
     facts: &FleetFacts,
@@ -295,7 +295,7 @@ async fn status_pane(
 }
 
 async fn admitted_status_pane(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     def: &FleetDefinition,
     facts: &FleetFacts,
@@ -331,7 +331,7 @@ async fn admitted_status_pane(
 }
 
 async fn open_status_pane(
-    state: &AppState,
+    state: &BaseState,
     def: &FleetDefinition,
     facts: &FleetFacts,
 ) -> Result<Surface, LaunchError> {

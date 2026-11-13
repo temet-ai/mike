@@ -7,7 +7,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-use crate::state::AppState;
+use crate::base_state::BaseState;
 use crate::store::persistence::work_threads::{
     CheckpointInput, EntryInput, HistoryPage, ListFilter, MetaUpdate, StateFields, WorkThreadError,
 };
@@ -93,7 +93,7 @@ pub struct ListQuery {
 }
 
 pub async fn list_threads(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Query(query): Query<ListQuery>,
 ) -> Result<Json<Value>, Response> {
     let handle = state.persist().ok_or_else(persist_unavailable_response)?;
@@ -132,7 +132,7 @@ pub struct GetQuery {
 }
 
 pub async fn get_thread(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(slug): Path<String>,
     Query(query): Query<GetQuery>,
 ) -> Result<Json<Value>, Response> {
@@ -159,7 +159,7 @@ pub struct ExportQuery {
 }
 
 pub async fn export_thread(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(slug): Path<String>,
     Query(query): Query<ExportQuery>,
 ) -> Result<Response, Response> {
@@ -228,7 +228,7 @@ pub struct CheckpointBody {
 }
 
 pub async fn checkpoint_thread(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Json(body): Json<CheckpointBody>,
 ) -> Result<Json<Value>, Response> {
     let handle = state.persist().ok_or_else(persist_unavailable_response)?;
@@ -271,7 +271,7 @@ pub struct EntryBody {
 }
 
 pub async fn add_entry(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(slug): Path<String>,
     Json(body): Json<EntryBody>,
 ) -> Result<Json<Value>, Response> {
@@ -304,7 +304,7 @@ pub struct PatchBody {
 }
 
 pub async fn patch_thread(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(slug): Path<String>,
     Json(body): Json<PatchBody>,
 ) -> Result<Json<Value>, Response> {

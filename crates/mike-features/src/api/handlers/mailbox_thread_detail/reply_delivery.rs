@@ -7,7 +7,7 @@ use crate::api::handlers::{
     FailedDeliveryDto, PostThreadMessageBody, ThreadDeliveriesResponse, ThreadDeliveryDto,
     mailbox_error,
 };
-use crate::state::AppState;
+use crate::base_state::BaseState;
 use crate::store::persistence::PersistHandle;
 
 use super::reply_context::ReplyContext;
@@ -55,7 +55,7 @@ pub async fn deliver_post_only(
 
 pub async fn deliver_to_recipients(
     handle: &PersistHandle,
-    state: &AppState,
+    state: &BaseState,
     ctx: &ReplyContext,
     recipient_uuids: &[uuid::Uuid],
     body: &PostThreadMessageBody,
@@ -103,7 +103,7 @@ enum RecipientOutcome {
 
 async fn deliver_one_recipient(
     handle: &PersistHandle,
-    state: &AppState,
+    state: &BaseState,
     ctx: &ReplyContext,
     to_uuid: uuid::Uuid,
     body: &PostThreadMessageBody,
@@ -192,7 +192,7 @@ struct ReplyDeliveryMeta {
 }
 
 async fn enqueue_reply_reminder(
-    state: &AppState,
+    state: &BaseState,
     ctx: &ReplyContext,
     to_uuid: uuid::Uuid,
     meta: ReplyDeliveryMeta,
@@ -214,7 +214,9 @@ async fn enqueue_reply_reminder(
             from_session_uuid: from,
         },
     };
-    crate::proxy::remote_control::inject::deliver_or_enqueue(&state.push_deps(), to_uuid, reminder)
+    state
+        .mail_push()
+        .deliver_or_enqueue(to_uuid, reminder)
         .await;
 }
 

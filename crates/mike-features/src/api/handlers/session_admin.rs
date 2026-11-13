@@ -1,4 +1,5 @@
 use super::*;
+use crate::base_state::BaseState;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 #[derive(Deserialize)]
@@ -29,7 +30,7 @@ pub fn parse_ttl_secs(ttl_secs: Option<u64>) -> Option<std::time::Duration> {
 }
 
 pub async fn patch_session_pin(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(session_id): Path<String>,
     Json(body): Json<PinRequest>,
 ) -> Response {
@@ -63,7 +64,7 @@ pub async fn patch_session_pin(
 }
 
 pub async fn patch_session_ttl(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(session_id): Path<String>,
     Json(body): Json<TtlRequest>,
 ) -> Response {
@@ -120,7 +121,7 @@ pub struct NarrativeOverviewResponse {
 }
 
 pub async fn patch_session_narrative_overview(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(session_id): Path<String>,
     Json(body): Json<PatchNarrativeOverviewRequest>,
 ) -> Result<Json<NarrativeOverviewResponse>, Response> {
@@ -227,7 +228,7 @@ pub fn narrative_overview_llm_error(message: String) -> Response {
 }
 
 pub async fn generate_session_narrative_overview(
-    State(state): State<AppState>,
+    State(state): State<crate::state::AppState>,
     Path(session_id): Path<String>,
 ) -> Result<Json<NarrativeOverviewResponse>, Response> {
     let Ok(session_uuid) = uuid::Uuid::parse_str(&session_id) else {
@@ -287,7 +288,7 @@ pub async fn generate_session_narrative_overview(
 }
 
 pub async fn patch_project_pin(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(project_path): Path<String>,
     Json(body): Json<PinRequest>,
 ) -> Response {
@@ -310,7 +311,7 @@ pub async fn patch_project_pin(
 }
 
 pub async fn patch_project_name(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(project_path): Path<String>,
     Json(body): Json<ProjectNameRequest>,
 ) -> Response {
@@ -338,7 +339,7 @@ pub async fn patch_project_name(
 }
 
 pub async fn patch_project_ttl(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(project_path): Path<String>,
     Json(body): Json<TtlRequest>,
 ) -> Response {

@@ -5,8 +5,8 @@ use uuid::Uuid;
 
 use super::definition_view::DefinitionError;
 use super::tree::running;
+use crate::base_state::BaseState;
 use crate::launch::fleet::problems::{self, Decision, DecisionKind};
-use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
 pub struct DecideRequest {
@@ -47,7 +47,7 @@ fn decision_of(req: &DecideRequest) -> Result<Decision, DefinitionError> {
 }
 
 pub async fn decide_problem(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(key): Path<String>,
     Json(req): Json<DecideRequest>,
 ) -> Result<Json<DecideAnswer>, DefinitionError> {

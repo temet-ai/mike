@@ -6,11 +6,11 @@ use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
 use super::definition_view::DefinitionError;
+use crate::base_state::BaseState;
 use crate::launch::fleet::{
     FleetDefinition, Missing, check_definition, check_environment, gather, merge, starts,
 };
 use crate::launch::{BackendId, LaunchError, TerminalBackend, backend_for};
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 
@@ -150,13 +150,13 @@ fn home_dir() -> PathBuf {
     crate::config::paths::live_install_guard::home().unwrap_or_else(|| PathBuf::from("/"))
 }
 
-fn resolve_backend(state: &AppState) -> Result<Box<dyn TerminalBackend>, LaunchError> {
+fn resolve_backend(state: &BaseState) -> Result<Box<dyn TerminalBackend>, LaunchError> {
     let id: BackendId = state.config.launch.backend.parse()?;
     backend_for(id).ok_or(LaunchError::BackendNone)
 }
 
 pub async fn environment_problems(
-    state: &AppState,
+    state: &BaseState,
     this: uuid::Uuid,
     def: &FleetDefinition,
 ) -> Vec<Missing> {
@@ -170,7 +170,7 @@ pub async fn environment_problems(
     check_environment(def, &environment)
 }
 
-async fn seats_other_fleets_are_opening(state: &AppState, this: uuid::Uuid) -> usize {
+async fn seats_other_fleets_are_opening(state: &BaseState, this: uuid::Uuid) -> usize {
     let Some(persist) = state.persist() else {
         return 0;
     };
@@ -205,7 +205,7 @@ async fn still_to_open(persist: &PersistHandle, row: &FleetRow) -> usize {
 }
 
 async fn save_once(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     row: &FleetRow,
     body: &PatchFleetRequest,
@@ -239,7 +239,7 @@ async fn save_once(
 }
 
 pub async fn save_definition(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     row: FleetRow,
     body: &PatchFleetRequest,

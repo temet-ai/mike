@@ -5,7 +5,7 @@ use super::plan::{ControlSeats, FleetFacts, REFERENCE_SEAT};
 use super::status::{FleetStatus, SeatStatus};
 use super::tell_context::REPLACE_AT;
 use super::told;
-use crate::state::AppState;
+use crate::base_state::BaseState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::fleet::FleetRow;
 
@@ -42,7 +42,7 @@ pub fn due(status: &FleetStatus, said: impl Fn(&str) -> bool) -> Vec<Due> {
 }
 
 pub async fn pass(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     row: &FleetRow,
     def: &FleetDefinition,

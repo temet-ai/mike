@@ -1,4 +1,6 @@
 use super::*;
+use crate::base_state::BaseState;
+use crate::launch::state::LaunchState;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
 
@@ -6,7 +8,7 @@ use crate::api::poll_answers::{Loaded, MAILBOX_THREADS, Poll, answer_json, json_
 
 pub async fn respond_thread_list(
     handle: &crate::store::persistence::PersistHandle,
-    state: &AppState,
+    state: &BaseState,
     filter: crate::store::persistence::mailbox::ThreadSummaryFilter,
 ) -> Result<Json<ThreadListResponse>, Response> {
     thread_list(handle, state, filter)
@@ -16,7 +18,7 @@ pub async fn respond_thread_list(
 
 async fn thread_list(
     handle: &crate::store::persistence::PersistHandle,
-    state: &AppState,
+    state: &BaseState,
     filter: crate::store::persistence::mailbox::ThreadSummaryFilter,
 ) -> Result<(ThreadListResponse, Vec<uuid::Uuid>), Response> {
     match handle.launch().fetch_thread_summaries(&filter).await {
@@ -38,7 +40,7 @@ async fn thread_list(
 
 async fn project_thread_list(
     handle: &crate::store::persistence::PersistHandle,
-    state: &AppState,
+    state: &BaseState,
     rows: Vec<crate::store::persistence::mailbox::ThreadSummaryRow>,
     participant_uuids: &[uuid::Uuid],
 ) -> ThreadListResponse {
@@ -76,7 +78,7 @@ fn collect_participant_uuids(
 }
 
 pub async fn get_session_threads(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(session_uuid): Path<uuid::Uuid>,
 ) -> Result<Json<ThreadListResponse>, Response> {
     let Some(handle) = state.persist() else {
@@ -107,7 +109,7 @@ fn parse_participant(raw: Option<&str>) -> Result<Option<uuid::Uuid>, Box<Respon
 }
 
 pub async fn list_threads(
-    State(state): State<AppState>,
+    State(state): State<LaunchState>,
     Query(params): Query<ListThreadsParams>,
     headers: HeaderMap,
 ) -> Response {
@@ -142,7 +144,7 @@ pub async fn list_threads(
 
 async fn load_thread_list(
     handle: &crate::store::persistence::PersistHandle,
-    state: &AppState,
+    state: &BaseState,
     participant_session_uuid: Option<uuid::Uuid>,
     params: ListThreadsParams,
 ) -> Result<Loaded<Bytes>, Response> {

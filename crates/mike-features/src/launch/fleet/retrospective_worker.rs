@@ -7,9 +7,9 @@ use tokio::time::{MissedTickBehavior, interval};
 
 use super::definition::FleetDefinition;
 use super::retrospective::{Job, Phase, save};
+use crate::base_state::BaseState;
 use crate::circuit_breaker::CircuitBreaker;
 use crate::launch::LaunchError;
-use crate::state::AppState;
 use crate::store::persistence::fleet::FleetRow;
 use crate::store::persistence::launch::{LaunchListFilter, LaunchRow};
 use crate::store::persistence::{PersistError, PersistHandle};
@@ -18,7 +18,7 @@ const POLL_SECONDS: i64 = 20;
 const LEASE_SECONDS: i64 = 180;
 const MAX_ATTEMPTS: u32 = 3;
 
-pub fn spawn(state: &AppState) {
+pub fn spawn(state: &BaseState) {
     let Some(persist) = state.persist().cloned() else {
         return;
     };
@@ -38,7 +38,7 @@ pub fn spawn(state: &AppState) {
     });
 }
 
-async fn tick(state: &AppState, persist: &PersistHandle, breaker: &mut CircuitBreaker) {
+async fn tick(state: &BaseState, persist: &PersistHandle, breaker: &mut CircuitBreaker) {
     super::rule_audit::close_finished(state, persist).await;
     if breaker.should_skip(Instant::now()) {
         return;
@@ -59,7 +59,7 @@ async fn tick(state: &AppState, persist: &PersistHandle, breaker: &mut CircuitBr
 }
 
 async fn process_owned(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     row: &FleetRow,
     breaker: &mut CircuitBreaker,
@@ -105,7 +105,7 @@ pub fn failed(job: &mut Job, problem: String, transient: bool) {
 }
 
 async fn process(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     row: &FleetRow,
     breaker: &mut CircuitBreaker,
@@ -135,7 +135,7 @@ async fn process(
 }
 
 async fn begin(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     row: &FleetRow,
     mut job: Job,

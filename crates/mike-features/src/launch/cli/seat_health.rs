@@ -5,8 +5,8 @@ use uuid::Uuid;
 use super::ledger::Ledger;
 use super::{mcp_preflight, server};
 use crate::api::launches::mcp_seen;
+use crate::base_state::BaseState;
 use crate::launch::ServerOpenRequest;
-use crate::state::AppState;
 use crate::store::persistence::launch::LaunchOutcome;
 
 #[path = "seat_health_start.rs"]
@@ -142,7 +142,7 @@ fn relaunch_request(
 }
 
 async fn relaunch_once(
-    state: &AppState,
+    state: &BaseState,
     relaunch: &Relaunch,
     (session, start): (Uuid, Start),
     tried: &mut Vec<String>,
@@ -201,7 +201,7 @@ async fn after_relaunch(
     }
 }
 
-pub async fn watch(state: &AppState, relaunch: Relaunch, session: Uuid) {
+pub async fn watch(state: &BaseState, relaunch: Relaunch, session: Uuid) {
     if !needs_relaunch(session).await {
         return;
     }
@@ -252,7 +252,7 @@ fn failed_outcome(reason: &str, error: &str) -> LaunchOutcome {
     }
 }
 
-async fn record_failure(state: &AppState, launch_id: Option<i64>, reason: &str, error: &str) {
+async fn record_failure(state: &BaseState, launch_id: Option<i64>, reason: &str, error: &str) {
     if let Some(persist) = state.persist() {
         Ledger::new(Some(persist.clone()))
             .record_outcome(launch_id, &failed_outcome(reason, error))
@@ -267,7 +267,7 @@ fn failure_kind(start: Start) -> &'static str {
     }
 }
 
-async fn give_up(state: &AppState, relaunch: &Relaunch, session: Uuid, failure: Failure) {
+async fn give_up(state: &BaseState, relaunch: &Relaunch, session: Uuid, failure: Failure) {
     let Failure {
         launch_id,
         tried,

@@ -1,5 +1,6 @@
 use super::*;
 use crate::api::changes::{WithTail, note_answer_tail};
+use crate::base_state::BaseState;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 
 const NOTES_DEFAULT_LIMIT: usize = 100;
@@ -105,7 +106,7 @@ pub struct CreateSessionNoteBody {
 }
 
 pub async fn post_session_note(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(session_uuid): Path<uuid::Uuid>,
     Json(body): Json<CreateSessionNoteBody>,
 ) -> Result<Json<WithTail<SessionNoteDto>>, Response> {
@@ -165,7 +166,7 @@ pub struct SessionNotesQuery {
 }
 
 pub async fn get_session_notes(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(session_uuid): Path<uuid::Uuid>,
     Query(query): Query<SessionNotesQuery>,
 ) -> Result<Json<Vec<SessionNoteDto>>, Response> {
@@ -211,7 +212,7 @@ pub struct UpdateSessionNoteBody {
 }
 
 pub async fn patch_session_note(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path((session_uuid, note_uuid)): Path<(uuid::Uuid, uuid::Uuid)>,
     Json(body): Json<UpdateSessionNoteBody>,
 ) -> Result<Json<WithTail<SessionNoteDto>>, Response> {
@@ -241,7 +242,7 @@ pub async fn patch_session_note(
 }
 
 async fn with_tail(
-    state: &AppState,
+    state: &BaseState,
     session_uuid: uuid::Uuid,
     row: crate::store::persistence::session_notes::SessionNoteRow,
 ) -> WithTail<SessionNoteDto> {
@@ -252,7 +253,7 @@ async fn with_tail(
 }
 
 fn record_note_in_change_record(
-    state: &AppState,
+    state: &BaseState,
     handle: &crate::store::persistence::PersistHandle,
     session_uuid: uuid::Uuid,
     row: &crate::store::persistence::session_notes::SessionNoteRow,
@@ -276,7 +277,7 @@ fn record_note_in_change_record(
 }
 
 pub async fn delete_session_note(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path((session_uuid, note_uuid)): Path<(uuid::Uuid, uuid::Uuid)>,
 ) -> Result<StatusCode, Response> {
     let Some(handle) = state.persist() else {
@@ -364,7 +365,7 @@ fn project_note_filter(
 }
 
 pub async fn get_project_notes(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(project_path): Path<String>,
     Query(query): Query<ProjectNotesQuery>,
 ) -> Result<Json<ProjectNotesResponse>, Response> {

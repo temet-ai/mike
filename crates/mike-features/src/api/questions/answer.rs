@@ -9,8 +9,8 @@ use uuid::Uuid;
 
 use super::resolve::session;
 use super::{database, mail, problem, text, unavailable};
+use crate::base_state::BaseState;
 use crate::launch::fleet::brief_notes_sync::amend_part;
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::questions::{
     NoteRef, QuestionRow, SettleKind, SettleOutcome, SettledQuestion,
@@ -92,7 +92,7 @@ async fn amended(
 }
 
 pub async fn post_question_answer(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(id): Path<Uuid>,
     Json(body): Json<AnswerBody>,
 ) -> Response {
@@ -166,7 +166,7 @@ async fn settled_answer(
 }
 
 pub async fn post_question_decline(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(id): Path<Uuid>,
     Json(body): Json<DeclineBody>,
 ) -> Response {

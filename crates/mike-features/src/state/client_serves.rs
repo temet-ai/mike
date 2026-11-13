@@ -1,10 +1,10 @@
-pub fn client_serves(state: &crate::state::AppState, key: &str) -> bool {
+pub fn client_serves(state: &crate::base_state::BaseState, key: &str) -> bool {
     crate::feature_toggles::get_toggle_enabled(&state.feature_toggle_overlay.load(), key)
         .unwrap_or(false)
 }
 
 #[cfg(any(test, feature = "test-seams"))]
-pub fn serve_every_stage_for_tests(state: &crate::state::AppState) {
+pub fn serve_every_stage_for_tests(state: &crate::base_state::BaseState) {
     let mut toggles = (**state.feature_toggle_overlay.load()).clone();
     for meta in crate::feature_toggles::TOGGLE_META
         .iter()

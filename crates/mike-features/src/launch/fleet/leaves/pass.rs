@@ -5,12 +5,12 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::{Dossier, LeafError, LeafModel, brief, dossier, parse, require_text};
+use crate::base_state::BaseState;
 use crate::launch::fleet::definition::FleetDefinition;
 use crate::launch::fleet::events::{FleetEvent, NewFleetEvent};
 use crate::launch::fleet::problems::{
     Decision, DecisionKind, Ledger, decide_events, overdue_events,
 };
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 #[async_trait]
@@ -107,7 +107,7 @@ fn detail_of(events: &[FleetEvent], problem_id: &str) -> String {
         .to_string()
 }
 
-pub async fn pass(state: &AppState, persist: &PersistHandle, _def: &FleetDefinition, run: &str) {
+pub async fn pass(state: &BaseState, persist: &PersistHandle, _def: &FleetDefinition, run: &str) {
     let Ok(events) = persist.fleet().fleet_events_since(run, 0).await else {
         return;
     };

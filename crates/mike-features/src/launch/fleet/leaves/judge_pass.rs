@@ -9,13 +9,13 @@ use uuid::Uuid;
 
 use super::report_judge::{ReportToJudge, judge_report, tell_seat};
 use super::{LeafError, LeafModel};
+use crate::base_state::BaseState;
 use crate::launch::fleet::definition::FleetDefinition;
 use crate::launch::fleet::events::{EventKind, FleetEvent};
 use crate::launch::fleet::floor::Outcome;
 use crate::launch::fleet::report::{Exercised, REPORT_KIND, REPORT_TAG};
 use crate::launch::fleet::seated::Seated;
 use crate::launch::fleet::told;
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::session_notes::{NoteOrder, SessionNoteFilter};
 
@@ -154,7 +154,7 @@ fn attempts() -> &'static DashMap<Uuid, u32> {
 }
 
 pub async fn pass(
-    state: &AppState,
+    state: &BaseState,
     persist: &PersistHandle,
     fleet: &str,
     def: &FleetDefinition,

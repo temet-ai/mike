@@ -10,10 +10,10 @@ use super::open::{self, OPEN_FAILED};
 use super::proxy_env::resolve_proxy_env;
 use super::runner::Runner;
 use super::seat_health::Relaunch;
+use crate::base_state::BaseState;
 use crate::launch::backend_choice::{self, BackendChoice, CallerTerminal};
 use crate::launch::fleet::{brief_delivery, brief_version};
 use crate::launch::{BackendId, LaunchError, TerminalBackend, TrustGate, brief};
-use crate::state::AppState;
 
 pub struct ServerOpenRequest {
     pub folder: String,
@@ -116,20 +116,20 @@ fn attach_prompt_file(
 }
 
 async fn resolve_backend(
-    state: &AppState,
+    state: &BaseState,
     explicit: Option<BackendId>,
     caller: &CallerTerminal,
 ) -> Result<(BackendChoice, Box<dyn TerminalBackend>), LaunchError> {
     backend_choice::resolve(&state.config.launch, explicit, caller).await
 }
 
-async fn configured_backend(state: &AppState) -> Result<Box<dyn TerminalBackend>, LaunchError> {
+async fn configured_backend(state: &BaseState) -> Result<Box<dyn TerminalBackend>, LaunchError> {
     let (_, backend) = resolve_backend(state, None, &CallerTerminal::default()).await?;
     Ok(backend)
 }
 
 async fn build_runner<'a>(
-    state: &'a AppState,
+    state: &'a BaseState,
     backend: &'a dyn TerminalBackend,
 ) -> Result<Runner<'a>, LaunchError> {
     let cwd = std::env::current_dir().ok();
@@ -149,7 +149,7 @@ async fn build_runner<'a>(
 }
 
 async fn stamped_prompt(
-    state: &AppState,
+    state: &BaseState,
     (run, seat): (Option<&str>, Option<&str>),
     prompt: Option<&str>,
 ) -> Option<String> {
@@ -172,21 +172,21 @@ async fn stamped_prompt(
 }
 
 pub async fn open_for_server(
-    state: AppState,
+    state: BaseState,
     req: ServerOpenRequest,
 ) -> Result<ServerOpenStart, LaunchError> {
     open_server(state, req, true).await
 }
 
 pub async fn open_unwatched(
-    state: AppState,
+    state: BaseState,
     req: ServerOpenRequest,
 ) -> Result<ServerOpenStart, LaunchError> {
     open_server(state, req, false).await
 }
 
 async fn open_server(
-    state: AppState,
+    state: BaseState,
     req: ServerOpenRequest,
     watch: bool,
 ) -> Result<ServerOpenStart, LaunchError> {
@@ -227,7 +227,7 @@ async fn open_server(
 }
 
 fn spawn_finish(
-    state: AppState,
+    state: BaseState,
     choice: BackendChoice,
     started: open::Started,
     follow: Option<Relaunch>,
@@ -273,7 +273,7 @@ fn never_opened(failure: &open::OpenFailure) -> bool {
         == Some(OPEN_FAILED)
 }
 
-async fn close_late_pane(state: &AppState, session: Uuid) {
+async fn close_late_pane(state: &BaseState, session: Uuid) {
     let outcome = match kill_for_server(state, session).await {
         Ok(report) => format!("closed: {}", report.closed),
         Err(e) => format!("closing failed: {e}"),
@@ -281,13 +281,13 @@ async fn close_late_pane(state: &AppState, session: Uuid) {
     tracing::warn!(session_id = %session, %outcome, "mike spawn: the seat's pane never opened; mike closed any late pane and does not relaunch the seat");
 }
 
-pub async fn kill_for_server(state: &AppState, session: Uuid) -> Result<KillReport, LaunchError> {
+pub async fn kill_for_server(state: &BaseState, session: Uuid) -> Result<KillReport, LaunchError> {
     let backend = configured_backend(state).await?;
     let runner = build_runner(state, backend.as_ref()).await?;
     kill::execute(&runner, session).await
 }
 
-pub async fn doctor_for_server(state: &AppState) -> Result<DoctorReport, LaunchError> {
+pub async fn doctor_for_server(state: &BaseState) -> Result<DoctorReport, LaunchError> {
     let backend = configured_backend(state).await?;
     let runner = build_runner(state, backend.as_ref()).await?;
     let env = super::doctor_env(&state.config)?;

@@ -7,8 +7,8 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use uuid::Uuid;
 
+use crate::base_state::BaseState;
 use crate::launch::seat_fact::is_fleet_seat;
-use crate::state::AppState;
 use crate::web_base::{persist_error_response, persist_unavailable_response};
 
 const FLEET_MEMBERSHIP_MIN_WINDOW_HOURS: i32 = super::DEFAULT_WINDOW_HOURS;
@@ -37,7 +37,7 @@ fn compute_fleet_window_hours(fleet_size: i64, oldest_last_seen: Option<DateTime
 }
 
 pub async fn get_session_fleet(
-    State(state): State<AppState>,
+    State(state): State<BaseState>,
     Path(session_id): Path<String>,
 ) -> Result<Json<SessionFleetDto>, Response> {
     let Ok(parsed_uuid) = Uuid::parse_str(&session_id) else {
