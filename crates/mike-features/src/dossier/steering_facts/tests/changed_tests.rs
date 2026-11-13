@@ -37,6 +37,23 @@ fn path_kind_reads_extension_and_conventional_directories() {
 }
 
 #[test]
+fn shell_fragments_are_not_paths() {
+    use crate::dossier::steering_facts::changed::looks_like_path;
+    for junk in [
+        "{",
+        "=1,(p,a[:70])",
+        "request.fileUploadId)).size).toBe(3)",
+        "s",
+        "$OUT",
+    ] {
+        assert!(!looks_like_path(junk), "{junk}");
+    }
+    for path in ["/repo/src/a.rs", "Cargo.toml", "docs/x.md"] {
+        assert!(looks_like_path(path), "{path}");
+    }
+}
+
+#[test]
 fn changed_paths_counts_lines_per_path_newest_first() {
     let window = vec![
         call(

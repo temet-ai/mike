@@ -175,9 +175,15 @@ pub async fn plan_live_fires(
             turn_end_at: turn_end_at(turn, record),
             now: turn.now,
         };
+        let decision = decide_live_fire(&live, &settings);
+        let decision = if super::precheck_seam::holds(turn, record, question) {
+            super::precheck_seam::held(decision)
+        } else {
+            decision
+        };
         fires.push(LiveFire {
             question,
-            decision: decide_live_fire(&live, &settings),
+            decision,
             nudge: nudge_for(question, ctx, record, anchor),
             evaluation: None,
         });
@@ -209,6 +215,16 @@ fn arm_write(fire: &LiveFire) -> Option<ArmWrite> {
             draw,
             anchor_turn_id,
             due_at: plan.deliver_after(),
+        }),
+        LiveDecision::Held {
+            draw,
+            anchor_turn_id,
+        } => Some(ArmWrite {
+            evaluation,
+            arm: "precheck_held",
+            draw,
+            anchor_turn_id,
+            due_at: None,
         }),
         _ => None,
     }

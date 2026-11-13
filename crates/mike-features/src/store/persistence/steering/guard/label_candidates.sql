@@ -18,6 +18,13 @@ cand AS (
        AND (e.mode = 'shadow' OR e.arm = 'holdback')
        AND e.outcome_label IS NULL
     UNION ALL
+    SELECT e.id
+      FROM steering.evaluations e
+     WHERE e.steerer_id = $1
+       AND e.status <> 'dispatched'
+       AND e.arm = 'precheck_held'
+       AND e.outcome_label IS NULL
+    UNION ALL
     SELECT lt.id FROM live_top lt
 ),
 rows AS (
@@ -32,7 +39,7 @@ rows AS (
            WHERE n.operator_turn_id = e.operator_turn_id
              AND n.steerer_id = $1
              AND n.status <> 'dispatched'
-             AND (n.mode = 'shadow' OR n.arm = 'holdback')
+             AND (n.mode = 'shadow' OR n.arm IN ('holdback', 'precheck_held'))
              AND n.question IS NOT DISTINCT FROM e.question
              AND n.trigger_point IS NOT DISTINCT FROM e.trigger_point
              AND (n.dispatched_at, n.id) > (e.dispatched_at, e.id)

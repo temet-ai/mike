@@ -28,6 +28,12 @@ pub async fn evaluate_guard(window: &EvalWindow<'_>, steerer: &Steerer) -> StepO
     let turn = GuardTurn {
         persist,
         llm: window.base_llm,
+        decisions: crate::steerer::guard::precheck_seam::decisions_turn(
+            window.base_llm,
+            persist,
+            window.ctx.toggles.load().decisions,
+            &settings,
+        ),
         steerer_id: steerer.id,
         bundle_id: settings.bundles.steerer(steerer.id),
         session_db_id: scope.session_db_id,

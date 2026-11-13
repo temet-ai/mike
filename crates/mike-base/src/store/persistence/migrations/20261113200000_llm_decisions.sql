@@ -105,6 +105,39 @@ CREATE TABLE decisions.outcomes (
     UNIQUE (record_id, label_source, label)
 );
 
+-- One row per decisions_loop run (#220): what it scored per point, the findings it filed and
+-- the outcomes it synced. The loop reads the newest row to know whether a run is overdue.
+CREATE TABLE decisions.loop_runs (
+    id            bigserial   PRIMARY KEY,
+    started_at    timestamptz NOT NULL DEFAULT now(),
+    finished_at   timestamptz,
+    machine_uuid  uuid,
+    report        jsonb       NOT NULL DEFAULT '{}'::jsonb
+);
+
+COMMENT ON TABLE decisions.loop_runs IS
+    'decisions_loop runs: per-point scores, findings and synced outcomes (#220). Never pruned.';
+
+-- A live turn-guard fire the pre-check held (#213) gets the arm 'precheck_held'. It was never
+-- delivered, so it may carry an automatic label like a holdback row, and the labeller finds it
+-- through its own partial index.
+ALTER TABLE steering.evaluations DROP CONSTRAINT IF EXISTS evaluations_arm_check;
+ALTER TABLE steering.evaluations
+    ADD CONSTRAINT evaluations_arm_check
+        CHECK (arm IS NULL OR arm IN ('treated', 'holdback', 'precheck_held'));
+
+ALTER TABLE steering.evaluations DROP CONSTRAINT IF EXISTS evaluations_auto_label_shadow_only;
+ALTER TABLE steering.evaluations
+    ADD CONSTRAINT evaluations_auto_label_shadow_only
+        CHECK (label_source IS NULL
+               OR label_source NOT IN ('next_message', 'session_end')
+               OR mode = 'shadow'
+               OR arm IN ('holdback', 'precheck_held'));
+
+CREATE INDEX IF NOT EXISTS idx_evaluations_unlabelled_precheck_held
+    ON steering.evaluations (dispatched_at)
+    WHERE outcome_label IS NULL AND arm = 'precheck_held' AND status <> 'dispatched';
+
 COMMENT ON TABLE decisions.outcomes IS
     'Labels for decisions.records, many per record and never overwritten, so sources that disagree are all kept (#229). Never pruned.';
 

@@ -1,0 +1,59 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT DISTINCT ON (r.id)\n       r.point AS \"point!\",\n       (r.composed -> 'verdict' ->> 'score')::float8 AS \"score?\",\n       r.applied AS \"applied?\",\n       o.label AS \"label!\"\n  FROM decisions.records r\n  JOIN decisions.outcomes o ON o.record_id = r.id\n WHERE r.created_at >= $1 AND r.mode IN ('on', 'shadow', 'replay')\n ORDER BY r.id, o.labelled_at\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "point!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decisions.records",
+            "name": "point"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "score?",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "applied?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decisions.records",
+            "name": "applied"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "label!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decisions.outcomes",
+            "name": "label"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      true,
+      false
+    ]
+  },
+  "hash": "ba036cb25792001cc47c1bf4c122063939a823950e91bacaec898922887d6ab2"
+}

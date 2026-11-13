@@ -6,7 +6,7 @@ pub const TURN_GUARD_MODE_KEY: &str = "decisions.turn_guard.mode";
 pub const TURN_GUARD_HOLD_BELOW_KEY: &str = "decisions.turn_guard.hold_below";
 pub const DEFAULT_MODEL: &str = "typesafe/jev-1.14";
 pub const DEFAULT_TIMEOUT_MS: i64 = 3000;
-pub const DEFAULT_TURN_GUARD_HOLD_BELOW: f64 = 0.5;
+pub const DEFAULT_TURN_GUARD_HOLD_BELOW: f64 = 0.3;
 pub const MODES: &[&str] = &["off", "shadow", "on"];
 
 fn base(key: &'static str, label: &'static str, description: &'static str) -> SettingMeta {

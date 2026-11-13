@@ -267,5 +267,6 @@ fn seam(f: &Fixture, turn: i64) -> mike::steerer::guard_test_seams::SeamTurn {
         text: WAIT_ENDING.to_owned(),
         toggle_on: true,
         turn_judge_live: false,
+        decisions_mode: None,
     }
 }

@@ -3,7 +3,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
-use crate::store::persistence::{PersistError, PersistHandle};
+use crate::store::persistence::PersistError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -105,9 +105,9 @@ pub fn question_set_hash(questions: &Value) -> String {
     digest.iter().take(8).map(|b| format!("{b:02x}")).collect()
 }
 
-impl PersistHandle {
+impl super::DecisionStore<'_> {
     pub async fn insert_decision_record(&self, row: RecordInsert<'_>) -> Result<i64, PersistError> {
-        let machine_uuid = self.llm_machine_uuid().await;
+        let machine_uuid = self.0.llm_machine_uuid().await;
         let ctx = row.context;
         let s = &ctx.subject;
         let r = row.result;
@@ -164,7 +164,7 @@ impl PersistHandle {
                 machine_uuid,
                 ctx.source_ref,
             )
-            .fetch_one(&self.pool)
+            .fetch_one(self.0.pool())
             .await?)
         })
         .await
@@ -188,7 +188,7 @@ impl PersistHandle {
                 applied.fail_open,
                 evaluation_uuid,
             )
-            .execute(&self.pool)
+            .execute(self.0.pool())
             .await?;
             Ok(())
         })
@@ -212,7 +212,7 @@ impl PersistHandle {
                 label_source,
                 evidence,
             )
-            .execute(&self.pool)
+            .execute(self.0.pool())
             .await?;
             Ok(r.rows_affected() > 0)
         })
@@ -240,7 +240,7 @@ impl PersistHandle {
                 label_source,
                 point,
             )
-            .execute(&self.pool)
+            .execute(self.0.pool())
             .await?;
             Ok(r.rows_affected())
         })

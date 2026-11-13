@@ -114,7 +114,7 @@ impl OpenRouterClient {
             .admit(self.inner.role, self.inner.reservation.as_ref())
         {
             if let Some(outcome) = refusal_outcome(&e) {
-                self.record_spend(outcome, None, None, None, request, started);
+                self.record_spend(Spend::failed(outcome, None, None), request, started);
                 return (failed(outcome.as_str(), &e, started), Err(e));
             }
             return (failed("transport_error", &e, started), Err(e));
@@ -127,7 +127,7 @@ impl OpenRouterClient {
             Ok(sent) => sent,
             Err(e) => {
                 let outcome = failure_outcome(&e);
-                self.record_spend(outcome, None, None, None, request, started);
+                self.record_spend(Spend::failed(outcome, None, None), request, started);
                 return (failed(outcome.as_str(), &e, started), Err(e));
             }
         };
@@ -148,10 +148,7 @@ impl OpenRouterClient {
             };
             let body = body_as_json(&sent.body);
             self.record_spend(
-                failure_outcome(&e),
-                Some(sent.status),
-                None,
-                Some(body),
+                Spend::failed(failure_outcome(&e), Some(sent.status), Some(body)),
                 request,
                 started,
             );
@@ -167,10 +164,7 @@ impl OpenRouterClient {
             Err(e) => {
                 let body = body_as_json(&sent.body);
                 self.record_spend(
-                    LlmCallOutcome::SchemaError,
-                    Some(200),
-                    None,
-                    Some(body),
+                    Spend::failed(LlmCallOutcome::SchemaError, Some(200), Some(body)),
                     request,
                     started,
                 );
@@ -185,10 +179,12 @@ impl OpenRouterClient {
         let usage = usage_of(&wire);
         let stored = json!({ "id": wire.id, "model": wire.model, "answers": wire.answers });
         self.record_spend(
-            LlmCallOutcome::Ok,
-            Some(200),
-            Some((&usage, wire.id.as_deref())),
-            Some(stored),
+            Spend {
+                outcome: LlmCallOutcome::Ok,
+                http_status: Some(200),
+                usage: Some((&usage, wire.id.as_deref())),
+                response_body: Some(stored),
+            },
             request,
             started,
         );
@@ -225,20 +221,12 @@ impl OpenRouterClient {
             result: call,
             created_at: None,
         };
-        match tokio::time::timeout(RECORD_TIMEOUT, store.insert_decision_record(row)).await {
-            Ok(Ok(id)) => Some(id),
-            Ok(Err(error)) => {
-                tracing::warn!(%error, point = ctx.point, "decisions: failed to record a decision");
-                None
-            }
-            Err(_) => {
-                tracing::warn!(
-                    point = ctx.point,
-                    "decisions: recording a decision timed out"
-                );
-                None
-            }
-        }
+        let stored = tokio::time::timeout(
+            RECORD_TIMEOUT,
+            crate::llm::decisions::store(store).insert_decision_record(row),
+        )
+        .await;
+        stored_id(stored, ctx.point)
     }
 
     pub fn decisions_endpoint(&self) -> String {
@@ -280,18 +268,16 @@ impl OpenRouterClient {
         Ok(Sent { status, body })
     }
 
-    fn record_spend(
-        &self,
-        outcome: LlmCallOutcome,
-        http_status: Option<u16>,
-        usage: Option<(&UsageInfo, Option<&str>)>,
-        response_body: Option<Value>,
-        request: &Value,
-        started: Instant,
-    ) {
+    fn record_spend(&self, spend: Spend<'_>, request: &Value, started: Instant) {
         let Some(sink) = &self.inner.usage_sink else {
             return;
         };
+        let Spend {
+            outcome,
+            http_status,
+            usage,
+            response_body,
+        } = spend;
         let info = usage.map(|(u, _)| u);
         sink.record(LlmCallRecord {
             role: self.inner.role,
@@ -312,6 +298,40 @@ impl OpenRouterClient {
             response_body,
         });
     }
+}
+
+struct Spend<'a> {
+    outcome: LlmCallOutcome,
+    http_status: Option<u16>,
+    usage: Option<(&'a UsageInfo, Option<&'a str>)>,
+    response_body: Option<Value>,
+}
+
+impl Spend<'_> {
+    fn failed(outcome: LlmCallOutcome, http_status: Option<u16>, body: Option<Value>) -> Self {
+        Self {
+            outcome,
+            http_status,
+            usage: None,
+            response_body: body,
+        }
+    }
+}
+
+fn stored_id(
+    stored: Result<
+        Result<i64, crate::store::persistence::PersistError>,
+        tokio::time::error::Elapsed,
+    >,
+    point: &str,
+) -> Option<i64> {
+    let error = match stored {
+        Ok(Ok(id)) => return Some(id),
+        Ok(Err(error)) => error.to_string(),
+        Err(_) => "the insert timed out".to_owned(),
+    };
+    tracing::warn!(%error, point, "decisions: failed to record a decision");
+    None
 }
 
 fn response_model(body: Option<&Value>) -> Option<String> {

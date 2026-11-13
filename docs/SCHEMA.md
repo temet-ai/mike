@@ -4083,6 +4083,8 @@ allows.
 | `request_body` | `JSONB NULL` | Added in `20260902000001_llm_calls_request_body.sql`. The full outbound request body (system + messages + parameters) exactly as sent, captured once by `crates/mike/src/llm/openrouter.rs` and stored unchanged — never a slice or a summary. `NULL` on rows predating this column and on refused calls, which never build a body in the first place. This is what lets the session judge's related-sessions block (the neighbour-session context spliced into the judge prompt) be read back off the live system after the fact. |
 | `machine_uuid` | `UUID NULL` | Added in `20261014130000_llm_worker_leases.sql`. The `machine_uuid` from `machine.json` of the proxy that made the call, filled by `PersistHandle::insert_llm_call`. `NULL` on rows recorded before the column existed and on rows from a proxy with no machine identity file. Not indexed: the per-machine audit reads a bounded time window through `idx_llm_calls_created_at`. |
 
+Migration `20261113200000_llm_decisions.sql` widens the `role` CHECK (and `llm.daily_spend.role`'s) with `decision`, the role of every call to OpenRouter's Decisions endpoint, widens the `outcome` CHECK with `schema_error` (a reply that did not parse into typed answers, recorded before the error is returned), and adds `response_body JSONB NULL`: for role `decision` the typed answers, or the unparsed reply on a schema error. The full record of each decision is `decisions.records` below.
+
 **Indexes:**
 - `idx_llm_calls_created_at`: `created_at` (BRIN) — append-only time series
 - `idx_llm_calls_role_created_at`: `(role, created_at)` (BTree) — backs the per-role spend rollup behind `GET /api/llm/spend`
@@ -4141,6 +4143,45 @@ event-driven worker does not write a row per event.
 
 **Read path:** `GET /api/capabilities` row `llm_worker_lease` lists the roles this machine holds and
 the roles another machine holds, with that machine's uuid and heartbeat age.
+
+---
+
+## Domain: `decisions`
+
+Added by `20261113200000_llm_decisions.sql` (#229). Owned by the `llm` module of mike-base (`crates/mike-base/src/llm/decisions/`); other modules write labels through its functions. Nothing prunes these tables: `crates/mike-base/src/llm/decisions/retention_tests.rs` fails if any code or migration deletes from them.
+
+### `decisions.records`
+
+One row per Jev call, for every outcome, written by `OpenRouterClient::decide` after the reply is read and before the caller acts on it.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id`, `created_at` | `BIGSERIAL`, `TIMESTAMPTZ` | |
+| `point` | `TEXT NOT NULL` | The decision point, such as `turn_guard_precheck`, `cli_ask`, `effort_split` |
+| `mode` | `TEXT NOT NULL` | `on`, `shadow`, `replay` or `cli` |
+| `question_set`, `question_set_hash` | `TEXT NOT NULL` | The point's question-set name (bumped with every wording change) and the first 8 bytes of the SHA-256 of the questions sent |
+| `thresholds` | `JSONB NOT NULL` | The thresholds the caller composed with, such as `{"hold_below": 0.3}` |
+| `model_requested`, `state`, `questions`, `request_body` | `TEXT`, `JSONB` | The request, verbatim |
+| `outcome` | `TEXT NOT NULL` | `ok`, `http_error`, `timeout`, `transport_error`, `schema_error`, `refused_ceiling`, `refused_rate`, `refused_spend` or `no_key` |
+| `error`, `response_raw` | `TEXT NULL` | The error text and the reply exactly as received, kept when it does not parse |
+| `answers`, `question_refusals` | `JSONB NULL`, `INTEGER` | Parsed answers with every probability and confidence, and how many questions Jev refused |
+| `served_model`, `provider`, `generation_id`, `usage`, `cost_usd`, `latency_ms`, `http_status` | | What served the call and what it cost |
+| `composed`, `applied`, `fail_open` | `JSONB`, `TEXT`, `BOOLEAN` | Set by the caller afterwards: the verdict and its reason, what it did (`sent`, `held`, `woken`, `warned`, `passed`, `none`), and whether a failure sent it down the off path |
+| `facts_version`, `facts` | | The steering facts the state was built from |
+| `session_id` … `project_id`, `machine_uuid` | | Subject ids: session, operator turn, request, evaluation, intervention, fleet run, seat, message, check receipt, commit, project, and the machine that called |
+| `source_ref` | `TEXT NULL` | Unique when set; replays and imports use it to stay idempotent |
+
+Indexes: `(point, created_at)`, `evaluation_uuid` where set, unique `source_ref` where set.
+
+### `decisions.outcomes`
+
+Labels for records, many per record and never overwritten: `record_id` (FK), `label`, `label_source` (`turn_guard_label`, `tool_name_rule`, …), `evidence`, `labelled_at`; UNIQUE `(record_id, label_source, label)`. `decisions_loop` copies the turn guard's labels in from `steering.evaluations` by `evaluation_uuid`.
+
+### `decisions.loop_runs`
+
+One row per `decisions_loop` run: `started_at`, `finished_at`, `machine_uuid` and the `report` (per-point counts, AUROC, holds labelled and how many held a wrong nudge with its Wilson lower bound, labels per day, days until 30 labels, findings). The loop reads the newest `finished_at` to know whether a run is overdue.
+
+The same migration widens `steering.evaluations_arm_check` with `precheck_held` (a live turn-guard fire the pre-check held), lets such a row carry an automatic label like a holdback row (`evaluations_auto_label_shadow_only`), adds the partial index `idx_evaluations_unlabelled_precheck_held`, and seeds the `decisions_health` wright check.
 
 ---
 

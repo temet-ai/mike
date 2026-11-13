@@ -29,6 +29,7 @@ pub struct GuardRecord {
     pub live: BTreeMap<Question, super::live_decision::LiveDecision>,
     pub calibration: Option<Value>,
     pub relapse_semantic: Option<Value>,
+    pub precheck: BTreeMap<Question, crate::steerer::precheck::Precheck>,
 }
 
 pub fn would_be_superseded_by(firing: &[Question]) -> BTreeMap<&'static str, &'static str> {
@@ -98,6 +99,9 @@ impl GuardRecord {
                 "abstention".to_owned(),
                 json!(self.abstentions.get(&question)),
             );
+            if let Some(check) = self.precheck.get(&question) {
+                map.insert("precheck".to_owned(), json!(check));
+            }
             if question == Question::Relapse
                 && let Some(semantic) = &self.relapse_semantic
             {

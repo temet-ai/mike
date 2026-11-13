@@ -17,6 +17,59 @@ use crate::store::persistence::PersistHandle;
 #[derive(Debug, Clone, Subcommand)]
 pub enum DecisionsCommand {
     Ask(DecisionsAskArgs),
+    Loop(DecisionsLoopArgs),
+    Export(DecisionsExportArgs),
+    ImportReplay(super::decisions_import::DecisionsImportArgs),
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct DecisionsLoopArgs {
+    #[arg(long)]
+    pub force: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct DecisionsExportArgs {
+    #[arg(long)]
+    pub since: Option<chrono::DateTime<chrono::Utc>>,
+    #[arg(long)]
+    pub point: Option<String>,
+    #[arg(long)]
+    pub with_outcomes: bool,
+    #[arg(long)]
+    pub out: Option<PathBuf>,
+}
+
+async fn decisions_loop(args: DecisionsLoopArgs, cli: CliOverrides) -> Result<()> {
+    let persist = super::eval::connect(cli, true).await?;
+    let now = chrono::Utc::now();
+    if !args.force && !crate::steerer::decisions_loop::overdue(&persist, now).await? {
+        println!("decisions_loop: a run finished in the last 24 h; nothing to do");
+        return Ok(());
+    }
+    let report = crate::steerer::decisions_loop::run(&persist, now).await?;
+    println!("{}", serde_json::to_string_pretty(&report)?);
+    Ok(())
+}
+
+async fn export(args: DecisionsExportArgs, cli: CliOverrides) -> Result<()> {
+    use std::io::Write as _;
+    let persist = super::eval::connect(cli, false).await?;
+    let since = args
+        .since
+        .unwrap_or(chrono::DateTime::<chrono::Utc>::UNIX_EPOCH);
+    let rows = crate::llm::decisions::store(&persist)
+        .export_decisions(since, args.point.as_deref(), args.with_outcomes)
+        .await?;
+    let mut out: Box<dyn std::io::Write> = match &args.out {
+        Some(path) => Box::new(std::fs::File::create(path)?),
+        None => Box::new(std::io::stdout().lock()),
+    };
+    for row in &rows {
+        writeln!(out, "{row}")?;
+    }
+    eprintln!("exported {} decision records", rows.len());
+    Ok(())
 }
 
 #[derive(Debug, Clone, Args)]
@@ -103,5 +156,8 @@ async fn ask(args: DecisionsAskArgs, cli: CliOverrides) -> Result<()> {
 pub async fn run(command: DecisionsCommand, cli: CliOverrides) -> Result<()> {
     match command {
         DecisionsCommand::Ask(args) => ask(args, cli).await,
+        DecisionsCommand::Loop(args) => decisions_loop(args, cli).await,
+        DecisionsCommand::Export(args) => export(args, cli).await,
+        DecisionsCommand::ImportReplay(args) => super::decisions_import::run(args, cli).await,
     }
 }

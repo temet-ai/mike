@@ -1,0 +1,105 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT r.point AS \"point!\",\n       count(*) AS \"calls!\",\n       count(*) FILTER (WHERE r.mode = 'on' AND r.applied IS NOT NULL AND r.applied <> 'none') AS \"applied_on!\",\n       count(*) FILTER (WHERE r.fail_open) AS \"fail_open!\",\n       count(*) FILTER (WHERE r.outcome = 'schema_error') AS \"schema_errors!\",\n       count(*) FILTER (WHERE r.outcome LIKE 'refused_%' OR r.outcome = 'no_key') AS \"refused!\",\n       COALESCE(sum(r.question_refusals), 0)::bigint AS \"question_refusals!\",\n       COALESCE(sum(r.cost_usd), 0)::float8 AS \"cost_usd!\",\n       percentile_cont(0.5) WITHIN GROUP (ORDER BY r.latency_ms)::float8 AS \"latency_p50_ms?\",\n       percentile_cont(0.95) WITHIN GROUP (ORDER BY r.latency_ms)::float8 AS \"latency_p95_ms?\",\n       count(o.record_id) AS \"labelled!\",\n       count(o.record_id) FILTER (WHERE o.first_label >= now() - interval '7 days') AS \"labelled_last_7d!\"\n  FROM decisions.records r\n  LEFT JOIN (SELECT record_id, min(labelled_at) AS first_label\n               FROM decisions.outcomes GROUP BY record_id) o ON o.record_id = r.id\n WHERE r.created_at >= $1 AND r.mode IN ('on', 'shadow')\n GROUP BY r.point\n ORDER BY r.point\n",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "point!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "decisions.records",
+            "name": "point"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "calls!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "applied_on!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "fail_open!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "schema_errors!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "refused!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "question_refusals!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "cost_usd!",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 8,
+        "name": "latency_p50_ms?",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 9,
+        "name": "latency_p95_ms?",
+        "type_info": "Float8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 10,
+        "name": "labelled!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "labelled_last_7d!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "7f530dbb224008a47405784358a7fffbfc74b023f1100f88772c362667551e45"
+}

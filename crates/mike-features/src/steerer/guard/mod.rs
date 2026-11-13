@@ -15,6 +15,7 @@ pub mod live_decision;
 pub mod metrics;
 pub mod nudges;
 pub mod policy;
+pub mod precheck_seam;
 pub mod promotion;
 pub mod question_gates;
 pub mod reach;
@@ -133,6 +134,7 @@ pub enum GuardStep {
 pub struct GuardTurn<'a> {
     pub persist: &'a PersistHandle,
     pub llm: &'a OpenRouterClient,
+    pub decisions: Option<precheck_seam::DecisionsTurn>,
     pub steerer_id: i64,
     pub bundle_id: Option<i64>,
     pub session_db_id: i64,

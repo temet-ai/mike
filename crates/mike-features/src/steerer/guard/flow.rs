@@ -350,7 +350,7 @@ async fn run(turn: &GuardTurn<'_>) -> GuardOutcome {
     let mut record = new_record(turn);
     abstain_all(&mut record, &questions, "pending");
     let mut fires = Vec::new();
-    let step = judge(turn, &questions, &mut record, &mut fires).await;
+    let step = judge(turn, &questions, &rows, &mut record, &mut fires).await;
     for fire in &mut fires {
         fire.evaluation = rows
             .iter()
@@ -358,6 +358,7 @@ async fn run(turn: &GuardTurn<'_>) -> GuardOutcome {
             .map(|(_, u)| *u);
         record.live.insert(fire.question, fire.decision);
     }
+    super::precheck_seam::mark_applied(turn, &record, &fires).await;
     GuardOutcome {
         step,
         fires,
@@ -414,6 +415,7 @@ fn exempt_split(
 async fn judge(
     turn: &GuardTurn<'_>,
     questions: &[Question],
+    rows: &Rows,
     record: &mut GuardRecord,
     fires: &mut Vec<LiveFire>,
 ) -> GuardStep {
@@ -430,14 +432,7 @@ async fn judge(
         abstain_all(record, questions, "context_unavailable");
         return GuardStep::Continue;
     };
-    if let Some(facts) = ctx.facts.as_mut() {
-        crate::dossier::steering_facts::committed::mark_session_changes(
-            turn.persist,
-            turn.session_uuid,
-            &mut facts.observation,
-        )
-        .await;
-    }
+    super::precheck_seam::mark_committed(turn, &mut ctx).await;
     record.facts = ctx.facts.clone();
     record.reach = Some(
         reach_at(
@@ -478,6 +473,7 @@ async fn judge(
         return GuardStep::Continue;
     }
     let step = call_and_decide(turn, &ctx, &cfg, &gated, record).await;
+    super::precheck_seam::run_prechecks(turn, &ctx, rows, record).await;
     fires.extend(plan_live_fires(turn, &ctx, record).await);
     step
 }

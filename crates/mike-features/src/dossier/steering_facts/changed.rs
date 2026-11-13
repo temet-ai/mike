@@ -141,11 +141,38 @@ pub fn line_counts(call: &CallFact) -> (u32, u32) {
     }
 }
 
+pub fn looks_like_path(path: &str) -> bool {
+    !path.is_empty()
+        && (path.contains('/') || path.contains('.'))
+        && !path.chars().any(|c| {
+            c.is_whitespace()
+                || matches!(
+                    c,
+                    '"' | '\''
+                        | '('
+                        | ')'
+                        | '['
+                        | ']'
+                        | '{'
+                        | '}'
+                        | ','
+                        | '='
+                        | '$'
+                        | '`'
+                        | ';'
+                        | '|'
+                )
+        })
+}
+
 pub fn changed_paths(window: &[CallFact]) -> Vec<ChangedPath> {
     let mut by_path: BTreeMap<String, (u32, u32, usize)> = BTreeMap::new();
     for (order, call) in window.iter().filter(|c| c.has_result).enumerate() {
         let (added, removed) = line_counts(call);
-        for path in written_paths(call) {
+        for path in written_paths(call)
+            .into_iter()
+            .filter(|p| looks_like_path(p))
+        {
             let entry = by_path.entry(path).or_insert((0, 0, order));
             entry.0 = entry.0.saturating_add(added);
             entry.1 = entry.1.saturating_add(removed);

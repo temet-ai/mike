@@ -165,6 +165,15 @@ pub fn decisions_url(base_url: &str) -> String {
     }
 }
 
+#[derive(Clone, Copy)]
+pub struct DecisionStore<'a>(pub &'a crate::store::persistence::PersistHandle);
+
+pub fn store(persist: &crate::store::persistence::PersistHandle) -> DecisionStore<'_> {
+    DecisionStore(persist)
+}
+
+pub mod export;
+pub mod loop_store;
 pub mod record;
 
 #[cfg(test)]
