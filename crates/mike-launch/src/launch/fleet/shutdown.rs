@@ -1,4 +1,5 @@
 use crate::store::persistence::fleet_repo::FleetPersist as _;
+use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -367,7 +368,7 @@ async fn close_if_never_started(
         return false;
     }
     match persist
-        .fleet()
+        .launch()
         .close_never_started_fleet_launch(seat.id, run, NEVER_STARTED, START_GRACE_SECONDS)
         .await
     {

@@ -6,7 +6,7 @@ use uuid::Uuid;
 use super::bundle::FleetPaths;
 use super::definition::{FleetDefinition, SeatDefinition, TaskDefinition, natural_order};
 
-pub const TEMPLATE_SEAT_PREFIX: &str = "template-";
+pub use crate::launch::seat::TEMPLATE_SEAT_PREFIX;
 
 const REFERENCE_PURPOSE: &str = "Your core purpose: answer the other seats' questions about the system with evidence, so no seat searches for what the run already knows.";
 pub const REFERENCE_SEAT: &str = "reference";

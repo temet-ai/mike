@@ -1,4 +1,10 @@
-use super::*;
+use std::path::Path;
+
+use serde_json::json;
+
+use crate::launch::fleet::browser_guard::{
+    ENABLED_ENV, configure, install, shell_setup, terminal_command,
+};
 
 pub fn guard_settings_leave_inherited_path_dynamic_and_preserve_operator_hooks() {
     let original = json!({"hooks": [{"type": "command", "command": "operator-hook"}]});

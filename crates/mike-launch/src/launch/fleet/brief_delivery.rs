@@ -8,12 +8,7 @@ use super::definition::FleetDefinition;
 use super::plan_briefs::WORKER_PURPOSE;
 use crate::store::persistence::PersistHandle;
 
-pub const LEAD: &str =
-    "Your brief follows, copied from mike session notes. No brief file was written for it.";
-
-pub fn is_delivered(prompt: &str) -> bool {
-    prompt.starts_with(LEAD)
-}
+pub use crate::launch::seat::{BRIEF_LEAD as LEAD, brief_is_delivered as is_delivered};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TaskPart {

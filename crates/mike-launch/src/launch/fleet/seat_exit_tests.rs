@@ -123,13 +123,13 @@ async fn a_never_opened_launch_closes_when_its_session_ended_even_with_requests(
     let live_launch = unopened_launch(&handle, live, run).await?;
     assert!(
         handle
-            .fleet()
+            .launch()
             .close_never_started_fleet_launch(ended_launch, run, "never started", 300.0)
             .await?
     );
     assert!(
         !handle
-            .fleet()
+            .launch()
             .close_never_started_fleet_launch(live_launch, run, "never started", 300.0)
             .await?
     );

@@ -1,10 +1,8 @@
-use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::launch_repo::LaunchPersist as _;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use uuid::Uuid;
 
-use super::fleet_settings::RecordedSettings;
 use super::ledger_wire::ClosedBody;
 use super::proxy_ledger::ProxyLedger;
 use super::queue::{LocalQueue, QueuedLaunch};
@@ -245,21 +243,17 @@ impl Ledger {
         noted("run lookup", result).flatten()
     }
 
-    pub async fn fleet_settings(&self, key: &str) -> Result<Option<RecordedSettings>, String> {
+    pub fn database(&self) -> Option<&PersistHandle> {
         match &self.store {
-            Store::Database(h) => h
-                .fleet()
-                .find_fleet(key)
-                .await
-                .map(|row| {
-                    row.map(|row| RecordedSettings {
-                        run_id: row.run_id,
-                        definition: row.definition,
-                    })
-                })
-                .map_err(|e| e.to_string()),
-            Store::Proxy(p) => p.fleet_settings(key).await,
-            Store::Absent => Err(NO_STORE.to_string()),
+            Store::Database(handle) => Some(handle),
+            _ => None,
+        }
+    }
+
+    pub fn proxy_ledger(&self) -> Option<&ProxyLedger> {
+        match &self.store {
+            Store::Proxy(proxy) => Some(proxy),
+            _ => None,
         }
     }
 

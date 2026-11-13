@@ -123,7 +123,7 @@ fn the_definitions_seat_settings_can_name_another_profile() {
 }
 #[test]
 fn numbered_control_successors_keep_their_role_profile() {
-    for role in KINDS_WITH_OWN_PROFILE {
+    for role in crate::launch::seat::KINDS_WITH_OWN_PROFILE {
         assert_eq!(profile_for(&format!("{role}-2")), role);
     }
     for seat in ["acceptance-other", "acceptance-", "acceptance-2-T3"] {

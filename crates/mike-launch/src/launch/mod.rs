@@ -16,6 +16,7 @@ pub mod output;
 pub mod process;
 pub mod reap;
 pub mod request;
+pub mod seat;
 pub mod seat_fact;
 pub mod stack_starter;
 pub mod state;

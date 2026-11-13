@@ -67,7 +67,7 @@ async fn unverified_closure(process_exited: Option<bool>) -> anyhow::Result<()> 
     );
     let stopped = stopping(&f.handle, &row).await?;
     f.handle
-        .fleet()
+        .launch()
         .record_fleet_launch_closure(id, &run, "pane closed", process_exited)
         .await?;
     let closed = assert_unverified(&f.handle, id, session, &run, process_exited, &stopped).await?;
@@ -149,7 +149,7 @@ async fn assert_late_replay(
 ) -> anyhow::Result<()> {
     for late in [Some(false), None, Some(true)] {
         handle
-            .fleet()
+            .launch()
             .record_fleet_launch_closure(id, run, "late replay", late)
             .await?;
         assert_eq!(&closure(handle, id).await?, verified);
@@ -185,12 +185,12 @@ async fn closure_evidence_moves_unknown_to_false_and_never_back() -> anyhow::Res
     running(&f.handle, &run).await?;
     let (id, _) = registered_launch(&f.handle, &run).await?;
     f.handle
-        .fleet()
+        .launch()
         .record_fleet_launch_closure(id, &run, "pane closed", None)
         .await?;
     let unknown = closure(&f.handle, id).await?;
     f.handle
-        .fleet()
+        .launch()
         .record_fleet_launch_closure(id, &run, "still alive", Some(false))
         .await?;
     let live = closure(&f.handle, id).await?;
@@ -199,7 +199,7 @@ async fn closure_evidence_moves_unknown_to_false_and_never_back() -> anyhow::Res
     assert_eq!(live.close_process_exited, Some(false));
     assert!(live.released_at.is_none());
     f.handle
-        .fleet()
+        .launch()
         .record_fleet_launch_closure(id, &run, "unknown replay", None)
         .await?;
     assert_eq!(closure(&f.handle, id).await?, live);
@@ -217,7 +217,7 @@ async fn closure_refuses_wrong_run_missing_id_and_unopened_reservations() -> any
     let before = closure(&f.handle, id).await?;
     assert!(
         f.handle
-            .fleet()
+            .launch()
             .record_fleet_launch_closure(id, "fleet-wrong", "wrong owner", Some(true))
             .await
             .is_err()
@@ -225,7 +225,7 @@ async fn closure_refuses_wrong_run_missing_id_and_unopened_reservations() -> any
     assert_eq!(closure(&f.handle, id).await?, before);
     assert!(
         f.handle
-            .fleet()
+            .launch()
             .record_fleet_launch_closure(-1, &run, "missing", Some(true))
             .await
             .is_err()
@@ -235,7 +235,7 @@ async fn closure_refuses_wrong_run_missing_id_and_unopened_reservations() -> any
     let pending_id = f.handle.launch().insert_launch(&pending).await?;
     assert!(
         f.handle
-            .fleet()
+            .launch()
             .record_fleet_launch_closure(pending_id, &run, "not opened", None)
             .await
             .is_err()
@@ -275,10 +275,10 @@ async fn concurrent_closure_evidence_cannot_downgrade_verified_exit() -> anyhow:
     let (id, _) = registered_launch(&f.handle, &run).await?;
     let (unknown, live, exited) = tokio::join!(
         f.handle
-            .fleet()
+            .launch()
             .record_fleet_launch_closure(id, &run, "unknown", None),
         f.handle
-            .fleet()
+            .launch()
             .record_fleet_launch_closure(id, &run, "alive", Some(false)),
         f.handle
             .fleet()
