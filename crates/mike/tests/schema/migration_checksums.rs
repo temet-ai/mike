@@ -2,7 +2,8 @@ use std::collections::BTreeMap;
 
 use serde::Deserialize;
 
-static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("src/store/persistence/migrations");
+static MIGRATOR: sqlx::migrate::Migrator =
+    sqlx::migrate!("../mike-base/src/store/persistence/migrations");
 
 #[derive(Deserialize)]
 struct Baseline {

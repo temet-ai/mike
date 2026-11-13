@@ -336,6 +336,12 @@ async fn fetch_from_openrouter(
     })
 }
 
+impl Default for OpenRouterUsageCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -62,6 +62,11 @@ impl QueryVectorCache {
             .vectors
             .len()
     }
+
+    #[cfg(test)]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 pub static QUERY_VECTORS: LazyLock<QueryVectorCache> =

@@ -172,6 +172,11 @@ impl<V: Clone + Weigh> AnswerCache<V> {
     pub fn len(&self) -> usize {
         self.shelf().entries.len()
     }
+
+    #[cfg(test)]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 #[derive(Default)]

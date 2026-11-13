@@ -134,9 +134,11 @@ fn unregister_shared_binary_and_endpoint_require_matching_selected_config_identi
         std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o700))?;
     }
     let client = directory.path().join("selected-client.json");
-    let mut config = crate::config::ProxyConfig::default();
-    config.inspect_listen_addr = "127.0.0.1:14589".into();
-    config.config_path = directory.path().join("installation-a.toml");
+    let mut config = crate::config::ProxyConfig {
+        inspect_listen_addr: "127.0.0.1:14589".into(),
+        config_path: directory.path().join("installation-a.toml"),
+        ..crate::config::ProxyConfig::default()
+    };
     let plan_a = super::super::plan(&config, Some(&binary), Some(&client))?;
     config.config_path = directory.path().join("installation-b.toml");
     let plan_b = super::super::plan(&config, Some(&binary), Some(&client))?;
@@ -311,9 +313,11 @@ fn unregister_selected_plan_does_not_execute_companion_or_contact_inspect() -> R
     std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o700))?;
     let listener = std::net::TcpListener::bind("127.0.0.1:0")?;
     listener.set_nonblocking(true)?;
-    let mut config = crate::config::ProxyConfig::default();
-    config.config_path = directory.path().join("selected-installation.toml");
-    config.inspect_listen_addr = listener.local_addr()?.to_string();
+    let config = crate::config::ProxyConfig {
+        config_path: directory.path().join("selected-installation.toml"),
+        inspect_listen_addr: listener.local_addr()?.to_string(),
+        ..crate::config::ProxyConfig::default()
+    };
     let client = directory.path().join("selected-client.json");
     let plan = super::super::plan(&config, Some(&binary), Some(&client))?;
     std::fs::write(

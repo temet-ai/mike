@@ -42,3 +42,9 @@ pub fn now_secs() -> u64 {
         .map(|d| d.as_secs())
         .unwrap_or(0)
 }
+
+impl Default for Breaker {
+    fn default() -> Self {
+        Self::new()
+    }
+}

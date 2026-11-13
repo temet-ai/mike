@@ -137,3 +137,9 @@ fn log_invalid_vector(id: i64) {
 fn log_write_failure(id: i64, error: &crate::store::persistence::PersistError) {
     tracing::warn!(id, %error, "lesson vector repair persistence failed; will retry");
 }
+
+impl Default for EmbeddingWork {
+    fn default() -> Self {
+        Self::new()
+    }
+}

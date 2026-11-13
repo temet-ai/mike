@@ -1,7 +1,8 @@
 use mike::store::test_support::TestDb;
 use sqlx::postgres::PgPoolOptions;
 
-static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("src/store/persistence/migrations");
+static MIGRATOR: sqlx::migrate::Migrator =
+    sqlx::migrate!("../mike-base/src/store/persistence/migrations");
 
 #[tokio::test]
 async fn fresh_disposable_database_has_the_complete_matching_migration_ledger() -> anyhow::Result<()>

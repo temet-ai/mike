@@ -66,6 +66,12 @@ impl ToolCallScanner {
     }
 }
 
+impl Default for ToolCallScanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 #[allow(
     clippy::unwrap_used,
