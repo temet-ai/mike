@@ -16,8 +16,13 @@ checkout and have identical units restored, so it does not queue.
 Since 12 November 2026, `scripts/cx` sends `check`, `clippy` and `test` through mbx
 whenever mbx is installed and no other build directory is named, into
 `target/mbx-<session>` (`select_build_cache` in `scripts/lib/preflight-toolchain.sh`).
-`build`, `nextest` and every other subcommand stay on plain cargo, because mbx runs
-what it does not cache as plain cargo inside its own directory; plain cargo is refused
+`nextest` and every other uncached subcommand stay on plain cargo, because mbx runs
+what it does not cache as plain cargo inside its own directory; `scripts/cx build` stays
+on plain cargo so `make install` and the release scripts embed the commit through
+build.rs. The deploy build is the exception, below. Agents check and test through
+`scripts/cx check` and `scripts/cx test`, never plain `cargo`; only one heavy build (a
+release build, a deploy, a full test run) runs on the machine at a time, and a deploy
+runs once per landed change, not after each step. Plain cargo is refused
 in an `mbx-*` directory, and `MIKE_BUILD_CACHE=cargo` forces plain cargo. What
 follows describes the explicit form, `MIKE_BUILD_CACHE=mbx` with a named directory,
 which the default uses under the hood.
@@ -42,8 +47,24 @@ With `MIKE_BUILD_CACHE=mbx`:
   time `mbx-build`, dirty `false`) instead of the commit and the clock. Without
   it the compile key of crate `mike` changed on every build and mbx reported
   "compiler environment input changed: MIKE_BUILD_SHA". A build without the
-  opt-in, and the deployed binary, report the real commit as before. Binaries
-  built through mbx are for checks, never for deploy.
+  opt-in reports the real commit as before.
+
+## Deploy builds
+
+`scripts/deploy-proxy.sh` builds mike through mbx into `target/mbx-deploy`, under
+`nice -n 19 ionice -c 3`, and skips the build when the live binary was deployed from
+HEAD and reports it (`.deploy/mike.deployed.commit` and `.deploy/mike.deployed.profile`).
+The identity problem is solved outside the cached units: `crates/mike-base`
+(`change_log/build.rs`) holds a 256-byte slot that opens with
+`MIKE-BUILD-STAMP-SLOT-V1:`, and `current_build()` reads it with a volatile read.
+Every crate compiles with the fixed `mbx-build` identity, so a commit changes no
+compile key; after the build, the deploy copies the binary to `.deploy/mike.staged`
+(a new file, never a hard link into the store) and
+`scripts/lib/stamp_build_identity.py` writes `sha`, short sha, dirty and `built_at`
+into the slot (re-signing ad hoc on macOS). `/api/health`'s `build` and `--build-info`
+both read the slot; an unstamped slot falls back to the compiled identity. The deploy
+refuses a staged binary whose `--build-info` is not HEAD. `--build-only` builds, stamps
+and checks without a cutover; `MIKE_DEPLOY_BUILD_CACHE=cargo` returns to plain cargo.
 
 `scripts/test-cx-build-cache` checks this without building anything.
 

@@ -2,16 +2,22 @@ pub fn requested(args: impl Iterator<Item = std::ffi::OsString>) -> bool {
     args.eq(["--build-info"])
 }
 
-pub fn print() {
+pub struct Identity<'a> {
+    pub sha: &'a str,
+    pub dirty: bool,
+    pub built_at: &'a str,
+}
+
+pub fn print(identity: Identity<'_>) {
     println!(
         "{}",
         serde_json::json!({
             "schema_version": 1,
             "product": env!("CARGO_PKG_NAME"),
             "version": env!("CARGO_PKG_VERSION"),
-            "source_sha": env!("MIKE_BUILD_SHA"),
-            "source_dirty": env!("MIKE_BUILD_DIRTY") != "false",
-            "built_at": env!("MIKE_BUILD_TIME"),
+            "source_sha": identity.sha,
+            "source_dirty": identity.dirty,
+            "built_at": identity.built_at,
         })
     );
 }
