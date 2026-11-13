@@ -1,7 +1,7 @@
 use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use bytes::Bytes;
 use chrono::Utc;
 use serde_json::json;
@@ -20,13 +20,17 @@ use crate::reminders::stage_test_support::{StageCtxFixture, make_ctx};
 const ROOT: &str = "/work/stage-app";
 
 fn session_in(arm: KeeperArm) -> Result<Uuid> {
-    for n in 1..2000_u128 {
-        let id = Uuid::from_u128(n * 7919);
-        if arm_for(&id.to_string()) == arm {
-            return Ok(id);
-        }
-    }
-    bail!("no session in arm {arm:?}")
+    nth_session_in(arm, 0)
+}
+
+/// The `skip`-th session id in an arm. The served-by-client registry is
+/// process-wide, so a test that marks a session served needs one no other test uses.
+fn nth_session_in(arm: KeeperArm, skip: usize) -> Result<Uuid> {
+    (1..2000_u128)
+        .map(|n| Uuid::from_u128(n * 7919))
+        .filter(|id| arm_for(&id.to_string()) == arm)
+        .nth(skip)
+        .ok_or_else(|| anyhow::anyhow!("no session in arm {arm:?}"))
 }
 
 fn snapshot_with_linked(session: Uuid) -> KeeperSnapshot {
@@ -125,7 +129,7 @@ async fn apply_body_already_carrying_a_card_marker_is_left_unchanged() -> Result
 
 #[tokio::test]
 async fn apply_session_served_by_a_client_is_left_unchanged() -> Result<()> {
-    let session = session_in(KeeperArm::Keeper)?;
+    let session = nth_session_in(KeeperArm::Keeper, 1)?;
     mark_served(&session.to_string());
     let out = run_stage(session, "continue").await?;
     assert!(!out.filter_applied());
