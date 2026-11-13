@@ -30,7 +30,7 @@ pub enum CompositionMode {
 }
 
 impl CompositionMode {
-    pub fn from_str(raw: &str) -> Result<Self, String> {
+    pub fn parse_str(raw: &str) -> Result<Self, String> {
         match raw {
             "observe" => Ok(Self::Observe),
             "template" => Ok(Self::Template),
@@ -259,7 +259,7 @@ mod tests {
             ("template", CompositionMode::Template),
             ("replace", CompositionMode::Replace),
         ] {
-            let parsed = CompositionMode::from_str(raw).map_err(|e| anyhow::anyhow!(e))?;
+            let parsed = CompositionMode::parse_str(raw).map_err(|e| anyhow::anyhow!(e))?;
             assert_eq!(parsed, expected);
         }
         Ok(())
@@ -267,7 +267,7 @@ mod tests {
 
     #[test]
     fn composition_mode_from_str_rejects_unknown() -> anyhow::Result<()> {
-        match CompositionMode::from_str("nope") {
+        match CompositionMode::parse_str("nope") {
             Ok(m) => Err(anyhow::anyhow!("expected Err, got Ok({m:?})")),
             Err(err) => {
                 assert!(err.contains("unrecognized"), "got: {err}");
@@ -284,7 +284,7 @@ mod tests {
             CompositionMode::Replace,
         ] {
             let raw = mode.as_str();
-            let parsed = CompositionMode::from_str(raw).map_err(|e| anyhow::anyhow!(e))?;
+            let parsed = CompositionMode::parse_str(raw).map_err(|e| anyhow::anyhow!(e))?;
             assert_eq!(
                 parsed, mode,
                 "as_str/from_str round trip broken for {raw:?}"

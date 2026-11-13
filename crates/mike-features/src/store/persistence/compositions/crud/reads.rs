@@ -127,7 +127,7 @@ impl crate::store::persistence::proxy_repo::ProxyDb<'_> {
 
             let mut out = Vec::with_capacity(rows.len());
             for row in rows {
-                let mode = CompositionMode::from_str(&row.mode).map_err(|err| {
+                let mode = CompositionMode::parse_str(&row.mode).map_err(|err| {
                     PersistError::DataInvariant(format!(
                         "prompt_composition_revisions row id={}: {err}",
                         row.id

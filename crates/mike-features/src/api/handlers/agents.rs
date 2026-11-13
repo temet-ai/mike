@@ -177,7 +177,7 @@ pub async fn patch_agent(
     let parsed_source = match body.source.as_deref() {
         None => None,
         Some(raw) => Some(
-            crate::agents::AgentSource::from_str(raw)
+            crate::agents::AgentSource::parse_str(raw)
                 .map_err(|err| composition_error_response(StatusCode::BAD_REQUEST, &err))?,
         ),
     };

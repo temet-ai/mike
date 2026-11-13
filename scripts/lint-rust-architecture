@@ -8,6 +8,7 @@ list below, where they are visible in review.
 """
 
 from __future__ import annotations
+import re
 
 import os
 from bisect import bisect_right
@@ -189,6 +190,9 @@ def axum_line(tokens: list[Token]) -> int | None:
 
 
 def is_axum_adapter(relative: str) -> bool:
+    # The crate split (docs/adr/0002) keeps module paths, so a file moved into
+    # mike-base or mike-features keeps its entry under crates/mike/src/.
+    relative = re.sub(r"^crates/mike-(?:base|features)/src/", "crates/mike/src/", relative)
     if relative in AXUM_ADAPTER_FILES:
         return True
     parts = Path(relative).parts

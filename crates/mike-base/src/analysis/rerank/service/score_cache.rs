@@ -151,6 +151,10 @@ impl ScoreCache {
     pub fn len(&self) -> usize {
         self.entries.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl PairKey {
@@ -169,6 +173,12 @@ fn digest(parts: &[&str]) -> Digest128 {
     let mut short = [0u8; 16];
     short.copy_from_slice(&full[..16]);
     short
+}
+
+impl Default for ScoreCache {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]

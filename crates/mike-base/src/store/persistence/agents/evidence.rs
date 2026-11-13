@@ -21,7 +21,7 @@ struct AgentWithEvidenceRow {
 impl TryFrom<AgentWithEvidenceRow> for AgentWithEvidence {
     type Error = PersistError;
     fn try_from(row: AgentWithEvidenceRow) -> Result<Self, Self::Error> {
-        let source = AgentSource::from_str(&row.source).map_err(|err| {
+        let source = AgentSource::parse_str(&row.source).map_err(|err| {
             PersistError::DataInvariant(format!(
                 "agents row id={} carries invalid source: {err}",
                 row.id

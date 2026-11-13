@@ -224,6 +224,7 @@
   "api/fleet": "fleet",
   "api/handlers/agent_composition_stats": "proxy",
   "api/handlers/agents": "proxy",
+  "api/handlers/turn_dto": "knowledge",
   "api/handlers/anthropic_integration_01": "web",
   "api/handlers/anthropic_integration_02": "web",
   "api/handlers/anthropic_integration_03": "web",
@@ -666,7 +667,7 @@
  },
  "ratchet": {
   "comment": "Upper bounds checked by scripts/crate-plan --check and scripts/schema-plan --check in the pre-push hook. Lower them when a change reduces the count; never raise them.",
-  "crate_seams": 626,
+  "crate_seams": 593,
   "foreign_writes": 130
  }
 }

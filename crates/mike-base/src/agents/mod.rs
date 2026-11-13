@@ -21,7 +21,7 @@ impl AgentSource {
         }
     }
 
-    pub fn from_str(s: &str) -> Result<Self, String> {
+    pub fn parse_str(s: &str) -> Result<Self, String> {
         match s {
             "observed" => Ok(Self::Observed),
             "file_backed" => Ok(Self::FileBacked),
@@ -55,7 +55,7 @@ mod tests {
             AgentSource::Dynamic,
             AgentSource::Builtin,
         ] {
-            assert_eq!(AgentSource::from_str(source.as_str()), Ok(source));
+            assert_eq!(AgentSource::parse_str(source.as_str()), Ok(source));
         }
     }
 }

@@ -2,7 +2,7 @@
 """schema-plan — grade crate mike's SQL against the schema ownership of ADR 0003.
 
 Every `schema.table` after FROM, JOIN, INTO, UPDATE, DELETE FROM, TABLE or EXISTS
-in crates/mike/src (Rust strings and .sql files, migrations excluded) is
+in crates/mike/src and the crates split from it (Rust strings and .sql files, migrations excluded) is
 attributed to the target crate of the file it is in (docs/adr/0002-crate-map.json,
 `rules`), and compared with the table's owner (`schemas.owners`, longest key wins).
 The scan is textual.
@@ -34,7 +34,9 @@ _spec = importlib.util.spec_from_loader("crate_plan", _loader)
 cp = importlib.util.module_from_spec(_spec)
 _loader.exec_module(cp)
 
-MIGRATIONS = os.path.join(cp.SRC, "store", "persistence", "migrations")
+MIGRATION_DIRS = tuple(os.path.join(root, "store", "persistence", "migrations") for root in cp.SRCS)
+# the migrations live in mike-base since the S1 split (docs/adr/0002)
+MIGRATIONS = next((d for d in MIGRATION_DIRS if os.path.isdir(d) and os.listdir(d)), MIGRATION_DIRS[0])
 CREATE = re.compile(r'create (?:unlogged )?table (?:if not exists )?"?([a-z_]+)"?\."?([a-z_]+)', re.I)
 VERB = r'(from|join|into|update|delete\s+from|table|exists)'
 BASE_OWNERS = {"core", "wire", "model", "db", "llm"}
@@ -55,20 +57,26 @@ def owner_of(owners, table):
 
 
 def sql_files():
-    for directory, _, names in os.walk(cp.SRC):
-        if directory.startswith(MIGRATIONS):
-            continue
-        for name in names:
-            if name.endswith((".rs", ".sql")):
-                yield os.path.join(directory, name)
+    """(path, path relative to its crate's src/) for every source and query file."""
+    seen = set()  # a query file copied into two crates counts once
+    for root in cp.SRCS:
+        for directory, _, names in os.walk(root):
+            if directory.startswith(MIGRATION_DIRS):
+                continue
+            for name in names:
+                if name.endswith((".rs", ".sql")):
+                    path = os.path.join(directory, name)
+                    rel = os.path.relpath(path, root)
+                    if rel not in seen:
+                        seen.add(rel)
+                        yield path, rel
 
 
 def usage(cmap, tables):
     schemas = sorted({t.split(".")[0] for t in tables})
     pattern = re.compile(r"\b" + VERB + r'\s+"?(' + "|".join(schemas) + r')"?\."?([a-z_]+)', re.I)
     use = collections.defaultdict(lambda: collections.defaultdict(collections.Counter))
-    for path in sql_files():
-        rel = os.path.relpath(path, cp.SRC)
+    for path, rel in sql_files():
         crate = cmap.crate_of_path(rel if path.endswith(".rs") else os.path.dirname(rel))
         kind = "test" if cp.is_test(rel, "") else "prod"
         with open(path, encoding="utf-8") as handle:

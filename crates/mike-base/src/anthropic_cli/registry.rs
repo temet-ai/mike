@@ -63,3 +63,9 @@ impl LoginRegistry {
         }
     }
 }
+
+impl Default for LoginRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}

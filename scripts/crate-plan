@@ -34,6 +34,11 @@ import sys
 
 REPO = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 SRC = os.path.join(REPO, "crates", "mike", "src")
+# Crate mike's sources across the crates it has been split into so far. A file is
+# keyed by its path under its crate's src/, which is its module path; facade files
+# (generated re-exports, docs/adr/0002) carry no code of their own and are skipped.
+SRCS = [SRC] + [os.path.join(REPO, "crates", c, "src") for c in ("mike-base", "mike-features")]
+SRC_PREFIXES = ("crates/mike/src/", "crates/mike-base/src/", "crates/mike-features/src/")
 DEFAULT_MAP = os.path.join(REPO, "docs", "adr", "0002-crate-map.json")
 PATH = re.compile(r"crate::(\w+(?:::\w+)*)(?!::|\w)")
 BRACE = re.compile(r"crate::((?:\w+::)+)\{([^{}]*)\}")
@@ -115,12 +120,22 @@ def is_test(rel, text):
 
 def read_sources():
     files = {}
-    for directory, _, names in os.walk(SRC):
-        for name in names:
-            if name.endswith(".rs"):
-                path = os.path.join(directory, name)
-                with open(path, encoding="utf-8") as handle:
-                    files[os.path.relpath(path, SRC)] = handle.read()
+    facades = {}
+    for root in SRCS:
+        for directory, _, names in os.walk(root):
+            for name in names:
+                if name.endswith(".rs"):
+                    path = os.path.join(directory, name)
+                    with open(path, encoding="utf-8") as handle:
+                        text = handle.read()
+                    rel = os.path.relpath(path, root)
+                    if text.startswith("//! Facade:"):
+                        facades.setdefault(rel, []).append(text)
+                    else:
+                        files[rel] = text
+    # a facade's `pub use child::*` lines still tell the glob index where items live
+    for rel, texts in facades.items():
+        files[rel] = files.get(rel, "") + "\n" + "\n".join(texts)
     return files
 
 
@@ -241,7 +256,7 @@ def scan(cmap, files):
 
 def history(cmap):
     out = subprocess.run(["git", "-C", REPO, "log", "origin/main", "--name-only",
-                          "--format=%x40%x40", "--", "crates/mike/src"],
+                          "--format=%x40%x40", "--", *(p.rstrip("/") for p in SRC_PREFIXES)],
                          capture_output=True, text=True, check=False).stdout
     commits, current = [], set()
     for line in out.splitlines():
@@ -249,8 +264,9 @@ def history(cmap):
             if current:
                 commits.append(current)
             current = set()
-        elif line.startswith("crates/mike/src/"):
-            crate = cmap.crate_of_path(line[len("crates/mike/src/"):])
+        elif line.startswith(SRC_PREFIXES):
+            prefix = next(p for p in SRC_PREFIXES if line.startswith(p))
+            crate = cmap.crate_of_path(line[len(prefix):])
             if crate:
                 current.add(crate)
     if current:

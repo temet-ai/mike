@@ -28,7 +28,7 @@ pub struct CompositionRow {
 impl TryFrom<CompositionRow> for Composition {
     type Error = PersistError;
     fn try_from(row: CompositionRow) -> Result<Self, Self::Error> {
-        let mode = CompositionMode::from_str(&row.mode).map_err(|err| {
+        let mode = CompositionMode::parse_str(&row.mode).map_err(|err| {
             PersistError::DataInvariant(format!(
                 "prompt_compositions row for prompt_sha256={:?}: {err}",
                 row.prompt_sha256

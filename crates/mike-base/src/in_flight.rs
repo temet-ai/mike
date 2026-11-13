@@ -81,6 +81,10 @@ impl InFlightRegistry {
         self.inner.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     #[cfg(test)]
     pub fn snapshot_ids(&self) -> Vec<RequestId> {
         self.inner.iter().map(|r| *r.key()).collect()

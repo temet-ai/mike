@@ -42,3 +42,9 @@ impl CliStatusCache {
         *self.entry.write().await = None;
     }
 }
+
+impl Default for CliStatusCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}

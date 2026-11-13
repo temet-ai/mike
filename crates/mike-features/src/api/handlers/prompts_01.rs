@@ -143,7 +143,7 @@ pub fn parse_mode_input(
     raw: &str,
 ) -> Result<crate::wire::composition::CompositionMode, (StatusCode, Json<PromptCompositionErrorBody>)>
 {
-    crate::wire::composition::CompositionMode::from_str(raw).map_err(|_| {
+    crate::wire::composition::CompositionMode::parse_str(raw).map_err(|_| {
         composition_error_response(
             StatusCode::BAD_REQUEST,
             "mode must be one of \"observe\", \"template\", or \"replace\"",
