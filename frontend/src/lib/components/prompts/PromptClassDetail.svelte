@@ -133,12 +133,8 @@
 			? 'lane=main'
 			: `persona=${encodeURIComponent(persona ?? UNRESOLVED_PERSONA_SEGMENT)}`
 	);
-	const registerHref = $derived.by(() => {
-		const newestObservation = detail?.recent_observations[0];
-		return newestObservation !== undefined
-			? (`/prompts/new?from=request:${newestObservation.request_id}&${classIdentityQuery}` as const)
-			: (`/prompts/new?${classIdentityQuery}` as const);
-	});
+	/** The new-composition page picks the request itself, asking which prompt when a class holds several. */
+	const registerHref = $derived(`/prompts/new?${classIdentityQuery}` as const);
 
 	function labelFor(idx: number): string {
 		if (idx === 0) return 'block[0] · billing-header';

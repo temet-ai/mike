@@ -833,6 +833,25 @@ export interface PromptClassVersionsDto {
 	versions: PromptClassVersionDto[];
 }
 
+/** One distinct set of agent instructions (system block 2) seen under a subagent class. */
+export interface PromptClassInstructionsDto {
+	instructions: string | null;
+	observation_count: number;
+	last_seen: string;
+	latest_request_id: string;
+}
+
+export interface PromptClassInstructionsListDto {
+	lane: 'subagent';
+	subagent_persona: string | null;
+	prompts: PromptClassInstructionsDto[];
+}
+
+export interface SuggestPromptNameDto {
+	name: string;
+	model_used: string;
+}
+
 export interface PromptCompositionListItem {
 	id: string;
 	prompt_sha256: string;

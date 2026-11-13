@@ -90,6 +90,18 @@ pub(super) const ROUTES: &[RouteEntry] = &[
         "/api/prompts/classes/subagent/{persona}/versions",
         OPERATOR_PROMPT_DETAIL,
     ),
+    route(
+        "GET",
+        "/api/prompts/classes/subagent/{persona}/instructions",
+        OPERATOR_PROMPT_DETAIL,
+    ),
+    route(
+        "POST",
+        "/api/prompts/suggest-name",
+        Coverage::Exempt {
+            reason: "operator-only naming aid for the new-composition form; SPA-driven",
+        },
+    ),
     route("GET", "/api/agents", OPERATOR_AGENTS),
     route("GET", "/api/agents/{id}", OPERATOR_AGENTS),
     route("PATCH", "/api/agents/{id}", OPERATOR_AGENTS),
@@ -173,6 +185,14 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
         .route(
             "/api/prompts/classes/subagent/{persona}/versions",
             get(handlers::get_prompt_class_versions_subagent),
+        )
+        .route(
+            "/api/prompts/classes/subagent/{persona}/instructions",
+            get(handlers::get_prompt_class_instructions_subagent),
+        )
+        .route(
+            "/api/prompts/suggest-name",
+            post(handlers::suggest_prompt_name),
         )
         .route("/api/agents", get(handlers::list_agents))
         .route(
