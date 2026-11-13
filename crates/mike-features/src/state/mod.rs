@@ -42,7 +42,7 @@ pub use test_seams::register_in_flight_for_tests;
 
 pub mod client_serves;
 pub use client_serves::client_serves;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-seams"))]
 pub use client_serves::serve_every_stage_for_tests;
 
 #[derive(Clone)]

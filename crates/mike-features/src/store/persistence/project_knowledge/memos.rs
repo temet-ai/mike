@@ -145,7 +145,7 @@ impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
 }
 
 impl KnowledgeMemos {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-seams"))]
     pub fn counts_fetched(&self) -> (usize, usize, usize) {
         (
             self.nearest_first.fetched(),
