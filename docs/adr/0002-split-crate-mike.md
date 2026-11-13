@@ -138,7 +138,7 @@ Each row is one PR or a few; the seam counts are what each stage newly needs
 | Step | Work | Unlocks |
 |---|---|---|
 | 0 | Done: `scripts/crate-plan`, `scripts/schema-plan` and the map in the repo; the push hook runs `--check` on both against `ratchet` in the map (874 seams, 146 foreign writes on 12 Nov). | grading |
-| 1 | Patterns A, B, C, D, F for the base boundary: 479 references. A and B are mechanical moves and most of it. | S1: extract `mike-base` and `mike-app` (81%) |
+| 1 | Done (13 Nov): patterns A, B, C, D, F for the base boundary, the repository accessors (H) for every group above `db`, and the S1 extraction: `crates/mike-base`, `crates/mike-features`, and `crates/mike` as the app and binary. | S1 (81%) |
 | 2 | Migrator to the bin; `test_support` behind `test-seams`. | S2 (80%) |
 | 3 | `runtime → launch` (10), `launch → knowledge/steerer/lessons/eval` (16), `fleet → steerer/dossier` (3); move the runtime, launch and fleet persistence groups behind repository accessors (H). | S3: extract `mike-runtime`, `mike-launch` + fleet (68%) |
 | 4 | Pattern E, `launch → fleet` (78). | S4: split `mike-fleet` out (67%) |
@@ -152,6 +152,39 @@ Each row is one PR or a few; the seam counts are what each stage newly needs
   split is in progress, so steps land as ordinary branches.
 - **No `async_fn_in_trait` allowance:** persistence moves through repository
   accessors (pattern H).
+
+### S1 as built
+
+- **Crates.** `mike-base` (core, wire, model, db, llm), `mike-features` (everything
+  between them and the app, until S3 splits it), `mike` (web, serve, cli, bin). Each
+  keeps its files at the module paths they had.
+- **Facades.** A module a crate needs only because it owns something below it is a
+  facade: `pub use <lower crate>::<path>::*;` plus the children it owns (files that
+  begin `//! Facade:`). A crate's own module file gains the same glob when a lower
+  crate also has that module, so `crate::store::persistence::X` resolves in every crate.
+- **Visibility.** The lower crates use `pub` where the single crate used `pub(crate)`,
+  `pub(super)` or `pub(in …)`; test modules keep their original visibility.
+- **Test seams.** Test helpers other crates' tests use are gated
+  `#[cfg(any(test, feature = "test-seams"))]`; each crate's dev-dependencies enable
+  `test-seams` on the crates below it. The live-install guard follows the same gate,
+  so it stays armed in every crate's tests.
+- **Tests that reach a higher crate** live in that crate's `cross_crate_tests`
+  module (`crates/mike/src/cross_crate_tests/`, `crates/mike/src/api/cross_crate_tests/`,
+  …), never under a fast-tier module.
+- **Graders.** `crate-plan` and `schema-plan` read all three `src/` trees; the S1 stage
+  reads 0 seams, the full target 593.
+
+Measured on 13 Nov (cloud container, `-j 4`, warm cache, one file touched):
+
+| Touched crate | `cargo check -p mike --lib` | that crate's lib test build | before (one crate) |
+|---|---|---|---|
+| `mike` | 31 s | 24 s | check 35 s, test build 114 s |
+| `mike-features` | 26 s | 45 s | |
+| `mike-base` | 30 s | 51 s | |
+
+The test build is where the split pays: an edit rebuilds only its own crate's test
+harness. `check` gains little because incremental compilation already skipped
+unchanged code.
 
 ## Consequences
 

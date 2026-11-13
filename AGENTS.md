@@ -20,6 +20,11 @@ Docs: [`SYSTEM_MAP`](docs/SYSTEM_MAP.md) (read first: every capability, where it
 [`LOCAL_DB_FALLBACK`](docs/LOCAL_DB_FALLBACK.md). `docs/` holds more; list it.
 
 A Rust reverse proxy for Claude API traffic: two Rust binaries, one SPA process.
+Crate mike is being split ([ADR 0002](docs/adr/0002-split-crate-mike.md)): `crates/mike-base`
+(shared types, wire, config, `PersistHandle`, LLM clients), `crates/mike-features` (proxy
+features, runtime, launch, fleet, knowledge, steering, eval, lessons) and `crates/mike`
+(API, serve, CLI, binary). Modules keep their paths in every crate; `scripts/crate-plan`
+names the crate a new module belongs in.
 Design rationale lives in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md); only
 the non-obvious parts are here.
 
@@ -211,7 +216,7 @@ All resolve the repo root themselves.
 | `scripts/style-guide-render` · `scripts/html-doc-render` | Render HTML docs to text and pictures; `--check` flags stale renders                                                     |
 | `scripts/read-anchored <file> <regex>`                   | Print a region with real line numbers                                                                                    |
 | `scripts/module-graph [deps\|users <module>]`          | Crate mike's module dependency graph and its largest cycle |
-| `scripts/crate-plan [--seams N\|--stages\|--detail A B]` | Grades crate mike against the crate split's target map: seams left and recompile cost ([ADR 0002](docs/adr/0002-split-crate-mike.md)) |
+| `scripts/crate-plan [--seams N\|--stages\|--detail A B]` | Grades the split crates against the crate split's target map: seams left and recompile cost ([ADR 0002](docs/adr/0002-split-crate-mike.md)) |
 | `scripts/schema-plan [--writes N\|--reads N\|--table T]` | Grades the SQL against schema ownership: foreign writes, foreign reads, migrations per schema ([ADR 0003](docs/adr/0003-schema-per-crate.md)) |
 | `scripts/publish-user-guide [--status]`                  | The guide of the latest release onto temet.ai/docs/mike/; `--status` says whether the site is behind                     |
 | `scripts/gh-cat <owner/repo> <path>`                     | Read files from other GitHub repos                                                                                       |
@@ -223,7 +228,7 @@ All resolve the repo root themselves.
 | What changed       | What to do                                                      |
 |--------------------|-----------------------------------------------------------------|
 | `crates/mike-mcp/` | `make install` (`scripts/deploy-release-build` on a release-installed machine such as infra), then restart Claude Code |
-| `crates/mike/`     | `./scripts/start-proxy.sh` (also refreshes `~/.local/bin/mike`) |
+| `crates/mike*/`    | `./scripts/start-proxy.sh` (also refreshes `~/.local/bin/mike`) |
 | `frontend/` only   | Nothing; the SPA hot-reloads                                    |
 | migrations         | Restart the stack — migrations run on startup                   |
 
