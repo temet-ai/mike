@@ -22,6 +22,21 @@ def features(enabled=()):
     return {"features": [row(key, key in enabled) for key in isolation.FEATURES]}
 
 
+
+class SourceRoots:
+    """crate mike's sources across the crates split from it (docs/adr/0002):
+    a module keeps its path under whichever crate's src/ now holds it."""
+
+    def __init__(self):
+        crates = Path(__file__).resolve().parents[2] / "crates"
+        self.roots = [crates / name / "src" for name in ("mike", "mike-base", "mike-features")]
+
+    def file(self, relative):
+        for root in self.roots:
+            if (root / relative).exists():
+                return root / relative
+        return self.roots[0] / relative
+
 class EffectiveIsolationTests(OfflineTests):
     def test_supported_api_disables_reconciled_defaults_before_owned_restart(self):
         # A false TOML flag did not win: startup reconciled these DB/code defaults.
@@ -116,21 +131,23 @@ class EffectiveIsolationTests(OfflineTests):
                 isolation.verify_service_prerequisites(changed)
 
     def test_embedding_prerequisite_facts_match_loader_and_health_source(self):
-        root = Path(__file__).resolve().parents[2] / "crates/mike/src"
-        load = (root / "config/load/mod.rs").read_text()
+        root = SourceRoots()
+        load = root.file("config/load/mod.rs").read_text()
         reset = load.index("config.embedding = EmbeddingConfig::default();")
         self.assertLess(load.index("figment.extract()"), reset)
         self.assertLess(reset, load.index("config.embedding.enabled = v;"))
-        source = (root / "analysis/embeddings/mod.rs").read_text()
+        source = root.file("analysis/embeddings/mod.rs").read_text()
         self.assertIn(f'const DEFAULT_INFINITY_URL: &str = "{isolation.COMPILED_EMBEDDING_URL}";', source)
         block = source.split("impl Default for EmbeddingConfig", 1)[1]
         self.assertRegex(block, r"enabled:\s*false")
         self.assertIn("url: DEFAULT_INFINITY_URL.to_string()", block)
-        probe = (root / "api/handlers/health/probe.rs").read_text().split(
-            "pub(crate) async fn probe_embedding(", 1)[1].split("pub(crate) async fn probe_persistence", 1)[0]
+        # the crate split widened pub(crate) to pub on items other crates reach
+        probe_source = root.file("api/handlers/health/probe.rs").read_text().replace("pub(crate) ", "pub ")
+        probe = probe_source.split("pub async fn probe_embedding(", 1)[1].split(
+            "pub async fn probe_persistence", 1)[0]
         self.assertRegex(probe, r"if !embedding_service\.is_available\(\)\s*\{\s*return ProbeState::NotConfigured;")
         self.assertLess(probe.index("return ProbeState::NotConfigured;"), probe.index("probe_embedding_url("))
-        health = (root / "api/handlers/health/mod.rs").read_text()
+        health = root.file("api/handlers/health/mod.rs").read_text()
         self.assertIn("url: state.embedding_service().url()", health)
         self.assertIn("reachable: reachable_state == ProbeState::Ok", health)
 

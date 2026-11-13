@@ -75,6 +75,10 @@ def affected_args(root, paths, packages):
     return [arg for name in sorted(selected) for arg in ("-p", name)]
 
 
+# crate mike and the crates split from it keep module paths (docs/adr/0002)
+SPLIT_CRATES = ("mike", "mike-base", "mike-features")
+
+
 def path_area(root, path, package):
     directory = Path(package["manifest_path"]).resolve().parent
     relative = (root / path).relative_to(directory).as_posix()
@@ -87,7 +91,7 @@ def path_area(root, path, package):
                 return ["--test", target["name"]], f"binary(={target['name']})"
         return ["--tests"], f"package(={package['name']})"
     expression = f"package(={package['name']})"
-    if package["name"] == "mike" and relative.startswith("src/") and relative.endswith(".rs"):
+    if package["name"] in SPLIT_CRATES and relative.startswith("src/") and relative.endswith(".rs"):
         components = relative[4:-3].split("/")
         if components[-1] == "mod":
             components.pop()
