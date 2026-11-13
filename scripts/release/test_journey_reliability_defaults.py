@@ -122,7 +122,7 @@ class DefaultObservationTests(OfflineTests):
 class SourceDependencyTests(OfflineTests):
     def test_worker_inventory_covers_all_current_serve_spawns(self):
         source = (ROOT / "crates/mike/src/serve/workers.rs").read_text()
-        spawns = re.findall(r"crate::([a-z_:]+)\(state\);", source)
+        spawns = re.findall(r"crate::([a-z_:]+::spawn_[a-z_]+)\(", source)
         self.assertEqual(len(spawns), len(set(spawns)))
         self.assertEqual(set(spawns), set(defaults.WORKER_CONDITIONS))
         self.assertIn("launch::fleet::display::spawn_fleet_display", defaults.WORKER_CONDITIONS)

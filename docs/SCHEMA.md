@@ -6274,7 +6274,7 @@ restart. About fifteen rows a day per machine; no retention sweep.
 | Column | Type | Purpose |
 |---|---|---|
 | `id` | `BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY` | Surrogate key |
-| `job_name` | `TEXT NOT NULL` | `Job.name`: `learning_promote`, `learning_audit`, `compressor_loop`, `cargo_sweep`, `lessons_commit`, `usage_audit` |
+| `job_name` | `TEXT NOT NULL` | `Job.name`: `learning_promote`, `learning_audit`, `compressor_loop`, `lessons_commit`, `usage_audit` |
 | `machine_uuid` | `UUID NULL` | The machine that ran it (`machine.json`); `NULL` when that proxy had no identity. Per-machine jobs restore only their own machine's rows; leased jobs restore from any machine |
 | `trigger` | `TEXT NOT NULL` | `schedule` or `manual` (`POST /api/scheduled-jobs/{name}/run`). Only `schedule` rows restore the period slot |
 | `started_at` / `finished_at` | `TIMESTAMPTZ NOT NULL` | When the run started and ended; `finished_at >= started_at` |

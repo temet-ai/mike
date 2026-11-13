@@ -45,7 +45,7 @@ through `release-alpha.yml`, `workflow_dispatch` and `workflow_call`.
 |---|---|
 | Before a commit | The staged files: secret scan, Rust and frontend formatting (fixed for you), the 500-line limit, ESLint errors on added lines |
 | Before a push | `scripts/pre-push-check`, for what changed: secret scan, SAST, the crate-split ratchet (`crate-plan --check`, `schema-plan --check`), clippy and structural lint, `scripts/test-area` (plus the fast Rust tier for a change no area owns), frontend typecheck and unit tests, cargo-deny when the lockfile changed |
-| Nightly, on the machine that turns it on | `scripts/nightly-tests` (scheduled job `nightly_tests`): `make test-all`, every Rust tier, at `origin/main` in `.claude/worktrees/nightly` |
+| Nightly, on the machine that turns it on | `scripts/nightly-tests` (systemd user timer `mike-dev-nightly-tests`, enabled where `.env` sets `MIKE_DEV_NIGHTLY_TESTS=1`): `make test-all`, every Rust tier, at `origin/main` in `.claude/worktrees/nightly` |
 | Push to `main` | Rust `lint` and `fast`; frontend `checks` |
 | Pull request | Those plus `integration`, the DB tier in three shards with `cargo sqlx prepare --check` on shard 1, and frontend `storybook` |
 | Nightly | Rust `lint`, `fast` and `integration` |

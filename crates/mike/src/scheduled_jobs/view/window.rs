@@ -8,7 +8,6 @@ use super::super::schedule::Period;
 pub(crate) enum JobGroup {
     LearningAndMemory,
     Measurement,
-    BuildsAndTests,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -22,7 +21,6 @@ pub(crate) struct JobWindow {
 pub(crate) fn group_of(job: &Job) -> JobGroup {
     match job.name {
         "compressor_loop" | "usage_audit" => JobGroup::Measurement,
-        "cargo_sweep" | "nightly_tests" => JobGroup::BuildsAndTests,
         _ => JobGroup::LearningAndMemory,
     }
 }

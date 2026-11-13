@@ -58,13 +58,44 @@ install_stack_units() {
     fi
     systemctl --user enable "${STACK_UNITS[@]/%/.service}" >/dev/null 2>&1 || true
     retire_job_timers
+    install_dev_timers
+}
+
+# mike's own development chores, not product jobs: they need this source checkout.
+# The sweep runs on every development machine; the nightly test run only where
+# .env sets MIKE_DEV_NIGHTLY_TESTS=1, so one machine carries it.
+DEV_TIMERS=(mike-dev-cargo-sweep mike-dev-nightly-tests)
+
+install_dev_timers() {
+    local src="${PROJECT_ROOT}/scripts/systemd" dst="${HOME}/.config/systemd/user" changed=false
+    local name kind rendered root
+    root="$(cd "${PROJECT_ROOT}" && pwd -P)"
+    mkdir -p "${dst}"
+    for name in "${DEV_TIMERS[@]}"; do
+        for kind in service timer; do
+            rendered="$(sed -e "s#@PROJECT_ROOT@#${root}#g" -e "s#@PATH@#${PATH}#g" "${src}/${name}.${kind}.in")"
+            if [[ ! -f "${dst}/${name}.${kind}" ]] || [[ "$(cat "${dst}/${name}.${kind}")" != "${rendered}" ]]; then
+                printf '%s\n' "${rendered}" > "${dst}/${name}.${kind}"
+                changed=true
+            fi
+        done
+    done
+    if ${changed}; then
+        systemctl --user daemon-reload
+    fi
+    systemctl --user enable --now mike-dev-cargo-sweep.timer >/dev/null 2>&1 || true
+    if [[ "${MIKE_DEV_NIGHTLY_TESTS:-0}" == "1" ]]; then
+        systemctl --user enable --now mike-dev-nightly-tests.timer >/dev/null 2>&1 || true
+    else
+        systemctl --user disable --now mike-dev-nightly-tests.timer >/dev/null 2>&1 || true
+    fi
 }
 
 RETIRED_JOB_TIMERS=(mike-learning-promote mike-learning-audit mike-compressor-loop mike-cargo-sweep mike-lessons-commit mike-usage-audit)
 
-# The proxy runs these jobs itself (crates/mike/src/scheduled_jobs), on every
-# machine. A timer left installed from before would run a job a second time, so
-# any installed copy is disabled and its files removed.
+# Timers from before the proxy ran these jobs itself (crates/mike/src/scheduled_jobs).
+# A copy left installed would run a job a second time, so it is disabled and its
+# files removed. mike-cargo-sweep is the old name of mike-dev-cargo-sweep.
 retire_job_timers() {
     command -v systemctl >/dev/null 2>&1 || return 0
     systemctl --user show-environment >/dev/null 2>&1 || return 0

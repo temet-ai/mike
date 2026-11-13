@@ -54,7 +54,7 @@ WORKER_CONDITIONS = {
     "wright::watch::spawn_wright_worker": "compiled_feature_disabled",
     "db_cost::spawn_db_cost_monitor": "owned_database_and_compiled_db_cost_settings",
     "search_events::spawn_search_events_worker": "owned_database_without_operator_search_events",
-    "analysis::rerank::spawn_rerank_warmup": "compiled_disabled_rerank_without_operator_sessions",
+    "analysis::rerank::warmup::spawn_rerank_warmup": "compiled_disabled_rerank_without_operator_sessions",
     "rerank_nightly::spawn_rerank_nightly": "owned_database_and_compiled_disabled_rerank",
     "judge_worker::supply_verdict::spawn_supply_verdict": "owned_database_without_operator_judged_sessions",
 }

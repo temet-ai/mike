@@ -31,7 +31,6 @@ analysis.categories.overselling.false_positive_filters
 analysis.enabled
 assistant.anthropic_auth_mode
 assistant.provider
-cargo_sweep.enabled
 composition_enabled
 compressor_loop.enabled
 compression_dedup.enabled

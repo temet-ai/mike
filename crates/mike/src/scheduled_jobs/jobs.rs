@@ -5,9 +5,8 @@ use chrono::Weekday;
 use super::schedule::{Cadence, Period};
 use crate::settings::meta_memory_loop::MEMORY_REVIEW_ENABLED_KEY;
 use crate::settings::meta_scheduled_jobs::{
-    CARGO_SWEEP_ENABLED_KEY, COMPRESSOR_LOOP_ENABLED_KEY, LEARNING_AUDIT_ENABLED_KEY,
-    LEARNING_PROMOTE_ENABLED_KEY, LESSON_RELATIONS_ENABLED_KEY, LESSONS_COMMIT_ENABLED_KEY,
-    NIGHTLY_TESTS_ENABLED_KEY, USAGE_AUDIT_ENABLED_KEY,
+    COMPRESSOR_LOOP_ENABLED_KEY, LEARNING_AUDIT_ENABLED_KEY, LEARNING_PROMOTE_ENABLED_KEY,
+    LESSON_RELATIONS_ENABLED_KEY, LESSONS_COMMIT_ENABLED_KEY, USAGE_AUDIT_ENABLED_KEY,
 };
 
 pub(crate) struct Job {
@@ -89,11 +88,12 @@ pub(super) const COMPRESSOR_LOOP: Job = Job {
     failure_hint: "The loop reads the database with psql (or docker exec) and changes settings through the inspect API on 127.0.0.1:9989, so check that both answer.",
 };
 
-pub(super) const CARGO_SWEEP: Job = Job {
-    name: "cargo_sweep",
-    label: "Rust build folder sweep",
-    description: "Deletes old and idle Rust build folders on this machine, so builds do not fill the disk.",
-    script: "scripts/cargo-sweep-all",
+#[cfg(test)]
+pub(super) const SIX_HOURLY_FIXTURE: Job = Job {
+    name: "six_hourly_fixture",
+    label: "Six-hourly fixture",
+    description: "A test job on the hour every six hours.",
+    script: "scripts/six-hourly-fixture",
     args: &[],
     timeout: Duration::from_secs(30 * 60),
     cadence: Cadence {
@@ -105,9 +105,9 @@ pub(super) const CARGO_SWEEP: Job = Job {
     nice: 19,
     leased: false,
     alarm_exit: None,
-    enabled_key: CARGO_SWEEP_ENABLED_KEY,
+    enabled_key: "six_hourly_fixture.enabled",
     schedule_text: "every six hours, at 00:00, 06:00, 12:00 and 18:00 UTC",
-    failure_hint: "It sweeps this machine's build folders and removes only superseded or idle ones.",
+    failure_hint: "A fixture.",
 };
 
 pub(super) const LESSONS_COMMIT: Job = Job {
@@ -173,27 +173,6 @@ pub(super) const LESSON_RELATIONS: Job = Job {
     failure_hint: "It runs `mike detect-lesson-relations` (MIKE_BIN, else mike on PATH, else ~/.local/bin/mike) and calls the proposer and adjudicator models, so check that both models answer and that lesson_relations.enabled is on.",
 };
 
-pub(super) const NIGHTLY_TESTS: Job = Job {
-    name: "nightly_tests",
-    label: "Nightly full Rust test run",
-    description: "Runs every Rust test tier against the tip of main in a worktree of its own, so a change that breaks a test outside the areas its push tested is found the next morning.",
-    script: "scripts/nightly-tests",
-    args: &[],
-    timeout: Duration::from_secs(3 * 60 * 60),
-    cadence: Cadence {
-        weekday: None,
-        hours: &[2, 3, 4],
-        minute: 0,
-        period: Period::Day,
-    },
-    nice: 10,
-    leased: false,
-    alarm_exit: None,
-    enabled_key: NIGHTLY_TESTS_ENABLED_KEY,
-    schedule_text: "daily, once between 02:00 and 04:59 UTC",
-    failure_hint: "The last line of its output names the commit; rerun the failing tier there with make test-all, or make test-t t=<filter>. A fetch or worktree failure means git could not reach origin or update .claude/worktrees/nightly.",
-};
-
 pub(super) const MEMORY_REVIEW: Job = Job {
     name: "memory_review",
     label: "Daily memory review",
@@ -215,14 +194,12 @@ pub(super) const MEMORY_REVIEW: Job = Job {
     failure_hint: "It runs `claude -p` (CLAUDE_BIN, else claude on PATH, else ~/.local/bin/claude) through the proxy on localhost:9988, so check that claude is logged in on this machine and that the proxy answers.",
 };
 
-pub(crate) static JOBS: [Job; 9] = [
+pub(crate) static JOBS: [Job; 7] = [
     PROMOTE,
     AUDIT,
     COMPRESSOR_LOOP,
-    CARGO_SWEEP,
     LESSONS_COMMIT,
     USAGE_AUDIT,
     LESSON_RELATIONS,
-    NIGHTLY_TESTS,
     MEMORY_REVIEW,
 ];
