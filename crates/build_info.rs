@@ -9,11 +9,26 @@ pub fn print() {
             "schema_version": 1,
             "product": env!("CARGO_PKG_NAME"),
             "version": env!("CARGO_PKG_VERSION"),
-            "source_sha": env!("MIKE_BUILD_SHA"),
-            "source_dirty": env!("MIKE_BUILD_DIRTY") != "false",
-            "built_at": env!("MIKE_BUILD_TIME"),
+            "source_sha": identity().0,
+            "source_dirty": identity().1,
+            "built_at": identity().2,
         })
     );
+}
+
+#[cfg(mike_build_stamp)]
+fn identity() -> (&'static str, bool, &'static str) {
+    let build = mike_base::change_log::current_build();
+    (build.sha, build.dirty, build.built_at)
+}
+
+#[cfg(not(mike_build_stamp))]
+fn identity() -> (&'static str, bool, &'static str) {
+    (
+        env!("MIKE_BUILD_SHA"),
+        env!("MIKE_BUILD_DIRTY") != "false",
+        env!("MIKE_BUILD_TIME"),
+    )
 }
 
 #[cfg(test)]

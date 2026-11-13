@@ -167,11 +167,13 @@ mbx_bin_path() {
 
 # The cargo subcommands mbx caches. Anything else mbx runs as plain cargo, and
 # plain cargo must never write into an mbx build directory (read-only hard
-# links into the store), so those are never sent through mbx.
-MBX_CACHED_SUBCOMMANDS=" build check clippy test "
-# The subset scripts/cx sends through mbx without being asked. build stays on
-# plain cargo by default because deploys and installs take their binary from it.
-MBX_AUTO_SUBCOMMANDS=" check clippy test "
+# links into the store), so those are never sent through mbx. nextest builds its
+# test binaries through mbx (scripts/cx sets CARGO to mbx) and only runs them.
+MBX_CACHED_SUBCOMMANDS=" build check clippy test nextest "
+# What scripts/cx sends through mbx without being asked: all of them, except build
+# when MIKE_BUILD_IDENTITY=git asks for the commit to be compiled in (make install,
+# the release scripts), which plain cargo in target/ does.
+MBX_AUTO_SUBCOMMANDS=" build check clippy test nextest "
 
 # cx_cargo_subcommand <cargo args…>: the cargo subcommand, skipping a leading
 # +toolchain. Prints nothing when the first word is an option.
@@ -197,8 +199,9 @@ cx_mbx_slot() {
 # into an mbx build directory.
 #   MIKE_BUILD_CACHE=mbx    mbx, into the named directory (any cached subcommand)
 #   MIKE_BUILD_CACHE=cargo  plain cargo
-#   unset                   mbx for check, clippy and test when mbx is installed
-#                           and no other build directory was named; else cargo
+#   unset                   mbx for check, clippy, test, nextest and build (not with
+#                           MIKE_BUILD_IDENTITY=git) when mbx is installed and no
+#                           other build directory was named; else cargo
 select_build_cache() {
   local root="$1" named="$2" sub="$3" dir="" in_mbx=0
   CX_CACHE_MODE=cargo
@@ -212,7 +215,7 @@ select_build_cache() {
   case "${MIKE_BUILD_CACHE:-}" in
     mbx)
       if [[ "$MBX_CACHED_SUBCOMMANDS" != *" $sub "* ]]; then
-        echo "cx: mbx caches only build, check, clippy and test; it would run '${sub}' as plain cargo inside an mbx build directory. Run it without MIKE_BUILD_CACHE=mbx." >&2
+        echo "cx: mbx caches only build, check, clippy, test and nextest; it would run '${sub}' as plain cargo inside an mbx build directory. Run it without MIKE_BUILD_CACHE=mbx." >&2
         return 1
       fi
       CX_CACHE_MODE=mbx
@@ -221,6 +224,7 @@ select_build_cache() {
     cargo | plain) ;;
     "")
       if [[ "$MBX_AUTO_SUBCOMMANDS" == *" $sub "* && -n "$(mbx_bin_path)" ]] &&
+        ! [[ "$sub" == build && "${MIKE_BUILD_IDENTITY:-}" == git ]] &&
         { [[ -z "$named" || "$dir" == "$root/target" ]] || (( in_mbx )); }; then
         CX_CACHE_MODE=mbx
         if (( in_mbx )); then CX_MBX_TARGET="$dir"; else CX_MBX_TARGET="$root/target/$(cx_mbx_slot)"; fi

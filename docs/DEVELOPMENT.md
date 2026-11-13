@@ -44,10 +44,12 @@ Other useful entry points:
 - Never `cargo clean` — it discards the shared build cache and forces a cold
   rebuild of every harness. If a build looks wrong, fix the cause.
 
-When mbx is installed, `scripts/cx` sends `check`, `clippy` and `test` through it into
-`target/mbx-<session>`, and identical compiled units from any earlier mbx build on the machine
-are restored instead of rebuilt. `build`, `nextest`, `scripts/sqlx-prepare` and any named
-`CARGO_TARGET_DIR` stay on plain cargo; `MIKE_BUILD_CACHE=cargo` or `=mbx` overrides the choice,
+When mbx is installed, `scripts/cx` sends `check`, `clippy`, `test`, `nextest` and `build`
+through it into `target/mbx-<session>`, and identical compiled units from any earlier mbx build
+on the machine are restored instead of rebuilt. Heavy builds queue one at a time on the
+machine's build lock and run at the lowest priority on half the processors
+(`scripts/lib/heavy-build.sh`). `build` with `MIKE_BUILD_IDENTITY=git`, `scripts/sqlx-prepare`
+and any named `CARGO_TARGET_DIR` stay on plain cargo; `MIKE_BUILD_CACHE=cargo` or `=mbx` overrides the choice,
 and plain cargo is refused in an `mbx-*` directory. mbx is never combined with sccache. The
 working rule is in [`AGENTS.md`](../AGENTS.md). What it does, the three traps and the trial scripts are in
 [`scripts/mbx-trial/README.md`](../scripts/mbx-trial/README.md).
@@ -125,7 +127,7 @@ An isolated no-DB probe can run without a checksum exclusion:
 
 ```bash
 env -u MIKE_TEST_ADMIN_URL -u MIKE_DATABASE_URL -u DATABASE_URL \
-  SQLX_OFFLINE=true cargo nextest run --workspace --profile default
+  SQLX_OFFLINE=true scripts/cx nextest run --workspace --profile default
 ```
 
 `scripts/check-test-tiers --json` records per-source classification, fixture

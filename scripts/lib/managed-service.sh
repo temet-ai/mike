@@ -330,6 +330,7 @@ cutover_via_service() {
         rm -f "${DEPLOYED_BIN}"
         cp "${STAGED_BIN}" "${DEPLOYED_BIN}"
         git -C "${PROJECT_ROOT}" rev-parse HEAD >"${DEPLOY_DIR}/mike.deployed.commit" 2>/dev/null || true
+        printf '%s\n' "${BUILD_PROFILE:-release}" >"${DEPLOY_DIR}/mike.deployed.profile"
         rm -f "${PID_FILE}"   # the supervisor owns the pid; a pid file of ours would only mislead
         refresh_mike_cli || true
         sync_service_sidecar || exit 1

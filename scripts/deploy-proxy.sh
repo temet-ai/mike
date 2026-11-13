@@ -72,6 +72,21 @@
 #                                              # pending, so it never migrates the DB
 #   ./scripts/deploy-proxy.sh --health-timeout=90   # override readiness wait (default 300s,
 #                                                   # 60s under an installed service)
+#   ./scripts/deploy-proxy.sh --build-only     # build, stage and check the identity ONLY;
+#                                              # no migrate-check, no smoke, no cutover
+#
+# THE BUILD — cached, at the lowest priority, and only when HEAD is not already live.
+# ----------------------------------------------------------------------------------
+# When the live binary was deployed from HEAD with the same profile (.deploy/mike.deployed.commit
+# and .deploy/mike.deployed.profile), reports HEAD on --build-info, and the tree has no tracked
+# change, there is nothing to build: the live binary is staged as it is, and the smart-skip
+# below leaves the proxy alone (--force still cuts over to it, which re-cuts a degraded proxy).
+# Otherwise mike is built through the mbx cache into <target>/mbx-deploy under
+# `nice -n 19 ionice -c 3`: every crate compiles with a fixed identity, so units that did not
+# change restore from the store, and scripts/lib/stamp_build_identity.py then writes the commit
+# into the staged copy. A staged binary whose --build-info does not report HEAD is refused before
+# anything touches the live proxy. Without mbx (or with MIKE_DEPLOY_BUILD_CACHE=cargo) it is
+# plain cargo with MIKE_BUILD_IDENTITY=git, as before. Decisions: scripts/lib/deploy-build.sh.
 #
 # Stop the deployed proxy later with ./scripts/stop-proxy.sh (frees the ports).
 #
@@ -166,6 +181,7 @@ fi
 RELEASE_FLAG="--release"
 BUILD_PROFILE="release"
 DRY_RUN="false"
+BUILD_ONLY="false"
 FORCE="false"
 WAIT_MAX_SECONDS=300
 SERVICE_WAIT_SECONDS=60
@@ -174,9 +190,10 @@ for arg in "$@"; do
         --release)              RELEASE_FLAG="--release"; BUILD_PROFILE="release" ;;
         --debug)                RELEASE_FLAG=""; BUILD_PROFILE="debug" ;;
         --dry-run)              DRY_RUN="true" ;;
+        --build-only)           BUILD_ONLY="true" ;;
         --force)                FORCE="true" ;;
         --health-timeout=*)     WAIT_MAX_SECONDS="${arg#*=}"; SERVICE_WAIT_SECONDS="${arg#*=}" ;;
-        *) echo "deploy-proxy.sh: unknown argument '${arg}' (expected --release, --debug, --dry-run, --force, or --health-timeout=N)" >&2; exit 2 ;;
+        *) echo "deploy-proxy.sh: unknown argument '${arg}' (expected --release, --debug, --dry-run, --build-only, --force, or --health-timeout=N)" >&2; exit 2 ;;
     esac
 done
 
@@ -186,7 +203,7 @@ mkdir -p "${DEPLOY_DIR}"
 # A symbolic link is a package manager's stable path (Homebrew's $(brew --prefix)/bin/mike).
 # The cutover replaces the file at SERVICE_BIN, which would swap that link for a copy of this
 # checkout's build, so a real deploy stops here, before the build. --dry-run changes nothing.
-if ${USE_SERVICE} && [[ "${DRY_RUN}" == "false" && -L "${SERVICE_BIN}" ]]; then
+if ${USE_SERVICE} && [[ "${DRY_RUN}" == "false" && "${BUILD_ONLY}" == "false" && -L "${SERVICE_BIN}" ]]; then
     echo "deploy-proxy.sh: the service runs ${SERVICE_BIN}, a symbolic link (a package manager's path)." >&2
     echo "  Replacing it would swap the link for a copy of this build. Nothing was touched." >&2
     echo "  Run 'mike service install' from the binary you want it to run, or deploy with --dry-run." >&2
@@ -409,8 +426,11 @@ MIKE_BIN="${TARGET_DIR}/${BUILD_PROFILE}/mike"
 #
 # Under the installed service, what is live is the file the service runs, so that is what is
 # copied; .deploy/mike.deployed may be a stale record of an earlier deploy.
-rm -f "${PREV_BIN}"
-if ${USE_SERVICE}; then
+if [[ "${BUILD_ONLY}" == "true" ]]; then
+    echo "==> --build-only: the rollback copy ${PREV_BIN} is left as it is"
+elif ! rm -f "${PREV_BIN}"; then
+    exit 1
+elif ${USE_SERVICE}; then
     if [[ -x "${SERVICE_BIN}" ]]; then
         cp "${SERVICE_BIN}" "${PREV_BIN}"
         echo "==> Snapshotted the installed service's binary ${SERVICE_BIN} -> ${PREV_BIN} (rollback copy)"
@@ -436,24 +456,84 @@ fi
 # are present first — without them cargo fails cryptically.
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib/preflight-toolchain.sh"
-ensure_build_toolchain
-echo "==> Building mike ${RELEASE_FLAG:+(release)}"
-# Build against the committed .sqlx offline cache — this script runs with no
-# DATABASE_URL (only MIKE_DATABASE_URL, read at runtime), so without offline
-# mode the sqlx query macros try to validate online, find no DATABASE_URL, and
-# abort any build that actually recompiles mike. Default to offline; an operator
-# refreshing the cache after a query change can override with SQLX_OFFLINE=false.
-# Refresh the cache with: cargo sqlx prepare --workspace --database-url "$MIKE_DATABASE_URL" -- --all-targets.
-# MIKE_BUILD_IDENTITY=git: the deployed binary carries its commit even as a --debug build.
-MIKE_BUILD_IDENTITY=git SQLX_OFFLINE="${SQLX_OFFLINE:-true}" cargo build ${RELEASE_FLAG} --manifest-path crates/mike/Cargo.toml --quiet
-echo "==> Build OK"
+# shellcheck source=lib/deploy-build.sh
+source "${SCRIPT_DIR}/lib/deploy-build.sh"
+# shellcheck source=lib/heavy-build.sh
+source "${SCRIPT_DIR}/lib/heavy-build.sh"
+
+# Under the installed service the live binary is the file the service runs, not the record.
+LIVE_BIN="${DEPLOYED_BIN}"
+if ${USE_SERVICE}; then
+    LIVE_BIN="${SERVICE_BIN}"
+fi
+HEAD_SHA="$(git -C "${PROJECT_ROOT}" rev-parse HEAD 2>/dev/null || true)"
+BUILD_NEEDED="true"
+if [[ "${DRY_RUN}" == "false" && "${BUILD_ONLY}" == "false" ]] \
+    && ! deploy_build_needed "${HEAD_SHA}" "$(deploy_tree_dirty "${PROJECT_ROOT}")" "${BUILD_PROFILE}" \
+        "$(cat "${DEPLOY_DIR}/mike.deployed.commit" 2>/dev/null || true)" \
+        "$(cat "${DEPLOY_DIR}/mike.deployed.profile" 2>/dev/null || true)" \
+        "$(deploy_build_info_sha "${LIVE_BIN}")"; then
+    BUILD_NEEDED="false"
+fi
+
+LOW_PRIORITY=()
+while IFS= read -r _word; do LOW_PRIORITY+=("${_word}"); done < <(heavy_build_priority)
+BUILD_CACHE="$(deploy_build_cache "$(mbx_bin_path)")"
+BUILT_BIN="${MIKE_BIN}"
+if [[ "${BUILD_NEEDED}" == "false" ]]; then
+    echo "==> The live mike was deployed from HEAD ${HEAD_SHA:0:12} (${BUILD_PROFILE}) and reports it — nothing to build"
+    BUILT_BIN="${LIVE_BIN}"
+else
+    BUILD_JOBS="$(heavy_build_jobs)"
+    heavy_build_lock "deploy-proxy.sh build" || exit 1
+    echo "==> Building mike ${RELEASE_FLAG:+(release) }through ${BUILD_CACHE} at the lowest priority (${LOW_PRIORITY[*]}), ${BUILD_JOBS} jobs"
+    # Build against the committed .sqlx offline cache — this script runs with no
+    # DATABASE_URL (only MIKE_DATABASE_URL, read at runtime), so without offline
+    # mode the sqlx query macros try to validate online, find no DATABASE_URL, and
+    # abort any build that actually recompiles mike. Default to offline; an operator
+    # refreshing the cache after a query change can override with SQLX_OFFLINE=false.
+    # Refresh the cache with scripts/sqlx-prepare.
+    BUILD_STARTED="${SECONDS}"
+    if [[ "${BUILD_CACHE}" == "mbx" ]]; then
+        # A subshell: prepare_mbx_build_cache exports MIKE_BUILD_CACHE and CARGO_TARGET_DIR,
+        # which must not reach the smoke, cutover or rollback processes.
+        BUILT_BIN="${TARGET_DIR}/mbx-deploy/${BUILD_PROFILE}/mike"
+        (
+            prepare_mbx_build_cache "${PROJECT_ROOT}" "${TARGET_DIR}/mbx-deploy"
+            CARGO_BUILD_JOBS="${BUILD_JOBS}" SQLX_OFFLINE="${SQLX_OFFLINE:-true}" \
+                "${LOW_PRIORITY[@]}" "${MBX_BIN}" build ${RELEASE_FLAG} -p mike --bin mike 8>&- 9>&- \
+                2> >(grep -vE '^[[:space:]]*(Compiling|Fresh|Checking) |^mbx\[progress\]' >&2)
+        )
+    else
+        ensure_build_toolchain
+        # MIKE_BUILD_IDENTITY=git: the deployed binary carries its commit even as a --debug build.
+        MIKE_BUILD_IDENTITY=git CARGO_BUILD_JOBS="${BUILD_JOBS}" SQLX_OFFLINE="${SQLX_OFFLINE:-true}" \
+            "${LOW_PRIORITY[@]}" cargo build ${RELEASE_FLAG} --manifest-path crates/mike/Cargo.toml --quiet 8>&- 9>&-
+    fi
+    heavy_build_unlock
+    echo "==> Build OK in $(( SECONDS - BUILD_STARTED ))s"
+fi
 
 # Stage the artifact into DEPLOY_DIR at once — everything after this line runs
-# the staged copy, immune to concurrent builds clobbering the target dir.
+# the staged copy, immune to concurrent builds clobbering the target dir. The copy
+# is a new file, so stamping it never writes through a hard link into the mbx store.
 rm -f "${STAGED_BIN}"
-cp "${MIKE_BIN}" "${STAGED_BIN}"
+cp "${BUILT_BIN}" "${STAGED_BIN}"
 chmod +x "${STAGED_BIN}"
 echo "==> Staged binary -> ${STAGED_BIN}"
+if [[ "${BUILD_NEEDED}" == "true" && "${BUILD_CACHE}" == "mbx" ]]; then
+    echo "==> Stamped build identity: $(python3 "${SCRIPT_DIR}/lib/stamp_build_identity.py" "${STAGED_BIN}" --repo "${PROJECT_ROOT}")"
+fi
+STAGED_SHA="$("${STAGED_BIN}" --build-info | grep -oE '"source_sha"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -oE '"[^"]*"$' | tr -d '"' || true)"
+if [[ -n "${HEAD_SHA}" && "${STAGED_SHA}" != "${HEAD_SHA}" ]]; then
+    echo "==> The staged binary reports build ${STAGED_SHA:-nothing}, not HEAD ${HEAD_SHA} — refusing it. The live proxy was not touched." >&2
+    exit 1
+fi
+
+if [[ "${BUILD_ONLY}" == "true" ]]; then
+    echo "==> --build-only: ${STAGED_BIN} reports ${STAGED_SHA}; no migrate-check, smoke or cutover."
+    exit 0
+fi
 
 # ── resolve effective config from the NEW binary (authoritative port source) ─
 eval "$("${STAGED_BIN}" print-config --shell)"
@@ -492,11 +572,7 @@ INSPECT_PORT="${INSPECT_ADDR##*:}"
 # tracks exactly what is live; pairing the hash match with a live /api/health
 # probe guards against a stale record or a crashed proxy.
 #
-# Under the installed service the live binary is the file the service runs, not the record.
-LIVE_BIN="${DEPLOYED_BIN}"
-if ${USE_SERVICE}; then
-    LIVE_BIN="${SERVICE_BIN}"
-fi
+# LIVE_BIN is set before the build: the file the service runs, else the deployed record.
 if [[ "${DRY_RUN}" == "false" && "${FORCE}" == "false" && -x "${LIVE_BIN}" ]] \
     && [[ -n "$(bin_sha "${STAGED_BIN}")" ]] \
     && [[ "$(bin_sha "${STAGED_BIN}")" == "$(bin_sha "${LIVE_BIN}")" ]] \
@@ -701,6 +777,7 @@ if wait_healthy "${INSPECT_ADDR}" "${NEW_PID}" "new proxy"; then
     fi
     refresh_mike_cli || true
     git -C "${PROJECT_ROOT}" rev-parse HEAD >"${DEPLOY_DIR}/mike.deployed.commit" 2>/dev/null || true
+    printf '%s\n' "${BUILD_PROFILE}" >"${DEPLOY_DIR}/mike.deployed.profile"
     echo
     echo "==> Cutover complete. New proxy is live and healthy (pid ${NEW_PID})."
     echo "    proxy bind:   http://${MIKE_ADDR}/v1/"

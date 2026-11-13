@@ -4,9 +4,10 @@
 # It asks cx for the command line it would run (CX_PRINT_COMMAND=1) or the build
 # directory it would use (CX_PRINT_TARGET_DIR=1) and never runs a build. Without
 # mbx installed, or with MIKE_BUILD_CACHE=cargo, the line is cargo's. With mbx
-# installed, check, clippy and test go through it into target/mbx-<session> by
-# default, while build and nextest stay on cargo. MIKE_BUILD_CACHE=mbx forces mbx
-# for the subcommands it caches. Plain cargo never builds in an mbx directory.
+# installed, check, clippy, test, nextest and build go through it into
+# target/mbx-<session> by default; build with MIKE_BUILD_IDENTITY=git stays on cargo.
+# Heavy builds carry the nice/ionice prefix. MIKE_BUILD_CACHE=mbx forces mbx for the
+# subcommands it caches. Plain cargo never builds in an mbx directory.
 #
 # USAGE
 #   scripts/test-cx-build-cache        # one line per case, then a verdict
@@ -31,9 +32,16 @@ chk() {
   else printf '  FAIL  %s\n' "$2"; fail=1; fi
 }
 
-plain() {
+raw() {
   env -u MIKE_BUILD_CACHE -u MBX_BIN -u MBX_CACHE_DIR -u CARGO_TARGET_DIR -u RUSTC_WRAPPER \
-    -u CARGO_BUILD_RUSTC_WRAPPER -u CX_SCCACHE CX_PRINT_COMMAND=1 "$@"
+    -u CARGO_BUILD_RUSTC_WRAPPER -u CX_SCCACHE -u MIKE_BUILD_IDENTITY CX_PRINT_COMMAND=1 "$@"
+}
+# The command line without the low-priority prefix every heavy build carries (checked below).
+plain() {
+  raw "$@" | awk 'BEGIN { p = 1 }
+    p && ($0 == "nice" || $0 == "-n" || $0 == "19" || $0 == "ionice" || $0 == "-c" || $0 == "3") { next }
+    { p = 0; print }'
+  return "${PIPESTATUS[0]}"
 }
 
 out="$(plain MBX_BIN="$T/none" "$cx" check -p mike --lib 2>&1)"
@@ -100,18 +108,40 @@ out="$(env -u MBX_LEARNED_INCREMENTAL -u MBX_CACHE_DIR bash -c "
 
 # The default when mbx is installed.
 first_of() { printf '%s\n' "$1" | head -1; }
-for sub in check clippy test; do
+for sub in check clippy test build; do
   out="$(plain MBX_BIN="$fake" "$cx" "$sub" 2>&1)"
   [[ "$(first_of "$out")" == "$fake" ]] \
     && chk pass "unset, mbx installed: $sub goes through mbx" \
     || chk fail "unset, mbx installed: $sub goes through mbx ($(first_of "$out"))"
 done
-for sub in build nextest run; do
+for sub in run; do
   out="$(plain MBX_BIN="$fake" "$cx" "$sub" 2>&1)"
   [[ "$(first_of "$out")" == cargo ]] \
     && chk pass "unset, mbx installed: $sub stays on cargo" \
     || chk fail "unset, mbx installed: $sub stays on cargo ($(first_of "$out"))"
 done
+out="$(plain MBX_BIN="$fake" MIKE_BUILD_IDENTITY=git "$cx" build --release 2>&1)"
+[[ "$(first_of "$out")" == cargo ]] \
+  && chk pass "unset, mbx installed: build with MIKE_BUILD_IDENTITY=git stays on cargo (make install, release)" \
+  || chk fail "unset, mbx installed: build with MIKE_BUILD_IDENTITY=git stays on cargo ($(first_of "$out"))"
+if command -v cargo-nextest >/dev/null 2>&1; then
+  out="$(plain MBX_BIN="$fake" "$cx" nextest run -p mike 2>&1)"
+  [[ "$(printf '%s\n' "$out" | tr '\n' ' ')" == "env CARGO=$fake $(command -v cargo-nextest) nextest run -p mike " ]] \
+    && chk pass "unset, mbx installed: nextest runs with CARGO=mbx, so its test binaries come from the store" \
+    || chk fail "unset, mbx installed: nextest runs with CARGO=mbx ($(printf '%s\n' "$out" | tr '\n' ' '))"
+else
+  chk pass "unset, mbx installed: nextest case skipped, cargo-nextest is not installed"
+fi
+
+# Heavy builds run at the lowest priority; fmt and the like do not.
+out="$(raw MBX_BIN="$fake" "$cx" check 2>&1)"
+[[ "$(first_of "$out")" == nice ]] \
+  && chk pass "a heavy build (check) runs under nice -n 19" \
+  || chk fail "a heavy build (check) runs under nice -n 19 ($(first_of "$out"))"
+out="$(raw MBX_BIN="$fake" "$cx" fmt --check 2>&1)"
+[[ "$(first_of "$out")" == cargo ]] \
+  && chk pass "fmt is not a heavy build: no priority prefix" \
+  || chk fail "fmt is not a heavy build: no priority prefix ($(first_of "$out"))"
 out="$(plain MBX_BIN="$fake" "$cx" +1.95.0 check 2>&1)"
 [[ "$(first_of "$out")" == "$fake" ]] \
   && chk pass "unset, mbx installed: a +toolchain prefix does not hide the subcommand" \
@@ -139,7 +169,7 @@ d="$(plain MBX_BIN="$fake" CARGO_TARGET_DIR=target/mbx-a bash -c "CX_PRINT_TARGE
   || chk fail "unset, mbx installed: a named mbx-* directory is used as named ($d)"
 
 # Plain cargo never builds in an mbx directory.
-for case in "MBX_BIN=$fake:nextest" "MBX_BIN=$T/none:check" "MBX_BIN=$fake MIKE_BUILD_CACHE=cargo:check"; do
+for case in "MBX_BIN=$fake:run" "MBX_BIN=$T/none:check" "MBX_BIN=$fake MIKE_BUILD_CACHE=cargo:check"; do
   vars="${case%%:*}"; sub="${case##*:}"
   # shellcheck disable=SC2086
   out="$(plain $vars CARGO_TARGET_DIR=target/mbx-a "$cx" "$sub" 2>&1)"
@@ -148,7 +178,7 @@ for case in "MBX_BIN=$fake:nextest" "MBX_BIN=$T/none:check" "MBX_BIN=$fake MIKE_
     && chk pass "plain cargo is refused in target/mbx-a ($vars $sub)" \
     || chk fail "plain cargo is refused in target/mbx-a ($vars $sub, rc $rc)"
 done
-out="$(plain MIKE_BUILD_CACHE=mbx MBX_BIN="$fake" CARGO_TARGET_DIR=target/mbx-a "$cx" nextest run 2>&1)"
+out="$(plain MIKE_BUILD_CACHE=mbx MBX_BIN="$fake" CARGO_TARGET_DIR=target/mbx-a "$cx" run 2>&1)"
 rc=$?
 [[ $rc -ne 0 && "$out" == *"caches only"* ]] \
   && chk pass "set: a subcommand mbx does not cache is refused" \

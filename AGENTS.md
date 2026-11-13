@@ -68,8 +68,9 @@ checkout only.
 
 **The change loop.** This is the whole verification a change needs before it is pushed:
 1. Make the change.
-2. Run one narrow check of what you changed, once per state of the tree:
-   `scripts/cx check --lib -p <crate>`, the one test target (`make test-t t=<filter>`),
+2. Run one narrow check of what you changed, once per state of the tree, through
+   `scripts/cx`, never plain `cargo`:
+   `scripts/cx check --lib -p <crate>`, `scripts/cx test`, the one test target (`make test-t t=<filter>`),
    `scripts/sb-test --skip-typecheck <filter>`, or the one script test you touched.
 3. Rust only: `scripts/cx fmt --check` and `scripts/lint-rust -p <crate>` once, after
    the last edit. The structural limits below are not visible from the code.
@@ -105,25 +106,32 @@ own verdict. Once a background gate has exited, read that verdict with
 checkout: omit or the Mac. infra (aarch64) never builds Rust or pushes a Rust change
 (the pre-push hook refuses there); an infra session does that work in its own
 worktree on omit over `ssh`, which is the only reason to `ssh` for a build, and
-infra runs the aarch64 binary omit builds. Never wrap a command in `flock` or a
-shared lock and never wait on another session's build: cargo already locks each
-build directory. Deploy omit, the Mac and infra once a batch of PRs has merged, not
-after each PR.
+infra runs the aarch64 binary omit builds. Heavy builds on a machine queue one at a
+time on the build lock that scripts/cx and deploy-proxy.sh take; never wrap a command
+in any other flock or shared lock. Deploy omit, the Mac and infra once a batch of PRs
+has merged, not after each PR.
 
 **Builds go through mbx.** `scripts/cx` (and so `scripts/lint-rust`) sends `check`,
-`clippy` and `test` through the mbx cache by itself whenever mbx is installed, into `target/mbx-<session>` (named from
+`clippy`, `test`, `nextest` and `build` through the mbx cache by itself whenever mbx is installed, into `target/mbx-<session>` (named from
 `MIKE_SESSION_ID`, else `CLAUDE_CODE_SESSION_ID`). mbx restores the units any
 earlier mbx build on this machine stored, from any checkout, worktree or directory,
-so a session never queues behind another's build and a new worktree starts warm:
-crate `mike`'s library restores in seconds. You type nothing extra. The rest stays
-on plain cargo in the checkout's `target/`, shared by the sessions in that checkout:
-- `build`, so `./scripts/start-proxy.sh`, `make install` and the release scripts
-  deploy a binary with the real build identity (an mbx binary is for checks only).
-  Only release builds and builds with `MIKE_BUILD_IDENTITY=git` (the deploy and run
-  scripts set it) embed the commit; every other build reports `dev-build`, so a
-  commit or branch switch never recompiles crate `mike`;
-- `nextest` (`make test-*`, the pre-push hook's tests), because mbx would run it
-  uncached inside its own directory;
+so a new worktree starts warm instead of building cold: crate `mike`'s library
+restores in seconds. `nextest` runs with `CARGO` pointing at mbx, so the test
+binaries it builds come from the store. You type nothing extra. Every heavy build
+(`check`, `clippy`, `build`, `test`, `nextest`) runs under `nice -n 19 ionice -c 3` on
+half the processors (`MIKE_BUILD_JOBS` overrides; `scripts/lib/heavy-build.sh`). A
+project hook (`.claude/hooks/raw-cargo-guard.sh`) refuses raw
+`cargo build|check|test|clippy|nextest`; `MIKE_RAW_CARGO=1` bypasses it. The deploy build
+(`scripts/deploy-proxy.sh`, so `./scripts/start-proxy.sh`) also goes through mbx, into
+`target/mbx-deploy` under `nice -n 19 ionice -c 3`, and is skipped when the live binary
+already reports HEAD; `--build-only` builds and stages without a cutover. An mbx build
+compiles a fixed identity, so a commit restores every unit it did not change, and the
+deploy writes the commit into the staged copy (`scripts/lib/stamp_build_identity.py`)
+and refuses one whose `--build-info` is not HEAD. The rest stays on plain cargo in the
+checkout's `target/`, shared by the sessions in that checkout:
+- `build` with `MIKE_BUILD_IDENTITY=git` (`make install`, the release scripts), which
+  embeds the commit through build.rs; every other build reports `dev-build` (or
+  `mbx-build`), so a commit or branch switch never recompiles crate `mike`;
 - `scripts/sqlx-prepare`, which needs the macros to run against a database;
 - any `CARGO_TARGET_DIR` you name, such as the fleet's `target/fleet-check`.
 

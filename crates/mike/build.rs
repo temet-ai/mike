@@ -7,6 +7,8 @@ fn main() {
     println!("cargo:rerun-if-changed=../mike-base/src/store/persistence/migrations");
 
     println!("cargo::rustc-check-cfg=cfg(has_spa_build)");
+    println!("cargo::rustc-check-cfg=cfg(mike_build_stamp)");
+    println!("cargo::rustc-cfg=mike_build_stamp");
     let Some(manifest_dir) = std::env::var_os("CARGO_MANIFEST_DIR") else {
         return;
     };

@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+# Checks the build decisions of deploy-proxy.sh (scripts/lib/deploy-build.sh) without a build,
+# a server or a database: when a deploy skips the build, which cache it builds through, the
+# priority it builds at, and how it reads a binary's --build-info. Fake binaries are shell
+# scripts in a mktemp -d folder.
+#
+# Usage: scripts/test-deploy-build     Exit: 0 = no FAIL. A case missing a prerequisite prints
+# NOT RUN and is never counted as a pass.
+set -uo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+pass=0 fail=0 notrun=0
+ok() { pass=$((pass+1)); echo "PASS: $1"; }
+bad() { fail=$((fail+1)); echo "FAIL: $1"; [[ -n "${2:-}" ]] && echo "  $2"; }
+eq() { if [[ "$3" == "$2" ]]; then ok "$1"; else bad "$1" "wanted [$2] got [$3]"; fi; }
+skip() { notrun=$((notrun+1)); echo "NOT RUN: $1"; }
+
+# shellcheck source=lib/deploy-build.sh
+source "$root/scripts/lib/deploy-build.sh"
+scratch="$(mktemp -d /tmp/db.XXXXXX)"
+trap 'rm -rf "$scratch"' EXIT
+
+head="0123456789abcdef0123456789abcdef01234567"
+other="fedcba9876543210fedcba9876543210fedcba98"
+
+# ── deploy_build_needed ──────────────────────────────────────────────────────
+needed() { if deploy_build_needed "$@"; then echo build; else echo skip; fi; }
+eq "HEAD live, clean, same profile: skip" skip "$(needed "$head" false release "$head" release "$head")"
+eq "uncommitted tracked change: build" build "$(needed "$head" true release "$head" release "$head")"
+eq "record names another commit: build" build "$(needed "$head" false release "$other" release "$head")"
+eq "live binary reports another commit: build" build "$(needed "$head" false release "$head" release "$other")"
+eq "live binary reports nothing: build" build "$(needed "$head" false release "$head" release "")"
+eq "deployed as debug, deploying release: build" build "$(needed "$head" false release "$head" debug "$head")"
+eq "no profile record (deployed before it existed): build" build "$(needed "$head" false release "$head" "" "$head")"
+eq "no HEAD: build" build "$(needed "" false release "" release "")"
+
+# ── deploy_build_info_sha ────────────────────────────────────────────────────
+fake() {
+    local path="$scratch/$1"
+    printf '#!/bin/sh\n[ "$1" = --build-info ] || exit 2\n%s\n' "$2" >"$path"
+    chmod +x "$path"
+    printf '%s' "$path"
+}
+clean_bin="$(fake clean "echo '{\"schema_version\":1,\"source_sha\":\"$head\",\"source_dirty\":false,\"built_at\":\"t\"}'")"
+dirty_bin="$(fake dirty "echo '{\"source_sha\":\"$head\",\"source_dirty\":true}'")"
+spaced_bin="$(fake spaced "printf '{\n  \"source_sha\" : \"$head\",\n  \"source_dirty\" : false\n}\n'")"
+old_bin="$(fake old "echo 'error: unexpected argument' >&2; exit 2")"
+mbx_bin="$(fake mbx "echo '{\"source_sha\":\"mbx-build\",\"source_dirty\":false}'")"
+eq "clean binary reports its sha" "$head" "$(deploy_build_info_sha "$clean_bin")"
+eq "pretty-printed build info is read" "$head" "$(deploy_build_info_sha "$spaced_bin")"
+eq "dirty binary reports nothing" "" "$(deploy_build_info_sha "$dirty_bin")"
+eq "binary without --build-info reports nothing" "" "$(deploy_build_info_sha "$old_bin")"
+eq "unstamped mbx binary reports nothing" "" "$(deploy_build_info_sha "$mbx_bin")"
+eq "missing binary reports nothing" "" "$(deploy_build_info_sha "$scratch/absent")"
+
+# ── deploy_build_cache ───────────────────────────────────────────────────────
+eq "mbx found: mbx" mbx "$(deploy_build_cache /x/mbx)"
+eq "no mbx: cargo" cargo "$(deploy_build_cache "")"
+eq "MIKE_DEPLOY_BUILD_CACHE=cargo: cargo" cargo "$(MIKE_DEPLOY_BUILD_CACHE=cargo deploy_build_cache /x/mbx)"
+
+# ── heavy-build.sh: priority, jobs, which subcommands lock ───────────────────
+# shellcheck source=lib/heavy-build.sh
+source "$root/scripts/lib/heavy-build.sh"
+prefix="$(heavy_build_priority | tr '\n' ' ')"
+eq "lowest CPU priority first" "nice -n 19" "${prefix:0:10}"
+if command -v ionice >/dev/null 2>&1; then
+    eq "idle I/O class where ionice exists" "nice -n 19 ionice -c 3 " "$prefix"
+else
+    eq "no ionice: nice alone" "nice -n 19 " "$prefix"
+fi
+words=()
+while IFS= read -r w; do words+=("$w"); done < <(heavy_build_priority)
+eq "the prefix runs a command" "ran" "$("${words[@]}" sh -c 'echo ran')"
+
+cpus="$(heavy_build_cpus)"
+half=$(( cpus / 2 )); (( half > 0 )) || half=1
+eq "jobs default to half the processors" "$half" "$(env -u MIKE_BUILD_JOBS -u CARGO_BUILD_JOBS bash -c "source '$root/scripts/lib/heavy-build.sh'; heavy_build_jobs")"
+eq "MIKE_BUILD_JOBS overrides" "3" "$(MIKE_BUILD_JOBS=3 CARGO_BUILD_JOBS=9 heavy_build_jobs)"
+eq "CARGO_BUILD_JOBS is kept when set" "5" "$(env -u MIKE_BUILD_JOBS CARGO_BUILD_JOBS=5 bash -c "source '$root/scripts/lib/heavy-build.sh'; heavy_build_jobs")"
+for sub in check clippy build test nextest; do
+    if heavy_build_is_heavy "$sub"; then ok "$sub takes the lock"; else bad "$sub takes the lock"; fi
+done
+for sub in fmt metadata tree run doc ""; do
+    if heavy_build_is_heavy "$sub"; then bad "${sub:-<none>} is exempt"; else ok "${sub:-<none>} is exempt"; fi
+done
+
+# ── heavy-build.sh: one heavy build at a time ────────────────────────────────
+# A holder takes the lock and keeps it for 2 s; a second taker must wait for it. Each mode is
+# checked: flock where the command exists, and the directory lock macOS falls back to.
+lock_case() {
+    local mode="$1" lockfile="$scratch/heavy-$1.lock" started waited
+    ( export MIKE_HEAVY_BUILD_LOCK="$lockfile" MIKE_HEAVY_BUILD_LOCK_MODE="$mode"
+      unset MIKE_HEAVY_BUILD_LOCK_HELD
+      source "$root/scripts/lib/heavy-build.sh"
+      heavy_build_lock holder 2>/dev/null; touch "$scratch/held-$mode"; sleep 2; heavy_build_unlock ) &
+    local holder=$!
+    for _ in $(seq 1 50); do [[ -e "$scratch/held-$mode" ]] && break; sleep 0.1; done
+    started="$(date +%s)"
+    out="$( export MIKE_HEAVY_BUILD_LOCK="$lockfile" MIKE_HEAVY_BUILD_LOCK_MODE="$mode"
+            unset MIKE_HEAVY_BUILD_LOCK_HELD
+            source "$root/scripts/lib/heavy-build.sh"
+            heavy_build_lock second 2>&1; echo "held=${MIKE_HEAVY_BUILD_LOCK_HELD:-}"; heavy_build_unlock )"
+    waited=$(( $(date +%s) - started ))
+    wait "$holder"
+    if (( waited >= 1 )); then ok "$mode: a second heavy build waits for the first"; else bad "$mode: a second heavy build waits for the first" "waited ${waited}s"; fi
+    if [[ "$out" == *"another heavy build is running (pid "*"holder"* ]]; then ok "$mode: the waiter is told who holds the lock"; else bad "$mode: the waiter is told who holds the lock" "$out"; fi
+    if [[ "$out" == *"held=1"* ]]; then ok "$mode: the waiter holds the lock once it is free"; else bad "$mode: the waiter holds the lock once it is free" "$out"; fi
+    started="$(date +%s)"
+    ( export MIKE_HEAVY_BUILD_LOCK="$lockfile" MIKE_HEAVY_BUILD_LOCK_MODE="$mode"
+      source "$root/scripts/lib/heavy-build.sh"
+      heavy_build_lock outer 2>/dev/null
+      ( heavy_build_lock nested 2>/dev/null ); heavy_build_unlock )
+    waited=$(( $(date +%s) - started ))
+    if (( waited < 2 )); then ok "$mode: a nested build under the holder does not wait on itself"; else bad "$mode: a nested build under the holder does not wait on itself"; fi
+}
+if command -v flock >/dev/null 2>&1; then lock_case flock; else skip "flock lock (flock is missing)"; fi
+lock_case mkdir
+
+stale="$scratch/stale.lock"
+mkdir "$stale.d"; printf '999999\n' >"$stale.d/pid"
+out="$( export MIKE_HEAVY_BUILD_LOCK="$stale" MIKE_HEAVY_BUILD_LOCK_MODE=mkdir; unset MIKE_HEAVY_BUILD_LOCK_HELD
+        source "$root/scripts/lib/heavy-build.sh"; heavy_build_lock t 2>&1; echo "held=${MIKE_HEAVY_BUILD_LOCK_HELD:-}"; heavy_build_unlock )"
+if [[ "$out" == "held=1" ]]; then ok "mkdir: a dead holder's lock is taken over"; else bad "mkdir: a dead holder's lock is taken over" "$out"; fi
+eq "the lock lives under XDG_RUNTIME_DIR" "/run/user/42/mike-heavy-build.lock" \
+    "$(env -u MIKE_HEAVY_BUILD_LOCK XDG_RUNTIME_DIR=/run/user/42 bash -c "source '$root/scripts/lib/heavy-build.sh'; heavy_build_lock_path")"
+
+# ── deploy_tree_dirty ────────────────────────────────────────────────────────
+if command -v git >/dev/null 2>&1; then
+    repo="$scratch/repo"
+    git init -q "$repo"
+    printf 'a\n' >"$repo/f"
+    git -C "$repo" add f
+    git -C "$repo" -c user.name=t -c user.email=t@example.invalid commit -q -m one
+    printf 'u\n' >"$repo/untracked"
+    eq "untracked file only: clean" false "$(deploy_tree_dirty "$repo")"
+    printf 'b\n' >"$repo/f"
+    eq "tracked change: dirty" true "$(deploy_tree_dirty "$repo")"
+else
+    skip "deploy_tree_dirty (git is missing)"
+fi
+
+# ── deploy-proxy.sh wiring ───────────────────────────────────────────────────
+deploy="$root/scripts/deploy-proxy.sh"
+if grep -q 'stamp_build_identity.py" "${STAGED_BIN}"' "$deploy"; then
+    ok "deploy stamps the staged copy, never the build output"
+else
+    bad "deploy stamps the staged copy, never the build output"
+fi
+if grep -q -- '--build-only)' "$deploy"; then ok "deploy takes --build-only"; else bad "deploy takes --build-only"; fi
+if grep -q 'heavy_build_lock "deploy-proxy.sh build"' "$deploy" && grep -q 'CARGO_BUILD_JOBS="${BUILD_JOBS}"' "$deploy"; then
+    ok "the deploy build takes the machine-wide lock and the job cap"
+else
+    bad "the deploy build takes the machine-wide lock and the job cap"
+fi
+
+echo "deploy build: ${pass} passed, ${fail} failed, ${notrun} not run"
+(( fail == 0 ))
