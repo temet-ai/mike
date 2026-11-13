@@ -190,7 +190,7 @@ impl LlmUsageSink for NoopUsageSink {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn day(d: u32) -> chrono::NaiveDate {

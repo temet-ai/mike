@@ -287,7 +287,7 @@ pub async fn record_prompt_kind_classification(
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 /// Whether a turn's outcome predates projection (legacy) or awaits it (pending).
 pub fn projection_flags(outcome_source: Option<&str>, outcome: &str) -> (bool, bool) {

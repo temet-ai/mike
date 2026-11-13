@@ -223,4 +223,4 @@ pub async fn backfill_apply_definitions(
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

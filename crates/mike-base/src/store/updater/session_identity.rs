@@ -94,7 +94,7 @@ fn mismatch_body(mismatch: &SelfIdMismatch<'_>, session_id: &str) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn tool_call(name: &str, tool_id: &str, input_json: &str) -> ToolCall {

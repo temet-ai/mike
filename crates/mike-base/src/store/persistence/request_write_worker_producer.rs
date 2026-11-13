@@ -86,7 +86,7 @@ fn launched_session(payload: &serde_json::Value) -> Option<&str> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use serde_json::json;
 

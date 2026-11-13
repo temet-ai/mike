@@ -175,7 +175,7 @@ impl PersistHandle {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::store::persistence::test_support;
 

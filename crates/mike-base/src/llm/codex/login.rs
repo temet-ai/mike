@@ -72,7 +72,7 @@ pub async fn login_status(bin: &str) -> CodexLogin {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

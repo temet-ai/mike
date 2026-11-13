@@ -102,7 +102,7 @@ pub fn steerer_live_source(overlay: &SharedSettingsOverlay) -> LiveSettingsSourc
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::llm::OpenRouterClient;
 

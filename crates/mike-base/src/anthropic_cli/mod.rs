@@ -9,7 +9,7 @@ pub mod state;
 pub mod status;
 pub mod status_cache;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 #[cfg(test)]
 pub use cli::AnthropicCli;

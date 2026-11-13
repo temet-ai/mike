@@ -43,7 +43,7 @@ pub fn pg_interval_to_humantime(interval: PgInterval) -> Option<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

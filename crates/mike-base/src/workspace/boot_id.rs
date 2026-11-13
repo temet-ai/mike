@@ -40,7 +40,7 @@ fn compute_boot_id() -> Option<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

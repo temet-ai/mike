@@ -1,5 +1,5 @@
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use sha2::Digest as _;
 
     use super::super::PersistHandle;

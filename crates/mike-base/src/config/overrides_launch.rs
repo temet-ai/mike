@@ -75,7 +75,7 @@ fn set_u32(field: &mut u32, value: &serde_json::Value) {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use serde_json::json;
 
     use super::*;

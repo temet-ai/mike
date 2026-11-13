@@ -115,7 +115,7 @@ pub async fn fetch_cli_status(cli: &AnthropicCli) -> CliStatusDto {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     const FIXTURE_LOGGED_IN: &str = r#"{

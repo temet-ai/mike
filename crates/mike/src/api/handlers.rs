@@ -17,9 +17,7 @@ use crate::store::models::{
 };
 use crate::store::persistence::SessionSummaryRow;
 use crate::store::{DiagnosticStatsView, FindingView, MemoryBreakdownView, MemoryEntryRow};
-pub(crate) use crate::types::SortOrder;
 use crate::types::{RequestParams, TokenUsage, ToolCall};
-pub(crate) use crate::web_base::{persist_error_response, persist_unavailable_response};
 
 #[cfg(test)]
 use chrono::{DateTime, TimeZone, Utc};

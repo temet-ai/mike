@@ -65,4 +65,4 @@ fn hash_tool_result_content(
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

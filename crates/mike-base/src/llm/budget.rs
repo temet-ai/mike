@@ -167,7 +167,7 @@ pub fn spend_refusal(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn counts(

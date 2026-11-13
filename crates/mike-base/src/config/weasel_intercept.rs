@@ -24,7 +24,7 @@ impl Default for WeaselInterceptConfig {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

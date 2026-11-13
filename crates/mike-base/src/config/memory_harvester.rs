@@ -18,7 +18,7 @@ impl Default for HarvesterConfig {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

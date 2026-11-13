@@ -90,7 +90,7 @@ pub fn extract_system_blocks_from_body(body: &[u8]) -> Option<JsonValue> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn typed(origin: &str, prompt: &str) -> &'static str {

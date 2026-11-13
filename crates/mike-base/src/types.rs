@@ -67,7 +67,7 @@ pub struct ToolCall {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use proptest::prelude::*;
     use proptest::test_runner::TestCaseError;

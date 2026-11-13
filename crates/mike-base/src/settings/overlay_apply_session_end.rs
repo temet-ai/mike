@@ -61,7 +61,7 @@ pub fn apply_session_end_row(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

@@ -224,7 +224,7 @@ impl Default for ProxyConfig {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     #[test]
     fn default_config_has_composer_disabled() -> anyhow::Result<()> {
         let cfg = super::ProxyConfig::try_parse_from(["mike"])?;

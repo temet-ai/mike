@@ -21,7 +21,7 @@ impl Default for RemindersConfig {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

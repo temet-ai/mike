@@ -96,7 +96,7 @@ pub fn reason_label(reason: ShedReason) -> &'static str {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::metrics::{MEMORY_SHED_PATHS, MEMORY_SHED_REASONS};
 

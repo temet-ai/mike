@@ -110,7 +110,7 @@ pub fn spawn_pruner(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::store::models::{InterceptedRequest, RequestId, RequestStatus};
     use crate::types::RequestParams;

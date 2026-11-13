@@ -6,7 +6,7 @@ pub mod handlers;
 pub(crate) mod improvement;
 pub mod manifest;
 pub(crate) mod request_span;
-pub(crate) mod rerank_search;
+pub mod rerank_search;
 pub(crate) mod scheduled_job_run;
 pub(crate) mod session_context;
 pub(crate) mod session_delivery;

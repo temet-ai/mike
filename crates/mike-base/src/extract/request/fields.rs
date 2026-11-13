@@ -159,4 +159,4 @@ fn effective_effort(body: &Value) -> Option<String> {
 pub mod counts_tests;
 #[cfg(test)]
 #[path = "fields_tests.rs"]
-pub mod tests;
+mod tests;

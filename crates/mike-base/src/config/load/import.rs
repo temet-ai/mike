@@ -100,7 +100,7 @@ pub fn insert(table: &mut toml::Table, path: &[String], value: toml::Value) -> R
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

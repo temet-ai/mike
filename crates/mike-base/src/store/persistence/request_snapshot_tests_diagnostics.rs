@@ -1,5 +1,5 @@
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::super::PersistHandle;
     use crate::store::models::{Diagnostic, DiagnosticCategory, InterceptedRequest, RequestStatus};
     use crate::store::persistence::StreamBlockRow;

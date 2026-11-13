@@ -54,4 +54,4 @@ pub fn is_raw_json_string_content(msg: &Value) -> bool {
 
 #[cfg(test)]
 #[path = "message_shape_tests.rs"]
-pub mod tests;
+mod tests;

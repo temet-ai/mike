@@ -8,7 +8,7 @@ pub fn ok_or_warn<T, E: std::fmt::Display>(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::ok_or_warn;
 
     #[test]

@@ -164,7 +164,7 @@ fn normalize_value(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::environment::MapEnvironment;
 

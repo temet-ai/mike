@@ -27,4 +27,4 @@ fn id_from_text(text: &str) -> Option<String> {
 
 #[cfg(test)]
 #[path = "agent_result_tests.rs"]
-pub mod tests;
+mod tests;

@@ -124,4 +124,4 @@ fn acquire(file: File) -> Result<WriteLease> {
 
 #[cfg(test)]
 #[path = "write_transaction_tests.rs"]
-pub mod tests;
+mod tests;

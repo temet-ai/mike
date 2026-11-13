@@ -72,7 +72,7 @@ fn share_entry(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     #[test]
     fn proposer_share_metadata_default_and_overlay_agree() {
         let key = "llm.budget.lesson_proposer.share_pct";

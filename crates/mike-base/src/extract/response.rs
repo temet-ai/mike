@@ -178,4 +178,4 @@ pub fn extract_input_json_delta(data: &Value) -> Option<String> {
 
 #[cfg(test)]
 #[path = "response_tests.rs"]
-pub mod tests;
+mod tests;

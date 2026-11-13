@@ -150,7 +150,7 @@ impl Default for JudgeConfig {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

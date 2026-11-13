@@ -11,7 +11,7 @@ use super::{PersistError, PersistHandle};
 use crate::llm::LlmRole;
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub const MIN_LEASE_TIMEOUT: Duration = Duration::from_secs(180);
 const RENEW_EVERY: Duration = Duration::from_secs(30);

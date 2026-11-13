@@ -421,4 +421,4 @@ fn set_optional_u64(field: &mut Option<u64>, key: &str, value: &serde_json::Valu
 
 #[cfg(test)]
 #[path = "overlay_apply_tests.rs"]
-pub mod tests;
+mod tests;

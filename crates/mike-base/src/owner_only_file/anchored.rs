@@ -223,7 +223,7 @@ fn invalid(message: &'static str) -> std::io::Error {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use std::os::unix::fs::PermissionsExt;
 

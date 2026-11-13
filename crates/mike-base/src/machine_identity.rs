@@ -147,4 +147,4 @@ async fn create_once(
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

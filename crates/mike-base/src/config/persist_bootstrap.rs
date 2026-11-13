@@ -226,7 +226,7 @@ async fn connect_and_preflight(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[tokio::test]

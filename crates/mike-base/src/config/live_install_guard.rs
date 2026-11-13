@@ -99,7 +99,7 @@ fn account_home() -> Option<std::path::PathBuf> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

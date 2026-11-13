@@ -120,7 +120,7 @@ impl fmt::Display for ModelRef {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     fn parsed(stored: &str) -> ModelRef {

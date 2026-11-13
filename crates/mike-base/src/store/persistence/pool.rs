@@ -171,7 +171,7 @@ fn redact_url(raw: &str) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use sqlx::Connection;
 
     use super::*;

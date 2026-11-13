@@ -70,7 +70,7 @@ pub fn spawn_db_pool_gauge_updater(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

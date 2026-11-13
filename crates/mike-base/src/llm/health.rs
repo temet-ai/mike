@@ -70,7 +70,7 @@ pub fn test_detail(status: Option<u16>, message: &str) -> LlmFailureDetail {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

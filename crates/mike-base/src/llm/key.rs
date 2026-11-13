@@ -152,7 +152,7 @@ pub fn effective_client_for_any<'a>(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use serde::Deserialize;
     use serde_json::json;
     use wiremock::matchers::{method, path};

@@ -356,7 +356,7 @@ fn apply_logging_override(cfg: &mut ProxyConfig, key: &str, value: &serde_json::
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::config::load::CliOverrides;
     use clap::Parser;

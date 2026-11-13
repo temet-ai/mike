@@ -57,7 +57,7 @@ where
 pub mod cancel_tests;
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

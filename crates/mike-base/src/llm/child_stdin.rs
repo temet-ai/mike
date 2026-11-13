@@ -13,7 +13,7 @@ where
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use std::pin::Pin;
     use std::process::Stdio;
     use std::task::{Context, Poll};

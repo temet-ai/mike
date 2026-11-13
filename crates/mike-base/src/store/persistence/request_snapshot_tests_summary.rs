@@ -1,5 +1,5 @@
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::super::PersistHandle;
     use crate::store::models::{InterceptedRequest, RequestStatus};
     use crate::store::persistence::request_write::IdMode;

@@ -192,7 +192,7 @@ fn budget_entries() -> Vec<SettingMeta> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::config::LaunchConfig;
 

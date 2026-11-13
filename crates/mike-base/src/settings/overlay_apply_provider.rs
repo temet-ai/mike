@@ -29,7 +29,7 @@ pub fn apply_provider_row(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use serde_json::json;
 
     use super::*;

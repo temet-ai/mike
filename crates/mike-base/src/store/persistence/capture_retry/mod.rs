@@ -59,4 +59,4 @@ fn classify_code(code: Option<&str>, message: &str) -> WriteFailure {
 #[path = "tests/db.rs"]
 pub mod db_tests;
 #[cfg(test)]
-pub mod tests;
+mod tests;

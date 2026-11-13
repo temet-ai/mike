@@ -99,4 +99,4 @@ pub fn normalize_remote(url: &str) -> String {
 
 #[cfg(test)]
 #[path = "git_repo_tests.rs"]
-pub mod tests;
+mod tests;

@@ -124,4 +124,4 @@ fn strip_xml_tag(s: &str, tag: &str) -> String {
 
 #[cfg(test)]
 #[path = "human_prompt_tests.rs"]
-pub mod tests;
+mod tests;

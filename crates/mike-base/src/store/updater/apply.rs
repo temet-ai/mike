@@ -270,4 +270,4 @@ async fn apply_upstream_message_id_received(
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

@@ -28,7 +28,7 @@ pub fn ended(output_tail: &str) -> Option<Ended> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{Ended, ended};
 
     #[test]

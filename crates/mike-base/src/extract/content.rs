@@ -30,7 +30,7 @@ pub fn has_content_block_type(msg: &Value, block_type: &str) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use serde_json::json;
 

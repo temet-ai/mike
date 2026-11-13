@@ -104,7 +104,7 @@ pub fn mask_header_value(_value: &str) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

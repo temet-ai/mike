@@ -97,7 +97,7 @@ pub async fn run_login_reader(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

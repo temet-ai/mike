@@ -12,7 +12,7 @@ pub fn active_from(value: Option<&str>) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::active_from;
 
     #[test]

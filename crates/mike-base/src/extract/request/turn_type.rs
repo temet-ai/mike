@@ -56,4 +56,4 @@ pub fn extract_turn_type(body: &Value) -> TurnType {
 
 #[cfg(test)]
 #[path = "turn_type_tests.rs"]
-pub mod tests;
+mod tests;

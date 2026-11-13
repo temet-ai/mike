@@ -107,7 +107,7 @@ pub fn parse_claude_args_env(raw: &str) -> Vec<String> {
 pub const DEFAULT_BRIEF_INLINE_MAX: usize = 800;
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use clap::Parser;
 
     use super::*;

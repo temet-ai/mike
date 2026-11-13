@@ -115,4 +115,4 @@ async fn connection_deadline<T>(
 }
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

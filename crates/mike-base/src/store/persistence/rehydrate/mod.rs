@@ -18,7 +18,7 @@ pub mod text_search_messages;
 pub mod workflow;
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub use diagnostics::*;
 pub use pagination::PageWindow;

@@ -131,7 +131,7 @@ impl PersistHandle {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::store::persistence::test_support;
     use crate::wire::prompt_classify::prompt_sha256_from_block_text;

@@ -195,7 +195,7 @@ pub async fn find_or_create_agent_in_tx(
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::store::persistence::test_support::TestDb;
 

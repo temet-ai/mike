@@ -40,4 +40,4 @@ pub fn apply_turn_judge_row(
 
 #[cfg(test)]
 #[path = "overlay_apply_turn_judge_tests.rs"]
-pub mod tests;
+mod tests;

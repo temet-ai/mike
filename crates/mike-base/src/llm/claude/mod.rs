@@ -9,7 +9,7 @@ use super::LlmError;
 use crate::environment::{Environment, ProcessEnvironment};
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub const MODEL_PREFIX: &str = "claude/";
 pub const DEFAULT_BIN: &str = "claude";

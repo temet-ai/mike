@@ -12,7 +12,7 @@ pub mod publish;
 
 #[cfg(test)]
 #[path = "tests.rs"]
-pub mod tests;
+mod tests;
 
 use publish::PublishCtx;
 

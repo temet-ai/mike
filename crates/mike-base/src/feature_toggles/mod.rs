@@ -5,7 +5,7 @@ pub mod service;
 
 pub use meta::{TOGGLE_META, ToggleMeta};
 #[cfg(test)]
-pub mod tests;
+mod tests;
 #[cfg(test)]
 pub mod tests_per_toggle;
 

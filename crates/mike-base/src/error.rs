@@ -59,7 +59,7 @@ impl IntoResponse for ProxyError {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     async fn body_text(resp: Response) -> anyhow::Result<(StatusCode, String)> {

@@ -109,4 +109,4 @@ pub fn has_unsafe_path_chars(root: &str) -> bool {
 
 #[cfg(test)]
 #[path = "project_scan_tests.rs"]
-pub mod tests;
+mod tests;

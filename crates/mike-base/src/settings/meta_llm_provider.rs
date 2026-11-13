@@ -69,7 +69,7 @@ pub fn entries() -> Vec<SettingMeta> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

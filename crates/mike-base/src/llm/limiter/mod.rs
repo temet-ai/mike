@@ -18,7 +18,7 @@ pub mod reservation_tests;
 #[cfg(test)]
 pub mod spend_tests;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub use limits::{LimitSource, LimiterLimits};
 pub use reservation::Reservation;

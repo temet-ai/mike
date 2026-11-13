@@ -176,7 +176,7 @@ fn commit_sha_subject(text: &str) -> Option<String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use serde_json::json;
 

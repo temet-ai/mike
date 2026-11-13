@@ -44,7 +44,7 @@ pub fn parse_permissive_bool_str(raw: &str) -> Result<bool, String> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     #[test]
     fn parse_permissive_bool_str_accepts_numeric_spelling() -> anyhow::Result<()> {
         assert!(super::parse_permissive_bool_str("1").map_err(|e| anyhow::anyhow!(e))?);

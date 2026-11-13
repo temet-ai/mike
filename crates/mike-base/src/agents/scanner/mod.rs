@@ -5,7 +5,7 @@ use tokio::fs;
 use crate::store::persistence::{PersistError, PersistHandle};
 
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 #[derive(Debug, Clone, Default)]
 pub struct ParsedAgentFile {

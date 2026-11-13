@@ -251,7 +251,7 @@ pub fn migration_count() -> usize {
 pub mod newer_tests;
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

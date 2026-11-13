@@ -110,7 +110,7 @@ pub fn entries() -> Vec<SettingMeta> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::{
         IMMEDIATE_DELAY_MS_KEY, IMMEDIATE_KEY, LIVE_BUNDLE_ID_KEY, LIVE_WINDOW_DAYS_KEY,
         REJUDGE_DAILY_CALL_CAP_KEY,

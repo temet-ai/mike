@@ -159,7 +159,7 @@ fn validate_private_owner(metadata: &std::fs::Metadata) -> Result<()> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

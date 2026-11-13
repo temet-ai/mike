@@ -187,7 +187,7 @@ fn shell_quote(raw: &str) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::config::load::{CliOverrides, load_layered};
     use crate::environment::MapEnvironment;

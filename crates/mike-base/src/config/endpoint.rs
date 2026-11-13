@@ -45,7 +45,7 @@ fn parse(raw: &str) -> Result<SocketAddr> {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

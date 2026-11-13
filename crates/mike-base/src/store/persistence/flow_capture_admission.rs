@@ -8,7 +8,7 @@ pub fn capture_admits(message_count: Option<i32>) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

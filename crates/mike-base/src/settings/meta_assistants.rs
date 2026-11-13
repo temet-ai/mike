@@ -344,4 +344,4 @@ fn budget_entries() -> Vec<SettingMeta> {
 
 #[cfg(test)]
 #[path = "meta_assistants_tests.rs"]
-pub mod tests;
+mod tests;

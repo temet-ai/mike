@@ -141,7 +141,7 @@ fn identity(path: &Path) -> String {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

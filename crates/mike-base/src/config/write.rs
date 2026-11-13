@@ -74,4 +74,4 @@ fn merge(target: &mut toml::Table, updates: toml::Table) {
 
 #[cfg(test)]
 #[path = "write_tests.rs"]
-pub mod tests;
+mod tests;

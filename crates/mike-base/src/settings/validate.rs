@@ -208,7 +208,7 @@ pub fn is_secret_setting_key(key: &str) -> bool {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
 
     #[test]

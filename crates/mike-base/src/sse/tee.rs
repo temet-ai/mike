@@ -75,7 +75,7 @@ where
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};

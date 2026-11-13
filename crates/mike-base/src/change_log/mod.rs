@@ -7,4 +7,4 @@ pub use defaults::code_defaults;
 pub use source::{ChangeSource, ChangeVia};
 
 #[cfg(test)]
-pub mod tests;
+mod tests;

@@ -16,7 +16,7 @@ pub fn clean_cli_env_from(environment: &dyn Environment) -> HashMap<String, Stri
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::*;
     use crate::environment::MapEnvironment;
 

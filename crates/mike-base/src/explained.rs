@@ -65,4 +65,4 @@ fn message_count(body: &[u8]) -> usize {
 
 #[cfg(test)]
 #[path = "explained_tests.rs"]
-pub mod tests;
+mod tests;

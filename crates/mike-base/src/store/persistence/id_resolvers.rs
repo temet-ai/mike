@@ -168,7 +168,7 @@ where
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::super::PersistHandle;
     use super::*;
     use crate::store::models::RequestStatus;

@@ -9,7 +9,7 @@ use super::LlmError;
 
 pub mod login;
 #[cfg(test)]
-pub mod tests;
+mod tests;
 
 pub use login::{CodexLogin, login_status};
 
