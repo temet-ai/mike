@@ -29,7 +29,7 @@ while read -r _local_ref local_sha remote_ref remote_sha; do
   paths=$(git diff --name-only --no-renames "$range" 2>/dev/null)
   changed="$changed
 $paths"
-  if [ "$remote_ref" = refs/heads/main ] && printf '%s\n' "$paths" | grep -qE "$pr_only"; then
+  if [ "$remote_ref" = refs/heads/main ] && grep -qE "$pr_only" <<<"$paths"; then
     echo "pre-push: Rust and frontend changes land through a pull request; push a branch" >&2
     exit 1
   fi
@@ -56,11 +56,11 @@ for range in $ranges; do
   }
 done
 
-if printf '%s\n' "$changed" | grep -qE '^scripts/(pre-push-check|test-area|lib/rust_change_scope.py|tests/test_rust_change_scope.py)$'; then
+if grep -qE '^scripts/(pre-push-check|test-area|lib/rust_change_scope.py|tests/test_rust_change_scope.py)$' <<<"$changed"; then
   python3 -m unittest discover -s "$root/scripts/tests" -p test_rust_change_scope.py || status=1
 fi
 
-if printf '%s\n' "$changed" | grep -qE '\.(rs|sql)$|(^|/)Cargo\.toml$|^Cargo\.lock$|^\.sqlx/|^\.cargo/|^rust-toolchain(\.toml)?$'; then
+if grep -qE '\.(rs|sql)$|(^|/)Cargo\.toml$|^Cargo\.lock$|^\.sqlx/|^\.cargo/|^rust-toolchain(\.toml)?$' <<<"$changed"; then
   # GitHub Actions has no minutes, so this hook is the only lint and test a Rust push gets:
   # a fresh checkout builds here too. The Pi (aarch64 Linux) must not build; push from omit or the Mac.
   if [ "$(uname -s)" = Linux ] && [ "$(uname -m)" = aarch64 ]; then
@@ -92,11 +92,11 @@ if printf '%s\n' "$changed" | grep -qE '\.(rs|sql)$|(^|/)Cargo\.toml$|^Cargo\.lo
   "$root/scripts/test-area" || status=1
 fi
 
-if printf '%s\n' "$changed" | grep -qE '^frontend/' && [ -d "$root/frontend/node_modules" ]; then
+if grep -qE '^frontend/' <<<"$changed" && [ -d "$root/frontend/node_modules" ]; then
   (cd "$root/frontend" && ../scripts/sb-test --unit) || status=1
 fi
 
-if printf '%s\n' "$changed" | grep -qE '^Cargo\.lock$|^deny\.toml$' && command -v cargo-deny >/dev/null 2>&1; then
+if grep -qE '^Cargo\.lock$|^deny\.toml$' <<<"$changed" && command -v cargo-deny >/dev/null 2>&1; then
   cargo deny check || status=1
 fi
 

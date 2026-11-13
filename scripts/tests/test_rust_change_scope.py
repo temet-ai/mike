@@ -214,6 +214,13 @@ class RustChangeScopeTests(unittest.TestCase):
         self.assertEqual(focused[1:6], ["nextest", "run", "-p", "mike-codex", "--tests"])
         self.assertNotIn("--all", focused)
 
+    def test_push_of_many_files_still_runs_rust_gates(self):
+        self.install_runner()
+        for i in range(3000):
+            self.write(f"crates/mike-codex/src/m{i:04}.rs", "")
+        self.push()
+        self.assertTrue(any(call[0] == "lint-rust" for call in self.calls()))
+
     def test_sqlx_only_push_runs_rust_gates(self):
         self.install_runner()
         self.write(".sqlx/query-example.json", "{}")
