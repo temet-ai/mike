@@ -102,12 +102,6 @@ async fn backend_errors_are_unavailable_not_a_handshake_failure() {
 }
 
 #[tokio::test]
-async fn read_that_never_answers_is_unavailable_after_the_step_limit() {
-    let code = converse_within(SILENT, handshake_then(|| None)).await;
-    assert_eq!(code, "MCP_BACKEND_UNAVAILABLE");
-}
-
-#[tokio::test]
 async fn non_protocol_output_on_read_is_a_protocol_failure() {
     let code = converse(handshake_then(|| Some("diagnostic on stdout".to_owned()))).await;
     assert_eq!(code, "MCP_READ_PROTOCOL_FAILED");

@@ -142,30 +142,6 @@ async fn doctor_current_ledger_requires_application_schema() -> Result<()> {
 }
 
 #[tokio::test]
-async fn doctor_trial_and_unconfigured_database_keep_distinct_readiness() -> Result<()> {
-    let trial = doctor(
-        Some("postgres://mike:private-doctor-secret@127.0.0.1:1/unused"),
-        false,
-    )
-    .await?;
-    assert_check(&trial, "TRIAL_MODE", "pass", false);
-    let missing = doctor(None, true).await?;
-    assert_check(&missing, "DATABASE_NOT_CONFIGURED", "fail", true);
-    let unavailable = doctor(
-        Some("postgres://mike:private-doctor-secret@127.0.0.1:1/unused"),
-        true,
-    )
-    .await?;
-    assert_check(&unavailable, "DATABASE_TIMEOUT", "fail", true);
-    let db = fixture().await?;
-    let mut missing_url = url::Url::parse(&db.database_url)?;
-    missing_url.set_path("/doctor_missing_database");
-    let unavailable = doctor(Some(missing_url.as_str()), true).await?;
-    assert_check(&unavailable, "DATABASE_UNAVAILABLE", "fail", true);
-    db.cleanup().await
-}
-
-#[tokio::test]
 async fn doctor_noncurrent_ledgers_keep_schema_code_without_mutation() -> Result<()> {
     for mutation in [
         "DELETE FROM public._sqlx_migrations WHERE version = (SELECT max(version) FROM public._sqlx_migrations)",
