@@ -2,7 +2,7 @@
 title: Split crate mike into peer crates along measured seams
 status: accepted
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-13
 summary: Crate mike (517k lines) is one compilation unit and 99% of it one dependency cycle. A layered split saves little because persistence, at the bottom, changes in 45% of commits; the split that pays makes launch, fleet, runtime, knowledge and lessons peer crates over a thin base. The untangling happens inside the one crate first, graded by scripts/crate-plan against a committed target map, and a group becomes a crate only when nothing below it reaches up into it. Stage S5 (9 crates, 705 references cut) replays history at 61% of today's recompiled lines.
 ---
 
@@ -185,6 +185,32 @@ Measured on 13 Nov (cloud container, `-j 4`, warm cache, one file touched):
 The test build is where the split pays: an edit rebuilds only its own crate's test
 harness. `check` gains little because incremental compilation already skipped
 unchanged code.
+
+### S5 as built
+
+- **Crates.** `mike-knowledge` (project knowledge, semantic, rerank, embeddings worker,
+  search events) sits on `mike-launch` and under `mike-features`; `mike-lessons`
+  (lessons, memory keeper, recall, lesson delivery, supply verdicts, lesson pairs) sits
+  on `mike-features` and under `mike`. Root globs chain `mike_base` ← `mike_runtime` ←
+  `mike_launch` ← `mike_knowledge` ← `mike_features` ← `mike_lessons` ← `mike`.
+- **Knowledge state.** Knowledge takes `KnowledgeState` (BaseState plus the semantic,
+  embedding and rerank services) through `FromRef`. Drift alarms and rerank tuning
+  write through `DriftAlarms` and `SettingWriter`, which eval and settings implement.
+- **Lessons above the proxy.** The snapshot types live in `mike_base::lesson_cache`.
+  The proxy reaches lessons only through `LessonHooks` on `AppState`: the four lesson
+  pipeline stages, the harvester, supply records, attribution, the proposer tick and
+  the rerank lesson-pairs phase. The hooks do nothing until `serve` installs
+  `lesson_delivery::hooks::Lessons`; a test that wants lessons injected installs them too.
+- **Graders.** S5 incremental seams 0 production, 0 test; the remaining S5-stage 76
+  are S4's launch → fleet.
+
+Measured on 13 Nov on omit (mbx, half the cores, `nice`; one blank line added to the
+crate's `lib.rs`, one run each):
+
+| Touched crate | that crate's lib test build | `cargo check -p mike --lib` |
+|---|---|---|
+| `mike-knowledge` | 42 s | 70 s |
+| `mike-lessons` | not measured: the run waited on another session's build | 44 s |
 
 ## Consequences
 

@@ -1,4 +1,4 @@
-pub use mike_features::*;
+pub use mike_lessons::*;
 pub mod api;
 pub mod app;
 pub mod claude;

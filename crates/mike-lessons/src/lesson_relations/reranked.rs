@@ -3,7 +3,7 @@ use super::{
     DetectionReport, LessonRelationsError, RelationJudge, debug_assert_relation_invariants,
 };
 use crate::store::persistence::PersistHandle;
-use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
+use crate::store::persistence::lessons_repo::LessonsPersist as _;
 
 pub const RERANKED_PAIR_LIMIT: i64 = 100;
 
@@ -21,7 +21,7 @@ pub async fn run_detection_on_reranked(
 ) -> Result<RerankedDetectionReport, LessonRelationsError> {
     let mut report = RerankedDetectionReport::default();
     let pairs = persist
-        .knowledge()
+        .lessons()
         .unjudged_lesson_pairs(project_ids, RERANKED_PAIR_LIMIT)
         .await?;
     report.detection.candidate_pairs_considered = pairs.len();
@@ -34,7 +34,7 @@ pub async fn run_detection_on_reranked(
     }
     if !dry_run {
         persist
-            .knowledge()
+            .lessons()
             .mark_lesson_pairs_judged(&report.handled)
             .await?;
     }

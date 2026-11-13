@@ -2634,7 +2634,7 @@ reshaped by `20261102210000_knowledge_embedding_typed_sources.sql` to be keyed b
 and to detect change from a version the source keeps instead of hashing every source on every read:
 `artifact` by the revision id itself, `note` by `workspace.session_notes.updated_at`, `thread` by the
 thread's newest `mailbox.messages` id, `lesson` by `memory.lessons.text_md5`. One row per source the
-project-knowledge embedding sweep (`crates/mike-features/src/embed_worker/knowledge.rs`, lease role
+project-knowledge embedding sweep (`crates/mike-knowledge/src/embed_worker/knowledge.rs`, lease role
 `knowledge_embedding`) has attempted. `pending_embeddings.sql` picks sources from
 `memory.knowledge_embedding_sources_v` that have no row, a different `model_key`, a drifted version, or a
 due retry (`next_attempt_at <= now()` with `attempts < 10` or a `[transient]` error);
@@ -3232,7 +3232,7 @@ a direct per-project listing without a join back through `memory.lessons`.
 ### `memory.skill_drafts`
 
 Added in migration `20261014120000_skill_drafts.sql` (mike#613). One row per `SKILL.md` the skill
-author pass (`crates/mike-features/src/lesson_proposer/skill_author.rs`) drafted from one topic's accepted
+author pass (`crates/mike-lessons/src/lesson_proposer/skill_author.rs`) drafted from one topic's accepted
 lessons, following the skill-creator method, with the trigger queries its evaluation needs.
 Migration `20261015120000_skill_drafts_drop_unused_eval_columns.sql` dropped the `test_prompts` and
 `assertions` columns the table was created with, because no evaluation step graded them. The pass runs after the topic pass on the lesson proposer's tick, behind the
@@ -3248,7 +3248,7 @@ current; otherwise it writes the generated lesson list as before.
 | `project_id` | `BIGINT NOT NULL` | FK → `projects.projects(id)` ON DELETE CASCADE |
 | `folder` | `TEXT NOT NULL` | Skill folder: the topic, or `<topic>-<agent>` when every lesson in the topic belongs to that one agent |
 | `agent_id` | `BIGINT NULL` | FK → `agents.agents(id)` ON DELETE SET NULL |
-| `topic` | `TEXT NULL` | The lesson topic the draft was written for; used to find an existing skill with the same purpose (`crates/mike-features/src/lesson_proposer/purpose.rs`) |
+| `topic` | `TEXT NULL` | The lesson topic the draft was written for; used to find an existing skill with the same purpose (`crates/mike-lessons/src/lesson_proposer/purpose.rs`) |
 | `lesson_watermark` | `BIGINT NOT NULL` | Highest lesson id in the topic when drafted |
 | `lesson_ids` | `BIGINT[] NOT NULL` | The lessons the draft was written from |
 | `model` | `TEXT NOT NULL` | Author model id |
@@ -3268,7 +3268,7 @@ current; otherwise it writes the generated lesson list as before.
 **Constraints:** UNIQUE `(project_id, folder, lesson_watermark, revision)`; CHECK `revision BETWEEN 1 AND 3`.
 **Indexes:** `skill_drafts_status_idx` on `(status, created_at)`.
 
-The eval loop (`crates/mike-features/src/lesson_proposer/skill_eval.rs`, migration
+The eval loop (`crates/mike-lessons/src/lesson_proposer/skill_eval.rs`, migration
 `20261014160000_skill_draft_eval.sql`) runs after the author pass on the same tick and call
 budget, one draft per tick, `evaluating` drafts first. It is a gate of three to five model calls.
 The trigger test asks the model, in batches of ten messages (twenty trigger queries are two calls,
@@ -3470,7 +3470,7 @@ which `skill`-placed lessons a shipped skill already covers (lessons at or below
 ### The user's decisions on rule and agent proposals
 
 Added in migration `20261016100000_lesson_placement_reviews.sql`, for the Proposals page
-(`/proposals`, routes under `/api/proposals` in `crates/mike-features/src/api/proposals.rs`).
+(`/proposals`, routes under `/api/proposals` in `crates/mike-lessons/src/api/proposals.rs`).
 
 `memory.lesson_placement_reviews`: one row per lesson placed as `rule` or `agent` that the user has
 decided, keyed `lesson_id` (cascades with the lesson): `decision` (`accepted` or `declined`) and
@@ -3627,7 +3627,7 @@ checked for rule shape (`crates/mike-base/src/lesson_shape.rs`): a durable instr
 imperative with its trigger and what to do, not a status report about a session. The check runs
 at write time in `POST /api/lessons` (the `record_lesson` tool), in the lesson proposer when it
 creates a lesson, and as a scan over lessons that have no row yet on the proposer tick
-(`crates/mike-features/src/lesson_proposer/shape_pass.rs`).
+(`crates/mike-lessons/src/lesson_proposer/shape_pass.rs`).
 
 A lesson with an unresolved non-rule row (`resolution IS NULL`) is excluded from session
 consolidation to daily (`claim_raw_lessons_for_consolidation`, `discover_idle_projects`), from
@@ -3679,7 +3679,7 @@ keeping).
 
 Added in migration `20261014200000_lesson_placement.sql`. Failed placement attempts for one lesson
 (the model call failed or its answer could not be stored). The placement pass
-(`crates/mike-features/src/lesson_proposer/placement_pass.rs`) waits 2^attempts hours after each failure and
+(`crates/mike-lessons/src/lesson_proposer/placement_pass.rs`) waits 2^attempts hours after each failure and
 stops trying the lesson after the third; the weekly learning audit counts it as stuck.
 
 | Column | Type | Purpose |
@@ -3692,7 +3692,7 @@ stops trying the lesson after the third; the weekly learning audit counts it as 
 ### `memory.lesson_placement_reviews`
 
 Added in `20261016100000_lesson_placement_reviews.sql`, for the Proposals page (`/proposals`, routes under
-`/api/proposals` in `crates/mike-features/src/api/proposals.rs`). The user's decision on a lesson placed as a rule or
+`/api/proposals` in `crates/mike-lessons/src/api/proposals.rs`). The user's decision on a lesson placed as a rule or
 an agent statement: `accepted` (the user wants it in the rule or agent file the page names) or `declined`.
 A lesson with no row has not been decided; clearing a decision deletes the row. Nothing writes an accepted
 proposal into a rule or agent file; the page shows the file and the text to add. Read and written by
@@ -4128,7 +4128,7 @@ proposer and duplicate or collide on their work.
 
 | Column | Type | Purpose |
 |---|---|---|
-| `role` | `TEXT PRIMARY KEY` | An `llm.calls.role` value: `steerer`, `session_judge`, `judge_worker`, `eval`, `lesson_proposer`, `lesson_relations`; or the name of a scheduled job that runs on one machine per database (`learning_audit`, `compressor_loop`, `usage_audit`; see `crates/mike/src/scheduled_jobs`); or `knowledge_embedding`, the project-knowledge embedding sweep (`crates/mike-features/src/embed_worker/knowledge.rs`). No CHECK, so a role needs no migration to be leased |
+| `role` | `TEXT PRIMARY KEY` | An `llm.calls.role` value: `steerer`, `session_judge`, `judge_worker`, `eval`, `lesson_proposer`, `lesson_relations`; or the name of a scheduled job that runs on one machine per database (`learning_audit`, `compressor_loop`, `usage_audit`; see `crates/mike/src/scheduled_jobs`); or `knowledge_embedding`, the project-knowledge embedding sweep (`crates/mike-knowledge/src/embed_worker/knowledge.rs`). No CHECK, so a role needs no migration to be leased |
 | `machine_uuid` | `UUID NOT NULL` | The machine that owns the role, from its `machine.json` |
 | `heartbeat_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Database-clock time of the owner's last claim or renewal |
 

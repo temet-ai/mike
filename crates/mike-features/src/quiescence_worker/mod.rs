@@ -16,11 +16,10 @@ use sweep::{SweepContext, run_sweep};
 
 pub mod due_wakes;
 pub mod label_tick;
-pub mod proposer_tick;
 pub mod sweep;
 pub mod targets;
 
-const SWEEP_INTERVAL: Duration = Duration::from_secs(60);
+pub const SWEEP_INTERVAL: Duration = Duration::from_secs(60);
 
 const SWEEP_BATCH: i64 = 50;
 

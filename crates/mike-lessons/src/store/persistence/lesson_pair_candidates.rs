@@ -9,7 +9,7 @@ pub struct NewPairCandidate {
     pub distance: f64,
 }
 
-impl crate::store::persistence::knowledge_repo::KnowledgeDb<'_> {
+impl crate::store::persistence::lessons_repo::LessonsDb<'_> {
     pub async fn upsert_lesson_pair_candidates(
         self,
         pairs: &[NewPairCandidate],

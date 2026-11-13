@@ -2,7 +2,6 @@ use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 pub mod candidates;
 pub mod first_ten;
 pub mod grade;
-pub mod lesson_pairs;
 pub mod load;
 #[cfg(test)]
 pub mod load_tests;
@@ -144,7 +143,7 @@ async fn tune_phase(
     }
 }
 
-fn database_failed(error: &dyn std::fmt::Display, step: &'static str) -> Stop {
+pub fn database_failed(error: &dyn std::fmt::Display, step: &'static str) -> Stop {
     tracing::warn!(%error, step, "rerank_nightly: a database step failed");
     Stop::DatabaseFailed
 }

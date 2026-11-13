@@ -10,7 +10,6 @@ pub mod session_poll;
 pub mod spawn;
 #[cfg(any(test, feature = "test-seams"))]
 pub mod spawn_test_seams;
-pub mod supply_verdict;
 pub mod turn_sweep;
 pub mod turn_sweep_log;
 pub mod v2_judge;

@@ -1,4 +1,4 @@
-pub use mike_features::api::handlers::*;
+pub use mike_lessons::api::handlers::*;
 use std::collections::BTreeMap;
 
 use axum::Json;

@@ -59,10 +59,10 @@ def normal_default_contract():
         "required_dependency_contracts": [
             {"keys": ["lesson_worker", "harvester", "retention_sweep", "channel_link_sweep"],
              "dependency": "Owned PG19 only; lesson consolidation may ask the embedding service, whose compiled default is disabled.",
-             "source": ["crates/mike-features/src/lesson_worker/mod.rs", "crates/mike-features/src/memory_harvester/mod.rs",
+             "source": ["crates/mike-lessons/src/lesson_worker/mod.rs", "crates/mike-lessons/src/memory_harvester/mod.rs",
                         "crates/mike/src/retention_worker.rs", "crates/mike-features/src/channel_link_sweep/mod.rs"]},
             {"keys": ["semantic_context"], "dependency": "PG19 and embedding state; the boot loader resets embedding to its compiled disabled default at http://127.0.0.1:7997. TOML cannot relocate that URL; do not enable embedding to make a stub useful.",
-             "source": ["crates/mike-features/src/semantic/worker.rs", "crates/mike-base/src/analysis/embeddings/mod.rs",
+             "source": ["crates/mike-knowledge/src/semantic/worker.rs", "crates/mike-base/src/analysis/embeddings/mod.rs",
                         "crates/mike-base/src/config/load/mod.rs"]},
             {"keys": ["db_resync"], "dependency": "Both database URLs must be owned if configured; absent local_database_url legitimately skips resync. Do not disable its toggle.",
              "source": ["crates/mike-features/src/resync/worker.rs", "crates/mike-base/src/config/proxy_config_defaults.rs"]},
