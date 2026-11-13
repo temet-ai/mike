@@ -1,5 +1,5 @@
 use super::*;
-use crate::store::persistence::launch_repo::LaunchPersist as _;
+use crate::store::persistence::fleet_repo::FleetPersist as _;
 use crate::store::persistence::proxy_repo::ProxyPersist as _;
 
 mod audit;
@@ -113,7 +113,7 @@ async fn refuse_closed_fleet_seat(
     to: uuid::Uuid,
     audit: bool,
 ) -> Result<(), Response> {
-    let closed = match handle.launch().closed_fleet_seat(to).await {
+    let closed = match handle.fleet().closed_fleet_seat(to).await {
         Ok(closed) => closed,
         Err(e) => {
             tracing::warn!(error = %e, %to, "post_session_message: closed-seat lookup failed");

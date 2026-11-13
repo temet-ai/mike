@@ -1,9 +1,6 @@
 pub mod carried;
-pub mod channel;
 pub mod closed_rejection;
 pub mod delivery;
-pub mod fleet_seat;
-pub mod fleet_target;
 pub mod redelivery;
 pub mod reload;
 pub mod session_reads;
@@ -20,7 +17,6 @@ pub mod unqueued;
 #[cfg(test)]
 pub mod tests;
 
-pub use fleet_target::{FleetTarget, TargetError};
 pub use team_comms::{TeamCommsDispatchRow, TeamCommsMessageRow};
 pub use thread_types::{
     ParticipantIdentityRow, ResolveThreadOutcome, ThreadMessageRow, ThreadResolution,

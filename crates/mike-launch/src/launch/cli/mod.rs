@@ -4,7 +4,6 @@ pub mod channel;
 pub mod connect;
 pub mod delivery;
 pub mod doctor;
-pub mod fleet_settings;
 pub mod folder;
 pub mod fork;
 pub mod kill;
@@ -28,11 +27,12 @@ pub mod registration;
 pub mod render;
 pub mod run_seat;
 pub mod runner;
-pub mod seat_health;
-pub mod server;
+pub mod server_ops;
 pub mod sidecar;
 pub mod startup;
 pub mod templates;
+#[cfg(any(test, feature = "test-seams"))]
+pub mod test_kit;
 #[cfg(any(test, feature = "test-seams"))]
 pub mod test_support;
 #[cfg(test)]
@@ -46,10 +46,7 @@ pub use args::{
 pub use doctor::DoctorReport;
 pub use kill::KillReport;
 pub use proxy_env::{ca_cert_candidates, resolve_ca_cert, resolve_proxy_env};
-pub use server::{
-    ServerOpenRequest, ServerOpenStart, doctor_for_server, kill_for_server, open_for_server,
-    open_unwatched,
-};
+pub use server_ops::{doctor_for_server, kill_for_server};
 pub use sidecar::{locate_executable, sidecar_reachable};
 pub use startup::spawn_queue_replay;
 

@@ -1,6 +1,7 @@
 use crate::seed::{seed_project, seed_session};
 use crate::test_db::TestDb;
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::fleet_repo::FleetPersist as _;
 use mike::store::persistence::launch_repo::LaunchPersist as _;
 use mike::store::persistence::mailbox::AckOutcome;
 use uuid::Uuid;
@@ -32,10 +33,7 @@ async fn claim_is_exactly_once_and_wins_over_in_band_delivery() -> anyhow::Resul
         .insert_message(second, recipient, Some(sender), "second message")
         .await?;
 
-    let claimed = handle
-        .launch()
-        .claim_channel_messages(recipient, 10)
-        .await?;
+    let claimed = handle.fleet().claim_channel_messages(recipient, 10).await?;
     assert_eq!(claimed.len(), 2, "both pending messages must be claimed");
     assert_eq!(claimed[0].message_uuid, first);
     assert_eq!(claimed[1].message_uuid, second);
@@ -51,10 +49,7 @@ async fn claim_is_exactly_once_and_wins_over_in_band_delivery() -> anyhow::Resul
         "the rendered envelope must carry the body: {envelope}"
     );
 
-    let reclaimed = handle
-        .launch()
-        .claim_channel_messages(recipient, 10)
-        .await?;
+    let reclaimed = handle.fleet().claim_channel_messages(recipient, 10).await?;
     assert!(
         reclaimed.is_empty(),
         "a second poll must not re-deliver messages the channel already claimed"
@@ -108,8 +103,8 @@ async fn concurrent_claims_never_double_deliver_the_same_message() -> anyhow::Re
         .await?;
 
     let (a, b) = tokio::join!(
-        handle.launch().claim_channel_messages(recipient, 10),
-        handle.launch().claim_channel_messages(recipient, 10),
+        handle.fleet().claim_channel_messages(recipient, 10),
+        handle.fleet().claim_channel_messages(recipient, 10),
     );
     let total_claimed = a?.len() + b?.len();
     assert_eq!(
@@ -144,14 +139,14 @@ async fn released_mail_is_claimable_again() -> anyhow::Result<()> {
 
     assert_eq!(
         handle
-            .launch()
+            .fleet()
             .claim_channel_messages(recipient, 10)
             .await?
             .len(),
         1
     );
     let released = handle
-        .launch()
+        .fleet()
         .release_channel_messages(recipient, vec![message_uuid])
         .await?;
     assert_eq!(released, 1, "the claimed row must be released");
@@ -161,7 +156,7 @@ async fn released_mail_is_claimable_again() -> anyhow::Result<()> {
     );
     assert_eq!(
         handle
-            .launch()
+            .fleet()
             .release_channel_messages(Uuid::new_v4(), vec![message_uuid])
             .await?,
         0,

@@ -133,7 +133,7 @@ pub(crate) async fn resolve_fleet_addressed_recipient(
             format!("from_session_id is not a valid UUID: {from_raw}"),
         )
     })?;
-    match handle.launch().resolve_fleet_target(from, to).await {
+    match handle.fleet().resolve_fleet_target(from, to).await {
         Ok(Some(FleetTarget::Seat { session, .. })) => Ok(session),
         Ok(Some(FleetTarget::Seats(_)) | None) => Err(mailbox_error(
             StatusCode::BAD_REQUEST,

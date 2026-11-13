@@ -1,6 +1,7 @@
 use crate::seed::{seed_project, seed_session};
 use crate::test_db::TestDb;
 use mike::store::persistence::PersistHandle;
+use mike::store::persistence::fleet_repo::FleetPersist as _;
 use mike::store::persistence::launch_repo::LaunchPersist as _;
 use uuid::Uuid;
 
@@ -114,7 +115,7 @@ async fn the_reaper_tells_the_sender_and_the_receivers_next_request_revives_the_
     assert_eq!(revived, vec![stranded]);
     assert_eq!(
         p.handle
-            .launch()
+            .fleet()
             .claim_channel_messages(p.recipient, 10)
             .await?
             .len(),
@@ -140,7 +141,7 @@ async fn mail_the_receiver_saw_and_never_acknowledged_is_not_revived() -> anyhow
         .await?;
     assert_eq!(
         p.handle
-            .launch()
+            .fleet()
             .claim_channel_messages(p.recipient, 10)
             .await?
             .len(),

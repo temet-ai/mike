@@ -1,1 +1,1 @@
-pub use mike_launch::store::persistence::test_support::*;
+pub use mike_knowledge::store::persistence::test_support::*;

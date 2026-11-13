@@ -1,19 +1,19 @@
-use mike::launch::cli::test_support;
+use mike::launch::cli::{fleet_test_support, test_support};
 
 #[tokio::test]
 async fn stopped_fleet_explicit_settings_cannot_bypass_actual_open_fence() -> anyhow::Result<()> {
-    test_support::stopped_fleet_refuses_actual_open().await
+    fleet_test_support::stopped_fleet_refuses_actual_open().await
 }
 
 #[tokio::test]
 async fn accepted_open_reservation_holds_stop_until_backend_open_is_durable() -> anyhow::Result<()>
 {
-    test_support::accepted_open_blocks_stop_until_durable().await
+    fleet_test_support::accepted_open_blocks_stop_until_durable().await
 }
 
 #[tokio::test]
 async fn backend_open_error_keeps_fleet_reservation_unresolved() -> anyhow::Result<()> {
-    test_support::failed_backend_open_stays_unresolved().await
+    fleet_test_support::failed_backend_open_stays_unresolved().await
 }
 
 #[tokio::test]

@@ -7,6 +7,7 @@ use serde_json::Value;
 
 use super::cli::ledger::Ledger;
 use super::{LaunchError, SplitLaunchArgs};
+use crate::store::persistence::launch::LaunchSurfaceRefs;
 
 pub const PROFILE_ENV: &str = "MIKE_MCP_PROFILE";
 pub const TEMPLATE_SEAT_PREFIX: &str = "template-";
@@ -42,12 +43,25 @@ pub struct RecordedSettings {
 
 pub type SeatFuture<'a> = Pin<Box<dyn Future<Output = Result<(), LaunchError>> + Send + 'a>>;
 
+pub type AdmitFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<Option<Box<dyn SeatAdmission>>, LaunchError>> + Send + 'a>>;
+
+pub trait SeatAdmission: Send + Sync {
+    fn record_opened<'a>(
+        self: Box<Self>,
+        launch: i64,
+        refs: &'a LaunchSurfaceRefs,
+    ) -> SeatFuture<'a>;
+}
+
 pub trait SeatLaunchHook: Send + Sync {
     fn before_open<'a>(
         &'a self,
         ledger: &'a Ledger,
         split: &'a mut SplitLaunchArgs,
     ) -> SeatFuture<'a>;
+
+    fn admit<'a>(&'a self, ledger: &'a Ledger, run: &'a str) -> AdmitFuture<'a>;
 }
 
 static HOOK: OnceLock<Arc<dyn SeatLaunchHook>> = OnceLock::new();
@@ -60,5 +74,21 @@ pub async fn before_open(ledger: &Ledger, split: &mut SplitLaunchArgs) -> Result
     match HOOK.get() {
         Some(hook) => hook.before_open(ledger, split).await,
         None => Ok(()),
+    }
+}
+
+pub async fn admit(
+    ledger: &Ledger,
+    run: Option<&str>,
+) -> Result<Option<Box<dyn SeatAdmission>>, LaunchError> {
+    let Some(run) = run else {
+        return Ok(None);
+    };
+    match HOOK.get() {
+        Some(hook) => hook.admit(ledger, run).await,
+        None if run.starts_with("fleet-") => Err(LaunchError::Refused(format!(
+            "fleet run {run} cannot be admitted: this process has no fleet support installed"
+        ))),
+        None => Ok(None),
     }
 }

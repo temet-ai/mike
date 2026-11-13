@@ -5,7 +5,6 @@
 )]
 
 pub mod doctor_tests;
-pub mod fleet_settings_tests;
 pub mod kill_tests;
 pub mod list_tests;
 pub mod open_prompt_tests;
@@ -15,51 +14,7 @@ pub mod proxy_ledger_tests;
 pub mod queue_brief_tests;
 pub mod queue_tests;
 
-use std::path::{Path, PathBuf};
-
-use super::ledger::Ledger;
-use super::runner::Runner;
-use crate::config::LaunchConfig;
-use crate::launch::backend::fake::FakeBackend;
-use crate::launch::{TerminalBackend, TrustGate};
-
-pub const MIKE_USER_SERVER: &str = r#"{"mcpServers":{"mike":{"command":"mike-mcp"}}}"#;
-
-pub fn toks(items: &[&str]) -> Vec<String> {
-    items.iter().map(|s| s.to_string()).collect()
-}
-
-pub fn runner<'a>(
-    backend: &'a dyn TerminalBackend,
-    config: &'a LaunchConfig,
-    home: &Path,
-) -> Runner<'a> {
-    let claude_json = home.join(".claude.json");
-    if !claude_json.exists() {
-        std::fs::write(&claude_json, MIKE_USER_SERVER).unwrap();
-    }
-    Runner {
-        backend,
-        ledger: Ledger::none(),
-        config,
-        proxy: None,
-        trust: TrustGate::new(claude_json),
-        briefs_dir: home.join("briefs"),
-        inspect_addr: None,
-        mcp_server: None,
-        backend_reason: None,
-    }
-}
-
-pub fn project_dir(home: &Path) -> PathBuf {
-    let dir = home.join("proj");
-    std::fs::create_dir_all(&dir).unwrap();
-    std::fs::canonicalize(dir).unwrap()
-}
-
-pub fn fake() -> FakeBackend {
-    FakeBackend::available()
-}
+pub use super::test_kit::{fake, project_dir, runner, toks};
 
 pub fn json(line: &str) -> serde_json::Value {
     serde_json::from_str(line).unwrap()

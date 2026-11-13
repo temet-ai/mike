@@ -171,7 +171,7 @@ impl Fixture {
                           "check": "passed", "evidence": ["artifacts/scenario.log"]});
         Ok(self
             .persist
-            .launch()
+            .fleet()
             .create_session_note(
                 session,
                 NewSessionNote {

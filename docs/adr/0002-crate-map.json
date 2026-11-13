@@ -47,7 +47,9 @@
    "runtime"
   ],
   "mike-launch": [
-   "launch",
+   "launch"
+  ],
+  "mike-fleet": [
    "fleet"
   ],
   "mike-knowledge": [
@@ -344,7 +346,7 @@
   "api/handlers/usage_workflows_01": "web",
   "api/handlers/verifier_01": "steerer",
   "api/handlers/work_items": "launch",
-  "api/launches": "launch",
+  "api/launches": "fleet",
   "api/lesson_delivery": "lessons",
   "api/lesson_delivery_comparison": "lessons",
   "api/manifest/fleets": "fleet",
@@ -431,7 +433,9 @@
   "launch/cross_crate_tests/runtime_observation_tests": "fleet",
   "store/persistence/mailbox/channel": "fleet",
   "store/persistence/questions/tests": "fleet",
+  "launch/cli/fleet_test_support": "fleet",
   "launch/cli/server": "fleet",
+  "launch/cli/server_ops": "launch",
   "launch/codex/plan": "fleet",
   "launch/fleet/acceptance_artifacts": "launch",
   "launch/fleet/browser_guard": "launch",

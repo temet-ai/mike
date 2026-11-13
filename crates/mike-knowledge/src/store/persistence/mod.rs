@@ -1,4 +1,4 @@
-pub use mike_launch::store::persistence::*;
+pub use mike_fleet::store::persistence::*;
 pub mod knowledge_repo;
 #[cfg(test)]
 pub mod opened_by_readers_tests;

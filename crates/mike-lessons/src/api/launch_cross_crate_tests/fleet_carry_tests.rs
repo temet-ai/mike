@@ -1,5 +1,4 @@
 use crate::store::persistence::fleet_repo::FleetPersist as _;
-use crate::store::persistence::launch_repo::LaunchPersist as _;
 use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use chrono::Utc;
 use serde_json::{Value, json};
@@ -61,7 +60,7 @@ async fn write_note(
     };
     Ok(w.f
         .handle
-        .launch()
+        .fleet()
         .create_session_note(session, note)
         .await?
         .note_uuid)
@@ -118,7 +117,7 @@ async fn saving_the_same_note_again_neither_adds_a_candidate_nor_moves_a_count()
         body: Some("edited body"),
         ..SessionNoteUpdate::default()
     };
-    w.f.handle.launch().update_session_note(note, again).await?;
+    w.f.handle.fleet().update_session_note(note, again).await?;
     let outcome = after_note(&w.f.handle, note, &[], &carry_data("db-dev")).await;
 
     assert_eq!(outcome, CarryOutcome::AlreadyCandidate);
@@ -154,7 +153,7 @@ async fn a_later_finding_with_the_tag_moves_the_finding_count_once_however_often
         ..SessionNoteUpdate::default()
     };
     w.f.handle
-        .launch()
+        .fleet()
         .update_session_note(finding, touch)
         .await?;
 

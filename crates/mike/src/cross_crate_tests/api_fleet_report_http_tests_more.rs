@@ -179,14 +179,14 @@ async fn invalid_obligation_create_and_patch_roll_back() -> anyhow::Result<()> {
     };
     assert!(matches!(
         h.persist
-            .launch()
+            .fleet()
             .create_session_note(id(ACCEPTANCE), note)
             .await,
         Err(crate::store::persistence::PersistError::InvalidAcceptanceObligation(_))
     ));
     let row = h
         .persist
-        .launch()
+        .fleet()
         .create_session_note(
             id(ACCEPTANCE),
             NewSessionNote {
@@ -197,7 +197,7 @@ async fn invalid_obligation_create_and_patch_roll_back() -> anyhow::Result<()> {
         .await?;
     let result = h
         .persist
-        .launch()
+        .fleet()
         .update_session_note(
             row.note_uuid,
             crate::store::persistence::session_notes::SessionNoteUpdate {
