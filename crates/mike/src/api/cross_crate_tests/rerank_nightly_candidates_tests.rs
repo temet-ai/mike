@@ -91,12 +91,12 @@ async fn night_pass_with_many_lessons_ranks_ten_for_the_thread_and_replaces_them
     let project = project(&harness).await?;
     let thread_id = thread(&harness, project, "cache-tuning", "tune the reranker cache").await?;
     lessons(harness.handle.pool(), project, 12).await?;
-    let budget = quiet_budget(&harness.state);
+    let budget = quiet_budget(&harness.state.knowledge_state());
     let pool = harness.handle.pool();
     let before = sources_generation(pool).await?;
 
     let first = night_pass(
-        &harness.state,
+        &harness.state.knowledge_state(),
         &harness.handle,
         &budget,
         at(23),
@@ -112,7 +112,7 @@ async fn night_pass_with_many_lessons_ranks_ten_for_the_thread_and_replaces_them
     .execute(pool)
     .await?;
     let second = night_pass(
-        &harness.state,
+        &harness.state.knowledge_state(),
         &harness.handle,
         &budget,
         at(23),
@@ -152,11 +152,11 @@ async fn night_pass_keeps_other_threads_entries_and_drops_the_threads_own() -> a
         "reranker cache tuning notes",
     )
     .await?;
-    let budget = quiet_budget(&harness.state);
+    let budget = quiet_budget(&harness.state.knowledge_state());
     let pool = harness.handle.pool();
 
     night_pass(
-        &harness.state,
+        &harness.state.knowledge_state(),
         &harness.handle,
         &budget,
         at(23),
@@ -201,10 +201,10 @@ async fn night_pass_when_the_reranker_fails_leaves_the_threads_old_candidates() 
             }],
         )
         .await?;
-    let budget = quiet_budget(&harness.state);
+    let budget = quiet_budget(&harness.state.knowledge_state());
 
     let pass = night_pass(
-        &harness.state,
+        &harness.state.knowledge_state(),
         &harness.handle,
         &budget,
         at(23),
@@ -229,10 +229,17 @@ async fn night_pass_when_a_session_becomes_active_stops_before_the_next_thread()
     let first = thread(&harness, project, "cache-a", "tune the reranker cache").await?;
     let second = thread(&harness, project, "cache-b", "tune the reranker cache").await?;
     lessons(harness.handle.pool(), project, 3).await?;
-    let budget = quiet_budget(&harness.state);
+    let budget = quiet_budget(&harness.state.knowledge_state());
     let idle = IdleOnce(AtomicUsize::new(0));
 
-    let pass = night_pass(&harness.state, &harness.handle, &budget, at(23), &idle).await;
+    let pass = night_pass(
+        &harness.state.knowledge_state(),
+        &harness.handle,
+        &budget,
+        at(23),
+        &idle,
+    )
+    .await;
 
     let pool = harness.handle.pool();
     assert_eq!(pass.stopped, Some(Stop::MachineBusy));

@@ -39,9 +39,9 @@ pub fn spawn_stitched_tee(
             request_id,
             in_flight: state.in_flight.clone(),
             persist: state.persist().cloned(),
-            response_hook: Some(std::sync::Arc::new(
-                crate::memory_harvester::HarvesterHook::new(state.config.harvester.clone()),
-            )),
+            response_hook: state
+                .lesson_hooks()
+                .response_hook(state.config.harvester.clone()),
         },
         &state.tracker,
     );

@@ -1,4 +1,3 @@
-use crate::store::persistence::dossier_repo::DossierPersist as _;
 use std::path::Path;
 
 use anyhow::{Context, Result, bail};
@@ -88,7 +87,7 @@ async fn judge_bodies(
     persist: &PersistHandle,
     row: &EInputRow,
 ) -> Result<Option<Vec<(JudgeSectionId, String)>>> {
-    let Some(located) = persist.dossier().locate_turn(row.turn_id).await? else {
+    let Some(located) = persist.locate_turn(row.turn_id).await? else {
         return Ok(None);
     };
     let audience = Audience::Judge {

@@ -6,7 +6,7 @@ use super::retrieve::{
     Audience, QueryError, QuerySubject, RetrievedKind, Scope, SemanticQuery, validate,
 };
 use super::tagger::{AnchorHit, CorrectionRef, assign};
-use crate::dossier::view::types::{AsOf, AsOfMode};
+use crate::dossier::as_of::{AsOf, AsOfMode};
 
 fn query(audience: Audience, kinds: Vec<RetrievedKind>, mode: AsOfMode) -> SemanticQuery {
     SemanticQuery {

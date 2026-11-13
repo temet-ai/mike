@@ -107,7 +107,6 @@ pub async fn run_tick(state: &AppState, persist: &PersistHandle, now: DateTime<U
     }
     let idle_since = now - chrono::Duration::seconds(settings.quiet.idle_secs);
     if persist
-        .lessons()
         .has_recent_primary_activity(idle_since)
         .await
         .unwrap_or(true)

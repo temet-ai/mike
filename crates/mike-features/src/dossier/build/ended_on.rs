@@ -2,6 +2,8 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
+pub use crate::wire::text_span::TextSpan;
+
 pub const ENDED_ON_VERSION: &str = "ended-on-v1";
 pub const INPUT_CHARS: usize = 4000;
 
@@ -78,21 +80,6 @@ impl EndedOn {
 pub struct EndedOnClass {
     pub class: EndedOn,
     pub span: Option<(usize, usize)>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TextSpan {
-    pub origin: String,
-    pub start: usize,
-    pub end: usize,
-    pub first_request_id: i64,
-    pub last_request_id: i64,
-}
-
-impl TextSpan {
-    pub fn is_sidecar(&self) -> bool {
-        self.origin.ends_with("_sidecar")
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

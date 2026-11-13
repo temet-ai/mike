@@ -1,3 +1,7 @@
+use axum::http::{HeaderMap, header};
+
+use crate::config::ProxyConfig;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpaOrigin {
     origin: String,
@@ -25,6 +29,22 @@ impl SpaOrigin {
     pub fn request_id(&self) -> Option<&str> {
         self.request_id.as_deref()
     }
+}
+
+fn header_text(headers: &HeaderMap, name: impl header::AsHeaderName) -> Option<String> {
+    headers
+        .get(name)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_owned)
+}
+
+pub fn spa_origin(headers: &HeaderMap, config: &ProxyConfig) -> Option<SpaOrigin> {
+    SpaOrigin::checked(
+        header_text(headers, header::ORIGIN).as_deref(),
+        header_text(headers, header::HOST).as_deref(),
+        header_text(headers, "x-request-id"),
+        &config.spa_origins,
+    )
 }
 
 #[cfg(test)]

@@ -45,7 +45,7 @@ use crate::analysis::{AnalysisConfig, AnalyzerRegistry};
 use crate::config::ProxyConfig;
 use crate::extract::request::TurnOrigin;
 use crate::filter::FilterConfig;
-use crate::lesson_worker::LessonSnapshot;
+use crate::lesson_cache::LessonSnapshot;
 use crate::pipeline::{RequestStage, StageBody};
 use crate::state::AppState;
 use crate::store::models::{Diagnostic, RequestId};

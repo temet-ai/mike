@@ -219,14 +219,12 @@ fn spawn_store_updater_for(
             request_id,
             in_flight: state.in_flight.clone(),
             persist: state.persist().cloned(),
-            response_hook: Some(std::sync::Arc::new(
-                crate::memory_harvester::HarvesterHook::new(
-                    crate::config::memory_harvester::HarvesterConfig {
-                        enabled: state.feature_toggle_overlay.load().harvester,
-                        ..state.config.harvester.clone()
-                    },
-                ),
-            )),
+            response_hook: state.lesson_hooks().response_hook(
+                crate::config::memory_harvester::HarvesterConfig {
+                    enabled: state.feature_toggle_overlay.load().harvester,
+                    ..state.config.harvester.clone()
+                },
+            ),
         },
         &state.tracker,
     );

@@ -10,7 +10,8 @@ pub(crate) async fn capabilities(State(state): State<AppState>) -> Json<Capabili
     let toggles = state.feature_toggle_overlay.load();
     let steering = steering_capability(&state, toggles.steerer).await;
     let semantic_recall = semantic_recall_capability(&state).await;
-    let knowledge = crate::api::project_knowledge::embedding_capability(&state).await;
+    let knowledge =
+        crate::api::project_knowledge::embedding_capability(&state.knowledge_state()).await;
     let rerank = rerank_capability(&state);
     let weasel_intercept = weasel_intercept_capability(&state, toggles.weasel_intercept);
     let persistence = persistence_capability(&state).await;

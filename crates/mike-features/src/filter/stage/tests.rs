@@ -9,7 +9,7 @@ use bytes::Bytes;
 use super::*;
 use crate::extract::request::TurnOrigin;
 use crate::filter::{FilterAction, FilterConfig, FilterKind, FilterRule, RuleSource};
-use crate::lesson_worker::LessonSnapshot;
+use crate::lesson_cache::LessonSnapshot;
 use crate::store::models::RequestId;
 
 fn drop_rule(id: i64, value: &str) -> FilterRule {

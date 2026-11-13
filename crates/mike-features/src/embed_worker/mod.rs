@@ -1,11 +1,10 @@
-use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::time::{Duration, Instant};
 
 use tokio_util::sync::CancellationToken;
 
 use crate::analysis::EmbeddingService;
 use crate::circuit_breaker::CircuitBreaker;
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::operator_turns::embed_closed_pending;
 use crate::store::persistence::PersistError;
 use crate::store::persistence::PersistHandle;
@@ -41,7 +40,7 @@ pub mod model_change_tests;
 const IDLE_TURN_THRESHOLD: Duration = Duration::from_secs(30 * 60);
 
 #[cfg(any(test, feature = "test-seams"))]
-pub async fn run_drain_once(state: &AppState) -> anyhow::Result<usize> {
+pub async fn run_drain_once(state: &KnowledgeState) -> anyhow::Result<usize> {
     let embedding = state.embedding_service();
     let Some(persist) = state.persist.clone() else {
         return Ok(0);
@@ -50,7 +49,7 @@ pub async fn run_drain_once(state: &AppState) -> anyhow::Result<usize> {
 }
 
 #[cfg(any(test, feature = "test-seams"))]
-pub async fn run_reap_once(state: &AppState) -> anyhow::Result<Vec<i64>> {
+pub async fn run_reap_once(state: &KnowledgeState) -> anyhow::Result<Vec<i64>> {
     let Some(persist) = state.persist.clone() else {
         return Ok(Vec::new());
     };
@@ -61,7 +60,7 @@ pub async fn run_reap_once(state: &AppState) -> anyhow::Result<Vec<i64>> {
 
 #[cfg(any(test, feature = "test-seams"))]
 pub async fn run_session_vector_sweep_once(
-    state: &AppState,
+    state: &KnowledgeState,
 ) -> anyhow::Result<Option<SessionVectorSweepOutcome>> {
     let embedding = state.embedding_service();
     let Some(persist) = state.persist.clone() else {
@@ -84,7 +83,7 @@ const CIRCUIT_BREAKER_COOLDOWN_BASE: Duration = Duration::from_secs(300);
 
 const CIRCUIT_BREAKER_COOLDOWN_MAX: Duration = Duration::from_secs(3600);
 
-pub fn spawn_embed_backfill(state: &AppState) {
+pub fn spawn_embed_backfill(state: &KnowledgeState) {
     let embedding = state.embedding_service();
     let Some(persist) = state.persist.clone() else {
         return;
@@ -345,7 +344,7 @@ fn new_breaker() -> CircuitBreaker {
 
 async fn catchup_batches(persist: &PersistHandle) -> usize {
     let since = chrono::Utc::now() - chrono::Duration::minutes(5);
-    match persist.lessons().has_recent_primary_activity(since).await {
+    match persist.has_recent_primary_activity(since).await {
         Ok(false) => IDLE_BATCHES,
         Ok(true) => 1,
         Err(error) => {
@@ -382,7 +381,7 @@ async fn drain_catchup(
 }
 
 #[cfg(any(test, feature = "test-seams"))]
-pub async fn run_catchup_once(state: &AppState) -> usize {
+pub async fn run_catchup_once(state: &KnowledgeState) -> usize {
     let Some(persist) = state.persist.as_ref() else {
         return 0;
     };

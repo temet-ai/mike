@@ -1,4 +1,3 @@
-use crate::store::persistence::dossier_repo::DossierPersist as _;
 use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 pub mod patterns;
 
@@ -10,14 +9,14 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde_json::json;
 
-use crate::dossier::view::types::{AsOf, AsOfMode};
+use crate::dossier::as_of::{AsOf, AsOfMode};
+use crate::semantic::KnowledgeState;
 use crate::semantic::egress::{egress_state, url_host};
 use crate::semantic::neighbours::Retriever;
 use crate::semantic::retrieve::{
     Audience, QuerySubject, RetrievedKind, Scope, SemanticQuery, default_kinds,
 };
 use crate::semantic::{SemanticError, config::RetrievalScopeSetting};
-use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
 pub fn error(status: StatusCode, message: String) -> Response {
@@ -57,7 +56,7 @@ async fn floors_view(
 }
 
 async fn status_body(
-    state: &AppState,
+    state: &KnowledgeState,
     persist: &PersistHandle,
 ) -> Result<serde_json::Value, Response> {
     let handle = state.semantic().load();
@@ -100,7 +99,7 @@ async fn status_body(
     }))
 }
 
-pub async fn get_semantic_status(State(state): State<AppState>) -> Response {
+pub async fn get_semantic_status(State(state): State<KnowledgeState>) -> Response {
     let Some(persist) = state.persist() else {
         return unavailable();
     };
@@ -149,7 +148,7 @@ fn build_query(
     turn_id: i64,
     q: &NeighboursQuery,
     closed_at: Option<DateTime<Utc>>,
-    state: &AppState,
+    state: &KnowledgeState,
 ) -> Result<SemanticQuery, Box<Response>> {
     let cfg = state.semantic().config();
     let audience = match q.audience.as_deref() {
@@ -195,14 +194,14 @@ fn build_query(
 }
 
 pub async fn get_semantic_neighbours(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Path(turn_id): Path<i64>,
     Query(q): Query<NeighboursQuery>,
 ) -> Response {
     let Some(persist) = state.persist() else {
         return unavailable();
     };
-    let closed_at = match persist.dossier().locate_turn(turn_id).await {
+    let closed_at = match persist.locate_turn(turn_id).await {
         Ok(Some(t)) => t.closed_at,
         Ok(None) => {
             return error(
@@ -234,7 +233,10 @@ pub async fn get_semantic_neighbours(
     }
 }
 
-pub async fn get_semantic_item(State(state): State<AppState>, Path(id): Path<i64>) -> Response {
+pub async fn get_semantic_item(
+    State(state): State<KnowledgeState>,
+    Path(id): Path<i64>,
+) -> Response {
     let Some(persist) = state.persist() else {
         return unavailable();
     };

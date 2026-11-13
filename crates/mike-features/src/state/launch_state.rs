@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::launch::state::{LaunchState, SessionProjects};
-use crate::lesson_worker::LessonCache;
+use crate::lesson_cache::LessonCache;
 
 use super::AppState;
 

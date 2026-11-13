@@ -3,14 +3,14 @@ use std::time::Duration;
 
 use tokio::time::{MissedTickBehavior, interval};
 
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::search_events::{USED_BATCH, UsedPass};
 
 const LEASE_ROLE: &str = "search_events_used";
 const PASS_INTERVAL: Duration = Duration::from_secs(120);
 
-pub fn spawn_search_events_worker(state: &AppState) {
+pub fn spawn_search_events_worker(state: &KnowledgeState) {
     let Some(persist) = state.persist().cloned() else {
         tracing::debug!("search_events: no persistence — not spawning");
         return;

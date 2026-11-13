@@ -28,7 +28,7 @@ use crate::config::LessonWorkerConfig;
 use crate::state::AppState;
 use crate::store::persistence::PersistHandle;
 
-pub use snapshot::{InjectableLesson, LessonSnapshot};
+pub use crate::lesson_cache::{InjectableLesson, LessonCache, LessonSnapshot};
 
 /// Consecutive failed session-consolidation ticks before the breaker
 /// trips and skips embed_documents calls entirely for a cooldown window.
@@ -45,10 +45,6 @@ const CIRCUIT_BREAKER_COOLDOWN_MAX_SECS: u64 = 3600;
 /// every 30 seconds regardless of `session_consolidation_idle_secs`.
 /// The idle threshold itself is applied in the discovery SQL (`created_at < $1`).
 const SESSION_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_secs(30);
-
-/// Shared handle type stored on [`AppState`]. Hot-swappable via
-/// `ArcSwap::store`; cloned cheaply onto the proxy hot path.
-pub type LessonCache = Arc<ArcSwap<LessonSnapshot>>;
 
 /// Spawn the lesson worker onto the shared `TaskTracker`. Returns
 /// immediately — the worker runs in the background.
@@ -344,10 +340,7 @@ async fn run_scheduled_tick(
 
     refresh::refresh_lesson_cache_inner(ctx.persist, ctx.cache).await;
     let snapshot = ctx.cache.load_full();
-    snapshot
-        .relevance
-        .refresh(ctx.embedding, ctx.persist, &snapshot)
-        .await;
+    relevance::refresh(&snapshot.relevance, ctx.embedding, ctx.persist, &snapshot).await;
 }
 
 pub async fn refresh_lesson_cache(state: &AppState) {

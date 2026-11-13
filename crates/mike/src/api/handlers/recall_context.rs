@@ -118,7 +118,7 @@ pub(crate) async fn recall_project_context(
     let knowledge = if let Some(query) = params.query {
         Some(
             crate::api::project_knowledge::retrieve_without_rerank(
-                &state,
+                &state.knowledge_state(),
                 &crate::store::persistence::project_knowledge::KnowledgeQuery {
                     project: project_path.clone(),
                     query,

@@ -32,7 +32,7 @@ fn record_answer(state: &AppState, caller: Option<&str>, answer: &FindTextUnifie
         return;
     }
     crate::search_events::record_text_search(
-        state,
+        &state.knowledge_state(),
         caller,
         &answer.needle,
         answer.matches.iter().map(|found| found.request_id),

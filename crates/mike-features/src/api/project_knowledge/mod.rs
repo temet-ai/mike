@@ -9,7 +9,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::project_knowledge::{
     KnowledgeQuery, LocationInput, ScanInput, SourceInput,
 };
@@ -26,7 +26,7 @@ pub struct LocationsQuery {
 }
 
 pub async fn locations(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Query(query): Query<LocationsQuery>,
 ) -> Result<Json<Value>, Response> {
     state
@@ -40,7 +40,7 @@ pub async fn locations(
 }
 
 pub async fn register_location(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Json(input): Json<LocationInput>,
 ) -> Result<Json<Value>, Response> {
     state
@@ -54,7 +54,7 @@ pub async fn register_location(
 }
 
 pub async fn register_source(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Json(input): Json<SourceInput>,
 ) -> Result<Json<Value>, Response> {
     state
@@ -68,7 +68,7 @@ pub async fn register_source(
 }
 
 pub async fn scan(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Path(source): Path<Uuid>,
     Json(input): Json<ScanInput>,
 ) -> Result<Json<Value>, Response> {
@@ -93,7 +93,7 @@ pub struct CallerSession {
 }
 
 pub async fn search(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Query(input): Query<KnowledgeQuery>,
     Query(caller): Query<CallerSession>,
 ) -> Result<Json<Value>, Response> {
@@ -105,7 +105,7 @@ pub async fn search(
 }
 
 async fn answer_search(
-    state: AppState,
+    state: KnowledgeState,
     input: KnowledgeQuery,
     caller: CallerSession,
 ) -> Result<Json<Value>, Response> {
@@ -138,7 +138,7 @@ pub struct ReadQuery {
 }
 
 pub async fn read(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Query(input): Query<ReadQuery>,
 ) -> Result<Json<Value>, Response> {
     let handle = state.persist().ok_or_else(persist_unavailable_response)?;
@@ -154,7 +154,7 @@ pub struct LessonFilesQuery {
 }
 
 pub async fn lesson_files(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Query(input): Query<LessonFilesQuery>,
 ) -> Result<Json<Value>, Response> {
     state
@@ -168,7 +168,7 @@ pub async fn lesson_files(
 }
 
 pub async fn import_lesson(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Json(input): Json<crate::store::persistence::project_knowledge::LessonImport>,
 ) -> Result<Json<Value>, Response> {
     state
@@ -188,7 +188,7 @@ pub struct LessonReceipt {
 }
 
 pub async fn acknowledge_lessons(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Json(input): Json<LessonReceipt>,
 ) -> Result<Json<Value>, Response> {
     state
@@ -208,7 +208,7 @@ pub struct DefineProject {
 }
 
 pub async fn define_project(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Json(input): Json<DefineProject>,
 ) -> Result<Json<Value>, Response> {
     let project = state

@@ -147,7 +147,9 @@ async fn boot_state_with_trim_cap(
     config.proxy_listen_addr = "127.0.0.1:0".to_string();
     config.inspect_listen_addr = "127.0.0.1:0".to_string();
     config.upstream_url = upstream_url.to_string();
-    AppState::new(config).await
+    let state = AppState::new(config).await?;
+    mike::lesson_delivery::hooks::install(&state);
+    Ok(state)
 }
 
 #[tokio::test]

@@ -1,7 +1,7 @@
 use super::RerankReport;
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 
-pub fn short_query_report(state: &AppState, query: &str) -> Option<RerankReport> {
+pub fn short_query_report(state: &KnowledgeState, query: &str) -> Option<RerankReport> {
     let wanted = state.rerank_service().current_config().min_query_words;
     too_short(query, wanted)
 }

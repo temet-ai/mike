@@ -10,7 +10,7 @@ use tokio_util::sync::CancellationToken;
 use crate::analysis::embeddings::{EmbeddingConfig, EmbeddingService};
 use crate::circuit_breaker::CircuitBreaker;
 use crate::feature_toggles::FeatureToggles;
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::semantic::{EmbedderRow, SemanticWindow};
 
@@ -18,6 +18,7 @@ use super::builder::{BuildReport, Builder};
 use super::config::SemanticConfig;
 use super::drift_job::DriftRun;
 use super::floors_job::FloorRun;
+use super::knowledge_state::DriftAlarms;
 use super::tag_job::{group_weekly, tag_tick};
 use super::{SemanticError, SemanticHandle, check};
 
@@ -31,6 +32,7 @@ pub struct SemanticWorker {
     pub embedding: EmbeddingService,
     pub toggles: Arc<ArcSwap<FeatureToggles>>,
     pub handle: SemanticHandle,
+    pub alarms: Arc<dyn DriftAlarms>,
 }
 
 #[derive(Default)]
@@ -169,7 +171,9 @@ impl SemanticWorker {
             let lines = run
                 .day(Utc::now().date_naive() - chrono::Duration::days(1))
                 .await?;
-            run.raise_alarms(&lines).await?;
+            self.alarms
+                .raise(&self.persist, &embedder.embedder_key, &lines)
+                .await?;
             report.drift_days = 1;
             self.handle
                 .update(|s| s.status.last_daily_run = Some(Utc::now()));
@@ -267,7 +271,7 @@ impl SemanticWorker {
     }
 }
 
-pub fn spawn_semantic_worker(state: &AppState) {
+pub fn spawn_semantic_worker(state: &KnowledgeState) {
     let Some(persist) = state.persist.clone() else {
         tracing::info!("semantic: not spawning, no persistence");
         return;
@@ -277,13 +281,14 @@ pub fn spawn_semantic_worker(state: &AppState) {
         embedding: state.embedding_service(),
         toggles: state.feature_toggle_overlay.clone(),
         handle: state.semantic(),
+        alarms: state.drift_alarms.clone(),
     };
     let shutdown = state.shutdown();
     state.tracker.spawn(worker.run(shutdown));
 }
 
 #[cfg(any(test, feature = "test-seams"))]
-pub async fn run_semantic_once(state: &AppState) -> anyhow::Result<TickReport> {
+pub async fn run_semantic_once(state: &KnowledgeState) -> anyhow::Result<TickReport> {
     let Some(persist) = state.persist.clone() else {
         anyhow::bail!("persistence is off");
     };
@@ -292,6 +297,7 @@ pub async fn run_semantic_once(state: &AppState) -> anyhow::Result<TickReport> {
         embedding: state.embedding_service(),
         toggles: state.feature_toggle_overlay.clone(),
         handle: state.semantic(),
+        alarms: state.drift_alarms.clone(),
     };
     Ok(worker.tick(&mut LoopState::default()).await?)
 }

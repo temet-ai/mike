@@ -75,7 +75,7 @@ mod tests {
     use super::*;
     use crate::extract::request::TurnOrigin;
     use crate::filter::{FilterAction, FilterConfig, FilterKind, FilterRule, RuleSource};
-    use crate::lesson_worker::LessonSnapshot;
+    use crate::lesson_cache::LessonSnapshot;
     use crate::store::models::RequestId;
 
     const HEADING: &str = "# Claude in Chrome browser automation";

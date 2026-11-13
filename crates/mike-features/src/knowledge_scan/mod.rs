@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use tokio_util::sync::CancellationToken;
 
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::PersistHandle;
 
 pub use sync::{ScanMemo, ScanReport, scan_machine};
@@ -33,7 +33,7 @@ pub fn claude_home() -> Option<PathBuf> {
         .map(|home| PathBuf::from(home).join(".claude"))
 }
 
-pub fn spawn_knowledge_scan(state: &AppState) {
+pub fn spawn_knowledge_scan(state: &KnowledgeState) {
     let Some(persist) = state.persist().cloned() else {
         tracing::debug!("knowledge_scan: no persistence, not spawning");
         return;

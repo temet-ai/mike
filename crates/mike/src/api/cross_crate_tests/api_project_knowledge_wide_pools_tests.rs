@@ -112,7 +112,7 @@ async fn candidate_rows_with_the_no_project_setting_on_equal_the_sequential_merg
         vector: None,
         reranked: true,
     };
-    let together = candidate_rows(&harness.state, &harness.handle, pool).await?;
+    let together = candidate_rows(&harness.state.knowledge_state(), &harness.handle, pool).await?;
 
     assert_eq!(references(&together).len(), 4);
     assert_eq!(together, sequential);
@@ -148,7 +148,7 @@ async fn candidate_rows_with_the_no_project_setting_off_query_only_the_callers_p
         reranked: true,
     };
 
-    let rows = candidate_rows(&harness.state, &harness.handle, pool).await?;
+    let rows = candidate_rows(&harness.state.knowledge_state(), &harness.handle, pool).await?;
 
     assert_eq!(references(&rows).len(), 3);
     assert_eq!(
@@ -184,7 +184,7 @@ async fn candidate_rows_for_several_searches_look_the_no_project_project_up_once
             vector: None,
             reranked: true,
         };
-        candidate_rows(&harness.state, &harness.handle, pool).await?;
+        candidate_rows(&harness.state.knowledge_state(), &harness.handle, pool).await?;
     }
 
     assert_eq!(

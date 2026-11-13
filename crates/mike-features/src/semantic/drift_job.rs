@@ -1,10 +1,8 @@
-use crate::store::persistence::eval_repo::EvalPersist as _;
 use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use chrono::{DateTime, NaiveDate, NaiveTime, TimeZone, Utc};
 use serde::Serialize;
 
 use crate::store::persistence::PersistHandle;
-use crate::store::persistence::eval_metrics::{AlarmKind, Firing};
 use crate::store::persistence::semantic::{EmbedderRow, NewDriftRow, parse_vector};
 
 use super::SemanticError;
@@ -12,8 +10,6 @@ use super::config::SemanticConfig;
 use super::drift::{
     DRIFT_VERSION, DayInputs, DriftPoint, PRIOR_DAYS, STREAMS, fires, min_current_for, score_day,
 };
-
-const CLEAR_AFTER_QUIET_DAYS: i32 = 3;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct DriftLine {
@@ -105,33 +101,5 @@ impl DriftRun<'_> {
             lines.push(self.stream_day(stream, day).await?);
         }
         Ok(lines)
-    }
-
-    pub async fn raise_alarms(&self, lines: &[DriftLine]) -> Result<(), SemanticError> {
-        let firings: Vec<Firing> = lines
-            .iter()
-            .filter(|l| l.fired)
-            .map(|l| Firing {
-                kind: AlarmKind::EmbeddingDrift,
-                subject: format!("embedding:{}", l.stream),
-                detail: serde_json::json!({
-                    "day": l.day,
-                    "embedder_key": self.embedder.embedder_key,
-                    "distance": l.point.distance,
-                    "z": l.point.z,
-                    "n_current": l.n_current,
-                    "n_baseline": l.n_baseline,
-                }),
-            })
-            .collect();
-        self.persist
-            .eval()
-            .apply_alarm_pass(
-                &[AlarmKind::EmbeddingDrift],
-                &firings,
-                CLEAR_AFTER_QUIET_DAYS,
-            )
-            .await?;
-        Ok(())
     }
 }

@@ -1,7 +1,7 @@
 use chrono::Utc;
 use serde_json::json;
 
-use crate::lesson_worker::LessonSnapshot;
+use crate::lesson_cache::LessonSnapshot;
 use crate::store::models::{
     Diagnostic, DiagnosticCategory, InterceptedRequest, RequestId, RequestStatus,
     SystemPromptObservation,

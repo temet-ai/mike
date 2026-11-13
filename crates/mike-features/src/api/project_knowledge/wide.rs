@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use serde_json::Value;
 
 use crate::search_ranking::{identifier_hits, mark_outside_project};
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::project_knowledge::{
     KnowledgeQuery, ProjectIdentity, QueryEmbedding,
 };
@@ -19,7 +19,7 @@ pub struct Pool<'a> {
 }
 
 pub async fn candidate_rows(
-    state: &AppState,
+    state: &KnowledgeState,
     handle: &PersistHandle,
     pool: Pool<'_>,
 ) -> Result<Vec<Value>, PersistError> {

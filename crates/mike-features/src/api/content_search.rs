@@ -6,7 +6,7 @@ use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::content_search::{ContentSearchRow, PageRequest, SessionOrder};
 
@@ -229,7 +229,7 @@ fn group_rows_by_session(rows: Vec<ContentSearchRow>, q: &str) -> Vec<ContentSea
 }
 
 pub async fn search_content(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Query(params): Query<ContentSearchParams>,
 ) -> Response {
     let caller = params.caller_session_id.clone();
@@ -242,7 +242,7 @@ pub async fn search_content(
     }
 }
 
-fn record_answer(state: &AppState, caller: Option<&str>, answer: &ContentSearchResponse) {
+fn record_answer(state: &KnowledgeState, caller: Option<&str>, answer: &ContentSearchResponse) {
     let sessions: Vec<(String, u64)> = answer
         .sessions
         .iter()
@@ -252,7 +252,7 @@ fn record_answer(state: &AppState, caller: Option<&str>, answer: &ContentSearchR
 }
 
 async fn run_search(
-    state: &AppState,
+    state: &KnowledgeState,
     params: ContentSearchParams,
 ) -> Result<ContentSearchResponse, Response> {
     validate_query(&params.q).map_err(query_validation_error_response)?;

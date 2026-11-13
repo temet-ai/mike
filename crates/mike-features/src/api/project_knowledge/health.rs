@@ -1,10 +1,10 @@
 use crate::embed_worker::knowledge_report::{KnowledgeSweepReport, fresh_report};
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use crate::store::persistence::project_knowledge::{KNOWLEDGE_COUNT_CAP, KnowledgeStateCounts};
 use crate::web_base::capability::{CapabilityRow, CapabilityState};
 
-pub async fn embedding_capability(state: &AppState) -> CapabilityRow {
+pub async fn embedding_capability(state: &KnowledgeState) -> CapabilityRow {
     let service = state.embedding_service();
     let mut row = CapabilityRow {
         id: "project_knowledge",

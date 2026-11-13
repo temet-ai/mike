@@ -12,6 +12,11 @@ use crate::rerank_nightly::{Stop, night_pass, quiet_budget};
 const SIMILAR: &str = "Always run the narrow check before committing the change";
 const SAME_TOPIC: &str = "Run one narrow check of the change, then commit it";
 
+fn with_pairs(harness: &Harness) -> crate::semantic::KnowledgeState {
+    crate::lesson_delivery::hooks::install(&harness.state);
+    harness.state.knowledge_state()
+}
+
 async fn embedded_pair(harness: &Harness) -> anyhow::Result<(i64, i64)> {
     let project = harness
         .handle
@@ -86,10 +91,10 @@ async fn night_pass_with_a_pair_the_reranker_rates_high_queues_it_and_writes_no_
     harness.enable_rerank(2_000);
     answering(&harness, 0.9).await;
     let (a, b) = embedded_pair(&harness).await?;
-    let budget = quiet_budget(&harness.state);
+    let budget = quiet_budget(&with_pairs(&harness));
 
     let pass = night_pass(
-        &harness.state,
+        &with_pairs(&harness),
         &harness.handle,
         &budget,
         at(23),
@@ -116,10 +121,10 @@ async fn night_pass_with_a_pair_the_reranker_rates_low_queues_nothing() -> anyho
     harness.enable_rerank(2_000);
     answering(&harness, 0.2).await;
     let (a, _) = embedded_pair(&harness).await?;
-    let budget = quiet_budget(&harness.state);
+    let budget = quiet_budget(&with_pairs(&harness));
 
     let pass = night_pass(
-        &harness.state,
+        &with_pairs(&harness),
         &harness.handle,
         &budget,
         at(23),
@@ -138,9 +143,9 @@ async fn night_pass_with_a_queued_pair_found_again_keeps_its_judged_mark() -> an
     harness.enable_rerank(2_000);
     answering(&harness, 0.9).await;
     let (a, _) = embedded_pair(&harness).await?;
-    let budget = quiet_budget(&harness.state);
+    let budget = quiet_budget(&with_pairs(&harness));
     night_pass(
-        &harness.state,
+        &with_pairs(&harness),
         &harness.handle,
         &budget,
         at(23),
@@ -155,7 +160,7 @@ async fn night_pass_with_a_queued_pair_found_again_keeps_its_judged_mark() -> an
     .await?;
 
     night_pass(
-        &harness.state,
+        &with_pairs(&harness),
         &harness.handle,
         &budget,
         at(23),
@@ -175,10 +180,10 @@ async fn night_pass_when_the_reranker_fails_queues_no_pair() -> anyhow::Result<(
     harness.enable_rerank(2_000);
     harness.reranker_answers(failing_answer()).await;
     let (a, _) = embedded_pair(&harness).await?;
-    let budget = quiet_budget(&harness.state);
+    let budget = quiet_budget(&with_pairs(&harness));
 
     let pass = night_pass(
-        &harness.state,
+        &with_pairs(&harness),
         &harness.handle,
         &budget,
         at(23),

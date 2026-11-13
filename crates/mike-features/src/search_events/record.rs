@@ -3,9 +3,9 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 use super::shown;
-use crate::api::handlers::SimilarTurnDto;
+use crate::api::handlers::turn_dto::SimilarTurnDto;
 use crate::api::rerank_search::RerankReport;
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::project_knowledge::KnowledgeQuery;
 use crate::store::persistence::search_events::NewSearchEvent;
 
@@ -32,13 +32,13 @@ impl SearchLog {
         self
     }
 
-    pub fn record(self, state: &AppState, session: Option<&str>) {
+    pub fn record(self, state: &KnowledgeState, session: Option<&str>) {
         spawn_record(state, session, self.0);
     }
 }
 
 pub fn record_turn_recall(
-    state: &AppState,
+    state: &KnowledgeState,
     session: Option<&str>,
     query: &str,
     turns: &[SimilarTurnDto],
@@ -108,7 +108,7 @@ fn state_label(state: Option<&str>) -> &'static str {
     }
 }
 
-pub fn spawn_record(state: &AppState, session: Option<&str>, draft: Draft) {
+pub fn spawn_record(state: &KnowledgeState, session: Option<&str>, draft: Draft) {
     let Some(persist) = state.persist().cloned() else {
         return;
     };

@@ -9,7 +9,7 @@ use crate::api::rerank_search::{
 use crate::search_ranking::{
     Candidate, RankingConfig, lift_identifier_rows, order, order_by_position, weigh_outside_project,
 };
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, ProjectIdentity, search_page};
 use crate::store::persistence::{PersistError, PersistHandle};
 
@@ -20,7 +20,7 @@ pub type QueryVector = crate::store::persistence::project_knowledge::QueryEmbedd
 pub type Searched = (Value, RerankReport, Passages);
 
 pub async fn search(
-    state: &AppState,
+    state: &KnowledgeState,
     handle: &PersistHandle,
     project: &ProjectIdentity,
     input: &KnowledgeQuery,
@@ -109,7 +109,7 @@ struct Stage {
 type Staged = (Vec<(Value, Option<f32>)>, RerankReport, Passages);
 
 async fn arrange_stage(
-    state: &AppState,
+    state: &KnowledgeState,
     handle: &PersistHandle,
     (input, vector): (&KnowledgeQuery, Option<&QueryVector>),
     stage: Stage,
@@ -170,7 +170,7 @@ async fn plain(
 }
 
 async fn rerank_rows(
-    state: &AppState,
+    state: &KnowledgeState,
     handle: &PersistHandle,
     input: &KnowledgeQuery,
     vector: Option<&QueryVector>,

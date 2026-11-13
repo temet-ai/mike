@@ -1,4 +1,4 @@
-use crate::dossier::build::assemble::parse_spans;
+use crate::wire::text_span::parse_spans;
 
 fn chars(text: &str) -> usize {
     text.chars().count()

@@ -1,6 +1,6 @@
 use serde_json::{Value, json};
 
-use crate::api::handlers::SimilarTurnDto;
+use crate::api::handlers::turn_dto::SimilarTurnDto;
 
 pub const SHOWN_RESULTS: usize = 10;
 pub const SHOWN_CHARS: usize = 1_500;

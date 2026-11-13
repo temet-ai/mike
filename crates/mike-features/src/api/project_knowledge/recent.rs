@@ -6,12 +6,12 @@ use serde_json::Value;
 use super::passage_excerpt::Passages;
 use super::rerank_page::{MAX_CANDIDATE_ROWS, QueryVector, Searched};
 use crate::api::rerank_search::RerankReport;
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::project_knowledge::{KnowledgeQuery, ProjectIdentity, search_page};
 use crate::store::persistence::{PersistError, PersistHandle};
 
 pub async fn search(
-    state: &AppState,
+    state: &KnowledgeState,
     handle: &PersistHandle,
     project: &ProjectIdentity,
     input: &KnowledgeQuery,

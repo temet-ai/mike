@@ -8,7 +8,7 @@ use crate::api::rerank_search::score;
 use crate::embed_worker::knowledge::model_key;
 use crate::search_ranking::Candidate;
 use crate::search_ranking::tuning::{GradeCandidate, reranked_order};
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::project_knowledge::KnowledgeQuery;
 use crate::store::persistence::search_grades::{NewGrade, UngradedEvent};
 use crate::store::persistence::{PersistError, PersistHandle};
@@ -23,7 +23,7 @@ pub enum Graded {
 }
 
 pub async fn grade_event(
-    state: &AppState,
+    state: &KnowledgeState,
     persist: &PersistHandle,
     event: &UngradedEvent,
 ) -> Result<Graded, PersistError> {
@@ -78,7 +78,7 @@ pub async fn grade_event(
 }
 
 pub async fn embed_query(
-    state: &AppState,
+    state: &KnowledgeState,
     query: &str,
 ) -> Option<crate::api::project_knowledge::rerank_page::QueryVector> {
     let service = state.embedding_service();
@@ -89,7 +89,7 @@ pub async fn embed_query(
 }
 
 pub async fn rerank_all(
-    state: &AppState,
+    state: &KnowledgeState,
     query: &str,
     documents: &[String],
 ) -> Option<Vec<Option<f64>>> {

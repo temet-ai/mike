@@ -54,7 +54,7 @@ impl AppState {
     pub fn injectable_lessons(
         &self,
         project_path: &str,
-    ) -> Vec<crate::lesson_worker::InjectableLesson> {
+    ) -> Vec<crate::lesson_cache::InjectableLesson> {
         self.lesson_cache.load().for_project(project_path).to_vec()
     }
 

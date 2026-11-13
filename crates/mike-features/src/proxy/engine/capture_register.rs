@@ -50,6 +50,7 @@ pub enum CaptureAndRegisterOutcome {
 }
 
 fn lesson_labels(
+    state: &AppState,
     signals: &RequestSignals,
     body: &bytes::Bytes,
     manifest: &mut crate::wire::manifest::ManifestBuilder,
@@ -59,7 +60,7 @@ fn lesson_labels(
     } else {
         "primary"
     };
-    let mod_lessons = crate::lesson_delivery::label_mod_lessons(body, manifest);
+    let mod_lessons = state.lesson_hooks().label_mod_lessons(body, manifest);
     (lane, signals.subagent_persona.clone(), mod_lessons)
 }
 
@@ -70,9 +71,9 @@ fn spawn_supply_records(
     (original, sent): (&bytes::Bytes, &bytes::Bytes),
     proxy_lessons: &[i64],
 ) {
-    crate::lesson_delivery::supplied::spawn_supply_records(
+    state.lesson_hooks().spawn_supply_records(
         state,
-        crate::lesson_delivery::supplied::SupplyCapture {
+        crate::state::lesson_hooks::SupplyCapture {
             request_id,
             session_id,
             original,
@@ -107,7 +108,7 @@ pub async fn capture_and_register(
     } = args;
 
     let (lesson_injection_lane, lesson_injection_persona, mod_lesson_ids) =
-        lesson_labels(&signals, body_bytes, &mut manifest);
+        lesson_labels(state, &signals, body_bytes, &mut manifest);
 
     let CapturePrepOutcome {
         mut intercepted,
@@ -260,20 +261,16 @@ async fn run_post_mint_attribution(args: PostMintAttributionArgs<'_>) {
     } = args;
 
     attribution::spawn_alter_decision_stamp(state, observed_composition_applied, session_id);
-    attribution::spawn_mod_lesson_attribution(
+    state.lesson_hooks().attribute(
         state,
-        session_id,
-        lesson_injection_lane,
-        mod_lesson_ids,
-        request_id,
-    );
-    attribution::spawn_lesson_injection_attribution(
-        state,
-        session_id,
-        lesson_injection_lane,
-        lesson_injection_persona,
-        injected_lesson_ids,
-        request_id,
+        crate::state::lesson_hooks::LessonAttribution {
+            session_id,
+            lane: lesson_injection_lane,
+            persona: lesson_injection_persona,
+            injected: injected_lesson_ids,
+            mod_lessons: mod_lesson_ids,
+            request_id,
+        },
     );
     attribution::stamp_steerer_sent(state, request_id, injected_reminders).await;
 

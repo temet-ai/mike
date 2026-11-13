@@ -14,6 +14,7 @@ pub mod outcomes;
 pub mod projection;
 pub mod projection_reads;
 pub mod reads;
+pub mod turn_locator;
 pub mod unjudged;
 
 pub use embedding::vector_to_text_literal;

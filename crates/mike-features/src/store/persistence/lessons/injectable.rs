@@ -1,10 +1,6 @@
 use crate::store::persistence::PersistError;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct ChangeMark {
-    pub generation: i64,
-    pub expired: i64,
-}
+pub use crate::lesson_cache::marks::ChangeMark;
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct InjectableLessonRow {

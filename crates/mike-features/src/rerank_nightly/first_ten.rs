@@ -3,7 +3,7 @@ use serde_json::Value;
 
 use super::grade::rerank_all;
 use crate::search_ranking::tuning::GradeCandidate;
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 
 pub const FIRST_TEN: usize = 10;
 
@@ -45,7 +45,7 @@ pub fn turn_query(query: &str, turn_prompt: Option<&str>) -> Option<String> {
 }
 
 pub async fn grade_first_ten(
-    state: &AppState,
+    state: &KnowledgeState,
     references: &[String],
     turn_query: Option<&str>,
     scored: &Scored<'_>,
@@ -87,7 +87,7 @@ pub async fn grade_first_ten(
 }
 
 async fn turn_scores(
-    state: &AppState,
+    state: &KnowledgeState,
     turn_query: Option<&str>,
     found: &[Option<usize>],
     documents: &[String],

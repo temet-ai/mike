@@ -3,8 +3,9 @@ use crate::store::persistence::lessons_repo::LessonsPersist as _;
 use std::collections::BTreeMap;
 
 use super::grade::rerank_all;
-use super::{Idle, Stop, database_failed};
-use crate::state::AppState;
+use super::{IdleCheck, PairsPhase, Stop, database_failed};
+use crate::semantic::KnowledgeState;
+use crate::semantic::knowledge_state::KnowledgeFuture;
 use crate::store::persistence::lesson_pair_candidates::NewPairCandidate;
 use crate::store::persistence::lesson_relations::CandidateLessonPair;
 use crate::store::persistence::{PersistError, PersistHandle};
@@ -20,9 +21,9 @@ struct Side<'a> {
 }
 
 pub async fn pairs_phase(
-    state: &AppState,
+    state: &KnowledgeState,
     persist: &PersistHandle,
-    idle: &impl Idle,
+    idle: &dyn IdleCheck,
     found: &mut usize,
 ) -> Option<Stop> {
     let projects = match persist
@@ -54,9 +55,9 @@ fn looser_threshold(configured: f64) -> f64 {
 }
 
 async fn project_pairs(
-    state: &AppState,
+    state: &KnowledgeState,
     persist: &PersistHandle,
-    idle: &impl Idle,
+    idle: &dyn IdleCheck,
     project_id: i64,
     threshold: f64,
 ) -> Result<Result<usize, Stop>, PersistError> {
@@ -92,14 +93,14 @@ async fn project_pairs(
 }
 
 async fn score_pairs(
-    state: &AppState,
-    idle: &impl Idle,
+    state: &KnowledgeState,
+    idle: &dyn IdleCheck,
     pairs: &[CandidateLessonPair],
 ) -> Result<Vec<f32>, Stop> {
     let mut best = vec![f32::MIN; pairs.len()];
     for forward in [true, false] {
         for side in sides(pairs, forward) {
-            if !idle.is_idle().await {
+            if !idle.idle_now().await {
                 return Err(Stop::MachineBusy);
             }
             let Some(scores) = rerank_all(state, side.query, &side.documents).await else {
@@ -151,4 +152,18 @@ fn sides(pairs: &[CandidateLessonPair], forward: bool) -> Vec<Side<'_>> {
             })
         })
         .collect()
+}
+
+pub struct LessonPairs;
+
+impl PairsPhase for LessonPairs {
+    fn run<'a>(
+        &'a self,
+        state: &'a KnowledgeState,
+        persist: &'a PersistHandle,
+        idle: &'a dyn IdleCheck,
+        found: &'a mut usize,
+    ) -> KnowledgeFuture<'a, Option<Stop>> {
+        Box::pin(pairs_phase(state, persist, idle, found))
+    }
 }

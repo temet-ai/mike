@@ -2,6 +2,7 @@
 //! [`super::content_injected_lesson_ids`] helper: session-start lesson
 //! injection, including the OD-2 topic/content-injection split.
 
+use super::session_lessons::*;
 use super::test_support::{noop_push_deps, user_turn_body};
 use super::*;
 use crate::extract::request::TurnOrigin;

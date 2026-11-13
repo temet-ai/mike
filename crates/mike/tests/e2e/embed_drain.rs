@@ -306,7 +306,7 @@ async fn embed_drain_clears_closed_unembedded_turns_when_infinity_up() -> anyhow
         "expected at least 1 pending turn before drain, got: {pending_before}"
     );
 
-    let drained = mike::embed_worker::run_drain_once(&state).await?;
+    let drained = mike::embed_worker::run_drain_once(&state.knowledge_state()).await?;
     assert!(
         drained >= 1,
         "run_drain_once must embed at least 1 turn, got {drained}"
@@ -376,7 +376,7 @@ async fn embed_drain_leaves_pending_when_infinity_down() -> anyhow::Result<()> {
     )
     .await?;
 
-    let drained = mike::embed_worker::run_drain_once(&state).await?;
+    let drained = mike::embed_worker::run_drain_once(&state.knowledge_state()).await?;
     assert_eq!(
         drained, 0,
         "drain with Infinity down must return 0 (graceful, not Err), got {drained}"

@@ -1,6 +1,6 @@
 use bytes::Bytes;
 
-use super::stage::SessionLessonsStage;
+use super::session_lessons_stage::SessionLessonsStage;
 use super::stage_test_support::{StageCtxFixture, make_ctx, user_turn_body};
 use crate::extract::request::TurnOrigin;
 use crate::feature_toggles::ResolvedToggles;

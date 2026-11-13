@@ -32,19 +32,7 @@ const MIN_SLUG_PHRASE_PARTS: usize = 2;
 const OPEN_STATUSES: &[&str] = &["active", "implementing", "review", "in-progress"];
 const DEFAULT_BRANCHES: &[&str] = &["main", "master"];
 
-#[derive(Debug, Clone)]
-pub struct ThreadFacts {
-    pub slug: String,
-    pub title: String,
-    pub goal: String,
-    pub status: String,
-    pub branch: Option<String>,
-    pub worktree: Option<String>,
-    pub last_session_uuid: Option<Uuid>,
-    pub last_checkpoint_at: DateTime<Utc>,
-    pub linked_sessions: BTreeSet<Uuid>,
-    pub checkout_dirs: BTreeSet<String>,
-}
+pub use crate::lesson_cache::keeper::ThreadFacts;
 
 #[derive(Debug, Clone)]
 pub struct SessionFacts<'a> {

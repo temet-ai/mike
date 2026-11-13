@@ -1,16 +1,15 @@
-use crate::store::persistence::eval_repo::EvalPersist as _;
 use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use serde_json::json;
 
 use super::{error, persist_error, unavailable};
 use crate::semantic::BUILDER_VERSION;
-use crate::state::AppState;
+use crate::semantic::KnowledgeState;
 use crate::store::persistence::semantic::{
     AssignmentFilter, CandidateDecision, CandidateMemberRow, PatternCandidateRow,
 };
@@ -36,7 +35,7 @@ pub struct AssignmentsQuery {
 }
 
 pub async fn list_pattern_assignments(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Query(q): Query<AssignmentsQuery>,
 ) -> Response {
     let Some(persist) = state.persist() else {
@@ -80,7 +79,7 @@ fn candidate_view(c: &PatternCandidateRow, members: &[CandidateMemberRow]) -> se
 }
 
 pub async fn list_pattern_candidates(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Query(q): Query<CandidatesQuery>,
 ) -> Response {
     let Some(persist) = state.persist() else {
@@ -135,12 +134,12 @@ fn decision_response(id: i64, d: CandidateDecision) -> Response {
 }
 
 pub async fn name_pattern_candidate(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Path(id): Path<i64>,
     headers: HeaderMap,
     Json(body): Json<NameBody>,
 ) -> Response {
-    if crate::api::eval::labels::spa_origin(&headers, &state).is_none() {
+    if crate::web_base::spa_origin::spa_origin(&headers, &state.config).is_none() {
         return error(StatusCode::FORBIDDEN, SPA_ONLY.to_owned());
     }
     let Some(persist) = state.persist() else {
@@ -166,12 +165,12 @@ pub async fn name_pattern_candidate(
 }
 
 pub async fn dismiss_pattern_candidate(
-    State(state): State<AppState>,
+    State(state): State<KnowledgeState>,
     Path(id): Path<i64>,
     headers: HeaderMap,
     body: Option<Json<DismissBody>>,
 ) -> Response {
-    if crate::api::eval::labels::spa_origin(&headers, &state).is_none() {
+    if crate::web_base::spa_origin::spa_origin(&headers, &state.config).is_none() {
         return error(StatusCode::FORBIDDEN, SPA_ONLY.to_owned());
     }
     let Some(persist) = state.persist() else {
@@ -184,46 +183,6 @@ pub async fn dismiss_pattern_candidate(
         .await
     {
         Ok(d) => decision_response(id, d),
-        Err(e) => persist_error(&e),
-    }
-}
-
-#[derive(Debug, Deserialize, Default)]
-pub struct DriftQuery {
-    pub stream: Option<String>,
-    pub from: Option<NaiveDate>,
-    pub to: Option<NaiveDate>,
-}
-
-pub async fn get_embedding_drift(
-    State(state): State<AppState>,
-    Query(q): Query<DriftQuery>,
-) -> Response {
-    let Some(persist) = state.persist() else {
-        return unavailable();
-    };
-    let rows = match persist
-        .knowledge()
-        .list_drift_rows(q.stream.as_deref(), q.from, q.to)
-        .await
-    {
-        Ok(rows) => rows,
-        Err(e) => return persist_error(&e),
-    };
-    let alarms = persist
-        .eval()
-        .list_eval_alarms(&crate::store::persistence::eval_metrics::AlarmsFilter {
-            state: crate::store::persistence::eval_metrics::AlarmState::All,
-            kind: Some("embedding_drift".to_owned()),
-            limit: MAX_LIMIT,
-            ..Default::default()
-        })
-        .await;
-    match alarms {
-        Ok((alarms, alarm_total)) => {
-            Json(json!({ "days": rows, "alarms": alarms, "alarm_total": alarm_total }))
-                .into_response()
-        }
         Err(e) => persist_error(&e),
     }
 }

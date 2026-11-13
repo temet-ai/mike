@@ -78,5 +78,8 @@ pub(super) fn register(router: Router<AppState>) -> Router<AppState> {
             "/api/semantic/patterns/candidates/{id}/dismiss",
             post(patterns::dismiss_pattern_candidate),
         )
-        .route("/api/semantic/drift", get(patterns::get_embedding_drift))
+        .route(
+            "/api/semantic/drift",
+            get(crate::api::eval::embedding_drift::get_embedding_drift),
+        )
 }

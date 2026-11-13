@@ -1,4 +1,5 @@
 pub mod agent_lessons;
+pub mod agent_lessons_stage;
 pub mod appender;
 pub mod change_record_tail;
 pub mod client_context;
@@ -11,6 +12,7 @@ pub mod seat_role;
 pub mod self_identity;
 pub mod session_lessons;
 pub mod session_lessons_query;
+pub mod session_lessons_stage;
 pub mod stage;
 pub mod workspace_briefing;
 
@@ -48,14 +50,10 @@ mod tests;
 pub mod workspace_briefing_stage_tests;
 
 pub use crate::config::reminders::RemindersConfig;
-pub use agent_lessons::{AgentLessonsRequest, apply_agent_lessons};
 pub use self_identity::{SelfIdentityRequest, apply_self_identity};
-pub use session_lessons::{SessionLessonsRequest, apply_session_lessons};
 
 use crate::store::RequestStore;
 use crate::store::models::{ReminderSource, RequestId, SystemReminder};
-#[cfg(test)]
-use session_lessons::{build_session_lesson_reminder_text, content_injected_lesson_ids};
 
 #[derive(Debug)]
 pub enum RemindersOutcome {

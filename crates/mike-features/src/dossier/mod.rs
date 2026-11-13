@@ -1,3 +1,4 @@
+pub use mike_base::dossier::*;
 pub mod build;
 pub mod entries;
 pub mod render;

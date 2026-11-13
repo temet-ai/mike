@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 
 use crate::analysis::embeddings::EmbeddingService;
-use crate::dossier::view::types::AsOfMode;
+use crate::dossier::as_of::AsOfMode;
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::semantic::{
     CandidateRow, CandidateSearch, EmbedderRow, FacetVector, ScopeFilter, vector_literal,

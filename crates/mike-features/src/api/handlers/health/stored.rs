@@ -163,7 +163,7 @@ async fn read_knowledge(state: &AppState) -> Option<serde_json::Value> {
         return None;
     }
     match probe::within(
-        crate::api::project_knowledge::embedding_capability(state),
+        crate::api::project_knowledge::embedding_capability(&state.knowledge_state()),
         REFRESH_READ_DEADLINE,
     )
     .await

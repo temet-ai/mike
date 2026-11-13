@@ -7,4 +7,5 @@ pub mod prompt_blocks;
 pub mod prompt_classify;
 pub mod read_dedup;
 pub mod steering_block;
+pub mod text_span;
 pub mod volatile;

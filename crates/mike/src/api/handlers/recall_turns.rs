@@ -84,8 +84,12 @@ async fn answer_recall(
         .resolve_knowledge_project(&body.project)
         .await
         .map_err(crate::api::project_knowledge::knowledge_error)?;
-    let (fetch, candidates) =
-        recall_turns_rerank::rows_to_fetch(&state, limit, &body.query, order.is_recent());
+    let (fetch, candidates) = recall_turns_rerank::rows_to_fetch(
+        &state.knowledge_state(),
+        limit,
+        &body.query,
+        order.is_recent(),
+    );
     let exclude_turn =
         own_turn_to_skip(handle, body.session_id.as_deref(), body.include_own_turn).await?;
     let window = RecallWindow {
@@ -94,8 +98,13 @@ async fn answer_recall(
     };
     let (rows, used_embedding) =
         recall_rows_hybrid(handle, &state, (&project, &body.query), window).await?;
-    let (ranked, rerank) =
-        recall_turns_rerank::order_turns(&state, &body.query, rows, (candidates, order)).await;
+    let (ranked, rerank) = recall_turns_rerank::order_turns(
+        &state.knowledge_state(),
+        &body.query,
+        rows,
+        (candidates, order),
+    )
+    .await;
 
     let degraded = !used_embedding;
     let retrieval_path = if used_embedding { "embedding" } else { "fts" };
@@ -121,7 +130,7 @@ async fn answer_recall(
         })
         .collect();
     crate::search_events::record_turn_recall(
-        &state,
+        &state.knowledge_state(),
         body.session_id.as_deref(),
         &body.query,
         &turns,

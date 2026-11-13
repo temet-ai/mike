@@ -2,7 +2,7 @@ use crate::store::persistence::knowledge_repo::KnowledgePersist as _;
 use chrono::{DateTime, Duration, NaiveDate, Utc};
 use serde::Serialize;
 
-use crate::dossier::view::types::{AsOf, AsOfMode};
+use crate::dossier::as_of::{AsOf, AsOfMode};
 use crate::store::persistence::PersistHandle;
 use crate::store::persistence::semantic::{EmbedderRow, TaggerBacktestCase, parse_vector};
 

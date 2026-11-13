@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 
 use axum::Json;
 use axum::extract::{Path, Query, State};
-use axum::http::{HeaderMap, StatusCode, header};
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
@@ -39,20 +39,8 @@ pub fn write_error(e: &LabelWriteError) -> Response {
 
 const GOLD_FORBIDDEN: &str = "gold labels are written from the mike UI only; an agent relays the operator's words with relay_label";
 
-fn header_text(headers: &HeaderMap, name: impl header::AsHeaderName) -> Option<String> {
-    headers
-        .get(name)
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_owned)
-}
-
 pub fn spa_origin(headers: &HeaderMap, state: &AppState) -> Option<SpaOrigin> {
-    SpaOrigin::checked(
-        header_text(headers, header::ORIGIN).as_deref(),
-        header_text(headers, header::HOST).as_deref(),
-        header_text(headers, "x-request-id"),
-        &state.config.spa_origins,
-    )
+    crate::web_base::spa_origin::spa_origin(headers, &state.config)
 }
 
 pub async fn get_vocabulary(State(state): State<AppState>) -> Response {

@@ -63,7 +63,7 @@ async fn sweep_continues_past_a_failing_candidate_to_embed_the_rest() -> anyhow:
     )
     .await?;
 
-    let outcome = mike::embed_worker::run_session_vector_sweep_once(&state)
+    let outcome = mike::embed_worker::run_session_vector_sweep_once(&state.knowledge_state())
         .await?
         .ok_or_else(|| anyhow::anyhow!("persistence is enabled; sweep must run"))?;
 

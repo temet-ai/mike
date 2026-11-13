@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::dossier::view::types::{AsOf, AsOfMode};
+use crate::dossier::as_of::{AsOf, AsOfMode};
 
 pub const RETRIEVAL_VERSION: &str = "retrieval-v1";
 

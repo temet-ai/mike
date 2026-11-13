@@ -2,8 +2,8 @@ use serde::Serialize;
 
 use crate::analysis::RerankError;
 use crate::analysis::rerank::{RerankScore, Reranked};
+use crate::semantic::KnowledgeState;
 use crate::semantic::egress::allow_rerank;
-use crate::state::AppState;
 
 #[cfg(test)]
 pub mod rerank_search_tests;
@@ -154,13 +154,13 @@ fn unavailable_reason(error: &RerankError) -> String {
     }
 }
 
-pub fn candidates_wanted(state: &AppState) -> Option<usize> {
+pub fn candidates_wanted(state: &KnowledgeState) -> Option<usize> {
     let config = state.rerank_service().current_config();
     config.enabled.then_some(config.candidates.max(1))
 }
 
 pub async fn score(
-    state: &AppState,
+    state: &KnowledgeState,
     query: &str,
     documents: &[String],
 ) -> Result<Reranked, RerankReport> {
